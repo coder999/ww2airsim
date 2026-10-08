@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { flySweep, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2. Requires a real GPU, so it runs on the Windows reference platform
+ * E2E. Requires a real GPU, so it runs on the Windows reference platform
  * against a dev server on nexus -- never in hosted CI, which has no GPU.
  *
  * These two checks are here because they need a GPU and need NO human
@@ -15,7 +15,7 @@ import { flySweep, waitForTerrain, type DiagWindow } from './harness.js'
  * the airplane actually starts in. `terrain.spec.ts` flies the same sweep over
  * Leyte at three altitudes, explicitly overridden away from that default; the
  * two are not redundant, because a parked start and airborne flight exercise
- * different halves of the renderer and this one is also the only Tier 2 test
+ * different halves of the renderer and this one is also the only E2E test
  * that covers the app with no query string at all -- which is exactly why it
  * has to wait for terrain below: a ground spawn holds the simulation still
  * until its heightfield arrives (frame.ts's `groundSpawn` field), so `tick()`
@@ -56,7 +56,7 @@ ${JSON.stringify(errors, null, 2)}`).toEqual([])
 })
 
 // Asset Quality Medium and above load terrain L0, an 8193x8193 texture, one
-// texel past WebGPU's default limit. Every other Tier 2 test boots at the
+// texel past WebGPU's default limit. Every other E2E test boots at the
 // default Low tier, which is how a black sky and black ground on every GPU
 // went unseen until Mark hit it on 2026-09-25 (renderer.ts's
 // `requiredDeviceLimits`).
@@ -64,7 +64,7 @@ test('Asset Quality Medium boots with zero WebGPU validation errors', async ({ p
   test.setTimeout(240_000)
   await page.addInitScript(() => window.localStorage.setItem('ww2airsim.assetQuality.v1', 'medium'))
   await page.goto('/')
-  // L0 is a 134 MB fetch; through the Tier 2 tunnel it outlasts
+  // L0 is a 134 MB fetch; through the E2E tunnel it outlasts
   // waitForTerrain's 30 s, which is sized for the default Low tier.
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 150_000,

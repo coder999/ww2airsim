@@ -63,7 +63,7 @@ function makePool(geometry: BufferGeometry, material: Material, capacity: number
   return mesh
 }
 
-/** What the in-flight bomb and rocket pools are drawing this frame, for the O1 Tier 2 diagnostic
+/** What the in-flight bomb and rocket pools are drawing this frame, for the O1 E2E diagnostic
  *  (`__ww2.ordnanceView`). */
 export interface OrdnanceView {
   readonly bombs: number; readonly rockets: number
@@ -82,7 +82,7 @@ export type OrdnanceHandle = {
   /** Swaps the bomb and rocket pools onto the generated store models (O1), disposing the
    *  primitive stand-in geometry/material they replace. */
   setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void
-  /** What the pools are drawing this frame, for the Tier 2 diagnostic (`__ww2.ordnanceView`). */
+  /** What the pools are drawing this frame, for the E2E diagnostic (`__ww2.ordnanceView`). */
   view(camera: PerspectiveCamera, heightPx: number): OrdnanceView
 }
 

@@ -168,12 +168,12 @@ type RenderView = Pick<FrameState, 'world' | 'eye' | 'poses' | 'shipPoses' | 're
 const validationErrors: string[] = []
 
 /** Ship models load through the shared cache; one that fails draws boxes AND lands in
- *  `validationErrors`, which Tier 2 asserts empty (ship-models spec §3.4). */
+ *  `validationErrors`, which E2E asserts empty (ship-models spec §3.4). */
 const loadShips = makeShipViewLoader((message) => { validationErrors.push(message) })
 
 /**
  * Frame intervals, milliseconds, since the last `window.__ww2.resetFrameTimes()`
- * -- the same `now - last` the dev overlay already shows, collected so Tier 2's
+ * -- the same `now - last` the dev overlay already shows, collected so E2E's
  * frame-budget test can take a percentile over a fixed window instead of
  * reading one number off a screenshot. Stops at `FRAME_TIME_CAPACITY` rather
  * than dropping the oldest sample; `diagnostics.ts` says why.
@@ -269,7 +269,7 @@ async function boot(): Promise<void> {
    * depth field) finish running. A `let` declared at its OLD narrative
    * position, well after those awaits, sat in its temporal dead zone for
    * that whole stretch: any New Game click landing in it -- trivially
-   * reachable by a scripted Tier 2 test, and not implausible for a fast
+   * reachable by a scripted E2E test, and not implausible for a fast
    * player -- threw `ReferenceError: Cannot access 'roster' before
    * initialization` out of `onNewGame`'s very first statement, silently
    * aborting the ENTIRE New Game action (a scenario switch included) with
@@ -474,7 +474,7 @@ async function boot(): Promise<void> {
    *
    * `worldFromScenario` is handed `null` and the field injected afterwards,
    * deliberately: with a real field it re-runs `assertLoopOverWater` over
-   * every ship's loop, which is a Tier 1 assertion on every commit
+   * every ship's loop, which is a Deterministic assertion on every commit
    * (`tests/sim/scenario.test.ts`) and has no business throwing in a browser
    * -- least of all out of the Restart button.
    *
@@ -818,7 +818,7 @@ async function boot(): Promise<void> {
   // Spec §5 steps 1 and 2: a saved choice is what this page load builds at,
   // `defaultQualitySettings('high')` (i.e. `OCEAN_TIERS[0]`, unchanged from
   // before this plan) when nothing is saved -- and a DEV `?oceanTier=`
-  // override still wins over both, which is what keeps a Tier 2 measurement
+  // override still wins over both, which is what keeps an E2E measurement
   // run reading its own query parameter rather than whatever localStorage on
   // that machine happens to hold.
   let oceanTier = forcedOceanTier ?? oceanTierNamed(quality.current().ocean)
@@ -844,7 +844,7 @@ async function boot(): Promise<void> {
     return null
   }
 
-  // Tier 2 diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
+  // E2E diagnostics hook (tests/e2e/adapter.spec.ts), guarded absent from
   // a production build: `import.meta.env.DEV` is replaced with the literal
   // `false` by Vite at build time, and esbuild's dead-code elimination drops
   // an `if (false)` block, the same pattern already used for `stepper`
@@ -947,7 +947,7 @@ async function boot(): Promise<void> {
       // honest answer for the gap. The world origin is the answer for the
       // narrower gap before the scenario itself has landed, because until
       // then nothing in the process knows where the airplane starts -- the
-      // spawn is content now (Plan 12). Every Tier 2 caller reads this after
+      // spawn is content now (Plan 12). Every E2E caller reads this after
       // `waitForTerrain`, i.e. long after both.
       aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
       // Instant replay: `replay` / `renderedPlayerPosition` are declared later
@@ -1042,7 +1042,7 @@ async function boot(): Promise<void> {
       // Read fresh every call, same reason `scenarioEntities` is read fresh
       // in the render loop: `loadScenario` reassigns `bundle` wholesale on
       // every call, including a Task 7 in-place switch -- see this member's
-      // own doc comment in diagnostics.ts for why a Tier 2 spec needs this
+      // own doc comment in diagnostics.ts for why an E2E spec needs this
       // rather than `groundHeightM()` to detect a switch completing.
       scenarioId: () => bundle?.scenario.id ?? null,
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
@@ -1075,13 +1075,13 @@ async function boot(): Promise<void> {
       // current frame's `World.combat` by the same adapter the readout's
       // tests cover. `null` before the first frame, like `impact`.
       combat: () => (frame ? combatDiagnosticsFor(frame) : null),
-      // O1: what the in-flight bomb/rocket pools are drawing this frame, for Tier 2
+      // O1: what the in-flight bomb/rocket pools are drawing this frame, for E2E
       // (tests/e2e/ordnance.spec.ts, Task 9).
       ordnanceView: () => ordnance.view(camera, window.innerHeight),
       // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
       clouds: () => ({
         layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
-        // Plan 16b: what the shadow pass is doing, for the Tier 2 budget.
+        // Plan 16b: what the shadow pass is doing, for the E2E budget.
         shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
@@ -1089,7 +1089,7 @@ async function boot(): Promise<void> {
       // Visual realism §2.1: read through the same closure-after-boot shape as
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
-      // E1: the effects pool, for the Tier 2 captures and budget.
+      // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
         tier: fxTier, capacity: fxSystem?.capacity() ?? 0, live: fxSystem?.live() ?? 0,
         drawn: fxPass?.count() ?? 0, sheetsFallback: fxSheets?.fallback ?? false, cpuMs: fxCpuMs,
@@ -1904,7 +1904,7 @@ async function boot(): Promise<void> {
   // `nextFrameState`, just like the throttle cut.
   let pendingDropBomb = false
   let pendingFireRockets = false
-  // And the gear and flap levers. Found 2026-09-17 by a Tier 2 screenshot:
+  // And the gear and flap levers. Found 2026-09-17 by an E2E screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
   // in the held set. A human tap is several frames, so nobody had noticed --
@@ -2686,7 +2686,7 @@ async function boot(): Promise<void> {
     // translated by -eye above) keeps the horizon centred under the camera
     // horizontally. It is deliberately NOT re-centred vertically (y stays 0),
     // so the horizon sits very slightly below eye level at any nonzero
-    // altitude -- e.g. about 0.76 degrees at a Tier 2 spawn 600 m up against
+    // altitude -- e.g. about 0.76 degrees at an E2E spawn 600 m up against
     // the dome's 45,000 m radius (atan(600/45000); negligible at the parked
     // default's few metres) -- rather than exactly at it. Fixing the
     // horizontal drift is what matters: left unfixed, it is unbounded over a
@@ -2839,7 +2839,7 @@ async function boot(): Promise<void> {
     // 1.84 ms either way) and halves the frame rate only while the GPU is
     // heavy AND samples are still wanted: the first FRAME_TIME_CAPACITY
     // frames after boot or a `resetFrameTimes()`, i.e. the tier choice and
-    // a Tier 2 budget window. Production tracks timestamps too
+    // an E2E budget window. Production tracks timestamps too
     // (`initRenderer(canvas, true)`, for the ocean tier choice), so it
     // serializes for those first frames as well; corrected 2026-10-08, this
     // said production never tracks them.

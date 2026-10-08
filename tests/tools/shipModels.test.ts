@@ -8,7 +8,7 @@ import { bounds, fitProblems, residualProblems, surfaceBelow, trapLaneHalfWidth,
 import { loadShipSpec } from '../../tools/content/load.js'
 
 /**
- * Tier 1 for every committed ship glb (ship-models spec §9, items 1-5), on a
+ * Deterministic for every committed ship glb (ship-models spec §9, items 1-5), on a
  * fresh clone: the COMMITTED bytes, re-measured against the LIVE
  * content/ships/<id>.json. Budgets, extensions, BLEND, metalness, source,
  * license and the ASSETS.md row are tests/tools/models/outputs.test.ts's,

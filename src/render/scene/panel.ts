@@ -92,7 +92,7 @@ export type Panel = {
   }
   /** The radar scope's physical face mesh (Plan 17). `createPanel` gives it
    *  a plain, headless-safe fallback material (matching the old placeholder
-   *  color) so Tier 1's `createPanel(f6f, () => null)` keeps working with
+   *  color) so Deterministic's `createPanel(f6f, () => null)` keeps working with
    *  no GPU or canvas; the browser-only `radarScope.attachTo` (main.ts)
    *  replaces it with the live scope texture at startup, the same
    *  construction-vs-browser-enhancement split `TextTextureFactory`

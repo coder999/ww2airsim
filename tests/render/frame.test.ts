@@ -457,7 +457,7 @@ describe("the player's crash holds the world (Plan 12)", () => {
     // not stop the carrier or an AI Zero (spec §4) -- so the end of the
     // PLAYER's flight is `nextFrameState`'s `holding`, alongside pause and the
     // ground-spawn terrain wait. Deleting `|| player.impact !== null` from
-    // that expression leaves every other Tier 1 test in this repo green while
+    // that expression leaves every other Deterministic test in this repo green while
     // the wreck flies on, which is exactly why this case exists.
     let f = initialFrameState(
       f6f,

@@ -52,7 +52,7 @@ or catapult data sits behind it.
 
 Options: **true** if the type really operated from carriers, else **false**.
 Recommend the historical answer, and when true, require a carrier
-takeoff-and-trap Tier 2 run in D14 rather than trusting the flag. Note a
+takeoff-and-trap E2E run in D14 rather than trusting the flag. Note a
 carrier-capable airframe needs a gear height and stall speed that let the
 existing carrier landing model work; a miss there is a finding to report, not
 a coefficient to tune (R36).
@@ -181,7 +181,7 @@ sourced limit forbids. A bomber flown by AI is deferred.
 Ask:
 
 1. **Library card.** Name, roster name, blurb, history, dated sources.
-   Tier 1 checks the roster in `GAMEPLAY.md`.
+   Deterministic checks the roster in `GAMEPLAY.md`.
 2. **Scenarios.** Options: none (picker only), or named shipped scenarios.
    Recommend none until the airframe passes Part F.
 3. **Acceptance.** Recommend the tolerances the graded suite already holds
@@ -284,7 +284,7 @@ not ship.
    failing pairing goes on its dated exception list or gets more wind; never
    weaken a threshold.
 
-## Part G: Tier 2
+## Part G: E2E
 
 Run `tests/e2e/hangar.spec.ts` and the aircraft's own spec on a worktree dev
 server. The Hangar checks that pin node lists and mount counts (9 and 11)
@@ -354,7 +354,7 @@ Detail: [`docs/handoff/2026-09-29-f4u-corsair.md`](handoff/2026-09-29-f4u-corsai
 - `remote-run npm run verify` stops at the first failing stage. Run the later stages
   separately to see the whole picture, and check a red test against the base commit
   before assuming it is yours.
-- On nexus, Tier 2 needs `sg render -c '...'`; without it Chromium falls to
+- On nexus, E2E needs `sg render -c '...'`; without it Chromium falls to
   SwiftShader and every test fails at the software-rasterizer page.
 - No browser spec flies a carrier approach for any airplane. Cover the trap at the sim
   level: `tests/sim/trap.test.ts` enrolls every `carrierCapable` airframe from content
@@ -492,7 +492,7 @@ Detail: [`docs/handoff/2026-09-30-ki84-onboard.md`](handoff/2026-09-30-ki84-onbo
   grid of pairs and break the tie with the climb, and say that you did.
 - **The catalog test's model-only fixture is a real card.** `tests/render/hangar/catalog.test.ts` used the Ki-84 card as its "display-only"
   example; it now strips `spec` from a copy. Any card onboarded next needs no change there.
-- **A scratch vitest prints nothing by default:** `--silent=false --reporter=verbose`. And check `ss -ltn` for the Tier 2 port before starting
+- **A scratch vitest prints nothing by default:** `--silent=false --reporter=verbose`. And check `ss -ltn` for the E2E port before starting
   vite: `--strictPort` fails and the curl then reaches someone else's server.
 ## Lessons from the seventh run (Ki-21-IIb Sally, 2026-09-30)
 

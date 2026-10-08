@@ -17,7 +17,7 @@ Last full bake: `docs/handoff/2026-09-28-e2-flipbooks.md`.
   `hwlock blender` shim. Frames stage in `~/fxbake-local/<checkout>/`.
   Both hosts can bake different sheets at once.
 - **Take `hwlock -s ryzen`** around a ryzen bake, so it never overlaps an
-  exclusive Tier 2 budget measurement: `hwlock -s ryzen npx tsx tools/fx/render.ts smoke`.
+  exclusive E2E budget measurement: `hwlock -s ryzen npx tsx tools/fx/render.ts smoke`.
 - **The pack runs on nexus** (`nice -n 10`). It is CPU-light, and all it
   needs is the frames.
 

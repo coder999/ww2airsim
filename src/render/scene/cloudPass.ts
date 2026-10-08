@@ -64,7 +64,7 @@ export type CloudPass = {
    *  teleport, respawn, scenario switch, unpause, long stall). */
   resetHistory(): void
   /** Frames resolved without history since boot (every reset, the first
-   *  frame and every resize), for the Tier 2 discontinuity case. */
+   *  frame and every resize), for the E2E discontinuity case. */
   historyResets(): number
   /** Measures `ReprojectionResidual` on the next rendered frame (DEV
    *  diagnostic; the pass it needs is compiled on first use only). */

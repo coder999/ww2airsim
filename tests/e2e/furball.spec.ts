@@ -3,10 +3,10 @@ import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
- * Tier 2, Plan 7e (AI 7c spec §4.7): `furball-range` in the shipped app on the
+ * E2E, Plan 7e (AI 7c spec §4.7): `furball-range` in the shipped app on the
  * reference GPU. What only this tier proves: six airframes on two sides flown
  * by five choosing pilots through the real frame loop, an AI shooting another
- * AI down (not merely firing), with every airframe in the world. Tier 1's soak (`tests/sim/ai/furball.test.ts`) proves the same kill
+ * AI down (not merely firing), with every airframe in the world. Deterministic's soak (`tests/sim/ai/furball.test.ts`) proves the same kill
  * headless; the wingman bounces pair A's green at tick 24 in every loadout.
  */
 const FURBALL = `/?${SCENARIO_PARAM}=furball-range`

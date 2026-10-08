@@ -4,14 +4,14 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { PILOT_SKILL_PARAM, SCENARIO_PARAM, SPAWN_PARAMS, hasSpawnOverride, initialAircraftState, pilotSkillFromQuery, scenarioIdFromQuery, spawnPositionFromQuery, quickLaunchFromQuery } from '../../src/render/spawn.js'
 
 /**
- * `spawn.ts` carries the `?spawnX/Y/Z` override Tier 2 uses to put the
+ * `spawn.ts` carries the `?spawnX/Y/Z` override E2E uses to put the
  * airplane somewhere else entirely -- over Leyte at altitude, or over open
  * water -- and the pre-scenario spawn constructor `main.ts` still calls.
  * Where the airplane starts by DEFAULT is content now (Plan 12, Task 5):
  * `content/bases/tacloban.json`, tested in `tests/sim/world/airfields.test.ts`
  * and `tests/sim/scenario.test.ts`, not here. Tested here rather than only on
  * the GPU for the obvious reason -- it is pure -- and for a less obvious one:
- * a bug here does not make the Tier 2 terrain tests FAIL, it makes them pass
+ * a bug here does not make the E2E terrain tests FAIL, it makes them pass
  * while flying over open water, which is the failure class this whole plan
  * keeps guarding against.
  */
@@ -79,7 +79,7 @@ describe('spawnPositionFromQuery', () => {
   })
 
   it('accepts a negative, fractional and exponent-form coordinate', () => {
-    // `-45000` and `-47605` are the real Tier 2 spawn; the rest are here
+    // `-45000` and `-47605` are the real E2E spawn; the rest are here
     // because `Number` accepts them and a hand-rolled parser might not.
     expect(spawnPositionFromQuery('?spawnX=-1.5&spawnY=1e3&spawnZ=+2', FALLBACK)).toEqual({ x: -1.5, y: 1000, z: 2 })
   })
@@ -138,10 +138,10 @@ describe('initialAircraftState', () => {
   })
 
   it('leaves an airborne override exactly as it was before Task 14', () => {
-    // A DEV `?spawnX/Y/Z` spawn is already flying, and Tier 2's terrain and
+    // A DEV `?spawnX/Y/Z` spawn is already flying, and E2E's terrain and
     // ocean specs are written against this behavior: 120 m/s due EAST, gear
     // retracted, wings level. Turning those spawns north with the parked one
-    // would silently move every Tier 2 flight path.
+    // would silently move every E2E flight path.
     const s = initialAircraftState(at, false)
     expect(s.velocity).toEqual(v3(120, 0, 0))
     expect(s.gearFraction).toBe(0)

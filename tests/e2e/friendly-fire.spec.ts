@@ -4,11 +4,11 @@ import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
- * Tier 2, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
+ * E2E, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
  * reference GPU. What only this tier proves: the whole chain through the
  * shipped DOM -- the radio line's call, the debrief's stamp and forfeit
  * line with no Continue, and the roster row, chip and Dossier after Return
- * to title. Tier 1 (tests/render/discharge.test.ts) proves the same models
+ * to title. Deterministic (tests/render/discharge.test.ts) proves the same models
  * headless; none of it can see `debrief.ts`'s `show()` or the title's chip.
  *
  * Two endings, because the dead cannot be discharged (Mark, 2026-09-26,

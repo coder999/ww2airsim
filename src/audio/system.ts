@@ -16,7 +16,7 @@ import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ,
  * function next to it, and Plan 3 shipped the whole assists layer inert in the
  * browser for the same reason. Design §7.
  */
-/** What the audio system is doing, for Tier 2 (tests/e2e/audio.spec.ts).
+/** What the audio system is doing, for E2E (tests/e2e/audio.spec.ts).
  *  A granular value, not the system itself: a test that could reach in and
  *  drive it would stop being evidence about what the game does. */
 export type AudioSnapshot = {

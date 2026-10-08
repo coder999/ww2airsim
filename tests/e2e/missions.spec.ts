@@ -4,7 +4,7 @@ import { loadScenario } from '../../tools/content/load.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
 /**
- * Tier 2, M3 and M4: the shipped missions end to end on the reference GPU.
+ * E2E, M3 and M4: the shipped missions end to end on the reference GPU.
  * Each test picks its mission on Sortie Orders with a new pilot, checks the
  * briefing, launches, checks the objective line, the opening radio call and
  * the chart, then ends the flight its own way and checks the debrief. The

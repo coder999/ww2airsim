@@ -12,7 +12,7 @@ import type { StrafePass } from './strafePilot.js'
  * 2026-09-29-gunnery-range-strafing-pass), built in Node where the content and
  * the terrain are, and handed to the pilot in whichever tier flies it.
  *
- * Tuned in Tier 1 on 2026-09-29 against the shipped start (1,500 m south of
+ * Tuned in Deterministic on 2026-09-29 against the shipped start (1,500 m south of
  * the target at 70 m, 70 m/s): target-1 died 16-19 s in with 12 hits, the
  * pull-out cleared the targets by 13-16 m and the airplane came to rest
  * 480-530 m short of the north end of the runway, over start offsets of

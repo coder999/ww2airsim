@@ -10,7 +10,7 @@ import { createSettingsModel, type SettingsModel } from './settings.js'
  * `docs/superpowers/specs/2026-09-24-render-quality-selector-design.md` §5.
  *
  * ITS OWN MODULE, rather than thirty more lines inside `boot()`, for one
- * reason: `main.ts` is unreachable from the Tier 1 suite. It imports Three.js,
+ * reason: `main.ts` is unreachable from the Deterministic suite. It imports Three.js,
  * builds a WebGPU renderer and runs one 1,700-line async function, so every
  * decision left inside it is a decision no test can execute -- and the
  * decision this task most needs a test for is the one three separate reviews

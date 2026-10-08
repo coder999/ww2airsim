@@ -3,7 +3,7 @@ import { debriefDialog, hopClear, landAndStop, waitForScenario, type DiagWindow 
 import { loadScenario } from '../../tools/content/load.js'
 
 /**
- * Tier 2, M2: the mission UI end to end on the reference GPU, against the
+ * E2E, M2: the mission UI end to end on the reference GPU, against the
  * DEV fixtures (content/scenarios/dev-mission-*.json; M2 open question 1).
  * Real physics throughout: the takeoff and landings are hopClear/landAndStop's
  * measured hop (dossier.spec.ts, meta-game.spec.ts). From the gunnery spot,

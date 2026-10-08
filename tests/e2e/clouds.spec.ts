@@ -4,7 +4,7 @@ import { CLOUD_TIER_PARAM } from '../../src/render/scene/clouds.js'
 import { loadAirfield } from '../../tools/content/load.js'
 
 /**
- * Tier 2, clouds (Plan 16a). Screenshots are READ by the executor, not just
+ * E2E, clouds (Plan 16a). Screenshots are READ by the executor, not just
  * taken; the numbers are the budget of design §6. Same platform and caveats
  * as `adapter.spec.ts`.
  */

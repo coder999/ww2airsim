@@ -19,8 +19,8 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
  * `src/render/main.ts` is the only production caller and passes
  * `current.world.wind` to both `updatePanel` and `flightData.update`;
  * `tests/render/gauges.test.ts` and `tests/render/cockpitFeedback.test.ts`
- * pin the wind case itself, but main.ts has no Tier 1 test (see `audio.ts`'s
- * header for why that gap exists), so the deck-quals Tier 2 test pins the displayed SPD in wind.
+ * pin the wind case itself, but main.ts has no Deterministic test (see `audio.ts`'s
+ * header for why that gap exists), so the deck-quals E2E test pins the displayed SPD in wind.
  * The panel test also pins its needle and numeric readout together.
  */
 export type Wind = Vec3 | null

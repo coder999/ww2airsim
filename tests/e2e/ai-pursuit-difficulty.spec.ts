@@ -4,7 +4,7 @@ import { PILOT_SKILL_PARAM, SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { isBehind } from './pursuitGeometry.js'
 
 /**
- * Tier 2, Plan 7d. The actual acceptance bar Mark's complaint sets: not
+ * E2E, Plan 7d. The actual acceptance bar Mark's complaint sets: not
  * "some noise exists" but "a human-equivalent scripted evasion pattern can
  * now get behind pursuer-1 at green skill within a bounded time window,
  * where it could not before this change" (spec §5).
@@ -30,7 +30,7 @@ import { isBehind } from './pursuitGeometry.js'
  * **2026-09-25: the geometry this spec was written against moved.**
  * `pursuit-range` is now a head-on merge at 2.5 km with a GREEN pursuer (the
  * shootdown spike; `tests/sim/pursuitMerge.test.ts`), and the old tail chase
- * lives on only as the Tier 1 fixture
+ * lives on only as the Deterministic fixture
  * `tests/fixtures/scenarios/pursuit-tail-chase.json`. No URL parameter can
  * load a fixture (`?scenario=` is whitelisted to the title screen's list by
  * `isKnownScenarioId`), so this spec now runs against the head-on start.
@@ -39,10 +39,10 @@ import { isBehind } from './pursuitGeometry.js'
  * evasion keys mean something else; re-measure, or retire the spec along
  * with the geometry, before reading its result as the Plan 7d bar.
  *
- * **7c, 2026-09-26.** The Tier 1 replica of this spec on the head-on start
+ * **7c, 2026-09-26.** The Deterministic replica of this spec on the head-on start
  * (keys from t = 0, the world frozen at the player's sea impact at
  * 25.7-26.5 s) is never behind, before or after 7c. The 7d bar of record is
- * now the Tier 1 replica on the frozen tail chase
+ * now the Deterministic replica on the frozen tail chase
  * (`tests/render/aiLethality.test.ts`, item 3: behind at 18-19 s, pursuer
  * alive). Result of this spec on the reference GPU after 7c: GREEN
  * (2026-09-26, `ww2airsim-3` slot, 2560x1440: the post-poll screenshot is at

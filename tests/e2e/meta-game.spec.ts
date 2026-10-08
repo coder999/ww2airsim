@@ -4,9 +4,9 @@ import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
- * Tier 2, Plan 9 Task 8: the whole meta-game acceptance, all three pieces
+ * E2E, Plan 9 Task 8: the whole meta-game acceptance, all three pieces
  * (pilot roster, live scoring, dynamic scenario switching) proven together
- * in one real session -- design doc §7's Tier 2 acceptance. Same platform
+ * in one real session -- design doc §7's E2E acceptance. Same platform
  * and caveats as `adapter.spec.ts`: the reference GPU on the Windows
  * desktop, never hosted CI.
  *

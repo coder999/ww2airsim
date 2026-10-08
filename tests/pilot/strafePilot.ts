@@ -7,7 +7,7 @@ import { inBody, tupleVector } from '../../src/sim/weapons/geometry.js'
 import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
 
 /**
- * The Tier 1 / Tier 2 test pilot for a strafing pass that ends in a landing
+ * The Deterministic / E2E test pilot for a strafing pass that ends in a landing
  * straight ahead (plan 2026-09-29-gunnery-range-strafing-pass). Pure: the
  * same function flies `tests/sim/gunneryRangePass.test.ts` in Node and
  * `tests/e2e/pilot.ts` in the page, which imports this file from the dev

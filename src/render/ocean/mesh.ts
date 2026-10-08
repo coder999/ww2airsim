@@ -108,7 +108,7 @@ export function oceanGeometry(rings: readonly Ring[]): BufferGeometry {
  * land-weight lookup landed a quarter of the way across the box -- over Leyte
  * for most of the gulf -- and the waves silently vanished. `gridSampleAt`
  * below is the CPU statement of these lines; `oceanLandWeight` in the
- * diagnostics hook reads it against the live texture, and the ocean Tier 2
+ * diagnostics hook reads it against the live texture, and the ocean E2E
  * scene test asserts it over open water.
  */
 function depthNode(halfExtentM: number, tex: DataTexture, worldXZ: Node<'vec2'>, signed = false): Node<'float'> {

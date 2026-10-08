@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { debriefDialog, spawnUrl, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
- * Tier 2, the title screen's scenario picker. Plan 9 Task 7: picking a
+ * E2E, the title screen's scenario picker. Plan 9 Task 7: picking a
  * scenario no longer navigates to `?scenario=<id>` and reloads -- it swaps
  * the entity list in place, via `main.ts`'s `loadScenario`. What only a
  * browser can prove is that this stays true end to end: the URL never

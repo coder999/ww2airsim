@@ -3,7 +3,7 @@ import { RANK_LADDER, type PilotRecord, type Rank } from './roster.js'
 import { TARGET_TYPES } from '../sim/weapons/targetType.js'
 
 /**
- * The pilot Dossier (dossier spec §B.4): a pure model for Tier 1 and a thin
+ * The pilot Dossier (dossier spec §B.4): a pure model for Deterministic and a thin
  * memo-sheet DOM, the debrief.ts split. Every pilot-supplied string reaches
  * the DOM through `textContent` only.
  */

@@ -5,7 +5,7 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { loadAirfield } from '../../tools/content/load.js'
 
 /**
- * Tier 2, cloud shadows (Plan 16b). Screenshots are READ by the executor;
+ * E2E, cloud shadows (Plan 16b). Screenshots are READ by the executor;
  * the numbers are design §6. Same console-error guard as clouds.spec.ts:
  * a TSL graph that fails to build is a black frame with zero validation
  * errors, so every case also fails on a three console error.

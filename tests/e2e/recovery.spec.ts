@@ -5,9 +5,9 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
 /**
- * Tier 2, Plan 7g (landing AI): `recovery-range` in the shipped app on the
+ * E2E, Plan 7g (landing AI): `recovery-range` in the shipped app on the
  * reference GPU. Two homed AI Hellcats, `ai-tac` to Tacloban and `ai-cv` to
- * the carrier `cv-1`, fly home and land through the real frame loop. Tier 1
+ * the carrier `cv-1`, fly home and land through the real frame loop. Deterministic
  * (`tests/sim/ai/recoveryRange.test.ts`) proves the same landings headless at
  * ~393 s and ~405 s of sim time; what only this tier proves is that they
  * happen in the running app, that the carrier AI comes to rest on the deck

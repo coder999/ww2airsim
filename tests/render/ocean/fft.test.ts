@@ -11,7 +11,7 @@ describe('the reference FFT against a naive inverse DFT', () => {
   // Two independent implementations of ONE transform. The naive version is
   // O(n^2) and obviously correct by inspection; the FFT is fast and not.
   // This is the only test in the plan that establishes the transform itself,
-  // and Tier 2 compares the GPU against the same code.
+  // and E2E compares the GPU against the same code.
   //
   // Both sides are the INVERSE transform in the same convention: positive
   // exponent, no 1/N scaling. Comparing an inverse against a forward DFT

@@ -6,7 +6,7 @@ import { VIEWS, withParams } from './views.js'
 import { count, decode, rowStep, warm, white, type Rgba } from './fxPixels.js'
 import type { FxStressName } from '../../src/render/fx/stress.js'
 
-/** Effects engine, reference GPU (ordnance-and-effects design §7, Tier 2).
+/** Effects engine, reference GPU (ordnance-and-effects design §7, E2E).
  *  Captures go to FX_SHOTS_DIR (Task 13 commits them with the handoff). */
 const SHOTS = process.env.FX_SHOTS_DIR ?? 'test-results/fx-shots'
 test.setTimeout(180_000)

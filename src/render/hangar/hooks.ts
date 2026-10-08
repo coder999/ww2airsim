@@ -8,7 +8,7 @@ import type { CountsReport } from './budgets.js'
 
 /**
  * `window.__hangar`, present in every build, the same policy as the game's
- * `__ww2` (Hangar spec §10). Tier 2 (tests/e2e/hangar.spec.ts) drives the
+ * `__ww2` (Hangar spec §10). E2E (tests/e2e/hangar.spec.ts) drives the
  * page only through this. `tick` and `setModelVisible` are additions to the
  * spec's list: `tick` makes "two frames 1/60 s apart" exact while frozen,
  * `setModelVisible` renders the empty frame the pixel masks subtract, and
@@ -25,7 +25,7 @@ export interface HangarHooks {
   camera(preset: CameraPreset): void
   freeze(): void
   setModelVisible(visible: boolean): void
-  /** The selected model drawn unlit, in its own paint; selecting another model relights (Tier 2 check 5, R3). */
+  /** The selected model drawn unlit, in its own paint; selecting another model relights (E2E check 5, R3). */
   setUnlit(on: boolean): void
   /** The selected entry's id, kind and bench parts; null before the first select. */
   current(): { readonly id: string; readonly kind: LibraryKind; readonly parts: readonly PartSpec[] } | null
@@ -40,7 +40,7 @@ export interface HangarHooks {
   /** The selected model's counts against its manifest budget; null before the first select (H2). */
   counts(): CountsReport | null
   /** Where the selected aircraft's store mounts fall on the canvas, in NDC through the stage
-   *  camera; [] for anything else (O1, Tier 2 check 11). */
+   *  camera; [] for anything else (O1, E2E check 11). */
   storeMounts(): readonly { readonly id: string; readonly ndc: readonly [number, number] }[]
   readonly validationErrors: string[]
 }

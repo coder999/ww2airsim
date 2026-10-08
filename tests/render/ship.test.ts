@@ -11,7 +11,7 @@ import { loadShipSpec } from '../../tools/content/load.js'
  * actually reach the geometry -- and that the mesh is authored in the frame
  * `main.ts` poses it in: bow along local +x, waterline at local y = 0. Get
  * either wrong and the ship sails sideways or floats above its own wake,
- * which is a Tier 3 finding, not a Tier 1 one.
+ * which is a Tier 3 finding, not a Deterministic one.
  *
  * `createShipMesh` returns a HANDLE, `{ root, setDamage }` (Plan 6b Task 8),
  * not the bare `Object3D` it used to: `root` is the exact object `main.ts`
@@ -249,7 +249,7 @@ describe('makeShipViewLoader: the loud fallback (spec §3.4)', () => {
   })
 })
 
-describe('probeShipSurface (the Tier 2 deck probe, spec §9)', () => {
+describe('probeShipSurface (the E2E deck probe, spec §9)', () => {
   it('finds the posed deck under ship-frame and world points, the trap band on top of it, and nothing off the ship', () => {
     const cv = loadShipSpec('essex-cv')
     const fd = cv.flightDeck!, tz = cv.trapZone!
@@ -268,7 +268,7 @@ describe('probeShipSurface (the Tier 2 deck probe, spec §9)', () => {
 
   it('answers in sim metres under the floating origin, where the scene sits at minus the eye', () => {
     // main.ts sets `scene.position` to `worldOffsetFor(eye)` every frame and
-    // adds each ship root straight to the scene. The first Tier 2 run
+    // adds each ship root straight to the scene. The first E2E run
     // (2026-09-26) read null under the parked airplane: the world points and
     // the returned heights were in three's shifted frame, not the sim's.
     const cv = loadShipSpec('essex-cv')

@@ -4,7 +4,7 @@ import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 /**
- * Tier 2, Task 9 (2026-09-24-plan-ui-realism): the reference-GPU acceptance
+ * E2E, Task 9 (2026-09-24-plan-ui-realism): the reference-GPU acceptance
  * for everything the plan's first 8 tasks built -- the Settings dialog
  * (Render Quality / Asset Quality / Damage Model, Tasks 1/5/6), the
  * naval-comms visual redesign of the roster and debrief screens (Tasks 4/7/8)
@@ -300,7 +300,7 @@ test('Damage Model Arcade: a hard-G/overspeed maneuver does not destroy the airf
 
   // Same production dive-and-pull-out `structural-overload.spec.ts` (Realistic)
   // exercises, so the two are a real apples-to-apples comparison run in the
-  // same Tier 2 session.
+  // same E2E session.
   await page.keyboard.down('Equal')
   await page.waitForTimeout(3_500)
   await page.keyboard.up('Equal')
@@ -347,7 +347,7 @@ test('Damage Model Arcade: a hard-G/overspeed maneuver does not destroy the airf
   const afterHold = await combat(page)
   // The claim under test: the airframe survives an overstress that would
   // destroy it under Realistic (see structural-overload.spec.ts's own dive,
-  // run in this same Tier 2 session for a direct comparison) -- structure
+  // run in this same E2E session for a direct comparison) -- structure
   // never left 1, even though the PEAK fields (monotonic, unlike the
   // instantaneous booleans above) prove the overstress genuinely happened
   // and was not just missed.

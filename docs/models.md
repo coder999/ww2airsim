@@ -119,19 +119,19 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   They have no sim spec and no `view.model`; the Hangar draws one in place
   of one, through a Library entry's `model` (R1, step 8).
 
-Tier 1 fails if a spec names a model id that is not registered.
+Deterministic fails if a spec names a model id that is not registered.
 
 ## 8. Library entry
 
 Add `content/library/<id>.json` with a name, blurb, history and dated
-sources (Hangar spec §4). Tier 1 checks the library against the rosters in
+sources (Hangar spec §4). Deterministic checks the library against the rosters in
 `GAMEPLAY.md`.
 
 An entry may also carry an optional `model: { "kind", "id" }` (R1), where
 `kind` must equal the entry's own kind (`aircraft`, `ship`, `building` or
 `vehicle`). The Hangar draws it in place of the spec's `view.model`; with no
 spec, the entry reads "not in the game yet" instead of "not yet in service".
-Tier 1 checks that every `model` resolves: it is registered (step 7), has a
+Deterministic checks that every `model` resolves: it is registered (step 7), has a
 manifest entry, sits in the right output folder, and its glb is committed.
 Every entry must now arrive with its model: R5 deleted the allowlist, and
 `tests/render/hangar/roster.test.ts` asserts that nothing is undrawn.
@@ -200,7 +200,7 @@ inspection. Blender must be exactly the version pinned in
 `tools/models/blender/run.ts`, and every run goes through that file's
 `runBlenderScript`: it is what makes a raising script fail. Tests that need
 Blender skip by name without it. Both nexus and ryzen have it (the blender.org
-build, since 2026-09-27; see `CLAUDE.md`), so they also run under `remote-run`.
+build, since 2026-09-27; see `serverconfig/ryzen.md`, "Blender: the blender.org build"), so they also run under `remote-run`.
 `tools/models/blender/preview.py`
 renders a glb to PNG for a handoff.
 
@@ -221,7 +221,7 @@ A Blender model can carry a baked skin: paint, markings, panel lines and
 pinned CC0 scan detail in one atlas on `TEXCOORD_0`
 ([detail-pass spec](superpowers/specs/2026-09-28-model-detail-pass-design.md),
 §4 ruling: one UV set, no `TEXCOORD_1`). Written 2026-09-28 and verified by
-the DP0 to DP3 plans' Tier 1 runs and their reference-GPU Tier 2 runs
+the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
 (`tests/e2e/hangar.spec.ts` checks 15 and 16); the numbers are in the
 [DP0 handoff](handoff/2026-09-28-dp0-skin-pipeline.md) and the
 [DP1 handoff](handoff/2026-09-28-dp1-aircraft.md) and the

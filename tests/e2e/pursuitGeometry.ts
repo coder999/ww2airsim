@@ -1,6 +1,6 @@
 /**
  * The one piece of arithmetic `ai-pursuit-difficulty.spec.ts` rests its whole
- * acceptance claim on, split out of that spec so a Tier 1 test can call it
+ * acceptance claim on, split out of that spec so a Deterministic test can call it
  * directly (`tests/render/pursuitGeometry.test.ts` -- it cannot live in this
  * directory, which is Playwright's `testDir`, or both runners would collect
  * it). Deliberately importless and pure: no Playwright, no `src/`, four
@@ -14,7 +14,7 @@
  * exact inversion, so the test passed precisely when the pursuer had the
  * player on its gunsight. Typecheck, lint and every other test were blind to
  * it; only a mechanical assertion on this function can see it, which is what
- * the Tier 1 test now makes.
+ * the Deterministic test now makes.
  */
 
 /** One entry of `window.__ww2.aircraft()` (`src/render/diagnostics.ts`). */

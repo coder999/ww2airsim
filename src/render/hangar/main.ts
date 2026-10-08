@@ -25,7 +25,7 @@ const root = document.getElementById('app')!
 
 async function boot(): Promise<void> {
   const validationErrors: string[] = []
-  // A ship model that fails draws boxes and lands here, which Tier 2 check 1 asserts empty (ship-models spec §3.4).
+  // A ship model that fails draws boxes and lands here, which E2E check 1 asserts empty (ship-models spec §3.4).
   const loadShips = makeShipViewLoader((message) => { validationErrors.push(message) })
   let resolveReady!: () => void
   const ready = new Promise<void>((r) => { resolveReady = r })

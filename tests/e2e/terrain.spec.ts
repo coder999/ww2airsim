@@ -6,7 +6,7 @@ import { ROAD_PATHS } from '../../src/render/terrain/rivers.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 
 /**
- * Tier 2, terrain. Same platform and same caveats as `adapter.spec.ts`; this
+ * E2E, terrain. Same platform and same caveats as `adapter.spec.ts`; this
  * file is the half that needs the airplane to be somewhere specific.
  *
  * **Where, and why there.** These tests need a specific altitude over real
@@ -35,7 +35,7 @@ const SPAWN_X_M = -45000
  *  `runway.center` (`{ "x": -29666, "z": -47605 }`) and written out as a
  *  literal here on purpose: this file is a Playwright spec that describes a
  *  fixed corridor, and importing the record would make the corridor move
- *  silently if the record ever did. The two are pinned together in Tier 1
+ *  silently if the record ever did. The two are pinned together in Deterministic
  *  (`tests/sim/world/airfields.test.ts`), which is where a change to the
  *  coordinate would be caught. */
 const SPAWN_Z_M = -47605
@@ -326,7 +326,7 @@ ${JSON.stringify(times.errors, null, 2)}`).toEqual([])
 /**
  * Plan 13d Task 5: the reference-GPU acceptance pass for real towns, roads
  * and Dulag's own buildings (Tasks 1-4). Not a new invariant to assert --
- * design §11's Tier 2 already covers validation errors and the frame budget
+ * design §11's E2E already covers validation errors and the frame budget
  * above -- this is the one thing neither of those can check: whether the
  * result actually LOOKS right. The executing agent reads every PNG this
  * produces before claiming success (this repo's own rule, `CLAUDE.md`'s

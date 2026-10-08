@@ -81,7 +81,7 @@ describe('dossierModel for a discharged pilot (friendly-fire spec §6)', () => {
 describe('openDossier lifecycle (Task 8 review fix round 1)', () => {
   // IMPORTANT 1: the orphaned capture-phase `window` keydown listener this
   // fixes is only reachable through a real return-to-title, which needs a
-  // browser `window` this node-environment suite does not have (Tier 2's
+  // browser `window` this node-environment suite does not have (E2E's
   // tests/e2e/dossier.spec.ts covers open/Escape/focus-return). What IS
   // pinnable here is the type-level contract titleScreen.ts's fix depends
   // on: `openDossier` must return a destroy function, not `void`, or the

@@ -24,7 +24,7 @@ export const SPAWN_PARAMS = ['spawnX', 'spawnY', 'spawnZ'] as const
  * down.
  *
  * **Why this exists, since a URL that moves the airplane is otherwise a
- * cheat.** Tier 2 has to fly over Leyte, and Leyte is not where the airplane
+ * cheat.** E2E has to fly over Leyte, and Leyte is not where the airplane
  * starts: the nearest land to the world origin is 23.1 km away, which is
  * three minutes at the spawn's 120 m/s and far past any test timeout. The
  * alternatives were worse. A setter on `window.__ww2` would be a second write
@@ -93,7 +93,7 @@ export function hasSpawnOverride(search: string): boolean {
  * **Why this is a function and not three ternaries at the call site.** Until
  * 2026-09-17 it was three -- `velocity: groundSpawn ? v3(0,0,0) : v3(120,0,0)`,
  * `gearFraction: groundSpawn ? 1 : 0`, and a flat `attitude: qIdentity()` --
- * inline in `main.ts`'s `createState` call, which no Tier 1 test can reach.
+ * inline in `main.ts`'s `createState` call, which no Deterministic test can reach.
  * The attitude was the one that rotted: it predates Task 14 moving the spawn
  * onto a runway, and it was still correct for the airborne spawn it was
  * written for, which is why nothing flagged it. Three copies of a condition
@@ -101,10 +101,10 @@ export function hasSpawnOverride(search: string): boolean {
  * camera-relative arithmetic for the same reason.
  *
  * An AIRBORNE spawn is deliberately left byte-for-byte as it was: 120 m/s due
- * east, gear retracted, wings level. Tier 2's terrain and ocean specs fly
+ * east, gear retracted, wings level. E2E's terrain and ocean specs fly
  * `?spawnX/Y/Z` paths chosen against that heading (`tests/e2e/terrain.spec.ts`
  * picks a point due west of Tacloban), so turning those north along with the
- * parked one would move every Tier 2 flight path without any test saying so.
+ * parked one would move every E2E flight path without any test saying so.
  *
  * `bodyRates` is not set here on purpose: since Task 8 it is a pure output of
  * `step`, recomputed every frame, and anything passed in is overwritten on
@@ -123,7 +123,7 @@ export function hasSpawnOverride(search: string): boolean {
  * airplane comes from `worldFromScenario`, which sets each parked entity's
  * attitude from the real airfield record. The parked branch here is therefore
  * reached only by tests that call this function directly, and it is kept
- * because those tests are the one-airplane Tier 1 cases `initialFrameState`
+ * because those tests are the one-airplane Deterministic cases `initialFrameState`
  * still serves -- not because anything that ships uses it.
  */
 export function initialAircraftState(position: Vec3, groundSpawn: boolean): AircraftState {

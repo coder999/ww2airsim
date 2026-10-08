@@ -48,7 +48,7 @@ describe('judgeAdapter', () => {
   })
 
   it('warns rather than failing on an unrecognised real adapter', () => {
-    // A laptop should still run the game. Only Tier 2 treats this as fatal.
+    // A laptop should still run the game. Only E2E treats this as fatal.
     const v = judgeAdapter({ ...REFERENCE, vendor: 'intel', architecture: 'gen-12lp' })
     expect(v.ok).toBe(false)
     expect(v.severity).toBe('warn')

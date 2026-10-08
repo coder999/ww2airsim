@@ -145,7 +145,7 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
     }),
     // Applied at once with frameS 0 (the propeller does not advance), so a
     // pose shows on a frozen page too; before this, it waited for the next
-    // update, which a frozen page never runs (H1 Tier 2 check 2, 2026-09-25).
+    // update, which a frozen page never runs (H1 E2E check 2, 2026-09-25).
     pose(p): void {
       if (p.gearFraction !== undefined) gearFraction = p.gearFraction
       if (p.flapFraction !== undefined) flapFraction = p.flapFraction

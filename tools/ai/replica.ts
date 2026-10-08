@@ -10,12 +10,12 @@ import { length, sub, v3 } from '../../src/sim/math/vec3.js'
 import type { AircraftDiag } from '../../tests/e2e/pursuitGeometry.js'
 
 /**
- * Tier 1 replicas of the Plan 7 Tier 2 specs (7c spec §1.1, §3.1). They drive
+ * Deterministic replicas of the Plan 7 E2E specs (7c spec §1.1, §3.1). They drive
  * the production frame path -- `initialFrameStateFor`, then `nextFrameState(f,
  * 1/60, keys)` with default assists -- the path `main.ts` runs, headless.
  * Measured 2026-09-25: this reproduces the reference GPU's red
  * `ai-maneuver.spec.ts` run to the tick (the `both` loadout, player destroyed
- * at tick 517, 386 m). Every Tier 1 world is otherwise built `clean`; the
+ * at tick 517, 386 m). Every Deterministic world is otherwise built `clean`; the
  * browser flies the title screen's DEFAULT_LOADOUT, `both`.
  */
 export const LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']

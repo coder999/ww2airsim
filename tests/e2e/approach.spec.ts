@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2, the landing configuration. Same platform and caveats as
+ * E2E, the landing configuration. Same platform and caveats as
  * `adapter.spec.ts`: a real GPU on the Windows reference desktop, never hosted
  * CI.
  *
@@ -13,7 +13,7 @@ import { waitForTerrain, type DiagWindow } from './harness.js'
  * game. `tests/sim/landing.test.ts` flies the approach, headlessly, every
  * commit -- that is the right tier for it.
  *
- * What only Tier 2 can prove is the WIRING: that the flap lever a pilot
+ * What only E2E can prove is the WIRING: that the flap lever a pilot
  * actually presses reaches the player entity's `controls` in a real browser.
  * That is the Plan 3 defect class -- an assist that shipped inert while its
  * own unit tests passed, because they called the module directly -- and it is

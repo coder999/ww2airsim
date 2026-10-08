@@ -53,7 +53,7 @@ describe('the combat readout (Plan 6)', () => {
     )
   })
 
-  it('reports the frame the Tier 2 hook reads: the trigger the sim saw, the player and every target', () => {
+  it('reports the frame the E2E hook reads: the trigger the sim saw, the player and every target', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     const d = combatDiagnosticsFor(frame)
     expect(d.player).toEqual({
@@ -65,7 +65,7 @@ describe('the combat readout (Plan 6)', () => {
       },
     })
     expect(d.aircraft.map((a) => a.id)).toEqual(frame.world.aircraft.map((a) => a.id))
-    // 7e: every row carries its kills, friendly kills and killer, so a Tier 2
+    // 7e: every row carries its kills, friendly kills and killer, so an E2E
     // spec can tell an AI-on-AI kill from any other.
     for (const row of d.aircraft) expect(row).toMatchObject({ kills: 0, friendlyKills: 0, attacker: null })
     expect(d.projectiles).toBe(0)

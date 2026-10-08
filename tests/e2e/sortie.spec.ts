@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs'
 import { debriefDialog, diveToSea, quickLaunch, spawnUrl, startGame, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2 acceptance for the sortie forms (docs/superpowers/specs/2026-09-27-sortie-forms-design.md,
+ * E2E acceptance for the sortie forms (docs/superpowers/specs/2026-09-27-sortie-forms-design.md,
  * plan Task 8): what only the browser can prove -- the forms offer what the rules allow, a Dev
  * Zero really drops a bomb, the player is drawn as the chosen aircraft, a quick launch flies
  * and records nothing, and a K.I.A. pilot is not resurrected by a Dev sortie (addendum AD-2).

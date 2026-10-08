@@ -3,7 +3,7 @@ import { quickLaunch, debriefDialog, spawnUrl, waitForTerrain, type DiagWindow }
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 
 /**
- * Tier 2 is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
+ * E2E is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
  * environment is `node`, which implements no Web Audio, and faking it to test
  * the file whose whole job is to call it would be a second implementation of
  * the API. These cases are the things no fake backend can know.

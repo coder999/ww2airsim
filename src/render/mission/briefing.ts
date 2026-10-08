@@ -8,7 +8,7 @@ import { figureRow, sectionTitle } from '../ui/navalComms.js'
  * title's Form 2 shows under the pickers once a MISSION is selected. Pure
  * model first (`briefingModel`, `conditionsFor`, `briefingRequest`, pinned
  * by `tests/render/mission/briefing.test.ts`), thin DOM under it
- * (`renderBriefing`, covered by Tier 2).
+ * (`renderBriefing`, covered by E2E).
  */
 export type BriefingModel = {
   readonly situation: string | null

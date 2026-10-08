@@ -179,7 +179,7 @@ describe('scenery placement on the real Leyte field', () => {
   })
 
   it('fades trees without alphaHash, which this Chromium cannot compile', () => {
-    // 2026-09-17, Tier 2 on daa1b39: both tree materials failed pipeline
+    // 2026-09-17, E2E on daa1b39: both tree materials failed pipeline
     // creation with "An error occurred while generating Tint IR", which
     // three surfaces only on the console -- the app draws every frame
     // minus the trees, and its own error list shows just the downstream

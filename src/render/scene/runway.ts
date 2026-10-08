@@ -15,7 +15,7 @@ import { localToWorld, type Airfield } from '../../sim/world/airfields.js'
  * (0.25 m, `src/sim/ground.ts`) rather than merely smaller than it --
  * `tests/render/runway.test.ts` pins it below a quarter of that tolerance.
  *
- * **Whether 5 cm is actually enough to stop the z-fighting is a Tier 2/Tier 3
+ * **Whether 5 cm is actually enough to stop the z-fighting is an E2E/Tier 3
  * question and has not been checked**: it cannot be, headless. At a grazing
  * angle a kilometre down the strip it may not be. The alternative --
  * `material.polygonOffset`, which is the usual fix and lies by zero -- was

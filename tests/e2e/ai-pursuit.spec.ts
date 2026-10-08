@@ -3,7 +3,7 @@ import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
- * Tier 2, Plan 7a AI pursuit. Same platform and caveats as `gunnery.spec.ts`:
+ * E2E, Plan 7a AI pursuit. Same platform and caveats as `gunnery.spec.ts`:
  * the reference GPU on the Windows desktop, never hosted CI.
  *
  * What only this tier can prove is the wiring of the whole slice in the

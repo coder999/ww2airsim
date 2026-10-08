@@ -1,6 +1,6 @@
 import type { AssetQualityTierName } from './quality.js'
 
-// Split out of content.ts (2026-09-27) so a Node-side Tier 2 spec can import
+// Split out of content.ts (2026-09-27) so a Node-side E2E spec can import
 // these: content.ts builds its URLs from `import.meta.env.BASE_URL` at module
 // scope, which only Vite defines, so importing it from Playwright crashed
 // strike.spec.ts on load. content.ts re-exports both, unchanged.

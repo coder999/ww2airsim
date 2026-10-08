@@ -6,9 +6,9 @@
  * suite asserts on, thin DOM under it. Top center, between the DEV overlay
  * (top left) and the legend (top right).
  *
- * `combatDiagnosticsFor` is the Tier 2 view of the same record, here rather
+ * `combatDiagnosticsFor` is the E2E view of the same record, here rather
  * than inline in `main.ts` for the reason `audioInputsFrom` gives: an adapter
- * written inline has no Tier 1 test, and a field read off the wrong record
+ * written inline has no Deterministic test, and a field read off the wrong record
  * would report a healthy target while the airplane burned.
  */
 import type { Damage } from '../sim/damage/model.js'
@@ -90,7 +90,7 @@ export type CombatDiagnostics = {
     readonly destroyed: boolean
     readonly damaged: readonly DamageSystem[]
     /** Plan 7e: kills credited to this aircraft, same-side kills, and who
-     *  destroyed it (`damage.attacker`), for the furball's Tier 2 spec. */
+     *  destroyed it (`damage.attacker`), for the furball's E2E spec. */
     readonly kills: number
     readonly friendlyKills: number
     readonly attacker: string | null

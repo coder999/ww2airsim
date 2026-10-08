@@ -4,8 +4,7 @@
 ## Read these before touching anything
 1. `README.md` - Overview and also what docs go where.
 1. `MASTER_PLAN.md` — what comes next: tracks, order, and the decisions
-   they wait on.
-   The split is the README's "Where docs go"; neither restates the other.
+   they wait on. It is also the ledger (README, "Where docs go").
 
 ## General rules / user preferences
 - Sending ww2airsim project handoffs, reports, and other requested project documents to `marktuttle1@gmail.com` is explicitly authorized and does not require separate confirmation.
@@ -56,24 +55,24 @@ is looking at.**
   - Commits and pushes are okay unasked since they are reversible and don't touch production
 
 ## Hardware
-- Ryzen (`serverconfig/ryzen.md) is the Windows machine that has the reference GPU.  
+- Ryzen (`serverconfig/ryzen.md`) is the Windows machine that has the reference GPU.  
   - It is not always on but can be woken with wake-on-lan to Session 0.   SSH / non-GPU testing works in session 0
   - If GPU is needed, need a real windows login.  This is accomplished with RDP.  Playwright server is installed.
-- Nexus (`serverconfig/nexus.md) is a headless linux development server.  It is the authorotative copy of the code and is the main development server.
+- Nexus (`serverconfig/nexus.md`) is a headless linux development server.  It is the authoritative copy of the code and is the main development server.
 
 ## Software
-- Blender is on both Ryzen and Nexus and is used heavily for 3D rendering work, particurly with assets (see `ASSETS.MD`)
+- Blender is on both Ryzen and Nexus and is used heavily for 3D rendering work, particularly with assets (see `ASSETS.md`)
 
 ## Division of labor
 - Work can be "outsourced" from Nexus to Ryzen due to it having the reference GPU and having more powerful processor but once tasks are complete on Ryzen commits go back to Nexus.
   - Nexus GPU (Radeon 680M): a local run (no `PW_REMOTE`) gets real WebGPU there, not
-SwiftShader, needs no lock, and is the an acceptable place for correctness checks and
+SwiftShader, needs no lock, and is an acceptable place for correctness checks and
 screenshots. Its budget numbers are about a quarter of the desktop's and mean
 nothing, and the adapter guard passes it all the same;
 `playwright.config.ts`'s `LOCAL_LINUX_ARGS` says why. A session started before
 `mark` joined the `render` group falls back to SwiftShader: run it under
 `sg render -c '...'`, or start a new session.
-- Since paralell agents may be doing work (and testing), this can throw off GPU testing (particularly budget tests).  If a GPU budget test is being pursued, can use hwlock on Ryzen.
+- Since parallel agents may be doing work (and testing), this can throw off GPU testing (particularly budget tests).  If a GPU budget test is being pursued, can use hwlock on Ryzen.
 - Multiple dev server slots exist: ww2airsim.windomlane.org, ww2airsim-2.windomlane.org, and ww2airsim-3.windomlane.org.  
   - each real HTTPS wired the same way as the primary hostname above:
 `ww2airsim-2.windomlane.org` (port 5175) and `ww2airsim-3.windomlane.org`

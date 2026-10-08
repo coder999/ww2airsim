@@ -4,9 +4,9 @@ import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 /**
- * Tier 2, Plan 6c structural overload. This drives the shipped keyboard,
+ * E2E, Plan 6c structural overload. This drives the shipped keyboard,
  * fixed-step flight model, damage reducer, readout and restart path together on
- * the reference GPU. Pure load arithmetic is covered in Tier 1.
+ * the reference GPU. Pure load arithmetic is covered in Deterministic.
  */
 const [xName, yName, zName] = SPAWN_PARAMS
 const RANGE = `/?${SCENARIO_PARAM}=gunnery-range&${xName}=0&${yName}=5000&${zName}=0`

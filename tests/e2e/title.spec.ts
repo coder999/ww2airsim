@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { startGame, wholeLabel, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2, the title screen (2026-09-19). What only a browser can prove: the
+ * E2E, the title screen (2026-09-19). What only a browser can prove: the
  * overlay is up on load, the world is HELD under it, About opens and closes,
  * and New game, Next, Next, Launch (four sequential memo forms) release the hold and
  * leave the audio context running.

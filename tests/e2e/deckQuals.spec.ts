@@ -5,9 +5,9 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
 /**
- * Tier 2, carrier operations (Plan 8). Same platform and caveats as
+ * E2E, carrier operations (Plan 8). Same platform and caveats as
  * `adapter.spec.ts`: a real GPU on the Windows reference desktop, never
- * hosted CI. Run it with the README's Tier 2 command.
+ * hosted CI. Run it with the README's E2E command.
  *
  * What only this tier can prove is the WIRING of a whole plan whose pieces
  * are each unit-tested: `?scenario=deck-quals` selecting a different world at

@@ -1222,7 +1222,7 @@ export function createTitleScreen(
       if (boot.ready && wasLocked) {
         // Spec §A.2: "the strip fades out", not the instant `display:none`
         // fix round 2's finding 4 caught -- a CSS opacity transition, then
-        // hidden once it has fully faded. 300ms clears both Tier 2 budgets
+        // hidden once it has fully faded. 300ms clears both E2E budgets
         // (dossier.spec.ts's 1s post-return-to-title check, boot.spec.ts's
         // post-ready check) with room to spare.
         bootWrap.style.transition = 'opacity .3s'

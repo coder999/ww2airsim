@@ -159,7 +159,7 @@ describe('AI pilots in the fixed-step world', () => {
   })
 
   it('freezes the observed target snapshot for a whole reactionS window, then refreshes it at the next rescore', () => {
-    // Spec §5's Tier 1 staleness bar, which `tests/sim/ai/decision.test.ts`'s
+    // Spec §5's Deterministic staleness bar, which `tests/sim/ai/decision.test.ts`'s
     // two unit cases over hand-built `PilotDecisionState` literals do not
     // reach: those prove the SUBSTITUTION (the controller steers against
     // whatever is in `observedTarget*`), not the CADENCE (that the snapshot

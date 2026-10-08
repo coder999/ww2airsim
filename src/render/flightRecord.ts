@@ -37,7 +37,7 @@ export function stepSegment(s: FlightSegment, sample: SegmentSample): FlightSegm
  * a carrier touchdown banks as `'trap'`, everything else -- a real airfield
  * OR an off-field landing (`at: null`, no field or deck under the touchdown)
  * -- banks as `'field'`. Extracted from main.ts's inline ternary (fix round
- * 2 finding 6) so it has a Tier 1 test of its own; main.ts still does the
+ * 2 finding 6) so it has a Deterministic test of its own; main.ts still does the
  * wiring (tests/render/flightRecord.test.ts's own site-count checks that).
  */
 export function landingKind(report: { readonly at: LandingAt | null }): 'trap' | 'field' {

@@ -36,7 +36,7 @@ export function normalizeGpuError(info: string | { message?: string }): string {
  * this request every GPU rejected it, the terrain bind group went invalid, and
  * the whole scene pass drew nothing but the clouds -- found on Mark's work
  * laptop 2026-09-25, reproduced the same day on the RX 6700 XT (which
- * advertises 16384), because every Tier 2 run had used the default Low tier.
+ * advertises 16384), because every E2E run had used the default Low tier.
  * Uploading that texture then needs a 270.6 MB staging buffer (8193 rows of
  * 32,772 bytes padded to 33,024) against the default `maxBufferSize` of
  * 256 MiB, so that limit is raised too. Asking for the adapter's own maximum
@@ -56,7 +56,7 @@ export function requiredDeviceLimits(adapterLimits: {
  * Brings up WebGPU and judges the adapter.
  *
  * The guard warns here rather than failing: a laptop should still run the game.
- * Tier 2 treats the same verdict as fatal, because that is where a silent
+ * E2E treats the same verdict as fatal, because that is where a silent
  * fallback would corrupt frame budgets and goldens (master spec §11).
  */
 export async function initRenderer(
@@ -73,7 +73,7 @@ export async function initRenderer(
   // the adapter advertises), but this flag is what adds the two
   // `timestampWrites` per pass and allocates a 2,048-entry query set
   // (WebGPUTimestampQueryPool, three@0.186.0). Task 11 turns it on in DEV so
-  // Tier 2 can measure a frame budget that the browser's fixed 10.0 ms
+  // E2E can measure a frame budget that the browser's fixed 10.0 ms
   // requestAnimationFrame cadence cannot flatten -- not "that vsync cannot
   // flatten", which is what this said until 2026-09-14 and which attributed
   // the cadence to a display that turned out to run at 120 Hz (design spec

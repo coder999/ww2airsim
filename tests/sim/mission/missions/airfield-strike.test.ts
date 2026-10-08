@@ -94,7 +94,7 @@ describe('Airfield Strike content', () => {
       expect(ahead).toBeLessThanOrEqual(field.runway.lengthM) // on the strip, not behind it
       // Firm-runway margin: the app's cover raster classes anything outside the
       // runway rect as soft or forest, and forest is never supported (a spot at
-      // exactly the end edge fell through in the app, 2026-09-28; Tier 1 has no cover).
+      // exactly the end edge fell through in the app, 2026-09-28; Deterministic has no cover).
       expect(Math.abs(s.z)).toBeLessThanOrEqual(field.runway.lengthM / 2 - 5)
     }
   })

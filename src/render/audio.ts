@@ -17,7 +17,7 @@ import type { FrameState } from './frame.js'
  *
  * This lives in its own module with its own test rather than as an object
  * literal inside `main.ts`'s render loop, and that is the whole point of the
- * file. `main.ts` has no Tier 1 test: the entire assists layer shipped INERT
+ * file. `main.ts` has no Deterministic test: the entire assists layer shipped INERT
  * in the browser because every test called `applyAssists` directly and nothing
  * ever threaded it into `advance` (see `Assist` in src/sim/loop.ts). An
  * adapter written inline would repeat that exactly -- every audio test would

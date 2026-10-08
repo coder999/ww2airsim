@@ -31,7 +31,7 @@ describe('requiredDeviceLimits', () => {
   // WebGPU's defaults; a device gets only these unless a limit is requested.
   const WEBGPU_DEFAULT_MAX_2D = 8192
   const WEBGPU_DEFAULT_MAX_BUFFER = 268_435_456
-  // What the RX 6700 XT advertises (Tier 2, 2026-09-25); Mark's Intel
+  // What the RX 6700 XT advertises (E2E, 2026-09-25); Mark's Intel
   // gen-12lp laptop advertises the same texture maximum.
   const REFERENCE = { maxTextureDimension2D: 16384, maxBufferSize: 2_147_483_648 }
 

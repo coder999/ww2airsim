@@ -7,7 +7,7 @@ import { waitForTerrain } from './harness.js'
  *  has converged; `CLOUD_PIXELS_OUT` names the output PNG, and the test
  *  is skipped without it. */
 test('capture a converged, paused cloud frame', async ({ page }) => {
-  // A capture tool, not an assertion: a plain Tier 2 run skips it rather
+  // A capture tool, not an assertion: a plain E2E run skips it rather
   // than spend a boot on it and drop an untracked PNG into the cwd.
   test.skip(!process.env.CLOUD_PIXELS_OUT, 'set CLOUD_PIXELS_OUT to capture a frame')
   // The "before" capture runs on the shader this spec guards against: its

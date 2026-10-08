@@ -48,8 +48,8 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
  * `buildScenarioEntities` (Plan 9 Task 7, design doc §5) is what `main.ts`'s
  * `loadScenario` calls on every scenario switch -- the entity-sized meshes
  * (`airframes`/`shipHandles`/`player`), not terrain,
- * ocean or sky, which are untouched. This suite is the Tier 1 half of the
- * plan's own Review Focus: a headless test cannot see a Tier 2 GPU leak
+ * ocean or sky, which are untouched. This suite is the Deterministic half of the
+ * plan's own Review Focus: a headless test cannot see an E2E GPU leak
  * directly, but it CAN see that every mesh the previous call built had its
  * `dispose()` called and is no longer in the scene -- which is the only
  * mechanism a leak could hide behind.

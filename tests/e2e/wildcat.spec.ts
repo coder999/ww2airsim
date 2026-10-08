@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { quickLaunch, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2. Confirms that the committed Wildcat glTF loads in the shipped app
+ * E2E. Confirms that the committed Wildcat glTF loads in the shipped app
  * and that the production KeyG path drives the simulated gear fraction used
  * by the model's rigged landing-gear nodes. The Node unit suite can verify
  * interpolation math, but it cannot exercise GLTFLoader's browser image

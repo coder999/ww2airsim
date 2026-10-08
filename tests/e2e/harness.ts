@@ -227,7 +227,7 @@ export async function snapshot(page: Page): Promise<{
 }
 
 /**
- * The camera/control sweep both Tier 2 suites fly: cycle the camera, look
+ * The camera/control sweep both E2E suites fly: cycle the camera, look
  * all the way round including the 180-degree look-back, then deflect the
  * controls.
  *
@@ -306,7 +306,7 @@ export async function flySweep(page: Page): Promise<void> {
 
 /** The q-th percentile of `values`, nearest-rank, 0 <= q <= 1.
  *
- *  It is here because this file is where the Tier 2 suites' shared vocabulary
+ *  It is here because this file is where the E2E suites' shared vocabulary
  *  lives, not because any particular number of callers exists -- which is
  *  also why this comment no longer counts them. It has named the wrong count
  *  twice: "two callers" (review fix round 1, m10) and then "only

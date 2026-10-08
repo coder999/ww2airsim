@@ -22,7 +22,7 @@ import type { Vec3 } from '../../sim/math/vec3.js'
  * detects independently at full resolution. Reconstructing it at quarter
  * linear resolution therefore cuts this pass to 1/16 of 4K while preserving
  * TRAA's full-resolution silhouette rejection. Moving objects deliberately
- * receive camera motion initially; the Tier 2 roll captures decide whether
+ * receive camera motion initially; the E2E roll captures decide whether
  * they need a later object-only pass.
  */
 const viewProjection = uniform(new Matrix4())

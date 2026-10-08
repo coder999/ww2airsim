@@ -14,7 +14,7 @@ import { missionOutcome, recoveryOf, type MissionOutcome } from '../../../src/si
 import { NORTH, flatField } from './fixture.js'
 
 /**
- * Spec 2026-09-25 §1: "A Tier 1 test pins that the render banking path and
+ * Spec 2026-09-25 §1: "A Deterministic test pins that the render banking path and
  * the mission outcome agree on every recovery kind." The render path is
  * what main.ts banks from: `frame.landing.report` into `landingModel`, or
  * the player's `impact` into `debriefModel`, or combat destruction into

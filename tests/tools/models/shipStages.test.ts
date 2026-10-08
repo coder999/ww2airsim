@@ -74,7 +74,7 @@ describe('runPipeline on a synthetic carrier', () => {
     expect(band.getTranslation()[0]).toBeCloseTo(-262.7 / 2 + 80, 6)
     expect(band.getExtras()['halfWidthM']).toBeCloseTo(0.45 * 32.9, 6)
     expect(again.getRoot().getAsset().extras).toMatchObject({ shipFit: { spec: 'essex-cv' }, source: SOURCE.url })
-    // Tier 1's own re-measure, on the bytes that would be committed.
+    // Deterministic's own re-measure, on the bytes that would be committed.
     expect(fitProblems(documentSoup(again), loadShipSpec('essex-cv'), carrierEntry.ship!).problems).toEqual([])
   })
 

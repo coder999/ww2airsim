@@ -4,7 +4,7 @@ Status: **spike, off by default** (2026-09-29). Its code is on `main` via
 `10cd56e`; the baked textures are not in git (below). Goal was ground that looks like OpenSkyFlight's, which drapes roughly
 1 m/px real satellite imagery over terrain. Mark judged the final variant
 ("synthsr") "pretty good" but not OpenSkyFlight-level. Nothing here is a plan
-of record; §15 of the master spec owns plan numbering.
+of record; `MASTER_PLAN.md` owns the plan.
 
 ## What exists
 
@@ -79,11 +79,11 @@ weights works.
 - Emailed screenshots: inline `cid:` images did not show for Mark; attach the
   JPEGs too.
 - `content/drape-spike/` is about 130 MB and git-excluded. `git clean -fdx`
-  destroys other data (see CLAUDE.md), never run it here.
+  destroys other data (see AGENTS.md), never run it here.
 
 ## Open
 
 - Regrade whole-map `?drape=synth` to match, if wanted.
 - Whether any drape becomes a shipped tier is undecided; it would need a
-  plan, a texture budget (6144 px is 51 MB PNG) and a Tier 2 budget run.
+  plan, a texture budget (6144 px is 51 MB PNG) and an E2E budget run.
 - Real fine detail needs licensed imagery; revisit only if the budget moves.

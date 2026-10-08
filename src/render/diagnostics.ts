@@ -35,7 +35,7 @@ export type ReplayDiagnostics = {
 
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
- * `tests/e2e/adapter.spec.ts` (Tier 2) reads it -- both sides import this one
+ * `tests/e2e/adapter.spec.ts` (E2E) reads it -- both sides import this one
  * type rather than each declaring their own copy.
  *
  * Task 15 review, round 1: the two sides previously typed this independently
@@ -76,7 +76,7 @@ export type Ww2Diagnostics = {
   /** The chase camera's mouse swing (orbit camera spec, 2026-09-27). */
   readonly orbit: () => OrbitOffset
   /**
-   * Which assists are on (Plan 3 Task 5). Read-only on purpose: Tier 2 flips
+   * Which assists are on (Plan 3 Task 5). Read-only on purpose: E2E flips
    * them the way a pilot does, by pressing the toggle keys in
    * `src/input/bindings.ts`, and reads this to confirm the press landed --
    * exactly the pattern the camera sweep already uses for `KeyC` and
@@ -105,7 +105,7 @@ export type Ww2Diagnostics = {
    * +z south). Added in Task 11, and it does two jobs no other member here
    * can:
    *
-   * - **Proves the spawn landed.** Tier 2's terrain tests start the airplane
+   * - **Proves the spawn landed.** E2E's terrain tests start the airplane
    *   over Leyte with `?spawnX/Y/Z` (see `spawn.ts`). If that never took
    *   effect the airplane is over open water, every terrain test reports an
    *   empty `validationErrors` list, and it passes for the wrong reason.
@@ -140,7 +140,7 @@ export type Ww2Diagnostics = {
   /**
    * The PLAYER aircraft's `impact` for the current frame, or `null` if the
    * flight has not ended yet. Added in Task 11 for the ground-contact plan's
-   * Tier 2 coverage, which has to prove the whole production path --
+   * E2E coverage, which has to prove the whole production path --
    * `advance` classifying it, the frame holding the world on it (frame.ts's
    * `holding`) and `main.ts` noticing and raising the debrief -- rather than
    * construct an `Impact` and skip most of it.
@@ -148,7 +148,7 @@ export type Ww2Diagnostics = {
    * A single granular getter, deliberately NOT `frame: () => FrameState`:
    * every other member here reads one field (or a small derived one) off the
    * current frame, never the frame itself, and a `frame()` getter would
-   * widen the whole Tier 2 surface to every field `FrameState` will ever
+   * widen the whole E2E surface to every field `FrameState` will ever
    * carry for the sake of this one (binding ruling, Task 11). If a later
    * task needs another field, it gets another getter here, the same way
    * `groundHeightM` and `aircraftPositionM` did.
@@ -162,7 +162,7 @@ export type Ww2Diagnostics = {
    * ships are the first entities that MOVE without the pilot touching
    * anything, and a `stepShip` that never ran, orders that never reached the
    * world, or a hull mesh posed from the wrong index all look identical from
-   * a screenshot of an empty sea. A Tier 2 spec reads this twice and checks
+   * a screenshot of an empty sea. An E2E spec reads this twice and checks
    * the task force actually sailed, and that its heading is the bearing it is
    * sailing on.
    *
@@ -174,7 +174,7 @@ export type Ww2Diagnostics = {
    * `World.combat.ships[s.id]` rather than the kinematic entity above: proving
    * a ship's hull mesh actually sinks/lists (`ship.ts`'s `setDamage`) needs
    * the same live damage record `combatReadout.ts` reads for the player's own
-   * airplane, and a Tier 2 spec otherwise has no way to tell "still healthy"
+   * airplane, and an E2E spec otherwise has no way to tell "still healthy"
    * from "sunk and hidden" without reading pixels.
    */
   readonly ships: () => readonly {
@@ -194,7 +194,7 @@ export type Ww2Diagnostics = {
    * compass heading.
    *
    * The N-entity view of `aircraftPositionM` above, which stays because it is
-   * the PLAYER's and half the Tier 2 suite reads it by that name. What this
+   * the PLAYER's and half the E2E suite reads it by that name. What this
    * adds is the wingman: a second parked airplane that `settleOnTerrain` must
    * drop onto the real ground along with the player's, and which -- being
    * chocked and never touched by the pilot -- is also the one entity whose
@@ -253,9 +253,9 @@ export type Ww2Diagnostics = {
    * frame, or `null` before the first frame. A snapshot: nothing written to
    * it reaches the simulation.
    *
-   * Added 2026-09-29 for the Tier 2 test pilot (`tests/pilot/`), which flies
+   * Added 2026-09-29 for the E2E test pilot (`tests/pilot/`), which flies
    * the Gunnery Range's strafing pass and landing by keys with the same pure
-   * control law Tier 1 flies (`strafePilot`, `approachControls`), and so
+   * control law Deterministic flies (`strafePilot`, `approachControls`), and so
    * needs the state that law reads: attitude, velocity, body rates. Position,
    * heading and airspeed alone cannot separate the nose from the flight path.
    * Read-only like the rest: the pilot still flies by keys.
@@ -362,7 +362,7 @@ export type Ww2Diagnostics = {
   /**
    * The world height of the topmost rendered surface of ship `shipId` straight
    * below each point, read from the loaded, posed view (`probeShipSurface`,
-   * ship.ts); null where a ray misses it. Ship-models spec §9: Tier 2 compares
+   * ship.ts); null where a ray misses it. Ship-models spec §9: E2E compares
    * it with `deck().heightM`, so a deck that floats or sinks under the wheels
    * fails in the real renderer, not only in Node math.
    */
@@ -375,7 +375,7 @@ export type Ww2Diagnostics = {
    * is no scenario yet to name). Added for the in-place scenario switch
    * (Plan 9 Task 7): unlike `groundHeightM()`, which answers a ONE-TIME,
    * wholly independent question ("has a terrain field arrived yet") that a
-   * Tier 2 spec cannot use to detect a scenario switch completing after
+   * E2E spec cannot use to detect a scenario switch completing after
    * boot -- terrain, once loaded, stays loaded across every later switch, so
    * a `waitForFunction` on it resolves on its very first poll for a switch
    * requested after that point, whether or not `loadScenario`'s own fetch
@@ -385,7 +385,7 @@ export type Ww2Diagnostics = {
    */
   readonly scenarioId: () => string | null
   /** The model id of the loaded GLB actually drawn for the player (falling back to the
-   *  hand-built root's name), or null before one is built: sortie forms Tier 2 proves the
+   *  hand-built root's name), or null before one is built: sortie forms E2E proves the
    *  chosen aircraft is the one drawn. */
   readonly playerModel: () => string | null
   /** Model ids of every direct airframe root currently attached to the scene, including any
@@ -397,7 +397,7 @@ export type Ww2Diagnostics = {
     timeS: number; values: number[]; phaseSeed: number
     options: import('./ocean/compute.js').OceanComputeOptions
   } | null>
-  /** What the audio system is doing, for Tier 2 (tests/e2e/audio.spec.ts).
+  /** What the audio system is doing, for E2E (tests/e2e/audio.spec.ts).
    *  A granular snapshot, not the system itself -- the binding ruling on
    *  `impact` above applies unchanged. */
   readonly audio: () => AudioSnapshot
@@ -407,7 +407,7 @@ export type Ww2Diagnostics = {
   readonly combat: () => CombatDiagnostics | null
   /** The in-flight bomb and rocket pools (O1): instance counts, the triangles each pool's
    *  geometry has (a generated store model, or the primitive stand-in before it loads), and
-   *  where the first bomb is on screen. Tier 2 (tests/e2e/ordnance.spec.ts) reads it. */
+   *  where the first bomb is on screen. E2E (tests/e2e/ordnance.spec.ts) reads it. */
   readonly ordnanceView: () => OrdnanceView
   /** The radar scope's live state (Plan 17): the currently selected range,
    *  the sweep's current angle, and every contact it is showing. `null`

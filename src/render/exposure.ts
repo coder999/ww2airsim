@@ -2,7 +2,7 @@
  * Photoreal render pass, Phase A (spec §4.2): the output's tone curve and its
  * exposure. Exposure is a FIXED function of sun elevation -- a small table,
  * no histogram auto-exposure -- so a given time of day always looks the same
- * and a Tier 2 screenshot is reproducible.
+ * and an E2E screenshot is reproducible.
  *
  * The keys sit at the elevations Plan 16c's retired palette keyed its look
  * on (30, 10, 0, -6 degrees). The atmosphere (`sky/palette.ts`, photoreal

@@ -302,7 +302,7 @@ describe('the loading strip (loading spec §A.2)', () => {
 describe('Dossier lifecycle wiring (Task 8 review fix round 1)', () => {
   // Neither leak is DOM-observable in this node-environment suite -- both
   // need a real `window` and a real return-to-title/double-click to
-  // reproduce (Tier 2's job, see tests/e2e/dossier.spec.ts) -- so this pins
+  // reproduce (E2E's job, see tests/e2e/dossier.spec.ts) -- so this pins
   // the source wiring the same way tests/render/bootProgress.test.ts pins
   // main.ts's stage calls: a regression that drops either line compiles and
   // passes every other test, but leaks a `window` keydown listener (a

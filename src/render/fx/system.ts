@@ -9,7 +9,7 @@ import { FX_MAX_CAPACITY } from './tiers.js'
 /**
  * The effects particle pool (ordnance-and-effects design §3.4): fixed
  * capacity from the tier, simulated on the CPU with a seeded generator so
- * Tier 1 tests it without a GPU, one sorted instance buffer per frame.
+ * Deterministic tests it without a GPU, one sorted instance buffer per frame.
  * Positions are raw world metres (float64 here, float32 on upload); the fx
  * scene's position supplies the camera-relative shift (plan E1 Ruling R10).
  */

@@ -4,7 +4,7 @@ import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
- * Tier 2, whole-branch review finding C-1. `main.ts`'s `onNewGame` closure
+ * E2E, whole-branch review finding C-1. `main.ts`'s `onNewGame` closure
  * used to rebuild `frame` (via `rebuildFrame`) without resetting
  * `landingShown`/`shownImpactTick`/`shownDestructionTick`/
  * `postImpactOceanSeconds` or hiding the previous flight's debrief/impact

@@ -1,7 +1,7 @@
 import { v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
 import type { FxSustained, FxTrigger } from './events.js'
 
-/** Named effects scenes for Tier 2 (`__ww2.fxStress`, DEV only). `budget`
+/** Named effects scenes for E2E (`__ww2.fxStress`, DEV only). `budget`
  *  is spec §4.5's stress scene verbatim; the others are one effect each
  *  for the captures. Render-side injection, not sim events: what is
  *  measured is what the renderer draws. */
@@ -16,7 +16,7 @@ export type FxStressScene = {
 }
 /** Spec §4.5: "about 300 m from the target". */
 export const STRESS_RANGE_M = 300
-/** Close enough for the Tier 2 capture to resolve a one-pixel ground edge.
+/** Close enough for the E2E capture to resolve a one-pixel ground edge.
  *  The §4.5 budget scene continues to use STRESS_RANGE_M. */
 const SMOKE_BASE_RANGE_M = 40
 

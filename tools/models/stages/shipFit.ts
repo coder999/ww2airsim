@@ -85,7 +85,7 @@ export interface ShipFitResult {
  * Stage (ship-models spec §4): the residual fit after `normalize`, the skirt
  * for waterline-cut models, then every §4.4 tolerance on the result. Throws,
  * listing every problem, if any fails; nothing is written. Records the fit in
- * `asset.extras.shipFit`, which Tier 1 re-checks.
+ * `asset.extras.shipFit`, which Deterministic re-checks.
  */
 export function shipFitStage(doc: Document, ship: ShipEntry, spec: ShipSpec): ShipFitResult {
   if (spec.id !== ship.spec) throw new Error(`ship block names spec "${ship.spec}", got "${spec.id}"`)

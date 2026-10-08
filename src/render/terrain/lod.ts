@@ -121,7 +121,7 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * the "buys no detail" half is now open again and unverified for those
  * sessions; the frame-time half (+0.85 ms, 40% of the frame) does not depend
  * on which level is finest and would not change. Re-measuring is real GPU
- * work (Tier 2), outside what this task touches.
+ * work (E2E), outside what this task touches.
  */
 const FINEST_RANGE_M = 2 * FINEST_NODE_SIZE_M
 

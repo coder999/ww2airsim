@@ -17,7 +17,7 @@ const diskFetch: typeof fetch = async (input) => {
 
 /**
  * The browser loader and the Node loader are twins, and nothing but this
- * asserts they stay twins: `main.ts` boots through the first, every Tier 1
+ * asserts they stay twins: `main.ts` boots through the first, every Deterministic
  * test reads the second, and a divergence would show up only in a browser --
  * as an airplane parked somewhere the suite never looks.
  */

@@ -58,7 +58,7 @@ describe('the point-blank break-off, replicating ai-maneuver.spec.ts on the fixt
 describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', () => {
   // Measured 2026-09-25 at HEAD and with the prototype envelope: behind at
   // 18-19 s in all four loadouts, pursuer structure 1.000 at that moment.
-  // Stronger than the Tier 2 original, which cannot tell a live pursuer
+  // Stronger than the E2E original, which cannot tell a live pursuer
   // from a wreck frozen in the air.
   //
   // All four noise cursors since 7c Task 14 (2026-09-26). Until then this ran

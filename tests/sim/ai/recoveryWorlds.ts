@@ -12,7 +12,7 @@ import type { TerrainField } from '../../../src/sim/world/terrain.js'
 import { bundleForScenario } from '../../../tools/content/load.js'
 
 /**
- * 7g's Tier 1 worlds: raw scenario JSON, parsed, in the style of
+ * 7g's Deterministic worlds: raw scenario JSON, parsed, in the style of
  * `formationWorlds.ts`, so every case also exercises the content path.
  * Inline; nothing ships.
  */

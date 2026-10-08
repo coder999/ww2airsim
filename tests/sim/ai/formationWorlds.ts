@@ -8,7 +8,7 @@ import { controlsForDesiredVelocity } from '../../../src/sim/ai/controller.js'
 import { length, v3 } from '../../../src/sim/math/vec3.js'
 
 /**
- * 7f's Tier 1 worlds (spec, Acceptance): raw scenario JSON, parsed, so every
+ * 7f's Deterministic worlds (spec, Acceptance): raw scenario JSON, parsed, so every
  * case also exercises the content path. Inline; nothing ships. The sea is
  * the ground (terrain null).
  */

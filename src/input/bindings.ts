@@ -14,7 +14,7 @@ export const BINDINGS = {
   yawLeft: ['KeyZ'],
   yawRight: ['KeyX'],
   // `=` and `-` exclusively (Mark, 2026-09-17). Shift was throttle-up -- every
-  // test and both Tier 2 specs drove the throttle with `ShiftLeft` and were
+  // test and both E2E specs drove the throttle with `ShiftLeft` and were
   // updated in the same commit. Shift is now the autopilot (`autopilot`
   // below, 2026-09-25).
   // The keypad's + and - too (Mark, 2026-09-17): the same lever from either

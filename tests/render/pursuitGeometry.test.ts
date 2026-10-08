@@ -4,7 +4,7 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { isBehind, type AircraftDiag } from '../e2e/pursuitGeometry.js'
 
 /**
- * Tier 1 guard on `tests/e2e/pursuitGeometry.ts`'s `isBehind`, the single
+ * Deterministic guard on `tests/e2e/pursuitGeometry.ts`'s `isBehind`, the single
  * piece of arithmetic Plan 7d's acceptance test (`ai-pursuit-difficulty.spec
  * .ts`) rests its entire claim on. The final whole-branch review found the
  * original inline version inverted: `atan2(dx, dz)` instead of the

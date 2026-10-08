@@ -4,11 +4,11 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
 /**
- * Tier 2, the head-on merge on `pursuit-range`. Written for Plan 7b to prove
+ * E2E, the head-on merge on `pursuit-range`. Written for Plan 7b to prove
  * a break-off at point-blank range; since 7c's ruling R4 (Mark, 2026-09-25)
  * the merge is a deliberate pass at 21-22 m, and this spec now pins that
  * pass inside a band through the real render loop (see the ruling below).
- * The break-off claim itself lives at Tier 1 (`aiLethality.test.ts`, item 2).
+ * The break-off claim itself lives at Deterministic (`aiLethality.test.ts`, item 2).
  * Every scoring/maneuver-selection claim is unit-tested
  * (tests/sim/ai/decision.test.ts, tests/sim/scenario.test.ts); what only
  * this tier can see is that the chosen maneuver actually reaches the
@@ -22,7 +22,7 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * **History.** RED from 2026-09-24: the veteran shot the passive player down
  * at tick 517 (8.6 s, 386 m) before point-blank range. 7c's measurement (spec
  * §1.1, 2026-09-25) found the trigger: 7d's noise PLUS the title screen's
- * default `both` loadout, which every Tier 1 world lacked. The 7d handoff had
+ * default `both` loadout, which every Deterministic world lacked. The 7d handoff had
  * blamed 7d alone. The veteran retune (controlNoise 0.01, Mark's ruling)
  * resolved that: 0 of 128 passive-player runs killed.
  *
@@ -33,14 +33,14 @@ import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
  * player's first-merge kill falls from 7/8 to 0/8: the merge Mark flew and
  * liked on 2026-09-25. 7c kept the merge (ruling R4) and asked Mark (7c
  * handoff, Open for Mark item 1). This spec's claim, a break-off rather than
- * a pass-through at point-blank range, is proven at Tier 1 on the frozen
+ * a pass-through at point-blank range, is proven at Deterministic on the frozen
  * tail-chase fixture (`tests/render/aiLethality.test.ts`, item 2), which no
  * URL can load.
  *
  * **Reference GPU, 2026-09-26: this spec PASSED, and the pass was vacuous.**
  * It read the first poll sample under MIN_ENGAGEMENT_RANGE_M, not the
  * minimum: 118.5 m at tick 595, while a per-frame sampler found the true
- * closest at 22.1 m, tick 624 (three runs, identical), the Tier 1 prediction.
+ * closest at 22.1 m, tick 624 (three runs, identical), the Deterministic prediction.
  *
  * **Mark's ruling, 2026-09-27 (7c handoff item 1b):** keep the merge (R4
  * stands) and measure it honestly. The spec now records the TRUE minimum

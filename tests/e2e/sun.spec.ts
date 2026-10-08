@@ -6,7 +6,7 @@ import { loadAirfield } from '../../tools/content/load.js'
 import { loadTerrainHeader } from '../../tools/terrain/load.js'
 
 /**
- * Tier 2, the movable sun (Plan 16c). Screenshots are READ by the executor;
+ * E2E, the movable sun (Plan 16c). Screenshots are READ by the executor;
  * design §7 is the acceptance. Same console-error guard as clouds.spec.ts.
  */
 test.setTimeout(240_000)

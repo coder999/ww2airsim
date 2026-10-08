@@ -6,7 +6,7 @@ import { stationErrorM } from '../../../src/sim/ai/formation.js'
 import { runCanned } from './maneuverWorlds.js'
 import { PLAYER_EAST, buildFormation, formationLeader, rmsStationError, wingman } from './formationWorlds.js'
 
-/** 7f spec, Acceptance, Tier 1: station, turn, rejoin, ahead of station.
+/** 7f spec, Acceptance, Deterministic: station, turn, rejoin, ahead of station.
  *  The player is the leader, flown by script at 110 m/s, reduced power as a
  *  real formation leader flies, so a wingman has overtake margin below the
  *  Hellcat's ~150 m/s level ceiling at 3,000 m. The wingmen start at 110 m/s too. */

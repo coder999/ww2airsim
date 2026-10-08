@@ -3,9 +3,9 @@ import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 
 /**
- * Tier 2, Plan 7h (AI takeoff): `takeoff-range` in the shipped app on the
+ * E2E, Plan 7h (AI takeoff): `takeoff-range` in the shipped app on the
  * reference GPU. Two allied AI Zeros start parked on Dulag's runway with
- * `pilot.takeoff`; the player sits chocked at Tacloban. Tier 1
+ * `pilot.takeoff`; the player sits chocked at Tacloban. Deterministic
  * (`tests/sim/ai/takeoff*.test.ts`, `airfield-strike.test.ts`) proves the
  * takeoff headless; what only this tier proves is that it happens in the
  * running app, on the terrain the renderer draws, without validation errors.

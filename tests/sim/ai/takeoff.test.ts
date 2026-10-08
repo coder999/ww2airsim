@@ -122,7 +122,7 @@ describe('takeoffClear (pure)', () => {
 })
 
 /*
- * The headless runway takeoffs (Tier 1, real terrain). `takeoff-fixture`
+ * The headless runway takeoffs (Deterministic, real terrain). `takeoff-fixture`
  * parks ai-1 at Dulag's runway-local z +650, the south end of a strip on
  * 000, with 1,400 m ahead; wind 3 m/s from 000, airfield-strike's.
  *
@@ -179,7 +179,7 @@ function takeoffRun(specId: string, opts: { readonly calm?: boolean; readonly of
   return { upS, run10M, aheadM: runwayAheadM(field, start), maxAcrossM, impact: null }
 }
 
-describe.skipIf(terrain === null)('runway takeoffs from Dulag (Tier 1, real terrain)', () => {
+describe.skipIf(terrain === null)('runway takeoffs from Dulag (Deterministic, real terrain)', () => {
   it.each(['a6m2-zero', 'f6f-hellcat'])('a %s is TAKEOFF_DONE_M up inside 60 s, never impacts, and stays on the runway', (specId) => {
     const r = takeoffRun(specId)
     expect(r.impact).toBeNull()

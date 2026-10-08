@@ -33,7 +33,7 @@ export const RADAR_TEXELS_Y = 108
 const DOT_RADIUS = 0.05
 // Exported (final-review fix pass, 2026-09-23) so tests/e2e/radar.spec.ts can
 // compute the SAME expected ambient-trail level the shader itself paints,
-// analytically from `radarBrightness` (already Tier-1-proven pure math) and
+// analytically from `radarBrightness` (already Deterministic-proven pure math) and
 // this constant, rather than re-measuring it with a second live pixel read.
 // That second read was found live, on the reference GPU, to be unreliable
 // near the sweep's own leading edge -- see the spec's comment for the full

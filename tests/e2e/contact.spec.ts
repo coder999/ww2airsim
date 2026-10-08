@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2, contact. Same platform and caveats as `adapter.spec.ts`.
+ * E2E, contact. Same platform and caveats as `adapter.spec.ts`.
  *
  * Both cases fly the airplane INTO something rather than constructing an
  * impact, because the thing under test is the whole production path --
@@ -13,7 +13,7 @@ import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harn
  * original wording): `Ww2Diagnostics` deliberately exposes granular getters
  * -- `tick()`, `cameraMode()`, `controls()`, `look()`, `assists()` and now
  * `impact()` -- never the whole `FrameState`, so a caller here proves exactly
- * one field of it, the same way every other Tier 2 spec does (binding
+ * one field of it, the same way every other E2E spec does (binding
  * ruling, Task 11; see the comment on `impact` in `src/render/diagnostics.ts`).
  */
 test('going into the sea ends the flight and raises the debrief', async ({ page }) => {

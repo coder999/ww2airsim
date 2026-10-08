@@ -16,9 +16,9 @@ import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/ren
 const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
 
 /**
- * Tier 2, the strike slice (Plan 6b). Same platform and caveats as
+ * E2E, the strike slice (Plan 6b). Same platform and caveats as
  * `gunnery.spec.ts`: the reference GPU on the Windows desktop, never hosted
- * CI. Run it with the README's Tier 2 command.
+ * CI. Run it with the README's E2E command.
  *
  * What only this tier can prove is the whole strike slice wired together in
  * the shipped app: the title screen's loadout picker actually reaching
@@ -29,7 +29,7 @@ const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
  * detonating on nearest contact, and the resulting hull/structure damage
  * reaching `World.combat` where `ships()`/`structures()`
  * (src/render/diagnostics.ts) can see it -- along with the fireball, smoke
- * and collapse visuals no Tier 1 test can reach at all. Every piece below is
+ * and collapse visuals no Deterministic test can reach at all. Every piece below is
  * unit-tested in isolation (tests/sim/strike.test.ts); the defect class
  * this tier exists to catch is a feature inert in the browser with its
  * tests green.
@@ -76,7 +76,7 @@ const hangar1GroundM = heightAt(terrain, hangar1World.x, hangar1World.z)
  * At the old 400 m run-in from ground + 17 m it passed over the 10 m-tall box
  * and outside the 8 m blast radius. 1,000 m from ground + 17 m reaches the
  * box on paper, but the idle-power spawn pitches down as it sinks and at that
- * range only the first salvo hit (Tier 2, 2026-09-29). 700 m from ground +
+ * range only the first salvo hit (E2E, 2026-09-29). 700 m from ground +
  * 10 m arrives at about 7.8 m with more than twice the angular margin.
  */
 const DULAG_RUN_IN_M = 700
@@ -91,7 +91,7 @@ const DULAG_ATTACK_ALTITUDE_M = hangar1GroundM + 10
  * attitude rather than guessing a diving trajectory.
  *
  * The browser release has a 100 m idle-power run-in before V is pressed. A
- * 50-tick Tier 1 reproduction of that run-in measures the actual release at
+ * 50-tick Deterministic reproduction of that run-in measures the actual release at
  * 117.6 m/s, descending 2.7 m/s; the bomb then travels 1,995.4 m in 17.37 s.
  * This is intentionally distinct from the pristine 120 m/s projectile-only
  * calibration above.

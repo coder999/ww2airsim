@@ -10,7 +10,7 @@ export type PilotTrace = {
 
 /**
  * Fly `pass` in the page (plan 2026-09-29-gunnery-range-strafing-pass): the
- * same pure pilot Tier 1 flies (`tests/pilot/strafePilot.ts`), imported from
+ * same pure pilot Deterministic flies (`tests/pilot/strafePilot.ts`), imported from
  * the dev server, run every animation frame, and turned into real keyboard
  * events by `tests/pilot/keys.ts`. Frame-rate control in the page, rather
  * than a Node loop polling over the remote WebSocket, is what makes a

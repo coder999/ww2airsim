@@ -212,7 +212,7 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
 
 /**
  * The sim-world height of the topmost rendered surface of `view` straight below
- * each point, or null where the ray misses it (ship-models spec §9: the Tier 2
+ * each point, or null where the ray misses it (ship-models spec §9: the E2E
  * proof that what the eye lands on is what the sim rests the wheels on, in the
  * real renderer and not only in Node math). `'ship'` points are in the ship's
  * own frame (+x bow, midships 0); `'world'` points are world x, z. The smoke

@@ -1,7 +1,8 @@
 # Testing
 
 How tests are written here (Philosophy), what each layer is for, and the
-reference for test groupings.
+reference for test groupings. Deterministic and E2E were called Tier 1 and
+Tier 2 until 2026-10-08, and older handoffs and specs still say so.
 
 ## Philosophy
 
@@ -9,8 +10,7 @@ reference for test groupings.
 often in parallel worktrees. None of them sees the others' work in progress.
 A test is the contract that stops one agent's change from silently breaking a
 feature another agent built, so most tests here protect *someone else's*
-feature. Mark's viewing is a checkpoint, never a gate (CLAUDE.md, "How Mark
-works"). Only the automated tiers decide pass or fail.
+feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the automated tiers decide pass or fail.
 
 ### What deserves a test, in order of value
 
@@ -31,7 +31,7 @@ works"). Only the automated tiers decide pass or fail.
 - **Enroll, don't clone.** Coverage of every airframe, ship or scenario comes from one table-driven test that reads `content/`. A new airframe should be covered without a new test file. Examples: `graded.test.ts`, `trap.test.ts`, `carrierTakeoff.test.ts`, `flyableAll.spec.ts`.
   - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
   - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
-
+- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget4k`, `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
   - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
 - **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:
   - a relationship: `MAP_TEXEL_M === MAP_SIDE_M / MAP_TEXELS`;
@@ -46,7 +46,7 @@ works"). Only the automated tiers decide pass or fail.
 - **Grepping source is a last resort.** A few tests assert that `main.ts` contains a call (for example `bootQuality.test.ts`) because the wiring has no seam to call. They break on renames. The fix is to extract that wiring into a function a test can call, not to add more greps.
 - **Keep files cheap.**
   - Compare large buffers with `Buffer.from(a).equals(Buffer.from(b))`, not `toEqual`. `toEqual`'s per-element diff spent about 110 s in `gunzip.test.ts` on its cloud volumes.
-  - Full suites go through `remote-run`. On nexus, run only the files you touch (CLAUDE.md).
+  - Full suites go through `remote-run` (`serverconfig/ryzen.md`, "WSL Ubuntu and compute offload"). On nexus, run only the files you touch: parallel full suites have OOM-killed it.
 - **Comments say why, with a date.** Long rationale in a test is fine here: it is what the next agent reads before "fixing" it.
 
 ### Known gaps
@@ -67,7 +67,7 @@ Checked against `.github/workflows/*.yml` and `package.json` on 2026-09-30.
 | --- | --- | --- | --- |
 | **Deterministic Test**: `npm run verify` (`tests/` except `e2e/`) | locally, and in `ci.yml` on every push and PR | no | The code is correct as logic: typecheck, lint, dependency rules, and vitest unit tests of the sim, AI, audio cues, input, replay, content and render graph construction. Fast, deterministic, hosted. |
 | **Soak Test** (`nightly-soak.yml`) | GitHub, 09:00 UTC | no | A long simulation (`tests/sim/soak.test.ts`) stays stable; opens an issue on failure. |
-| **End-to-end (E2E) Test** (`tests/e2e/`, `npm run test:tier2`) | ryzen, by hand or the nightly | yes | The *running game* works in a real browser on the reference GPU: it boots, flies, renders without WebGPU validation errors, sounds the right audio cues, and the UI, missions, replay and scoring hold together in a session. |
+| **End-to-end (E2E) Test** (`tests/e2e/`, `npm run test:e2e`) | ryzen, by hand or the nightly | yes | The *running game* works in a real browser on the reference GPU: it boots, flies, renders without WebGPU validation errors, sounds the right audio cues, and the UI, missions, replay and scoring hold together in a session. |
 | **Deploy Verification** (`deploy.yml`, manual) | GitHub, on request | no | The *release artifact* is sound: `npm run verify`, `npm run build`, the build carries the terrain fallback, rsync, then the live site answers (homepage 200, noindex and no-cache headers, the hashed asset the page names is served, `robots.txt`). It never starts a browser. |
 
 The deploy workflow and E2E answer different questions. Deploy asks "did
@@ -152,25 +152,27 @@ needed, for Playwright's control channel:
 npm run dev:lan
 ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 
-PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
+PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:e2e
 ```
 
 Other sessions may be rendering on the same GPU. For budget numbers you
 mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
-(`serverconfig/scripts/hwlock`); CLAUDE.md's GPU section says when.
+(`serverconfig/scripts/hwlock`). Hold it for the budget specs only, never a
+whole suite: while it is held every other session's compute is squeezed onto
+nexus.
 
 
-
-
+**No console login, correctness only: a server in session 0.** Chromium there
+gets the GPU only headless with `--use-angle=d3d11` (`PW_SESSION0=1` sends it),
+and its screenshots of the WebGPU canvas are blank, so the pixel specs need the
+RDP route below. Stop the server by port when no one else is connected to 3001.
 
 ```sh
 # the server, in session 0 (reuse it if 3001 already listens; other sessions may be on it)
 ssh ryzen 'if (-not (Get-NetTCPConnection -LocalPort 3001 -State Listen -EA 0)) { cd $env:USERPROFILE\projects; npx playwright run-server --port 3001 --host 127.0.0.1 --unsafe }' &
 ss -ltn | grep -q 39002 || ssh -f -N -L 39002:127.0.0.1:3001 ryzen
-PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:tier2
+PW_SESSION0=1 PW_REMOTE=ws://localhost:39002/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:e2e
 ```
-
-
 
 **No console login, pixels included: an RDP session as `rdp`** (verified
 2026-09-30: adapter guard plus the three `cloudShadow` pixel specs passed, twice).
@@ -201,7 +203,7 @@ npx playwright install chromium
 Then, with the tunnel open and `npm run dev` running on nexus:
 
 ```sh
-npm run test:tier2
+npm run test:e2e
 ```
 
 Expect every test to pass; the count is deliberately not written down here,

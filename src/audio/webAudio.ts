@@ -6,9 +6,9 @@ import { BIQUAD_FLAT_Q_DB, BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_B
  * The only file under `src/` that touches Web Audio, which
  * `tests/architecture/boundary.test.ts` asserts rather than trusts.
  *
- * Deliberately boring and deliberately untested at Tier 1, for the reason
+ * Deliberately boring and deliberately untested at Deterministic, for the reason
  * `legend.ts` states about its own DOM half: the vitest environment is `node`,
- * so everything worth asserting lives in the pure code above this. Tier 2
+ * so everything worth asserting lives in the pure code above this. E2E
  * (tests/e2e/audio.spec.ts) is this file's coverage.
  *
  * No `try`/`catch` here: `load` rejects and `system.ts` turns that into

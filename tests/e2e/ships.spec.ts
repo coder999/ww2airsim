@@ -6,7 +6,7 @@ import { loadScenarioBundle } from '../../tools/content/load.js'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 
 /**
- * Tier 2, ship models (ship-models spec §9). Same platform and caveats as
+ * E2E, ship models (ship-models spec §9). Same platform and caveats as
  * adapter.spec.ts: the Windows reference desktop, never hosted CI. The agent
  * reads the broadside PNGs itself; Mark is not in this loop.
  */

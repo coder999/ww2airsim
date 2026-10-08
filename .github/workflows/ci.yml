@@ -64,5 +64,5 @@ jobs:
       - run: npm run depcruise
       - run: npm test
 
-# No GPU on hosted runners, so there are no Tier 2 render checks here -- that
+# No GPU on hosted runners, so there are no E2E render checks here -- that
 # is deliberate per spec §11, not an omission.

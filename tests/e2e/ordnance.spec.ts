@@ -7,9 +7,9 @@ import { modelIO } from '../../tools/models/document.js'
 import { measureDocument } from '../../tools/models/measure.js'
 
 /**
- * Tier 2, O1 (ordnance spec §7): a released bomb and a rocket pair draw the generated store
+ * E2E, O1 (ordnance spec §7): a released bomb and a rocket pair draw the generated store
  * models in flight, and the bomb is actually on screen. The reference GPU only; the README's
- * Tier 2 command. Airborne at 1,500 m over the strike range, chase camera.
+ * E2E command. Airborne at 1,500 m over the strike range, chase camera.
  */
 const [xName, yName, zName] = SPAWN_PARAMS
 const URL_ = `/?${SCENARIO_PARAM}=strike-range&${xName}=0&${yName}=1500&${zName}=0`

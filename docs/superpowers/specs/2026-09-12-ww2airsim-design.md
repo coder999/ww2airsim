@@ -595,11 +595,11 @@ minimum honest ordering:
 **This table is the only authoritative statement of plan numbering.** Other
 design documents point at it; none of them restate it.
 
-**Since 2026-10-08 the order of work still to come lives in
-[`MASTER_PLAN.md`](../../../MASTER_PLAN.md)** at the repo root (Mark's
-decision). This table keeps numbering and one status row per plan. Its Order
-column records the first pass. A master-plan track gets a row here when its
-first plan starts.
+**Frozen 2026-10-08 as the record of the first pass** (Mark's decision), like
+`docs/status-log.md`: do not append to it or update it. Plans, their order and
+their status now live in [`MASTER_PLAN.md`](../../../MASTER_PLAN.md) at the
+repo root, its authoritative plan and ledger. Each plan's handoff still holds
+its measurements.
 
 It exists because for two days three documents disagreed. Input assists were
 inserted as Plan 3, taking the slot the ordering above had given terrain, and

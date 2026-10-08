@@ -5,7 +5,7 @@ import { radarBrightness } from '../../src/render/radar.js'
 import { TRAIL_DIM } from '../../src/render/scene/radarScope.js'
 
 /**
- * Tier 2, Plan 17 radar scope. Same platform and caveats as
+ * E2E, Plan 17 radar scope. Same platform and caveats as
  * `ai-pursuit.spec.ts`: the reference GPU on the Windows desktop, never
  * hosted CI.
  *
@@ -91,7 +91,7 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // (0.12 * 0.55 = 0.066) at EVERY point inside the circle, contact or
   // not. Compare instead against the EXPECTED ambient trail at this exact
   // bearing -- computed analytically via `radarBrightness` (the pure
-  // function Tier 1 already proves correct, `tests/render/radar.test.ts`)
+  // function Deterministic already proves correct, `tests/render/radar.test.ts`)
   // times `TRAIL_DIM` (the shader's own constant, imported rather than
   // duplicated) -- not a second empirical pixel read.
   //
@@ -126,7 +126,7 @@ test('the scope shows the contact where the math predicts, Tab cycles range, swe
   // The deterministic backstop against this whole bug class either way is
   // `tests/render/radarScope.test.ts`'s headless, GPU-free orientation
   // invariants on `scopeTexelFor` -- pure math, unaffected by sweep timing,
-  // and the ledger records why a live-pixel Tier 2 check exists alongside
+  // and the ledger records why a live-pixel E2E check exists alongside
   // it anyway (proving the whole pipeline, not just the placement math).
   const displacementFromDoubleFlip = 2 * Math.abs(Math.cos(contact.bearingRad)) * (contact.rangeMi / paused.rangeMi)
   expect(

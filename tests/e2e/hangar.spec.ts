@@ -6,7 +6,7 @@ import type { PartPose } from '../../src/render/hangar/models.js'
 import type { CameraPreset } from '../../src/render/hangar/framing.js'
 
 /**
- * Tier 2, the Hangar (spec §10): every model "renders, articulates and is
+ * E2E, the Hangar (spec §10): every model "renders, articulates and is
  * lit sanely", by pixel masks against an empty frame with the camera frozen.
  * Only the canvas is captured (`#hangar-canvas`); the panel sits beside it,
  * not over it. Run on any free dev-server slot.

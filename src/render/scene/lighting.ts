@@ -130,7 +130,7 @@ export function applySun(lights: Object3D, palette: SkyPalette, direction: Vec3,
  *
  * Every other material in this scene is a lit `MeshStandardMaterial`
  * (water.ts, markers.ts, hellcat.ts); with no light source they all render
- * black, and no Tier 1 test can see that -- appearance is unobservable
+ * black, and no Deterministic test can see that -- appearance is unobservable
  * headless, so this file's existence is what the review that required it
  * is actually checking for.
  */

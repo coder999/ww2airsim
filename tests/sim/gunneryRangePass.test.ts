@@ -7,7 +7,7 @@ import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
  * The shipped Gunnery Range, flown the way a player flies it (plan
  * 2026-09-29-gunnery-range-strafing-pass): a strafing pass from the run-in
  * start that kills target-1, then a landing straight ahead on Tacloban. The
- * Tier 1 half of what `gunnery.spec.ts` and the meta-game specs fly in the
+ * Deterministic half of what `gunnery.spec.ts` and the meta-game specs fly in the
  * browser, through the same frame pipeline and the same pilot.
  *
  * It replaces the parked-start sortie `friendlyFire.test.ts` used to fly with

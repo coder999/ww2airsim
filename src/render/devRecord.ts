@@ -12,7 +12,7 @@ export function sortieIsDev(option: ScenarioOption, spec: AircraftSpec, loadout:
   return isDevSortie({ devScenario: option.dev, start: option.start, spec, loadout, quickLaunch })
 }
 
-/** SF-R6: `?recordDevSorties` makes a Dev sortie record anyway, for the Tier 2
+/** SF-R6: `?recordDevSorties` makes a Dev sortie record anyway, for the E2E
  *  specs that prove the banking chain from Dev-only test beds. A DEV-build
  *  switch: a production build passes `devBuild: false` and never honors it. */
 export function recordDevSortiesFromQuery(search: string, devBuild: boolean): boolean {

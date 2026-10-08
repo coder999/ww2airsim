@@ -760,7 +760,7 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
 
 /**
  * The initial `World`. Pure; `terrain` may be `null` (the browser has none
- * at boot) in which case the ship loops are not checked here -- the Tier 1
+ * at boot) in which case the ship loops are not checked here -- the Deterministic
  * test does that against the real field on every commit.
  *
  * `loadout` seeds the PLAYER's stores only (spec §2.4: loadout is a title-

@@ -42,7 +42,7 @@ export type FrameState = {
   readonly world: World<undefined>
   /** This frame's commanded controls -- the identical object the player
    *  entity's `controls` holds, kept here too because main.ts's prop spin and
-   *  the Tier 2 diagnostics hook read the frame, not the world inside it. */
+   *  the E2E diagnostics hook read the frame, not the world inside it. */
   readonly controls: Controls
   readonly look: LookOffset
   readonly cameraMode: CameraMode
@@ -321,7 +321,7 @@ export function initialFrameStateFor(
 }
 
 /**
- * The pre-Plan-12 entry point: builds the one-aircraft `World` every Tier 1
+ * The pre-Plan-12 entry point: builds the one-aircraft `World` every Deterministic
  * test before this task constructs by hand, then delegates to
  * `initialFrameStateFor`. Kept so a one-airplane test, and `main.ts` until
  * Task 7 wires it to the scenario, still build a frame in one call.
@@ -338,7 +338,7 @@ export function initialFrameState(
   // initialAircraft)` call passes none, so this task changes no runtime
   // behaviour: `advance`'s impact check never runs while this stays `null`).
   terrain: TerrainField | null = null,
-  // `false` matches every caller that predates Task 14 -- every Tier 1 test
+  // `false` matches every caller that predates Task 14 -- every Deterministic test
   // and every DEV spawn override -- so this argument changes no existing
   // behavior by default. A ground spawn passes `true` here and nowhere
   // else: `gearDown` and `groundSpawn` both derive from this one aircraft's
@@ -481,7 +481,7 @@ export function surfaceHeightFor(world: World<undefined>): SurfaceHeightAt {
  *
  * Everything here is bookkeeping that is easy to get subtly wrong and painful
  * to debug through a GPU: input routing, the camera-cycle edge, the accumulator
- * under a stalled frame. Keeping it pure is what makes those Tier 1 testable.
+ * under a stalled frame. Keeping it pure is what makes those Deterministic testable.
  */
 export function nextFrameState(
   prev: FrameState,

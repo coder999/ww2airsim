@@ -101,7 +101,7 @@ describe('driveLayer (spec §4: named layered loops)', () => {
     expect(fake.layers[1]!.gains.at(-1)).toBe(0.3)
   })
 
-  it('exposes every layer in the snapshot, and keeps the engine fields Tier 2 reads', async () => {
+  it('exposes every layer in the snapshot, and keeps the engine fields E2E reads', async () => {
     const fake = createFakeBackend()
     const audio = createAudioSystem(fake, twoLayers)
     await audio.load()

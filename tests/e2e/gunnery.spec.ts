@@ -6,9 +6,9 @@ import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
 /**
- * Tier 2, the playable gunnery slice (Plan 6). Same platform and caveats as
+ * E2E, the playable gunnery slice (Plan 6). Same platform and caveats as
  * `adapter.spec.ts`: the reference GPU on the Windows desktop, never hosted
- * CI. Run it with the README's Tier 2 command.
+ * CI. Run it with the README's E2E command.
  *
  * What only this tier can prove is the wiring of the whole slice in the
  * shipped app: Space reaching `Controls.fire` through the real keydown

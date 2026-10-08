@@ -8,7 +8,7 @@ import { carve, ensureIndices } from './geometry.js'
 
 const ROLE_PREFIX = 'ship:'
 
-/** The one material for `role` in this document, created on first use. Named `ship:<role>`, so Tier 1 can find a role by name. */
+/** The one material for `role` in this document, created on first use. Named `ship:<role>`, so Deterministic can find a role by name. */
 export function roleMaterial(doc: Document, palette: ShipEntry['palette'], role: ShipRole): Material {
   const name = `${ROLE_PREFIX}${role}`
   const existing = doc.getRoot().listMaterials().find((m) => m.getName() === name)

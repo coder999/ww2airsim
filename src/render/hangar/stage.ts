@@ -32,7 +32,7 @@ export function applyWireframe(root: Object3D, on: boolean): void {
 
 const litMaterials = new WeakMap<Mesh, Mesh['material']>()
 /** Every mesh under `root` drawn with its own base color, map and alpha but no
- *  lighting, or back to the very materials it had. Tier 2 check 5 divides a lit
+ *  lighting, or back to the very materials it had. E2E check 5 divides a lit
  *  frame by this one, so paint cancels and only the response to light is left:
  *  a bare-metal B-17 is 3.1x a blue Wildcat's luminance lit (R3, 2026-09-27)
  *  and that says nothing about whether it is lit sanely. */
@@ -159,14 +159,14 @@ export interface HangarStage {
   /** Replaces what stands on the stage. `kind` picks the ground: water for ships, a pad otherwise. */
   show(model: Object3D | null, kind: LibraryKind | null): void
   setPreset(p: CameraPreset): void
-  /** Stops the turntable and makes the frame repeatable (Tier 2). */
+  /** Stops the turntable and makes the frame repeatable (E2E). */
   freeze(): void
   setModelVisible(visible: boolean): void
   /** Wireframe on every model shown from now on, the current one included (H2). */
   setWireframe(on: boolean): void
   /** The UV checker on every model shown from now on, the current one included (DP0, spec §9). */
   setChecker(on: boolean): void
-  /** The current model unlit (its own paint, no lights), or lit again; show() relights (Tier 2 check 5, R3). */
+  /** The current model unlit (its own paint, no lights), or lit again; show() relights (E2E check 5, R3). */
   setUnlit(on: boolean): void
   /** Pivot gizmos on these nodes; null or [] = off. show() clears them (H2). */
   setGizmos(nodes: readonly Object3D[] | null): void
@@ -174,7 +174,7 @@ export interface HangarStage {
   setAutoRotate(on: boolean): void
   /** The standing model's bounding-box size, meters (x length, y height, z span). */
   modelSize(): { x: number; y: number; z: number } | null
-  /** `world` through the stage camera, in NDC (O1, Tier 2 check 11). */
+  /** `world` through the stage camera, in NDC (O1, E2E check 11). */
   project(world: Vector3): readonly [number, number]
   render(): void
   resize(width: number, height: number): void

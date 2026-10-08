@@ -4,7 +4,7 @@ import { VIEWS } from './views.js'
 import { loadAirfield } from '../../tools/content/load.js'
 
 /**
- * Tier 2, the cloud pass's temporal accumulation (photoreal Task 4,
+ * E2E, the cloud pass's temporal accumulation (photoreal Task 4,
  * 2026-09-24; spec §4.1 and the plan's review focus 1-2). The screenshots are
  * READ by the executor -- ghost trails and a reversed reprojection are
  * judged by eye -- and the reset counter makes the discontinuity handling a

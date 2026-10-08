@@ -46,7 +46,7 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
     expect(m!.parts.find((p) => p.id === 'gear')!.modeled).toBe(false)
   })
 
-  it('pose applies at once, without advancing the clock, so a frozen page still shows it (Tier 2 check 2)', async () => {
+  it('pose applies at once, without advancing the clock, so a frozen page still shows it (E2E check 2)', async () => {
     const hellcat = createHellcat()
     const update = vi.spyOn(hellcat, 'update')
     const m = await loadHangarModel(byId('f4f-wildcat'), async () => hellcat)

@@ -6,7 +6,7 @@ import {
 import { AP_SLICES, AP_SLICE_TEXELS, SKY_VIEW_HEIGHT, skyViewLutUv, type AtmosphereLutName } from '../../src/render/sky/atmosphereLuts.js'
 
 /**
- * Tier 2, the atmosphere LUTs (photoreal Task 8, spec §4.3): the GPU and CPU
+ * E2E, the atmosphere LUTs (photoreal Task 8, spec §4.3): the GPU and CPU
  * halves of the one atmosphere model must agree. The transmittance LUT is
  * read back from the GPU at (hM, mu), filtered as a sampler would, and held
  * to `transmittanceToTop` within 2% per channel. A mismatch is a bug in one of

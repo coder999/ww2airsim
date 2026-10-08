@@ -9,10 +9,10 @@ Inspired by *Hellcats Over the Pacific* (Graphic Simulations, 1991) and its
 mission text. `ww2airsim` is a working title.
 
 ## Master Plan & Ledger
-The authorotative master plan lives at `MASTER_PLAN.md`.  Details of execution for portions of the master plan may be kept in `docs/superpowers/plans` but the master plan remains the authorotative plan and ledger.   Each plan's handoff in `docs/handoff/` holds its
-measurements. The per-plan history that used to sit here is in [docs/status-log.md](docs/status-log.md).
+The authoritative master plan lives at [`MASTER_PLAN.md`](MASTER_PLAN.md).  Details of execution for portions of the master plan may be kept in `docs/superpowers/plans` but the master plan remains the authoritative plan and ledger.   Each plan's handoff in `docs/handoff/` holds its
+measurements. The first pass's per-plan status table is master spec §15, frozen as history on 2026-10-08; the per-plan history that used to sit here is in [docs/status-log.md](docs/status-log.md).
 
-The README is not a ledger
+The README is not a ledger.
 
 ## Overview
 
@@ -32,10 +32,6 @@ What the player sees — scoring and ranks, the aircraft, ship and building
 rosters, the scenarios — is in [`GAMEPLAY.md`](GAMEPLAY.md).
 
 
-The hand-off to Mark — screenshots, the measured GPU frame cost, the LOD
-height-error tables, and the one open question — is
-[`docs/handoff/2026-09-14-plan4-terrain.md`](docs/handoff/2026-09-14-plan4-terrain.md).
-
 ## Where docs go
 
 One home per kind of fact. Point at it from elsewhere; never copy it.
@@ -49,7 +45,7 @@ One home per kind of fact. Point at it from elsewhere; never copy it.
 | Post-mortem with an open fix | `docs/incidents/<date>-<name>.md` |
 | A subsystem's standing reference: what ships, what was tried, traps, open items | `docs/<topic>.md` (`clouds.md`, `terrain.md`, `models.md`, `aircraft.md`, `drape.md`, `testing.md`); update it in the same commit as the change |
 | How tests are written (philosophy), how to run them, and the GPU harness | `docs/testing.md` |
-| Agent rules that cannot be derived from the code | `Agents.md` |
+| Agent rules that cannot be derived from the code | [`AGENTS.md`](AGENTS.md) |
 | Overview, getting started, and pointers | `README.md` |
 | Gameplay a player sees | `GAMEPLAY.md` |
 
@@ -124,15 +120,15 @@ The VPS side lives in `vps-infra/sites/ww2airsim/`.
 
 ## What this is, and is not
 
-This is a hobbyist gamet. Depth is allocated unevenly and on purpose:
+This is a hobbyist game. Depth is allocated unevenly and on purpose:
 
 | Area | Depth |
 | --- | --- |
 | World and terrain — real DEM and bathymetry, CDLOD, 100 km views | Deep |
 | Graphics — WebGPU, cascaded FFT ocean, volumetric cloud | Deep |
 | Flight physics — honest forces, simplified moments | Good enough |
-| Combat AI — pursuit, energy awareness, a small maneuver set | Basic |
-| Content — eight scenarios, six aircraft | Minimal |
+| Combat AI — pursuit, energy awareness, a maneuver set, formation, takeoff and landing | Basic |
+| Content — four missions, six ranges, twelve flyable aircraft | Minimal |
 
 Explicitly not in scope: multiplayer, a persistent strategic campaign,
 study-level aerodynamics, mobile, or VR.

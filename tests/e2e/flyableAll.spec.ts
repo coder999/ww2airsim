@@ -5,7 +5,7 @@ import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { quickLaunch, waitForTerrain, type DiagWindow } from './harness.js'
 
 /**
- * Tier 2, the definition of "onboarded" (docs/aircraft.md, Part H): every
+ * E2E, the definition of "onboarded" (docs/aircraft.md, Part H): every
  * flyable aircraft (one with a spec in content/aircraft/) launches from the
  * runway with its armament loaded, is drawn as itself, rolls, gets airborne
  * with no validation error, and releases a bomb if it carries any. A new

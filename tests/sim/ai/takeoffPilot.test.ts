@@ -47,7 +47,7 @@ describe('takeoff mode in the pilot tick (no terrain)', () => {
   })
 })
 
-describe.skipIf(terrain === null)('takeoff mode in the pilot tick (Tier 1, real terrain)', () => {
+describe.skipIf(terrain === null)('takeoff mode in the pilot tick (Deterministic, real terrain)', () => {
   it('a pair takes off in id order and never closes inside 40 m on the ground (RF2)', () => {
     let w = pair()
     let minSep = Infinity

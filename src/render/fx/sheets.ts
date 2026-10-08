@@ -9,7 +9,7 @@ export type FxSheetTextures = { readonly manifest: FxSheetManifest; readonly lig
 
 /** The three flipbook arrays (plan E1 Rulings R7, R8). Never rejects: any
  *  failure warns and returns `fallbackFxSheets()` (Review Focus 2), because
- *  a console error fails every Tier 2 spec and effects are not worth a
+ *  a console error fails every E2E spec and effects are not worth a
  *  failure screen. */
 export async function loadFxSheets(renderer: WebGPURenderer): Promise<FxSheetTextures> {
   try {

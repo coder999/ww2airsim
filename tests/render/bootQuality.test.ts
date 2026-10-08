@@ -215,7 +215,7 @@ describe('the Damage Model flag at boot (visual-realism spec §1)', () => {
  * here after a rename is a five-second fix; the failure mode it guards
  * against cost three review rounds to keep catching by eye.
  */
-describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
+describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   const source = readFileSync(fileURLToPath(new URL('../../src/render/main.ts', import.meta.url)), 'utf8')
 
   it('builds exactly one settings model, through createBootQuality', () => {
@@ -283,7 +283,7 @@ describe('main.ts boot wiring (what no Tier 1 test can execute)', () => {
   })
 
   it('keeps the DEV query overrides winning over a saved setting', () => {
-    // A Tier 2 measurement run passes `?oceanTier=`/`?cloudTier=`; if a saved
+    // An E2E measurement run passes `?oceanTier=`/`?cloudTier=`; if a saved
     // localStorage tier could override it, the run would silently measure
     // something other than what its URL says.
     expect(source).toContain('let oceanTier = forcedOceanTier ?? oceanTierNamed(quality.current().ocean)')

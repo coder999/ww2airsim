@@ -1,13 +1,13 @@
 import { defineConfig } from '@playwright/test'
 
 /**
- * Tier 2 only. Runs on the Windows reference platform, never in hosted CI --
+ * E2E only. Runs on the Windows reference platform, never in hosted CI --
  * there is no GPU there, and a software rasterizer would make every assertion
  * here meaningless while still passing some of them.
  *
  * baseURL is localhost on purpose: WebGPU needs a secure context and a
  * plain-HTTP LAN address is not one (master spec §2), so this expects the SSH
- * tunnel to nexus to be open (see README.md's Tier 2 section).
+ * tunnel to nexus to be open (see README.md's E2E section).
  *
  * `channel: 'chromium'` is the FIRST thing to suspect if the adapter test
  * fails here, ahead of anything about ANGLE backends below. Verified
@@ -33,7 +33,7 @@ import { defineConfig } from '@playwright/test'
  * dated, so this comment stops being a guess.
  */
 /**
- * Chromium flags for the Tier 2 browser.
+ * Chromium flags for the E2E browser.
  *
  * The first two were already here and are about getting a real GPU at all
  * (see the block comment above).
@@ -72,7 +72,7 @@ import { defineConfig } from '@playwright/test'
  * the header otherwise; `channel`, `headless` and `proxy` survive. Measured
  * 2026-09-18 by reading `chrome://version` through a `run-server` started
  * without the flag: none of the args below were on the command line, and a
- * marker arg added for the test was not either. README's Tier 2 section gives
+ * marker arg added for the test was not either. README's E2E section gives
  * the `--unsafe` form; without it every entry in this list is a no-op on the
  * reference platform, which the adapter test cannot tell you.
  *
@@ -155,7 +155,7 @@ export default defineConfig({
               process.env.PW_SESSION0
                 ? // A run-server in ryzen's session 0 (started over SSH, no console
                   // login): no display, so headless, and ANGLE's default backend gets
-                  // no GPU there while d3d11 gets the real one. README's "Tier 2: the
+                  // no GPU there while d3d11 gets the real one. README's "E2E: the
                   // GPU harness" has the recipe and what it is (not) good for.
                   { channel: 'chromium', headless: true, args: [...CHROMIUM_ARGS, '--use-angle=d3d11'] }
                 : { channel: 'chromium', headless: false, args: CHROMIUM_ARGS },

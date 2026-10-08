@@ -5,7 +5,7 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 
 /**
- * Tier 2, the F4U-1D Corsair (aircraft onboarding, 2026-09-29): the quick
+ * E2E, the F4U-1D Corsair (aircraft onboarding, 2026-09-29): the quick
  * launch puts it on the Essex's deck in the deck-quals scenario, and it must
  * get airborne off the bow with no validation error. The trap itself is
  * covered at the sim level by `tests/sim/trapCorsair.test.ts`; no browser

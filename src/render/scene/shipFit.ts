@@ -543,7 +543,7 @@ const pct = (a: number, b: number): string => `${(((a / b) - 1) * 100).toFixed(2
 
 /**
  * Every §4.4 tolerance, re-measured on FITTED geometry against the spec. The
- * build calls it before writing; Tier 1 calls it on the committed glb against
+ * build calls it before writing; Deterministic calls it on the committed glb against
  * the live content/ships JSON. Each problem names the quantity, the measured
  * value and the limit.
  */

@@ -342,8 +342,8 @@ reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 | 6 | **Views from below read cloudier than the old clouds** (sky fraction is correct) | Mark's call: free-flight `coverage` |
 | 7 | **16b/16c look calls:** shadow darkness, `OCEAN_SHADOW_FLOOR` 0.6, sea scaled not tinted at dusk, crimson dusk clouds | Mark's calls, not made |
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |
-| 9 | **Docs debt:** photoreal Task 14 (handoff, §15 row, supersede notes) never run; 16d documents lack "superseded" | Housekeeping |
-| 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Until then, Tier 2 budget specs should boot by URL | Open; Mark: note it, fix later (2026-09-26) |
+| 9 | **Docs debt:** photoreal Task 14 (handoff, supersede notes) never run, re-filed into `MASTER_PLAN.md` track H0 (2026-10-08); 16d documents lack "superseded" | Housekeeping |
+| 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Until then, E2E budget specs should boot by URL | Open; Mark: note it, fix later (2026-09-26) |
 
 ## 6. Proposed next steps
 
@@ -355,7 +355,7 @@ In the order I would take them. Items marked (Mark) need his decision first.
    frame-to-frame deltas, in-deck on the reference GPU. If the variance is
    still large, the next lever is the amortized schedule inside cloud.
 3. **Auto tier (Mark)** (issue 2): measure after New game, show the chosen
-   tier, and add a Tier 2 test that Mark's Chrome gets High. This does
+   tier, and add an E2E test that Mark's Chrome gets High. This does
    more for how the clouds look on his desktop than any shader work.
 4. **Low edge shimmer** (issue 3): try a neighborhood-clamped history on
    Low, or a slightly higher Low resolution within its budget. Check each

@@ -39,7 +39,7 @@ export type LoadShipView = (spec: ShipSpec) => Promise<ShipView>
  * no `view.model` draws the boxes, a supported state. A model that fails to
  * load or lacks a node the view needs ALSO draws the boxes, so the game still
  * runs, AND reports the failure: `main.ts` and the hangar pass a sink that
- * pushes into their `validationErrors`, which Tier 2 asserts empty. A silent
+ * pushes into their `validationErrors`, which E2E asserts empty. A silent
  * fallback would ship a broken asset as boxes and nothing would notice.
  */
 export function makeShipViewLoader(reportError: (message: string) => void, acquire: (url: string) => Promise<ModelInstance> = acquireModel): LoadShipView {

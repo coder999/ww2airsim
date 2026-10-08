@@ -160,9 +160,9 @@ describe('friendly-fire-range (Task 6): Space hits the allied Hellcat ahead thro
   })
 })
 
-describe('friendly-fire-field: the run-in pass hits the parked allied Hellcat, then lands (the discharge path Tier 2 lands)', () => {
+describe('friendly-fire-field: the run-in pass hits the parked allied Hellcat, then lands (the discharge path E2E lands)', () => {
   // The range pass since 2026-09-29, flown through the frame pipeline by the
-  // same pilot Tier 2 uses (tests/pilot/). Before, a parked shooter levelled
+  // same pilot E2E uses (tests/pilot/). Before, a parked shooter levelled
   // by hand stood in for T1's 9.45 degree rest pitch.
   it('the parked wingman takes a friendly hit, no Tacloban building is touched, and the airplane lands', () => {
     const terrain = groundTruthTerrain()
