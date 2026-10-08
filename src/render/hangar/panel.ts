@@ -84,7 +84,8 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   detailSheet.style.cssText = sheet.style.cssText
   const toggle = el('button', 'ink-button')
   toggle.type = 'button'
-  toggle.style.cssText = 'align-self:flex-end;padding:4px 10px'
+  // Paper-backed: it sits on the dark page, outside the sheet, where ink alone barely shows.
+  toggle.style.cssText = 'align-self:flex-end;padding:4px 12px;font-size:16px;background:var(--paper);border-color:var(--paper-edge)'
   const card = el('div', 'hangar-card')
   const benchSlot = el('div', 'hangar-bench')
   detailSheet.append(card, benchSlot)
