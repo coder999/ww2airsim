@@ -2556,7 +2556,7 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot)
+    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
     // T3-R1: freezes the radio countdown under pause and while any debrief is

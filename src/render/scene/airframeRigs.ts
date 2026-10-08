@@ -8,6 +8,8 @@
  * ventral at one station. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
  * tests/tools/models/aircraftRigs.test.ts proves each rig against its committed glb.
  */
+import type { BayRig } from './bayDoors.js'
+
 export type Retracts = 'inboard' | 'forward' | 'aft'
 
 export interface PropRig {
@@ -34,6 +36,9 @@ export interface AirframeRig {
   readonly turrets: readonly string[]
   /** Control surface nodes (C1). What each drives and how far follows from its name (`surfaceDrive`). */
   readonly surfaces?: readonly string[]
+  /** Bomb-bay openings, drawn in code (C2, scene/bayDoors.ts), and the doors' paint. Every rig
+   *  here belongs to a spec with `bayDoors`, and every such spec has a rig (aircraftRigs.test.ts). */
+  readonly bays?: { readonly openings: readonly BayRig[]; readonly paint: number }
 }
 
 export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/
@@ -92,6 +97,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
+    // C2: the belly at the bay, ray-cast off the committed glb 2026-10-08 (aircraftRigs.test.ts checks it).
+    bays: { openings: [{ x0: -1.5, x1: 1.5, halfWidthM: 0.4, keelY: -0.904, hingeY: -0.838 }], paint: 0xa9adb0 },
   },
   'b-29-superfortress': {
     // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
@@ -104,6 +111,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5'],
+    // C2: the belly at the bay, ray-cast off the committed glb 2026-10-08 (aircraftRigs.test.ts checks it).
+    bays: { openings: [{ x0: 2.0, x1: 5.0, halfWidthM: 0.6, keelY: -1.449, hingeY: -1.318 }, { x0: -7.0, x1: -4.0, halfWidthM: 0.6, keelY: -1.449, hingeY: -1.318 }], paint: 0xb9bcbf },
     surfaces: surfaces(2),
   },
   'd3a-val': {
@@ -147,6 +156,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
     ],
     turrets: ['Turret1'],
+    // C2: the belly at the bay, ray-cast off the committed glb 2026-10-08 (aircraftRigs.test.ts checks it).
+    bays: { openings: [{ x0: -2.6, x1: 1.2, halfWidthM: 0.5, keelY: -1.262, hingeY: -1.164 }], paint: 0x8f9488 },
     surfaces: surfaces(2),
   },
   'ki-21-sally': {
@@ -158,6 +169,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
     ],
     turrets: ['Turret1'],
+    // C2: the belly at the bay, ray-cast off the committed glb 2026-10-08 (aircraftRigs.test.ts checks it).
+    bays: { openings: [{ x0: -2.5, x1: 1.3, halfWidthM: 0.4, keelY: -1.003, hingeY: -0.88 }], paint: 0x9a9e94 },
     surfaces: surfaces(2),
   },
   'ki-43-oscar': {

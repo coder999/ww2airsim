@@ -8,7 +8,7 @@ import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
 import { friendlyInLineOfFire } from './holdFire.js'
-import { ingressAccepts, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
+import { ingressAccepts, ingressBayDoorsOpen, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
 import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
@@ -72,6 +72,18 @@ function chooseTarget<M>(
  *    no target.
  */
 export function pilotTick<M>(
+  a: AircraftEntity<M>,
+  snapshot: readonly AircraftEntity<M>[],
+  ctx: PilotTickContext,
+): AircraftEntity<M> {
+  const flown = flyPilot(a, snapshot, ctx)
+  // C2: a raider with bay doors works them by range to its destination, whatever it is flying.
+  const orders = flown.pilot?.ingress
+  if (flown === a || orders === undefined || a.spec.bayDoors === undefined) return flown
+  return { ...flown, controls: { ...flown.controls, bayDoorsOpen: ingressBayDoorsOpen(flown, orders, ctx.ships) } }
+}
+
+function flyPilot<M>(
   a: AircraftEntity<M>,
   snapshot: readonly AircraftEntity<M>[],
   ctx: PilotTickContext,

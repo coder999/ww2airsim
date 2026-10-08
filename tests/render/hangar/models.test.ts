@@ -27,7 +27,7 @@ describe('sceneCounts', () => {
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
     const rows = partSpecsFor(['prop', 'gear', 'stores'])
-    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true], ['surfaces', false], ['stores', true]])
+    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['doors', false], ['prop', true], ['surfaces', false], ['stores', true]])
   })
 })
 

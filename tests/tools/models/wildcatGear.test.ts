@@ -48,7 +48,7 @@ beforeAll(async () => {
   plain.add(correction)
 })
 
-const pose = (a: Airframe, f: number) => a.update({ gearFraction: f, flapFraction: 0, throttle: 0, controls: STILL, frameS: 0, cameraDistanceM: 50 })
+const pose = (a: Airframe, f: number) => a.update({ gearFraction: f, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: STILL, frameS: 0, cameraDistanceM: 50 })
 const posePlain = (f: number) => { for (const s of SIDES) applyGearFraction(plainRoot.getObjectByName(s.group)!, s.down, s.up, f) }
 
 describe('the lengthened main legs (W1 R5)', () => {

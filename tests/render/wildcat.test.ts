@@ -83,7 +83,7 @@ describe('loadWildcat through the model cache (Z1)', () => {
     const cache = syntheticCache()
     const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
     const rest = (await wildcatGlbScene()).getObjectByName('Helice')!.rotation.z
-    a.update({ gearFraction: 0, flapFraction: 0, throttle: 1, controls: still, frameS: 0.01, cameraDistanceM: 50 })
+    a.update({ gearFraction: 0, flapFraction: 0, bayDoorFraction: 0, throttle: 1, controls: still, frameS: 0.01, cameraDistanceM: 50 })
     expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(rest + 0.4, 12)
     expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_UP.der.pos)).toBeLessThan(1e-6)
     expect(a.root.getObjectByName('GRP_Rueda_Izq')!.position.distanceTo(GEAR_UP.izq.pos)).toBeLessThan(1e-6)

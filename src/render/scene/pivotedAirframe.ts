@@ -5,6 +5,7 @@ import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
+import { buildBayDoors } from './bayDoors.js'
 
 /**
  * One airframe from a rigged glb (R3): its articulated parts were pivoted by the build (each
@@ -43,6 +44,7 @@ export function rigParts(rig: AirframeRig): PartId[] {
   if (rig.gear.length > 0) parts.push('gear')
   if (inputs.has('flap')) parts.push('flaps')
   if (inputs.has('roll') || inputs.has('pitch') || inputs.has('yaw')) parts.push('surfaces')
+  if (rig.bays !== undefined) parts.push('doors')
   return parts
 }
 
@@ -116,6 +118,9 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     }
     freeVisuals = visuals.release
   }
+  const doorPaint = rig.bays === undefined ? null : new MeshStandardMaterial({ color: rig.bays.paint, roughness: 0.55, metalness: 0.2, side: 2 })
+  const doors = rig.bays === undefined || doorPaint === null ? null : buildBayDoors(rig.bays.openings, doorPaint)
+  if (doors) root.add(doors.group)
   let propRad = 0
   const stick = { roll: 0, pitch: 0, yaw: 0 }
   let disposed = false
@@ -127,6 +132,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       propRad = propAngle(propRad, u.throttle, u.frameS)
       for (const p of bound.props) p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad))
       for (const g of bound.gear) g.posed.node.quaternion.copy(turnedAbout(g.posed.rest, g.posed.axis, gearAngleRad(g.rig, u.gearFraction)))
+      doors?.set(u.bayDoorFraction)
       for (const k of ['roll', 'pitch', 'yaw'] as const) stick[k] = slewToward(stick[k], u.controls[k], u.frameS)
       for (const s of bound.surfaces) {
         // Flaps already move at the sim's own travel rate (C1 Ruling R3), so they are not slewed again.
@@ -138,6 +144,8 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       if (disposed) return
       disposed = true
       hung?.dispose()
+      doors?.dispose()
+      doorPaint?.dispose()
       freeVisuals()
       instance.release()
     },

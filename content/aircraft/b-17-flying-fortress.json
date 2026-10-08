@@ -132,6 +132,11 @@
     "dragAreaM2": 2.94,
     "clIncrement": 0.3011
   },
+  "bayDoors": {
+    "travelSeconds": 10,
+    "dragAreaM2": 0.45,
+    "source": "ESTIMATE (C2, 2026-10-08): electrically driven doors, a slow travel; drag area is a bay opening of about 3 sq m at a cavity Cd of 0.15. Nothing measured; both are tuning values."
+  },
   "stores": {
     "racks": [
       {

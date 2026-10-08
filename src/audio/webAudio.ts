@@ -149,6 +149,12 @@ export function createWebAudioBackend(): AudioBackend {
 
     loaded: (): readonly ClipId[] => [...buffers.keys()],
 
+    loadSamples: (id: ClipId, samples: Float32Array, sampleRate: number): void => {
+      const buffer = context.createBuffer(1, samples.length, sampleRate)
+      buffer.getChannelData(0).set(samples)
+      buffers.set(id, buffer)
+    },
+
     startLoop: (spec: LoopSpec): LoopHandle => makeLoop(spec, null),
 
     startSpatialLoop: (spec: LoopSpec): SpatialLoopHandle => {

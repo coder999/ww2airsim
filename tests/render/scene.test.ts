@@ -61,7 +61,7 @@ describe('hellcat geometry', () => {
     const { root, update } = createHellcat()
     const before = new Map<number, number>()
     root.traverse((o) => before.set(o.id, o.rotation.x))
-    update({ gearFraction: 1, flapFraction: 0, throttle: 1, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS: 0.01, cameraDistanceM: 10 })
+    update({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 1, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS: 0.01, cameraDistanceM: 10 })
     let changed = 0
     root.traverse((o) => {
       if (Math.abs(o.rotation.x - (before.get(o.id) ?? 0)) > 1e-9) changed++

@@ -430,6 +430,18 @@ const AircraftSpecObject = z.object({
      */
     clIncrement: positive,
   }).strict(),
+  /**
+   * Bomb-bay doors (C2): a lever with travel time and drag, like the flaps. A spec with them
+   * releases no bomb until they are fully open (`bayDoorsShut`, src/sim/bayDoors.ts). Absent on
+   * every airplane whose bombs hang outside.
+   */
+  bayDoors: z.object({
+    /** Seconds for the doors to travel fully shut-to-open or open-to-shut. */
+    travelSeconds: positive,
+    /** Drag AREA (Cd·A) of the fully open doors, m^2, the same shape `flap.dragAreaM2` takes. */
+    dragAreaM2: positive,
+    source: z.string().min(1),
+  }).strict().optional(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure

@@ -56,7 +56,7 @@ export function mountBench(
   title.textContent = 'Test bench'
   slot.appendChild(title)
 
-  const sliders = new Map<'gear' | 'flaps' | 'prop', HTMLInputElement>()
+  const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
   const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
   for (const part of parts) {
@@ -106,11 +106,11 @@ export function mountBench(
       input.style.cssText = 'flex:1 1 90px;min-width:80px'
       input.addEventListener('input', () => {
         const v = Number(input.value)
-        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : { throttle: v })
+        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v } : { throttle: v })
       })
       sliders.set(id, input)
       row.appendChild(input)
-      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'flaps')) {
+      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'flaps' || id === 'doors')) {
         const button = document.createElement('button')
         button.type = 'button'
         button.textContent = 'Cycle'
@@ -141,9 +141,10 @@ export function mountBench(
 
   return {
     sync(s): void {
-      const set = (id: 'gear' | 'flaps' | 'prop', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
+      const set = (id: 'gear' | 'flaps' | 'doors' | 'prop', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
       set('gear', s.gearFraction)
       set('flaps', s.flapFraction)
+      set('doors', s.bayDoorFraction)
       set('prop', s.throttle)
       for (const axis of STICK) { const el = sticks.get(axis); if (el) el.value = String(s[axis]) }
       const b = stores.get('bombs'), r = stores.get('rockets')

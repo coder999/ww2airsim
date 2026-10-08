@@ -246,6 +246,28 @@ test.describe('the Hangar', () => {
     }
   })
 
+  test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
+    let bombers = 0
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'doors')) continue
+      bombers++
+      // From the side, gear up: an open door hangs flat-on to this view. From the front the B-17's chin
+      // turret hides its whole belly line (measured 2026-10-08: 0 px changed).
+      const { empty, model: shut } = await view(page, id, 'side', { bayDoorFraction: 0, gearFraction: 0 })
+      await page.getByRole('button', { name: 'Cycle bay doors' }).click()
+      // 12 s at 60 Hz covers every shipped spec's bayDoors.travelSeconds (10 s for the B-17, 2026-10-08).
+      await page.evaluate(() => { for (let i = 0; i < 720; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ bayDoorFraction: 1, cycling: null })
+      const open = await shot(page)
+      const m = await masks(page, empty, [shut, open])
+      console.log(`doors ${id}: changed ${m.xor01}/${m.areas[0]}`)
+      // Measured 2026-10-08: 93 px (B-17) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
+      expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
+    }
+    expect(bombers).toBe(4)
+  })
+
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
     // Three captures per Library entry: R3's eleven aircraft took it past the 60 s default (26 of 28 entries, 2026-09-27).
     test.setTimeout(180_000)
@@ -345,7 +367,8 @@ test.describe('the Hangar', () => {
       const c = await current(page)
       if (c.kind !== 'aircraft' || id === 'f4f-wildcat') continue
       const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
-      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/)
+      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/)
+      expect(nodes.some((n) => n.startsWith('BayDoor')), `${id} bay door gizmos`).toBe(hasPart(c, 'doors'))
       expect(nodes.some((n) => /^(Aileron|Elevator|Rudder)/.test(n)), `${id} control surface gizmos`).toBe(hasPart(c, 'surfaces'))
       expect(nodes.some((n) => n.startsWith('Flap')), `${id} flap gizmos`).toBe(hasPart(c, 'flaps'))
       expect(nodes.some((n) => n.startsWith('Prop')), `${id} prop gizmo`).toBe(hasPart(c, 'prop'))

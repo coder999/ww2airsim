@@ -33,6 +33,8 @@ export type ClipId =
   | 'wire_catch'
   | 'flak_distant'
   | 'hook_clunk'
+  /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
+  | 'motor'
 
 export type AudioAsset = {
   readonly id: ClipId

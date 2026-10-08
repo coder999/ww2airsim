@@ -10,6 +10,7 @@ import { modelIO } from '../../../tools/models/document.js'
 import { bounds, centroid, radiusAbout, rotateAbout, symmetryError, worldPositions, type Vec3 } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { airframeMeshes, retractedExcess } from './_retractedSkin.js'
+import { Raycaster, Vector3 } from 'three'
 
 const entries = loadModelEntries()
 const specIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
@@ -50,6 +51,15 @@ it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   }
 })
 
+// C2: the airframes that draw bay doors are exactly the specs that have them, and pinned, so neither
+// side can gain or lose doors alone.
+it('bay doors: drawn on exactly the specs with bayDoors (C2)', () => {
+  const drawn = Object.entries(AIRFRAME_RIGS).filter(([, r]) => r.bays !== undefined).map(([id]) => id).sort()
+  const specced = specIds.filter((s) => loadAircraftSpec(s).bayDoors !== undefined).sort()
+  expect(drawn).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  expect(specced).toEqual(drawn)
+})
+
 // Pinned (C1 batch 1, 2026-10-08), so a filter that matches nothing fails rather than passing empty.
 // Batches 2-4 add rows here as their models get surfaces.
 it('control surfaces: exactly the batch-1 airframes, each driving roll, pitch, yaw and flaps', () => {
@@ -81,6 +91,29 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
     const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? [])].sort()
     expect(inGlb).toEqual(inRig)
+  })
+
+  it.each(rig.bays?.openings ?? [])('bay opening from x $x0 to $x1: the doors stand on the belly the committed glb draws (C2)', (bay) => {
+    // The belly the doors stand on: a ray cast up from below at the keel and at each hinge line, the median of
+    // nine stations along the bay, so one thin thing under it (the B-29's ventral whip antenna at x 2.94) does
+    // not count. Measured 2026-10-08; off by more than 3 cm and a door floats below the belly or sinks into it.
+    const meshes = airframeMeshes(doc)
+    const rc = new Raycaster()
+    const lowestAt = (z: number): number => {
+      const ys: number[] = []
+      for (let k = 0; k < 9; k++) {
+        const x = bay.x0 + ((k + 0.5) / 9) * (bay.x1 - bay.x0)
+        for (const side of [-1, 1]) {
+          rc.set(new Vector3(x, -100, side * z), new Vector3(0, 1, 0))
+          const hit = rc.intersectObjects(meshes, false)[0]
+          if (hit) ys.push(hit.point.y)
+        }
+      }
+      expect(ys.length, `hits at z ${z}`).toBeGreaterThan(12)
+      return ys.sort((p, q) => p - q)[Math.floor(ys.length / 2)]!
+    }
+    expect(Math.abs(lowestAt(0) - bay.keelY), 'keel').toBeLessThan(0.03)
+    expect(Math.abs(lowestAt(bay.halfWidthM) - bay.hingeY), 'hinge').toBeLessThan(0.03)
   })
 
   it.each(rig.surfaces ?? [])('control surface %s: hinged on its leading edge, and a positive input moves its trailing edge the right way (C1)', (name) => {

@@ -1,3 +1,4 @@
+import { motorSamples, SYNTH_SAMPLE_RATE } from './synth.js'
 import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position, SpatialLoopHandle } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
@@ -153,6 +154,8 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
           }
         }),
       )
+      // Synthesized clips (C2): made here, not fetched, so nothing can 404.
+      backend.loadSamples('motor', motorSamples(SYNTH_SAMPLE_RATE), SYNTH_SAMPLE_RATE)
     },
 
     async resume(): Promise<void> {
@@ -175,6 +178,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       }
       // Ambience starts only when first audible, so a flight that never sees the sea never decodes into a source.
       if (frame.ambient.sea > 0 || handles.has('sea')) driveLayer('sea', { gain: frame.ambient.sea, rate: 1 }, rate)
+      if (frame.motor > 0 || handles.has('motor')) driveLayer('motor', { gain: frame.motor, rate: 1 }, rate)
 
       // Silent while held: a paused replay renders the same frame repeatedly,
       // and re-evaluating cues against it must not re-fire them.
