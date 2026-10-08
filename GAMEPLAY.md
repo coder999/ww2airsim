@@ -291,7 +291,7 @@ not judge or damage the landing; that is the gates in the landing rules.
 
 ## Library
 
-`hangar.html` ("Library" on the title's first form) shows every aircraft,
+`hangar.html` ("Hangar" in the title's Administration memo) shows every aircraft,
 ship, building and store in the rosters below: a turntable model, the gameplay
 figures (hit points, speed, armament, points), read live from the game's own
 content so they cannot go stale, and a short sourced history of the real

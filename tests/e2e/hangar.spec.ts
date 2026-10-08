@@ -420,11 +420,11 @@ test('the canvas and the panel fit the window: nothing renders off-screen', asyn
   expect(r.sheetBottom, 'sheet bottom edge (the list scrolls inside it)').toBeLessThanOrEqual(r.h)
 })
 
-test("the title's Library button opens the hangar", async ({ page }) => {
+test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
-  await title.getByRole('button', { name: 'Library' }).click()
+  await title.getByRole('button', { name: 'Hangar' }).click()
   await page.waitForURL(/hangar\.html$/)
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
 })
