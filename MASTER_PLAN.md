@@ -183,8 +183,8 @@ H1-H3: those names already mean the Hangar plans.)
 - **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
 - **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that buys headroom first and re-baselines what is left with Mark's ruling, so Tracks K and L have a budget to spend.
 - **Decided (grilling, 2026-10-08):**
-  - **The gate moves to 1440p.** High gpu p95 ≤ 16.67 ms, Medium ≤ 8.33 ms, both at 2560×1440. The in-cloud view loses its carve-out and meets the same bar. 4K p95 is still recorded as an annotation, never asserted.
-  - **Margin target:** every High view at ≤ 15.0 ms (about 10%) when H0 ends.
+  - **The gate moves to 1440p at 120 Hz:** High gpu p95 ≤ 8.33 ms at 2560×1440, in every view, the in-cloud view included (no carve-out). At 1440p, 60 Hz would already be green by ~8 ms (prior handoffs read 6.2-8.1 ms), so it would not be a bar. Medium at 1440p, and both tiers at 4K, are recorded, never asserted.
+  - **Margin target:** every High view at ≤ 7.5 ms (about 10%) when H0 ends.
   - **Optimize until wins dry up:** stop after two levers in a row each buy < 0.3 ms p95 on the worst view.
   - **Levers:** a lever whose frozen-scene capture matches the baseline lands as is. A visible one lands behind a URL param, default off, with a before/after pair, and Mark rules on flipping it.
   - **Leftover reds stay red.** The handoff gives each one its measured p95 and a proposed limit, so the ruling is a one-line change.
@@ -192,6 +192,7 @@ H1-H3: those names already mean the Hangar plans.)
   - **`?renderScale=`** DEV param (render at a fraction of window size), so Mark can compare 4K and 1440p live. The player-facing setting is A5.
   - **Photoreal Task 14** is H0's last step: tripwires re-derived from H0's final numbers, the probe check in Mark's Chrome, the handoff and its entry here.
   - **How it runs:** in a worktree, unattended. Viewing checkpoints: the re-baseline ruling and the final result, both collected in the handoff.
+- **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
 
 ### Track K: Clouds (size L)
 

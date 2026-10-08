@@ -36,7 +36,7 @@ _Avoid_: bomb doors, bay (alone)
 ## Rendering
 
 **Frame budget**:
-The GPU frame time a quality tier promises at the gate resolution (1440p): High holds 60 Hz, Medium half of High's time. Tracks spend margin under it; they never raise it without Mark's ruling.
+The GPU frame time High promises at the gate resolution: one 120 Hz frame at 1440p. Other tiers and resolutions are measured, not promised. Tracks spend margin under it; they never raise it without Mark's ruling.
 _Avoid_: perf budget, frame time (alone)
 
 **Render scale**:
