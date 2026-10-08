@@ -1,96 +1,10 @@
 # ww2airsim master plan
 
-**Status: DRAFT for Mark, written 2026-10-07, revised 2026-10-08.** Track 0
-and the test cleanup are done. Nothing else here is scheduled until he rules
-on §6.
-
-**This file owns what comes next:** the tracks, their order, and the
-decisions they wait on. Master spec §15 owns **plan numbering and what
-happened**, one status row per plan. That split was decided by Mark on
-2026-10-08 and is recorded in [README, "Where docs go"](README.md#where-docs-go).
-So:
-- A track gets a §15 row, with a plan id, when its first plan starts.
-- When a track's plans are done, delete the track here. Its rows and handoffs
-  are the record. Never carry status in both places.
-
-The first pass was §15's "First steps" list of 9 items. All of it is done.
-This is the second pass.
-
-Every claim below was read from the repo at `main` = `cc8579f` (2026-10-01,
-unchanged as of 2026-10-07) or from the Tier 2 record. File references point
-at the evidence; re-measure before building on any of them.
-
----
-
-## 1. Where it stands
-
-**Size.** 1,415 commits since 2026-09-12. Line counts were measured
-2026-10-07 with `git ls-files` and `wc -l` over `.ts` files:
-
-| Area | Files | Lines |
-| --- | --- | --- |
-| `src/sim` | 75 | 12,549 |
-| `src/render` | 159 | 28,746 |
-| `src/audio`, `assists`, `input`, `replay` | 20 | 3,209 |
-| **`src` total** | 254 | 44,504 |
-| `tests` | 452 | 58,929 |
-| `tools` | 85 | 8,152 |
-
-**What is built.** Everything in the original §15 sequence is built:
-- **Flight:** graded flight models, ground handling, landing, carrier ops.
-- **World:** Leyte terrain at 80 ft grid spacing, land cover, OSM places, FFT ocean, volumetric clouds, a moving sun.
-- **Combat:** gunnery, bombs, rockets and structural damage.
-- **AI:** 7a-7h, through takeoff, formation and landing.
-- **Meta-game:** roster, sortie forms, four missions and six ranges.
-- **Presentation:** models for every roster object, effects, spatial audio, radar, Hangar, instant replay.
-- **Aircraft:** 12 flyable: F6F, F4F, A6M2, F4U, B-17, G4M, B-29, P-38, Ki-43, D3A, Ki-84, Ki-21.
-
-**Health.** The last Tier 2 run was 2026-10-03 on `cc8579f`: 215 pass, 2 skip, 13 fail. **All 13 failures are frame-time
-budgets** (`budget4k.spec.ts` Medium/High views, `recovery`, `takeoff`,
-`furball`, `ships`, `deckQuals`, `cloudShadow`, `motionBudget`), and no
-correctness spec fails. That matters to the plan: **every rendering track
-below spends GPU time the budget does not currently have** (see Track H0).
-
-**Changed 2026-10-08:** correctness specs no longer assert frame time; they
-record it (`docs/testing.md`, "Philosophy"). The gates are now `budget4k`,
-`fx-budget`, `motionBudget`, `terrainTextures`, and the frame-time tests in
-`terrain` and `strike`. On the 2026-10-03 numbers that leaves 7 reds, all
-genuine budget misses: six `budget4k` views and `motionBudget`. `recovery`,
-`takeoff`, `furball`, `ships`, `deckQuals` and `cloudShadow` would have
-passed. Not yet confirmed by a Tier 2 run.
-
-**Stale docs: fixed 2026-10-08 (Track 0).** These were:
-- §15's "not merged" claims for 7f, 7g, 7h, E2, T1, W1, the topographic chart, seven airframes and the sourcing dossiers;
-- `clouds.md`'s boot freeze;
-- `drape.md`'s status;
-- the `main.ts` timestamp comment.
-
-**One finding needs Mark** (§6 Q10). T1 (ground handling) and W1 (the real Wildcat) were both held for his call, yet both reached `main` inside other branches' merges:
-- T1 in `eb8a854`, the DP1 merge, 2026-09-29;
-- W1 in `74c5b65`, the detail-pass merge, 2026-09-28.
-
-So both are live, although he never hand-flew T1's landing (§15 T1 row).
-
----
-
-## 2. Open items carried from the first pass
-
-Only the open items that shape the tracks below are listed here. The full lists live in each handoff.
-
-| Item | Source | Feeds track |
-| --- | --- | --- |
-| A title-launched scenario keeps the boot scenario's clouds and time of day | `clouds.md` §5 #10; `main.ts:1242,1251` | A |
-| Quality probe reads a vsynced title screen, so Mark's desktop gets Low (no trees) | `docs/incidents/2026-09-20-low-tier-hides-trees.md`, `clouds.md` #2 | A |
-| Asset Quality defaults to `low` until terrain levels allocate on demand (all levels allocated at once, about 358 MB) | §15 "UI realism"; `terrain/mesh.ts:483` | H |
-| AI guns lead on target velocity only, with no drop, so AI-vs-AI fights don't end in kills | 7e ruling R-F1; `ai/pursuit.ts:64-76` | E |
-| Escort wingman never pursues an attacker on its leader | 7f §4.2 (`it.skip`) | E |
-| No bomber AI, no turrets (H3), no bombing or torpedo AI: raiders only orbit | `aircraft.md:334-336`; `ai/ingress.ts:15` | E |
-| Pursuit autopilot overshoots to about 13 g and breaks the airframe | M4 handoff §6 | B |
-| Every audio gain and distance is a guess; 15b and 15c never got Tier 2 | audio handoffs | I |
-| Torpedoes deferred "until a second, historically appropriate airframe exists" | §15 row 6 | D |
-| Low clouds shimmer at edges; `photo` view has 0.6 ms margin | `clouds.md` #3, #5 | H |
-
----
+**This file is the authoritative plan and ledger** (README, ["Where docs
+go"](README.md#where-docs-go)): the tracks, their order, their status, and the
+decisions they wait on. Execution detail for a track may live in
+`docs/superpowers/plans/`, and each plan's measurements in its handoff, but
+status is recorded here and nowhere else.
 
 ## 3. Tracks
 
@@ -102,7 +16,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 
 - **Stale docs:** fixed (§1).
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
-- **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy), with a pointer in `CLAUDE.md`.
+- **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
 - **Photoreal Task 14,** which never ran: re-filed into H0.
 
 ### Track A: First load and the launch sequence
@@ -251,7 +165,7 @@ Mark's items: better clouds, land and beach.
 
 **H0. Win back budget first (M).**
 - **Today:** 13 budget specs are red. The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
-- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so H1-H3 have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and the §15 row.
+- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so H1-H3 have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
 
 **H1. Land (M-L).**
 1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player.
@@ -288,7 +202,7 @@ Mark's items: better clouds, land and beach.
   - overspeed creak;
   - radio squelch and static. The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
 - **I2, voice:** 16 Paddles LSO lines, then optional radio chatter. These need a recording or generation decision (§6 Q7).
-- **Both:** an ear-tuning pass with Mark, and the Tier 2 runs 15b and 15c never got.
+- **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S)
 
@@ -344,6 +258,6 @@ A rough total by the size key: about 25-35 plans.
 6. **Torpedo airframe:** TBF/TBM Avenger as the first (recommended), or start with the G4M's historical Type 91 on the Japanese side.
 7. **Voice lines:** generated, recorded, or skipped.
 8. **Analytics scope:** production hosts only, or also `windomlane` dev; and whether a privacy line is enough.
-9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives here, at the repo root, and owns order (header).
+9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; §15 is frozen (header).
 10. **T1 and W1 are live without your call** (§1). Keep them, or revert or rework? If you keep T1: when do you hand-fly its landing and judge the 10° hands-off torque swing?
 11. **Escort pursuit:** an escort out-energized by its attacker never pursues. Should the spec's "takes hits" become "fires within gun solution"? (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps".)
