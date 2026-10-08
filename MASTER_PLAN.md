@@ -118,7 +118,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - **Torpedo runs** after Track D.
    - **Kamikaze**, for the "Kamikaze Watch" mission.
    - Raiders that actually attack instead of orbiting.
-3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then H3 turrets (`Turret1..N` nodes exist and are static) with defensive gunners.
+3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then the Hangar's H3 turrets (`Turret1..N` nodes exist and are static) with defensive gunners.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
    - wingman commands (7f §4.5);
@@ -159,29 +159,38 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 - **Pearl Harbor** needs Oahu terrain (a full Leyte-scale build), battleship rows, B5N shallow-water torpedoes and, from the US side, mostly defense. It is a bigger lift and better second.
 - **Decided (§4 Q1):** Midway first, Pearl Harbor second.
 
-### Track H: Rendering
+### Track H: Rendering budget (M)
 
-Mark's items: better clouds, land and beach.
+Mark's items: better clouds, land and beach. Those are now Tracks K and L;
+this track is the budget both spend. (Rendering steps are not numbered
+H1-H3: those names already mean the Hangar plans.)
 
 **H0. Win back budget first (M).**
 - **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
-- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so H1-H3 have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
+- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so Tracks K and L have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
 
-**H1. Land (M-L).**
+### Track K: Clouds (size L)
+
+Clouds have needed attempt after attempt (`clouds.md` §3 is the
+history), so they get their own track. **`clouds.md` §6 is the
+step list and its order; this track does not restate it.** In outline:
+- measure High in-cloud frame pacing first;
+- the auto-tier, built in A4 (order 2), which does more for Mark's desktop than any shader work;
+- Low edge shimmer;
+- multi-layer clouds and cirrus shadows (`clouds.md` #8);
+- one look-pass sitting with Mark on #6 and #7.
+
+No new cloud feature lands before H0's margin. Expect a plan per step, not
+one plan for the lot.
+
+### Track L: Terrain (size L)
+
+**L1. Land (M-L).**
 1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player.
 2. Real tree crowns (visual-realism §3.1). Trees are three flat icosahedra today (`scene/vegetation.ts:144-167`).
 3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 
-**H2. Clouds (M).**
-- Follow `clouds.md` §6 in its own order:
-  - measure in-cloud pacing;
-  - A4's auto-tier;
-  - Low shimmer (neighborhood-clamped history);
-  - multi-layer and cirrus shadows (#8);
-  - then one look-pass sitting with Mark on #6 and #7.
-- No new cloud features before the margin from H0.
-
-**H3. Beach and shore (M).**
+**L2. Beach and shore (M).**
 - **Today:**
   - a noise-perturbed sand band over terrain heights 1.3-7.5 ft (`terrain/surface.ts:255`);
   - bathymetric water color;
@@ -230,11 +239,11 @@ prerequisites are met.
 | --- | --- | --- |
 | 1 | A1; A2; I quick win (radial engines); J | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
-| 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks all rendering |
+| 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
-| 5 | F missions that are now unblocked (Single Combat, Scramble); H1 terrain allocation then trees | |
+| 5 | F missions that are now unblocked (Single Combat, Scramble); L1 terrain allocation then trees; K in-cloud pacing | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
-| 7 | D torpedoes (Avenger); H2 clouds; H3 shore | |
+| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
