@@ -6,7 +6,7 @@ decisions they wait on. Execution detail for a track may live in
 `docs/superpowers/plans/`, and each plan's measurements in its handoff, but
 status is recorded here and nowhere else.
 
-## 3. Tracks
+## 1. Tracks
 
 Each track covers what exists, what is missing, a proposed scope, and its
 size. Size is counted in plans, where one plan is the 6-15 task unit every
@@ -14,7 +14,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 
 ### Track 0: Housekeeping (done 2026-10-08)
 
-- **Stale docs:** fixed (§1).
+- **Stale docs:** fixed: §15's "not merged" claims, `clouds.md`, `drape.md`, a `main.ts` comment.
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
 - **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
 - **Photoreal Task 14,** which never ran: re-filed into H0.
@@ -65,7 +65,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
   - heading and altitude hold;
   - fly to the B1 waypoint;
   - fix the pursuit mode's 13 g overshoot with a g-limit.
-- **Question for Mark:** which modes he wants (§6 Q5).
+- **Question for Mark:** which modes he wants (§4 Q5).
 
 **B4. Tutorial (M).**
 - **Today:** none. Deck Quals and the ranges are practice, not instruction. The legend is a key list.
@@ -96,7 +96,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 - **Proposal, in two stages:**
   1. Per-airframe panel layouts on the existing procedural panel: which instruments, where, in what units (Japanese gauges in metric would be period-correct), plus the frame and canopy bow as simple geometry. This is about one plan and covers all 12.
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
-- **Question for Mark:** whether stage 2 is wanted at all (§6 Q4).
+- **Question for Mark:** whether stage 2 is wanted at all (§4 Q4).
 
 ### Track D: Torpedoes (L)
 
@@ -106,7 +106,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. **Weapon:** a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
   3. **Damage:** a waterline hit that does more than a bomb of equal weight. Whether that becomes flooding or a simple multiplier is a design call.
   4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
-- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§3 Track G).
+- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G).
 
 ### Track E: Better AI (L)
 
@@ -157,20 +157,20 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - The battle is carriers and dive bombers, which the game already does well.
   - Its aircraft gaps are small: SBD Dauntless and TBD Devastator for the US; the A6M2 and D3A exist; the B5N is needed.
 - **Pearl Harbor** needs Oahu terrain (a full Leyte-scale build), battleship rows, B5N shallow-water torpedoes and, from the US side, mostly defense. It is a bigger lift and better second.
-- **Question for Mark:** Midway first, Pearl Harbor first, or deeper Leyte first (§6 Q1).
+- **Question for Mark:** Midway first, Pearl Harbor first, or deeper Leyte first (§4 Q1).
 
 ### Track H: Rendering
 
 Mark's items: better clouds, land and beach.
 
 **H0. Win back budget first (M).**
-- **Today:** 13 budget specs are red. The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
+- **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
 - **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so H1-H3 have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
 
 **H1. Land (M-L).**
 1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player.
 2. Real tree crowns (visual-realism §3.1). Trees are three flat icosahedra today (`scene/vegetation.ts:144-167`).
-3. Leaf, bark and building textures (§2.2, §2.3).
+3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 
 **H2. Clouds (M).**
 - Follow `clouds.md` §6 in its own order:
@@ -201,7 +201,7 @@ Mark's items: better clouds, land and beach.
   - stall buffet and buzz;
   - overspeed creak;
   - radio squelch and static. The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
-- **I2, voice:** 16 Paddles LSO lines, then optional radio chatter. These need a recording or generation decision (§6 Q7).
+- **I2, voice:** 16 Paddles LSO lines, then optional radio chatter. These need a recording or generation decision (§4 Q7).
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S)
@@ -213,11 +213,11 @@ Mark's items: better clouds, land and beach.
   - The site is `noindex` with `robots.txt` `Disallow: /`.
   - There is no privacy text.
 - **Proposal:** provision through the `google-analytics` skill: a GA4 property, then the tag in `index.html`. Add custom events for the things worth knowing: sortie launched (mission, aircraft), mission outcome, the quality tier chosen and auto-detected (useful data for A4), and boot time. Add a privacy line to the About memo.
-- **Question for Mark:** whether DEV and `windomlane` hosts should be excluded (§6 Q8).
+- **Question for Mark:** whether DEV and `windomlane` hosts should be excluded (§4 Q8).
 
 ---
 
-## 4. Proposed order
+## 2. Proposed order
 
 Tracks with no dependency between them run in parallel worktrees, as the
 first pass did. Each order number marks a step where every earlier step's
@@ -240,7 +240,7 @@ A rough total by the size key: about 25-35 plans.
 
 ---
 
-## 5. Not in this plan, deliberately
+## 3. Not in this plan, deliberately
 
 - **Night lighting, weather beyond clouds, multiplayer, a mission editor.** None was on Mark's list. The missions spec rules out an editor (`missions-design.md:167`).
 - **Re-deriving flight models.** The graded cards and the `plan1-rulings.md` decisions stand.
@@ -248,7 +248,7 @@ A rough total by the size key: about 25-35 plans.
 
 ---
 
-## 6. Decisions for Mark
+## 4. Decisions for Mark
 
 1. **Next theater:** Midway first (recommended), Pearl Harbor first, or deepen Leyte (campaign) and defer theaters.
 2. **Guide mode aids:** on by default, behind an assist toggle, or tied to the existing difficulty and damage settings. The impact predictor is anachronistic either way.
@@ -258,6 +258,6 @@ A rough total by the size key: about 25-35 plans.
 6. **Torpedo airframe:** TBF/TBM Avenger as the first (recommended), or start with the G4M's historical Type 91 on the Japanese side.
 7. **Voice lines:** generated, recorded, or skipped.
 8. **Analytics scope:** production hosts only, or also `windomlane` dev; and whether a privacy line is enough.
-9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; §15 is frozen (header).
-10. **T1 and W1 are live without your call** (§1). Keep them, or revert or rework? If you keep T1: when do you hand-fly its landing and judge the 10° hands-off torque swing?
+9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; master spec §15 is frozen as history (README).
+10. **T1 and W1 are live without your call.** Both were held for it, but T1 reached `main` inside the DP1 merge (`eb8a854`, 2026-09-29) and W1 inside the detail-pass merge (`74c5b65`, 2026-09-28). Keep them, or revert or rework? If you keep T1: when do you hand-fly its landing and judge the 10° hands-off torque swing?
 11. **Escort pursuit:** an escort out-energized by its attacker never pursues. Should the spec's "takes hits" become "fires within gun solution"? (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps".)
