@@ -44,7 +44,8 @@ async function boot(): Promise<void> {
   // content, so the canvas's own pixel width would otherwise widen its column
   // past the window and the panel would grow to the list's full height
   // (measured 2026-09-25: canvas right edge at 1660 px in a 1280 px window).
-  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%'
+  // The third track is the details panel (panel.ts): empty until the first pick, then its own width.
+  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);height:100%'
   const canvas = document.createElement('canvas')
   canvas.id = 'hangar-canvas'
   canvas.style.cssText = 'width:100%;height:100%;display:block;min-width:0;min-height:0'
@@ -115,13 +116,14 @@ async function boot(): Promise<void> {
   const panel = createPanel(root, catalog, (id) => {
     select(id).catch((e: unknown) => validationErrors.push(e instanceof Error ? e.message : String(e)))
   })
-  root.appendChild(canvas)
+  root.append(canvas, panel.detail)
   const stage = createStage(renderer, canvas, () => {
     debug.turntable = false
     benchUi?.setDebug('turntable', false)
   })
   const fit = (): void => stage.resize(canvas.clientWidth, canvas.clientHeight)
-  window.addEventListener('resize', fit)
+  // The canvas resizes with the window, and when the details panel appears or collapses.
+  new ResizeObserver(fit).observe(canvas)
   fit()
 
   installHangarHooks(window as HangarWindow, {
@@ -144,8 +146,8 @@ async function boot(): Promise<void> {
     validationErrors,
   })
 
-  const first = catalog.find(drawable)
-  if (first) await select(first.library.id)
+  // Nothing is picked on load: the bay stands empty and the details panel stays away until a
+  // pick (Mark, 2026-10-08).
 
   let last = performance.now()
   renderer.setAnimationLoop(() => {
