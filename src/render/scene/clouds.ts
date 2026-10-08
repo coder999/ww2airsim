@@ -40,7 +40,8 @@ export { cloudDriftM }
  * the plan's 0.5, which made it 1.36x HEAVIER than high (Task 11 fix 1).
  *
  * 2026-09-25, Mark's decision: `high` targets 60 Hz (gpu p95 <= 16.67 ms at
- * 4K); medium and low keep 8.33 (budget4k.spec.ts checks both). High spends
+ * 4K); medium and low kept 8.33. Since H0 (2026-10-08) the gate is High at
+ * 8.33 ms at 1440p, budget.spec.ts; 4K and medium are recorded. High spends
  * it on the clouds: resolution scale 0.5 (in-deck-1900 p95 measured 16.66
  * ms at 0.6 and 14.9-17.0 ms at 0.55), 6 light samples, the first
  * `fineLightSteps` of them on the DETAILED density (the creases between

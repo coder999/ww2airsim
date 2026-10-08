@@ -92,8 +92,8 @@ test('clouds at High, level under the deck: no validation errors, cost recorded'
   console.log(`clouds off p95 ${off.p95.toFixed(3)} ms (${off.n}); high p95 ${high.p95.toFixed(3)} ms (${high.n}); cost ${(high.p95 - off.p95).toFixed(3)} ms`)
   expect(off.n).toBeGreaterThan(120)
   expect(high.n).toBeGreaterThan(120)
-  // Recorded, not asserted: the High gate is budget4k.spec.ts's 16.67 ms
-  // (Mark's 60 Hz decision). The two page loads make the p95 difference too
+  // Recorded, not asserted: the High gate is budget.spec.ts's 8.33 ms
+  // at 1440p (H0, Mark 2026-10-08). The two page loads make the p95 difference too
   // noisy to bound (Cloud Fidelity II §3.4 measured 3.47-3.83 ms incremental).
   recordFrameTime(high.p95)
   expect(await errors(page)).toEqual([])

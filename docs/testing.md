@@ -31,7 +31,7 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
 - **Enroll, don't clone.** Coverage of every airframe, ship or scenario comes from one table-driven test that reads `content/`. A new airframe should be covered without a new test file. Examples: `graded.test.ts`, `trap.test.ts`, `carrierTakeoff.test.ts`, `flyableAll.spec.ts`.
   - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
   - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
-- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget4k`, `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
+- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget` (the gate: High gpu p95 ≤ 8.33 ms at 1440p in every view, H0 2026-10-08), `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
   - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
 - **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:
   - a relationship: `MAP_TEXEL_M === MAP_SIDE_M / MAP_TEXELS`;
