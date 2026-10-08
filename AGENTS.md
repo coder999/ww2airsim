@@ -58,6 +58,12 @@ is looking at.**
 - Ryzen (`serverconfig/ryzen.md`) is the Windows machine that has the reference GPU.  
   - It is not always on but can be woken with wake-on-lan to Session 0.   SSH / non-GPU testing works in session 0
   - If GPU is needed, need a real windows login.  This is accomplished with RDP.  Playwright server is installed.
+  - **GPU testing on Ryzen is routine and pre-authorized (Mark, 2026-10-08).** Without asking, you may:
+    wake it, SSH in, start and stop a Playwright server (in session 0, in an RDP session as `rdp`, or
+    in Mark's own console session when he is logged in, via a one-shot interactive scheduled task
+    that you unregister when done), poll its ports, and open the tunnels. Chrome windows on his
+    desktop are expected. Never RDP in while he is logged in (that would log him out).
+    How each route works: `docs/testing.md` and `serverconfig/ryzen.md`.
 - Nexus (`serverconfig/nexus.md`) is a headless linux development server.  It is the authoritative copy of the code and is the main development server.
 
 ## Software
