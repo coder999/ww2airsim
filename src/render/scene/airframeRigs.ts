@@ -32,9 +32,36 @@ export interface AirframeRig {
   readonly gear: readonly GearRig[]
   /** Named for H3, static until then. */
   readonly turrets: readonly string[]
+  /** Control surface nodes (C1). What each drives and how far follows from its name (`surfaceDrive`). */
+  readonly surfaces?: readonly string[]
 }
 
-export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+)$/
+export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/
+
+export type SurfaceInput = 'roll' | 'pitch' | 'yaw' | 'flap'
+
+/** Full travel, degrees (Mark's default set, 2026-10-08: C1 Ruling R4). No airframe overrides it yet. */
+export const SURFACE_MAX_DEG: Readonly<Record<SurfaceInput, number>> = { roll: 20, pitch: 25, yaw: 25, flap: 45 }
+
+/**
+ * What a control surface follows, and the sign that maps a positive input to a positive turn about
+ * its hinge. kit.py orients every hinge so a positive turn raises the trailing edge (a fin's: swings
+ * it to starboard), so: +roll (right) raises the right aileron and lowers the left; +pitch (nose up)
+ * raises the elevator; +yaw (nose right) swings the rudder to starboard; flaps go down.
+ * aircraftRigs.test.ts checks each against its committed glb.
+ */
+export function surfaceDrive(node: string): { readonly input: SurfaceInput; readonly sign: 1 | -1 } {
+  if (/^Aileron[LR]$/.test(node)) return { input: 'roll', sign: node.endsWith('R') ? 1 : -1 }
+  if (/^Elevator[LR]$/.test(node)) return { input: 'pitch', sign: 1 }
+  if (/^Rudder\d*$/.test(node)) return { input: 'yaw', sign: 1 }
+  if (/^Flap\d+[LR]$/.test(node)) return { input: 'flap', sign: -1 }
+  throw new Error(`surfaceDrive: "${node}" is not a control surface name`)
+}
+
+const surfaces = (flaps: number, rudders = 1): string[] => [
+  'AileronL', 'AileronR', ...Array.from({ length: flaps }, (_, i) => [`Flap${i + 1}L`, `Flap${i + 1}R`]).flat(), 'ElevatorL', 'ElevatorR',
+  ...(rudders === 1 ? ['Rudder'] : Array.from({ length: rudders }, (_, i) => `Rudder${i + 1}`)),
+]
 
 export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
   'a6m2-zero': {
@@ -77,6 +104,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5'],
+    surfaces: surfaces(2),
   },
   'd3a-val': {
     // Real blade geometry, but the download's three blades are not modeled at 120 deg (one sits
@@ -119,6 +147,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
     ],
     turrets: ['Turret1'],
+    surfaces: surfaces(2),
   },
   'ki-21-sally': {
     // An original Blender model (ki-21-sally.py): the kit's propellers are exactly 3-fold symmetric.
@@ -129,6 +158,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
     ],
     turrets: ['Turret1'],
+    surfaces: surfaces(2),
   },
   'ki-43-oscar': {
     // A translucent 3-blade motion-blur disc plus its spinner, as the Corsair's: symmetryTolerance
@@ -151,6 +181,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-84-frank.py header)' },
     ],
     turrets: [],
+    surfaces: surfaces(1),
   },
   'p-38-lightning': {
     // An original Blender model (p-38-lightning.py), the fallback for manilov.ap's download (+5.2% long,
@@ -162,5 +193,6 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'as GearL' },
     ],
     turrets: [],
+    surfaces: surfaces(2, 2),
   },
 }

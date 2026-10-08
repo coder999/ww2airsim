@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest'
 import { Group, Object3D, Quaternion, Vector3 } from 'three'
 import type { ModelInstance } from '../../src/render/models/modelCache.js'
-import { gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, turnedAbout } from '../../src/render/scene/pivotedAirframe.js'
-import { AIRFRAME_RIGS, PART_NAME, type AirframeRig } from '../../src/render/scene/airframeRigs.js'
+import { gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout } from '../../src/render/scene/pivotedAirframe.js'
+import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig } from '../../src/render/scene/airframeRigs.js'
 import { propAngle } from '../../src/render/scene/airframe.js'
 
 const RIG: AirframeRig = {
@@ -121,6 +121,40 @@ describe('the pivoted airframe (R3)', () => {
     a.dispose()
     a.dispose()
     expect(released()).toBe(1)
+  })
+
+  it('rigParts: flap surfaces add flaps, stick surfaces add surfaces (C1)', () => {
+    expect(rigParts({ ...RIG, surfaces: ['AileronL', 'AileronR', 'Flap1L', 'Flap1R', 'ElevatorL', 'ElevatorR', 'Rudder'] })).toEqual(['prop', 'gear', 'flaps', 'surfaces'])
+    expect(rigParts({ ...RIG, surfaces: ['Flap1L', 'Flap1R'] })).toEqual(['prop', 'gear', 'flaps'])
+  })
+
+  it('slewToward: a full sweep takes SURFACE_SWEEP_S at any frame step, never overshoots, and dt 0 snaps (C1)', () => {
+    for (const dt of [1 / 144, 1 / 60, 1 / 30, 0.07]) {
+      let v = -1, t = 0
+      while (v < 1) { v = slewToward(v, 1, dt); t += dt; expect(v).toBeLessThanOrEqual(1) }
+      expect(t, `dt ${dt}`).toBeGreaterThanOrEqual(SURFACE_SWEEP_S - 1e-9)
+      expect(t, `dt ${dt}`).toBeLessThan(SURFACE_SWEEP_S + dt + 1e-9)
+    }
+    expect(slewToward(0.2, -0.4, 0)).toBe(-0.4)
+    expect(slewToward(0.5, 0.5, 0.1)).toBe(0.5)
+  })
+
+  it('surfaceAngleRad: full input is full travel, clamped; a flap only goes down (C1)', () => {
+    expect(surfaceAngleRad('AileronR', 1)).toBeCloseTo((SURFACE_MAX_DEG.roll * Math.PI) / 180, 12)
+    expect(surfaceAngleRad('AileronL', 1)).toBeCloseTo((-SURFACE_MAX_DEG.roll * Math.PI) / 180, 12)
+    expect(surfaceAngleRad('ElevatorL', -3)).toBeCloseTo((-SURFACE_MAX_DEG.pitch * Math.PI) / 180, 12)
+    expect(surfaceAngleRad('Flap2R', 1)).toBeCloseTo((-SURFACE_MAX_DEG.flap * Math.PI) / 180, 12)
+    expect(surfaceAngleRad('Flap2R', -1)).toBe(-0)
+  })
+
+  it('poses a surface from the stick through the slew, and a flap from flapFraction directly (C1)', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1], AileronR: [0, 0, -1], Flap1R: [0, 0, -1] })
+    const a = await loadPivotedAirframe('toy', 'toy.glb', { ...RIG, surfaces: ['AileronR', 'Flap1R'] }, undefined, async () => inst)
+    const at = (name: string): number => 2 * Math.atan2(new Vector3(inst.node(name).quaternion.x, inst.node(name).quaternion.y, inst.node(name).quaternion.z).dot(new Vector3(0, 0, -1)), inst.node(name).quaternion.w)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0.1, flapFraction: 1, controls: { roll: 1, pitch: 0, yaw: 0 } })
+    // 0.1 s of a 0.3 s sweep from 0 covers 2/3 of the stick's way to 1.
+    expect(at('AileronR')).toBeCloseTo(((2 / 3) * SURFACE_MAX_DEG.roll * Math.PI) / 180, 9)
+    expect(at('Flap1R')).toBeCloseTo((-SURFACE_MAX_DEG.flap * Math.PI) / 180, 9)
   })
 
   it('turnedAbout turns in the parent frame (premultiplies the rest pose)', () => {

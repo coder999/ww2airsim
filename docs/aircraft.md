@@ -230,6 +230,14 @@ date. Tolerances only ever tighten.
 D-answers that feed them: rig node names (D5, D6), the `view.model` (D4), and
 mounts measured before the spec's `stores` offsets are written (D9).
 
+Control surfaces (C1) are part of the rig. A Blender model gets them from
+`kit.py` by naming each control. A download needs each surface `split` into
+its own node, with a `pivot` on its hinge line, oriented as `docs/models.md`
+§5 says. That is batches 2-4 of C1. The manifest's `pivot.axis` takes only
+`±x/y/z` today (verified 2026-10-08, `tools/models/manifest.ts`), so batch 2
+first adds a vector axis for swept hinges. Add the airframe to the pinned list in
+`aircraftRigs.test.ts`, whose direction check decides whether the orientation is right.
+
 ## Part F: Fit the drawing
 
 Run the model-fit tests. On a new aircraft they fail in this order, and each
@@ -336,7 +344,7 @@ Record it in the D-table as "deferred", and do not build it.
 - **A modeled cockpit.** Each airframe needs its own; every one uses the
   eye-point view (D12) until that work is scheduled.
 - **Bomber AI.** A bomber is flown by the player only.
-- **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors opening and closing are a future plan.
+- **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors opening and closing are C2 (`MASTER_PLAN.md`).
 - **Engine-out handling** for multi-engine types (D6); the power is summed.
 
 ## Lessons from the first run (F4U-1D, 2026-09-29)

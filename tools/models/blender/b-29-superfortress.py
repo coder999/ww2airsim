@@ -305,7 +305,7 @@ with m.tagged('blister'), m.shared_chart():
         m.fuselage(METAL, [(x1 - 0.02, 0.32, 0.44, 0.0), (x1 + 0.02, 0.32, 0.44, 0.0)], 24, cz + side * 0.02)
 
 # --- Lifting surfaces
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 breaks = [0.0, ENGINES[0] * S, ENGINES[1] * S, S / 2]
 with m.tagged('wing'), m.shared_chart():
     for z0, z1 in zip(breaks, breaks[1:]):
@@ -319,13 +319,13 @@ tp_half = tp['span'] * S / 2
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(METAL, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 with m.tagged('fin'), m.shared_chart():
     m.fin(METAL, X(1.0) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 
 # --- Nacelles: cowl, cowl-flap band, chin scoop, turbosupercharger housing and bucket, exhaust stacks, propeller
 pr = PROP

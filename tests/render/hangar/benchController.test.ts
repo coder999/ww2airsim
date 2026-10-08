@@ -10,7 +10,7 @@ const run = (c: ReturnType<typeof createBenchController>, seconds: number, hz = 
 describe('createBenchController', () => {
   it('starts at rest: gear down, flaps up, stores on, nothing cycling', () => {
     expect(createBenchController(f4f).state()).toEqual(REST)
-    expect(REST).toEqual({ gearFraction: 1, flapFraction: 0, throttle: 0, bombs: true, rockets: true, cycling: null })
+    expect(REST).toEqual({ gearFraction: 1, flapFraction: 0, throttle: 0, roll: 0, pitch: 0, yaw: 0, bombs: true, rockets: true, cycling: null })
   })
 
   it("Cycle runs the gear up over the spec's own travelSeconds, as the sim's gearAfter does", () => {

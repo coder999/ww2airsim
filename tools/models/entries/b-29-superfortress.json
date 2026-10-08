@@ -20,7 +20,16 @@
     { "node": "Turret2", "pivot": { "point": [6.98667, -1.38828, 0], "axis": "-y" } },
     { "node": "Turret3", "pivot": { "point": [-7.00176, 1.38828, 0], "axis": "+y" } },
     { "node": "Turret4", "pivot": { "point": [-8.000718, -1.38828, 0], "axis": "-y" } },
-    { "node": "Turret5", "pivot": { "point": [-16.197606, 0.3018, 0], "axis": "+y" } }
+    { "node": "Turret5", "pivot": { "point": [-16.197606, 0.3018, 0], "axis": "+y" } },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "Flap2L" },
+    { "node": "Flap2R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder" }
   ],
   "skin": true,
   "textures": { "maxSize": 1024, "format": "webp" },

@@ -41,6 +41,8 @@ function checkbox(label: string, checked: boolean, onChange: (on: boolean) => vo
   return { row, input }
 }
 
+const STICK = ['roll', 'pitch', 'yaw'] as const
+
 export function mountBench(
   slot: HTMLElement,
   parts: readonly PartSpec[],
@@ -56,6 +58,7 @@ export function mountBench(
 
   const sliders = new Map<'gear' | 'flaps' | 'prop', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
+  const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
   for (const part of parts) {
     const row = document.createElement('div')
     // Wraps: the panel is 380 px, and a slider plus Cycle, or two store boxes, overflowed it (2026-09-26).
@@ -69,6 +72,22 @@ export function mountBench(
       const note = document.createElement('span')
       note.textContent = 'not modeled'
       row.appendChild(note)
+    } else if (part.id === 'surfaces') {
+      for (const axis of STICK) {
+        const input = document.createElement('input')
+        input.type = 'range'
+        input.min = String(part.range[0])
+        input.max = String(part.range[1])
+        input.step = '0.01'
+        input.value = '0'
+        const label = `${axis[0]!.toUpperCase()}${axis.slice(1)}`
+        input.setAttribute('aria-label', label)
+        input.title = label
+        input.style.cssText = 'flex:1 1 60px;min-width:60px'
+        input.addEventListener('input', () => h.onPose({ [axis]: Number(input.value) }))
+        sticks.set(axis, input)
+        row.appendChild(input)
+      }
     } else if (part.id === 'stores') {
       for (const which of ['bombs', 'rockets'] as const) {
         const { row: box, input } = checkbox(which === 'bombs' ? 'Bombs' : 'Rockets', true, (on) => h.onPose(which === 'bombs' ? { bombs: on } : { rockets: on }))
@@ -126,6 +145,7 @@ export function mountBench(
       set('gear', s.gearFraction)
       set('flaps', s.flapFraction)
       set('prop', s.throttle)
+      for (const axis of STICK) { const el = sticks.get(axis); if (el) el.value = String(s[axis]) }
       const b = stores.get('bombs'), r = stores.get('rockets')
       if (b) b.checked = s.bombs
       if (r) r.checked = s.rockets

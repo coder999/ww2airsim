@@ -338,14 +338,16 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test("13. every rigged aircraft's pivot gizmos are its named props and gear legs (R3)", async ({ page }) => {
+  test("13. every rigged aircraft's pivot gizmos are its named props, gear legs and control surfaces (R3, C1)", async ({ page }) => {
     await setDebug(page, 'gizmos', true)
     for (const id of await entries(page)) {
       await select(page, id)
       const c = await current(page)
       if (c.kind !== 'aircraft' || id === 'f4f-wildcat') continue
       const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
-      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel)$/)
+      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/)
+      expect(nodes.some((n) => /^(Aileron|Elevator|Rudder)/.test(n)), `${id} control surface gizmos`).toBe(hasPart(c, 'surfaces'))
+      expect(nodes.some((n) => n.startsWith('Flap')), `${id} flap gizmos`).toBe(hasPart(c, 'flaps'))
       expect(nodes.some((n) => n.startsWith('Prop')), `${id} prop gizmo`).toBe(hasPart(c, 'prop'))
       expect(nodes.some((n) => /^(Gear|Tailwheel)/.test(n)), `${id} gear gizmo`).toBe(hasPart(c, 'gear'))
     }
