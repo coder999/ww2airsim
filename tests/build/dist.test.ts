@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { AIRCRAFT_CONTENT_PATH, CURL_NOISE_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH, WEATHER_MAP_PATH, WILDCAT_MODEL_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
+import { GA4_HOSTS, GA4_MEASUREMENT_ID } from '../../vite.config.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
@@ -259,6 +260,11 @@ describe('the built artifact', () => {
         .join('\n')
       expect(shippedJs).toContain('https://www.openstreetmap.org/copyright')
       expect(readFileSync(join(outDir, 'index.html'), 'utf8')).not.toContain('map-credit')
+      // J (2026-10-08): the GA tag is in the build, and guarded to the production hosts.
+      const builtHtml = readFileSync(join(outDir, 'index.html'), 'utf8')
+      expect(builtHtml).toContain(`gtag/js?id=${GA4_MEASUREMENT_ID}`)
+      for (const host of GA4_HOSTS) expect(builtHtml).toContain(JSON.stringify(host))
+      expect(GA4_HOSTS.length).toBeGreaterThan(0)
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- since Task 6
       // (2026-09-24) the FIRST-VISIT default rather than a placeholder, and

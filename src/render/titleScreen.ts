@@ -86,6 +86,8 @@ export function titleModel(): TitleModel {
       'A technical playground: real terrain from the Copernicus DEM, a GEBCO sea ' +
         'floor, ESA WorldCover land cover, an FFT ocean and a deterministic flight ' +
         'model, all rendered with WebGPU.',
+      'Privacy: this site uses Google Analytics to count visits and which ' +
+        'missions are flown. No account, name or pilot roster leaves your browser.',
     ],
     credits: creditsLine(),
     licence: 'Source code: AGPL-3.0-or-later.',

@@ -31,6 +31,7 @@ import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNaviga
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { createBootProgress } from './bootProgress.js'
+import { track } from './analytics.js'
 import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
@@ -641,6 +642,7 @@ async function boot(): Promise<void> {
   const boot = createBootProgress()
   const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
     chosen = choice
+    track('sortie_launched', { mission: choice.scenarioId, aircraft: choice.aircraftSpec, loadout: choice.loadout })
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
     // `roster` this closure already held: `titleScreen.ts`'s own `start()`
     // already called `startSortie` and `saveRoster` for exactly this pilot
@@ -1453,6 +1455,8 @@ async function boot(): Promise<void> {
     // the save, not the swap. `applyProbeResult` discards its own result if
     // the player picked a tier first; it never overwrites a deliberate choice.
     quality.applyProbeResult(next.name)
+    // J: what the probe measured against what is in force (a player's pick wins), for A4.
+    track('quality_tier', { detected: next.name, chosen: quality.current().ocean })
   }
   const sky = createSky()
   scene.add(sky)
@@ -1771,6 +1775,7 @@ async function boot(): Promise<void> {
     badgeId: string | null,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     const discharged = friendlyFire === 'discharged'
+    track('mission_outcome', { mission: requestedScenarioId, outcome, score: scoreTotal })
     if (currentPilotId === null) return null
     // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
     // roster back, so there is nothing to save and no figure to show.
@@ -2920,7 +2925,10 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict.summary,
     })
     // The first frame built every material; the title can unlock.
-    if (!boot.ready) boot.end('shaders')
+    if (!boot.ready) {
+      boot.end('shaders')
+      track('boot_ready', { ms: Math.round(performance.now()) })
+    }
   }
   // One paint BEFORE the first frame, which is the shader build (spec §A.1):
   // rAF alone runs before that frame's paint, so without the setTimeout hop

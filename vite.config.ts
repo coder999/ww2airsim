@@ -74,6 +74,38 @@ function copyContent(): Plugin {
   }
 }
 
+/** GA4 web stream for ww2airsim (property 558194335, provisioned 2026-10-08
+ *  with the `google-analytics` skill). Public by design: it ships in the page. */
+export const GA4_MEASUREMENT_ID = 'G-3VE6LD7RCS'
+/** The hosts Traefik routes to the production build
+ *  (`vps-infra/sites/ww2airsim/compose.yml`). Nothing else sends data: not
+ *  the dev server, which never runs this plugin, and not a local `vite
+ *  preview` or E2E run of a build (Mark, 2026-10-08: production only). */
+export const GA4_HOSTS: readonly string[] = ['ww2airsim.com', 'ww2airsim.marktuttle.dev']
+
+/**
+ * `vps-static-template/snippets/ga-tag.html`, injected at build time only,
+ * with one change: the script loads only on a production host.
+ * `src/render/analytics.ts` sends the custom events through the same `gtag`.
+ */
+function gaTag(): Plugin {
+  const id = GA4_MEASUREMENT_ID
+  return {
+    name: 'ww2airsim-ga-tag',
+    apply: 'build',
+    transformIndexHtml: (html) => html.replace('</body>', `<script>
+  if (${JSON.stringify(GA4_HOSTS)}.includes(location.hostname)) {
+    var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=${id}'; document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function(){dataLayer.push(arguments);};
+    gtag('js', new Date());
+    gtag('config', '${id}');
+  }
+</script>
+</body>`),
+  }
+}
+
 /**
  * Two dev loops, both of which exist for the same reason: `navigator.gpu` is
  * exposed only in a secure context, and a plain-HTTP LAN address is not one
@@ -123,7 +155,7 @@ const TUNNEL_HOST = 'ww2airsim.windomlane.org'
 const viaTunnel = process.env.WW2AIRSIM_TUNNEL === '1'
 
 export default defineConfig({
-  plugins: [copyContent()],
+  plugins: [copyContent(), gaTag()],
   server: {
     host: viaTunnel ? '172.17.0.1' : '127.0.0.1',
     port: 5173,
