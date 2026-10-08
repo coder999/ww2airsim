@@ -48,9 +48,16 @@ render quality with auto-detect.
 
 Mark's items: guide mode (an arrow to the objective; a bomb impact marker); improved autopilot; a tutorial. Terms per `CONTEXT.md`: the arrow is the **Steering cue** (always on), the marker an **Assist** (off by default, behind the Assists toggle; §4 Q2).
 
-**B1. Steering cue (S).**
-- **Today:** a course and range to a selected entity exist only inside the modal chart (P). `courseTo` is pure (`missionMap.ts:174-196`). Nothing shows direction in flight.
-- **Proposal:** a HUD arrow to the current objective (or the chart selection), with range in miles and relative altitude.
+**B1. Steering cue (S, done 2026-10-08).**
+- **Shipped:** an always-on, nose-relative HUD arrow follows the first active
+  primary objective with a finite destination. A destination selected on the
+  navigation chart overrides it; a destroyed or otherwise stale selection
+  falls back to the objective.
+- Range is in statute miles and vertical separation in feet. Destroy objectives
+  follow their nearest live resolved target; station altitude bands read level
+  while the player is inside the band. Standing `protect`, `deny` and
+  `approaches` orders do not mask a simultaneous recovery objective.
+- Measurements and verification: [`docs/handoff/2026-10-08-b1-steering-cue.md`](docs/handoff/2026-10-08-b1-steering-cue.md).
 
 **B2. Bomb impact predictor (M).**
 - **Today:** bombs are aimed by eye.

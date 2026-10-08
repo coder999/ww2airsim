@@ -115,6 +115,15 @@ Scenario choice plus pre-flight loadout: fuel fraction and bomb count, both
 feeding mass and drag into the flight model. The loadout screen is a
 performance decision, not decoration.
 
+### In-flight guidance
+
+The objective line names the current job. Directly below it, the steering cue
+points clockwise from the aircraft's nose and gives horizontal range in miles
+and vertical separation in feet. It follows the first active primary objective
+that has a destination. Selecting a base, carrier, waypoint or objective target
+on the navigation chart (**P**) overrides that automatic destination until the
+selection disappears or is destroyed.
+
 ### Debrief
 
 Post-mission: targets destroyed with per-item points, mission total, recovery

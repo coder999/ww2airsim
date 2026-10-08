@@ -195,7 +195,9 @@ describe('radioFeed: the friendly-fire call joins the radio line (friendly-fire 
 })
 
 describe('missionDiagnostics (M2 Task 8, `__ww2.mission`)', () => {
-  const shown = { text: () => ({ objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.' }) }
+  const shown = { text: () => ({
+    objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.', steering: 'RECOVER · 4.2 MI · ALT −3,000 FT',
+  }) }
   const held = (visible: boolean) => ({ held: { airframes: new Map([['drone-1', { root: { visible } }]]) } })
 
   it('is null without a mission or before the scenario entities exist', () => {
@@ -207,7 +209,7 @@ describe('missionDiagnostics (M2 Task 8, `__ww2.mission`)', () => {
     const log = [{ tick: 3, kind: 'spawn', group: 'drone' }] as const
     const m = { ...missionOf([]), log, spawned: ['drone'] } as unknown as MissionState<undefined>
     expect(missionDiagnostics(m, shown, held(true))).toEqual({
-      objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.', log, spawned: ['drone'],
+      objective: 'RECOVER', radio: 'Tower: a friendly is passing overhead.', steering: 'RECOVER · 4.2 MI · ALT −3,000 FT', log, spawned: ['drone'],
       meshes: [{ id: 'drone-1', visible: true }],
     })
   })
