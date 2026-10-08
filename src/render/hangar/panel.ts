@@ -37,7 +37,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   ensureStampFilter()
   const panel = el('div', 'naval-comms hangar-panel')
   panel.setAttribute('role', 'region')
-  panel.setAttribute('aria-label', 'Library')
+  panel.setAttribute('aria-label', 'Hangar')
   // The panel fills its grid cell and the sheet scrolls inside it, rather
   // than the page growing to the list's height.
   panel.style.cssText = 'min-height:0;overflow:hidden;padding:16px'
@@ -46,7 +46,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   panel.appendChild(sheet)
 
   const header = el('div', 'letterhead')
-  header.append(el('div', 'letterhead-kicker', 'Bureau of Aeronautics'), el('div', 'letterhead-title', 'Library'))
+  header.append(el('div', 'letterhead-kicker', 'Bureau of Aeronautics'), el('div', 'letterhead-title', 'Hangar'))
   const back = el('a', 'ink-button', 'Back to title')
   back.href = import.meta.env.BASE_URL
   sheet.append(header, back)
@@ -79,7 +79,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   const detail = el('div', 'naval-comms hangar-detail')
   detail.setAttribute('role', 'region')
   detail.setAttribute('aria-label', 'Details')
-  detail.style.cssText = 'min-height:0;overflow:hidden;padding:16px;display:none'
+  detail.style.cssText = 'grid-area:1/3;min-height:0;overflow:hidden;padding:16px;display:none'
   const detailSheet = el('div', 'sheet')
   detailSheet.style.cssText = sheet.style.cssText
   const toggle = el('button', 'ink-button')

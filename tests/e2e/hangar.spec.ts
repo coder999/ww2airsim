@@ -426,8 +426,10 @@ test('the details panel appears on the right once something is picked, and colla
   await openHangar(page)
   const details = page.getByRole('region', { name: 'Details' })
   await expect(details).toBeHidden()
+  await expect(page.getByText('Pick an item')).toBeVisible()
   await page.getByRole('list', { name: 'Objects' }).getByRole('button').first().click()
   await expect(details).toBeVisible()
+  await expect(page.getByText('Pick an item')).toHaveCount(0)
   await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
   const edges = () => page.evaluate(() => {
     const box = (s: string) => document.querySelector(s)!.getBoundingClientRect()
