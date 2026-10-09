@@ -8,6 +8,7 @@ import { rasterize, trianglesOf } from '../../../../tools/models/skin/raster.js'
 import { paint } from '../../../../tools/models/skin/layers.js'
 import { compose, type SkinMaps } from '../../../../tools/models/skin/compose.js'
 import { checkBake, type BakeManifest, type BakeMaps } from '../../../../tools/models/skin/bake.js'
+import { loadDownloadBake } from '../../../../tools/models/build.js'
 import type { Sidecar } from '../../../../tools/models/skin/sidecar.js'
 import type { ScanId } from '../../../../tools/models/skin/surfaces.js'
 import { FIXTURE_ATLAS as W, fixtureDoc, fixtureSidecar, flatScan } from './fixture.js'
@@ -45,5 +46,10 @@ describe('committed bake (M1c)', () => {
     expect(() => checkBake(m, 'penn', 'a'.repeat(64), 'c'.repeat(64), 2048)).toThrow(/stale bake for penn: the detail list/)
     expect(() => checkBake(m, 'penn', 'a'.repeat(64), 'b'.repeat(64), 1024)).toThrow(/2048 px but its atlas is 1024 px/)
     expect(() => checkBake(m, 'kagero', 'a'.repeat(64), 'b'.repeat(64), 2048)).toThrow(/manifest is for penn/)
+  })
+
+  it('a download whose bake input or detail list moved refuses by name (M1d)', async () => {
+    await expect(loadDownloadBake('yamato-bb', new Uint8Array([1]), '[]', 2048))
+      .rejects.toThrow(/stale bake for yamato-bb: the raw glb \(geometry or UVs\) and the detail list changed since it was baked; re-bake on Ryzen: npm run models:bake -- yamato-bb/)
   })
 })

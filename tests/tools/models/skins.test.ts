@@ -34,7 +34,9 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
     const GENERATED = ['ship:fitting', 'ship:gunmetal']
     const generated = (n: string): boolean => n.startsWith('Kit_') && doc.getRoot().listNodes().find((x) => x.getName() === n)!.getMesh()!.listPrimitives().every((p) => GENERATED.includes(p.getMaterial()?.getName() ?? ''))
     const used = new Set(doc.getRoot().listNodes().filter((n) => n.getMesh() && generated(n.getName())).flatMap((n) => n.getMesh()!.listPrimitives().map((p) => p.getMaterial()!.getName())))
-    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual([`${id}-skin`, ...(skirt ? ['ship:boot'] : []), ...GENERATED.filter((g) => used.has(g))].sort())
+    // M1d: a download's `mask` materials (Fletcher's railing and net lattices) keep their own texture and UVs.
+    const masks = Object.entries(e.ship?.materials ?? {}).filter(([, r]) => r === 'mask').map(([n]) => n)
+    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual([`${id}-skin`, ...(skirt ? ['ship:boot'] : []), ...GENERATED.filter((g) => used.has(g)), ...masks].sort())
     const mat = doc.getRoot().listMaterials().find((m) => m.getName() === `${id}-skin`)!
     for (const t of [mat.getBaseColorTexture(), mat.getMetallicRoughnessTexture(), mat.getNormalTexture()]) {
       expect(t).not.toBeNull(); expect(t!.getMimeType()).toBe('image/webp')
@@ -47,6 +49,7 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
       for (const p of node.getMesh()!.listPrimitives()) {
         if (node.getName() === 'Skirt') { expect(p.getMaterial()!.getName()).toBe('ship:boot'); continue }
         if (generated(node.getName())) continue
+        if (masks.includes(p.getMaterial()!.getName())) { expect(p.getMaterial()!.getAlphaMode()).toBe('MASK'); continue }
         expect(p.getMaterial(), `${node.getName()}`).toBe(mat)
         expect(p.getAttribute('TEXCOORD_0'), `${node.getName()}`).not.toBeNull(); expect(p.getAttribute('TEXCOORD_1')).toBeNull()
       }

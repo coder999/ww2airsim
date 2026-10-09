@@ -122,7 +122,15 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
   const patches = new Map(side.patches.map((p) => [p.id, p]))
   const lines = new Map<number, Sidecar['lines']>()
   for (const l of side.lines) lines.set(l.patch, [...(lines.get(l.patch) ?? []), l])
-  const marks = side.markings.map((m) => ({ m, color: m.kind === 'grid' || m.kind === 'planks' ? null : linearColor(MARKING_COLORS[m.color]), tags: new Set(m.tags) }))
+  // M1d: a disc or polygon covers nothing farther than this from its center (its reach in the plane and
+  // off it), so a sample outside the sphere skips coverage(): a download's dozens of rust streaks
+  // otherwise cost every hull sample a point-in-polygon test each. Output is unchanged.
+  const bound = (m: Marking): [number, number, number, number] | null => {
+    if (m.kind === 'disc') return [m.center[0], m.center[1], m.center[2], 2 * m.radiusM * m.radiusM + 1e-9]
+    if (m.kind === 'polygon') { const r = Math.max(...m.points.map(([x, y]) => Math.sqrt(x * x + y * y))); return [m.origin[0], m.origin[1], m.origin[2], 2 * r * r + 1e-9] }
+    return null
+  }
+  const marks = side.markings.map((m) => ({ m, color: m.kind === 'grid' || m.kind === 'planks' ? null : linearColor(MARKING_COLORS[m.color]), tags: new Set(m.tags), bound: bound(m) }))
   const bare = linearColor(BARE_METAL)
 
   for (let i = 0; i < count; i++) {
@@ -146,8 +154,9 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
     cr += (gray - cr) * t; cg += (gray - cg) * t; cb += (gray - cb) * t
     let rough = surf.roughness + 0.5 * (s.rough - 0.5), metal = surf.metallic, h = 0
     // markings
-    for (const { m, color, tags } of marks) {
+    for (const { m, color, tags, bound: b } of marks) {
       if (!tags.has(q.tag)) continue
+      if (b && (p[0] - b[0]) ** 2 + (p[1] - b[1]) ** 2 + (p[2] - b[2]) ** 2 > b[3]) continue
       if (m.kind === 'grid') {
         const hw = Math.max(m.widthM / 2, spacing)
         for (let a = 0; a < 3; a++) {
@@ -159,7 +168,7 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
         continue
       }
       if (m.kind === 'planks') {
-        if (n[1] < PLANK_FACING) continue
+        if (n[1] < PLANK_FACING || (m.belowM !== undefined && p[1] > m.belowM)) continue
         const row = Math.floor(p[2] / m.widthM), run = (p[0] + boardHash(row, 0) * m.lengthM) / m.lengthM, seg = Math.floor(run)
         const k = 1 + m.contrast * (2 * boardHash(row, seg + 1) - 1)
         const hw = Math.max(0.006, spacing) // a seam reaches a sample either side, as a panel line does

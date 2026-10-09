@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import type { Document, Primitive } from '@gltf-transform/core'
-import { boxProject, dominantAxis, project, shelfPack, type BoxAxis } from '../../../../tools/models/skin/boxProject.js'
+import { boxProject, dominantAxis, overlapFraction, project, shelfPack, type BoxAxis } from '../../../../tools/models/skin/boxProject.js'
 import { renderSkinMaps } from '../../../../tools/models/skin/stage.js'
 import { runPipeline } from '../../../../tools/models/build.js'
 import { parseModelEntry } from '../../../../tools/models/manifest.js'
@@ -168,6 +168,49 @@ describe('box projection (DP2)', () => {
     const moved = await afterShipMaterials()
     moved.getRoot().listNodes().find((n) => n.getName() === 'Object_2')!.setTranslation([1, 0, 0])
     expect(() => boxProject(moved, 'toy', OPTS)).toThrow(/identity/)
+  })
+})
+
+describe('island charts (M1d)', () => {
+  const ISL = { ...OPTS, islands: true } as const
+  /** The patch holding a primitive's first triangle's UV centroid. */
+  const patchOf = (side: ReturnType<typeof boxProject>, p: Primitive): number => {
+    const uv = p.getAttribute('TEXCOORD_0')!, idx = p.getIndices()!
+    const c = [0, 1, 2].map((k) => uv.getElement(idx.getScalar(k), [0, 0]))
+    const x = ((c[0]![0]! + c[1]![0]! + c[2]![0]!) / 3) * 1024, y = ((c[0]![1]! + c[1]![1]! + c[2]![1]!) / 3) * 1024
+    return side.patches.find((q) => x >= q.rect[0] && x <= q.rect[0] + q.rect[2] && y >= q.rect[1] && y <= q.rect[1] + q.rect[3])!.id
+  }
+
+  it('overlapFraction counts the texels two triangles both cover', () => {
+    const tri: [number, number][] = [[0, 0], [8, 0], [0, 8]]
+    expect(overlapFraction(8, 8, [tri])).toBe(0)
+    expect(overlapFraction(8, 8, [tri, tri])).toBe(1)
+    expect(overlapFraction(8, 8, [])).toBe(1) // nothing to bake
+  })
+
+  it('charts each island apart, tags patches by role, bakes all that do not fold, and never moves geometry', async () => {
+    const before = await afterShipMaterials(), doc = await afterShipMaterials()
+    const side = boxProject(doc, 'toy', ISL)
+    expect(new Set(side.patches.map((p) => p.tag))).toEqual(new Set(['ship:hull', 'ship:deck']))
+    // One island per box face and role (the chamfer joins the hull's top, its tie going to +y): 2 x 6.
+    expect(side.patches.length).toBe(12)
+    // All but one: the chamfer joins the hull's top island and projects onto its starboard meter, a real fold.
+    const top = patchOf(side, prims(doc, 'Object_2')[1]!)
+    expect(side.baked).toEqual(side.patches.map((p) => p.id).filter((id) => id !== top))
+    expect(soupHash(doc)).toBe(soupHash(before))
+  })
+
+  it('keeps a doubled face\'s island out of `baked`, and pools a part under 2 m unbaked', async () => {
+    const doc = await afterShipMaterials()
+    const hull = doc.getRoot().listMaterials().find((m) => m.getName() === 'ship:hull')!
+    const deck = doc.getRoot().listMaterials().find((m) => m.getName() === 'ship:deck')!
+    addMeshNode(doc, 'Doubled', [boxesPrimitive(doc, [[[-18, 3, -3], [18, 4, 3]]], deck)])
+    addMeshNode(doc, 'Bolt', [boxesPrimitive(doc, [[[5, 4, 0], [5.5, 4.5, 0.5]]], hull)])
+    smoothNormals(doc)
+    const side = boxProject(doc, 'toy', ISL)
+    expect(side.baked).not.toContain(patchOf(side, prims(doc, 'Doubled')[0]!))
+    expect(side.baked).not.toContain(patchOf(side, prims(doc, 'Bolt')[0]!))
+    expect(side.baked).toContain(patchOf(side, prims(doc, 'Object_2')[0]!))
   })
 })
 

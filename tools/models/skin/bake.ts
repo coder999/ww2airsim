@@ -50,9 +50,14 @@ async function rgb(path: string, size: number): Promise<Uint8Array> {
 /** The committed bake for a skinned script's raw output, checked against it; null when the script declares no detail. */
 export async function loadBake(id: string, raw: string, detail: string, atlasPx: number): Promise<BakeMaps | null> {
   if (!existsSync(detail)) return null
+  return loadBakeFor(id, sha256(readFileSync(raw)), sha256(readFileSync(detail)), atlasPx)
+}
+
+/** M1d: the committed bake for a download, from its bake input glb's and detail list's hashes (build.ts's bakeInput). */
+export async function loadBakeFor(id: string, rawSha: string, detailSha: string, atlasPx: number): Promise<BakeMaps> {
   const dir = bakeDir(id)
   if (!existsSync(`${dir}/manifest.json`)) throw new Error(`${id} declares bake detail but has no bake in ${dir}; ${rebakeHint(id)}`)
   const m = BakeManifestSchema.parse(JSON.parse(readFileSync(`${dir}/manifest.json`, 'utf8')))
-  checkBake(m, id, sha256(readFileSync(raw)), sha256(readFileSync(detail)), atlasPx)
+  checkBake(m, id, rawSha, detailSha, atlasPx)
   return { size: m.size, ao: await rgb(`${dir}/ao.png`, m.size), normal: await rgb(`${dir}/normal.png`, m.size) }
 }

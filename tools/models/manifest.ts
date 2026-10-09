@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { z } from 'zod'
+import { DownloadDetailSchema } from './skin/downloadDetail.js'
 import { SHIP_PALETTES, SHIP_ROLES, type ShipPaletteId } from '../../src/render/scene/shipPalette.js'
 
 /**
@@ -179,7 +180,12 @@ export const ModelEntrySchema = z.object({
   /** DP0: the Blender script is skinned (`kit.Model(name, skin=<px>)`), and the build bakes its atlas. */
   skin: z.literal(true).optional(),
   /** DP2: a downloaded ship with no usable UVs is box-projected at world scale and skinned (spec §4, §8 Q1). */
-  boxSkin: z.object({ atlasPx: z.union([z.literal(512), z.literal(1024), z.literal(2048)]) }).strict().optional(),
+  boxSkin: z.object({
+    atlasPx: z.union([z.literal(512), z.literal(1024), z.literal(2048)]),
+    /** M1d: bake detail and weathering for a download (skin/downloadDetail.ts). Present means island
+     *  charts and a committed bake (skin/bake.ts), as a Blender script's `m.detail` does. */
+    detail: DownloadDetailSchema.optional(),
+  }).strict().optional(),
 }).strict().superRefine((e, ctx) => {
   const fail = (path: (string | number)[], message: string): void => { ctx.addIssue({ code: z.ZodIssueCode.custom, path, message }) }
   if (e.output.replace(/^.*\//, '').replace(/\.glb$/, '') !== e.id) fail(['output'], `basename must equal id "${e.id}"`)
@@ -234,7 +240,8 @@ export const ModelEntrySchema = z.object({
     if (e.source.kind !== 'sketchfab' || !e.ship) fail(['boxSkin'], 'boxSkin is for a downloaded ship: it projects the roles shipMaterials assigns')
     else {
       const rules = [...Object.values(e.ship.materials), e.ship.otherMaterials]
-      if (rules.some((r) => r === 'keep' || r === 'mask')) fail(['boxSkin'], 'boxSkin needs every material classified or mapped to a role: a kept texture has its own UVs')
+      // M1d: a mask (a railing or net lattice) keeps its own texture and UVs beside the skin (isolateMasked).
+      if (rules.some((r) => r === 'keep')) fail(['boxSkin'], 'boxSkin needs every material classified, mapped to a role or masked: a kept texture has its own UVs')
     }
     if (e.textures.maxSize !== e.boxSkin.atlasPx) fail(['boxSkin', 'atlasPx'], `must equal textures.maxSize (${e.textures.maxSize})`)
   }

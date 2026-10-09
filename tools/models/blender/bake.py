@@ -20,6 +20,7 @@ import time
 
 import bmesh
 import bpy
+import numpy
 from mathutils import Vector
 
 # The env overrides are for a quick trial on nexus's CPU only; a committed bake uses the defaults (bake.ts checks).
@@ -108,14 +109,32 @@ def ladder(bm, c, t, b, n, d):
 BUILDERS = {'porthole': porthole, 'door': door, 'hatch': hatch, 'louver': louver, 'ladder': ladder}
 
 
-def _snap(low, origin, axis):
-    """The surface point and normal under `origin` along -axis (Blender frame), or None."""
+def _snap(low, origin, axis, reach=SNAP_M):
+    """The surface point and normal under `origin` along -axis (Blender frame), at most `reach` away, or None.
+    A download's details (M1d, skin/downloadDetail.ts) carry their own `reach`: they start outside the hull."""
     a = axis.normalized()
-    hit, loc, nrm, _ = low.ray_cast(origin, -a, distance=SNAP_M)
+    hit, loc, nrm, _ = low.ray_cast(origin, -a, distance=reach)
     return (loc, nrm.normalized()) if hit else None
 
 
-def run(details, out_dir, size):
+# (M1d) A download's parts are not always outward: Cleveland's masts are tubes whose winding AND NORMALs
+# face their axis, and Fletcher's funnels mix both. The game draws them two-sided and lights them right,
+# but their AO rays start inside and bake black. With two_sided, the AO is baked again with every face of
+# both meshes turned over, and a texel darker than this takes the brighter of the two: an inside-out face
+# gets its outside's AO, while a real crevice (dark both ways) stays dark. ESTIMATE, by eye on Fletcher.
+TWO_SIDED_BELOW = 0.3
+
+
+def _turn_over(*objs):
+    for o in objs:
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        bmesh.ops.reverse_faces(bm, faces=bm.faces)
+        bm.to_mesh(o.data)
+        bm.free()
+
+
+def run(details, out_dir, size, two_sided=False):
     size = int(os.environ.get('WW2_BAKE_PX', size))
     t0 = time.time()
     os.makedirs(out_dir, exist_ok=True)
@@ -143,7 +162,7 @@ def run(details, out_dir, size):
         if kind == 'strip':
             pts = []
             for p in (d['origin'], d['to']):
-                s = _snap(low, _b(p), _b(d['axis']))
+                s = _snap(low, _b(p), _b(d['axis']), d.get('reach', SNAP_M))
                 pts.append(s)
             if None in pts:
                 missed.append(i)
@@ -161,7 +180,7 @@ def run(details, out_dir, size):
                 _box(bm, c, t, n.cross(t), n, span.length / steps + 0.02, d.get('width', 0.08), d.get('proud', 0.03))
             built += 1
             continue
-        s = _snap(low, _b(d['origin']), _b(d['axis']))
+        s = _snap(low, _b(d['origin']), _b(d['axis']), d.get('reach', SNAP_M))
         if s is None:
             missed.append(i)
             continue
@@ -223,10 +242,28 @@ def run(details, out_dir, size):
         else:
             bpy.ops.object.bake(type='AO')
         timings[name] = round(time.time() - t1, 1)
+        if kind == 'AO' and two_sided:
+            px = numpy.empty(4 * size * size, dtype=numpy.float32)
+            img.pixels.foreach_get(px)
+            back = bpy.data.images.new('ao-back', size, size, alpha=False)
+            back.colorspace_settings.name = 'Non-Color'
+            back.generated_color = fill
+            node.image = back
+            _turn_over(low, high)
+            bpy.ops.object.bake(type='AO')
+            _turn_over(low, high)
+            node.image = img
+            bx = numpy.empty(4 * size * size, dtype=numpy.float32)
+            back.pixels.foreach_get(bx)
+            px, bx = px.reshape(-1, 4), bx.reshape(-1, 4)
+            take = (px[:, 0] < TWO_SIDED_BELOW) & (bx[:, 0] > px[:, 0])
+            px[take, :3] = bx[take, :3]
+            img.pixels.foreach_set(px.ravel())
+            timings['aoBack'] = round(time.time() - t1 - timings[name], 1)
         img.filepath_raw = os.path.join(out_dir, f'{name}.png')
         img.file_format = 'PNG'
         img.save()
-    info = {'size': size, 'device': device, 'aoSamples': AO_SAMPLES, 'normalSamples': NORMAL_SAMPLES, 'aoDistanceM': AO_DISTANCE_M,
+    info = {'size': size, 'device': device, 'twoSided': two_sided, 'aoSamples': AO_SAMPLES, 'normalSamples': NORMAL_SAMPLES, 'aoDistanceM': AO_DISTANCE_M,
             'details': built, 'missed': missed, 'seconds': timings, 'totalSeconds': round(time.time() - t0, 1)}
     with open(os.path.join(out_dir, 'bake.json'), 'w', encoding='utf-8') as fh:
         json.dump(info, fh, sort_keys=True, indent=1)
