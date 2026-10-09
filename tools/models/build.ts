@@ -134,7 +134,7 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   await compressTextures(doc, entry.textures.maxSize)
   if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
-  if (ship) carveMounts(doc, ship.spec)
+  if (ship) carveMounts(doc, ship.spec, ship.block.palette)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
   if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)

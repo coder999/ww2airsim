@@ -3,6 +3,11 @@ import type { Document, Node } from '@gltf-transform/core'
 import { getBounds, transformMesh } from '@gltf-transform/functions'
 import type { ShipArmament, ShipMount, ShipSpec } from '../../../src/sim/world/ships.js'
 import { onlyScene, ownMesh } from '../document.js'
+import type { ShipEntry } from '../manifest.js'
+import { generateKit, GENERATED_KITS } from './mountKits.js'
+import { roleMaterial } from './shipMaterials.js'
+import { documentSoup } from './shipFit.js'
+import { surfaceBelow } from '../../../src/render/scene/shipFit.js'
 
 /**
  * The instanced mount kit (Track M, M1 plan 2026-10-08, Ruling R2). Every gun
@@ -52,7 +57,7 @@ function toKitLocal(m: ShipMount, t: readonly number[]): number[] {
  * posed at that mount, so the file still shows the gun where it stands), and
  * deletes every other carved copy. Throws, listing every problem.
  */
-export function carveMounts(doc: Document, spec: ShipSpec): void {
+export function carveMounts(doc: Document, spec: ShipSpec, palette: ShipEntry['palette']): void {
   if (!spec.armament) return
   const byName = new Map(doc.getRoot().listNodes().map((n) => [n.getName(), n] as const))
   const problems: string[] = []
@@ -72,8 +77,15 @@ export function carveMounts(doc: Document, spec: ShipSpec): void {
     if (donors.has(mount.kit)) doomed.push(node)
     else donors.set(mount.kit, { node, mount })
   }
+  // Every mount, carved, generated or a static fire position, stands on something: a surface under
+  // its point within the slack, so a mistyped height never leaves a gun floating or buried.
+  const soup = documentSoup(doc)
+  for (const { name, mount } of namedMounts(spec.armament)) {
+    const under = surfaceBelow(soup, mount.x, mount.z, mount.y + MOUNT_SLACK_M)
+    if (under === null || mount.y - under > MOUNT_SLACK_M) problems.push(`${name} at [${mount.x}, ${mount.y}, ${mount.z}] stands on nothing (the surface below is ${under === null ? 'absent' : under.toFixed(2)})`)
+  }
   const kits = new Set(namedMounts(spec.armament).flatMap(({ mount }) => (mount.kit === null ? [] : [mount.kit])))
-  for (const kit of kits) if (!donors.has(kit)) problems.push(`kit "${kit}" has no carved or built node: name one after a mount that uses it`)
+  for (const kit of kits) if (!donors.has(kit) && !GENERATED_KITS[kit]) problems.push(`kit "${kit}" has no carved or built node and no generator: name a node after a mount that uses it`)
   if (problems.length) throw new Error(`ship ${spec.id} mounts: ${problems.join('; ')}`)
   for (const [kit, { node, mount }] of donors) {
     // The node carries a translation only (normalize, then shipFit's bake).
@@ -82,6 +94,14 @@ export function carveMounts(doc: Document, spec: ShipSpec): void {
     node.setExtras({ ...node.getExtras(), kit })
   }
   for (const node of doomed) node.dispose()
+  // A kit the model has no geometry for is generated, posed at its first mount (mountKits.ts).
+  for (const kit of kits) {
+    if (donors.has(kit)) continue
+    const first = namedMounts(spec.armament).find((m) => m.mount.kit === kit)!.mount
+    const node = generateKit(doc, kit, roleMaterial(doc, palette, 'fitting'))
+    node.setTranslation([first.x, first.y, first.z]).setRotation(bearingQuat(first.bearingDeg)).setExtras({ kit })
+    onlyScene(doc).addChild(node)
+  }
 }
 
 /** After prune (which drops empty leaves): one empty locator per armament entry, at the scene root. */

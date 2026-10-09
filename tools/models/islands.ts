@@ -19,17 +19,21 @@ import { pitchScene, yawScene } from './stages/yaw.js'
 import { removeNodes } from './stages/remove.js'
 import { applyMatrix } from './stages/geometry.js'
 import { simplifyDocument } from './stages/simplify.js'
+import { documentSoup } from './stages/shipFit.js'
+import { surfaceBelow } from '../../src/render/scene/shipFit.js'
 
 const [id, minArg, ...rest] = process.argv.slice(2)
 const entry = loadModelEntries().find((e) => e.id === id)
-if (!entry?.input || !entry.normalize) throw new Error(`${id}: not a download with normalize`)
+if (!entry?.normalize) throw new Error(`${id}: no entry with normalize`)
+// A Blender entry's raw is the script's output in the cache (build.ts blenderIntermediate).
+const raw = entry.input ?? `tools/models/cache/${entry.id}.glb`
 const minTris = Number(minArg ?? 20)
-const doc = await modelIO().readBinary(new Uint8Array(readFileSync(entry.input)))
+const doc = await modelIO().readBinary(new Uint8Array(readFileSync(raw)))
 if (entry.normalize.yawDeg !== undefined) yawScene(doc, entry.normalize.up, entry.normalize.yawDeg)
 if (entry.normalize.pitchDeg !== undefined) pitchScene(doc, entry.normalize.forward, entry.normalize.up, entry.normalize.pitchDeg)
 removeNodes(doc, entry.remove)
 // The scale comes from bounds AFTER simplify, as in the pipeline (a simplified stern can be shorter).
-const sized = await modelIO().readBinary(new Uint8Array(readFileSync(entry.input)))
+const sized = await modelIO().readBinary(new Uint8Array(readFileSync(raw)))
 if (entry.normalize.yawDeg !== undefined) yawScene(sized, entry.normalize.up, entry.normalize.yawDeg)
 if (entry.normalize.pitchDeg !== undefined) pitchScene(sized, entry.normalize.forward, entry.normalize.up, entry.normalize.pitchDeg)
 removeNodes(sized, entry.remove)
@@ -66,8 +70,14 @@ for (const node of meshNodes(doc)) {
   }
 }
 const f = (v: number[]): string => v.map((x) => x.toFixed(2).padStart(7)).join(',')
-const boxes = rest.filter((a) => a !== '--box')
-if (boxes.length === 0) {
+const probes = rest.filter((a, i) => rest[i - 1] === '--probe')
+const boxes = rest.filter((a, i) => a !== '--box' && a !== '--probe' && rest[i - 1] === '--box')
+if (probes.length) {
+  // Heights on the COMMITTED output (the shipped frame): the topmost surface at x,z at or below y (default: any).
+  const shipped = await modelIO().readBinary(new Uint8Array(readFileSync(entry.output)))
+  const soup = documentSoup(shipped)
+  for (const p of probes) { const [x, z, y] = p.split(',').map(Number) as [number, number, number?]; console.log(`probe ${x},${z}: ${surfaceBelow(soup, x, z, y ?? 1e4)?.toFixed(2) ?? 'none'}`) }
+} else if (boxes.length === 0) {
   console.log(`${id}: ${islands.length} islands; showing >= ${minTris} tris, bow first (output frame min / max / plan center)`)
   for (const i of islands.filter((i) => i.tris >= minTris).sort((a, b) => b.max[0]! + b.min[0]! - a.max[0]! - a.min[0]!)) {
     console.log(`${String(i.tris).padStart(6)}  min ${f(i.min)}  max ${f(i.max)}  c ${f([(i.min[0]! + i.max[0]!) / 2, i.min[1]!, (i.min[2]! + i.max[2]!) / 2])}  ${i.node}`)
