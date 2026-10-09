@@ -95,7 +95,12 @@ nothing, and the adapter guard passes it all the same;
 GPU alongside another session's, point that worktree's own
 `vite.config.ts` at one of these — change `TUNNEL_HOST` and `server.port`
 to match, then `WW2AIRSIM_TUNNEL=1 npx vite --port 5175` (or `5174`) from
-the worktree. That edit is local scratch, never committed. Both slots are
+the worktree. That edit is local scratch, never committed. **Also set
+`cacheDir` to a slot-specific path** (e.g. `node_modules/.vite-5175`): a
+worktree's `node_modules` is a symlink to main's, so a second server
+re-optimizes main's shared `node_modules/.vite/deps` and the primary
+server then 504s `three.js`/`zod` — the Hangar loads black until it is
+restarted (hit 2026-10-09). Both slots are
 persistent, reusable infrastructure, not scoped to whichever plan first
 needed one — see `docs/testing.md` and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
