@@ -13,6 +13,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
+import sharp from 'sharp'
 import { loadModelEntries } from './manifest.js'
 import { blenderIntermediate } from './build.js'
 import { detailSidecarPath, runBlenderScript, skinSidecarPath } from './blender/run.js'
@@ -58,6 +59,9 @@ if (info.size !== side.atlasPx) throw new Error(`baked ${String(info.size)} px b
 const out = bakeDir(entry.id)
 mkdirSync(out, { recursive: true })
 for (const f of ['ao.png', 'normal.png']) run('scp', ['-q', `${HOST}:${stage}/out/${f}`, `${out}/${f}`])
+// The AO is gray: one channel holds the same values in a third of the bytes (loadBake reads it back as RGB).
+const ao = await sharp(`${out}/ao.png`).extractChannel(0).png({ compressionLevel: 9 }).toBuffer()
+writeFileSync(`${out}/ao.png`, ao)
 const manifest: BakeManifest = {
   version: 1, model: entry.id, rawSha256: sha256(readFileSync(raw)), detailSha256: sha256(readFileSync(detail)),
   size: side.atlasPx, info: { ...info, host: HOST, wallSeconds: Number((process.hrtime.bigint() - started) / 100_000_000n) / 10 },
