@@ -1,5 +1,6 @@
 import type { ClipId } from './assets.js'
 import type { Bus, CabinPreset } from './mix.js'
+import type { VoiceId } from './radio.js'
 
 /**
  * The seam between this project's audio logic and the Web Audio API.
@@ -50,6 +51,9 @@ export type ListenerPose = {
 
 export type BackendState = 'suspended' | 'running' | 'closed'
 
+/** One part of a radio transmission: a clip or voice line, played on the radio bus `atS` seconds from now. */
+export type RadioPart = { readonly id: ClipId | VoiceId; readonly gain: number; readonly atS: number }
+
 export type AudioBackend = {
   state(): BackendState
   resume(): Promise<void>
@@ -76,4 +80,12 @@ export type AudioBackend = {
   setCabin(preset: CabinPreset, glideTauS: number): void
   /** Scales the whole world stage (not the radio) for camera distance. */
   setDistanceGain(gain: number, glideTauS: number): void
+  /** A radio line (I2), loaded on first use rather than at boot; resolves to its length, seconds. */
+  loadVoice(id: VoiceId, url: string): Promise<number>
+  /** The audio clock, seconds. */
+  now(): number
+  /** Schedules one transmission's parts (squelch, voice, squelch) on the radio bus. */
+  playRadio(parts: readonly RadioPart[]): void
+  /** Silences every transmission `playRadio` started that has not finished (a cut-in). */
+  stopRadio(): void
 }

@@ -17,7 +17,7 @@ import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
-import { audioInputsFrom, spatialInputsFrom } from './audio.js'
+import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from './audio.js'
 import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createAutopilotBadge } from './autopilotBadge.js'
@@ -2584,12 +2584,18 @@ async function boot(): Promise<void> {
     timeBadge.setScale(current.timeScale)
     autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS)
     pauseBadge.setPaused(current.paused)
-    paddlesBadge.setCue(paddlesFor(current))
+    const paddles = paddlesFor(current)
+    paddlesBadge.setCue(paddles)
     // T3-R1: freezes the radio countdown under pause and while any debrief is
     // up -- the same impact/destroyedAt/landingShown signals `openNavigationChart`
     // (above) already reads to recognise a debrief is showing.
     const debriefUp = player.impact !== null || current.world.combat.aircraft[current.world.player]!.damage.destroyedAt !== null || landingShown
     const steering = missionHud.update(current.world, navigationMapState.selectedId, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world))
+    // I2: the radio voices what the HUD line shows and what the LSO calls. Live, unpaused flight
+    // only, so a replay, the title or a debrief never speaks.
+    if (replay === null && !sortieIdle && !current.paused && !debriefUp) {
+      audio.updateRadio({ message: missionHud.text().radio, paddles, language: radioLanguageFor(current) })
+    }
     const steered = steeringArrow.update(steering?.target ?? null, playerAirframe.root, camera, worldOffset, replay === null && !sortieIdle && !debriefUp)
     missionHud.placeSteering(steered.anchor, steered.mode)
     // Plan 6: the readout and tracers are stateless views of World.combat;

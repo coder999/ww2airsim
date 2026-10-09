@@ -13,6 +13,7 @@
  * fail there rather than distort in somebody's speakers.
  */
 import type { Bus } from './mix.js'
+import type { VoiceId } from './radio.js'
 
 export type ClipId =
   | 'propeller'
@@ -124,4 +125,10 @@ export function assetFor(id: ClipId): AudioAsset {
 
 export function audioUrl(id: ClipId): string {
   return `${import.meta.env.BASE_URL}${assetFor(id).path}`
+}
+
+/** A radio line's file (I2). These are not `AUDIO_ASSETS` rows: that table loads
+ *  at boot, and the lines load per language on first use (system.ts). */
+export function voiceUrl(id: VoiceId): string {
+  return `${import.meta.env.BASE_URL}content/audio/voice/${id}.wav`
 }

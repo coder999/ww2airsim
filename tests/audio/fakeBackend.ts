@@ -1,5 +1,6 @@
 import type { ClipId } from '../../src/audio/assets.js'
-import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position, SpatialLoopHandle } from '../../src/audio/backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, Position, RadioPart, SpatialLoopHandle } from '../../src/audio/backend.js'
+import type { VoiceId } from '../../src/audio/radio.js'
 import type { Bus, CabinPreset } from '../../src/audio/mix.js'
 
 /**
@@ -36,9 +37,16 @@ export type FakeBackend = AudioBackend & {
   readonly resumed: number[]
   readonly cabins: { preset: CabinPreset; tauS: number }[]
   readonly distances: number[]
+  /** Voice lines asked for, in order, and each transmission with the clock it was sent at. */
+  readonly voicesRequested: VoiceId[]
+  readonly radio: { readonly atS: number; readonly parts: readonly RadioPart[] }[]
+  readonly radioStops: number[]
+  /** The audio clock `now()` reports; a test moves it. */
+  clockS: number
 }
 
-export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = {}): FakeBackend {
+/** `voiceSeconds` is each voice line's decoded length; a line absent from it never decodes. */
+export function createFakeBackend(options: { failToLoad?: readonly ClipId[]; voiceSeconds?: Readonly<Record<string, number>> } = {}): FakeBackend {
   const failToLoad = new Set(options.failToLoad ?? [])
   const decoded: ClipId[] = []
   const loopsStarted: FakeBackend['loopsStarted'] = []
@@ -56,7 +64,17 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
   const spatialShots: FakeBackend['spatialShots'] = []
   let state: BackendState = 'suspended'
 
-  return {
+  const fake: FakeBackend = {
+    voicesRequested: [], radio: [], radioStops: [], clockS: 0,
+    loadVoice: async (id: VoiceId): Promise<number> => {
+      fake.voicesRequested.push(id)
+      const s = options.voiceSeconds?.[id]
+      if (s === undefined) throw new Error(`fake: no voice ${id}`)
+      return s
+    },
+    now: (): number => fake.clockS,
+    playRadio: (parts: readonly RadioPart[]): void => { fake.radio.push({ atS: fake.clockS, parts }) },
+    stopRadio: (): void => { fake.radioStops.push(fake.clockS) },
     spatialLoops, spatialShots, loopsStarted, layers, played, listeners, masterGains, engineGains, engineRates, engineGlides, resumed, cabins, distances,
     state: (): BackendState => state,
     resume: async (): Promise<void> => { resumed.push(resumed.length); state = 'running' },
@@ -107,4 +125,5 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
     setCabin: (preset: CabinPreset, tauS: number): void => { cabins.push({ preset, tauS }) },
     setDistanceGain: (gain: number): void => { distances.push(gain) },
   }
+  return fake
 }
