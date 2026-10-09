@@ -236,7 +236,6 @@ one plan for the lot.
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals:**
   - wind;
-  - gear and flap motors, plus lock clunk (C1 pairs; reuse C2's synthesized door motor);
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
@@ -245,6 +244,7 @@ one plan for the lot.
   - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
   - **Not wired yet.** The lines are not in `AUDIO_ASSETS` on purpose: `system.ts` loads that whole table at boot, and the lines total 16 MB. Wiring loads only the player side's 34, on demand.
   - Still to do: tie each on-screen message to its line, feed the radio bus (`webAudio.ts`), and choose US or JA by the player's side (`CONTEXT.md`).
+- **I3, recorded effects (Mark, 2026-10-09):** gear up/down and flaps up/down are recorded rather than synthesized, plus AA guns (5-inch, 40 mm, 20 mm; ship and ground share them), a close flak burst, and torpedo drop and hit. Prompts are in `docs/audio/firefly-prompt-sheet.md`; three ElevenLabs takes of each are on `sounds.html`, awaiting Mark's picks. Wiring: gear and flaps with C1, the AA guns and flak with M2, the torpedo with the Avenger.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S). Done 2026-10-08

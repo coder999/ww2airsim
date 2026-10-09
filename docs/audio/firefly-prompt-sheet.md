@@ -4,9 +4,9 @@ Prepared from `MASTER_PLAN.md`, `ASSETS.md`, `docs/audio/firefly-prompt-sheet.md
 
 ## Deliverables
 
-- **69 files total:** 68 voice files (34 cues × US English and Japanese) and one sound effect.
+- **79 files total:** 68 voice files (34 cues × US English and Japanese) and 11 sound effects.
 - **Do not regenerate the other effects:** the existing engine, gun, bomb, explosion, impact, landing, deck, ocean, and propeller files are already present.
-- **Do not generate wind, gear/flap motors, lock clunks, wheel rumble, stall buffet, overspeed creak, or radio static:** the master plan assigns those to procedural synthesis in code.
+- **Do not generate wind, wheel rumble, stall buffet, overspeed creak, or radio static:** the master plan assigns those to procedural synthesis in code.
 - `rocket_whoosh.wav` already exists, but it is explicitly a synthesized placeholder. Replace that file with the new Firefly result under the exact same name.
 
 ## Export settings
@@ -98,6 +98,18 @@ Each row below is one output file. Copy the **Complete Firefly prompt** cell as-
 | Filename | Target | Firefly prompt |
 |---|---:|---|
 | `rocket_whoosh.wav` | 1.3–1.8 s | **A single World War II unguided aircraft rocket firing and passing at high speed: immediate hard ignition, forceful propellant roar, fast aerodynamic whoosh, short natural departure tail. One clean dry event, close exterior perspective. No explosion, no impact, no gunfire, no aircraft engine, no voices, no music, no reverb. Begins immediately.** |
+| `gear_up.wav` | 3.0–4.0 s | **A World War II fighter's landing gear retracting, heard from inside the cockpit: hydraulic pump whine and hiss, linkage clatter as the struts swing up, ending in a firm metallic up-lock thunk. One dry, close event. No engine, no wind, No music, no voices, no reverb. Begins immediately.** |
+| `gear_down.wav` | 3.0–4.0 s | **A World War II fighter's landing gear extending, heard from inside the cockpit: hydraulic release hiss, the struts dropping into the airstream with a rush of air, ending in a heavy metallic down-lock clunk. One dry, close event. No engine, No music, no voices, no reverb. Begins immediately.** |
+| `flaps_down.wav` | 2.0–3.0 s | **A World War II fighter's wing flaps lowering, heard from inside the cockpit: hydraulic actuator whine rising in pitch, a faint rush of air over the lowering surfaces, a soft mechanical stop at full travel. One dry, close event. No engine, No music, no voices, no reverb. Begins immediately.** |
+| `flaps_up.wav` | 2.0–3.0 s | **A World War II fighter's wing flaps retracting, heard from inside the cockpit: hydraulic actuator whine, light mechanical creak, a soft thud as the flaps seat flush. One dry, close event. No engine, no wind, No music, no voices, no reverb. Begins immediately.** |
+| `aa_heavy_gun.wav` | 1.5–2.5 s | **A single World War II 5-inch naval dual-purpose gun firing one round, close exterior: a sharp heavy boom with a pressure crack and a short rolling tail. One shot only. No explosion at a target, no aircraft, No music, no voices, no reverb. Begins immediately.** |
+| `aa_40mm.wav` | 2.5–3.5 s | **A World War II 40 mm Bofors anti-aircraft cannon firing a burst of six rounds at about two per second, close exterior: rhythmic deep thump-thump with a metallic clank between shots. No aircraft, no explosions, No music, no voices, no reverb. Begins immediately.** |
+| `aa_20mm.wav` | 2.0–3.0 s | **A World War II 20 mm anti-aircraft cannon firing one fast burst, close exterior: rapid hard hammering reports with a mechanical rattle, then stop. No aircraft, no explosions, No music, no voices, no reverb. Begins immediately.** |
+| `flak_burst.wav` | 1.0–2.0 s | **A single World War II anti-aircraft flak shell detonating in the air close to an aircraft: a sharp cracking bang with a hollow punch and a spray of shrapnel rattling past. One event. No ground debris, no engine, No music, no voices, no reverb. Begins immediately.** |
+| `torpedo_drop.wav` | 2.0–3.0 s | **A World War II aerial torpedo released from a low-flying aircraft: a mechanical release clunk, a short falling whistle, then a heavy splash as it hits the sea. One event. No engine, no explosion, No music, no voices, no reverb. Begins immediately.** |
+| `torpedo_hit.wav` | 2.5–4.0 s | **A World War II torpedo striking a ship's hull: a deep, muffled underwater detonation, a massive column of water erupting and crashing back down onto the deck. One event, mid-distance exterior. No aircraft, no gunfire, No music, no voices, no reverb. Begins immediately.** |
+
+The ten rows after `rocket_whoosh` were added 2026-10-09 (Mark): gear and flap sounds are recorded rather than synthesized, plus anti-aircraft guns, a close flak burst and the torpedo. They are generated with ElevenLabs sound generation, not Firefly.
 
 ## Runtime-message reuse map
 
