@@ -18,7 +18,7 @@ const FLAT_SOUP: Readonly<Record<string, string>> = {
   'cleveland-cl': '75a075b42aeea203c3550f86c85fcc49976c57cedf1ebe040e50056bc236b431',
   'essex-cv': '7db96755b8abef35d558330d46ccec1af6a2d0de94cc80408db7cba8492802d2',
   'mogami-ca': '3ab213528f3fc56d76d96df0dc083f96c248325e2c61788543f0f094eab9bc1a',
-  'yamato-bb': '82b3367e92c5a1aacbecc9f0c348da0281be2ff9d2f1ac62ce70875b379fd800',
+  'yamato-bb': '9edbc7e01ba5649fd26606222aca57b02302b055ce5e7e8d1302c8bdec105c03',
 }
 
 // Raw inputs are gitignored in tools/models/cache/ (remote-run mirrors them to ryzen): a missing one
