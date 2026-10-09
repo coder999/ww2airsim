@@ -32,7 +32,7 @@ All three US fighters move their ailerons, elevators, rudder and flaps on the be
 - **F4U's gull wing:** a single straight hinge cannot follow its kink, so the flaps are two panels per side, `Flap1` from z 0.45 to 1.15 (inner) and `Flap2` from 1.3 to 2.35 (outer).
 - **F6F flap root:** the flaps start at z 1.9, not 1.75. At 1.75 they took 15-16 fuselage-fillet triangles, and the extra primitive put the model at 48 draws.
 - **Flap type:** all flaps here are plain flaps hinged in the skin. A real split flap is only the lower skin, which a shell model cannot separate.
-- **Open slit:** the cut faces are not capped. At full deflection a thin slit into the hollow wing may show at the hinge. It isn't visible in the captures; Mark's eye decides.
+- **Caps:** the cut closes what it opens. See "Review" below.
 
 ### F4F: the model's own surface nodes, and split flaps drawn in code
 
@@ -44,14 +44,14 @@ All three US fighters move their ailerons, elevators, rudder and flaps on the be
 
 | Model | Draws before | Draws after | Budget | Triangles before | Triangles after |
 | --- | --- | --- | --- | --- | --- |
-| F6F | 39 | 46 | 47 | 26,399 | 28,303 |
-| F4U | 22 | 34 | 47 | 15,296 | 18,434 |
+| F6F | 39 | 46 | 47 | 26,399 | 32,243 |
+| F4U | 22 | 34 | 47 | 15,296 | 23,500 |
 | F4F | 47 | at most 47 (45 with the flaps up) | 47 | 100,886 | 100,890 |
 
 - **F6F:** each surface is one primitive (+7).
 - **F4U:** its elevators and rudder each span two materials (+12).
 - **F4F:** the flaps add 1 draw and the pin merge removes 2.
-- **Slicing:** it adds triangles only where a box cuts the skin.
+- **Slicing and caps:** these add the triangles. Slicing now also runs along each plane through the whole skin it crosses, so a split edge is split on both sides and leaves no crack. Each opening gets a cap on both sides.
 
 ## Tests
 
@@ -68,10 +68,41 @@ All three US fighters move their ailerons, elevators, rudder and flaps on the be
 
 ## Results
 
-Typecheck, lint and depcruise are clean. The full suite on ryzen (`remote-run npm test`) passed: 361 files, 4,610 tests, 10 named skips. The Hangar E2E passed 19/19 on nexus.
+Typecheck, lint and depcruise are clean. The full suite on ryzen (`remote-run npm test`) passed: 361 files, 4,610 tests, 10 named skips. After the review fix it passed again with 4,672 tests and 10 named skips, and the Hangar E2E passed 19/19 on nexus both times.
+
+## Review: Mark, 2026-10-08, "the F6F flaps have no texture and look like a flat rectangle"
+
+**Cause:** the cut left every piece, and the slot it came out of, open. There were no faces on the hinge plane or at the spanwise ends. The material is single-sided, so with a flap lowered you looked into the hollow wing and through it to the ground (the pale strips in the "before" captures), and the flap read as a paper-thin plate. The open edge on each surface's hinge face measured 1.7 m to 8.2 m.
+
+**Ruled out, by measurement:**
+- **UVs:** every one of the flap's 218 vertices lies on an original wing triangle with zero UV error.
+- **Normals:** all unit length, and none opposes its triangle's winding beyond the download's own.
+- **The wrong piece:** it is the flap, one material, `krilo_14`.
+
+The texture was there all along. A flap lowered 45° faces away from the bench's overhead light, which makes it read darker than the wing.
+
+**Fix** (`tools/models/stages/split.ts`, so the F4U and every later cut get it):
+- Every opening the cut makes on its planes is capped, on both the piece and the body it leaves.
+- Each cap is a flat face in the skin's paint: one texel, from one of its edge vertices. The edge vertices' own UVs lie in different parts of the atlas, and interpolating between them streaked the cap.
+- Caps are built across every node the box touches. The F4U's tail skins are separate nodes, one material each, and capping per primitive made two slivers instead of one face.
+- Chains join only along the box face they share, so an overlay skin can't pull a cap diagonally across the span.
+
+Two cut-stage bugs turned up on the way:
+- A box between rib stations, holding no vertex, sliced nothing. It now tests whether the mesh's bounds overlap the box.
+- Slicing only the triangles that touched the box left T-junction cracks. It now slices along each plane through the connected skin.
+
+**After:**
+- Open edge on the hinge face is 0 for every F6F surface, except `Flap1R` at 1.8 cm of sub-centimeter slivers.
+- The F4U reads 0 to 1.5 mm, except its elevators: 0.34 m and 0.18 m, short gaps at their roots against the fuselage, where the source overlays a second skin.
+- Draws are unchanged (46 and 34).
+
+**Gates:**
+- `aircraftRigs.test.ts` holds every rig surface to 2 cm of open edge on its hinge face, with the two elevators pinned at their measured values. On the uncapped glbs it fails 16 surfaces.
+- `geometryStages.test.ts` holds a cut piece and its body as closed solids of the right volume, including a shell whose skins are two primitives. Both checks failed before the fix: 20 open edges without caps, 6 with per-primitive caps.
+
+**Captures** (before on the left, after on the right, the same camera): [`2026-10-08-c1-surfaces-batch2-shots/review/`](2026-10-08-c1-surfaces-batch2-shots/review/), from behind and above, from the side and from low in three-quarter, for both airplanes. The standard captures in the parent folder are re-shot with the fix.
 
 ## Not done, and why
 
 - **The F4F's real outboard ailerons.** The frozen model draws none, and cutting them would mean unfreezing it. A decision for Mark.
-- **Caps on the cut faces.** They are open, as noted above. Add caps if the slit shows.
 - **Batches 3 (A6M2, Ki-43) and 4 (D3A, B-17).** They go by the same `split` + `cut` route.

@@ -10,6 +10,7 @@ import { modelIO } from '../../../tools/models/document.js'
 import { bounds, centroid, radiusAbout, rotateAbout, symmetryError, worldPositions, type Vec3 } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { airframeMeshes, retractedExcess } from './_retractedSkin.js'
+import { worldTriangles } from './buildingGeometry.js'
 
 const entries = loadModelEntries()
 const specIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
@@ -32,6 +33,18 @@ const THROUGH_SKIN: Readonly<Record<string, number>> = {
   'f6f-hellcat/GearL': 0.29, 'f6f-hellcat/GearR': 0.29,
   'a6m2-zero/GearL': 0.18, 'a6m2-zero/GearR': 0.18,
 }
+
+/**
+ * How much open edge (m) a control surface may leave on its hinge face, the plane its front is cut on.
+ * Open there, a deflected surface shows its hollow inside and, through the slot it leaves, the ground: Mark's
+ * C1 batch 2 review, 2026-10-08 (the F6F's flaps read as untextured flat plates). The cut stage caps it
+ * (tools/models/stages/split.ts). Every Blender surface reads 0; the default is 2 cm (the F6F's Flap1R
+ * reads 1.8 cm of sub-centimeter slivers). Exceptions are measured 2026-10-08 and only shrink: the F4U's
+ * elevators leave a short gap at their roots, against the fuselage, where the source overlays a second skin.
+ * Before the caps these read 1.7 to 8.2 m.
+ */
+const OPEN_HINGE_FACE_M = 0.02
+const OPEN_HINGE_FACE_EXCEPTIONS: Readonly<Record<string, number>> = { 'f4u-corsair/ElevatorR': 0.34, 'f4u-corsair/ElevatorL': 0.18 }
 
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
@@ -110,6 +123,29 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     const [k, want] = d.input === 'yaw' ? [2, 1] : d.input === 'flap' ? [1, -1] : d.input === 'pitch' ? [1, 1] : [1, name.endsWith('R') ? 1 : -1]
     expect(Math.sign(moved[k]! - was[k]!), `${name} trailing edge along ${'xyz'[k]}`).toBe(want)
     expect(Math.abs(moved[k]! - was[k]!), `${name} moves visibly`).toBeGreaterThan(0.05)
+  })
+
+  it.each(rig.surfaces ?? [])('control surface %s is closed on its hinge face: no hollow shows when it deflects (C1 batch 2 review)', (name) => {
+    const n = one(doc, name)
+    const { point, axis } = pivotOf(n)
+    const ax = -axis[0]
+    const aft = [-1 - ax * axis[0], -ax * axis[1], -ax * axis[2]]
+    const len = Math.hypot(...aft)
+    const ahead = (p: readonly number[]): number => ((p[0]! - point[0]) * aft[0]! + (p[1]! - point[1]) * aft[1]! + (p[2]! - point[2]) * aft[2]!) / len
+    const key = (p: readonly number[]): string => p.map((c) => Math.round(c * 1e4)).join(',')
+    const edges = new Map<string, { n: number; a: readonly number[]; b: readonly number[] }>()
+    for (const t of worldTriangles(n)) for (let k = 0; k < 3; k++) {
+      const a = t[k]!, b = t[(k + 1) % 3]!, ka = key(a), kb = key(b)
+      if (ka === kb) continue
+      const e = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+      const v = edges.get(e) ?? { n: 0, a, b }
+      v.n++
+      edges.set(e, v)
+    }
+    // An edge is on the hinge face when both ends are within 3 mm of it (dihedral tilts the face 1.8 mm, above).
+    const open = [...edges.values()].filter((e) => e.n === 1 && Math.abs(ahead(e.a)) < 0.003 && Math.abs(ahead(e.b)) < 0.003)
+    const length = open.reduce((sum, e) => sum + Math.hypot(e.a[0]! - e.b[0]!, e.a[1]! - e.b[1]!, e.a[2]! - e.b[2]!), 0)
+    expect(length, `${name}: open edge on its hinge face (m)`).toBeLessThanOrEqual(OPEN_HINGE_FACE_EXCEPTIONS[`${id}/${name}`] ?? OPEN_HINGE_FACE_M)
   })
 
   it('every propeller spins about body x and is N-fold symmetric about its pivot (Review Focus 1)', () => {

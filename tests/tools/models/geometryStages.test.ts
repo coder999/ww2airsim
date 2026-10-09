@@ -70,11 +70,60 @@ describe('splitByBox with a cut (C1 batch 2)', () => {
     body.setTranslation([100, 0, 0])
     const before = area(body)
     const flap = splitByBox(doc, { name: 'Flap', select: 'triangles', boxMin: [106, -1, -1], boxMax: [111, 3, 3], pivot: { point: [107, 0, 0] }, cut: { normal: [1, 0, 0] } })
-    // Behind the plane: 3 m of the four long faces (3 x 2 each) plus the 2 x 2 end.
-    expect(area(flap)).toBeCloseTo(4 * 3 * 2 + 4, 9)
-    expect(area(flap) + area(body)).toBeCloseTo(before, 9)
+    // Behind the plane: 3 m of the four long faces (3 x 2 each) plus the 2 x 2 end, and the 2 x 2 cap on
+    // the hinge plane; the body gains the same cap facing the other way.
+    expect(area(flap)).toBeCloseTo(4 * 3 * 2 + 4 + 4, 9)
+    expect(area(flap) + area(body)).toBeCloseTo(before + 2 * 4, 9)
     expect(worldPositions(flap).every((p) => p[0]! >= 107 - 1e-9)).toBe(true)
     expect(worldPositions(body).every((p) => p[0]! <= 107 + 1e-9)).toBe(true)
+  })
+})
+
+describe('splitByBox with a cut: caps (C1 batch 2 review)', () => {
+  type Tri = ReturnType<typeof worldTriangles>[number]
+  const key = (p: readonly number[]): string => p.map((c) => Math.round(c * 1e4)).join(',')
+  /** Edges shared by other than exactly two triangles, by position: 0 for a closed shell. */
+  const openEdges = (tris: Tri[]): number => {
+    const n = new Map<string, number>()
+    for (const t of tris) for (let k = 0; k < 3; k++) { const a = key(t[k]!), b = key(t[(k + 1) % 3]!); if (a === b) continue; const e = a < b ? `${a}|${b}` : `${b}|${a}`; n.set(e, (n.get(e) ?? 0) + 1) }
+    return [...n.values()].filter((c) => c !== 2).length
+  }
+  const volume = (tris: Tri[]): number => tris.reduce((s, [a, b, c]) => s + (a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0])) / 6, 0)
+
+  it('the piece and the body it leaves are both closed solids: the cut openings are capped, facing out', () => {
+    const doc = newDocument()
+    const body = addMeshNode(doc, 'Wing', [boxesPrimitive(doc, [[[0, 0, 0], [10, 2, 2]]])])
+    body.setTranslation([100, 0, 0])
+    // The box takes only the middle of the span (z 0.5..1.5), so the piece has three cut faces: the
+    // hinge plane at x 107 and the box's two z faces, and the body a slot with the same three.
+    const flap = splitByBox(doc, { name: 'Flap', select: 'triangles', boxMin: [106, -1, 0.5], boxMax: [111, 3, 1.5], pivot: { point: [107, 0, 0] }, cut: { normal: [1, 0, 0] } })
+    expect(openEdges(worldTriangles(flap))).toBe(0)
+    expect(openEdges(worldTriangles(body))).toBe(0)
+    // Positive volumes: every cap faces out of its own solid. The flap is 3 x 2 x 1; the body the rest of 10 x 2 x 2.
+    expect(volume(worldTriangles(flap))).toBeCloseTo(6, 9)
+    expect(volume(worldTriangles(body))).toBeCloseTo(40 - 6, 9)
+  })
+
+  it('caps a shell whose skins are two materials (two primitives) as one solid, not two slivers', () => {
+    // The F4U's elevators: upper and lower skin are different materials. Here the box's upper half of
+    // triangles is one primitive and the rest another, both on one node.
+    const doc = newDocument()
+    const whole = boxesPrimitive(doc, [[[0, 0, 0], [10, 2, 2]]])
+    const all = Array.from(whole.getIndices()!.getArray() as ArrayLike<number>)
+    const pos = whole.getAttribute('POSITION')!
+    const upper: number[] = [], rest: number[] = []
+    for (let t = 0; t < all.length; t += 3) {
+      const ys = [0, 1, 2].map((k) => pos.getElement(all[t + k]!, [0, 0, 0])[1]!)
+      ;(ys.every((y) => y > 1.5) ? upper : rest).push(all[t]!, all[t + 1]!, all[t + 2]!)
+    }
+    const a = whole.clone().setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(upper)))
+    const b = whole.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(rest)))
+    const body = addMeshNode(doc, 'Tail', [a, b])
+    const elevator = splitByBox(doc, { name: 'Elevator', select: 'triangles', boxMin: [6, -1, 0.5], boxMax: [11, 3, 1.5], pivot: { point: [7, 0, 0] }, cut: { normal: [1, 0, 0] } })
+    expect(elevator.getMesh()!.listPrimitives()).toHaveLength(2)
+    expect(openEdges(worldTriangles(elevator))).toBe(0)
+    expect(openEdges(worldTriangles(body))).toBe(0)
+    expect(volume(worldTriangles(elevator))).toBeCloseTo(6, 9)
   })
 })
 
