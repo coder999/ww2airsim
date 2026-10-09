@@ -44,6 +44,9 @@ before generating. The same US Copyright Office caveat as above applies.
 - `rocket_whoosh.wav`: the sound-generation endpoint, from the prompt in
   `docs/audio/firefly-prompt-sheet.md`, leading silence trimmed. It replaces a
   synthesized placeholder.
+- `gear_cycle.wav`: the sound-generation endpoint, from the `gear_cycle` prompt in
+  the same sheet (take 3 of 3, Mark's pick), trimmed. It plays for both gear
+  up and gear down.
 - `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,

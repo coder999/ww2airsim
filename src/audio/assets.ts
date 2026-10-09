@@ -33,6 +33,7 @@ export type ClipId =
   | 'wire_catch'
   | 'flak_distant'
   | 'hook_clunk'
+  | 'gear_cycle'
   /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
   | 'motor'
 
@@ -75,6 +76,11 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   { id: 'wire_catch', path: 'content/audio/wire_catch.wav', bus: 'sfx', bytes: 250_370, peakFullScale: 1.0000, cueGain: 0.60 },
   { id: 'flak_distant', path: 'content/audio/flak_distant.wav', bus: 'sfx', bytes: 691_970, peakFullScale: 0.8984, cueGain: 0.60 },
   { id: 'hook_clunk', path: 'content/audio/hook_clunk.wav', bus: 'sfx', bytes: 192_770, peakFullScale: 0.9336, cueGain: 0.60 },
+  // ElevenLabs, 2026-10-09 (content/audio/NOTICE.md): one hydraulic cycle Mark
+  // picked to play for both gear up and gear down. Not wired until C1 moves the
+  // gear. cueGain sits below the other one-shots because he asked for it a bit
+  // quieter; the level is reasoned, not yet heard in flight.
+  { id: 'gear_cycle', path: 'content/audio/gear_cycle.wav', bus: 'sfx', bytes: 789_892, peakFullScale: 0.8026, cueGain: 0.35 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {
