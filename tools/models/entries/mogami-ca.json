@@ -1,48 +1,20 @@
 {
   "id": "mogami-ca",
-  "input": "tools/models/cache/mogami-ca.glb",
-  "inputSha256": "8c407727e36c7afc53bbd98611897c76dd17588c488e051123077b65729737fd",
   "output": "content/ships/mogami-ca.glb",
   "source": {
-    "url": "https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71",
-    "uid": "89ccafb8c0884b868d806d7654f0fa71",
-    "author": "KTKloss",
-    "license": "CC-BY-4.0"
+    "kind": "blender",
+    "script": "tools/models/blender/mogami-ca.py",
+    "dimensions": "200.6 m overall and 20.2 m beam from content/ships/mogami-ca.json and its cited class particulars; the five-turret layout per Ruling R4 (Suzuya and Kumano, October 1944); the silhouette from the class general-arrangement drawings, every height an ESTIMATE",
+    "license": "AGPL-3.0-or-later"
   },
-  "normalize": { "forward": "-z", "up": "+y", "origin": [0, -0.05, -0.132], "fit": { "extent": "length", "meters": 200.6 } },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 200.6 } },
+  "skin": true,
   "textures": { "maxSize": 2048, "format": "webp" },
-  "boxSkin": {
-    "atlasPx": 2048,
-    "detail": {
-      "sideZM": 14,
-      "strakesM": 1.5,
-      "grimeM": [-0.5, 0.6],
-      "planks": [{"role": "deck", "widthM": 1.83, "lengthM": 3.6, "contrast": 0.05, "seam": 0.45, "belowM": 7.6}],
-      "portholes": [{"xM": [-85, 85], "yM": 2.6, "everyM": 2.6}],
-      "butts": {"xM": [-90, 90], "yM": [0.5, 3.6], "everyM": 6},
-      "hatches": [{"xM": [-95, 95], "yM": 6, "everyM": 14, "zM": [-4, 4], "reachM": 2.5}]
-    }
-  },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {
-    "spec": "mogami-ca",
-    "fit": "hull",
-    "kind": "waterline",
-    "palette": "ijn",
-    "otherMaterials": "classify",
-    "smokeOrigin": [0, 20.39, 0],
-    "bow": "narrow-end"
-  },
-  "split": [
-    {"name": "Turret1", "select": "components", "boxMin": [-0.23846, 0.31515, -5.90729], "boxMax": [0.23846, 0.50145, -4.81185]},
-    {"name": "Turret2", "select": "components", "boxMin": [-0.23846, 0.31515, -4.76714], "boxMax": [0.23846, 0.50145, -3.6717]},
-    {"name": "Turret3", "select": "components", "boxMin": [-0.32789, 0.51263, -4.23059], "boxMax": [0.32789, 1.11251, -2.98611]},
-    {"name": "Turret4", "select": "components", "boxMin": [-0.32789, 0.56852, 3.16923], "boxMax": [0.32789, 1.10506, 4.41371]},
-    {"name": "Turret5", "select": "components", "boxMin": [-0.23846, 0.36731, 3.90698], "boxMax": [0.23846, 0.55361, 5.15146]},
-    {"name": "HeavyAA1", "select": "components", "boxMin": [0.48438, 0.47164, -0.86975], "boxMax": [0.78991, 0.76972, -0.55676]},
-    {"name": "HeavyAA2", "select": "components", "boxMin": [-0.78991, 0.47164, -0.86975], "boxMax": [-0.48438, 0.76972, -0.55676]},
-    {"name": "HeavyAA3", "select": "components", "boxMin": [0.48438, 0.47164, 0.08411], "boxMax": [0.78991, 0.76972, 0.38964]},
-    {"name": "HeavyAA4", "select": "components", "boxMin": [-0.78991, 0.47164, 0.08411], "boxMax": [-0.48438, 0.76972, 0.38964]}
-  ]
+    "spec": "mogami-ca", "fit": "hull", "kind": "waterline", "palette": "ijn",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [4.7, 22.6, 0], "bow": "narrow-end"
+  }
 }
