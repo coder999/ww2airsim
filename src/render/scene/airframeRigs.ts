@@ -5,7 +5,7 @@
  * build's pivot stage, tools/models/stages/pivot.ts); this adds only what a file cannot say.
  * Part names (docs/models.md §5): `Prop`, or `Prop1`...`PropN` from port (-z) to starboard;
  * `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`...`TurretN` nose to tail, dorsal before
- * ventral at one station. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
+ * ventral at one station, each with `Turret<N>Guns`. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
  * tests/tools/models/aircraftRigs.test.ts proves each rig against its committed glb.
  */
 export type Retracts = 'inboard' | 'forward' | 'aft'
