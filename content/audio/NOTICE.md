@@ -52,6 +52,9 @@ before generating. The same US Copyright Office caveat as above applies.
 - `flak_burst.wav`: the same way (take 1 of 3, Mark's pick), trimmed and
   normalized to a 0.97 peak because the take came out quiet.
 - `torpedo_splash.wav`: the same way (take 1 of 3, Mark's pick), trimmed.
+- `aa_gun.wav`: a seamless 0.65 s loop cut from a 20 mm take's firing, with a
+  3 ms crossfade at the seam and a +6 dB high shelf at 2 kHz (Mark found the
+  plain cut muffled).
 - `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,
@@ -69,3 +72,13 @@ Lines are verbatim from the prompt sheet. Each voice file is 48 kHz 16-bit
 of the channel was dropped), trimmed to ~20 ms of leading and ~150 ms of
 trailing silence. `tests/audio/voice.test.ts` checks that every sheet filename
 is here, in that format, unclipped.
+
+## Freesound (added 2026-10-09)
+
+`radio_squelch.wav` is "Radio Sign Off / Squelch" by **JovianSounds**,
+<https://freesound.org/people/JovianSounds/sounds/524205/>, released under
+**CC0 1.0** (public domain dedication; no attribution required, credited here
+anyway). Mark found it after the ElevenLabs squelch takes came out unusable.
+It is the page's public HQ preview (128 kbps MP3) decoded to 16-bit PCM WAV at
+its native 44.1 kHz stereo, with no other edits. The original 24-bit WAV needs
+a Freesound login; swapping it in later would need only a re-measure.

@@ -37,6 +37,8 @@ export type ClipId =
   | 'flaps_cycle'
   | 'flak_burst'
   | 'torpedo_splash'
+  | 'aa_gun'
+  | 'radio_squelch'
   /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
   | 'motor'
 
@@ -95,6 +97,12 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // ElevenLabs, 2026-10-09, Mark's pick: the torpedo hitting the water. Its
   // release reuses bombs_away. Unwired until the Avenger drops one.
   { id: 'torpedo_splash', path: 'content/audio/torpedo_splash.wav', bus: 'sfx', bytes: 369_544, peakFullScale: 0.9762, cueGain: 0.60 },
+  // aa_gun: ElevenLabs 20 mm take cut to a seamless 0.65 s loop (Mark's pick,
+  // 2026-10-09), for every AA gun, ship and ground; unwired until M2.
+  // radio_squelch: Freesound, CC0 (content/audio/NOTICE.md); it brackets each
+  // radio line once I2 wires the voices.
+  { id: 'aa_gun', path: 'content/audio/aa_gun.wav', bus: 'sfx', bytes: 123_884, peakFullScale: 0.9000, cueGain: 0.60 },
+  { id: 'radio_squelch', path: 'content/audio/radio_squelch.wav', bus: 'radio', bytes: 214_268, peakFullScale: 0.5221, cueGain: 0.60 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {

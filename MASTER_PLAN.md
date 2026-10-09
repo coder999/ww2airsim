@@ -245,8 +245,8 @@ one plan for the lot.
   - **Not wired yet.** The lines are not in `AUDIO_ASSETS` on purpose: `system.ts` loads that whole table at boot, and the lines total 16 MB. Wiring loads only the player side's 34, on demand.
   - Still to do: tie each on-screen message to its line, feed the radio bus (`webAudio.ts`), and choose US or JA by the player's side (`CONTEXT.md`).
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
-  - **In `AUDIO_ASSETS`, unwired:** `gear_cycle` and `flaps_cycle` (each plays both ways; wire with C1), `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`). `rocket_whoosh` is now take 2 (wired).
-  - **Staged, awaiting Mark:** `aa_gun` (a loop cut from the 20 mm take, for every AA gun, ship and ground; M2), the reworded `torpedo_hit` (the Avenger), `radio_squelch` (brackets each radio line; I2). The 40 mm and 5-inch takes sound like big naval guns, not AA, and are kept for ship main guns.
+  - **In `AUDIO_ASSETS`, unwired:** `gear_cycle` and `flaps_cycle` (each plays both ways; wire with C1), `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
+  - **Staged, awaiting Mark:** the reworded `torpedo_hit` (the Avenger). The 40 mm and 5-inch takes sound like big naval guns, not AA, and are kept for ship main guns.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S). Done 2026-10-08
