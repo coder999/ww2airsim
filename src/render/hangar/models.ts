@@ -15,12 +15,12 @@ import type { ModelRef } from './library.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
- *  the propeller; H2 adds stores (and Cycle, in the bench); H3 turrets. */
+ *  the propeller; H2 adds stores (and Cycle, in the bench); turret aim (2026-10-09) turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'stores'
+  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores'
   readonly label: string
-  /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). */
-  readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick'
+  /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). `aim`: bearing and elevation, degrees. */
+  readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick' | 'aim'
   readonly range: readonly [number, number]
   /** false = the model has no such geometry: the row reads "not modeled". */
   readonly modeled: boolean
@@ -36,6 +36,9 @@ export interface PartPose {
   readonly roll?: number
   readonly pitch?: number
   readonly yaw?: number
+  /** Where every turret points, degrees: bearing right of the nose, elevation above level. Both 0 stows them. */
+  readonly turretBearingDeg?: number
+  readonly turretElevationDeg?: number
   /** Bombs on the racks (true) or dropped (false); H2. */
   readonly bombs?: boolean
   /** Rockets on the rails (true) or fired (false); H2. */
@@ -64,6 +67,7 @@ const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'doors', label: 'Bay doors', kind: 'fraction', range: [0, 1] },
   { id: 'prop', label: 'Throttle (propeller)', kind: 'rate', range: [0, 1] },
   { id: 'surfaces', label: 'Control surfaces', kind: 'stick', range: [-1, 1] },
+  { id: 'turrets', label: 'Turrets', kind: 'aim', range: [-180, 180] },
   { id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] },
 ]
 
@@ -134,6 +138,13 @@ function staticModel(root: Object3D): HangarModel {
   }
 }
 
+/** The bench's turret sliders as an aim direction in the airframe frame (x forward, y up, z starboard); both 0 stows. */
+export function aimFrom(bearingDeg: number, elevationDeg: number): { x: number; y: number; z: number } | null {
+  if (bearingDeg === 0 && elevationDeg === 0) return null
+  const b = (bearingDeg * Math.PI) / 180, e = (elevationDeg * Math.PI) / 180
+  return { x: Math.cos(e) * Math.cos(b), y: Math.sin(e), z: Math.cos(e) * Math.sin(b) }
+}
+
 function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMounts | undefined): HangarModel {
   // The airframe's origin is its CG on the thrust line; the stand lifts it
   // by the spec's own gear height so the wheels meet the y = 0 grid. A model
@@ -144,9 +155,10 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
   stand.add(airframe.root)
   let gearFraction = 1, flapFraction = 0, bayDoorFraction = 0, throttle = 0
   let controls = { roll: 0, pitch: 0, yaw: 0 }
+  let bearing = 0, elevation = 0
   let bombs = true, rockets = true
   const apply = (frameS: number): void => {
-    airframe.update({ gearFraction, flapFraction, bayDoorFraction, throttle, controls, frameS, cameraDistanceM: 0 })
+    airframe.update({ gearFraction, flapFraction, bayDoorFraction, throttle, controls, frameS, cameraDistanceM: 0, aim: aimFrom(bearing, elevation) })
   }
   const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, cameraDistanceM: 0 }))
   apply(0)
@@ -167,6 +179,8 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
       if (p.bayDoorFraction !== undefined) bayDoorFraction = p.bayDoorFraction
       if (p.throttle !== undefined) throttle = p.throttle
       controls = { roll: p.roll ?? controls.roll, pitch: p.pitch ?? controls.pitch, yaw: p.yaw ?? controls.yaw }
+      bearing = p.turretBearingDeg ?? bearing
+      elevation = p.turretElevationDeg ?? elevation
       if (p.bombs !== undefined || p.rockets !== undefined) {
         bombs = p.bombs ?? bombs
         rockets = p.rockets ?? rockets

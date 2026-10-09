@@ -2,8 +2,8 @@
 import { describe, expect, it } from 'vitest'
 import { Group, Object3D, Quaternion, Vector3 } from 'three'
 import type { ModelInstance } from '../../src/render/models/modelCache.js'
-import { gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout } from '../../src/render/scene/pivotedAirframe.js'
-import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig } from '../../src/render/scene/airframeRigs.js'
+import { gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout, turretAim, TURRET_SLEW_DEG_S } from '../../src/render/scene/pivotedAirframe.js'
+import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig, type TurretArc } from '../../src/render/scene/airframeRigs.js'
 import { propAngle } from '../../src/render/scene/airframe.js'
 
 const RIG: AirframeRig = {
@@ -175,5 +175,55 @@ describe('AIRFRAME_RIGS (R3)', () => {
       for (const p of rig.props) expect(Number.isInteger(p.blades) && p.blades >= 2 && p.blades <= 6, `${id} ${p.node}`).toBe(true)
       for (const g of rig.gear) expect(Math.abs(g.upAngleDeg) > 0 && Math.abs(g.upAngleDeg) <= 180, `${id} ${g.node}`).toBe(true)
     }
+  })
+})
+
+describe('turret aim (2026-10-09)', () => {
+  const deg = (r: number): number => (r * 180) / Math.PI
+  const full: TurretArc = { traverseDeg: null, elevationDeg: [-90, 90], restElevationDeg: 0, source: 'test' }
+  const aim = (d: readonly [number, number, number], a: readonly [number, number, number], e: readonly [number, number, number], arc = full): [number, number] => {
+    const r = turretAim(d, a, e, arc)
+    return [deg(r.traverseRad), deg(r.elevationRad)]
+  }
+
+  it('a dorsal turret facing forward: ahead is rest, starboard a quarter turn, 45 deg up is its elevation', () => {
+    const a = [0, 1, 0] as const, e = [0, 0, 1] as const
+    expect(aim([1, 0, 0], a, e).map((v) => v + 0)).toEqual([0, 0])
+    expect(aim([0, 0, 1], a, e)[0]).toBeCloseTo(-90, 9) // -90 deg about +y takes +x to +z
+    expect(aim([1, 1, 0], a, e)[1]).toBeCloseTo(45, 9)
+  })
+
+  it('a ventral turret (axis down) turns the other way for the same bearing, and depresses for a target below', () => {
+    const a = [0, -1, 0] as const, e = [0, 0, 1] as const
+    expect(aim([0, 0, 1], a, e)[0]).toBeCloseTo(90, 9)
+    expect(aim([1, -1, 0], a, e)[1]).toBeCloseTo(-45, 9)
+  })
+
+  it('an aft-facing turret: heading is up x trunnion, so dead astern is rest', () => {
+    expect(aim([-1, 0, 0], [0, 1, 0], [0, 0, -1])[0]).toBeCloseTo(0, 9)
+  })
+
+  it('clamps to the arc, and turns the guns from their modeled elevation', () => {
+    const arc = { traverseDeg: 30, elevationDeg: [-10, 20] as const, restElevationDeg: 10, source: 'test' }
+    const [tr, el] = aim([0, -1, 1], [0, 1, 0], [0, 0, 1], arc)
+    expect(tr).toBeCloseTo(-30, 9)
+    expect(el).toBeCloseTo(-20, 9) // clamped to -10 deg, which is 20 below the modeled +10
+  })
+
+  it('loads a turret with its guns hung under it, slews toward the aim and stows without one', async () => {
+    const { inst } = fake({ Turret1: [0, 1, 0], Turret1Guns: [0, 0, 1] })
+    const rig: AirframeRig = { props: [], gear: [], turrets: ['Turret1'], turretArcs: { Turret1: full } }
+    const a = await loadPivotedAirframe('test', 'x', rig, undefined, async () => inst)
+    const turret = inst.node('Turret1'), guns = inst.node('Turret1Guns')
+    expect(guns.parent).toBe(turret)
+    const u = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }
+    const angle = (o: Object3D, axis: Vector3): number => deg(2 * Math.atan2(new Vector3(o.quaternion.x, o.quaternion.y, o.quaternion.z).dot(axis), o.quaternion.w))
+    a.update({ ...u, frameS: 0.5, aim: { x: 0, y: 0, z: 1 } })
+    expect(angle(turret, new Vector3(0, 1, 0))).toBeCloseTo(-TURRET_SLEW_DEG_S * 0.5, 6)
+    a.update({ ...u, frameS: 0, aim: { x: 1, y: 1, z: 0 } })
+    expect(angle(turret, new Vector3(0, 1, 0))).toBeCloseTo(0, 6)
+    expect(angle(guns, new Vector3(0, 0, 1))).toBeCloseTo(45, 6)
+    a.update({ ...u, frameS: 0, aim: null })
+    expect(angle(guns, new Vector3(0, 0, 1))).toBeCloseTo(0, 6)
   })
 })

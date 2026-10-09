@@ -6,7 +6,7 @@ import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } 
 import { entityViews } from './mission/entityViews.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
-import { airframeUpdateFor } from './airframeUpdate.js'
+import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
@@ -2583,7 +2583,7 @@ async function boot(): Promise<void> {
     // frame controls, every other its own pilot's, and a wreck's prop stops.
     view.world.aircraft.forEach((a, i) => {
       const playerControls = a.id === view.world.player ? view.controls : null
-      airframes[i]!.update(airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000))
+      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000), aim: turretAimFor(view.world, view.poses, i) })
     })
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {

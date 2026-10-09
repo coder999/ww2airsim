@@ -199,6 +199,7 @@
         "axis": "+y"
       }
     },
+    {"name": "Turret1Guns", "select": "components", "boxMin": [-11.06, -1.88, -0.2], "boxMax": [-10.21, -1.34, 0.2], "pivot": {"point": [-10.235, -1.365, 0], "axis": "-z"}},
     {
       "name": "Turret2",
       "select": "components",
@@ -221,6 +222,7 @@
         "axis": "+y"
       }
     },
+    {"name": "Turret2Guns", "select": "components", "boxMin": [-6.09, 1.31, -0.19], "boxMax": [-5.13, 1.61, 0.19], "pivot": {"point": [-6.06, 1.37, 0], "axis": "+z"}},
     {
       "name": "Turret3",
       "select": "components",
@@ -243,6 +245,7 @@
         "axis": "+y"
       }
     },
+    {"name": "Turret3Guns", "select": "components", "boxMin": [0.03, -1.63, -0.18], "boxMax": [1.01, -1.46, 0.18], "pivot": {"point": [-0.165, -1.6, 0], "axis": "+z"}},
     {
       "name": "BayDoor1L",
       "select": "triangles",
@@ -368,8 +371,11 @@
       "GearR": 1,
       "Tailwheel": 1,
       "Turret1": 1,
+      "Turret1Guns": 1,
       "Turret2": 1,
+      "Turret2Guns": 1,
       "Turret3": 1,
+      "Turret3Guns": 1,
       "BayDoor1L": 1,
       "BayDoor1R": 1, "AileronR": 1, "Flap1R": 1, "ElevatorR": 1, "AileronL": 1, "Flap1L": 1, "ElevatorL": 1, "Rudder": 1
     }

@@ -14,6 +14,7 @@
     { "node": "GearL", "pivot": { "point": [1.569188, -0.396972, -4.4802], "axis": "+z" } },
     { "node": "GearR", "pivot": { "point": [1.569188, -0.396972, 4.4802], "axis": "+z" } },
     { "node": "Turret1", "pivot": { "point": [-0.788938, 1.222854, 0], "axis": "+y" } },
+    { "node": "Turret1Guns" },
     { "node": "AileronL" },
     { "node": "AileronR" },
     { "node": "Flap1L" },

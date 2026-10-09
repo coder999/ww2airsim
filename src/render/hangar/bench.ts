@@ -9,7 +9,7 @@ import { countsText, type CountsReport } from './budgets.js'
  * greyed, rather than offering a control that moves nothing. Then the debug
  * toggles and the counts against the model's manifest budget, for every
  * model. The logic lives in benchController.ts and budgets.ts, which Node
- * tests; this file only draws it. H2 complete; H3 adds turret rows.
+ * tests; this file only draws it. Turrets: bearing and elevation (2026-10-09).
  */
 export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable' | 'checker' | 'mounts'
 
@@ -42,6 +42,7 @@ function checkbox(label: string, checked: boolean, onChange: (on: boolean) => vo
 }
 
 const STICK = ['roll', 'pitch', 'yaw'] as const
+const AIM = [['turretBearingDeg', 'Bearing', -180, 180], ['turretElevationDeg', 'Elevation', -90, 90]] as const
 
 export function mountBench(
   slot: HTMLElement,
@@ -59,6 +60,7 @@ export function mountBench(
   const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
   const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
+  const aims = new Map<(typeof AIM)[number][0], HTMLInputElement>()
   for (const part of parts) {
     const row = document.createElement('div')
     // Wraps: the panel is 380 px, and a slider plus Cycle, or two store boxes, overflowed it (2026-09-26).
@@ -86,6 +88,21 @@ export function mountBench(
         input.style.cssText = 'flex:1 1 60px;min-width:60px'
         input.addEventListener('input', () => h.onPose({ [axis]: Number(input.value) }))
         sticks.set(axis, input)
+        row.appendChild(input)
+      }
+    } else if (part.id === 'turrets') {
+      for (const [field, label, min, max] of AIM) {
+        const input = document.createElement('input')
+        input.type = 'range'
+        input.min = String(min)
+        input.max = String(max)
+        input.step = '1'
+        input.value = '0'
+        input.setAttribute('aria-label', `Turret ${label.toLowerCase()}`)
+        input.title = `${label} (deg)`
+        input.style.cssText = 'flex:1 1 80px;min-width:70px'
+        input.addEventListener('input', () => h.onPose({ [field]: Number(input.value) }))
+        aims.set(field, input)
         row.appendChild(input)
       }
     } else if (part.id === 'stores') {
@@ -147,6 +164,7 @@ export function mountBench(
       set('doors', s.bayDoorFraction)
       set('prop', s.throttle)
       for (const axis of STICK) { const el = sticks.get(axis); if (el) el.value = String(s[axis]) }
+      for (const [field] of AIM) { const el = aims.get(field); if (el) el.value = String(s[field]) }
       const b = stores.get('bombs'), r = stores.get('rockets')
       if (b) b.checked = s.bombs
       if (r) r.checked = s.rockets

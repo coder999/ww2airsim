@@ -246,6 +246,23 @@ test.describe('the Hangar', () => {
     }
   })
 
+  test('7c. every turreted bomber aims its turrets from the bench: bearing 90 and elevation 30 change the top view, 0 and 0 restore it exactly (turret aim, 2026-10-09)', async ({ page }) => {
+    const turreted: string[] = []
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'turrets')) continue
+      turreted.push(id)
+      const { model: rest } = await view(page, id, 'top', { turretBearingDeg: 0, turretElevationDeg: 0 })
+      await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
+      const aimed = await shot(page)
+      await pose(page, { turretBearingDeg: 0, turretElevationDeg: 0 })
+      const back = await shot(page)
+      expect(aimed.equals(rest), `${id}: aiming moved nothing`).toBe(false)
+      expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
+    }
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  })
+
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
     let bombers = 0
     for (const id of await entries(page)) {

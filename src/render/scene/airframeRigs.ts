@@ -5,7 +5,7 @@
  * build's pivot stage, tools/models/stages/pivot.ts); this adds only what a file cannot say.
  * Part names (docs/models.md §5): `Prop`, or `Prop1`...`PropN` from port (-z) to starboard;
  * `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`...`TurretN` nose to tail, dorsal before
- * ventral at one station. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
+ * ventral at one station, each with `Turret<N>Guns`. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
  * tests/tools/models/aircraftRigs.test.ts proves each rig against its committed glb.
  */
 export type Retracts = 'inboard' | 'forward' | 'aft'
@@ -30,8 +30,10 @@ export interface GearRig {
 export interface AirframeRig {
   readonly props: readonly PropRig[]
   readonly gear: readonly GearRig[]
-  /** Named for H3, static until then. */
+  /** `Turret1`...`TurretN`, each with its barrels in `Turret<N>Guns`, aimed by `turretArcs`. */
   readonly turrets: readonly string[]
+  /** How far each turret turns and its guns elevate; exactly one per turret (aircraftRigs.test.ts). */
+  readonly turretArcs?: Readonly<Record<string, TurretArc>>
   /** Control surface nodes (C1). What each drives and how far follows from its name (`surfaceDrive`). */
   readonly surfaces?: readonly string[]
   /** Bomb-bay door nodes in the model itself (C2), `BayDoor<n>L/R`, each hinged on its outboard
@@ -40,7 +42,24 @@ export interface AirframeRig {
   readonly doors?: readonly string[]
 }
 
-export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
+/**
+ * A turret's reach. The turret turns about its own pivot axis (vertical); its `Turret<N>Guns` part
+ * turns about a horizontal trunnion, oriented by the build so a positive turn raises the muzzle.
+ * Elevation is degrees above the airframe's horizontal; traverse is degrees either side of the rest
+ * heading, or null for a full circle.
+ */
+export interface TurretArc {
+  readonly traverseDeg: number | null
+  readonly elevationDeg: readonly [number, number]
+  /** The barrels' elevation as modeled, measured from the glb (aircraftRigs.test.ts checks it). */
+  readonly restElevationDeg: number
+  readonly source: string
+}
+
+const fullCircle = (elevationDeg: readonly [number, number], restElevationDeg = 0): TurretArc =>
+  ({ traverseDeg: null, elevationDeg, restElevationDeg, source: 'ESTIMATE (turret aim plan, 2026-10-09)' })
+
+export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+(Guns)?|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
 
 export type SurfaceInput = 'roll' | 'pitch' | 'yaw' | 'flap'
 
@@ -100,6 +119,12 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
+    // The download's own guns, split per turret; their modeled elevations measured 2026-10-09.
+    turretArcs: {
+      Turret1: { traverseDeg: 86, elevationDeg: [-46, 26], restElevationDeg: -31.3, source: 'ESTIMATE: Bendix chin turret' },
+      Turret2: fullCircle([0, 85], 13.6),
+      Turret3: fullCircle([-90, 0], -7.3),
+    },
     // C2: real doors cut from its belly (entry split BayDoor1L/R, Mark's ruling 2026-10-08).
     doors: ['BayDoor1L', 'BayDoor1R'],
     // C1 batch 4: the ailerons, split flaps and rudder are the download's own pieces, hinged on their
@@ -117,6 +142,11 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5'],
+    turretArcs: {
+      // Turret1 holds 2 deg above level: level and dead ahead, its barrels touch the cockpit roof (measured 2026-10-09).
+      Turret1: fullCircle([2, 90]), Turret2: fullCircle([-90, 0]), Turret3: fullCircle([0, 90]), Turret4: fullCircle([-90, 0]),
+      Turret5: { traverseDeg: 30, elevationDeg: [-30, 10], restElevationDeg: 0, source: 'ESTIMATE: the tail position fires in a cone; above +10 deg its barrels reach the tail surfaces (measured 2026-10-09)' },
+    },
     // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
     doors: ['BayDoor1L', 'BayDoor1R', 'BayDoor2L', 'BayDoor2R'],
     surfaces: surfaces(2),
@@ -166,6 +196,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
     ],
     turrets: ['Turret1'],
+    turretArcs: { Turret1: fullCircle([0, 80]) },
     // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
@@ -179,6 +210,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
     ],
     turrets: ['Turret1'],
+    turretArcs: { Turret1: fullCircle([0, 80]) },
     // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),

@@ -2,7 +2,7 @@
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
 import { propAngle, type Airframe, type PartId } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
-import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput } from './airframeRigs.js'
+import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 
@@ -44,6 +44,7 @@ export function rigParts(rig: AirframeRig): PartId[] {
   if (inputs.has('flap')) parts.push('flaps')
   if (inputs.has('roll') || inputs.has('pitch') || inputs.has('yaw')) parts.push('surfaces')
   if ((rig.doors ?? []).length > 0) parts.push('doors')
+  if (Object.keys(rig.turretArcs ?? {}).length > 0) parts.push('turrets')
   return parts
 }
 
@@ -65,9 +66,54 @@ export function surfaceAngleRad(node: string, value: number): number {
   return (d.sign * v * SURFACE_MAX_DEG[d.input] * Math.PI) / 180
 }
 
+type V3 = readonly [number, number, number]
+const dot = (a: V3, b: V3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v))
+
+/**
+ * The turns that point a turret's guns along `aim` (airframe frame), clamped to its arc: `traverseRad`
+ * about the turret's axis from rest, and `elevationRad` about the guns' trunnion from their modeled
+ * elevation. The rest heading is up x trunnion, which the build orients so a positive turn raises the
+ * muzzle. Pure, so the angles are a test (pivotedAirframe.test.ts).
+ */
+export function turretAim(aim: V3, turretAxis: V3, gunsAxis: V3, arc: TurretArc): { traverseRad: number; elevationRad: number } {
+  const deg = Math.PI / 180
+  const heading: V3 = [gunsAxis[2], 0, -gunsAxis[0]]
+  const flat: V3 = [aim[0], 0, aim[2]]
+  const along = Math.hypot(flat[0], flat[2])
+  // Straight up or down has no heading: hold the rest heading.
+  let traverse = along < 1e-9 ? 0 : Math.atan2(dot(cross(heading, flat), turretAxis), dot(heading, flat))
+  if (arc.traverseDeg !== null) traverse = clamp(traverse, -arc.traverseDeg * deg, arc.traverseDeg * deg)
+  const elevation = clamp(Math.atan2(aim[1], along), arc.elevationDeg[0] * deg, arc.elevationDeg[1] * deg)
+  return { traverseRad: traverse, elevationRad: elevation - arc.restElevationDeg * deg }
+}
+
+/** How fast a turret turns and its guns elevate, degrees a second: cosmetic, an ESTIMATE. */
+export const TURRET_SLEW_DEG_S = 60
+
+/** `current` turned toward `target` (radians, the short way round) by at most the slew rate over `dtS`; dtS <= 0 snaps. */
+function slewAngle(current: number, target: number, dtS: number): number {
+  if (dtS <= 0) return target
+  const d = Math.atan2(Math.sin(target - current), Math.cos(target - current))
+  const step = (TURRET_SLEW_DEG_S * Math.PI / 180) * dtS
+  return current + clamp(d, -step, step)
+}
+
 interface Posed { readonly node: Object3D; readonly axis: Vector3; readonly rest: Quaternion }
 
-function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[]; surfaces: { posed: Posed; name: string; input: SurfaceInput }[]; doors: Posed[] } {
+interface Turret {
+  readonly turret: Posed
+  readonly guns: Posed
+  readonly arc: TurretArc
+  /** Both axes in the airframe frame at rest, for `turretAim`. */
+  readonly turretAxis: V3
+  readonly gunsAxis: V3
+  traverse: number
+  elevation: number
+}
+
+function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[]; surfaces: { posed: Posed; name: string; input: SurfaceInput }[]; doors: Posed[]; turrets: Turret[] } {
   const pose = (name: string): Posed => {
     const node = instance.node(name)
     return { node, axis: pivotAxisOf(node, modelId), rest: node.quaternion.clone() }
@@ -77,6 +123,20 @@ function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { pro
     gear: rig.gear.map((g) => ({ posed: pose(g.node), rig: g })),
     surfaces: (rig.surfaces ?? []).map((n) => ({ posed: pose(n), name: n, input: surfaceDrive(n).input })),
     doors: (rig.doors ?? []).map(pose),
+    turrets: Object.entries(rig.turretArcs ?? {}).map(([name, arc]) => {
+      const turret = pose(name)
+      const gunsNode = instance.node(`${name}Guns`)
+      if (gunsNode.parent !== turret.node.parent) throw new Error(`${modelId}: ${name}Guns and ${name} must share a parent`)
+      const gunsAxis = pivotAxisOf(gunsNode, modelId)
+      // Hung under its turret, the guns traverse with it; their axis moves into the turret's frame.
+      turret.node.attach(gunsNode)
+      const local = gunsAxis.clone().applyQuaternion(turret.node.quaternion.clone().invert())
+      return {
+        turret, arc, traverse: 0, elevation: 0,
+        guns: { node: gunsNode, axis: local, rest: gunsNode.quaternion.clone() },
+        turretAxis: turret.axis.toArray() as unknown as V3, gunsAxis: gunsAxis.toArray() as unknown as V3,
+      }
+    }),
   }
 }
 
@@ -137,6 +197,13 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
         // Flaps already move at the sim's own travel rate (C1 Ruling R3), so they are not slewed again.
         const v = s.input === 'flap' ? u.flapFraction : stick[s.input]
         s.posed.node.quaternion.copy(turnedAbout(s.posed.rest, s.posed.axis, surfaceAngleRad(s.name, v)))
+      }
+      for (const t of bound.turrets) {
+        const want = u.aim ? turretAim([u.aim.x, u.aim.y, u.aim.z], t.turretAxis, t.gunsAxis, t.arc) : { traverseRad: 0, elevationRad: 0 }
+        t.traverse = slewAngle(t.traverse, want.traverseRad, u.frameS)
+        t.elevation = slewAngle(t.elevation, want.elevationRad, u.frameS)
+        t.turret.node.quaternion.copy(turnedAbout(t.turret.rest, t.turret.axis, t.traverse))
+        t.guns.node.quaternion.copy(turnedAbout(t.guns.rest, t.guns.axis, t.elevation))
       }
     },
     dispose(): void {

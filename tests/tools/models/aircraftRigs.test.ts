@@ -50,6 +50,33 @@ const THROUGH_SKIN: Readonly<Record<string, number>> = {
 const OPEN_HINGE_FACE_M = 0.02
 const OPEN_HINGE_FACE_EXCEPTIONS: Readonly<Record<string, number>> = { 'f4u-corsair/ElevatorR': 0.34, 'f4u-corsair/ElevatorL': 0.18, 'a6m2-zero/Rudder': 0.053, 'b-17-flying-fortress/ElevatorL': 0.4 }
 
+/** A Guns part's breech and muzzle: the means of its first and last fifth along its rest heading (up x trunnion). */
+function barrel(guns: Node): { breech: Vec3; muzzle: Vec3 } {
+  const e = pivotOf(guns).axis
+  const pts = worldPositions(guns)
+  const s = pts.map((p) => p[0] * e[2] - p[2] * e[0])
+  const lo = Math.min(...s), hi = Math.max(...s)
+  const mean = (keep: (v: number) => boolean): Vec3 => { const q = pts.filter((_, i) => keep(s[i]!)); return [0, 1, 2].map((k) => q.reduce((a, p) => a + p[k]!, 0) / q.length) as unknown as Vec3 }
+  return { breech: mean((v) => v < lo + 0.2 * (hi - lo)), muzzle: mean((v) => v > hi - 0.2 * (hi - lo)) }
+}
+
+/** Whether segment a-b crosses triangle `tri` (Moller-Trumbore, both ends inclusive). */
+function segmentHits(a: Vec3, b: Vec3, tri: readonly Vec3[]): boolean {
+  const [p0, p1, p2] = tri as [Vec3, Vec3, Vec3]
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]]
+  const h = [d[1]! * e2[2]! - d[2]! * e2[1]!, d[2]! * e2[0]! - d[0]! * e2[2]!, d[0]! * e2[1]! - d[1]! * e2[0]!]
+  const det = e1[0]! * h[0]! + e1[1]! * h[1]! + e1[2]! * h[2]!
+  if (Math.abs(det) < 1e-12) return false
+  const sv = [a[0] - p0[0], a[1] - p0[1], a[2] - p0[2]]
+  const u = (sv[0]! * h[0]! + sv[1]! * h[1]! + sv[2]! * h[2]!) / det
+  if (u < 0 || u > 1) return false
+  const q = [sv[1]! * e1[2]! - sv[2]! * e1[1]!, sv[2]! * e1[0]! - sv[0]! * e1[2]!, sv[0]! * e1[1]! - sv[1]! * e1[0]!]
+  const v = (d[0]! * q[0]! + d[1]! * q[1]! + d[2]! * q[2]!) / det
+  if (v < 0 || u + v > 1) return false
+  const t = (e2[0]! * q[0]! + e2[1]! * q[1]! + e2[2]! * q[2]!) / det
+  return t >= 0 && t <= 1
+}
+
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
   const b = bounds(points)
@@ -106,7 +133,7 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
 
   it('drives every part the glb names: no pivoted part is left out of the rig and silently static', () => {
     const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
-    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? []), ...(rig.doors ?? [])].sort()
+    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...rig.turrets.map((t) => `${t}Guns`), ...(rig.surfaces ?? []), ...(rig.doors ?? [])].sort()
     expect(inGlb).toEqual(inRig)
   })
 
@@ -258,6 +285,45 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
       expect(a[0] > b[0] + 0.5 || (Math.abs(a[0] - b[0]) <= 0.5 && a[1] > b[1]), `${rig.turrets[i]} before ${rig.turrets[i + 1]}`).toBe(true)
     }
   })
+
+  // Turret aim (2026-10-09): every turret's barrels are their own part on a trunnion, and the arc the
+  // runtime aims them over keeps them out of the airframe.
+  it('every turret has an arc, and Guns on a horizontal trunnion whose positive turn raises the muzzle, modeled at restElevationDeg', () => {
+    expect(Object.keys(rig.turretArcs ?? {}).sort()).toEqual([...rig.turrets].sort())
+    for (const t of rig.turrets) {
+      const guns = one(doc, `${t}Guns`)
+      const { axis } = pivotOf(guns)
+      expect(Math.abs(axis[1]), `${t}Guns trunnion is horizontal`).toBeLessThan(1e-6)
+      const { breech, muzzle } = barrel(guns)
+      const d = [muzzle[0] - breech[0], muzzle[1] - breech[1], muzzle[2] - breech[2]]
+      const heading = [axis[2], 0, -axis[0]]
+      expect(d[0]! * heading[0]! + d[2]! * heading[2]!, `${t}Guns point along up x trunnion`).toBeGreaterThan(0)
+      const el = (Math.atan2(d[1]!, d[0]! * heading[0]! + d[2]! * heading[2]!) * 180) / Math.PI
+      expect(Math.abs(el - rig.turretArcs![t]!.restElevationDeg), `${t}Guns modeled at ${el.toFixed(1)} deg`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('every turret, swept over its arc, keeps its barrels out of the airframe', () => {
+    const tris = doc.getRoot().listNodes().filter((n) => n.getMesh() && !/^(Turret|Prop|Gear|Tailwheel|BayDoor)/.test(n.getName())).flatMap((n) => worldTriangles(n))
+    for (const t of rig.turrets) {
+      const arc = rig.turretArcs![t]!
+      const tp = pivotOf(one(doc, t)), gp = pivotOf(one(doc, `${t}Guns`))
+      const { breech, muzzle } = barrel(one(doc, `${t}Guns`))
+      const reach = Math.hypot(muzzle[0] - tp.point[0], muzzle[1] - tp.point[1], muzzle[2] - tp.point[2]) + 0.5
+      const near = tris.filter((tri) => tri.some((v) => Math.hypot(v[0] - tp.point[0], v[1] - tp.point[1], v[2] - tp.point[2]) < reach))
+      const half = arc.traverseDeg ?? 180
+      // Every 15 deg of traverse and 5 of elevation, both ends included.
+      const hits: string[] = []
+      for (let tr = -half; tr <= half; tr += 15) {
+        for (const el of [...Array.from({ length: Math.ceil((arc.elevationDeg[1] - arc.elevationDeg[0]) / 5) }, (_, i) => arc.elevationDeg[0] + 5 * i), arc.elevationDeg[1]]) {
+          const pose = (p: Vec3): Vec3 => rotateAbout(rotateAbout(p, gp.point, gp.axis, ((el - arc.restElevationDeg) * Math.PI) / 180), tp.point, tp.axis, (tr * Math.PI) / 180)
+          const a = pose(breech.map((b, k) => b + 0.4 * (muzzle[k]! - b)) as unknown as Vec3), b = pose(muzzle)
+          if (near.some((tri) => segmentHits(a, b, tri))) hits.push(`${tr}/${el}`)
+        }
+      }
+      expect(hits, `${t} barrels cross the skin at traverse/elevation (deg)`).toEqual([])
+    }
+  }, 120_000)
 
   it("stands on the gear height of every aircraft spec that draws it (Z3's gear.heightM, P1)", () => {
     const mains = rig.gear.filter((g) => MAIN.has(g.node))
