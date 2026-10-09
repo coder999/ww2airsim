@@ -4,7 +4,7 @@ import { qRotate } from '../math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3 } from '../math/vec3.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { controlsForLiftVector, steerToward } from './liftVector.js'
-import { AI_GUN_RANGE_M, closureRateMps, hasGunSolution, pursuitDesiredVelocity } from './pursuit.js'
+import { AI_GUN_RANGE_M, closureRateMps, gunTrackingControls, hasGunSolution, pursuitDesiredVelocity } from './pursuit.js'
 import { breakDesiredVelocity, extendDesiredVelocity, type ManeuverLatch, type PilotDecisionState } from './pilot.js'
 import { loadFactorBudget } from './safety.js'
 
@@ -25,7 +25,7 @@ export const PURSUIT_FULL_POWER_BEYOND_M = AI_GUN_RANGE_M
 /** 7a's lead pursuit and gun gate, steered through `steerToward` (ruling R3):
  *  within 60° of the nose this is `pursuitControls` exactly. */
 export function leadPursuitControls<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>): Controls {
-  const steered = steerToward(self.state, self.spec, pursuitDesiredVelocity(self, perceived), loadFactorBudget(self.spec))
+  const steered = gunTrackingControls(self, perceived) ?? steerToward(self.state, self.spec, pursuitDesiredVelocity(self, perceived), loadFactorBudget(self.spec))
   const rangeM = length(sub(perceived.state.position, self.state.position))
   const powered = rangeM > PURSUIT_FULL_POWER_BEYOND_M ? { ...steered, throttle: 1 } : steered
   return hasGunSolution(self, perceived) ? { ...powered, fire: true } : powered

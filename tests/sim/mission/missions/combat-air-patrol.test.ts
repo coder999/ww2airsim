@@ -149,7 +149,11 @@ describe.skipIf(terrain === null)('Combat Air Patrol, headless (spec §5)', () =
   it('failure (Review Focus 2): wave 1 breaches, then everything is killed and he traps: no badge, the breach is the only reason', () => {
     let w = holdTo(cap(), ON_STATION, 190)
     expect(progressOf(w, 'station').status).toBe('complete')
-    w = holdUntil(w, ON_STATION, BREACH_S[1], (x) => progressOf(x, 'shield').status === 'failed')
+    // Away while wave 1 comes in, as in the timing test. Held on station, the
+    // player draws wave 1 into a dogfight there, and whether a raider then
+    // strays inside 5 km of the Essex by 405 s is luck: it did at 402 s
+    // before E1's gunnery steering (2026-10-09), and does not after.
+    w = holdUntil(w, FAR, BREACH_S[1], (x) => progressOf(x, 'shield').status === 'failed')
     expect(progressOf(w, 'shield').status).toBe('failed')
     expect(w.tick / 60).toBeGreaterThanOrEqual(BREACH_S[0])
     expect(radioMessages(w.mission!).map((e) => e.text)).toContain(SHIELD_FAILED)

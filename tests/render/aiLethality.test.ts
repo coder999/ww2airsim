@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
 import {
-  CURSORS_4, EVASION, LOADOUTS, aircraftOf, diagOf, flyFrames, passive, passiveClose, playerDestroyed, rangeBetween, replicaWorld,
+  CURSORS_4, EVASION, LOADOUTS, aircraftOf, diagOf, flyFrames, gunsSafe, passive, passiveClose, playerDestroyed, rangeBetween, replicaWorld,
 } from '../../tools/ai/replica.js'
 import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
@@ -15,28 +15,38 @@ import { isBehind } from '../e2e/pursuitGeometry.js'
 const tailChase = loadFixtureScenarioBundle('pursuit-tail-chase')
 const PURSUER = 'pursuer-1'
 
-describe('a passive player survives to point-blank range (7c spec §3.1, item 1)', () => {
-  // Measured 2026-09-25, VETERAN_SKILL.controlNoise 0.01: 16 of 16 reach
-  // point-blank, at ticks 1153 (clean), 1202 (bombs), 1147 (rockets) and
-  // 1193-1194 (both). 1 hit in all 16 runs (mean 0.06). At the shipped 0.02,
-  // `both` with cursor 0 is destroyed at tick 517. Re-measured 2026-09-25
-  // with 7c's safety envelope (Task 5): unchanged, 16 of 16 at ticks 1153,
-  // 1202, 1147 and 1194, 1 hit in all 16 (mean 0.06; the prototype had
-  // measured 0.13). The 128-run tools/ai/lethality.ts: 0/128, mean 0.04.
-  it.each(LOADOUTS)('%s: alive at the first tick inside MIN_ENGAGEMENT_RANGE_M, for four noise cursors', (loadout) => {
+describe('a passive player is shot down before point-blank range (7c spec §3.1, item 1; E1)', () => {
+  // Until E1 this asserted the opposite: the veteran, toned down to
+  // controlNoise 0.01 because its aim ignored drop (Mark's ruling 2026-09-25),
+  // reached point-blank in 16 of 16 runs with 1 hit among them. E1's honest
+  // gunnery (relative lead with drag, drop, fine tracking) makes a pilot
+  // lethal on purpose, and the 7c spec's Decisions item 2 asked for exactly
+  // this ordering: the veteran deadlier than green.
+  // Measured 2026-10-09, kill tick per loadout at cursors 0 / 7919 / 15838 / 23757:
+  //   veteran: clean 188 / 178 / 184 / 153, the other loadouts within 17 ticks
+  //            of those (2.6-3.4 s from 550 yd), 12 hits each.
+  //   green:   9 of 16 killed, ticks 418-1155 (7-19 s); the other 7 reached
+  //            point-blank with 3-8 hits.
+  it.each(LOADOUTS)('%s: the veteran kills inside 5 s at every noise cursor, green later or not at all', (loadout) => {
     for (const cursor of CURSORS_4) {
-      const run = passiveClose(replicaWorld(tailChase, loadout, cursor), PURSUER)
-      expect(run.outcome, `${loadout}, cursor ${cursor}: tick ${run.tick}, ${run.pursuerHits} hits`).toBe('point-blank')
+      const veteran = passiveClose(replicaWorld(tailChase, loadout, cursor), PURSUER)
+      expect(veteran.outcome, `${loadout}, cursor ${cursor}: veteran, tick ${veteran.tick}, ${veteran.pursuerHits} hits`).toBe('killed')
+      expect(veteran.tick).toBeLessThanOrEqual(5 * 60)
+      const green = passiveClose(replicaWorld(tailChase, loadout, cursor, GREEN_SKILL), PURSUER)
+      expect(green.tick, `${loadout}, cursor ${cursor}: green ${green.outcome} at ${green.tick}`).toBeGreaterThan(veteran.tick)
     }
   })
 })
 
 describe('the point-blank break-off, replicating ai-maneuver.spec.ts on the fixture (item 2)', () => {
+  // E1: with the pursuer's guns safe (`gunsSafe`), so it tests the break-off
+  // and not lethality, as the 7c spec's Decisions item 2 asked: an honest
+  // veteran kills the passive player first (item 1).
   // Spec §3.1, measured with the retune: crossings at ticks 1147-1202,
   // closest 78.0-84.3 m, range reopening 2.6-2.8 s after the crossing.
   it.each(LOADOUTS)('%s: closes under 120 m within 30 s alive, stays above 50 m, and opens within 6 s', (loadout) => {
     const m = { crossing: null as number | null, crossingRange: 0, closest: Infinity, reopened: null as number | null }
-    flyFrames(replicaWorld(tailChase, loadout, 0), passive, 36, (f, i) => {
+    flyFrames(gunsSafe(replicaWorld(tailChase, loadout, 0), PURSUER), passive, 36, (f, i) => {
       if (playerDestroyed(f)) throw new Error(`${loadout}: player destroyed at tick ${f.world.tick}`)
       const r = rangeBetween(f, f.world.player, PURSUER)
       if (m.crossing === null) {

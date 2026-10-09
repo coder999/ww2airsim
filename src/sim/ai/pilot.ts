@@ -32,6 +32,18 @@ export type PilotSkill = {
    *  pattern-matching on this file's other, inverted field (Plan 7b's own
    *  gunneryAccuracy bug, spec §3). */
   readonly controlNoise: number
+  /** E1: standard deviation, in radians, of the pilot's aim error on each
+   *  axis (right and up), drawn afresh at every rescore and held until the
+   *  next (`PilotDecisionState.aimError`). The pilot steers the nose to his
+   *  erring solution and fires when it is in his cone, so the rounds go where
+   *  he thinks the solution is. HIGHER IS WORSE, as `controlNoise`. */
+  readonly aimErrorRad: number
+  /** E1, 0-1: how much of a firing solution's swing the pilot leads with
+   *  when fine-tracking it (`gunTrackingControls`). 1 tracks a turning
+   *  target on the solution; less lags it; 0 does not fine-track at all, and
+   *  flies the flight path at the solution as before E1. A shooter with no
+   *  pilot tracks fully. HIGHER IS BETTER. */
+  readonly gunTracking: number
   /** Which named maneuvers this pilot flies (master spec §7: "green versus
    *  veteran is data"). The intent defaults are always flown, listed or not. */
   readonly repertoire: readonly ManeuverName[]
@@ -57,6 +69,8 @@ export const VETERAN_SKILL: PilotSkill = {
   // slice's to fix (spec Decisions, item 2). Still less than half of green's
   // noise, as noise.test.ts and pilot.test.ts require.
   controlNoise: 0.01,
+  aimErrorRad: 0.002,
+  gunTracking: 1,
 }
 
 export const GREEN_SKILL: PilotSkill = {
@@ -78,6 +92,8 @@ export const GREEN_SKILL: PilotSkill = {
   // Kept unchanged from Task 1's starting value; already >=2x
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
+  aimErrorRad: 0.008,
+  gunTracking: 0,
   // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): no yo-yo,
   // attack run, split-S or Immelmann. 7c Task 14 (Mark, 2026-09-26: "remove
   // lag pursuit from green pilots. green pilots should be beaten easily"): no
@@ -88,6 +104,9 @@ export const GREEN_SKILL: PilotSkill = {
 }
 
 export type PilotManeuver = 'pursue' | 'extend' | 'break'
+
+/** Radians to the right of, and above, the true firing solution. */
+export type AimError = { readonly right: number; readonly up: number }
 
 /** Which safety override flew this tick (7c spec §3.2; ruling R11). It never
  *  changes `maneuver`, the 7b intent; it only says the envelope took the
@@ -208,6 +227,9 @@ export type PilotDecisionState = {
    *  `loop.ts`, so there is one observation per rescore. */
   readonly observedTargetPosition: Vec3
   readonly observedTargetVelocity: Vec3
+  /** E1: this pilot's aim error since the last rescore (`PilotSkill.aimErrorRad`).
+   *  Absent is a perfect aim. */
+  readonly aimError?: AimError
   /** mulberry32 cursor for this pilot's control-noise draws (Task 3),
    *  independent of `weapons/combat.ts`'s own `rngState` cursor. Advances
    *  every tick, not just at rescore, since noise is applied to

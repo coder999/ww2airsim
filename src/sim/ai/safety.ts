@@ -7,6 +7,7 @@ import { DT, airVelocity } from '../flight/model.js'
 import { groundUnder } from '../world/ground.js'
 import { SEA_LEVEL_M } from '../world/terrain.js'
 import { length, v3, type Vec3 } from '../math/vec3.js'
+import { controlsForDesiredVelocity } from './controller.js'
 import { controlsForLiftVector, pitchCommandForLoadFactor } from './liftVector.js'
 import { applyControlNoise } from './noise.js'
 
@@ -29,6 +30,8 @@ export const FLOOR_BUFFER_M = 100
  *  0 of 4 loadouts behind, 6 s -> 1 of 2, 5 s -> 3 of 4, 4 s -> 4 of 4
  *  (ruling R6). */
 export const FLOOR_TIME_S = 4
+/** The climb a floor recovery that is already climbing holds (E1). */
+export const RECOVERY_CLIMB_RAD = 20 * Math.PI / 180
 /** Fractions of `limits.diveSpeedMps` (ruling R7). Measured: a Zero entering
  *  a 60° dive at 150 m/s from 2,500 m kept structure 1.000 and bottomed at
  *  542 m. Without the guard: structure 0. */
@@ -152,6 +155,20 @@ export function safetyOverride<M>(
   // (or after a `withState` reset), when `previous` is the state itself.
   const ay = self.previous.tick === self.state.tick - 1 ? (self.state.velocity.y - self.previous.velocity.y) / DT : 0
   if (needsFloorRecovery(self.state, terrain, decks, floorM, ay)) {
+    // Already climbing: climb out on RECOVERY_CLIMB_RAD rather than pull on.
+    // E1, measured 2026-10-09 (lowChase.test.ts, green Zero after a kill at
+    // 150 m): with the target dead the floor jumps from the pursuit floor to
+    // 400 m, the full-G pull went vertical, the Zero stalled at 25 mph and
+    // fell into the sea under a second recovery it no longer had the speed
+    // to fly. No AI had made that kill before honest gunnery.
+    if (self.state.velocity.y >= 0) {
+      const v = self.state.velocity
+      const flat = Math.hypot(v.x, v.z)
+      const heading = flat < 1e-6 ? v3(1, 0, 0) : v3(v.x / flat, 0, v.z / flat)
+      const speed = Math.max(length(v), self.spec.reference.stallSpeedMps * 1.3)
+      const climb = v3(heading.x * Math.cos(RECOVERY_CLIMB_RAD) * speed, Math.sin(RECOVERY_CLIMB_RAD) * speed, heading.z * Math.cos(RECOVERY_CLIMB_RAD) * speed)
+      return { mode: 'recover', controls: { ...controlsForDesiredVelocity(self.state, self.spec, climb), throttle: 1 } }
+    }
     return { mode: 'recover', controls: controlsForLiftVector(self.state, self.spec, UP, n, 1) }
   }
   const airspeed = length(airVelocity(self.state, wind))
