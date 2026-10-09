@@ -1,6 +1,6 @@
 # M1c handoff: finer detail and baked textures on our three Blender ships (2026-10-09)
 
-Plan: `docs/superpowers/plans/2026-10-09-m1c-ship-detail.md`. The run was unattended, in worktree
+Plan: `docs/superpowers/plans/2026-10-09-m1c-ship-detail.md`. Merged to `main` as `83e23729`; `npm run verify` passes there (365 files, 4,854 tests passed, 10 skipped, on Ryzen via `remote-run`). The run was unattended, in worktree
 `m1c-ship-detail`.
 Checkpoint: Pennsylvania, shown beside Cleveland (the best-looking download) at the same distances.
 

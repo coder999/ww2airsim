@@ -258,7 +258,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - Every warship ends with separate turret and AA-mount nodes, with AA added where a model has none.
      - Merchants (the Maru) get no guns.
      - **M1b (done 2026-10-09,** merge `e66b78a9`, handoff `docs/handoff/2026-10-09-m1b-aa-mounts.md`): Mark couldn't see the AA, so light AA is now generated at 1.3x with shields and dark barrels, every 20 mm and 25 mm gallery draws each gun, and every mount's guns elevate (Hangar Train mounts sweep).
-     - **M1c (done 2026-10-09,** handoff `docs/handoff/2026-10-09-m1c-ship-detail.md`): our three Blender ships gain railings, rigging, rounded deckhouses and a committed high-poly bake (AO and detail normals, Cycles on Ryzen's GPU), with deck planks or linoleum and porthole rust. Budgets unchanged.
+     - **M1c (done 2026-10-09,** merge `83e23729`, handoff `docs/handoff/2026-10-09-m1c-ship-detail.md`): our three Blender ships gain railings, rigging, rounded deckhouses and a committed high-poly bake (AO and detail normals, Cycles on Ryzen's GPU), with deck planks or linoleum and porthole rust. Budgets unchanged.
   2. **M2 AA fire (M).** Ships and ground AAA share one system:
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;
