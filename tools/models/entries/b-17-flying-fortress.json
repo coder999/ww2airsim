@@ -300,7 +300,14 @@
           -0.184289
         ]
       }
-    }
+    },
+    {"name": "AileronR", "select": "components", "boxMin": [-2.3, -0.2, -14.7], "boxMax": [-1.25, 0.6, -8.85], "pivot": {"point": [-2.24983, 0.47172, -14.03242], "axis": [0.100317, -0.10294, 0.989616]}},
+    {"name": "Flap1R", "select": "components", "boxMin": [-2.3, -0.85, -8.85], "boxMax": [-0.6, 0.05, -1.4], "pivot": {"point": [-2.2916, -0.09144, -8.06448], "axis": [0.109095, -0.101912, 0.988793]}},
+    {"name": "ElevatorR", "select": "triangles", "boxMin": [7.5, 0.1, -5.5], "boxMax": [9.3, 0.75, -0.75], "pivot": {"point": [7.89407, 0.35209, -0.8], "axis": [-0.032445, -0.033432, 0.998914]}, "cut": {"normal": [0.999474, -0.001085, 0.032427]}},
+    {"name": "AileronL", "select": "components", "boxMin": [-2.3, -0.2, 8.85], "boxMax": [-1.25, 0.6, 14.7], "pivot": {"point": [-1.78803, -0.00216, 9.47675], "axis": [-0.100317, 0.10294, 0.989616]}},
+    {"name": "Flap1L", "select": "components", "boxMin": [-2.3, -0.85, 1.4], "boxMax": [-0.6, 0.05, 8.85], "pivot": {"point": [-1.64041, -0.69976, 2.16234], "axis": [-0.109095, 0.101912, 0.988793]}},
+    {"name": "ElevatorL", "select": "triangles", "boxMin": [7.5, 0.1, 0.75], "boxMax": [9.3, 0.75, 5.5], "pivot": {"point": [7.89407, 0.35209, 0.8], "axis": [0.032445, 0.033432, 0.998914]}, "cut": {"normal": [0.999474, -0.001085, -0.032427]}},
+    {"name": "Rudder", "select": "components", "boxMin": [8.65, 1, -0.1], "boxMax": [10.4, 4.65, 0.1], "pivot": {"point": [8.66202, 1.41029, 0], "axis": [0.086282, 0.996271, 0]}}
   ],
   "remove": [
     "Object_3",
@@ -343,8 +350,8 @@
       "Object_16": 1,
       "Object_31": 1,
       "Object_32": 1,
-      "Object_33": 0.8,
-      "Object_40": 0.2,
+      "Object_33": 0.35,
+      "Object_40": 0.1,
       "Object_41": 1,
       "Object_42": 1,
       "Object_43": 1,
@@ -364,7 +371,7 @@
       "Turret2": 1,
       "Turret3": 1,
       "BayDoor1L": 1,
-      "BayDoor1R": 1
+      "BayDoor1R": 1, "AileronR": 1, "Flap1R": 1, "ElevatorR": 1, "AileronL": 1, "Flap1L": 1, "ElevatorL": 1, "Rudder": 1
     }
   },
   "textures": {

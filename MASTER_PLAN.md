@@ -77,11 +77,11 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 
 Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits unique to each plane.
 
-**C1. Control surfaces (M per batch).**
+**C1. Control surfaces (M per batch). Complete 2026-10-08: all twelve airframes move their ailerons, elevators, rudders and flaps.**
 - **Batch 1 done 2026-10-08:** the five Blender models (B-29, Ki-21, G4M, P-38, Ki-84) move ailerons, elevators, rudders and flaps, and the Hangar bench has roll, pitch and yaw sliders. Plan `docs/superpowers/plans/2026-10-08-c1-surfaces-batch1.md`; handoff `docs/handoff/2026-10-08-c1-surfaces-batch1.md`.
 - **Batch 2 merged 2026-10-08:** the F6F, F4U and F4F. The F6F and F4U surfaces are cut out of their downloads; the F4F is unfrozen and its ailerons cut from the outer wing at the F4F-3's measured layout (Mark's ruling, 2026-10-08), with its inboard pieces static and split flaps drawn under them in `wildcat.ts`. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch2.md`.
-- **Batch 3 built 2026-10-08, on branch `c1-surfaces-batch3` until Mark has looked:** the A6M2 and Ki-43. The Zero's surfaces are cut from its body. Its draw budget rises from 12 to 14, the least seven one-draw surfaces need. The Ki-43's download already models its ailerons, elevators and rudder as their own pieces; only its flaps are cut. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch3.md`.
-- **Still to do:** batch 4 (D3A, and the B-17's surfaces), by the same `split` + `cut` route.
+- **Batch 3 merged 2026-10-08:** the A6M2 and Ki-43. The Zero's surfaces are cut from its body. Its draw budget rises from 12 to 14, the least seven one-draw surfaces need. The Ki-43's download already models its ailerons, elevators and rudder as their own pieces; only its flaps are cut. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch3.md`.
+- **Batch 4 built 2026-10-08, on branch `c1-surfaces-batch4` until Mark has looked:** the D3A and B-17. The D3A's ailerons, flaps and elevators are cut from its one-piece wing and tailplane, and its rudder is the download's own piece. The B-17's download models its ailerons, split flaps and rudder as pieces; only its elevators are cut. Each made room under its triangle limit by trimming hidden detail (Mark's ruling): the D3A's cockpit interior, and the B-17's interior shell and seat. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch4.md`.
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
   - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.

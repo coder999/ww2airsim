@@ -102,6 +102,9 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: ['Turret1', 'Turret2', 'Turret3'],
     // C2: real doors cut from its belly (entry split BayDoor1L/R, Mark's ruling 2026-10-08).
     doors: ['BayDoor1L', 'BayDoor1R'],
+    // C1 batch 4: the ailerons, split flaps and rudder are the download's own pieces, hinged on their
+    // leading edges; the elevators are cut from the tailplane.
+    surfaces: surfaces(1),
   },
   'b-29-superfortress': {
     // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
@@ -122,10 +125,12 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     // Real blade geometry, but the download's three blades are not modeled at 120 deg (one sits
     // ~0.07 source units off its orbit), so symmetryError reads its 2% cap about any hub; the hub is
     // the spinner's axis and the hub-offset check carries Review Focus 1 (R3 ledger, Task 9).
-    // Fixed, spatted gear is not rigged (P15).
+    // Fixed, spatted gear is not rigged (P15). C1 batch 4: the ailerons, flaps and elevators are cut from
+    // the one-piece wing and tailplane, and the rudder is the download's own piece; dive brakes stay static.
     props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
     gear: [],
     turrets: [],
+    surfaces: surfaces(1),
   },
   'f6f-hellcat': {
     props: [{ node: 'Prop', blades: 3 }],
