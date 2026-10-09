@@ -1,0 +1,21 @@
+{
+  "id": "zuikaku-cv",
+  "name": "Shōkaku-class fleet carrier",
+  "kind": "ship",
+  "side": "japanese",
+  "spec": "zuikaku-cv",
+  "blurb": "Zuikaku as at Leyte Gulf, October 1944: the last of the Pearl Harbor carriers, and the Japanese counterpart to Essex.",
+  "history": "The Shōkaku class was two fleet carriers, Shōkaku and Zuikaku, completed in 1941 just in time for the attack on Pearl Harbor. They were the most capable carriers Japan built before the war, and fought together at Pearl Harbor, in the Indian Ocean, at the Coral Sea, and in the Solomons.\n\nShōkaku was sunk by a submarine during the Battle of the Philippine Sea in June 1944. Zuikaku, the last surviving carrier of the Pearl Harbor strike, served as Admiral Ozawa's flagship in the decoy Northern Force at Leyte Gulf, and was sunk by U.S. carrier aircraft off Cape Engaño on 25 October 1944.",
+  "sources": [
+    {
+      "title": "Shōkaku-class aircraft carrier",
+      "url": "https://en.wikipedia.org/wiki/Sh%C5%8Dkaku-class_aircraft_carrier",
+      "read": "2026-10-09"
+    },
+    {
+      "title": "Japanese aircraft carrier Zuikaku",
+      "url": "https://en.wikipedia.org/wiki/Japanese_aircraft_carrier_Zuikaku",
+      "read": "2026-10-09"
+    }
+  ]
+}

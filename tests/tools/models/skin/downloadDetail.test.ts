@@ -30,4 +30,18 @@ describe('download detail (M1d)', () => {
     expect(m.find((x) => x.kind === 'planks')).toMatchObject({ tags: ['ship:deck'], belowM: 8 })
     expect(m.filter((x) => x.kind === 'polygon')).toHaveLength(4) // portholes 2 and 5 of five, each side
   })
+
+  it('paints camouflage first, sides mirrored onto hull and island, deck patches seen from above (M1e)', () => {
+    const m = downloadMarkings(DownloadDetailSchema.parse({ sideZM: 10, camo: [
+      { on: 'sides', color: 'ijnCamoGreen', points: [[0, 1], [20, 1], [10, 8]] },
+      { on: 'flightDeck', color: 'ijnCamoDark', points: [[0, -5], [10, -5], [10, 5]] },
+    ], strakesM: 1.5 }))
+    const camo = m.filter((x) => x.kind === 'polygon')
+    expect(m.indexOf(camo.at(-1)!)).toBeLessThan(m.findIndex((x) => x.kind === 'grid'))
+    const sides = camo.filter((x) => x.color === 'ijnCamoGreen')
+    expect(sides.map((x) => [x.tags[0], x.kind === 'polygon' && x.origin[2]])).toEqual([['ship:hull', 10], ['ship:hull', -10], ['ship:superstructure', 10], ['ship:superstructure', -10]])
+    // Port reads x mirrored, because its u axis points aft: the same patch lands at the same x on both sides.
+    expect(sides.map((x) => x.kind === 'polygon' && x.points[1])).toEqual([[20, 1], [-20, 1], [20, 1], [-20, 1]])
+    expect(camo.find((x) => x.color === 'ijnCamoDark')).toMatchObject({ tags: ['ship:flightDeck'], axis: [0, 1, 0], points: [[0, 5], [10, 5], [10, -5]] })
+  })
 })
