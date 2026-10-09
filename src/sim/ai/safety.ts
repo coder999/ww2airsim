@@ -167,7 +167,7 @@ export function safetyOverride<M>(
       const heading = flat < 1e-6 ? v3(1, 0, 0) : v3(v.x / flat, 0, v.z / flat)
       const speed = Math.max(length(v), self.spec.reference.stallSpeedMps * 1.3)
       const climb = v3(heading.x * Math.cos(RECOVERY_CLIMB_RAD) * speed, Math.sin(RECOVERY_CLIMB_RAD) * speed, heading.z * Math.cos(RECOVERY_CLIMB_RAD) * speed)
-      return { mode: 'recover', controls: { ...controlsForDesiredVelocity(self.state, self.spec, climb), throttle: 1 } }
+      return { mode: 'recover', controls: limitLoadFactor(self.state, self.spec, { ...controlsForDesiredVelocity(self.state, self.spec, climb), throttle: 1 }) }
     }
     return { mode: 'recover', controls: controlsForLiftVector(self.state, self.spec, UP, n, 1) }
   }
@@ -185,5 +185,9 @@ export function finishControls<M>(
 ): { readonly controls: Controls; readonly cursor: number } {
   const limited = limitLoadFactor(self.state, self.spec, base)
   const fast = length(airVelocity(self.state, wind)) >= OVERSPEED_THROTTLE_CUT * self.spec.limits.diveSpeedMps
-  return applyControlNoise(fast ? { ...limited, throttle: 0 } : limited, noiseStdDev, cursor)
+  // The noise is limited too (E1, 2026-10-09): unlimited, green's 0.15 put a
+  // defensive break 0.2 of stick past the budget, at 7.54 g against a 7.5 g
+  // limit (formationLeader.test.ts, once E1's lead had changed the geometry).
+  const noisy = applyControlNoise(fast ? { ...limited, throttle: 0 } : limited, noiseStdDev, cursor)
+  return { ...noisy, controls: limitLoadFactor(self.state, self.spec, noisy.controls) }
 }
