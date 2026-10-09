@@ -65,7 +65,12 @@ Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
 tail, dorsal before ventral at one station. Control surfaces (C1):
 `AileronL`/`AileronR`, `ElevatorL`/`ElevatorR`, `Flap1L`…`FlapNR` inboard to
-outboard, and `Rudder`, or `Rudder1`…`RudderN` port to starboard.
+outboard, and `Rudder`, or `Rudder1`…`RudderN` port to starboard. Bay doors
+(C2): `BayDoor1L`…`BayDoorNR` nose to tail, each hinged along x at its
+outboard edge with its axis oriented so a positive turn opens it (the keel
+edge swings down and out); the rig lists them in `doors`. The B-17's are cut
+from its belly by a `split` whose `cut` plane runs between the skin and the
+interior shell above it, so only skin comes away.
 `surfaceDrive` in `src/render/scene/airframeRigs.ts` reads what each one
 follows from its name. Every part needs a `pivot`: the
 build moves its origin onto the hinge and records the axis the runtime turns

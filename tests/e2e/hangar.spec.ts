@@ -262,7 +262,7 @@ test.describe('the Hangar', () => {
       const open = await shot(page)
       const m = await masks(page, empty, [shut, open])
       console.log(`doors ${id}: changed ${m.xor01}/${m.areas[0]}`)
-      // Measured 2026-10-08: 93 px (B-17) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
+      // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
       expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
     }
     expect(bombers).toBe(4)

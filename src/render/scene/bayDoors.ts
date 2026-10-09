@@ -2,12 +2,11 @@
 import { BufferGeometry, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, type Material } from 'three'
 
 /**
- * Bomb-bay doors (C2), drawn in code for every airframe that has them: two plates per bay, each
+ * Bomb-bay doors (C2), drawn in code for an airframe whose model has none of its own (the B-29, G4M
+ * and Ki-21 today; the B-17's are cut from its model, `AirframeRig.doors`): two plates per bay, each
  * hinged along x at its outboard edge, over a dark plate that reads as the open bay behind them.
- * Procedural rather than modeled, so a Sketchfab download (the B-17, whose raw source is not kept
- * and whose body a rebuild would re-simplify) and a Blender model take the same path.
  * ponytail: flat plates on a curved belly, offset outward so the skin's sag between hinge and keel
- * never pokes through; model them into each glb if a close look ever shows the gap.
+ * never pokes through; cut them from each model, as the B-17's are, if a close look ever shows the gap.
  */
 export interface BayRig {
   /** Fore and aft ends of the opening, body x, m. */

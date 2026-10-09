@@ -36,12 +36,16 @@ export interface AirframeRig {
   readonly turrets: readonly string[]
   /** Control surface nodes (C1). What each drives and how far follows from its name (`surfaceDrive`). */
   readonly surfaces?: readonly string[]
-  /** Bomb-bay openings, drawn in code (C2, scene/bayDoors.ts), and the doors' paint. Every rig
-   *  here belongs to a spec with `bayDoors`, and every such spec has a rig (aircraftRigs.test.ts). */
+  /** Bomb-bay openings, drawn in code (C2, scene/bayDoors.ts), and the doors' paint: for a model
+   *  with no door geometry of its own. */
   readonly bays?: { readonly openings: readonly BayRig[]; readonly paint: number }
+  /** Bay door nodes cut from the model itself (C2), `BayDoor<n>L/R`, each hinged on its outboard
+   *  edge with its axis oriented so a positive turn opens it: the keel edge swings down and out.
+   *  A rig has `bays` or `doors`, never both; every spec with `bayDoors` has one (aircraftRigs.test.ts). */
+  readonly doors?: readonly string[]
 }
 
-export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/
+export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
 
 export type SurfaceInput = 'roll' | 'pitch' | 'yaw' | 'flap'
 
@@ -97,8 +101,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
-    // C2: the belly at the bay, ray-cast off the committed glb 2026-10-08 (aircraftRigs.test.ts checks it).
-    bays: { openings: [{ x0: -1.5, x1: 1.5, halfWidthM: 0.4, keelY: -0.904, hingeY: -0.838 }], paint: 0xa9adb0 },
+    // C2: real doors cut from its belly (entry split BayDoor1L/R, Mark's ruling 2026-10-08).
+    doors: ['BayDoor1L', 'BayDoor1R'],
   },
   'b-29-superfortress': {
     // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
