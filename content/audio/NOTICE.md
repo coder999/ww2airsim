@@ -42,11 +42,15 @@ attribution and forbidden commercial use, which is why the plan was upgraded
 before generating. The same US Copyright Office caveat as above applies.
 
 - `rocket_whoosh.wav`: the sound-generation endpoint, from the prompt in
-  `docs/audio/firefly-prompt-sheet.md`, leading silence trimmed. It replaces a
+  `docs/audio/firefly-prompt-sheet.md` (take 2 of 3, Mark's pick), trimmed. It replaces a
   synthesized placeholder.
 - `gear_cycle.wav`: the sound-generation endpoint, from the `gear_cycle` prompt in
   the same sheet (take 3 of 3, Mark's pick), trimmed. It plays for both gear
   up and gear down.
+- `flaps_cycle.wav`: the same way, from the reworded flap prompt (take 6 of 6,
+  Mark's pick), trimmed. It plays for both flaps up and flaps down.
+- `flak_burst.wav`: the same way (take 1 of 3, Mark's pick), trimmed and
+  normalized to a 0.97 peak because the take came out quiet.
 - `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,

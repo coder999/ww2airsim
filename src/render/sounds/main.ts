@@ -77,7 +77,7 @@ void (async () => {
     for (const t of g.takes) {
       const row = el('div', 'display:flex;align-items:center;gap:12px;padding:3px 0;flex-wrap:wrap')
       row.dataset['search'] = searchOf(t)
-      row.append(tag('NOT IN GAME', '#e07a6a'), player(CANDIDATES + t.file, false),
+      row.append(tag('NOT IN GAME', '#e07a6a'), player(CANDIDATES + t.file, t.take.startsWith('loop')),
         el('span', 'font:12px monospace;width:150px', t.clip.endsWith('_ja') ? `JA · ${t.take}` : t.clip.endsWith('_us') ? `US · ${t.take}` : t.take),
         el('span', 'flex:1;min-width:200px', t.text ?? ''),
         el('span', 'color:#8a96a3;font-size:12px;width:100%', t.note))

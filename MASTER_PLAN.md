@@ -239,12 +239,14 @@ one plan for the lot.
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
-  - radio squelch and static. The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
+  - a radio static bed (the squelch click is recorded, I3). The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
 - **I2, voice (§4 Q7):**
   - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
   - **Not wired yet.** The lines are not in `AUDIO_ASSETS` on purpose: `system.ts` loads that whole table at boot, and the lines total 16 MB. Wiring loads only the player side's 34, on demand.
   - Still to do: tie each on-screen message to its line, feed the radio bus (`webAudio.ts`), and choose US or JA by the player's side (`CONTEXT.md`).
-- **I3, recorded effects (Mark, 2026-10-09):** gear up/down and flaps up/down are recorded rather than synthesized, plus AA guns (5-inch, 40 mm, 20 mm; ship and ground share them), a close flak burst, and torpedo drop and hit. Prompts are in `docs/audio/firefly-prompt-sheet.md`; ElevenLabs takes are on `sounds.html`. Picked: `gear_cycle.wav` (one sound for gear up and down, in `AUDIO_ASSETS`, unwired). Flap and AA prompts were reworded after the first takes sounded like flapping wings and weak guns; awaiting Mark's review. Wiring: gear and flaps with C1, the AA guns and flak with M2, the torpedo with the Avenger.
+- **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
+  - **In `AUDIO_ASSETS`, unwired:** `gear_cycle` and `flaps_cycle` (each plays both ways; wire with C1), `flak_burst` (the close burst; M2). `rocket_whoosh` is now take 2 (wired).
+  - **Staged, awaiting Mark:** `aa_gun` (a loop cut from the 20 mm take, for every AA gun, ship and ground; M2), `torpedo_splash` and the reworded `torpedo_hit` (the Avenger; its release reuses `bombs_away`), `radio_squelch` (brackets each radio line; I2). The 40 mm and 5-inch takes sound like big naval guns, not AA, and are kept for ship main guns.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S). Done 2026-10-08

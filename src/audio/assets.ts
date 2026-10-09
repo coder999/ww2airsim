@@ -34,6 +34,8 @@ export type ClipId =
   | 'flak_distant'
   | 'hook_clunk'
   | 'gear_cycle'
+  | 'flaps_cycle'
+  | 'flak_burst'
   /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
   | 'motor'
 
@@ -60,7 +62,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   { id: 'bombs_away', path: 'content/audio/bombs_away.wav', bus: 'sfx', bytes: 192_770, peakFullScale: 0.8398, cueGain: 0.60 },
   { id: 'machinegun', path: 'content/audio/machinegun.wav', bus: 'sfx', bytes: 250_370, peakFullScale: 1.0000, cueGain: 0.50 },
   // ElevenLabs sound generation, 2026-10-09 (content/audio/NOTICE.md).
-  { id: 'rocket_whoosh', path: 'content/audio/rocket_whoosh.wav', bus: 'sfx', bytes: 222_336, peakFullScale: 0.4866, cueGain: 0.55 },
+  { id: 'rocket_whoosh', path: 'content/audio/rocket_whoosh.wav', bus: 'sfx', bytes: 362_520, peakFullScale: 1.0000, cueGain: 0.55 },
   // Adobe Firefly, generated 2026-09-29 (content/audio/NOTICE.md). Wired
   // 2026-09-29 (flak_distant 2026-09-30, spatial) except the small radial loop,
   // which stays unused (propeller.wav serves single radials under 2,000 hp);
@@ -81,6 +83,14 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // gear. cueGain sits below the other one-shots because he asked for it a bit
   // quieter; the level is reasoned, not yet heard in flight.
   { id: 'gear_cycle', path: 'content/audio/gear_cycle.wav', bus: 'sfx', bytes: 789_892, peakFullScale: 0.8026, cueGain: 0.35 },
+  // ElevenLabs, 2026-10-09, Mark's picks; neither is wired yet. flaps_cycle
+  // plays for both flaps up and flaps down (with C1). flak_burst is the CLOSE
+  // burst (flak_distant is the far one), normalized up from a quiet take, and
+  // its cueGain is the loudest of the one-shots because Mark wants it loud
+  // when it bursts near the airplane (M2 scales it down with distance). 0.80
+  // failed the full-throttle headroom test (tests/audio/assets.test.ts).
+  { id: 'flaps_cycle', path: 'content/audio/flaps_cycle.wav', bus: 'sfx', bytes: 812_076, peakFullScale: 0.6313, cueGain: 0.35 },
+  { id: 'flak_burst', path: 'content/audio/flak_burst.wav', bus: 'sfx', bytes: 124_392, peakFullScale: 0.9700, cueGain: 0.75 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {
