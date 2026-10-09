@@ -1,6 +1,7 @@
 {
   "id": "d3a-val",
   "input": "tools/models/cache/aichi_d3a_val.glb",
+  "inputSha256": "c3e8869fb590daa8ff910cd1189fe8af1174956cce76f5c7446a3407889a9efe",
   "output": "content/aircraft/d3a-val.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/aichi-d3a-val-6f47d38de28b4a879481850b68bca501",

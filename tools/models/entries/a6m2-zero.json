@@ -1,6 +1,7 @@
 {
   "id": "a6m2-zero",
   "input": "tools/models/cache/a6m2-zeke.glb",
+  "inputSha256": "050cad164c8cee4ff97cd1f2bd8ee292e08159f625ef6204c94bc972786fd574",
   "output": "content/aircraft/a6m2-zero.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/mitsubishi-a6m2-zero-zeke-d701787b75fa4c979792b0c0c14221e2",

@@ -1,6 +1,7 @@
 {
   "id": "wildcat",
   "input": "tools/models/cache/grumman_f4f_wildcat_airplane.glb",
+  "inputSha256": "1fb6873afa6c826a3c976b2492f31e4b2644f2aee413615438a9a6ee393801a1",
   "output": "content/aircraft/wildcat.glb",
   "source": { "url": "https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4", "uid": "ac26b8bf6be44ba7b903ca7fbdedf7e4", "author": "rojatsu", "license": "CC-BY-4.0" },
   "legacyOptimize": true,

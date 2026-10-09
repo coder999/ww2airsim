@@ -1,6 +1,7 @@
 {
   "id": "shiratsuyu-dd",
   "input": "tools/models/cache/shiratsuyu-dd-samidare.glb",
+  "inputSha256": "b5f77c0b2b87beef1061075a08a722e01cf9f0f7712017fa369524989b152788",
   "output": "content/ships/shiratsuyu-dd.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/samidare-destroyer-b37939147c854e61857f5b248f9efd29",

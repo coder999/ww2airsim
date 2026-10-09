@@ -1,6 +1,7 @@
 {
   "id": "f4u-corsair",
   "input": "tools/models/cache/f4u.glb",
+  "inputSha256": "a8d8eda00d50b1585d918029856ef4a78f9911f4b6e68c34327ed4ea9a3a3797",
   "output": "content/aircraft/f4u-corsair.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284",

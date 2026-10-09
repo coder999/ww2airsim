@@ -1,6 +1,7 @@
 {
   "id": "willys-mb-jeep",
   "input": "tools/models/cache/willys-mb-jeep.glb",
+  "inputSha256": "79ad5e0037ce259843ae40bb5010ca0039f81cc1aadf8882c1b86e5f01dfec93",
   "output": "content/vehicles/willys-mb-jeep.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/willys-mb-jeep-red-orchestra-darkest-hour-3b005266a1514f7bb7370c86168aba98",

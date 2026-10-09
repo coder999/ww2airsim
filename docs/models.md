@@ -29,6 +29,20 @@ This writes `content/models/candidates/<name>.glb` plus a
 gitignored folder. It is headless and needs no manual download. The token
 comes from 1Password and is never printed; the script's header says how.
 
+Once a download is vetted and has an entry, its one home is **nexus's
+`tools/models/cache/`**. That folder is gitignored, because the repo is public
+and these are other people's files (Mark, 2026-10-08). Copy the download
+there, and record its SHA-256 as the entry's `inputSha256`.
+`npm run models:raws` checks every entry's raw against its hash, and
+`-- --restore` refills the store from `candidates/`, `dist/`, or ryzen's
+remote-run mirror, keeping only a copy whose hash matches.
+`tests/tools/models/sketchfabEntries.test.ts` rebuilds every committed
+download-built model from its raw, byte for byte. A worktree links its
+`tools/models/cache` to main's (`ln -s <main>/tools/models/cache
+tools/models/cache`) and never holds a copy of its own. On 2026-10-08 the F6F's
+only working copy went with a removed worktree, and 11 of the 16 raws were
+missing from nexus.
+
 ## 3. Vet
 
 A download is not a license check. Before anything is committed, read the

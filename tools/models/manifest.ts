@@ -123,6 +123,10 @@ export const ModelEntrySchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   /** The raw download (Sketchfab entries only), gitignored by `/tools/**\/cache/`. */
   input: z.string().regex(/^tools\/models\/cache\/[^/]+\.glb$/).optional(),
+  /** The raw download's SHA-256: nexus's tools/models/cache is its one home, and this is how a copy
+   *  found anywhere else is proven to be it (`npm run models:raws`; docs/models.md §2). Every real
+   *  entry has one (sketchfabEntries.test.ts); optional so toy fixtures need not invent one. */
+  inputSha256: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   /** Committed. Aircraft to content/aircraft/, ships to content/ships/, ordnance to
    *  content/ordnance/ (generated only), and the Library-only buildings and vehicles to
    *  content/buildings/ and content/vehicles/ (R1). */

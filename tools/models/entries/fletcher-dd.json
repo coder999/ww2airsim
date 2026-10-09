@@ -1,6 +1,7 @@
 {
   "id": "fletcher-dd",
   "input": "tools/models/cache/fletcher-dd.glb",
+  "inputSha256": "847a5fe51a34b7bc1caba03dbebb28d310789f3f9b0ff409e1ff9cee802de127",
   "output": "content/ships/fletcher-dd.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884",
