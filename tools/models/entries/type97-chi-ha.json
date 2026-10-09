@@ -1,6 +1,7 @@
 {
   "id": "type97-chi-ha",
   "input": "tools/models/cache/type97-chi-ha.glb",
+  "inputSha256": "def357b816124c212e11eafb0b08d6b9c26d70670b3c0ab94bd3bea12e13cf3f",
   "output": "content/vehicles/type97-chi-ha.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/type-97-chi-ha-d3568f32ec4440848e243e4b893a8ba6",

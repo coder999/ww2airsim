@@ -225,7 +225,7 @@ with m.tagged('canopy'), m.shared_chart():
     m.canopy('glazing', METAL, [(X(f), w * L, h * L, y * L) for f, w, h, y in CANOPY], [X(f) for f in CANOPY_FRAMES],
              bar=0.018, segments=48, subdivide=4)
 
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 with m.tagged('wing'), m.shared_chart():
     breaks = [0.0, bz, S / 2]
     for z0, z1 in zip(breaks, breaks[1:]):
@@ -240,7 +240,7 @@ inner = bz - 0.32                                    # the elevator ends 0.32 m 
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(METAL, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, 2 * tp_half,
            thickness=0.10, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 
@@ -285,7 +285,7 @@ for i, z in enumerate((-bz, bz), start=1):
     with m.tagged('fin'), m.shared_chart():
         m.fin(METAL, X(1.0) + fin_root, FIN['y'] * L - 0.04, fin_root, fin_tip, fin_h,
               sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), center_z=z, stations=STATIONS,
-              span_segments=SPAN_SEGMENTS, controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+              span_segments=SPAN_SEGMENTS, controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder1' if z < 0 else 'Rudder2')])
     pr = PROP
     with m.tagged('prop'), m.shared_chart():
         m.propeller('dark', (X(pr['hub']), 0.0, z), PROP_DIAMETER, BLADES, pr['chord'] * L, pr['spinner_r'] * L,

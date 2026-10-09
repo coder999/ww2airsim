@@ -9,7 +9,9 @@ import {
   withTerrain,
   worldOffsetFor,
   airframeVisibilityFor,
+  BAY_DOORS_NOTICE_S,
 } from '../../src/render/frame.js'
+import { bayDoorsLabel } from '../../src/render/autopilotBadge.js'
 import { airspeed } from '../../src/sim/flight/model.js'
 import { loadAircraftSpec, loadAirfield, loadScenarioBundle } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
@@ -344,6 +346,25 @@ describe('gear and brakes', () => {
     f = nextFrameState(f, 1 / 60, new Set())
     f = nextFrameState(f, 1 / 60, new Set(BINDINGS.toggleHook))
     expect(f.hookDown).toBe(false)
+  })
+
+  it('O works the bay doors; V with them not fully open shows BAY DOORS CLOSED for a while, and fully open does not (C2)', () => {
+    const b29 = loadAircraftSpec('b-29-superfortress')
+    let f = initialFrameState(b29, createState({ position: v3(0, 3000, 0), velocity: v3(110, 0, 0), fuelKg: 8000 }))
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.dropBomb))
+    expect(bayDoorsLabel(f.bayDoorsNoticeS)).toBe('BAY DOORS CLOSED')
+    for (let i = 0; i < (BAY_DOORS_NOTICE_S + 0.1) * 60; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(bayDoorsLabel(f.bayDoorsNoticeS)).toBeNull()
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.toggleBayDoors))
+    expect(f.bayDoorsOpen).toBe(true)
+    expect(playerAircraft(f.world).controls.bayDoorsOpen).toBe(true)
+    for (let i = 0; i < (b29.bayDoors!.travelSeconds + 0.2) * 60; i++) f = nextFrameState(f, 1 / 60, keys())
+    expect(playerAircraft(f.world).state.bayDoorFraction).toBe(1)
+    f = nextFrameState(f, 1 / 60, new Set(BINDINGS.dropBomb))
+    expect(bayDoorsLabel(f.bayDoorsNoticeS)).toBeNull()
+    // A fighter has no doors, so V never says so.
+    const g = nextFrameState(start(), 1 / 60, new Set(BINDINGS.dropBomb))
+    expect(g.bayDoorsNoticeS).toBe(0)
   })
 
   it('brakes while the key is held and releases when it is not', () => {

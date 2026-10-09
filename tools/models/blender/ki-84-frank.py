@@ -214,7 +214,7 @@ with m.tagged('canopy'), m.shared_chart():
 # the wheel wells (aircraftRigs.test.ts measures a retracted leg against skin vertices). Each
 # break section is the one-panel loft's own section there: chord, absolute thickness, leading
 # edge and dihedral rise all interpolate linearly, so the panels trace the same surface.
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (FLAP, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
 breaks = [0.0, GEAR['z'] * S, S / 2]
 with m.tagged('wing'), m.shared_chart():
     for z0, z1 in zip(breaks, breaks[1:]):
@@ -227,14 +227,14 @@ tp = TAILPLANE
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(UPPER, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, lower_role=LOWER, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 # The rudder's trailing edge is vertical at the tail, so the model's aftmost point is X(1).
 with m.tagged('fin'), m.shared_chart():
     m.fin(UPPER, X(1.0) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 pr = PROP
 with m.tagged('prop'), m.shared_chart():
     m.propeller('dark', (X(pr['hub']), 0.0, 0.0), PROP_DIAMETER, BLADES, pr['chord'] * L, pr['spinner_r'] * L, pr['spinner_len'] * L,

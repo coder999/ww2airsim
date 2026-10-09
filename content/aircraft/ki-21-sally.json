@@ -124,6 +124,11 @@
     "dragAreaM2": 1.56,
     "clIncrement": 0.389
   },
+  "bayDoors": {
+    "travelSeconds": 6,
+    "dragAreaM2": 0.3,
+    "source": "ESTIMATE (C2, 2026-10-08): travel and drag area by analogy with the B-17's, scaled to a bay opening of about 2 sq m. Nothing measured; both are tuning values."
+  },
   "stores": {
     "racks": [
       {

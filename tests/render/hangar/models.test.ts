@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildCatalog } from '../../../src/render/hangar/catalog.js'
 import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D } from 'three'
-import { displayModelUrl, flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
+import { aimFrom, displayModelUrl, flatField, loadHangarModel, partSpecsFor, probeArticulated, sceneCounts } from '../../../src/render/hangar/models.js'
 import { createHellcat } from '../../../src/render/scene/hellcat.js'
 import { createShipMesh } from '../../../src/render/scene/ship.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
@@ -27,7 +27,16 @@ describe('sceneCounts', () => {
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
     const rows = partSpecsFor(['prop', 'gear', 'stores'])
-    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['prop', true], ['stores', true]])
+    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['doors', false], ['prop', true], ['surfaces', false], ['turrets', false], ['stores', true]])
+  })
+})
+
+describe('aimFrom (turret aim, 2026-10-09)', () => {
+  it('both sliders at 0 stow; a bearing turns right of the nose and an elevation lifts', () => {
+    expect(aimFrom(0, 0)).toBeNull()
+    const r = aimFrom(90, 0)!, up = aimFrom(180, 90)!
+    expect([r.x, r.y, r.z].map((v) => Math.round(v * 1e9) / 1e9 + 0)).toEqual([0, 0, 1])
+    expect(up.y).toBeCloseTo(1, 9)
   })
 })
 
@@ -44,6 +53,15 @@ describe('loadHangarModel (Node, with a stub airframe)', () => {
     m!.update(0.1)
     expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ throttle: 1, frameS: 0.1, gearFraction: 1 }))
     expect(m!.parts.find((p) => p.id === 'gear')!.modeled).toBe(false)
+  })
+
+  it('the stick sliders reach the airframe as its controls, and the others keep theirs (C1)', async () => {
+    const hellcat = createHellcat()
+    const update = vi.spyOn(hellcat, 'update')
+    const m = await loadHangarModel(byId('f4f-wildcat'), async () => hellcat)
+    m!.pose({ roll: 1 })
+    m!.pose({ yaw: -0.5 })
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ controls: { roll: 1, pitch: 0, yaw: -0.5 }, frameS: 0 }))
   })
 
   it('pose applies at once, without advancing the clock, so a frozen page still shows it (E2E check 2)', async () => {

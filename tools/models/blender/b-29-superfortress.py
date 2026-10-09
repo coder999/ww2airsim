@@ -67,7 +67,10 @@ DP1 detail figures (read 2026-09-28):
   additions sink at least 0.02 m into what they sit on     modeling choice: no coplanar faces (DP0)
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage axis (ESTIMATE). Pose: gear down (R3 P13).
-Leaves out: bomb bay doors, cockpit interior, the tail 20 mm cannon, radar.
+Bomb bays (C2): two, fore and aft of the wing box, each 3.0 m long with doors 0.6 m wide either side of the
+keel. ESTIMATE: sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source
+gives the openings.
+Leaves out: cockpit interior, the tail 20 mm cannon, radar.
 """
 import math
 import os
@@ -128,18 +131,25 @@ TAIL_CANOPY = [(0.955, 0.0080, 0.0060, 0.0215), (0.942, 0.0125, 0.0095, 0.0225),
 TAIL_HOOPS = (0.935, 0.918)
 TAILPLANE = dict(span=0.307, le=0.8352, root=0.139, taper=0.43, y=0.020, sweep=10.0)
 FIN = dict(root=0.199, taper=0.40, height=0.1855, y=0.020)
+# Bomb bays, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-7.0, -4.0, 0.6), (2.0, 5.0, 0.6)]
 ENGINES = [0.1696, 0.3298]
 NACELLE = dict(below=0.015, stations=[(-0.166, 0.0066), (-0.083, 0.025), (0.0, 0.028), (0.080, 0.028), (0.106, 0.023), (0.108, 0.0116)])
 PROP = dict(ahead=0.1125, chord=0.015, spinner_r=0.0116, spinner_len=0.02)
 TRICYCLE = True
 GEAR = dict(ahead=-0.016, below=0.027, length=0.0994, wheel_r=0.022, wheel_w=0.016, retracts='forward')
+# The hinges hang below the skin (main 0.27 m under the nacelle, nose 0.32 m under the fuselage, ray-cast 2026-10-09):
+# the struts reach up past it, so no leg floats (Mark, 2026-10-09).
+GEAR_REACH_M, NOSE_REACH_M = 0.40, 0.45
 NOSE_GEAR = dict(at=0.103, y=-0.042, wheel_r=0.016, wheel_w=0.012, retracts='aft')
-# (x aft of the nose, center y, up, radius, height, barrels, barrel length, facing), all of LENGTH but up/barrels/facing
+# (x aft of the nose, center y, up, radius, height, barrels, barrel length, facing), all of LENGTH but up/barrels/facing.
+# Barrel 0.0325 (0.98 m; was 0.040, 1.21 m, which Mark read as too long, 2026-10-09): 0.84 m (2.75 ft) stands
+# out of the dome, the M2's 2.5 to 3 ft beyond the turret (ESTIMATE).
 TURRETS = [
-    (0.1695, 0.046, 1, 0.0166, 0.015, 2, 0.040, 1),
-    (0.186, -0.046, -1, 0.0166, 0.015, 2, 0.040, 1),
-    (0.6495, 0.046, 1, 0.0166, 0.015, 2, 0.040, -1),
-    (0.6826, -0.046, -1, 0.0166, 0.015, 2, 0.040, -1),
+    (0.1695, 0.046, 1, 0.0166, 0.015, 2, 0.0325, 1),
+    (0.186, -0.046, -1, 0.0166, 0.015, 2, 0.0325, 1),
+    (0.6495, 0.046, 1, 0.0166, 0.015, 2, 0.0325, -1),
+    (0.6826, -0.046, -1, 0.0166, 0.015, 2, 0.0325, -1),
     (0.9542, 0.010, 1, 0.0116, 0.010, 2, 0.023, -1),
 ]
 
@@ -270,7 +280,7 @@ def nac_point(z, dx, angle_deg, off=0.0):
 
 # --- Fuselage, nose glazing, flight deck, tail gunner's canopy, blisters
 with m.tagged('fuselage'), m.shared_chart():
-    m.fuselage(METAL, _stations(FUSELAGE), segments=SEGMENTS, subdivide=SUBDIVIDE)
+    m.fuselage(METAL, _stations(FUSELAGE), segments=SEGMENTS, subdivide=SUBDIVIDE, doors=BAYS)
     # Wing-root fairings, upper and lower, either side: ellipsoids straddling the wing's surface at the fuselage.
     fmid = (le_x - 0.5 * root_chord) / L
     z_root = fus_section(NOSE_X - (le_x - 0.5 * root_chord) / L)[0]
@@ -305,7 +315,7 @@ with m.tagged('blister'), m.shared_chart():
         m.fuselage(METAL, [(x1 - 0.02, 0.32, 0.44, 0.0), (x1 + 0.02, 0.32, 0.44, 0.0)], 24, cz + side * 0.02)
 
 # --- Lifting surfaces
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 breaks = [0.0, ENGINES[0] * S, ENGINES[1] * S, S / 2]
 with m.tagged('wing'), m.shared_chart():
     for z0, z1 in zip(breaks, breaks[1:]):
@@ -319,13 +329,13 @@ tp_half = tp['span'] * S / 2
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(METAL, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 with m.tagged('fin'), m.shared_chart():
     m.fin(METAL, X(1.0) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 
 # --- Nacelles: cowl, cowl-flap band, chin scoop, turbosupercharger housing and bucket, exhaust stacks, propeller
 pr = PROP
@@ -373,12 +383,13 @@ for i, z in enumerate(props, start=1):
                     pr['spinner_len'] * L, node=f'Prop{i}', blade_sections=BLADE_SECTIONS)
 
 
-def wheel_leg(hinge, length, wheel_r, wheel_w, node, twin=True):
-    """A strut down to an axle with one or two wheels; the lowest wheel point is `length` below the hinge."""
+def wheel_leg(hinge, length, wheel_r, wheel_w, node, twin=True, reach=0.0):
+    """A strut down to an axle with one or two wheels; the lowest wheel point is `length` below the hinge.
+    The strut starts `reach` (m) above the hinge, so it meets the skin when the hinge hangs below it."""
     hx, hy, hz = hinge
     axle_y = hy - length + wheel_r
     strut_r = 0.16 * wheel_r
-    m.revolve('dark', (hx, hy, hz), (0.0, -1.0, 0.0), [(0.0, strut_r), (hy - axle_y, strut_r)], 12, node)
+    m.revolve('dark', (hx, hy + reach, hz), (0.0, -1.0, 0.0), [(0.0, strut_r), (hy + reach - axle_y, strut_r)], 12, node)
     if twin:
         each = 0.44 * wheel_w
         offs = (-0.56 * wheel_w, 0.56 * wheel_w)
@@ -400,10 +411,10 @@ with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         z = side * ENGINES[0] * S
         hinge[name] = (wing_le(z) + g['ahead'] * L, main_hinge_y, z)
-        wheel_leg(hinge[name], g['length'] * L, g['wheel_r'] * L, g['wheel_w'] * L, name)
+        wheel_leg(hinge[name], g['length'] * L, g['wheel_r'] * L, g['wheel_w'] * L, name, reach=GEAR_REACH_M)
     ng = NOSE_GEAR
     nose_hinge = (X(ng['at']), ng['y'] * L, 0.0)
-    wheel_leg(nose_hinge, ng['y'] * L - ground_y, ng['wheel_r'] * L, ng['wheel_w'] * L, 'GearNose')
+    wheel_leg(nose_hinge, ng['y'] * L - ground_y, ng['wheel_r'] * L, ng['wheel_w'] * L, 'GearNose', reach=NOSE_REACH_M)
 with m.tagged('fittings'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         hx, hy, hz = hinge[name]
@@ -419,11 +430,11 @@ with m.tagged('fittings'), m.shared_chart():
         m.box('dark', (nx, ny_ - 1.1, nz + side * (nw + 0.16)), (0.45, 1.3, 0.03), node='GearNose')
     m.strut('dark', (nx + 0.02, ny_ - 0.10, 0.0), (nx + 0.45, ny_ - 1.3, 0.0), 0.028, sides=6, node='GearNose')
 
-# --- Turrets: gun_turret domes, a base ring and a sight bulge on each (one role per node: all naturalMetal)
+# --- Turrets: gun_turret domes, a base ring and a sight bulge on each (one role per node: the turret naturalMetal, its guns dark)
 with m.tagged('turret'), m.shared_chart():
     for i, (at, y, up, radius, height, barrels, barrel, facing) in enumerate(TURRETS, start=1):
         c = (X(at), y * L, 0.0)
-        m.gun_turret(METAL, i, c, radius * L, height * L, up=up, barrels=barrels, barrel_length=barrel * L, facing=facing)
+        m.gun_turret(METAL, i, c, radius * L, height * L, up=up, barrels=barrels, barrel_length=barrel * L, facing=facing, gun_role='dark')
         rr = radius * L
         m.revolve(METAL, (c[0], c[1] - up * 0.10, c[2]), (0.0, float(up), 0.0), [(0.0, 1.10 * rr), (0.16, 1.10 * rr)], 16, f'Turret{i}')
         m.revolve(METAL, (c[0] + facing * 0.40 * rr, c[1] + up * 0.38 * height * L, c[2]), (float(facing), 0.0, 0.0), [(0.0, 0.34 * rr), (0.34 * rr, 0.20 * rr)], 12, f'Turret{i}')

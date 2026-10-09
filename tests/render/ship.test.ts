@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Scene } from 'three'
+import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Scene, Vector3 } from 'three'
 import { createShipMesh, createShipView, probeShipSurface, smokeOriginWorld } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
@@ -193,6 +193,54 @@ describe('ship models (ship-models spec §3, §6)', () => {
     other.dispose()
     expect(cache.refCount('cv.glb')).toBe(0)
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('instances each Kit_ node at its locators: one draw per kit, the kit node gone, each mount trained alone (Track M, M1)', async () => {
+    // A kit whose barrel points +x from its axis, and three locators: bow, stern (bearing 180), and starboard (90).
+    const withKit = (): Object3D => {
+      const root = syntheticShip()
+      const kit = new Mesh(new BoxGeometry(4, 1, 1).translate(2, 0.5, 0), new MeshStandardMaterial())
+      kit.name = 'Kit_gun'
+      kit.position.set(40, 6, 0)
+      root.add(kit)
+      // M1b: its guns, a 4 m barrel from the trunnion at kit-local [1, 1, 0], up to 90 degrees.
+      const guns = new Mesh(new BoxGeometry(4, 0.2, 0.2).translate(3, 1, 0), new MeshStandardMaterial())
+      guns.name = 'Kit_gun_Guns'
+      guns.userData['trunnion'] = [1, 1, 0]
+      guns.userData['maxElevationRad'] = Math.PI / 2
+      kit.add(guns)
+      const at = (name: string, x: number, z: number, bearingDeg: number): void => {
+        const l = new Object3D(); l.name = name; l.position.set(x, 6, z)
+        l.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), -bearingDeg * Math.PI / 180)
+        l.userData['kit'] = 'gun'; root.add(l)
+      }
+      at('Turret1', 40, 0, 0); at('Turret2', -40, 0, 180); at('LightAA1_2', -10, 5, 90); at('LightAA1_1', -8, 5, 90); at('HeavyAA1', 0, 5, 90)
+      return root
+    }
+    const view = createShipView(dd, 'fletcher-dd', await createModelCache(async () => withKit()).acquire('k.glb'))
+    const instanced: InstancedMesh[] = []
+    view.root.traverse((o) => { if (o instanceof InstancedMesh) instanced.push(o) })
+    expect(instanced.map((m) => m.count)).toEqual([5, 5])
+    expect(view.root.getObjectByName('Kit_gun')).toBeUndefined()
+    // Bow to stern within each list; a gallery's guns (M1b) in their own order after it.
+    expect(view.mounts.map((m) => m.name)).toEqual(['Turret1', 'Turret2', 'HeavyAA1', 'LightAA1_1', 'LightAA1_2'])
+    // Where each barrel tip (kit-local [4, 0.5, 0]) lands, in the instance root's frame.
+    const tip = (i: number): number[] => {
+      const m = new Matrix4(); instanced[0]!.getMatrixAt(i, m)
+      return new Vector3(4, 0.5, 0).applyMatrix4(m).toArray().map((v) => Math.round(v * 1e6) / 1e6)
+    }
+    expect([tip(0), tip(1), tip(4)]).toEqual([[44, 6.5, 0], [-44, 6.5, 0], [0, 6.5, 9]])
+    view.mounts[1]!.setTraining(Math.PI / 2) // Turret2 alone turns 90 degrees to port of its stern bearing
+    expect([tip(0), tip(1), tip(4)]).toEqual([[44, 6.5, 0], [-40, 6.5, 4], [0, 6.5, 9]])
+    // M1b, Ruling B4: Turret1's guns alone rise about their trunnion; its mount and the others stay.
+    const muzzle = (i: number): number[] => {
+      const m = new Matrix4(); instanced[1]!.getMatrixAt(i, m)
+      return new Vector3(5, 1, 0).applyMatrix4(m).toArray().map((v) => Math.round(v * 1e6) / 1e6)
+    }
+    expect([muzzle(0), muzzle(4)]).toEqual([[45, 7, 0], [0, 7, 10]])
+    expect(view.mounts[0]!.maxElevationRad).toBeCloseTo(Math.PI / 2, 12)
+    view.mounts[0]!.setElevation(Math.PI) // clamped to the kit's top, 90 degrees
+    expect([muzzle(0), muzzle(4), tip(0)]).toEqual([[41, 11, 0], [0, 7, 10], [44, 6.5, 0]])
   })
 
   it('the boxes still sink by their own top plus 2 m, and carry no model id', () => {

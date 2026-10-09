@@ -57,6 +57,8 @@ export type AudioBackend = {
   /** The clips that decoded. A clip that failed to fetch or decode is absent,
    *  and `system.ts` will not play it -- silence beats a failure screen. */
   loaded(): readonly ClipId[]
+  /** A clip whose samples were made in code (synth.ts), mono at `sampleRate`, as if it had decoded. */
+  loadSamples(id: ClipId, samples: Float32Array, sampleRate: number): void
   startLoop(spec: LoopSpec): LoopHandle
   startSpatialLoop(spec: LoopSpec): SpatialLoopHandle
   /** A one-shot at a listener-relative position (see SpatialLoopHandle), lowpassed at `lowpassHz`. */

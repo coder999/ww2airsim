@@ -3,6 +3,7 @@ import { Box3, Group, Mesh, Vector3, type Object3D } from 'three'
 import type { Airframe, PartId } from '../scene/airframe.js'
 import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.js'
 import { loadRegisteredShipView, shipModelUrlFor, type LoadShipView } from '../scene/shipModels.js'
+import type { ShipMountView } from '../scene/ship.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '../scene/buildings.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import type { StoreMounts } from '../scene/stores.js'
@@ -14,11 +15,12 @@ import type { ModelRef } from './library.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
- *  the propeller; H2 adds stores (and Cycle, in the bench); H3 turrets. */
+ *  the propeller; H2 adds stores (and Cycle, in the bench); turret aim (2026-10-09) turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'prop' | 'stores'
+  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores'
   readonly label: string
-  readonly kind: 'fraction' | 'rate' | 'toggle'
+  /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). `aim`: bearing and elevation, degrees. */
+  readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick' | 'aim'
   readonly range: readonly [number, number]
   /** false = the model has no such geometry: the row reads "not modeled". */
   readonly modeled: boolean
@@ -27,7 +29,16 @@ export interface PartSpec {
 export interface PartPose {
   readonly gearFraction?: number
   readonly flapFraction?: number
+  /** Bomb-bay doors, 0 shut to 1 open (C2). */
+  readonly bayDoorFraction?: number
   readonly throttle?: number
+  /** The pilot's stick and rudder, each in [-1, 1], for the control surfaces (C1). */
+  readonly roll?: number
+  readonly pitch?: number
+  readonly yaw?: number
+  /** Where every turret points, degrees: bearing right of the nose, elevation above level. Both 0 stows them. */
+  readonly turretBearingDeg?: number
+  readonly turretElevationDeg?: number
   /** Bombs on the racks (true) or dropped (false); H2. */
   readonly bombs?: boolean
   /** Rockets on the rails (true) or fired (false); H2. */
@@ -45,13 +56,18 @@ export interface HangarModel {
   /** Advances the model's own clock (propeller) by `frameS`. */
   update(frameS: number): void
   counts(): { readonly triangles: number; readonly drawCalls: number }
+  /** A ship's instanced gun mounts (Track M, M1), each trainable alone; absent for everything else. */
+  readonly gunMounts?: readonly ShipMountView[]
   dispose(): void
 }
 
 const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'gear', label: 'Landing gear', kind: 'fraction', range: [0, 1] },
   { id: 'flaps', label: 'Flaps', kind: 'fraction', range: [0, 1] },
+  { id: 'doors', label: 'Bay doors', kind: 'fraction', range: [0, 1] },
   { id: 'prop', label: 'Throttle (propeller)', kind: 'rate', range: [0, 1] },
+  { id: 'surfaces', label: 'Control surfaces', kind: 'stick', range: [-1, 1] },
+  { id: 'turrets', label: 'Turrets', kind: 'aim', range: [-180, 180] },
   { id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] },
 ]
 
@@ -93,17 +109,19 @@ export function flatField(): TerrainField {
  * point: a wrong pivot shows as a gizmo in the wrong place. Leaves gear and
  * flaps at rest; the propeller keeps its advanced angle, which is cosmetic.
  */
-export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; throttle: number; frameS: number }) => void): Object3D[] {
+export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; bayDoorFraction: number; throttle: number; controls: { roll: number; pitch: number; yaw: number }; frameS: number }) => void): Object3D[] {
   const read = (): Map<Object3D, string> => {
     const m = new Map<Object3D, string>()
     root.traverse((o) => m.set(o, [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()].map((v) => v.toFixed(6)).join(',')))
     return m
   }
-  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  const still = { roll: 0, pitch: 0, yaw: 0 }
+  drive({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0 })
   const before = read()
-  drive({ gearFraction: 0, flapFraction: 1, throttle: 1, frameS: 0.05 })
+  // frameS 0 would leave the propeller still; at 0.05 s the control surfaces slew a third of the way (C1), enough to show.
+  drive({ gearFraction: 0, flapFraction: 1, bayDoorFraction: 1, throttle: 1, controls: { roll: 1, pitch: 1, yaw: 1 }, frameS: 0.05 })
   const after = read()
-  drive({ gearFraction: 1, flapFraction: 0, throttle: 0, frameS: 0 })
+  drive({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0 })
   return [...before].filter(([o, k]) => after.get(o) !== k).map(([o]) => o)
 }
 
@@ -120,6 +138,13 @@ function staticModel(root: Object3D): HangarModel {
   }
 }
 
+/** The bench's turret sliders as an aim direction in the airframe frame (x forward, y up, z starboard); both 0 stows. */
+export function aimFrom(bearingDeg: number, elevationDeg: number): { x: number; y: number; z: number } | null {
+  if (bearingDeg === 0 && elevationDeg === 0) return null
+  const b = (bearingDeg * Math.PI) / 180, e = (elevationDeg * Math.PI) / 180
+  return { x: Math.cos(e) * Math.cos(b), y: Math.sin(e), z: Math.cos(e) * Math.sin(b) }
+}
+
 function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMounts | undefined): HangarModel {
   // The airframe's origin is its CG on the thrust line; the stand lifts it
   // by the spec's own gear height so the wheels meet the y = 0 grid. A model
@@ -128,12 +153,14 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
   stand.name = 'aircraft stand'
   stand.position.y = gearHeightM
   stand.add(airframe.root)
-  let gearFraction = 1, flapFraction = 0, throttle = 0
+  let gearFraction = 1, flapFraction = 0, bayDoorFraction = 0, throttle = 0
+  let controls = { roll: 0, pitch: 0, yaw: 0 }
+  let bearing = 0, elevation = 0
   let bombs = true, rockets = true
   const apply = (frameS: number): void => {
-    airframe.update({ gearFraction, flapFraction, throttle, controls: { roll: 0, pitch: 0, yaw: 0 }, frameS, cameraDistanceM: 0 })
+    airframe.update({ gearFraction, flapFraction, bayDoorFraction, throttle, controls, frameS, cameraDistanceM: 0, aim: aimFrom(bearing, elevation) })
   }
-  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }))
+  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, cameraDistanceM: 0 }))
   apply(0)
   return {
     root: stand,
@@ -149,7 +176,11 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
     pose(p): void {
       if (p.gearFraction !== undefined) gearFraction = p.gearFraction
       if (p.flapFraction !== undefined) flapFraction = p.flapFraction
+      if (p.bayDoorFraction !== undefined) bayDoorFraction = p.bayDoorFraction
       if (p.throttle !== undefined) throttle = p.throttle
+      controls = { roll: p.roll ?? controls.roll, pitch: p.pitch ?? controls.pitch, yaw: p.yaw ?? controls.yaw }
+      bearing = p.turretBearingDeg ?? bearing
+      elevation = p.turretElevationDeg ?? elevation
       if (p.bombs !== undefined || p.rockets !== undefined) {
         bombs = p.bombs ?? bombs
         rockets = p.rockets ?? rockets
@@ -221,7 +252,7 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
   if (s.kind === 'ship') {
     // Through the view's own dispose: a model view releases its shared instance.
     const view = await loadShip(s.spec)
-    return { ...staticModel(view.root), dispose: () => view.dispose() }
+    return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
   }
   if (s.kind === 'ordnance') {
     // Its origin is the suspension point with the body below it: stand it clear of the pad.

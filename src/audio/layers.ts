@@ -54,6 +54,8 @@ export const LAYERS = {
   sea: {
     clip: 'sea_waves', bus: 'ambient', loopStartS: seconds(7_681), loopEndS: seconds(670_256), glideTauS: AMBIENT_GLIDE_TAU_S,
   },
+  // C2: the actuator motor (synth.ts), while bay doors travel. Quick glide: it starts and stops with the lever.
+  motor: { clip: 'motor', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.05 },
   deck: {
     clip: 'carrier_deck', bus: 'ambient', loopStartS: seconds(45_409), loopEndS: seconds(679_536), glideTauS: AMBIENT_GLIDE_TAU_S,
   },

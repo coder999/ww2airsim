@@ -21,7 +21,27 @@
     "waveOffRangeM": 250
   },
   "view": { "model": "casablanca-cve" },
+  "armament": {
+    "turrets": [
+      {"x": -72, "y": 7.05, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"}
+    ],
+    "heavyAA": [],
+    "lightAA": [
+      {"x": 60, "y": 9.75, "z": 13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 60, "y": 9.75, "z": -13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 36, "y": 10.2, "z": 13.19, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 5, "run": 7.6},
+      {"x": 36, "y": 10.2, "z": -13.19, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 5, "run": 7.6},
+      {"x": 30, "y": 9.75, "z": 13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 30, "y": 9.75, "z": -13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 0, "y": 9.75, "z": -13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -30, "y": 9.75, "z": -13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -36, "y": 10.2, "z": 13.19, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 5, "run": 7.6},
+      {"x": -36, "y": 10.2, "z": -13.19, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 5, "run": 7.6},
+      {"x": -60, "y": 9.75, "z": 13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -60, "y": 9.75, "z": -13.79, "bearingDeg": 0, "kit": "mount-40mm-twin", "barrels": 2}
+    ]
+  },
   "reference": {
-    "source": "lengthM (512 ft 3 in overall) and maxSpeedMps (19.3 kn, converted with 1 kn = 0.514444 m/s) from the U.S. Navy's 'Evolution of Aircraft Carriers' (primary service publication), read 2026-09-26. beamM (65 ft 2 in waterline), deckWidthM (108 ft 1 in maximum), and flightDeck 478 ft x 80 ft from the English Wikipedia article 'Casablanca-class escort carrier', read 2026-09-26. deckHeightM is an ESTIMATE; trapZone and paddles reuse Plan 8 gameplay choices scaled to the shorter deck; turnRateRadPerS (1.5 deg/s) is an ESTIMATE. hullHp is a gameplay choice between the merchant's 240 and Essex's 600."
+    "source": "lengthM (512 ft 3 in overall) and maxSpeedMps (19.3 kn, converted with 1 kn = 0.514444 m/s) from the U.S. Navy's 'Evolution of Aircraft Carriers' (primary service publication), read 2026-09-26. beamM (65 ft 2 in waterline), deckWidthM (108 ft 1 in maximum), and flightDeck 478 ft x 80 ft from the English Wikipedia article 'Casablanca-class escort carrier', read 2026-09-26. deckHeightM is an ESTIMATE; trapZone and paddles reuse Plan 8 gameplay choices scaled to the shorter deck; turnRateRadPerS (1.5 deg/s) is an ESTIMATE. hullHp is a gameplay choice between the merchant's 240 and Essex's 600. ARMAMENT (Track M, M1, read 2026-10-08): Gambier Bay's fit of one 5\"/38 on the stern, eight twin Bofors 40 mm and 20 single Oerlikon 20 mm (English Wikipedia 'USS Gambier Bay' infobox, as tools/models/blender/casablanca-cve.py cites; the class article gives 1 x 5\"/38, 8 twin 40 mm and 20 x 20 mm as the 'ultimate' fit). The 5\" and 40 mm are built at that script's ESTIMATED positions; the 20 mm stand statically along the galleries, four fire positions of five. ARMAMENT (Track M, M1, read 2026-10-08): Gambier Bay's fit of one 5\"/38 on the stern, eight twin Bofors 40 mm and 20 single Oerlikon 20 mm (English Wikipedia 'USS Gambier Bay' infobox, as tools/models/blender/casablanca-cve.py cites; the class article gives 1 x 5\"/38, 8 twin 40 mm and 20 x 20 mm as the 'ultimate' fit). The 5\" and 40 mm are built at that script's ESTIMATED positions; the 20 mm stand statically along the galleries, four fire positions of five."
   }
 }

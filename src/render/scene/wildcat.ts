@@ -1,5 +1,8 @@
 // src/render/scene/wildcat.ts
-import { Box3, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
+import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { slewToward, surfaceAngleRad } from './pivotedAirframe.js'
+import { surfaceDrive } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
@@ -137,6 +140,131 @@ export function wildcatGearStretch(der: Object3D, izq: Object3D): (stretchM: num
 }
 
 /**
+ * The control surfaces (C1 batch 2), by the rig names surfaceDrive reads; "Der" is right (-x in the
+ * model). The ailerons are cut from the outer wing by the build (tools/models/entries/wildcat.json) at
+ * the F4F-3's measured layout, 65.5% to 92.5% of the semispan with 22.8% of the chord behind the hinge
+ * (NACA ACR, Kleckner, 'Flight Measurements of the Aileron Characteristics of a Grumman F4F-3 Airplane',
+ * 1942; the F4F-4's folding outer panel is taken to keep it: ESTIMATE). The pieces the model names
+ * `Aleron_*` sit inboard, from the fuselage to mid-span, where the real F4F's split flaps are: a split
+ * flap is the lower skin only, so they are static wing, and the split flaps drawn below them move
+ * (Mark's ruling, 2026-10-08).
+ */
+export const WILDCAT_SURFACES: Readonly<Record<string, string>> = {
+  AileronR: 'AileronR', AileronL: 'AileronL', Timon_Der: 'ElevatorR', Timon_Izq: 'ElevatorL', Timon_Prof: 'Rudder',
+}
+
+/** A hinge in a node's parent frame: a point on it and the unit axis. */
+export interface WildcatHinge { readonly point: Vector3; readonly axis: Vector3 }
+
+/** `o`'s mesh vertices in `frame`, an ancestor of `o`. */
+function pointsIn(o: Object3D, frame: Object3D): Vector3[] {
+  frame.updateWorldMatrix(true, true)
+  const toFrame = new Matrix4().copy(frame.matrixWorld).invert()
+  const out: Vector3[] = []
+  o.traverse((m) => {
+    if (!(m instanceof Mesh)) return
+    const mat = new Matrix4().multiplyMatrices(toFrame, m.matrixWorld)
+    const a = m.geometry.getAttribute('position')
+    for (let i = 0; i < a.count; i++) out.push(new Vector3().fromBufferAttribute(a, i).applyMatrix4(mat))
+  })
+  return out
+}
+
+/**
+ * A surface's hinge, measured from its own vertices in its parent's frame (the model is +z nose,
+ * +y up, -x right): its leading edge, the foremost points at each end of its span (x, or y for the
+ * rudder). Oriented as kit.py orients every hinge: a positive turn raises the trailing edge (-z),
+ * or swings the rudder's to starboard (-x). ESTIMATE: the model draws no hinge line, so this is the
+ * piece's own leading edge.
+ */
+export function wildcatHinge(node: Object3D, vertical: boolean): WildcatHinge {
+  const pts = pointsIn(node, node.parent!)
+  const k = vertical ? 'y' : 'x', other = vertical ? 'x' : 'y'
+  const lo = Math.min(...pts.map((p) => p[k])), hi = Math.max(...pts.map((p) => p[k])), band = 0.05 * (hi - lo)
+  const end = (at: number): Vector3 => {
+    const s = pts.filter((p) => Math.abs(p[k] - at) <= band)
+    const front = Math.max(...s.map((p) => p.z)), chord = front - Math.min(...s.map((p) => p.z))
+    const lead = s.filter((p) => p.z >= front - 0.1 * chord)
+    const v = new Vector3(); v[k] = at; v.z = front
+    v[other] = lead.reduce((sum, p) => sum + p[other], 0) / lead.length
+    return v
+  }
+  const point = end(lo)
+  const axis = end(hi).sub(point).normalize()
+  // axis x (0, 0, -1) = (-a.y, a.x, 0): a.x > 0 raises the trailing edge; a.y > 0 swings it to -x.
+  if ((vertical ? axis.y : axis.x) < 0) axis.negate()
+  return { point, axis }
+}
+
+/** `node` turned `rad` about `h` from its rest pose, in its parent's frame. */
+function turnAbout(node: Object3D, rest: { pos: Vector3; quat: Quaternion }, h: WildcatHinge, rad: number): void {
+  const q = new Quaternion().setFromAxisAngle(h.axis, rad)
+  node.quaternion.copy(q).multiply(rest.quat)
+  node.position.copy(rest.pos).sub(h.point).applyQuaternion(q).add(h.point)
+}
+
+/**
+ * The split flaps the model does not draw (Mark, 2026-10-08): one plate under each inboard `Aleron_*`
+ * piece (static wing since C1 batch 2), from its leading edge to its trailing edge, 0.3 model units under
+ * its lowest skin, hinged at the front. Both
+ * plates are ONE mesh posed on the CPU, so they cost one draw call, and it is hidden while the flaps are
+ * up, where it would lie flush with the skin. ESTIMATE: the real F4F's flaps run under the inboard
+ * wing as these do; their chord and the drop are the model's aileron's, not Grumman's figures.
+ */
+function wildcatFlaps(der: Object3D, izq: Object3D): { mesh: Mesh; set(fraction: number): void } {
+  const plates = [der, izq].map((node) => {
+    const pts = pointsIn(node, node.parent!)
+    const h = wildcatHinge(node, false) // only its orientation, which side is +x
+    const xs = pts.map((p) => p.x), x0 = Math.min(...xs), x1 = Math.max(...xs)
+    const zf = Math.max(...pts.map((p) => p.z)), zr = Math.min(...pts.map((p) => p.z))
+    const y = Math.min(...pts.map((p) => p.y)) - 0.3
+    const corners = [new Vector3(x0, y, zf), new Vector3(x1, y, zf), new Vector3(x1, y, zr), new Vector3(x0, y, zr)]
+    return { corners, hinge: { point: new Vector3(0, y, zf), axis: new Vector3(Math.sign(h.axis.x), 0, 0) }, name: node === der ? 'Flap1R' : 'Flap1L' }
+  })
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(2 * 4 * 3), 3))
+  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7])
+  const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: 0xb9bdb8, roughness: 0.7, side: DoubleSide }))
+  mesh.name = 'Flaps'
+  const pos = geometry.getAttribute('position') as Float32BufferAttribute
+  const set = (fraction: number): void => {
+    mesh.visible = fraction > 0
+    plates.forEach((p, i) => {
+      const q = new Quaternion().setFromAxisAngle(p.hinge.axis, surfaceAngleRad(p.name, fraction))
+      p.corners.forEach((c, j) => { const v = c.clone().sub(p.hinge.point).applyQuaternion(q).add(p.hinge.point); pos.setXYZ(4 * i + j, v.x, v.y, v.z) })
+    })
+    pos.needsUpdate = true
+    geometry.computeVertexNormals()
+    geometry.computeBoundingSphere()
+  }
+  der.parent!.add(mesh)
+  set(0)
+  return { mesh, set }
+}
+
+/**
+ * Static meshes of one material merged into one mesh named `name` under `into`: one draw call for
+ * several. With the three hinge pins under `Pasadores` (Tensor_MAT, 64 triangles each) and the two
+ * now-static inboard `Aleron_*` pieces (Alerones_MAT), that is three calls back, so the cut ailerons
+ * and the split flaps fit the model's 47-call budget as drawn (C1 batch 2). Returns the merged
+ * geometry, which this instance owns.
+ */
+function mergeStatic(meshes: readonly Mesh[], into: Object3D, name: string): BufferGeometry | null {
+  if (meshes.length < 2) return null
+  into.updateWorldMatrix(true, true)
+  const toInto = new Matrix4().copy(into.matrixWorld).invert()
+  const merged = mergeGeometries(meshes.map((m) => { m.updateWorldMatrix(true, false); return m.geometry.clone().applyMatrix4(new Matrix4().multiplyMatrices(toInto, m.matrixWorld)) }))
+  if (merged === null) return null
+  const one = new Mesh(merged, meshes[0]!.material)
+  one.name = name
+  for (const m of meshes) m.removeFromParent()
+  into.add(one)
+  return merged
+}
+
+const meshesUnder = (o: Object3D): Mesh[] => { const out: Mesh[] = []; o.traverse((m) => { if (m instanceof Mesh) out.push(m) }); return out }
+
+/**
  * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
  * first call parses wildcat.glb, every later call clones that parse, and all
  * of them share its geometry, materials and 26 textures. `acquire` is
@@ -151,6 +279,16 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   const setGearStretch = wildcatGearStretch(gearDer, gearIzq)
   // The glb is authored gear down; draw it as update() would at fraction 1 until the first update.
   setGearStretch(gearStretchM(1))
+  // C1 batch 2: the control surfaces turn about their own leading edges; the flaps are drawn here.
+  const surfaces = Object.entries(WILDCAT_SURFACES).map(([source, name]) => {
+    const node = instance.node(source)
+    const input = surfaceDrive(name).input as 'roll' | 'pitch' | 'yaw'
+    return { node, name, input, hinge: wildcatHinge(node, input === 'yaw'), rest: { pos: node.position.clone(), quat: node.quaternion.clone() } }
+  })
+  const flaps = wildcatFlaps(instance.node('Aleron_Der'), instance.node('Aleron_Izq'))
+  const pins = mergeStatic(meshesUnder(instance.node('Pasadores')), instance.node('Pasadores'), 'Pasadores_merged')
+  const inboard = mergeStatic([...meshesUnder(instance.node('Aleron_Der')), ...meshesUnder(instance.node('Aleron_Izq'))], instance.node('Aleron_Der').parent!, 'Aleron_static')
+  const stick = { roll: 0, pitch: 0, yaw: 0 }
   const helice = instance.node('Helice')
   // The prop turns about ITS OWN native axis (local Z here, not the +X
   // hellcat.ts's box uses), from whatever angle the file authored it at.
@@ -197,8 +335,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
 
   return {
     root,
-    /** This model has no flap geometry at all (ASSETS.md, F4F plan Review Focus). */
-    parts: stores === undefined ? ['prop', 'gear'] : ['prop', 'gear', 'stores'],
+    parts: stores === undefined ? ['prop', 'gear', 'flaps', 'surfaces'] : ['prop', 'gear', 'flaps', 'surfaces', 'stores'],
     setStores: (b, r) => { hung?.setStores(b, r) },
     update(u): void {
       propRad = propAngle(propRad, u.throttle, u.frameS)
@@ -206,12 +343,19 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, u.gearFraction)
       applyGearFraction(gearIzq, GEAR_DOWN.izq, GEAR_UP.izq, u.gearFraction)
       setGearStretch(gearStretchM(u.gearFraction))
+      for (const k of ['roll', 'pitch', 'yaw'] as const) stick[k] = slewToward(stick[k], u.controls[k], u.frameS)
+      for (const s of surfaces) turnAbout(s.node, s.rest, s.hinge, surfaceAngleRad(s.name, stick[s.input]))
+      flaps.set(u.flapFraction)
     },
     dispose(): void {
       if (disposed) return
       disposed = true
       hung?.dispose()
       freeVisuals()
+      flaps.mesh.geometry.dispose()
+      ;(flaps.mesh.material as MeshStandardMaterial).dispose()
+      pins?.dispose()
+      inboard?.dispose()
       instance.release()
     },
   }

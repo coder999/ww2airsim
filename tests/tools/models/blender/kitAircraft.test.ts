@@ -54,11 +54,11 @@ describe.skipIf(!HAVE_BLENDER)("the Blender kit's aircraft parts (R3)", () => {
 
   it('one node per named part or role, flat materials named by role, metalness 0', () => {
     const names = onlyScene(doc).listChildren()[0]!.listChildren().map((n) => n.getName()).sort()
-    expect(names).toEqual(['GearL', 'GearR', 'Prop', 'Turret1', 'Turret2', 'ap_canopy', 'ap_fin', 'ap_fuse', 'ap_fuse_lower', 'ap_wing'].sort())
+    expect(names).toEqual(['GearL', 'GearR', 'Prop', 'Turret1', 'Turret1Guns', 'Turret2', 'Turret2Guns', 'ap_canopy', 'ap_fin', 'ap_fuse', 'ap_fuse_lower', 'ap_wing'].sort())
     const mats = doc.getRoot().listMaterials()
     expect(mats.map((m) => m.getName()).sort()).toEqual(['dark', 'glazing', 'ijaGreen', 'naturalMetal', 'underside'])
     for (const mat of mats) expect(mat.getMetallicFactor()).toBe(0)
-    expect(measureDocument(doc).drawCalls).toBe(10)
+    expect(measureDocument(doc).drawCalls).toBe(12) // each turret's guns are a part of their own (turret aim, 2026-10-09)
   })
 
   it('fuselage: the stations set length, width and height; the lower half is its own node; every side faces out', () => {
@@ -138,8 +138,9 @@ describe.skipIf(!HAVE_BLENDER)("the Blender kit's aircraft parts (R3)", () => {
     const t1 = getBounds(findNode(doc, 'Turret1')), t2 = getBounds(findNode(doc, 'Turret2'))
     expect(t1.min[1]).toBeGreaterThanOrEqual(-1e-6)
     expect(t2.max[1]).toBeLessThanOrEqual(1e-6)
-    expect(t1.max[0]).toBeCloseTo(97.5, 5)
-    expect(t2.min[0]).toBeCloseTo(98.5, 5)
+    // The barrels are their own part (turret aim, 2026-10-09), still facing as asked.
+    expect(getBounds(findNode(doc, 'Turret1Guns')).max[0]).toBeCloseTo(97.5, 5)
+    expect(getBounds(findNode(doc, 'Turret2Guns')).min[0]).toBeCloseTo(98.5, 5)
   })
 
   it('every part is wound outward: each closed solid in a node has a positive signed volume', () => {
@@ -163,8 +164,10 @@ describe.skipIf(!HAVE_BLENDER)("the Blender kit's aircraft parts (R3)", () => {
       ['Prop', 4, triangles(findNode(doc, 'Prop'))], // 3 blades + spinner
       ['GearL', 2, triangles(findNode(doc, 'GearL'))], // strut + wheel
       ['GearR', 2, triangles(findNode(doc, 'GearR'))],
-      ['Turret1', 3, triangles(findNode(doc, 'Turret1'))], // dome + 2 barrels
-      ['Turret2', 3, triangles(findNode(doc, 'Turret2'))],
+      ['Turret1', 1, triangles(findNode(doc, 'Turret1'))], // the dome
+      ['Turret1Guns', 2, triangles(findNode(doc, 'Turret1Guns'))], // 2 barrels
+      ['Turret2', 1, triangles(findNode(doc, 'Turret2'))],
+      ['Turret2Guns', 2, triangles(findNode(doc, 'Turret2Guns'))],
     ]
     for (const [name, count, tris] of solids) {
       const parts = islands(tris)

@@ -26,6 +26,7 @@
     "models:inspect": "tsx tools/models/inspect.ts",
     "models:mounts": "tsx tools/models/mounts.ts",
     "models:rig": "tsx tools/models/rig.ts",
+    "models:raws": "tsx tools/models/raws.ts",
     "audio:rocket-whoosh": "tsx tools/audio/synthesizeRocketWhoosh.ts",
     "fx:render": "tsx tools/fx/render.ts",
     "fx:pack": "tsx tools/fx/bake.ts",

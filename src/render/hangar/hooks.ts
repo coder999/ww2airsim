@@ -42,6 +42,12 @@ export interface HangarHooks {
   /** Where the selected aircraft's store mounts fall on the canvas, in NDC through the stage
    *  camera; [] for anything else (O1, E2E check 11). */
   storeMounts(): readonly { readonly id: string; readonly ndc: readonly [number, number] }[]
+  /** The selected ship's instanced gun mounts by locator name, bow to stern per list; [] for anything else (M1). */
+  gunMounts(): string[]
+  /** Turns every gun mount of the selected ship to `rad` from its rest bearing (M1; the bench's Train mounts sweeps it). */
+  trainMounts(rad: number): void
+  /** Raises every gun mount's guns to `frac` of that kit's top elevation (M1b; the same sweep). */
+  elevateMounts(frac: number): void
   readonly validationErrors: string[]
 }
 

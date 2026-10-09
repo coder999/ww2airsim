@@ -333,6 +333,8 @@ export type Ww2Diagnostics = {
    *  simulation or the renderer reads, unlike the `FrameState` setter
    *  `assists` above deliberately does not offer. */
   readonly oceanTier: () => string
+  /** A2: the Beaufort force the ocean cascades were last built for (the scenario's wind, or `?beaufort=`). */
+  readonly seaState: () => number
   /**
    * Whether `main.ts`'s `adaptOceanQuality` probe has already resolved this
    * page load -- `true` either because it measured (a fresh profile, once
@@ -422,6 +424,8 @@ export type Ww2Diagnostics = {
     /** Photoreal Task 4: frames the cloud pass resolved WITHOUT history since
      *  boot (first frame, resizes, every discontinuity reset); 0 with no pass. */
     readonly historyResets: number
+    /** A2: whether the cloud pass is in the frame output (a clear sky routes it out). */
+    readonly composited: boolean
   }
   /** Visual realism §2.1: whether the terrain textures loaded this boot, and
    *  whether the ring materials are drawing them (false at scenery `low`,

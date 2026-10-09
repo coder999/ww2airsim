@@ -11,8 +11,9 @@ Figures (read 2026-09-29, English Wikipedia "Mitsubishi G4M", Specifications (G4
   two Mitsubishi MK4A Kasei 11 radials, 3-bladed Hamilton Standard licensed Sumitomo constant-speed
     propellers                                          CITED (engine count, blade count)
   armament: 1 x 20 mm Type 99 cannon (tail), 4 x 7.7 mm Type 92 (nose x1, waist x2, top x1)
-                                                        CITED (positions drawn: dorsal turret = Turret1, rigged;
-                                                        nose barrel, two beam blisters and the tail cannon, static)
+                                                        CITED (positions drawn: nose gun = Turret1, dorsal turret =
+                                                        Turret2, tail cannon = Turret3, all rigged (the nose and tail
+                                                        on ball sockets, 2026-10-09, ESTIMATE); two beam blisters, static)
   the earlier download's 4-blade propellers were wrong for this variant; the rig row now says 3 blades.
   propeller diameter 3.4 m                              ESTIMATE
   taper 0.40 (a straight quarter chord), dihedral 5 deg, thickness 18% root / 9% tip
@@ -41,7 +42,9 @@ Figures (read 2026-09-29, English Wikipedia "Mitsubishi G4M", Specifications (G4
   additions sink at least 0.02 m into what they sit on  modeling choice: no coplanar faces (DP0)
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage datum (ESTIMATE). Pose: gear down.
-Leaves out: cockpit interior, bomb bay and its doors, the retractable tailwheel's motion, wheel wells,
+Bomb bay (C2): one, under the wing box, 3.8 m long with doors 0.5 m wide either side of the keel. ESTIMATE:
+sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source gives the opening.
+Leaves out: cockpit interior, the retractable tailwheel's motion, wheel wells,
 unit markings.
 """
 import math
@@ -92,6 +95,8 @@ TAIL_GLAZING = [(0.998, 0.003, 0.003, 0.0205), (0.988, 0.0085, 0.0095, 0.0205), 
 TAIL_FRAMES = (0.982, 0.966, 0.952)
 TAILPLANE = dict(span=0.40, le=0.845, root=0.115, taper=0.50, y=0.014, sweep=8.0)
 FIN = dict(root=0.15, taper=0.40, height=0.115, y=0.022)
+# Bomb bay, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-2.6, 1.2, 0.5)]
 ENGINES = [0.18]              # nacelle z each side, of SPAN
 # (x ahead of the wing leading edge at that z, half-width), of LENGTH; half-height 1.05 x half-width
 NACELLE = dict(below=0.010, stations=[(-0.22, 0.008), (-0.11, 0.028), (0.02, 0.037), (0.09, 0.037), (0.115, 0.033), (0.118, 0.017)])
@@ -196,7 +201,8 @@ def nac_point(z, dx, angle_deg):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER,
+               doors=BAYS)
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = WING_Y * L + 0.55 * ROOT_T * root_chord - FILLET['half_h'] * L
     hw_mid, _hh, _cy, n_mid = fus_section(mid)
@@ -216,7 +222,7 @@ with m.tagged('tailcone'), m.shared_chart():
     m.canopy('glazing', UPPER, [(X(f), w * L, h * L, y * L) for f, w, h, y in TAIL_GLAZING], [X(f) for f in TAIL_FRAMES],
              bar=0.016, segments=32, subdivide=4)
 
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 nac_z = ENGINES[0] * S
 breaks = [0.0, nac_z, S / 2]
 with m.tagged('wing'), m.shared_chart():
@@ -230,13 +236,13 @@ tp = TAILPLANE
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(UPPER, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, lower_role=LOWER, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 with m.tagged('fin'), m.shared_chart():
     m.fin(UPPER, X(0.985) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 
 for i, z in enumerate(props, start=1):
     le, ny = wing_le(z), nacelle_y(z)
@@ -281,10 +287,6 @@ with m.tagged('fittings'), m.shared_chart():
                 nrm = math.hypot(*out_dir)
                 ox, oy = out_dir[0] / nrm, out_dir[1] / nrm
                 m.revolve('dark', (px, py - 0.04 * oy, pz - 0.04 * ox), (-1.0, 0.7 * oy, 0.7 * ox), [(0.0, e['r']), (e['length'], e['r'] * 0.85)], 10)
-    # Nose gun: a barrel from inside the glazing, its muzzle 3 cm inside the nose tip's x.
-    m.gun_barrel('dark', (X(0.030), -0.0055 * L + 0.05, 0.0), 0.0, 0.0, X(0.001) - 0.03 - X(0.030), 0.018)
-    # Tail cannon: a barrel from inside the tail cone, out past its tip.
-    m.gun_barrel('dark', (X(0.982), TAIL_GLAZING[0][3] * L, 0.0), 180.0, 0.0, (X(0.982) - X(0.998)) + 0.30, 0.020)
     # Pitot, left wing, on the chord line: its aft end 0.10 m inside the leading edge.
     pz = -9.0
     m.strut('dark', (wing_le(pz) - 0.10, wing_y(pz), pz), (wing_le(pz) + 0.50, wing_y(pz), pz), 0.010, sides=6)
@@ -302,10 +304,16 @@ with m.tagged('blister'), m.shared_chart():
         m.revolve('glazing', (X(b['at']), by, side * (zs - 0.10)), (0.0, 0.0, float(side)),
                   [(0.0, b['r']), (0.22, 0.95 * b['r']), (0.36, 0.60 * b['r']), (0.10 + b['out'], 0.20 * b['r'])], 16)
         m.gun_barrel('dark', (X(b['at']) + 0.05, by, side * (zs + 0.08)), 180.0, 0.0, 0.5, 0.016)
-for i, t in enumerate(TURRETS, start=1):
+# Flexible guns on ball sockets, numbered with the turret nose to tail (flex guns, 2026-10-09; ESTIMATE):
+# Turret1 the nose 7.7 mm at the glazing's tip, Turret2 the dorsal turret, Turret3 the tail 20 mm cannon.
+with m.tagged('turret'), m.shared_chart():
+    m.flex_gun('dark', 1, (X(0.004), NOSE_GLAZING[-1][3] * L, 0.0), (1.0, 0.0, 0.0), 0.75, scale=0.75, mount_r=0.07)
+for i, t in enumerate(TURRETS, start=2):
     with m.tagged('turret'), m.shared_chart():
         m.gun_turret(UPPER, i, (X(t['at']), t['y'] * L, 0.0), t['radius'] * L, t['height'] * L, up=t['up'],
-                     barrels=t['barrels'], barrel_length=t['barrel'] * L, facing=t['facing'])
+                     barrels=t['barrels'], barrel_length=t['barrel'] * L, facing=t['facing'], scale=0.75, gun_role='dark')
+with m.tagged('turret'), m.shared_chart():
+    m.flex_gun('dark', 3, (X(0.996), TAIL_GLAZING[0][3] * L, 0.0), (-1.0, 0.0, 0.0), 1.2, scale=0.9, mount_r=0.07)
 
 # --- Markings (ESTIMATE, see the header).
 h = HINOMARU

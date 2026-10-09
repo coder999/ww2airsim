@@ -211,6 +211,10 @@ export type CloudField = {
   readonly drift: UniformNode<'vec2', Vector2>
   /** The sorted layers, for CPU-side questions (which is the lowest cumulus). */
   readonly layers: readonly CloudLayer[]
+  /** Replace the deck (a scenario switch, A2). Uniform writes only: the layer
+   *  list is data to every shader, so nothing recompiles. Throws past
+   *  `MAX_CLOUD_LAYERS`, as content validation would. */
+  setLayers(layers: readonly CloudLayer[]): void
   /** Density in [0, 1] at a TRUE world point for one layer; 0 outside its slab. */
   readonly density: DensityFn
   /** `density` without the cumulus detail erosion (one volume read fewer):
@@ -292,7 +296,7 @@ function plane(data: Uint8Array, size: number): DataTexture {
 }
 
 export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise): CloudField {
-  const sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
+  let sorted = [...layers].sort((a, b) => a.baseM - b.baseM)
   const shape = volume(noise.shape, SHAPE_SIZE)
   const detail = volume(noise.detail, DETAIL_SIZE)
   const cumulus = scalarVolume(noise.cumulus, CUMULUS_DIMS[0], CUMULUS_DIMS[1], CUMULUS_DIMS[2])
@@ -498,9 +502,18 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const density = bind(makeDensity(true, false))
   const densityCoarse = bind(makeDensity(false, false))
 
-  const firstCumulus = sorted.find((l) => l.kind === 'cumulus')
+  const layerVec = (l: CloudLayer | undefined, out: Vector4): Vector4 =>
+    l ? out.set(l.baseM, l.thicknessM, l.coverage, l.kind === 'cirrus' ? KIND_CIRRUS : KIND_CUMULUS) : out.set(0, 0, 0, 0)
   return {
-    shape, detail, cumulus, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift, layers: sorted,
+    shape, detail, cumulus, curl, weather: weatherMap, layerData, layerCount, eyeWorld, drift,
+    get layers() { return sorted },
+    setLayers(next): void {
+      if (next.length > MAX_CLOUD_LAYERS) throw new Error(`cloud field: ${next.length} layers, max ${MAX_CLOUD_LAYERS}`)
+      sorted = [...next].sort((a, b) => a.baseM - b.baseM)
+      const slots = layerData.array as Vector4[]
+      for (let i = 0; i < MAX_CLOUD_LAYERS; i++) layerVec(sorted[i], slots[i]!)
+      layerCount.value = sorted.length
+    },
     density,
     densityCoarse,
     laidOut: () => {
@@ -508,7 +521,10 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
       const rawDensityCoarse = makeDensity(false, true)
       return { density: bind(rawDensity), densityCoarse: bind(rawDensityCoarse), fns: { density: rawDensity, densityCoarse: rawDensityCoarse } }
     },
-    lowestCumulus: () => (firstCumulus ? { baseM: firstCumulus.baseM, topM: firstCumulus.baseM + firstCumulus.thicknessM } : null),
+    lowestCumulus: () => {
+      const first = sorted.find((l) => l.kind === 'cumulus')
+      return first ? { baseM: first.baseM, topM: first.baseM + first.thicknessM } : null
+    },
     update(eye, driftSeconds, wind): void {
       eyeWorld.value.set(eye.x, eye.y, eye.z)
       const d = cloudDriftM(wind, driftSeconds)

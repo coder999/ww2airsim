@@ -16,13 +16,17 @@ test('controls are locked until ready, then the first click selects a pilot', as
   // land after the unlock, so the locked-state assertions below would race.
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title.getByRole('button', { name: 'Settings' })).toBeDisabled()
+  await expect(page.locator('[data-ww2-title][data-ww2-ready="false"]')).toBeAttached()
   await expect(title.getByRole('progressbar')).toBeVisible()
+  // A1: while booting the art shows alone; every memo, and so every control, waits for ready.
+  await expect(title.getByRole('button', { name: 'Settings' })).toBeHidden()
+  await expect(title.getByRole('button', { name: 'New pilot' })).toBeHidden()
   await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
   const readyAtMs = await page.evaluate(() => performance.now())
   console.log(`navigation to ready: ${Math.round(readyAtMs)} ms`)
   await expect(title.getByRole('progressbar')).toBeHidden()
   await expect(title.getByRole('button', { name: 'Settings' })).toBeEnabled()
+  await expect(title.getByRole('button', { name: 'New pilot' })).toBeVisible()
   // Create a pilot the instant the lock lifts; the row must take the click.
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Boot Check')

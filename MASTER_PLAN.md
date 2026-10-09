@@ -24,13 +24,9 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 Mark's items: the loading bar UI; choosing time of day with a suggestion;
 render quality with auto-detect.
 
-**A1. Loading screen (S).**
-- **Today:** the boot strip is appended inside the roster memo, between the pilot table and "Enlist New Pilot" (`titleScreen.ts:567-584` vs `:1006-1051`). The design (§A.2) said the foot of the overlay. The title art (`content/art/title.png`) is the overlay's own background, and the opaque roster sheet sits on it from frame one, so the art is never seen (`titleScreen.ts:508-510`).
-- **Proposal:** a boot state that shows the art alone, with the progress bar at the foot of the overlay. The roster sheet slides in once the boot is `ready` (about 2.9 s cold, 2026-09-26 handoff). Terrain keeps streaming afterwards, as now.
+**A1. Loading screen (S). Done 2026-10-08** (`ca97a522`): the art shows alone with the strip at its foot; the memos slide in on ready. Handoff `docs/handoff/2026-10-08-order-1.md`.
 
-**A2. Scenario switch reloads sky and time (S, prerequisite for A3).**
-- **Today:** `loadScenario` leaves sky and terrain alone, so every title launch flies the boot scenario's 10:00 sun and clouds, whatever the briefing says (`clouds.md` #10).
-- **Proposal:** fix this before adding a picker, or the picker will appear to do nothing.
+**A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
 **A3. Time-of-day picker (S-M).**
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
@@ -43,6 +39,10 @@ render quality with auto-detect.
   - Recommend one bundle across ocean, clouds and scenery rather than ocean only.
   - Show the recommendation on a quality step in the launch flow, with an override.
 - This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
+
+**A5. Render scale in Settings (S, after H0 and A4).**
+- **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
+- **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
 ### Track B: Guidance, autopilot and tutorial
 
@@ -84,19 +84,29 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 
 Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits unique to each plane.
 
-**C1. Control surfaces (M per batch).**
-- **Today:** no airframe animates any surface. The data path already exists and is unread: `AirframeUpdate` carries `flapFraction` and `controls` "for control surfaces where a model has them" (`render/aircraft/airframe.ts:14-19`), and the Hangar bench has a flap slider that drives nothing.
-- **Geometry:**
-  - The four in-house Blender models (B-29, Ki-21, G4M, P-38) already cut separate surface pieces (`kit.py` `controls=`), but merge them into the parent node.
-  - The downloaded models (Wildcat, Zero and others) need surfaces split per model, and the Wildcat has no flap geometry at all.
-- **Proposal:**
-  - Extend the rig name pattern (`airframeRigs.ts:37`) with `Aileron[LR]`, `Elevator`, `Rudder`, `Flap[LR]`, with hinge axes in the manifest.
-  - Animate the four Blender models first, then split the downloaded models one at a time through the `docs/aircraft.md` process.
-  - The Hangar bench is the test harness.
+**C1. Control surfaces (M per batch). Complete 2026-10-08: all twelve airframes move their ailerons, elevators, rudders and flaps.**
+- **Batch 1 done 2026-10-08:** the five Blender models (B-29, Ki-21, G4M, P-38, Ki-84) move ailerons, elevators, rudders and flaps, and the Hangar bench has roll, pitch and yaw sliders. Plan `docs/superpowers/plans/2026-10-08-c1-surfaces-batch1.md`; handoff `docs/handoff/2026-10-08-c1-surfaces-batch1.md`.
+- **Batch 2 merged 2026-10-08:** the F6F, F4U and F4F. The F6F and F4U surfaces are cut out of their downloads; the F4F is unfrozen and its ailerons cut from the outer wing at the F4F-3's measured layout (Mark's ruling, 2026-10-08), with its inboard pieces static and split flaps drawn under them in `wildcat.ts`. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch2.md`.
+- **Batch 3 merged 2026-10-08:** the A6M2 and Ki-43. The Zero's surfaces are cut from its body. Its draw budget rises from 12 to 14, the least seven one-draw surfaces need. The Ki-43's download already models its ailerons, elevators and rudder as their own pieces; only its flaps are cut. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch3.md`.
+- **Batch 4 merged 2026-10-08** (`28028ea4`): the D3A and B-17. The D3A's ailerons, flaps and elevators are cut from its one-piece wing and tailplane, and its rudder is the download's own piece. The B-17's download models its ailerons, split flaps and rudder as pieces; only its elevators are cut. Each made room under its triangle limit by trimming hidden detail (Mark's ruling): the D3A's cockpit interior, and the B-17's interior shell and seat. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch4.md`.
+- **Decided (grilling, 2026-10-08):**
+  - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
+  - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.
+  - Deflection limits: one default set (aileron ±20°, elevator ±25°, rudder ±25°, flap 0-45°) in the manifest, overridden per model only where a source gives the real figure.
+  - Every airframe, one plan per batch: (1) the five Blender models; (2) F6F, F4U, F4F, with split flaps modeled for the F4F; (3) A6M2, Ki-43; (4) D3A, B-17.
+  - The rig name pattern (`render/scene/airframeRigs.ts:37`) gains `Aileron[LR]`, `Elevator`, `Rudder`, `Flap[LR]`, with hinge axes in the manifest. The Hangar bench gains roll, pitch and yaw sliders and is the test harness.
+  - Worktree, unattended. Checkpoint: one Hangar look per batch, captures in the handoff.
 
-**C2. Bomb-bay doors (M).**
-- **Today:** no door geometry anywhere. Each bomber's model script leaves it out by name. The policy in `aircraft.md:119-124` is "bay doors get their own plan".
-- **Proposal:** door geometry and a rig on B-17, B-29, G4M and Ki-21, plus a sim-side door state. Release is gated on doors open, and drag rises with doors open. The B-29's two bays are the test case. This pairs with a door-motor sound (Track I).
+**C2. Bomb-bay doors (M, after C1 batch 1).**
+- **Done 2026-10-08** (merge `4477f9ea`). Plan `docs/superpowers/plans/2026-10-08-c2-bay-doors.md`; handoff `docs/handoff/2026-10-08-c2-bay-doors.md`. All four have real doors in their models (Mark's rulings, 2026-10-08): the B-17's cut from its download, the B-29's (both bays), G4M's and Ki-21's built by `kit.fuselage(doors=...)`. The interim code-drawn plates are deleted.
+- **Decided (grilling, 2026-10-08):**
+  - Bay doors on the B-29 (two bays, the test case), G4M, Ki-21 and B-17, reusing C1 batch 1's hinge machinery. The Avenger (Track D) reuses the mechanism.
+  - A sim-side door state with a per-airframe travel time. The player toggles it with `O`.
+  - Release (`V`) with the doors shut drops nothing and shows "BAY DOORS CLOSED".
+  - Drag: open doors add drag scaled by door fraction. Bay bombs keep their current stores drag.
+  - AI stub: the AI opens the doors inside a fixed range of its target and closes them past it. A sim unit test and a Dev/Hangar check prove it, since no scenario places a bomber yet. E3 builds on it.
+  - Sound in C2: a synthesized door motor plus a lock clunk (`hook_clunk.wav`), the first of I1's mechanicals, which I1 reuses for gear and flaps.
+  - Worktree, unattended. Checkpoint: B-29 doors cycling in the Hangar plus a flown drop, captures in the handoff.
 
 **C3. Per-plane cockpits (L, staged).**
 - **Today:** one shared procedural 3D panel for every airframe, placed per spec's eye point (`panel.ts`). It has an airspeed indicator, altimeter, rate of climb, attitude ball, heading tape, throttle, fuel, gear and flap lights, radar scope and reflector sight. Per-plane cockpits are deferred by Mark's ruling D12 (2026-09-28).
@@ -125,7 +135,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - **Torpedo runs** after Track D.
    - **Kamikaze**, for the "Kamikaze Watch" mission.
    - Raiders that actually attack instead of orbiting.
-3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then the Hangar's H3 turrets (`Turret1..N` nodes exist and are static) with defensive gunners.
+3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
    - wingman commands (7f §4.5);
@@ -147,6 +157,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | Escort | E1, E3 (bombers to escort) |
   | Kamikaze Watch | E2 (kamikaze behavior) |
   | Flattop Hunt | a Japanese carrier model; D for the full version |
+  | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
 
 - **Campaign by day** (missions spec §6.2): needs per-day airfield ownership plus the above. Build it after the missions, not before.
 
@@ -174,7 +185,18 @@ H1-H3: those names already mean the Hangar plans.)
 
 **H0. Win back budget first (M).**
 - **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
-- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that either buys headroom or re-baselines with Mark's ruling, so Tracks K and L have a budget to spend. It also finishes photoreal Task 14, which never ran: the tripwire re-derivation, the check in Mark's Chrome, the handoff and its entry here.
+- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that buys headroom first and re-baselines what is left with Mark's ruling, so Tracks K and L have a budget to spend.
+- **Decided (grilling, 2026-10-08):**
+  - **The gate moves to 1440p at 120 Hz:** High gpu p95 ≤ 8.33 ms at 2560×1440, in every view, the in-cloud view included (no carve-out). At 1440p, 60 Hz would already be green by ~8 ms (prior handoffs read 6.2-8.1 ms), so it would not be a bar. Medium at 1440p, and both tiers at 4K, are recorded, never asserted.
+  - **Margin target:** every High view at ≤ 7.5 ms (about 10%) when H0 ends.
+  - **Optimize until wins dry up:** stop after two levers in a row each buy < 0.3 ms p95 on the worst view.
+  - **Levers:** a lever whose frozen-scene capture matches the baseline lands as is. A visible one lands behind a URL param, default off, with a before/after pair, and Mark rules on flipping it.
+  - **Leftover reds stay red.** The handoff gives each one its measured p95 and a proposed limit, so the ruling is a one-line change.
+  - **`motionBudget`** is re-measured at 1440p on the final build, with the same no-MRT reference method.
+  - **`?renderScale=`** DEV param (render at a fraction of window size), so Mark can compare 4K and 1440p live. The player-facing setting is A5.
+  - **Photoreal Task 14** is H0's last step: tripwires re-derived from H0's final numbers, the probe check in Mark's Chrome, the handoff and its entry here.
+  - **How it runs:** in a worktree, unattended. Viewing checkpoints: the re-baseline ruling and the final result, both collected in the handoff.
+- **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
 
 ### Track K: Clouds (size L)
 
@@ -209,10 +231,10 @@ one plan for the lot.
 ### Track I: Sound (M, two plans)
 
 - **Today:** 16 sounds wired out of about 44 designed.
-- **Quick win:** `engine_radial_small` and `engine_radial_big` are on disk and unwired. The code has 3 engine families, not the spec's 4, and picks by aircraft id rather than the spec's `engineSound` key (`audio/layers.ts:33-35`).
+- **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals:**
   - wind;
-  - gear and flap motors, plus lock clunk (pair with C1, and with C2's door motors);
+  - gear and flap motors, plus lock clunk (C1 pairs; reuse C2's synthesized door motor);
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
@@ -223,16 +245,38 @@ one plan for the lot.
   - `docs/audio/firefly-prompt-sheet.md` (16 Paddles lines today) becomes a manifest, and an ingest script checks name, format and length, measures peaks, writes the `src/audio/assets.ts` entries and the `NOTICE.md`/`ASSETS.md` lines, and reports what is still missing.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
-### Track J: Google Analytics (S)
+### Track J: Google Analytics (S). Done 2026-10-08
 
-- **Today:**
-  - No analytics anywhere.
-  - The game is a static Vite build served by nginx on the VPS.
-  - There is no CSP header that would block it.
-  - The site is `noindex` with `robots.txt` `Disallow: /`.
-  - There is no privacy text.
-- **Proposal:** provision through the `google-analytics` skill: a GA4 property, then the tag in `index.html`. Add custom events for the things worth knowing: sortie launched (mission, aircraft), mission outcome, the quality tier chosen and auto-detected (useful data for A4), and boot time. Add a privacy line to the About memo.
-- **Decided (§4 Q8):** production hosts only (DEV and `windomlane` excluded); one privacy line in the About memo, no consent banner.
+`0fe24aab`: GA4 property 558194335 (`G-3VE6LD7RCS`). The tag is in the production build only and loads only on `ww2airsim.com` and `ww2airsim.marktuttle.dev`. The events are `sortie_launched`, `mission_outcome`, `quality_tier` (detected against chosen, for A4) and `boot_ready`. There is a privacy line in the About memo. Deployed 2026-10-08 (run 37852717790); the page source on both production hosts carries the tag, and windomlane does not (curl, same day). Handoff `docs/handoff/2026-10-08-order-1.md`.
+
+
+### Track M: Ships (L)
+
+Mark's items (2026-10-08): better ship models, turrets that work and fire, and AA on every warship.
+- **Today** (verified 2026-10-08):
+  - 10 ship classes. Pennsylvania, Kagero and Casablanca are our own Blender models (`tools/models/blender/*.py`); the other 7 are Sketchfab downloads (`ASSETS.md`).
+  - Only Pennsylvania (`Turret1..4`) and Kagero (`Turret1..2`) have separate turret nodes. Most downloads are one merged mesh.
+  - Nothing fires at the player except enemy aircraft. Ground `aaa` structures are targets only (`sim/weapons/structures.ts`), and ships have no guns.
+  - Ships have one `hullHp` pool (Track D).
+- **Decided (Mark, 2026-10-08), in order:**
+  1. ~~**M1 Models (M-L).**~~ Done 2026-10-08 (branch `m1-ship-models`, handoff `docs/handoff/2026-10-08-m1-ship-models.md`): every warship's guns are spec data and instanced, trainable kits; the three Blender ships got a detail and paint pass.
+     - Our three Blender ships gain detail, silhouette, paint and textures.
+     - Each download is split in Blender where its mesh allows; otherwise it is rebuilt as our own model.
+     - Every warship ends with separate turret and AA-mount nodes, with AA added where a model has none.
+     - Merchants (the Maru) get no guns.
+     - **M1b (done 2026-10-09,** merge `e66b78a9`, handoff `docs/handoff/2026-10-09-m1b-aa-mounts.md`): Mark couldn't see the AA, so light AA is now generated at 1.3x with shields and dark barrels, every 20 mm and 25 mm gallery draws each gun, and every mount's guns elevate (Hangar Train mounts sweep).
+  2. **M2 AA fire (M).** Ships and ground AAA share one system:
+     - heavy guns throw timed flak bursts at altitude;
+     - light guns fire tracer rounds through the existing ballistics at close range;
+     - both sides fire, under the friendly-fire rules;
+     - the default is dangerous: lingering low over a destroyer costs you.
+     - Builds on E1's lead and aim error.
+  3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
+  4. **M4 Main batteries (M-L).** Ship against ship and against ground targets.
+     - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
+     - Waterline damage and flooding stay with Track D.
+  5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
+  6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
 
 ---
 
@@ -244,17 +288,17 @@ prerequisites are met.
 
 | Order | Work | Why here |
 | --- | --- | --- |
-| 1 | A1; A2; I quick win (radial engines); J | Days of work, all visible, no dependencies. Track 0 is done |
-| 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
+| 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
+| 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
-| 4 | B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
+| 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | F missions that are now unblocked (Single Combat, Scramble); L1 terrain allocation then trees; K in-cloud pacing | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
-| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore | |
+| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
-A rough total by the size key: about 25-35 plans.
+A rough total by the size key: about 30-40 plans.
 
 ---
 
@@ -279,5 +323,5 @@ All decided 2026-10-08 (grilling session); the tracks above carry each answer.
 7. ~~**Voice lines.**~~ Generated by Mark in Firefly; catalog, three Voices (Paddles, Tower, Wingman) each with a Japanese take, manifest and ingest script (Track I).
 8. ~~**Analytics scope.**~~ Production only; one privacy line in About.
 9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; master spec §15 is frozen as history (README).
-10. ~~**T1 and W1.**~~ Keep both. Mark hand-flies T1's landing and judges the 10° hands-off torque swing at the next attended session.
+10. ~~**T1 and W1.**~~ Keep both. Mark hand-flew T1 2026-10-08: the landing and the hands-off torque swing are right. Settled.
 11. ~~**Escort pursuit.**~~ The spec's "takes hits" becomes "fires within gun solution" (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps").

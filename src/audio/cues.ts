@@ -85,6 +85,9 @@ export type AudioInputs = {
   readonly arrested: boolean
   /** The hook lever (`Controls.hookDown`). */
   readonly hookDown: boolean
+  /** Bomb-bay door travel (`AircraftState.bayDoorFraction`, C2): the motor runs while it moves,
+   *  and the doors lock with a clunk at either end. Optional so a hand-built input reads as shut. */
+  readonly bayDoorFraction?: number
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
    *  `null` when there is no carrier. */
   /** For each cause in `DAMAGE_CUES`, the tick of the newest event of that kind at the player
@@ -123,13 +126,24 @@ export type AudioMemory = {
   readonly engineFailed: boolean
   readonly lastArrested: boolean
   readonly lastHookDown: boolean
+  readonly lastBayDoorFraction: number
+  /** The tick the doors last moved, or null: the motor runs a tick or two past each move, so a
+   *  render frame that ran no fixed step does not flicker it off. */
+  readonly doorsMovedTick: number | null
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
   lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
   lastStructure: 1, damageCueUntil: {}, engineFailed: false, lastArrested: false, lastHookDown: false,
+  lastBayDoorFraction: 0, doorsMovedTick: null,
 }
+
+/** The motor keeps running this many ticks after the doors last moved (see `doorsMovedTick`). */
+export const MOTOR_HOLD_TICKS = 2
+
+/** The actuator motor's gain while doors travel (C2). A tuning value for Mark's ear. */
+export const MOTOR_GAIN = 0.35
 
 /**
  * The touchdown squeak is for a real touchdown only (Mark, 2026-09-28: it
@@ -191,6 +205,8 @@ export type AudioFrame = {
   readonly engineFamily: EngineFamily
   /** Continuous ambience gains, 0 = silent. */
   readonly ambient: { readonly sea: number }
+  /** The actuator motor layer's gain (C2): MOTOR_GAIN while doors travel, else 0. */
+  readonly motor: number
 }
 
 export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
@@ -285,6 +301,13 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   if (failing && !wasFailed && inputs.engineRunning) cues.push('engine_sputter')
   if (inputs.arrested && !(restarted ? false : prev.lastArrested)) cues.push('wire_catch')
   if (inputs.hookDown && !(restarted ? false : prev.lastHookDown)) cues.push('hook_clunk')
+  // C2: the motor runs while the doors move; they lock, with the hook's clunk, on reaching either end.
+  const doors = inputs.bayDoorFraction ?? 0
+  const lastDoors = restarted ? doors : prev.lastBayDoorFraction
+  const doorsMoving = doors !== lastDoors
+  if (doorsMoving && (doors <= 0 || doors >= 1)) cues.push('hook_clunk')
+  const doorsMovedTick = doorsMoving ? inputs.tick : restarted ? null : prev.doorsMovedTick
+  const motorOn = doorsMovedTick !== null && inputs.tick - doorsMovedTick <= MOTOR_HOLD_TICKS && doors > 0 && doors < 1
 
   return {
     memory: {
@@ -292,8 +315,9 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
       lastBombsDropped: inputs.bombsDropped, lastRocketsFired: inputs.rocketsFired,
       airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
       lastStructure: inputs.structure, damageCueUntil, engineFailed: failing,
-      lastArrested: inputs.arrested, lastHookDown: inputs.hookDown,
+      lastArrested: inputs.arrested, lastHookDown: inputs.hookDown, lastBayDoorFraction: doors, doorsMovedTick,
     },
+    motor: motorOn ? MOTOR_GAIN : 0,
     cues,
     // Silent on a dead engine whatever the throttle says. `main.ts` already
     // gates the propeller MESH on the player's `impact === null` for the same

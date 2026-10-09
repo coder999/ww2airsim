@@ -1,6 +1,7 @@
 {
   "id": "type-b-maru",
   "input": "tools/models/cache/liberty-ship.glb",
+  "inputSha256": "d20e2d2719dd8e6a4175658c36ba5173ca873911d2c44856225ae34e634871ad",
   "output": "content/ships/type-b-maru.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26",

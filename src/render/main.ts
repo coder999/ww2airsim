@@ -6,7 +6,7 @@ import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } 
 import { entityViews } from './mission/entityViews.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
-import { airframeUpdateFor } from './airframeUpdate.js'
+import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
@@ -31,6 +31,7 @@ import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNaviga
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { createBootProgress } from './bootProgress.js'
+import { track } from './analytics.js'
 import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
@@ -243,6 +244,10 @@ async function boot(): Promise<void> {
   // Plan 16c, read by the DEV hook's `sun()` below; assigned at boot and
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
+  /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
+   *  to the live sky and ocean. Null until boot has built them; boot's own
+   *  first `loadScenario` reads the bundle directly instead. */
+  let applyScenarioWeather: ((weather: ScenarioBundle['scenario']['weather']) => void) | null = null
   let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
   /** Photoreal Task 9 fix 2: the boot-time irradiance table build, ms (DEV readout). */
   let irradianceTableMs: number | null = null
@@ -424,6 +429,7 @@ async function boot(): Promise<void> {
     spawnPosition = nextSpawnedAt
     loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
+    applyScenarioWeather?.(nextBundle.scenario.weather)
   }
   /**
    * The live flight, `null` until boot's own first `initialFrameStateFor`
@@ -636,6 +642,7 @@ async function boot(): Promise<void> {
   const boot = createBootProgress()
   const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
     chosen = choice
+    track('sortie_launched', { mission: choice.scenarioId, aircraft: choice.aircraftSpec, loadout: choice.loadout })
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
     // `roster` this closure already held: `titleScreen.ts`'s own `start()`
     // already called `startSortie` and `saveRoster` for exactly this pilot
@@ -698,8 +705,9 @@ async function boot(): Promise<void> {
       // (`window.location.href = ?scenario=<id>`) because `airframes`/
       // `shipHandles` were built once at boot. `loadScenario` now disposes
       // whatever is currently loaded and rebuilds them in place (design doc
-      // §5) -- terrain, ocean and sky are untouched, since none of that is
-      // scenario content. `requestedScenarioId` is updated FIRST so a
+      // §5) -- terrain is untouched, and the scenario's weather (clouds,
+      // hour, sea state) is applied in place (A2, `applyScenarioWeather`).
+      // `requestedScenarioId` is updated FIRST so a
       // second pick compares against the scenario now actually loaded, not
       // the one this boot started with, and so a return-to-title flight
       // followed by picking a THIRD scenario still detects a change.
@@ -894,6 +902,7 @@ async function boot(): Promise<void> {
     ;(window as unknown as { __ww2: Ww2Diagnostics }).__ww2 = {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
+      seaState: () => beaufort,
       // Task 9 (reference-GPU acceptance): whether `adaptOceanQuality`'s
       // ~180-frame probe has already resolved, or was pre-latched true by a
       // persisted choice at boot (`qualityChecked`, declared beside `quality`
@@ -1085,6 +1094,7 @@ async function boot(): Promise<void> {
         shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
+        composited: cloudPass !== null && routedOutput === cloudPass.composite,
       }),
       // Visual realism §2.1: read through the same closure-after-boot shape as
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
@@ -1195,7 +1205,7 @@ async function boot(): Promise<void> {
   // override winning when present. Below the bundle on purpose: the wind is
   // scenario content. See `seaStateFor`'s doc for why a calm scenario keeps
   // the development sea rather than going flat.
-  const beaufort = seaStateFor(
+  let beaufort = seaStateFor(
     bundle!.scenario.weather.windMps,
     import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined,
   )
@@ -1363,14 +1373,19 @@ async function boot(): Promise<void> {
       }
       return
     }
-    const request = ++oceanTierRequest
     requestedOceanTier = name
-    const pending = await Promise.allSettled(cascadeOptions(beaufort,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
+    await swapOcean(next, beaufort)
+  }
+  /** The one ocean rebuild: `next`'s cascades at force `force`. Shared by a
+   *  tier change and a scenario's sea state (A2); the latest call wins. */
+  const swapOcean = async (next: typeof oceanTier, force: number): Promise<void> => {
+    const request = ++oceanTierRequest
+    const pending = await Promise.allSettled(cascadeOptions(force,next.n,next.cascades).map(options=>createOceanCompute(renderer,options)))
     const ready = pending.flatMap(r=>r.status === 'fulfilled' ? [r.value] : [])
     if (request !== oceanTierRequest) { ready.forEach(c=>c.dispose()); return }
     requestedOceanTier = null
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
-    const replacement = createOcean(oceanDepth!,beaufort,ready,terrain.levelTexture(finestFetchedLevel),shadow)
+    const replacement = createOcean(oceanDepth!,force,ready,terrain.levelTexture(finestFetchedLevel),shadow)
     scene.remove(water)
     water.userData.disposeOcean()
     cascades.forEach(c=>c.dispose())
@@ -1440,12 +1455,14 @@ async function boot(): Promise<void> {
     // the save, not the swap. `applyProbeResult` discards its own result if
     // the player picked a tier first; it never overwrites a deliberate choice.
     quality.applyProbeResult(next.name)
+    // J: what the probe measured against what is in force (a player's pick wins), for A4.
+    track('quality_tier', { detected: next.name, chosen: quality.current().ocean })
   }
   const sky = createSky()
   scene.add(sky)
   // Plan 16b: the sun carries the cloud-shadow lookup into every lit
   // material. `positionWorld` is eye-relative here; the node adds the eye.
-  const lights = createLighting(shadow.enabled ? shadow.node(positionWorld, 'eyeRelative') : undefined)
+  const lights = createLighting(shadow.capable ? shadow.node(positionWorld, 'eyeRelative') : undefined)
   scene.add(lights)
   // The clouds are no longer in the scene: photoreal Task 3 moved the march
   // into a reduced-resolution pass composited after it (`cloudPass`, below
@@ -1536,7 +1553,7 @@ async function boot(): Promise<void> {
     fxSystem = createFxSystem({ capacity: FX_TIERS[fxTier].capacity, seed: 1944, catalog: FX_CATALOG, layout: sheetLayout(fxSheets.manifest) })
     fxPass = createFxPass({
       camera, sceneColor: framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth, sheets: fxSheets,
-      shadow: shadow.enabled ? shadow : null, soft: fxQuery.soft, cloudLimit: fxQuery.cloudLimit, tier: FX_TIERS[fxTier],
+      shadow: shadow.capable ? shadow : null, soft: fxQuery.soft, cloudLimit: fxQuery.cloudLimit, tier: FX_TIERS[fxTier],
     })
   }
   // Photoreal Task 3 (spec §4.1): the cloud march at reduced resolution,
@@ -1548,16 +1565,40 @@ async function boot(): Promise<void> {
   // `applyCloudTier` (above) may run before this line -- `quality.bind`
   // applies a pending pick at once -- which is why the pass takes its scale
   // from `cloudTier` here rather than relying on that call.
-  cloudPass = cloudTier === 'off' || !clouds.enabled ? null : createCloudPass({
+  // A2: built for a clear sky too, since a scenario switch can bring a deck;
+  // `routeOutput` composites it only while there is one, so a clear sky pays
+  // no march per frame (the 2026-09-26 6.9 vs 2.0 ms finding, clouds.md #10).
+  cloudPass = cloudTier === 'off' ? null : createCloudPass({
     clouds, camera, sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
     fxLimit: fxPass?.cloudLimit ?? null,
   })
   if (cloudPass !== null && cloudTier !== 'off') {
     cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
     cloudPass.setUpdatePeriod(CLOUD_TIERS[cloudTier].updatePeriod)
-    framePipeline.setOutput(cloudPass.composite)
-  } else if (fxPass !== null) {
-    framePipeline.setOutput(fxPass.composite)
+  }
+  // The pipeline starts on `sceneColor`; a rebuild only when the picture changes.
+  let routedOutput = framePipeline.sceneColor
+  const routeOutput = (): void => {
+    const next = cloudPass !== null && clouds.enabled ? cloudPass.composite : fxPass?.composite ?? framePipeline.sceneColor
+    if (next === routedOutput) return
+    routedOutput = next
+    framePipeline.setOutput(next)
+  }
+  routeOutput()
+  applyScenarioWeather = (weather): void => {
+    scenarioTimeOfDay = forcedTimeOfDay ?? weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+    if (forcedCloudTier !== 'off') {
+      cloudLayers = weather.clouds ?? []
+      cloudField.setLayers(cloudLayers)
+      shadow.refresh()
+      routeOutput()
+      cloudPass?.resetHistory()
+    }
+    const force = seaStateFor(weather.windMps, import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined)
+    if (force !== beaufort) {
+      beaufort = force
+      void swapOcean(oceanTier, force)
+    }
   }
 
   // Everything about the first frame -- the gear, the terrain hold, one pose
@@ -1734,6 +1775,7 @@ async function boot(): Promise<void> {
     badgeId: string | null,
   ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
     const discharged = friendlyFire === 'discharged'
+    track('mission_outcome', { mission: requestedScenarioId, outcome, score: scoreTotal })
     if (currentPilotId === null) return null
     // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
     // roster back, so there is nothing to save and no figure to show.
@@ -2514,7 +2556,7 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot)
+    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS)
     pauseBadge.setPaused(current.paused)
     paddlesBadge.setCue(paddlesFor(current))
     // T3-R1: freezes the radio countdown under pause and while any debrief is
@@ -2541,7 +2583,7 @@ async function boot(): Promise<void> {
     // frame controls, every other its own pilot's, and a wreck's prop stops.
     view.world.aircraft.forEach((a, i) => {
       const playerControls = a.id === view.world.player ? view.controls : null
-      airframes[i]!.update(airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000))
+      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000), aim: turretAimFor(view.world, view.poses, i) })
     })
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
@@ -2883,7 +2925,10 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict.summary,
     })
     // The first frame built every material; the title can unlock.
-    if (!boot.ready) boot.end('shaders')
+    if (!boot.ready) {
+      boot.end('shaders')
+      track('boot_ready', { ms: Math.round(performance.now()) })
+    }
   }
   // One paint BEFORE the first frame, which is the shader build (spec §A.1):
   // rAF alone runs before that frame's paint, so without the setTimeout hop

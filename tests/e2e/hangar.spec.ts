@@ -1,5 +1,5 @@
 // tests/e2e/hangar.spec.ts
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { test, expect, type Page } from '@playwright/test'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 import type { PartPose } from '../../src/render/hangar/models.js'
@@ -246,6 +246,45 @@ test.describe('the Hangar', () => {
     }
   })
 
+  test('7c. every turreted bomber aims its turrets from the bench: bearing 90 and elevation 30 change the top view, 0 and 0 restore it exactly (turret aim, 2026-10-09)', async ({ page }) => {
+    const turreted: string[] = []
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'turrets')) continue
+      turreted.push(id)
+      const { model: rest } = await view(page, id, 'top', { turretBearingDeg: 0, turretElevationDeg: 0 })
+      await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
+      const aimed = await shot(page)
+      await pose(page, { turretBearingDeg: 0, turretElevationDeg: 0 })
+      const back = await shot(page)
+      expect(aimed.equals(rest), `${id}: aiming moved nothing`).toBe(false)
+      expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
+    }
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  })
+
+  test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
+    let bombers = 0
+    for (const id of await entries(page)) {
+      await select(page, id)
+      if (!hasPart(await current(page), 'doors')) continue
+      bombers++
+      // From the side, gear up: an open door hangs flat-on to this view. From the front the B-17's chin
+      // turret hides its whole belly line (measured 2026-10-08: 0 px changed).
+      const { empty, model: shut } = await view(page, id, 'side', { bayDoorFraction: 0, gearFraction: 0 })
+      await page.getByRole('button', { name: 'Cycle bay doors' }).click()
+      // 12 s at 60 Hz covers every shipped spec's bayDoors.travelSeconds (10 s for the B-17, 2026-10-08).
+      await page.evaluate(() => { for (let i = 0; i < 720; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ bayDoorFraction: 1, cycling: null })
+      const open = await shot(page)
+      const m = await masks(page, empty, [shut, open])
+      console.log(`doors ${id}: changed ${m.xor01}/${m.areas[0]}`)
+      // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
+      expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
+    }
+    expect(bombers).toBe(4)
+  })
+
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
     // Three captures per Library entry: R3's eleven aircraft took it past the 60 s default (26 of 28 entries, 2026-09-27).
     test.setTimeout(180_000)
@@ -270,10 +309,10 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller and the strut and wheel nodes the W1 leg stretch moves, and they draw", async ({ page }) => {
+  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller, the strut and wheel nodes the W1 leg stretch moves, and its five control surfaces (C1), and they draw", async ({ page }) => {
     const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
     await setDebug(page, 'gizmos', true)
-    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['AileronL', 'AileronR', 'GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'Timon_Der', 'Timon_Izq', 'Timon_Prof', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
     const withGizmos = await shot(page)
     const m = await masks(page, empty, [plain, withGizmos])
     expect(m.xor01).toBeGreaterThan(0)
@@ -338,14 +377,17 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test("13. every rigged aircraft's pivot gizmos are its named props and gear legs (R3)", async ({ page }) => {
+  test("13. every rigged aircraft's pivot gizmos are its named props, gear legs and control surfaces (R3, C1)", async ({ page }) => {
     await setDebug(page, 'gizmos', true)
     for (const id of await entries(page)) {
       await select(page, id)
       const c = await current(page)
       if (c.kind !== 'aircraft' || id === 'f4f-wildcat') continue
       const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
-      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel)$/)
+      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/)
+      expect(nodes.some((n) => n.startsWith('BayDoor')), `${id} bay door gizmos`).toBe(hasPart(c, 'doors'))
+      expect(nodes.some((n) => /^(Aileron|Elevator|Rudder)/.test(n)), `${id} control surface gizmos`).toBe(hasPart(c, 'surfaces'))
+      expect(nodes.some((n) => n.startsWith('Flap')), `${id} flap gizmos`).toBe(hasPart(c, 'flaps'))
       expect(nodes.some((n) => n.startsWith('Prop')), `${id} prop gizmo`).toBe(hasPart(c, 'prop'))
       expect(nodes.some((n) => /^(Gear|Tailwheel)/.test(n)), `${id} gear gizmo`).toBe(hasPart(c, 'gear'))
     }
@@ -405,6 +447,38 @@ test.describe('the Hangar', () => {
       expect(Math.abs(m.luminance[2]! - m.luminance[0]!) / m.luminance[0]!, `${id} restored`).toBeLessThanOrEqual(0.005)
     }
   })
+
+  test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
+    const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
+    const ids = await entries(page)
+    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(10)
+    for (const ship of ships) {
+      const a = ship.armament
+      // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
+      const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : m.run === undefined ? [`${p}${i + 1}`] : Array.from({ length: m.barrels }, (_, g) => `${p}${i + 1}_${g + 1}`)))) : []
+      await select(page, ship.id)
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts()), ship.id).toEqual(want)
+      if (want.length === 0) continue
+      await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'top' as const)
+      const rest = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.trainMounts(Math.PI / 2))
+      const turned = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.trainMounts(0))
+      const back = await shot(page)
+      expect(turned.equals(rest), `${ship.id}: training moved nothing`).toBe(false)
+      expect(back.equals(rest), `${ship.id}: training back to 0 did not restore the frame`).toBe(true)
+      // M1b, Ruling B4: the guns rise about their trunnions, seen from the side, and come back down.
+      await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+      const level = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.elevateMounts(1))
+      const raised = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.elevateMounts(0))
+      const lowered = await shot(page)
+      expect(raised.equals(level), `${ship.id}: elevating moved nothing`).toBe(false)
+      expect(lowered.equals(level), `${ship.id}: elevation back to 0 did not restore the frame`).toBe(true)
+    }
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
 })
 
 test('the canvas and the panel fit the window: nothing renders off-screen', async ({ page }) => {
@@ -420,11 +494,37 @@ test('the canvas and the panel fit the window: nothing renders off-screen', asyn
   expect(r.sheetBottom, 'sheet bottom edge (the list scrolls inside it)').toBeLessThanOrEqual(r.h)
 })
 
-test("the title's Library button opens the hangar", async ({ page }) => {
+test('the details panel appears on the right once something is picked, and collapses to give the model the width', async ({ page }) => {
+  await openHangar(page)
+  const details = page.getByRole('region', { name: 'Details' })
+  await expect(details).toBeHidden()
+  await expect(page.getByText('Pick an item')).toBeVisible()
+  await page.getByRole('list', { name: 'Objects' }).getByRole('button').first().click()
+  await expect(details).toBeVisible()
+  await expect(page.getByText('Pick an item')).toHaveCount(0)
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+  const edges = () => page.evaluate(() => {
+    const box = (s: string) => document.querySelector(s)!.getBoundingClientRect()
+    return { canvas: box('#hangar-canvas'), details: box('.hangar-detail'), list: box('.hangar-panel'), w: innerWidth, h: innerHeight }
+  })
+  const open = await edges()
+  // Left list, model, details: three columns side by side, nothing off-screen.
+  expect(open.list.right).toBeLessThanOrEqual(open.canvas.left + 1)
+  expect(open.canvas.right).toBeLessThanOrEqual(open.details.left + 1)
+  expect(open.details.right).toBeLessThanOrEqual(open.w)
+  expect(open.details.bottom).toBeLessThanOrEqual(open.h)
+  await details.getByRole('button', { name: 'Collapse details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeHidden()
+  await expect.poll(async () => (await edges()).canvas.width).toBeGreaterThan(open.canvas.width + 200)
+  await details.getByRole('button', { name: 'Expand details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+})
+
+test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
   await expect(title).toBeVisible()
-  await title.getByRole('button', { name: 'Library' }).click()
+  await title.getByRole('button', { name: 'Hangar' }).click()
   await page.waitForURL(/hangar\.html$/)
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
 })
@@ -433,6 +533,8 @@ test('dragging to orbit stops the turntable, and its checkbox says so (H2 review
   await page.goto('/hangar.html?bench')
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
+  // Nothing is picked on load, so there is no bench until a pick (2026-10-08).
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('f4f-wildcat'))
   const box = page.getByRole('checkbox', { name: 'Turntable' })
   await expect(box).toBeChecked()
   const c = (await page.locator('#hangar-canvas').boundingBox())!

@@ -68,9 +68,15 @@ export type CloudShadowHandle = {
    *  is under camera-relative rendering (the node adds the eye back); `'world'` is a
    *  true world position a material already has (the terrain's, the ocean's). */
   node(position: Node<'vec3'>, frame: 'eyeRelative' | 'world'): Node<'float'>
-  /** True when the deck has a cumulus layer and the DEV mode is not `off`. */
+  /** True when the DEV mode is not `off`: the lookup node is worth wiring into
+   *  materials, whatever the current deck (a scenario switch can add one, A2). */
+  readonly capable: boolean
+  /** True when the deck has a cumulus layer and the DEV mode is not `off`.
+   *  Live: follows `refresh`. Gates the per-frame map render. */
   readonly enabled: boolean
   readonly showing: boolean
+  /** Re-read the field's deck after its `setLayers` (A2): uniform writes only. */
+  refresh(): void
   readonly target: RenderTarget
   readonly scene: Scene
   readonly camera: OrthographicCamera
@@ -89,8 +95,9 @@ export type CloudShadowHandle = {
 }
 
 export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): CloudShadowHandle {
-  const lowest = field.lowestCumulus()
-  const enabled = lowest !== null && mode !== 'off'
+  const capable = mode !== 'off'
+  let lowest = field.lowestCumulus()
+  let enabled = lowest !== null && capable
 
   const target = new RenderTarget(MAP_TEXELS, MAP_TEXELS, {
     format: RedFormat, type: UnsignedByteType, depthBuffer: false, stencilBuffer: false,
@@ -181,8 +188,16 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
   const center = { x: 0, z: 0 }
   return {
     node,
-    enabled,
-    showing: enabled && mode === 'show',
+    capable,
+    get enabled() { return enabled },
+    get showing() { return enabled && mode === 'show' },
+    refresh(): void {
+      lowest = field.lowestCumulus()
+      enabled = lowest !== null && capable
+      deckBase.value = lowest?.baseM ?? 0
+      deckTop.value = lowest?.topM ?? 1
+      enabledU.value = enabled ? 1 : 0
+    },
     target, scene, camera,
     get taps() { return taps.value },
     centerXZ: () => ({ ...center }),

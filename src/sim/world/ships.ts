@@ -40,6 +40,43 @@ const PaddlesObject = z
     message: 'waveOffRangeM must not exceed maxRangeM', path: ['waveOffRangeM'],
   })
 
+/**
+ * One gun position (Track M, M1 plan 2026-10-08). Ship-frame meters: +x bow,
+ * +y up from the waterline, +z starboard, the frame the model is built in.
+ * The point is the mount's training axis at its base. `bearingDeg` is where it
+ * points at rest, clockwise from the bow (0 bow, 90 starboard, 180 stern).
+ * `kit` names the instanced mesh drawn there (the model's `Kit_<kit>` node);
+ * null is a fire position with nothing drawn; every shipped gallery has a kit and a `run` (M1b).
+ */
+const MountFields = {
+  x: finite, y: finite, z: finite,
+  bearingDeg: finite.refine((d) => d > -180 && d <= 180, { message: 'must be in (-180, 180]' }),
+  kit: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase kit id' }).nullable(),
+  barrels: z.number().int().positive(),
+  /** A gallery of `barrels` single guns spread over this many meters fore and aft, centered on x
+   *  (M1b, Ruling B2). The sim keeps it one fire position; the model draws each gun. */
+  run: positive.optional(),
+}
+const runNeedsKit = (m: { kit: string | null; barrels: number; run?: number | undefined }): boolean => m.run === undefined || (m.kit !== null && m.barrels > 1)
+const MountObject = z.object(MountFields).strict().refine(runNeedsKit, { message: 'a run needs a kit and more than one barrel' })
+
+/** Bow to stern, so locator numbers run bow to stern (docs/models.md). */
+const bowToStern = (list: readonly { x: number }[]): boolean => list.every((m, i) => i === 0 || m.x <= list[i - 1]!.x)
+
+const ArmamentObject = z
+  .object({
+    /** Main battery. `aa: 'heavy'` marks a dual-purpose mount (the USN 5"/38) that M2 also fires at aircraft. */
+    turrets: z.array(z.object({ ...MountFields, aa: z.literal('heavy').nullable() }).strict().refine(runNeedsKit, { message: 'a run needs a kit and more than one barrel' })),
+    heavyAA: z.array(MountObject),
+    lightAA: z.array(MountObject),
+  })
+  .strict()
+  .refine((a) => bowToStern(a.turrets) && bowToStern(a.heavyAA) && bowToStern(a.lightAA), { message: 'each list must run bow to stern (x not increasing)' })
+  .refine((a) => [...a.turrets, ...a.heavyAA].every((m) => m.kit !== null), { message: 'only a lightAA entry may have a null kit' })
+
+export type ShipMount = z.infer<typeof MountObject>
+export type ShipArmament = z.infer<typeof ArmamentObject>
+
 const ShipSpecObject = z
   .object({
     id: z.string().min(1),
@@ -66,9 +103,17 @@ const ShipSpecObject = z
      *  src/render/scene/shipModels.ts's registry. Optional: a spec without it is drawn
      *  as the procedural boxes, a supported state. */
     view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase model id' }) }).strict().optional(),
+    /** Every warship's guns (Track M); a merchant carries none. */
+    armament: ArmamentObject.optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()
+  .refine((s) => (s.role === 'merchant') === (s.armament === undefined), {
+    message: 'a warship needs an armament block and a merchant must not have one', path: ['armament'],
+  })
+  .refine((s) => s.armament === undefined || (s.armament.turrets.length > 0 && s.armament.heavyAA.length + s.armament.lightAA.length + s.armament.turrets.filter((t) => t.aa).length > 0), {
+    message: 'a warship needs at least one turret and at least one AA mount', path: ['armament'],
+  })
   .refine((s) => s.flightDeck === undefined || s.flightDeck.heightM === s.deckHeightM, {
     message: 'flightDeck.heightM must equal deckHeightM', path: ['flightDeck', 'heightM'],
   })

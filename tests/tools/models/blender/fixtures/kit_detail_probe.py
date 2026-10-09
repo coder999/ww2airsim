@@ -12,9 +12,9 @@ with m.tagged('fuselage'):
                segments=32, subdivide=4, node='df_fuse')
 with m.tagged('wing'):
     m.wing('ijaGreen', 0.5, -0.3, 2.0, 1.0, 10.0, dihedral_deg=5.0, stations=kit.AIRFOIL_STATIONS_FINE, span_segments=4,
-           controls=[(3.0, 4.5, 0.75)], node='df_wing', lower_role='underside', lower_node='df_wing_lower')
+           controls=[(3.0, 4.5, 0.75, 'Aileron')], node='df_wing', lower_role='underside', lower_node='df_wing_lower')
 with m.tagged('fin'):
-    m.fin('ijaGreen', -3.0, 0.3, 1.2, 0.6, 1.4, sweep_deg=20.0, stations=kit.AIRFOIL_STATIONS_FINE, controls=[(0.1, 1.3, 0.7)], node='df_fin')
+    m.fin('ijaGreen', -3.0, 0.3, 1.2, 0.6, 1.4, sweep_deg=20.0, stations=kit.AIRFOIL_STATIONS_FINE, controls=[(0.1, 1.3, 0.7, 'Rudder')], node='df_fin')
 with m.tagged('prop'):
     m.propeller('dark', (2.3, 0.0, 0.0), 3.0, 2, 0.25, 0.25, 0.4, blade_sections=[(0.1, 1.0, 45.0), (0.5, 1.1, 30.0), (0.95, 0.6, 18.0)], node='Prop')
 with m.tagged('canopy'):

@@ -1,6 +1,7 @@
 {
   "id": "f4u-corsair",
   "input": "tools/models/cache/f4u.glb",
+  "inputSha256": "a8d8eda00d50b1585d918029856ef4a78f9911f4b6e68c34327ed4ea9a3a3797",
   "output": "content/aircraft/f4u-corsair.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/f4u-b042ee1ca0674810a7d05a7a568dd284",
@@ -13,7 +14,16 @@
     { "name": "Prop", "select": "components", "boxMin": [4.05, -1.25, -1.7], "boxMax": [4.55, 1.45, 1.05], "pivot": { "point": [4.2, 0.093, -0.367], "axis": "+x" } },
     { "name": "GearL", "select": "components", "boxMin": [2.2, -1.95, -2.4], "boxMax": [3.2, -0.4, -1.3], "pivot": { "point": [2.572, -0.565, -1.841], "axis": "+x" } },
     { "name": "GearR", "select": "components", "boxMin": [2.2, -1.95, 0.55], "boxMax": [3.2, -0.4, 1.65], "pivot": { "point": [2.58, -0.565, 1.085], "axis": "+x" } },
-    { "name": "Tailwheel", "select": "components", "boxMin": [-2.8, -1.95, -0.8], "boxMax": [-2.2, -0.3, 0.1], "pivot": { "point": [-2.315, -0.488, -0.363], "axis": "+z" } }
+    { "name": "Tailwheel", "select": "components", "boxMin": [-2.8, -1.95, -0.8], "boxMax": [-2.2, -0.3, 0.1], "pivot": { "point": [-2.315, -0.488, -0.363], "axis": "+z" } },
+    { "name": "AileronR", "select": "triangles", "boxMin": [0.6, -0.75, 2.45], "boxMax": [1.6111, -0.18, 4.5], "pivot": { "point": [1.2384, -0.5767, 2.45], "axis": [-0.168349, -0.119186, -0.978495] }, "cut": { "normal": [-0.98552, 0.0, 0.169558] } },
+    { "name": "AileronL", "select": "triangles", "boxMin": [0.6, -0.75, -5.252], "boxMax": [1.6111, -0.18, -3.202], "pivot": { "point": [1.2384, -0.5767, -3.202], "axis": [0.168349, 0.119186, -0.978495] }, "cut": { "normal": [-0.98552, 0.0, -0.169558] } },
+    { "name": "Flap1R", "select": "triangles", "boxMin": [0.5, -0.9, 0.45], "boxMax": [1.1984, -0.32, 1.15], "pivot": { "point": [1.1691, -0.5242, 0.45], "axis": [-0.012968, 0.216838, -0.976121] }, "cut": { "normal": [-0.999912, 0.0, 0.013285] } },
+    { "name": "Flap1L", "select": "triangles", "boxMin": [0.5, -0.9, -1.902], "boxMax": [1.1984, -0.32, -1.202], "pivot": { "point": [1.1691, -0.5242, -1.202], "axis": [0.012968, -0.216838, -0.976121] }, "cut": { "normal": [-0.999912, 0.0, -0.013285] } },
+    { "name": "Flap2R", "select": "triangles", "boxMin": [0.5, -0.9, 1.3], "boxMax": [1.2513, -0.38, 2.35], "pivot": { "point": [1.18, -0.6757, 1.3], "axis": [-0.048625, -0.084453, -0.99524] }, "cut": { "normal": [-0.998809, 0.0, 0.048799] } },
+    { "name": "Flap2L", "select": "triangles", "boxMin": [0.5, -0.9, -3.102], "boxMax": [1.2513, -0.38, -2.052], "pivot": { "point": [1.18, -0.6757, -2.052], "axis": [0.048625, 0.084453, -0.99524] }, "cut": { "normal": [-0.998809, 0.0, -0.048799] } },
+    { "name": "ElevatorR", "select": "triangles", "boxMin": [-3.7, 0.0, 0.0], "boxMax": [-3.1516, 0.3, 1.55], "pivot": { "point": [-3.1716, 0.1443, 0.0], "axis": [0.000903, -0.005613, -0.999984] }, "cut": { "normal": [-1.0, 0.0, -0.000903] } },
+    { "name": "ElevatorL", "select": "triangles", "boxMin": [-3.7, 0.0, -2.302], "boxMax": [-3.1516, 0.3, -0.752], "pivot": { "point": [-3.1716, 0.1443, -0.752], "axis": [-0.000903, 0.005613, -0.999984] }, "cut": { "normal": [-1.0, -0.0, 0.000903] } },
+    { "name": "Rudder", "select": "triangles", "boxMin": [-3.6, 0.6, -0.5], "boxMax": [-2.7052, 1.6, -0.27], "pivot": { "point": [-2.7562, 0.6, -0.3894], "axis": [0.030985, 0.99952, 0.0008] }, "cut": { "normal": [-0.99952, 0.030985, -0.0] } }
   ],
   "remove": ["PILOT", "kabina01"],
   "textures": { "maxSize": 1024, "format": "webp" },

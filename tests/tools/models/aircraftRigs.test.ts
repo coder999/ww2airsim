@@ -1,14 +1,17 @@
 // tests/tools/models/aircraftRigs.test.ts
 import { beforeAll, describe, expect, it } from 'vitest'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import type { Document, Node } from '@gltf-transform/core'
-import { AIRFRAME_RIGS, PART_NAME, type GearRig } from '../../../src/render/scene/airframeRigs.js'
+import { AIRFRAME_RIGS, BAY_DOOR_OPEN_DEG, PART_NAME, surfaceDrive, type GearRig } from '../../../src/render/scene/airframeRigs.js'
+import { surfaceAngleRad } from '../../../src/render/scene/pivotedAirframe.js'
+import { measureDocument } from '../../../tools/models/measure.js'
 import { aircraftModelPath } from '../../../src/render/content.js'
 import { loadModelEntries } from '../../../tools/models/manifest.js'
 import { modelIO } from '../../../tools/models/document.js'
 import { bounds, centroid, radiusAbout, rotateAbout, symmetryError, worldPositions, type Vec3 } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { airframeMeshes, retractedExcess } from './_retractedSkin.js'
+import { worldTriangles } from './buildingGeometry.js'
 
 const entries = loadModelEntries()
 const specIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
@@ -32,6 +35,48 @@ const THROUGH_SKIN: Readonly<Record<string, number>> = {
   'a6m2-zero/GearL': 0.18, 'a6m2-zero/GearR': 0.18,
 }
 
+/**
+ * How much open edge (m) a control surface may leave on its hinge face, the plane its front is cut on.
+ * Open there, a deflected surface shows its hollow inside and, through the slot it leaves, the ground: Mark's
+ * C1 batch 2 review, 2026-10-08 (the F6F's flaps read as untextured flat plates). The cut stage caps it
+ * (tools/models/stages/split.ts). Every Blender surface reads 0; the default is 2 cm (the F6F's Flap1R
+ * reads 1.8 cm of sub-centimeter slivers). Exceptions are measured 2026-10-08 and only shrink: the F4U's
+ * elevators leave a short gap at their roots, against the fuselage, where the source overlays a second skin.
+ * The Zero's rudder reads 5.2 cm: two open edges at the fin tip, a missing sliver about 1 mm wide (C1 batch 3).
+ * The B-17's ElevatorL reads 0.40 m, and it is no gap: one 0.2 m edge twice, reversed, under 0.1 mm apart (a
+ * zero-width spur where the hinge plane meets an internal spar face of the download's tailplane; C1 batch 4).
+ * Before the caps these read 1.7 to 8.2 m.
+ */
+const OPEN_HINGE_FACE_M = 0.02
+const OPEN_HINGE_FACE_EXCEPTIONS: Readonly<Record<string, number>> = { 'f4u-corsair/ElevatorR': 0.34, 'f4u-corsair/ElevatorL': 0.18, 'a6m2-zero/Rudder': 0.053, 'b-17-flying-fortress/ElevatorL': 0.4 }
+
+/** A Guns part's breech and muzzle: the means of its first and last fifth along its rest heading (up x trunnion). */
+function barrel(guns: Node): { breech: Vec3; muzzle: Vec3 } {
+  const e = pivotOf(guns).axis
+  const pts = worldPositions(guns)
+  const s = pts.map((p) => p[0] * e[2] - p[2] * e[0])
+  const lo = Math.min(...s), hi = Math.max(...s)
+  const mean = (keep: (v: number) => boolean): Vec3 => { const q = pts.filter((_, i) => keep(s[i]!)); return [0, 1, 2].map((k) => q.reduce((a, p) => a + p[k]!, 0) / q.length) as unknown as Vec3 }
+  return { breech: mean((v) => v < lo + 0.2 * (hi - lo)), muzzle: mean((v) => v > hi - 0.2 * (hi - lo)) }
+}
+
+/** Whether segment a-b crosses triangle `tri` (Moller-Trumbore, both ends inclusive). */
+function segmentHits(a: Vec3, b: Vec3, tri: readonly Vec3[]): boolean {
+  const [p0, p1, p2] = tri as [Vec3, Vec3, Vec3]
+  const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]]
+  const h = [d[1]! * e2[2]! - d[2]! * e2[1]!, d[2]! * e2[0]! - d[0]! * e2[2]!, d[0]! * e2[1]! - d[1]! * e2[0]!]
+  const det = e1[0]! * h[0]! + e1[1]! * h[1]! + e1[2]! * h[2]!
+  if (Math.abs(det) < 1e-12) return false
+  const sv = [a[0] - p0[0], a[1] - p0[1], a[2] - p0[2]]
+  const u = (sv[0]! * h[0]! + sv[1]! * h[1]! + sv[2]! * h[2]!) / det
+  if (u < 0 || u > 1) return false
+  const q = [sv[1]! * e1[2]! - sv[2]! * e1[1]!, sv[2]! * e1[0]! - sv[0]! * e1[2]!, sv[0]! * e1[1]! - sv[1]! * e1[0]!]
+  const v = (d[0]! * q[0]! + d[1]! * q[1]! + d[2]! * q[2]!) / det
+  if (v < 0 || u + v > 1) return false
+  const t = (e2[0]! * q[0]! + e2[1]! * q[1]! + e2[2]! * q[2]!) / det
+  return t >= 0 && t <= 1
+}
+
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
   const b = bounds(points)
@@ -45,8 +90,26 @@ function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig
 it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   expect(Object.keys(AIRFRAME_RIGS).length).toBeGreaterThan(0)
   for (const [id, rig] of Object.entries(AIRFRAME_RIGS)) {
-    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets]) expect(name, id).toMatch(PART_NAME)
+    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? [])]) expect(name, id).toMatch(PART_NAME)
   }
+})
+
+// C2: the airframes with bay doors in their models are exactly the specs that have them, and pinned,
+// so neither side can gain or lose doors alone.
+it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
+  const modeled = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.doors ?? []).length > 0).map(([id]) => id).sort()
+  const specced = specIds.filter((s) => loadAircraftSpec(s).bayDoors !== undefined).sort()
+  expect(modeled).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  expect(specced).toEqual(modeled)
+})
+
+// Pinned (C1 batches 1-3, 2026-10-08), so a filter that matches nothing fails rather than passing
+// empty. Batch 4 adds rows here as its models get surfaces. The F4F is not a rig (wildcat.ts draws
+// it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
+it('control surfaces: exactly the batch-1 to batch-4 airframes, each driving roll, pitch, yaw and flaps', () => {
+  const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
+  for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 
 describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (R3)', (id, rig) => {
@@ -70,8 +133,90 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
 
   it('drives every part the glb names: no pivoted part is left out of the rig and silently static', () => {
     const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
-    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets].sort()
+    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...rig.turrets.map((t) => `${t}Guns`), ...(rig.surfaces ?? []), ...(rig.doors ?? [])].sort()
     expect(inGlb).toEqual(inRig)
+  })
+
+  it('is inside its entry budget, measured off the committed glb (draw calls, triangles, bytes)', () => {
+    const e = entries.find((x) => x.id === id)!
+    const m = measureDocument(doc)
+    expect(m.drawCalls, 'draw calls').toBeLessThanOrEqual(e.budget.maxDrawCalls)
+    expect(m.triangles, 'triangles').toBeLessThanOrEqual(e.budget.maxTriangles)
+    expect(statSync(path).size, 'bytes').toBeLessThanOrEqual(e.budget.maxBytes)
+  })
+
+  it.each(rig.doors ?? [])('cut bay door %s: hinged on its outboard edge, and a positive turn opens it down and out (C2)', (name) => {
+    const n = one(doc, name)
+    const { point, axis } = pivotOf(n)
+    // The hinge runs fore and aft along the door's outboard edge: along x, at the door's largest |z|.
+    expect(Math.abs(axis[0]), `${name} axis along x`).toBeGreaterThan(0.999)
+    const pts = worldPositions(n)
+    const b = bounds(pts)
+    const outboard = name.endsWith('R') ? b.max[2] : b.min[2]
+    expect(Math.abs(point[2] - outboard), `${name} hinge at the outboard edge`).toBeLessThan(0.01)
+    expect(point[0] >= b.min[0] - 1e-3 && point[0] <= b.max[0] + 1e-3, `${name} hinge within the door's length`).toBe(true)
+    // Every vertex is inboard of the hinge, and none is above it: the door hangs off its hinge.
+    for (const p of pts) expect(Math.abs(p[2]) <= Math.abs(point[2]) + 1e-3 && p[1] <= point[1] + 1e-3, `${name} vertex ${p}`).toBe(true)
+    // The keel edge: the points farthest from the hinge. Fully open (BAY_DOOR_OPEN_DEG) they must drop well
+    // below the belly and swing outboard toward the hinge's side, never up into the fuselage.
+    const dist = pts.map((p) => radiusAbout([p], point, axis))
+    const far = Math.max(...dist)
+    const keel = pts.filter((_p, i) => dist[i]! > 0.9 * far)
+    const was = centroid(keel)
+    const now = centroid(keel.map((p) => rotateAbout(p, point, axis, (BAY_DOOR_OPEN_DEG * Math.PI) / 180)))
+    expect(now[1] - was[1], `${name} keel edge drops`).toBeLessThan(-0.5 * far)
+    expect(Math.abs(now[2]) - Math.abs(was[2]), `${name} keel edge swings outboard`).toBeGreaterThan(0.5 * far)
+  })
+
+  it.each(rig.surfaces ?? [])('control surface %s: hinged on its leading edge, and a positive input moves its trailing edge the right way (C1)', (name) => {
+    const n = one(doc, name)
+    const { point, axis } = pivotOf(n)
+    expect(Math.hypot(...axis), `${name} axis`).toBeCloseTo(1, 6)
+    const pts = worldPositions(n)
+    const dist = pts.map((p) => radiusAbout([p], point, axis))
+    // kit.py puts the hinge on the chord line at the piece's own front face, so nothing lies ahead of it: every
+    // vertex is aft along -x taken square to the axis. A hinge at mid-chord or the trailing edge fails here.
+    const ax = -axis[0]
+    const aft = [-1 - ax * axis[0], -ax * axis[1], -ax * axis[2]] as const
+    const len = Math.hypot(...aft)
+    const ahead = Math.min(...pts.map((p) => ((p[0] - point[0]) * aft[0] + (p[1] - point[1]) * aft[1] + (p[2] - point[2]) * aft[2]) / len))
+    // Dihedral tilts the front face against that direction: the worst is 1.8 mm, G4M Flap1 (measured 2026-10-08),
+    // well inside CONTROL_GAP_M's 12 mm. A hinge one gap forward would stand 12 mm ahead and fail.
+    expect(ahead, `${name}: how far its foremost vertex stands ahead of the hinge (m)`).toBeGreaterThan(-0.002)
+    // The trailing edge: the points farthest from the hinge. A +1 input (full deflection; flaps fully down)
+    // must move them as aircraftRigs.ts's surfaceDrive says: +roll raises the right aileron and lowers the
+    // left, +pitch raises the elevator, +yaw swings the rudder to starboard (+z), and flaps go down.
+    const far = Math.max(...dist)
+    const te = pts.filter((_p, i) => dist[i]! > 0.9 * far)
+    const moved = centroid(te.map((p) => rotateAbout(p, point, axis, surfaceAngleRad(name, 1))))
+    const was = centroid(te)
+    const d = surfaceDrive(name)
+    const [k, want] = d.input === 'yaw' ? [2, 1] : d.input === 'flap' ? [1, -1] : d.input === 'pitch' ? [1, 1] : [1, name.endsWith('R') ? 1 : -1]
+    expect(Math.sign(moved[k]! - was[k]!), `${name} trailing edge along ${'xyz'[k]}`).toBe(want)
+    expect(Math.abs(moved[k]! - was[k]!), `${name} moves visibly`).toBeGreaterThan(0.05)
+  })
+
+  it.each(rig.surfaces ?? [])('control surface %s is closed on its hinge face: no hollow shows when it deflects (C1 batch 2 review)', (name) => {
+    const n = one(doc, name)
+    const { point, axis } = pivotOf(n)
+    const ax = -axis[0]
+    const aft = [-1 - ax * axis[0], -ax * axis[1], -ax * axis[2]]
+    const len = Math.hypot(...aft)
+    const ahead = (p: readonly number[]): number => ((p[0]! - point[0]) * aft[0]! + (p[1]! - point[1]) * aft[1]! + (p[2]! - point[2]) * aft[2]!) / len
+    const key = (p: readonly number[]): string => p.map((c) => Math.round(c * 1e4)).join(',')
+    const edges = new Map<string, { n: number; a: readonly number[]; b: readonly number[] }>()
+    for (const t of worldTriangles(n)) for (let k = 0; k < 3; k++) {
+      const a = t[k]!, b = t[(k + 1) % 3]!, ka = key(a), kb = key(b)
+      if (ka === kb) continue
+      const e = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+      const v = edges.get(e) ?? { n: 0, a, b }
+      v.n++
+      edges.set(e, v)
+    }
+    // An edge is on the hinge face when both ends are within 3 mm of it (dihedral tilts the face 1.8 mm, above).
+    const open = [...edges.values()].filter((e) => e.n === 1 && Math.abs(ahead(e.a)) < 0.003 && Math.abs(ahead(e.b)) < 0.003)
+    const length = open.reduce((sum, e) => sum + Math.hypot(e.a[0]! - e.b[0]!, e.a[1]! - e.b[1]!, e.a[2]! - e.b[2]!), 0)
+    expect(length, `${name}: open edge on its hinge face (m)`).toBeLessThanOrEqual(OPEN_HINGE_FACE_EXCEPTIONS[`${id}/${name}`] ?? OPEN_HINGE_FACE_M)
   })
 
   it('every propeller spins about body x and is N-fold symmetric about its pivot (Review Focus 1)', () => {
@@ -133,13 +278,59 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     }
   }, 120_000)
 
-  it('turrets run nose to tail, dorsal before ventral at one station, each on a vertical axis', () => {
+  // A pair of flexible guns at one station and height (the B-17's cheek guns, 2026-10-09) runs port, then starboard.
+  it('turrets run nose to tail, dorsal before ventral, then port before starboard at one station, each on a vertical axis', () => {
     const centers = rig.turrets.map((t) => { const n = one(doc, t); expect(Math.abs(pivotOf(n).axis[1]), `${t} axis`).toBeGreaterThan(0.999); return centroid(worldPositions(n)) })
     for (let i = 0; i + 1 < centers.length; i++) {
       const [a, b] = [centers[i]!, centers[i + 1]!]
-      expect(a[0] > b[0] + 0.5 || (Math.abs(a[0] - b[0]) <= 0.5 && a[1] > b[1]), `${rig.turrets[i]} before ${rig.turrets[i + 1]}`).toBe(true)
+      const station = Math.abs(a[0] - b[0]) <= 0.5
+      expect(a[0] > b[0] + 0.5 || (station && a[1] > b[1] + 0.1) || (station && Math.abs(a[1] - b[1]) <= 0.1 && a[2] < b[2]), `${rig.turrets[i]} before ${rig.turrets[i + 1]}`).toBe(true)
     }
   })
+
+  // Turret aim (2026-10-09): every turret's barrels are their own part on a trunnion, and the arc the
+  // runtime aims them over keeps them out of the airframe.
+  it('every turret has an arc, and Guns on a horizontal trunnion whose positive turn raises the muzzle, modeled at restElevationDeg', () => {
+    expect(Object.keys(rig.turretArcs ?? {}).sort()).toEqual([...rig.turrets].sort())
+    for (const t of rig.turrets) {
+      const guns = one(doc, `${t}Guns`)
+      const { axis } = pivotOf(guns)
+      expect(Math.abs(axis[1]), `${t}Guns trunnion is horizontal`).toBeLessThan(1e-6)
+      const { breech, muzzle } = barrel(guns)
+      const d = [muzzle[0] - breech[0], muzzle[1] - breech[1], muzzle[2] - breech[2]]
+      const heading = [axis[2], 0, -axis[0]]
+      expect(d[0]! * heading[0]! + d[2]! * heading[2]!, `${t}Guns point along up x trunnion`).toBeGreaterThan(0)
+      const el = (Math.atan2(d[1]!, d[0]! * heading[0]! + d[2]! * heading[2]!) * 180) / Math.PI
+      expect(Math.abs(el - rig.turretArcs![t]!.restElevationDeg), `${t}Guns modeled at ${el.toFixed(1)} deg`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('every turret, swept over its arc, keeps its barrels out of the airframe', () => {
+    const tris = doc.getRoot().listNodes().filter((n) => n.getMesh() && !/^(Turret|Prop|Gear|Tailwheel|BayDoor)/.test(n.getName())).flatMap((n) => worldTriangles(n))
+    for (const t of rig.turrets) {
+      const arc = rig.turretArcs![t]!
+      const tp = pivotOf(one(doc, t)), gp = pivotOf(one(doc, `${t}Guns`))
+      const { breech, muzzle } = barrel(one(doc, `${t}Guns`))
+      const reach = Math.hypot(muzzle[0] - tp.point[0], muzzle[1] - tp.point[1], muzzle[2] - tp.point[2]) + 0.5
+      const near = tris.filter((tri) => tri.some((v) => Math.hypot(v[0] - tp.point[0], v[1] - tp.point[1], v[2] - tp.point[2]) < reach))
+      const half = arc.traverseDeg ?? 180
+      // The exposed barrel: from 40% of breech to muzzle, or from 5 cm past the socket when the gun's rear half is
+      // inside the skin (a flexible gun's trunnion is where it leaves the airframe: the B-17's tail guns, 2026-10-09).
+      const len = Math.hypot(muzzle[0] - breech[0], muzzle[1] - breech[1], muzzle[2] - breech[2])
+      const atSocket = ((gp.point[0] - breech[0]) * (muzzle[0] - breech[0]) + (gp.point[1] - breech[1]) * (muzzle[1] - breech[1]) + (gp.point[2] - breech[2]) * (muzzle[2] - breech[2])) / (len * len)
+      const from = Math.max(0.4, atSocket + 0.05 / len)
+      // Every 15 deg of traverse and 5 of elevation, both ends of each included.
+      const hits: string[] = []
+      for (const tr of [...Array.from({ length: Math.ceil((2 * half) / 15) }, (_, i) => -half + 15 * i), half]) {
+        for (const el of [...Array.from({ length: Math.ceil((arc.elevationDeg[1] - arc.elevationDeg[0]) / 5) }, (_, i) => arc.elevationDeg[0] + 5 * i), arc.elevationDeg[1]]) {
+          const pose = (p: Vec3): Vec3 => rotateAbout(rotateAbout(p, gp.point, gp.axis, ((el - arc.restElevationDeg) * Math.PI) / 180), tp.point, tp.axis, (tr * Math.PI) / 180)
+          const a = pose(breech.map((b, k) => b + from * (muzzle[k]! - b)) as unknown as Vec3), b = pose(muzzle)
+          if (near.some((tri) => segmentHits(a, b, tri))) hits.push(`${tr}/${el}`)
+        }
+      }
+      expect(hits, `${t} barrels cross the skin at traverse/elevation (deg)`).toEqual([])
+    }
+  }, 120_000)
 
   it("stands on the gear height of every aircraft spec that draws it (Z3's gear.heightM, P1)", () => {
     const mains = rig.gear.filter((g) => MAIN.has(g.node))

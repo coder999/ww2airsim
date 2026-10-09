@@ -79,6 +79,7 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     engineHealth: frame.world.combat.aircraft[frame.world.player]?.damage.engine ?? 1,
     arrested: aircraft.arrested,
     hookDown: frame.controls.hookDown === true,
+    bayDoorFraction: aircraft.bayDoorFraction,
     damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
   }
 }
