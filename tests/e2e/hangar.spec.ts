@@ -1,5 +1,5 @@
 // tests/e2e/hangar.spec.ts
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { test, expect, type Page } from '@playwright/test'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 import type { PartPose } from '../../src/render/hangar/models.js'
@@ -429,6 +429,28 @@ test.describe('the Hangar', () => {
       expect(Math.max(Math.abs(m.luminance[1]! - m.luminance[0]!) / m.luminance[0]!, m.changed01 / m.areas[0]!), `${id} checker differs`).toBeGreaterThan(0.05)
       expect(Math.abs(m.luminance[2]! - m.luminance[0]!) / m.luminance[0]!, `${id} restored`).toBeLessThanOrEqual(0.005)
     }
+  })
+
+  test('17. every warship\'s gun mounts are its spec\'s armament, and each trains on its own: 90 deg changes the top view, 0 restores it exactly (M1)', async ({ page }) => {
+    const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null }[]> })
+    const ids = await entries(page)
+    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(10)
+    for (const ship of ships) {
+      const a = ship.armament
+      const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : [`${p}${i + 1}`]))) : []
+      await select(page, ship.id)
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts()), ship.id).toEqual(want)
+      if (want.length === 0) continue
+      await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'top' as const)
+      const rest = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.trainMounts(Math.PI / 2))
+      const turned = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.trainMounts(0))
+      const back = await shot(page)
+      expect(turned.equals(rest), `${ship.id}: training moved nothing`).toBe(false)
+      expect(back.equals(rest), `${ship.id}: training back to 0 did not restore the frame`).toBe(true)
+    }
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 })
 

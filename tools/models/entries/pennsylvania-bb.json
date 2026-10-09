@@ -9,12 +9,11 @@
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 185.32 } },
   "skin": true,
-  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }, { "node": "Turret3" }, { "node": "Turret4" }],
-  "textures": { "maxSize": 1024, "format": "webp" },
+  "textures": { "maxSize": 2048, "format": "webp" },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {
-    "spec": "pennsylvania-bb", "fit": "hull", "kind": "waterline", "palette": "usn-1944",
+    "spec": "pennsylvania-bb", "fit": "hull", "kind": "waterline", "palette": "usn-ms21",
     "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
     "otherMaterials": "classify", "smokeOrigin": [-6, 26, 0], "bow": "narrow-end"
   }

@@ -30,10 +30,10 @@ ESTIMATE / modeling choice:
   9 m main deck; waterline-only shallow authored bottom (the shared stage adds its skirt);
   the station table, section, sheer and tumblehome (read by eye from the 1945 General Plans'
   sections); tower, funnel and mast heights; gunhouse and barbette sizes.
-  Every AA and 5"/38 POSITION (no legible 1944 plan): 8 twin 5"/38 at x 24, 14, 4, -6 both
-  sides; the 10 quad 40 mm on the deck edge at x 46, 30, 20, -18, -26 both sides; single
-  20 mm every 8 m along the deck edge, except within 3 m of a 40 mm tub or a 5" mount, so
-  fewer than the cited 51 are drawn (the rest stood on superstructure levels not modeled).
+  Every AA and 5"/38 POSITION (no legible 1944 plan), now in content/ships/pennsylvania-bb.json:
+  8 twin 5"/38 at x 24, 14, 4, -6 both sides; the 10 quad 40 mm on the deck edge at x 46, 30,
+  20, -18, -26 both sides; single 20 mm every 8 m along the deck edge, except within 3 m of a
+  40 mm tub or a 5" mount, drawn statically for the spec's four 20 mm galleries.
   Two boats a side on the superstructure roof; a pole mainmast with a yard stands in for the
   aft deckhouse's radar mast. Catapult, cranes and aircraft: no source read settles them for
   October 1944, so they are omitted.
@@ -45,17 +45,27 @@ Rulings (DP2 Task 7):
   gaps of 0.05-0.19 m otherwise, in the sheer).
   The boats sit on the superstructure roof, not 1.7 m over the main deck (they floated there,
   and 40 mm barrels pierced them).
-Omits railings, rigging, aircraft, catapult, cranes, the aft deckhouse and director, radar
-arrays, and the air-recognition marks seen on turret roofs in NH 67584 (unresolvable).
+M1 detail pass (Track M, 2026-10-08; every addition an ESTIMATE read by eye from 80-G-K-2106 and the
+  1945 General Plans' profile, positions not measured): conning tower (5.5 m armored cylinder) at the
+  superstructure's fore end; two stepped bridge levels with wings and a glazing band; a fire-control
+  top on the tripod (box, Mk 34 director with rangefinder arms) carrying an SK air-search array;
+  two Mk 37 directors (fore on the upper bridge, aft on the aft deckhouse); the aft deckhouse
+  (the 1942 refit's, cited above) with a CXAM-type array on a pole mast; four searchlight
+  platforms on the funnel; a quarterdeck crane; six boats with davits; two bower anchors.
+  The guns are no longer drawn here from constants: their positions are the ShipSpec's armament
+  (naval.py), and every 5"/38 and 40 mm mount is a node named for its locator.
+Omits railings (an alpha strip the build has no path for yet), rigging, aircraft, the catapult
+(no source read settles it for October 1944), and the air-recognition marks on turret roofs.
 Frame: +x bow, +y up, +z starboard; waterline y=0.
 """
 import math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kit  # noqa: E402
+import naval  # noqa: E402
 
 L, B, DECK = 185.32, 32.39, 9.0
 EMBED_M = 0.02  # every fitting sinks this far into what it stands on: no coplanar faces (DP0)
-SUBDIVIDE = 8  # 6 built 8,810 triangles, under the 11,250 floor (25% of the budget); so did the R2 segment counts
+SUBDIVIDE = 12  # M1: 8 -> 12 for a smoother sheer and bow flare
 # (x, waterline half-beam, draft, deck-edge height, deck-edge half-beam). The authored bottom is shallow:
 # a waterline model, the build's skirt carries it to -3 m. The bulged midbody is widest at the
 # waterline and tumbles home to the deck (ESTIMATE from the 1945 General Plans' sections).
@@ -65,17 +75,15 @@ STATIONS = [
     (80.0, 7.2, 0.5, 9.9, 8.4), (L / 2, 0.5, 0.45, 10.6, 1.3),
 ]
 SECTION = ((0.0, -1.0), (0.8, -0.9), (1.0, -0.4), (1.0, 0.0), (1.0, 0.3), (0.97, 0.65), (1.0, 1.0))
-TURRETS = [(1, 58.0, 1, 0.0), (2, 35.0, 1, 2.6), (3, -35.0, -1, 2.6), (4, -58.0, -1, 0.0)]  # index, x, facing, barbette rise
+SUPERFIRING_RISE_M = 2.6  # Nos. 2 and 3 stand on barbettes this far above the deck (ESTIMATE)
 TURRET_BODY = (9.5, 11.5, 3.4)
 BARBETTE_R = 5.2
 GUN_L = 45 * 0.3556  # 14"/45: 45 calibers of 14 in (0.3556 m) = 16.0 m, CITED arithmetic
-FIVE_INCH = [(x, s) for x in (24.0, 14.0, 4.0, -6.0) for s in (-1, 1)]    # twin 5"/38 mounts, x and side (ESTIMATE)
-QUAD_40 = [(x, s) for x in (46.0, 30.0, 20.0, -18.0, -26.0) for s in (-1, 1)]  # 40 mm quads on the deck edge (ESTIMATE)
 SINGLE_CLEAR_M = 3.0  # a 20 mm single keeps this far (plan) from a 40 mm tub's or a 5" mount's center
-QUAD_R, FIVE_R = 1.9 + 0.12, 1.6  # a 40 mm tub's outer radius, a 5" pedestal's radius
+DRY_RUN = os.environ.get('NAVAL_DRY_RUN') == '1'  # prints each mount's foot, for the spec's y
 
 out, opts = kit.cli_args()
-m = kit.Model('pennsylvania-bb', skin=1024)
+m = kit.Model('pennsylvania-bb', skin=2048)
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, SECTION, node='Hull', deck_role='deck', deck_node='MainDeck', subdivide=SUBDIVIDE)
 deck = lambda x: m.hull_at(x)[2] - EMBED_M  # noqa: E731
@@ -89,74 +97,133 @@ def stand(x, l):
     return min(deck(x - l / 2 + l * i / (n - 1)) for i in range(n))
 
 
-with m.tagged('turrets'):
-    for i, x, facing, rise in TURRETS:
-        y = stand(x, 2 * BARBETTE_R if rise > 0 else TURRET_BODY[0])
-        if rise > 0:  # a superfiring barbette; the gunhouse sinks EMBED_M into its top
-            m.tank('fitting', (x, y, 0.0), BARBETTE_R, rise + EMBED_M, segments=32)
-        m.naval_turret('fitting', i, (x, y + rise, 0.0), facing, TURRET_BODY, 3, GUN_L, 0.36, bag_length=0.9)
+# The guns, from the spec. Turrets: a barbette for the superfiring pair, the gunhouse on it.
+fixed = []  # (x, z) of every 5" and 40 mm mount, which the 20 mm keep clear of
+with m.tagged('turrets'), m.shared_chart():
+    for name, g in naval.armament('pennsylvania-bb'):
+        x, z, b = g['x'], g['z'], g['bearingDeg']
+        if name.startswith('Turret'):
+            rise = SUPERFIRING_RISE_M if abs(x) < 45 else 0.0
+            y = stand(x, 2 * BARBETTE_R if rise > 0 else TURRET_BODY[0])
+            if rise > 0:  # the barbette is hull; the gunhouse sinks EMBED_M into its top
+                m.tank('fitting', (x, y, z), BARBETTE_R, rise + EMBED_M, segments=48)
+            y += rise
+            naval.turret(m, name, x, y, z, b, TURRET_BODY, 3, GUN_L, 0.36, bag_length=0.9)
+            f = 1 if round(b) == 0 else -1  # rangefinder hoods (ears) on the gunhouse's flanks, toward its rear
+            for side in (-1, 1):
+                m.box('fitting', (x - f * 2.5, y + TURRET_BODY[2] - 0.8, side * 5.2), (1.6, 0.9, 0.8), node=name)
+        elif g['kit'] is not None:
+            y = stand(x, 4.2)
+            naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
+            fixed.append((x, z))
+        else:
+            continue
+        if DRY_RUN:
+            print(f'MOUNT {name} {x} {round(y, 2)} {z}')
 
 s0 = stand(2.0, 35.0)           # the superstructure's foot
 y1 = s0 + 4.0 + EMBED_M         # its first tier's roof
-y2 = y1 - EMBED_M + 8.0         # the tower's roof
+y2 = y1 - EMBED_M + 4.0         # the lower bridge's roof
+y3 = y2 - EMBED_M + 3.2         # the upper bridge's roof
 with m.tagged('superstructure'), m.shared_chart():
-    m.frustum('superstructure', (2.0, s0, 0.0), (35.0, 15.0), (31.0, 13.0), 4.0 + EMBED_M)
-    m.frustum('superstructure', (12.0, y1 - EMBED_M, 0.0), (15.0, 10.0), (11.0, 8.0), 8.0)
-    m.frustum('superstructure', (16.0, y2 - EMBED_M, 0.0), (8.0, 6.0), (6.0, 4.5), 4.0)
-    # Tripod foremast: three legs from the tower's roof (x 6.5..17.5, z +-4) to a platform, the director on it.
-    top = (15.0, s0 + 26.0, 0.0)
-    for leg in ((12.0, -3.0), (12.0, 3.0), (17.0, 0.0)):
-        m.strut('fitting', (leg[0], y2 - EMBED_M, leg[1]), top, 0.45, 0.3, sides=8)
-    m.frustum('fitting', (top[0], top[1] - 0.2, 0.0), (5.0, 4.0), (4.2, 3.4), 2.4)
+    m.frustum('superstructure', (2.0, s0, 0.0), (35.0, 15.0), (33.0, 14.0), 4.0 + EMBED_M)
+    # Conning tower: the armored cylinder at the fore end, rising through both bridge levels.
+    m.tank('superstructure', (17.5, y1 - 0.06, 0.0), 2.75, 6.3, segments=32)  # sunk deeper than the bridge: no shared floor
+    # Lower and upper bridge, each with wings spanning past the tier below.
+    m.frustum('superstructure', (12.0, y1 - EMBED_M, 0.0), (15.0, 10.0), (14.0, 9.4), 4.0)
+    m.box('superstructure', (15.0, y2 - 0.3, 0.0), (4.0, 0.3 + EMBED_M, 16.0))  # lower wings
+    m.frustum('superstructure', (14.0, y2 - EMBED_M, 0.0), (9.0, 7.0), (8.4, 6.6), 3.2)
+    m.box('superstructure', (16.0, y3 - 0.3, 0.0), (3.0, 0.3 + EMBED_M, 12.0))  # upper wings
+    # Window bands straddling each sloped face at their mid height (Kagero's pattern): never coplanar with it.
+    m.box('glazing', (18.34, y2 + 1.3, 0.0), (0.26, 0.9, 5.6))   # upper bridge
+    m.box('glazing', (19.21, y1 + 1.9, 0.0), (0.26, 0.9, 7.0))   # lower bridge
+    # Mk 37 director on the upper bridge, rangefinder arms athwartships.
+    m.tank('fitting', (14.0, y3 - EMBED_M, 0.0), 1.0, 0.9, segments=16)
+    m.frustum('fitting', (14.0, y3 + 0.88, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
+    m.gun_barrel('fitting', (14.0, y3 + 2.0, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
+    # Tripod foremast to the fire-control top, the Mk 34 director and the SK air-search array on it.
+    top = (12.0, s0 + 27.0, 0.0)
+    for leg in ((9.5, -3.0), (9.5, 3.0), (14.5, 0.0)):
+        m.strut('fitting', (leg[0], y3 - EMBED_M, leg[1]), top, 0.45, 0.3, sides=8)
+    m.frustum('fitting', (top[0], top[1] - 0.2, 0.0), (6.0, 5.0), (5.4, 4.4), 2.6)
+    m.box('glazing', (top[0] + 2.75, top[1] + 1.2, 0.0), (0.2, 0.7, 3.8))
+    m.frustum('fitting', (top[0], top[1] + 2.38, 0.0), (3.4, 2.8), (2.8, 2.4), 1.6)
+    m.gun_barrel('fitting', (top[0], top[1] + 3.2, -2.8), -90.0, 0.0, 5.6, 0.14, 0.14, 12)
+    m.strut('fitting', (top[0] - 1.0, top[1] + 3.96, 0.0), (top[0] - 1.0, top[1] + 8.0, 0.0), 0.15, 0.1, sides=8)
+    m.lattice_mast('fitting', (top[0] - 1.0, top[1] + 8.0, 0.0), 4.6, 4.6, 0.6, 1, 0.06)  # SK array, edge-on fore-aft
+    # Aft deckhouse with the aft Mk 37 and a CXAM-type array on its pole mast.
+    ad = stand(-22.0, 12.0)  # x -28..-16: clear of No. 3's barbette (to -29.8) and of the pole mainmast
+    m.frustum('superstructure', (-22.0, ad, 0.0), (12.0, 9.0), (11.0, 8.4), 3.6 + EMBED_M)
+    m.tank('fitting', (-22.0, ad + 3.6, 0.0), 1.0, 0.9, segments=16)
+    m.frustum('fitting', (-22.0, ad + 4.48, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
+    m.gun_barrel('fitting', (-22.0, ad + 5.6, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
+    m.strut('fitting', (-27.5, ad + 3.6 - EMBED_M, 0.0), (-27.5, ad + 17.0, 0.0), 0.3, 0.18, sides=8)
+    m.lattice_mast('fitting', (-27.5, ad + 17.0, 0.0), 5.2, 5.2, 0.5, 1, 0.06)  # CXAM-type array
 with m.tagged('funnel'):
-    # Raked aft; its mouth (the cap's top, about y 25.6) is the entry's smokeOrigin [-6, 26, 0] (Ruling above).
-    m.strut('superstructure', (-5.0, y1 - 0.3, 0.0), (-6.0, s0 + 16.0, 0.0), 3.2, 2.9, sides=24)
-    m.strut('dark', (-6.0, s0 + 16.0 - 0.3, 0.0), (-6.05, s0 + 16.6, 0.0), 3.0, 3.0, sides=24)  # cap, sooty
-with m.tagged('secondary'), m.shared_chart():
-    for x, s in FIVE_INCH:
-        z, y = s * (inside(x) - 3.2), stand(x, 4.2)
-        m.tank('fitting', (x, y, z), FIVE_R, 0.6 + EMBED_M, segments=24)
-        m.frustum('fitting', (x, y + 0.6, z), (4.2, 3.6), (3.6, 3.2), 2.4)
-        for dz in (-0.55, 0.55):
-            m.gun_barrel('fitting', (x + 1.6, y + 1.7, z + dz), 0.0, 8.0, 5.0, 0.09, 0.07, 12)
+    # Raked aft; its mouth (the cap's top, about y 25.6) is the entry's smokeOrigin [-6, 26, 0] (DP2 ruling).
+    m.strut('superstructure', (-5.0, y1 - 0.3, 0.0), (-6.0, s0 + 16.0, 0.0), 3.2, 2.9, sides=32)
+    m.strut('dark', (-6.0, s0 + 16.0 - 0.3, 0.0), (-6.05, s0 + 16.6, 0.0), 3.0, 3.0, sides=32)  # cap, sooty
+with m.tagged('searchlights'), m.shared_chart():
+    for s in (-1, 1):  # two platforms a side on the funnel's flanks, a searchlight drum on each
+        for k, dy in enumerate((6.0, 9.5)):
+            py = s0 + dy
+            m.box('fitting', (-5.5, py, s * 3.9), (2.6, 0.2, 2.4))
+            m.tank('fitting', (-5.5, py + 0.2 - EMBED_M, s * 3.9), 0.55, 0.9, segments=16)
 with m.tagged('aa'), m.shared_chart():
-    mounts = []
-    for x, s in QUAD_40:
-        z, y = s * (inside(x) - 2.6), stand(x, 2 * QUAD_R)
-        mounts.append((x, z))
-        m.sandbag_ring('fitting', (x, y, z), 1.9, 0.12, 1.1, segments=24)
-        m.tank('fitting', (x, y, z), 0.7, 1.0 + EMBED_M, segments=16)
-        for dz in (-0.45, -0.15, 0.15, 0.45):
-            m.gun_barrel('fitting', (x + 0.3, y + 1.0, z + dz), 0.0, 25.0, 2.4, 0.05, 0.04, 12)
-    mounts += [(x, s * (inside(x) - 3.2)) for x, s in FIVE_INCH]
     for x in range(-80, 81, 8):
         if abs(x) <= 12:
             continue
         for s in (-1, 1):
             z, y = s * (inside(x) - 0.9), stand(x, 0.4)
-            if any(math.hypot(x - mx, z - mz) < SINGLE_CLEAR_M for mx, mz in mounts):
+            if any(math.hypot(x - mx, z - mz) < SINGLE_CLEAR_M for mx, mz in fixed):
                 continue  # it would stand inside a 40 mm tub or against a 5" mount (Ruling, T7/T9)
-            m.tank('fitting', (x, y, z), 0.18, 1.0 + EMBED_M, segments=12)
-            m.box('fitting', (x + 0.15, y + 0.9, z), (0.08, 0.9, 1.0))
-            m.gun_barrel('fitting', (x, y + 1.1, z), 0.0, 30.0, 1.8, 0.03, 0.03, 8)
+            naval.static_20mm(m, x, y, z, 0.0, EMBED_M)
 with m.tagged('boats'), m.shared_chart():
-    # On the superstructure's roof (x -13.5..17.5, z +-6.5), outboard of the funnel and aft of the tower.
+    # Six on the superstructure roof (x -13.5..19.5, z +-7), outboard of the funnel and aft of the bridge.
     by = y1 - EMBED_M + 0.8  # the keel (the mid station's lowest point) sinks EMBED_M into the roof
-    for x in (-9.0, 0.0):
+    for x in (-11.0, -2.0, 7.0):
+        if x == 7.0:
+            continue  # under the bridge wings
         for s in (-1, 1):
             m.fuselage('fitting', [(x - 4.0, 0.3, 0.3, by, 2.0), (x, 1.2, 0.8, by, 2.4), (x + 4.0, 0.2, 0.4, by + 0.2, 2.0)],
                        segments=16, center_z=s * 5.0)
+            for dx in (-3.0, 3.0):  # davits, outboard of each boat
+                m.strut('fitting', (x + dx, y1 - EMBED_M, s * 6.6), (x + dx, y1 + 3.0, s * 5.6), 0.1, sides=6)
+with m.tagged('stern'), m.shared_chart():
+    # Quarterdeck crane: a post and a boom raised toward the stern.
+    cy = stand(-82.0, 1.2)
+    m.strut('fitting', (-82.0, cy, 0.0), (-82.0, cy + 6.0, 0.0), 0.5, 0.4, sides=12)
+    m.strut('fitting', (-82.0, cy + 5.5, 0.0), (-90.0, cy + 9.0, 0.0), 0.25, 0.15, sides=6)
 with m.tagged('masts'):
-    # Aft of the superstructure (which ends at x = -15.5), so the pole stands on the deck itself.
-    ym = stand(-19.0, 0.7)
-    m.strut('fitting', (-19.0, ym, 0.0), (-19.0, ym + 20.0, 0.0), 0.35, 0.2, sides=8)
-    m.strut('fitting', (-19.0, ym + 17.0, -4.0), (-19.0, ym + 17.0, 4.0), 0.12, sides=6)  # yard
+    ym = ad + 3.6 - EMBED_M  # the pole mainmast stands on the aft deckhouse's roof, forward of its director
+    m.strut('fitting', (-17.5, ym, 0.0), (-17.5, ym + 16.4, 0.0), 0.35, 0.2, sides=8)
+    m.strut('fitting', (-17.5, ym + 13.4, -4.0), (-17.5, ym + 13.4, 4.0), 0.12, sides=6)  # yard
+with m.tagged('anchors'), m.shared_chart():
+    for s in (-1, 1):  # bower anchors stowed at the hawse pipes
+        ax = 82.0
+        m.box('dark', (ax, deck(ax) - 1.8, s * (m.hull_at(ax)[3] + 0.05)), (1.4, 1.6, 0.25))
+with m.tagged('deckfittings'), m.shared_chart():
+    # M1: forecastle capstans and bitts, quarterdeck bitts, cowl vents, Carley floats on the superstructure.
+    for cx in (70.0, 74.0):
+        naval.capstan(m, cx, stand(cx, 1.3), 0.0, EMBED_M)
+    for bx in (64.0, 79.0, -66.0, -78.0):
+        for side in (-1, 1):
+            naval.bitts(m, bx, stand(bx, 1.4), side * (inside(bx) - 1.4), True, EMBED_M)
+    for vx, vz in ((49.0, 8.0), (-47.0, 8.0), (-70.0, 6.0)):
+        for side in (-1, 1):
+            naval.cowl_vent(m, vx, stand(vx, 0.5), side * vz, 180.0 if vx > 0 else 0.0, 1.8, EMBED_M)
+    for fx in (-12.0, -6.0, 0.0, 6.0):
+        for side in (-1, 1):
+            naval.carley_float(m, fx, s0 + 1.2, side * 7.42, 2.6, side)
 # Plating strakes, world-aligned (the grid cuts only axes lying in each surface; decks cut none).
 m.marking('grid', tags=['hull'], spacingM=[None, 1.8, None], widthM=0.02, depth=0.6)
-HULL_NUMBER = None  # Task 1: none on the cited hull (80-G-K-2106's port bow is bare); ships.test.ts counts 0 texts
-if HULL_NUMBER:
-    x0 = 70.0
-    for s in (-1, 1):
-        m.marking('text', tags=['hull'], origin=(x0 if s == 1 else x0 + 3.0, 5.0, s * (m.hull_at(x0)[0] + 0.3)),
-                  axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0), text=HULL_NUMBER, heightM=2.4, strokeM=0.36, color='insigniaWhite')
+# M1 weathering: grime along the waterline, rust streaks from the hawse pipes, soot on the funnel's top.
+m.marking('slab', tags=['hull'], axis='y', fromM=-1.0, toM=0.9, color='exhaustSoot', effect='stain', opacity=0.35, featherM=0.5)
+for s in (-1, 1):
+    m.marking('polygon', tags=['hull'], origin=(82.0, 0.0, s * 9.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+              points=[(-0.6, 8.2), (0.6, 8.2), (1.4, 2.0), (-1.2, 2.5)], color='rustStain', effect='stain', opacity=0.3, featherM=0.4)
+    for x in (-60.0, -30.0, 30.0):  # scupper streaks down the side
+        m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 16.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+                  points=[(-0.3, 8.3), (0.3, 8.3), (0.5, 4.5), (-0.4, 5.0)], color='rustStain', effect='stain', opacity=0.4, featherM=0.3)
+m.marking('slab', tags=['funnel'], axis='y', fromM=s0 + 14.5, toM=s0 + 17.0, color='exhaustSoot', effect='stain', opacity=0.6, featherM=0.6)
 m.export(out)

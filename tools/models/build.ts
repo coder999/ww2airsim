@@ -17,7 +17,7 @@
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { getBounds, prune } from '@gltf-transform/functions'
+import { getBounds, join, prune } from '@gltf-transform/functions'
 import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
 import { BLENDER_VERSION, blenderPresent, hingesSidecarPath, runBlenderScript } from './blender/run.js'
@@ -38,6 +38,7 @@ import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
 import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
 import { shipMaterials } from './stages/shipMaterials.js'
+import { addMountLocators, carveMounts, namedMounts } from './stages/shipMounts.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
 import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
@@ -126,15 +127,21 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
     images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
   }
   if (entry.dedupMaterials) await dedupMaterials(doc)
-  // 5. join everything except the parts
-  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
+  // 5. join everything except the parts, and except every mount a ship's armament names (Track M, M1)
+  const mountNames = ship?.spec.armament ? namedMounts(ship.spec.armament).map((m) => m.name) : []
+  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames, ...mountNames]))
+  // A carved mount keeps one primitive per source material; join those sharing a role material within
+  // the mount, so each kit is as few draws as its roles (Fletcher's five gun materials are one fitting).
+  if (mountNames.length) await doc.transform(join({ keepMeshes: false, keepNamed: true, filter: (node) => mountNames.includes(node.getName()) }))
   // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
   if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
+  if (ship) carveMounts(doc, ship.spec, ship.block.palette)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
   if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)
+  if (ship) addMountLocators(doc, ship.spec)
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
   asset.extras = { ...(asset.extras ?? {}), ...provenance(entry.source) }
@@ -204,6 +211,8 @@ export interface BuildDeps {
   readText(path: string): string
   /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
   scan: ScanLoader
+  /** The ShipSpec a ship entry fits to; content/ships by default. Toy-ship tests pass one without armament. */
+  shipSpec?: (id: string) => ShipSpec
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -260,7 +269,7 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         }
         const hingesPath = hingesSidecarPath(raw)
         const hinges = deps.exists(hingesPath) ? parseHinges(deps.readText(hingesPath)) : {}
-        doc = await runPipeline(read, entry, loadShipSpec, skin, deps.scan, hinges)
+        doc = await runPipeline(read, entry, deps.shipSpec ?? loadShipSpec, skin, deps.scan, hinges)
       } else if (entry.legacyOptimize) {
         // The original recipe into the cache once (it needs npx), then split only (manifest.ts).
         const mid = `tools/models/cache/${entry.id}.legacy.glb`
@@ -272,7 +281,7 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         // locator nodes this hierarchy keeps.
         await doc.transform(prune({ propertyTypes: [PropertyType.ACCESSOR], keepLeaves: true }))
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
+        doc = await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails

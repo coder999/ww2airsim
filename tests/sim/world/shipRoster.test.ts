@@ -38,4 +38,28 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
       if (spec.flightDeck) expect(spec.flightDeck.heightM, id).toBe(spec.deckHeightM)
     }
   })
+
+  // Track M, M1 (2026-10-08): every warship's gun positions, as [turrets, heavyAA, lightAA]
+  // entries; a light AA entry is one gun tub, or one gallery of 20 mm singles. Counts follow
+  // the late-1944 fits cited in each spec's reference.source; the merchant carries none.
+  const fits: Record<string, readonly [number, number, number] | null> = {
+    'casablanca-cve': [1, 0, 12],
+    'cleveland-cl': [4, 6, 14],
+    'essex-cv': [8, 0, 19],
+    'fletcher-dd': [5, 0, 12],
+    'kagero-dd': [2, 0, 5],
+    'mogami-ca': [5, 4, 16],
+    'pennsylvania-bb': [4, 8, 14],
+    'shiratsuyu-dd': [2, 0, 7],
+    'type-b-maru': null,
+    'yamato-bb': [5, 6, 22],
+  }
+
+  it('pins every warship\'s armament and gives the merchant none', () => {
+    expect(Object.keys(fits).sort()).toEqual(Object.keys(roster).sort())
+    for (const [id, fit] of Object.entries(fits)) {
+      const a = loadShipSpec(id).armament
+      expect(a ? [a.turrets.length, a.heavyAA.length, a.lightAA.length] : null, id).toEqual(fit)
+    }
+  })
 })

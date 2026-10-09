@@ -26,12 +26,18 @@ ESTIMATE / modeling choice:
   The twin mount before the bridge is drawn as a triple (the kit has one 25 mm mount); its
   x position, the two boats a side and the depth-charge racks are ESTIMATE. No source read
   settles the boats or racks for October 1944.
-Omits reload housings, railings, rigging, radar arrays and the searchlight.
+M1 detail pass (Track M, 2026-10-08; every addition an ESTIMATE, no drawing read): bridge wings and a
+  compass platform; the Type 22 array on the foremast and the Type 13 ladder array on the mainmast
+  (both CITED above as fitted, their shapes ESTIMATED); a searchlight platform abaft the forward
+  funnel; davits for the boats; weathering stains. The guns' positions are now the ShipSpec's
+  armament (naval.py), each mount a node named for its locator.
+Omits reload housings, railings and rigging.
 Frame: +x bow, +y up, +z starboard; waterline y=0.
 """
 import math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kit  # noqa: E402
+import naval  # noqa: E402
 
 L, B, DRAFT, DECK = 118.5, 10.8, 3.76, 5.5
 EMBED_M = 0.02  # every fitting sinks this far into what it stands on: no coplanar faces (DP0)
@@ -44,10 +50,8 @@ STATIONS = [
 ]
 SECTION = ((0.0, -1.0), (0.3, -0.96), (0.65, -0.82), (0.9, -0.55), (1.0, -0.22), (1.0, 0.0), (1.0, 0.45), (1.0, 1.0))
 GUN_L = 50 * 0.127  # 127 mm/50: 6.35 m, CITED arithmetic from the caliber
-TURRETS = [(1, 42.0, 1, 0.0), (2, -39.0, -1, 0.0)]  # index, x, facing, barbette rise (Ruling S8: two mounts)
 TORPEDO = [1.0, -17.0]
-# 25 mm mounts: two at the X mount's site, two abreast the aft funnel, one before the bridge (counts CITED).
-TRIPLE_25 = [(-25.0, -1), (-25.0, 1), (-8.0, -1), (-8.0, 1), (19.0, 0)]
+DRY_RUN = os.environ.get('NAVAL_DRY_RUN') == '1'  # prints each mount's foot, for the spec's y
 
 
 def stand_fn(m):
@@ -59,17 +63,25 @@ def stand_fn(m):
 
 
 out, opts = kit.cli_args()
-m = kit.Model('kagero-dd', skin=1024)
+m = kit.Model('kagero-dd', skin=2048)
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, SECTION, node='Hull', deck_role='deck', deck_node='MainDeck',
                  below_role='antifouling', below_node='Bottom', subdivide=SUBDIVIDE)
 stand = stand_fn(m)
 inside = lambda x: m.hull_at(x)[3]  # noqa: E731
 
-with m.tagged('turrets'):
-    for i, x, facing, rise in TURRETS:
-        y = stand(x, 5.0)
-        m.naval_turret('fitting', i, (x, y + rise, 0.0), facing, (5.0, 4.2, 2.2), 2, GUN_L, 0.1, elevation_deg=5.0)
+# The guns, from the spec (Ruling S8: two twin mounts; the 25 mm counts CITED above).
+with m.tagged('turrets'), m.shared_chart():
+    for name, g in naval.armament('kagero-dd'):
+        x, z, b = g['x'], g['z'], g['bearingDeg']
+        if name.startswith('Turret'):
+            y = stand(x, 5.0)
+            naval.turret(m, name, x, y, z, b, (5.0, 4.2, 2.2), 2, GUN_L, 0.1, elevation_deg=5.0)
+        else:
+            y = stand(x, 2.4)
+            naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
+        if DRY_RUN:
+            print(f'MOUNT {name} {x} {round(y, 2)} {z}')
 
 s0 = stand(27.0, 11.0)          # the bridge's foot
 y1 = s0 + 3.0 + EMBED_M         # its first tier's roof
@@ -94,25 +106,51 @@ with m.tagged('torpedo'), m.shared_chart():
         m.frustum('fitting', (x, y + 0.5, 0.0), (3.2, 3.6), (2.8, 3.2), 1.6)
         for dz in (-1.05, -0.35, 0.35, 1.05):
             m.gun_barrel('fitting', (x - 3.8, y + 1.2, dz), 0.0, 0.0, 8.4, 0.32, 0.3, 24)
-with m.tagged('aa'), m.shared_chart():
-    for x, s in TRIPLE_25:
-        z, y = (0.0 if s == 0 else s * (inside(x) - 1.3)), stand(x, 2.4)
-        m.sandbag_ring('fitting', (x, y, z), 1.2, 0.08, 0.9, segments=32)
-        m.tank('fitting', (x, y, z), 0.45, 0.9 + EMBED_M, segments=24)
-        for dz in (-0.3, 0.0, 0.3):
-            m.gun_barrel('fitting', (x + 0.2, y + 0.9, z + dz), 0.0, 20.0, 2.0, 0.04, 0.035, 12)
 with m.tagged('masts'):
     m.strut('fitting', (29.0, s0 + 5.4, 0.0), (28.4, s0 + 16.0, 0.0), 0.2, 0.14, sides=8)
     ym = stand(-11.5, 0.4)
     m.strut('fitting', (-11.5, ym, 0.0), (-11.9, ym + 9.0, 0.0), 0.18, 0.12, sides=8)  # forward of the aft tubes (x -20.8..-12.4)
     m.strut('fitting', (28.6, s0 + 12.5, -2.6), (28.6, s0 + 12.5, 2.6), 0.08, sides=6)  # yard
+    m.lattice_mast('fitting', (28.7, s0 + 9.0, 0.0), 1.8, 1.8, 0.5, 1, 0.05)  # Type 22 array on the foremast
+    m.lattice_mast('fitting', (-11.7, ym + 7.0, 0.0), 0.6, 0.4, 1.6, 3, 0.04)  # Type 13 ladder on the mainmast
+with m.tagged('bridgewings'), m.shared_chart():
+    m.box('superstructure', (29.0, y1 - 0.25, 0.0), (2.6, 0.25 + EMBED_M, 8.6))  # wings past the lower tier
+    m.box('superstructure', (25.4, y2 - 0.05, 0.0), (2.2, 0.9, 3.4))  # compass platform abaft the director, sunk deeper: no shared floor
+with m.tagged('searchlight'), m.shared_chart():
+    sl = stand(6.5, 3.0)
+    m.strut('fitting', (6.5, sl, 0.0), (6.5, sl + 5.0, 0.0), 0.6, 0.5, sides=12)
+    m.box('fitting', (6.5, sl + 5.0 - EMBED_M, 0.0), (2.4, 0.2, 2.4))
+    m.tank('fitting', (6.5, sl + 5.18, 0.0), 0.45, 0.8, segments=16)
 with m.tagged('boats'), m.shared_chart():
     by = stand(4.5, 7.0) + 1.6
     for s in (-1, 1):
         m.fuselage('fitting', [(1.0, 0.25, 0.3, by, 2.0), (4.5, 0.9, 0.6, by, 2.4), (8.0, 0.2, 0.35, by + 0.15, 2.0)],
                    segments=24, center_z=s * (inside(4.5) - 1.1))
+        for dx in (2.0, 7.0):  # davits, outboard of each boat
+            m.strut('fitting', (dx, stand(dx, 0.4), s * (inside(dx) - 0.3)), (dx, by + 1.6, s * (inside(dx) - 0.9)), 0.07, sides=6)
 with m.tagged('stern'), m.shared_chart():
     for s in (-1, 1):  # depth-charge racks (ESTIMATE)
         m.box('fitting', (-55.0, stand(-55.0, 3.0), s * (inside(-55.0) - 0.8)), (3.0, 0.9 + EMBED_M, 0.7))
+with m.tagged('deckfittings'), m.shared_chart():
+    # M1: a forecastle capstan and bitts, quarterdeck bitts, cowl vents, Carley floats on the bridge sides.
+    naval.capstan(m, 52.0, stand(52.0, 1.0), 0.0, EMBED_M)
+    for bx in (47.0, -50.0):
+        for side in (-1, 1):
+            naval.bitts(m, bx, stand(bx, 1.4), side * (inside(bx) - 0.9), True, EMBED_M)
+    for vx in (14.0, -3.0):
+        for side in (-1, 1):
+            naval.cowl_vent(m, vx, stand(vx, 0.5), side * 3.4, 0.0, 1.4, EMBED_M)
+    for fx in (24.0, 27.0):
+        for side in (-1, 1):
+            naval.carley_float(m, fx, s0 + 0.9, side * 3.62, 1.8, side)
 m.marking('grid', tags=['hull'], spacingM=[None, 1.5, None], widthM=0.015, depth=0.6)
+# M1 weathering: waterline grime, rust from the hawse pipes and scuppers, soot on the funnel caps.
+m.marking('slab', tags=['hull'], axis='y', fromM=-0.6, toM=0.6, color='exhaustSoot', effect='stain', opacity=0.3, featherM=0.4)
+for s in (-1, 1):
+    m.marking('polygon', tags=['hull'], origin=(50.0, 0.0, s * 4.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+              points=[(-0.4, 6.6), (0.4, 6.6), (0.9, 3.0), (-0.8, 3.2)], color='rustStain', effect='stain', opacity=0.3, featherM=0.3)
+    for x in (-30.0, 12.0):
+        m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 5.3), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+                  points=[(-0.2, 5.4), (0.2, 5.4), (0.35, 2.8), (-0.3, 3.1)], color='rustStain', effect='stain', opacity=0.35, featherM=0.2)
+m.marking('slab', tags=['funnels'], axis='y', fromM=11.8, toM=13.6, color='exhaustSoot', effect='stain', opacity=0.5, featherM=0.5)
 m.export(out)

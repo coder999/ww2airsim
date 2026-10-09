@@ -26,5 +26,12 @@
     "smokeOrigin": [8.5, 15, 0],
     "bow": "narrow-end",
     "keelM": -3.885
-  }
+  },
+  "split": [
+    {"name": "Turret1", "select": "components", "boxMin": [3.08323, 0.46392, -0.16631], "boxMax": [3.73097, 0.84031, 0.16631]},
+    {"name": "Turret2", "select": "components", "boxMin": [2.41799, 0.63899, -0.16631], "boxMax": [3.05697, 1.00662, 0.16631]},
+    {"name": "Turret3", "select": "components", "boxMin": [-1.93236, 0.49018, -0.16631], "boxMax": [-1.29338, 0.84906, 0.16631]},
+    {"name": "Turret4", "select": "components", "boxMin": [-3.19283, 0.49018, -0.16631], "boxMax": [-2.55384, 0.84906, 0.16631]},
+    {"name": "Turret5", "select": "components", "boxMin": [-3.86682, 0.27135, -0.16631], "boxMax": [-3.22784, 0.63023, 0.16631]}
+  ]
 }

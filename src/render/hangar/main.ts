@@ -68,7 +68,11 @@ async function boot(): Promise<void> {
   const bench = benchEnabled(import.meta.env.DEV, location.search)
   let controller = createBenchController(null)
   let benchUi: BenchHandle | null = null
-  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false }
+  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false, mounts: false }
+  // Track M, M1: the bench's Train mounts sweeps every gun mount +-90 deg about its own axis, so a
+  // look shows each one turning alone, on its own pivot. Off, they rest at their spec bearing.
+  let sweepS = 0
+  const trainMounts = (rad: number): void => { for (const m of model?.gunMounts ?? []) m.setTraining(rad) }
   const refreshCounts = (): void => { if (model) benchUi?.setCounts(countsReport(model.root, content.budgets)) }
   const pose = (p: PartPose): void => {
     model?.pose(controller.set(p))
@@ -80,6 +84,7 @@ async function boot(): Promise<void> {
     if (which === 'wireframe') stage.setWireframe(on)
     else if (which === 'checker') stage.setChecker(on)
     else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
+    else if (which === 'mounts') { sweepS = 0; trainMounts(0) }
     else stage.setAutoRotate(on)
   }
   // One frame of the bench: a running Cycle, then the model's own clock.
@@ -90,6 +95,7 @@ async function boot(): Promise<void> {
       benchUi?.sync(controller.state())
     }
     model?.update(frameS)
+    if (debug.mounts) { sweepS += frameS; trainMounts(Math.sin(sweepS * 0.8) * Math.PI / 2) }
   }
 
   const select = async (id: string): Promise<void> => {
@@ -150,6 +156,8 @@ async function boot(): Promise<void> {
     gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
     counts: () => (model ? countsReport(model.root, content.budgets) : null),
     storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
+    gunMounts: () => (model?.gunMounts ?? []).map((m) => m.name),
+    trainMounts,
     validationErrors,
   })
 

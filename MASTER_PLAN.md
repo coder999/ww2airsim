@@ -252,7 +252,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
   - Nothing fires at the player except enemy aircraft. Ground `aaa` structures are targets only (`sim/weapons/structures.ts`), and ships have no guns.
   - Ships have one `hullHp` pool (Track D).
 - **Decided (Mark, 2026-10-08), in order:**
-  1. **M1 Models (M-L).** Starts now, in its own worktree, beside order 2.
+  1. ~~**M1 Models (M-L).**~~ Done 2026-10-08 (branch `m1-ship-models`, handoff `docs/handoff/2026-10-08-m1-ship-models.md`): every warship's guns are spec data and instanced, trainable kits; the three Blender ships got a detail and paint pass.
      - Our three Blender ships gain detail, silhouette, paint and textures.
      - Each download is split in Blender where its mesh allows; otherwise it is rebuilt as our own model.
      - Every warship ends with separate turret and AA-mount nodes, with AA added where a model has none.

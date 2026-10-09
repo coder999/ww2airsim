@@ -10,7 +10,40 @@
   "turnRateRadPerS": 0.02618,
   "hullHp": 420,
   "view": { "model": "mogami-ca" },
+  "armament": {
+    "turrets": [
+      {"x": 67.54, "y": 4.99, "z": 0, "bearingDeg": 0, "kit": "turret-8in-twin", "barrels": 2, "aa": null},
+      {"x": 52.26, "y": 4.99, "z": 0, "bearingDeg": 0, "kit": "turret-8in-twin", "barrels": 2, "aa": null},
+      {"x": 44.68, "y": 7.63, "z": 0, "bearingDeg": 0, "kit": "turret-8in-twin-raised", "barrels": 2, "aa": null},
+      {"x": -49.72, "y": 8.38, "z": 0, "bearingDeg": 180, "kit": "turret-8in-twin-raised", "barrels": 2, "aa": null},
+      {"x": -59.22, "y": 5.69, "z": 0, "bearingDeg": 180, "kit": "turret-8in-twin", "barrels": 2, "aa": null}
+    ],
+    "heavyAA": [
+      {"x": 7.79, "y": 7.08, "z": 8.52, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2},
+      {"x": 7.79, "y": 7.08, "z": -8.52, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2},
+      {"x": -4.98, "y": 7.08, "z": 8.52, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2},
+      {"x": -4.98, "y": 7.08, "z": -8.52, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2}
+    ],
+    "lightAA": [
+      {"x": 33, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 33, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 20, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 20, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 14, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 14, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -13, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -13, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -22, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -22, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -30, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -30, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -36, "y": 7.09, "z": 6, "bearingDeg": 90, "kit": null, "barrels": 9},
+      {"x": -36, "y": 7.09, "z": -6, "bearingDeg": -90, "kit": null, "barrels": 9},
+      {"x": -38, "y": 7.09, "z": 4.5, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -38, "y": 7.09, "z": -4.5, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3}
+    ]
+  },
   "reference": {
-    "source": "lengthM (200.6 m overall), beamM (20.2 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Mogami-class cruiser', read 2026-09-26. Japanese Monographs 145 and 149, official postwar translations, record the four-ship Mogami construction program and its conversion from 155 mm to 200 mm guns; U.S. Navy ORD-ONI 9 lists the Mogami-class 8-inch battery (primary wartime/postwar class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three bombs plus three rockets) is a gameplay choice."
+    "source": "lengthM (200.6 m overall), beamM (20.2 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Mogami-class cruiser', read 2026-09-26. Japanese Monographs 145 and 149, official postwar translations, record the four-ship Mogami construction program and its conversion from 155 mm to 200 mm guns; U.S. Navy ORD-ONI 9 lists the Mogami-class 8-inch battery (primary wartime/postwar class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three bombs plus three rockets) is a gameplay choice. ARMAMENT (Track M, M1, read 2026-10-08): the model keeps its five-turret heavy-cruiser layout (Ruling R4; Mogami herself lost Nos. 4 and 5 in her 1943 conversion), so it carries five twin 20 cm turrets (the 1937 rearmament), four twin 12.7 cm Type 89, and the June 1944 light AA of 60 x 25 mm, 14 triple and 18 single (English Wikipedia 'Japanese cruiser Mogami (1934)'). Turrets and 12.7 cm mounts are carved at the model's own positions (axis on each barbette); the model has no 25 mm, so the 14 triples are generated kits and the singles two static galleries of nine, at ESTIMATED positions on its main deck."
   }
 }

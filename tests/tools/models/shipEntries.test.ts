@@ -11,12 +11,14 @@ const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('he
 const downloads = loadModelEntries().filter((e) => e.ship && e.source.kind === 'sketchfab')
 
 /** The four box-skinned downloads' triangles, hashed from their flat committed outputs before DP2
- *  skinned them (Task 10 Step 1, 2026-09-28). Box projection adds UVs and never moves a vertex. */
+ *  skinned them (Task 10 Step 1, 2026-09-28). Box projection adds UVs and never moves a vertex.
+ *  Re-pinned per ship by Track M's M1 (2026-10-08), whose mount kits carve the guns out, keep one
+ *  copy of each kit posed in place and add generated kits: each re-pin is its own commit, saying why. */
 const FLAT_SOUP: Readonly<Record<string, string>> = {
-  'cleveland-cl': 'c9dd4831a11dca511995b44f8aed0f4eeb849c87469a53f9eedcc1a79642b363',
-  'essex-cv': 'f9a6769bdeec92a7ca8a34d5b29f065a833f8759c3a3af180b6f29fc73fe279b',
-  'mogami-ca': 'ac7cadfdf0467d5ba4624f7692fa782839dcb63237d1ef175b04cf1f425096f1',
-  'yamato-bb': '32ee71102f8cb9eb6b5893a98ecced653d6a4606f195bc1ec00255a4fd9ad3ef',
+  'cleveland-cl': '248de4ec470db281ee272e0f7230a724630f4c8da0606d9b93742e3dedd694af',
+  'essex-cv': 'ba4207c26320846d30557b0a59dadcc58688a02c9d370215ae04d2ff04c2e402',
+  'mogami-ca': '9e15d1eed5569e1acfa047f159711e6f44648645e20aa0ef7bbcc11daf091197',
+  'yamato-bb': '82b3367e92c5a1aacbecc9f0c348da0281be2ff9d2f1ac62ce70875b379fd800',
 }
 
 // Raw inputs are gitignored in tools/models/cache/ (remote-run mirrors them to ryzen): a missing one

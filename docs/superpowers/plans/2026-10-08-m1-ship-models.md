@@ -50,7 +50,7 @@ Sim code never reads a glb, and M2 needs mount positions in the sim. The positio
 }
 ```
 
-- Ship-local meters, in the same frame as the hull (`+z` bow, as `ships.ts` uses).
+- Ship-local meters, in the same frame as the hull: `+x` bow, `+y` up from the waterline, `+z` starboard (corrected 2026-10-08 during execution: the model frame `ship.ts` draws in; this line first said `+z` bow).
 - `ShipSpecObject` (`src/sim/world/ships.ts`) gains `armament`. It is `.strict()` and required for every non-merchant role; a merchant must omit it, or the schema refuses it.
 - USN 5"/38s are dual-purpose: a destroyer's or carrier's 5" turret is in `turrets` with `"aa": "heavy"`, and M2 fires it as heavy AA. IJN destroyer 127 mm guns are low-angle (`"aa": null`).
 - **Light AA granularity:** one entry per gun tub. A quad or twin 40 mm, or a triple 25 mm, is one entry. 20 mm singles go in one entry per gallery, with `barrels` holding the count. This keeps the fits honest while Yamato stays at about 40 entries, not 110.

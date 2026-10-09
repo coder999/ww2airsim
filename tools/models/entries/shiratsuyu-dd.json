@@ -13,7 +13,7 @@
   "simplify": { "ratio": 0.1, "error": 0.003 },
   "textures": { "maxSize": 256, "format": "webp" },
   "opaque": false,
-  "budget": { "maxBytes": 4000000, "maxTriangles": 70000, "maxDrawCalls": 12 },
+  "budget": { "maxBytes": 4000000, "maxTriangles": 70000, "maxDrawCalls": 14 },
   "ship": {
     "spec": "shiratsuyu-dd",
     "fit": "hull",
@@ -23,5 +23,9 @@
     "otherMaterials": "keep",
     "smokeOrigin": [12, 11, 0],
     "bow": "narrow-end"
-  }
+  },
+  "split": [
+    {"name": "Turret1", "select": "components", "boxMin": [39.68245, 5.61364, -3.51523], "boxMax": [51.98575, 11.56249, 3.51523]},
+    {"name": "Turret2", "select": "components", "boxMin": [-59.82551, 3.65323, -3.58283], "boxMax": [-46.98142, 8.04726, 3.24482]}
+  ]
 }

@@ -10,7 +10,39 @@
   "turnRateRadPerS": 0.02618,
   "hullHp": 360,
   "view": { "model": "cleveland-cl" },
+  "armament": {
+    "turrets": [
+      {"x": 58.56, "y": 7.28, "z": 0, "bearingDeg": 0, "kit": "turret-6in-triple", "barrels": 3, "aa": null},
+      {"x": 46.34, "y": 9.82, "z": 0, "bearingDeg": 0, "kit": "turret-6in-triple", "barrels": 3, "aa": null},
+      {"x": -44.9, "y": 9.39, "z": 0, "bearingDeg": 180, "kit": "turret-6in-triple", "barrels": 3, "aa": null},
+      {"x": -55.77, "y": 6.88, "z": 0, "bearingDeg": 180, "kit": "turret-6in-triple", "barrels": 3, "aa": null}
+    ],
+    "heavyAA": [
+      {"x": 32.82, "y": 10.06, "z": 0, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 19.85, "y": 10.06, "z": 6.4, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 19.85, "y": 10.06, "z": -6.4, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": -15.77, "y": 10.06, "z": 6.4, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": -15.77, "y": 10.06, "z": -6.4, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": -30.92, "y": 10.06, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2}
+    ],
+    "lightAA": [
+      {"x": 70, "y": 7.43, "z": 3, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 70, "y": 7.43, "z": -3, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 28, "y": 9.33, "z": 4, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 28, "y": 9.33, "z": -4, "bearingDeg": -90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 11.05, "y": 8.09, "z": 6.4, "bearingDeg": 90, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 11.05, "y": 8.09, "z": -6.4, "bearingDeg": -90, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 5, "y": 6.76, "z": 7.5, "bearingDeg": 0, "kit": null, "barrels": 3},
+      {"x": 5, "y": 6.76, "z": -7.5, "bearingDeg": 0, "kit": null, "barrels": 3},
+      {"x": -0.72, "y": 9.82, "z": 6.53, "bearingDeg": 90, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -0.72, "y": 9.82, "z": -6.53, "bearingDeg": -90, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -24, "y": 9.33, "z": 5, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -24, "y": 9.33, "z": -5, "bearingDeg": -90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -70, "y": 6.76, "z": 3, "bearingDeg": 180, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -70, "y": 6.76, "z": -3, "bearingDeg": 180, "kit": "mount-40mm-twin", "barrels": 2}
+    ]
+  },
   "reference": {
-    "source": "lengthM (610 ft 1 in overall), beamM (66 ft 4 in) and maxSpeedMps (32.5 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Cleveland-class cruiser', read 2026-09-26. The U.S. National Archives Ship Plan Index lists USS Cleveland (CL-55) preliminary-design and hull-series engineering drawings (primary-source class confirmation, checked 2026-09-26). deckHeightM (main deck above waterline) and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three 1,000 lb bombs) is a gameplay choice on Plan 6b's scale."
+    "source": "lengthM (610 ft 1 in overall), beamM (66 ft 4 in) and maxSpeedMps (32.5 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Cleveland-class cruiser', read 2026-09-26. The U.S. National Archives Ship Plan Index lists USS Cleveland (CL-55) preliminary-design and hull-series engineering drawings (primary-source class confirmation, checked 2026-09-26). deckHeightM (main deck above waterline) and turnRateRadPerS (1.5 deg/s) are ESTIMATES. hullHp (three 1,000 lb bombs) is a gameplay choice on Plan 6b's scale. ARMAMENT (Track M, M1, read 2026-10-08): the 1944/1945 fit (USS Vicksburg) of 4 x triple 6\"/47, 6 x twin 5\"/38, 4 x quad and 6 x twin Bofors 40 mm and 10 x single Oerlikon 20 mm (English Wikipedia 'Cleveland-class cruiser'). Turrets and 5\" mounts are carved from the model at its own positions (axis on each barbette, foot at the gunhouse's floor); the model's four empty tubs carry the 40 mm quads; the six 40 mm twins (generated kits) and the 20 mm galleries (static fire positions, 10 barrels) stand where the model has deck but no gun, positions ESTIMATES."
   }
 }
