@@ -211,6 +211,8 @@ export interface BuildDeps {
   readText(path: string): string
   /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
   scan: ScanLoader
+  /** The ShipSpec a ship entry fits to; content/ships by default. Toy-ship tests pass one without armament. */
+  shipSpec?: (id: string) => ShipSpec
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -267,7 +269,7 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         }
         const hingesPath = hingesSidecarPath(raw)
         const hinges = deps.exists(hingesPath) ? parseHinges(deps.readText(hingesPath)) : {}
-        doc = await runPipeline(read, entry, loadShipSpec, skin, deps.scan, hinges)
+        doc = await runPipeline(read, entry, deps.shipSpec ?? loadShipSpec, skin, deps.scan, hinges)
       } else if (entry.legacyOptimize) {
         // The original recipe into the cache once (it needs npx), then split only (manifest.ts).
         const mid = `tools/models/cache/${entry.id}.legacy.glb`
@@ -279,7 +281,7 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         // locator nodes this hierarchy keeps.
         await doc.transform(prune({ propertyTypes: [PropertyType.ACCESSOR], keepLeaves: true }))
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
+        doc = await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails

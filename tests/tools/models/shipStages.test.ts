@@ -10,7 +10,11 @@ import { documentSoup } from '../../../tools/models/stages/shipFit.js'
 import { shipMaterials } from '../../../tools/models/stages/shipMaterials.js'
 import { fitProblems } from '../../../src/render/scene/shipFit.js'
 import { loadShipSpec } from '../../../tools/content/load.js'
+import type { ShipSpec } from '../../../src/sim/world/ships.js'
 import { addMeshNode, boxesPrimitive, newDocument, type V3 } from './fixtures.js'
+
+// Track M, M1: the toy hulls carry no guns, so they fit the real essex-cv spec without its armament.
+const unarmed = (id: string): ShipSpec => ({ ...loadShipSpec(id), armament: undefined })
 
 /**
  * tests/render/shipFixtures.ts's carrier (hull 260 x 26 x 15, deck slab 256 x
@@ -61,7 +65,7 @@ describe('the ship block in ModelEntrySchema', () => {
 
 describe('runPipeline on a synthetic carrier', () => {
   it('fits it, skirts it, paints it in roles, marks it, and meets its contract', async () => {
-    const doc = await runPipeline(toyCarrier(), carrierEntry)
+    const doc = await runPipeline(toyCarrier(), carrierEntry, unarmed)
     const io = modelIO()
     const bytes = await io.writeBinary(doc)
     expect(checkOutput(doc, bytes.byteLength, carrierEntry)).toEqual([])
@@ -79,7 +83,7 @@ describe('runPipeline on a synthetic carrier', () => {
   })
 
   it('refuses a mirrored carrier, naming the island', async () => {
-    await expect(runPipeline(toyCarrier(-1), carrierEntry)).rejects.toThrow(/island mean z .* not to starboard/)
+    await expect(runPipeline(toyCarrier(-1), carrierEntry, unarmed)).rejects.toThrow(/island mean z .* not to starboard/)
   })
 
   it('takes its ShipSpec from the injected loader, so a moved deck fails the build', async () => {
@@ -137,6 +141,7 @@ describe('runBuild with a ship whose fit fails', () => {
       haveBlender: () => false,
       blender: () => { throw new Error('not a blender entry') },
       readText: () => { throw new Error('readText: not used by this test') }, scan: () => Promise.reject(new Error('scan: not used by this test')),
+      shipSpec: unarmed,
     }
     expect(await runBuild([carrierEntry, good], [], deps)).toBe(1)
     expect(written).toEqual(['content/ships/good-cv.glb'])

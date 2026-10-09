@@ -125,14 +125,15 @@ y3 = y2 - EMBED_M + 3.2         # the upper bridge's roof
 with m.tagged('superstructure'), m.shared_chart():
     m.frustum('superstructure', (2.0, s0, 0.0), (35.0, 15.0), (33.0, 14.0), 4.0 + EMBED_M)
     # Conning tower: the armored cylinder at the fore end, rising through both bridge levels.
-    m.tank('superstructure', (17.5, y1 - EMBED_M, 0.0), 2.75, 6.6, segments=32)
+    m.tank('superstructure', (17.5, y1 - 0.06, 0.0), 2.75, 6.3, segments=32)  # sunk deeper than the bridge: no shared floor
     # Lower and upper bridge, each with wings spanning past the tier below.
     m.frustum('superstructure', (12.0, y1 - EMBED_M, 0.0), (15.0, 10.0), (14.0, 9.4), 4.0)
     m.box('superstructure', (15.0, y2 - 0.3, 0.0), (4.0, 0.3 + EMBED_M, 16.0))  # lower wings
     m.frustum('superstructure', (14.0, y2 - EMBED_M, 0.0), (9.0, 7.0), (8.4, 6.6), 3.2)
     m.box('superstructure', (16.0, y3 - 0.3, 0.0), (3.0, 0.3 + EMBED_M, 12.0))  # upper wings
-    m.box('glazing', (18.55, y2 + 1.7, 0.0), (0.3, 0.9, 5.6))   # upper bridge windows, proud of the face
-    m.box('glazing', (19.55, y1 + 2.3, 0.0), (0.3, 0.9, 7.0))   # lower bridge windows
+    # Window bands straddling each sloped face at their mid height (Kagero's pattern): never coplanar with it.
+    m.box('glazing', (18.34, y2 + 1.3, 0.0), (0.26, 0.9, 5.6))   # upper bridge
+    m.box('glazing', (19.21, y1 + 1.9, 0.0), (0.26, 0.9, 7.0))   # lower bridge
     # Mk 37 director on the upper bridge, rangefinder arms athwartships.
     m.tank('fitting', (14.0, y3 - EMBED_M, 0.0), 1.0, 0.9, segments=16)
     m.frustum('fitting', (14.0, y3 + 0.88, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
@@ -148,11 +149,11 @@ with m.tagged('superstructure'), m.shared_chart():
     m.strut('fitting', (top[0] - 1.0, top[1] + 3.96, 0.0), (top[0] - 1.0, top[1] + 8.0, 0.0), 0.15, 0.1, sides=8)
     m.lattice_mast('fitting', (top[0] - 1.0, top[1] + 8.0, 0.0), 4.6, 4.6, 0.6, 1, 0.06)  # SK array, edge-on fore-aft
     # Aft deckhouse with the aft Mk 37 and a CXAM-type array on its pole mast.
-    ad = stand(-24.0, 12.0)
-    m.frustum('superstructure', (-24.0, ad, 0.0), (12.0, 9.0), (11.0, 8.4), 3.6 + EMBED_M)
-    m.tank('fitting', (-24.0, ad + 3.6, 0.0), 1.0, 0.9, segments=16)
-    m.frustum('fitting', (-24.0, ad + 4.48, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
-    m.gun_barrel('fitting', (-24.0, ad + 5.6, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
+    ad = stand(-22.0, 12.0)  # x -28..-16: clear of No. 3's barbette (to -29.8) and of the pole mainmast
+    m.frustum('superstructure', (-22.0, ad, 0.0), (12.0, 9.0), (11.0, 8.4), 3.6 + EMBED_M)
+    m.tank('fitting', (-22.0, ad + 3.6, 0.0), 1.0, 0.9, segments=16)
+    m.frustum('fitting', (-22.0, ad + 4.48, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
+    m.gun_barrel('fitting', (-22.0, ad + 5.6, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
     m.strut('fitting', (-27.5, ad + 3.6 - EMBED_M, 0.0), (-27.5, ad + 17.0, 0.0), 0.3, 0.18, sides=8)
     m.lattice_mast('fitting', (-27.5, ad + 17.0, 0.0), 5.2, 5.2, 0.5, 1, 0.06)  # CXAM-type array
 with m.tagged('funnel'):
@@ -191,9 +192,9 @@ with m.tagged('stern'), m.shared_chart():
     m.strut('fitting', (-82.0, cy, 0.0), (-82.0, cy + 6.0, 0.0), 0.5, 0.4, sides=12)
     m.strut('fitting', (-82.0, cy + 5.5, 0.0), (-90.0, cy + 9.0, 0.0), 0.25, 0.15, sides=6)
 with m.tagged('masts'):
-    ym = stand(-19.0, 0.7)
-    m.strut('fitting', (-17.6, ym, 0.0), (-17.6, ym + 20.0, 0.0), 0.35, 0.2, sides=8)
-    m.strut('fitting', (-17.6, ym + 17.0, -4.0), (-17.6, ym + 17.0, 4.0), 0.12, sides=6)  # yard
+    ym = ad + 3.6 - EMBED_M  # the pole mainmast stands on the aft deckhouse's roof, forward of its director
+    m.strut('fitting', (-17.5, ym, 0.0), (-17.5, ym + 16.4, 0.0), 0.35, 0.2, sides=8)
+    m.strut('fitting', (-17.5, ym + 13.4, -4.0), (-17.5, ym + 13.4, 4.0), 0.12, sides=6)  # yard
 with m.tagged('anchors'), m.shared_chart():
     for s in (-1, 1):  # bower anchors stowed at the hawse pipes
         ax = 82.0

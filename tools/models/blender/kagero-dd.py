@@ -115,7 +115,7 @@ with m.tagged('masts'):
     m.lattice_mast('fitting', (-11.7, ym + 7.0, 0.0), 0.6, 0.4, 1.6, 3, 0.04)  # Type 13 ladder on the mainmast
 with m.tagged('bridgewings'), m.shared_chart():
     m.box('superstructure', (29.0, y1 - 0.25, 0.0), (2.6, 0.25 + EMBED_M, 8.6))  # wings past the lower tier
-    m.box('superstructure', (27.0, y2 - EMBED_M, 0.0), (2.2, 0.9, 3.4))  # compass platform behind the director
+    m.box('superstructure', (25.4, y2 - 0.05, 0.0), (2.2, 0.9, 3.4))  # compass platform abaft the director, sunk deeper: no shared floor
 with m.tagged('searchlight'), m.shared_chart():
     sl = stand(6.5, 3.0)
     m.strut('fitting', (6.5, sl, 0.0), (6.5, sl + 5.0, 0.0), 0.6, 0.5, sides=12)

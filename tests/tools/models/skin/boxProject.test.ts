@@ -10,6 +10,11 @@ import { measureDocument } from '../../../../tools/models/measure.js'
 import { addMeshNode, boxesPrimitive, newDocument, type V3 } from '../fixtures.js'
 import { soupHash } from '../soupHash.js'
 import { flatScan } from './fixture.js'
+import { loadShipSpec } from '../../../../tools/content/load.js'
+import type { ShipSpec } from '../../../../src/sim/world/ships.js'
+
+// Track M, M1: the toy hulls carry no guns, so they fit the real essex-cv spec without its armament.
+const unarmed = (id: string): ShipSpec => ({ ...loadShipSpec(id), armament: undefined })
 
 const flat = async () => flatScan()
 
@@ -186,8 +191,8 @@ describe('a boxSkin entry through runPipeline (DP2)', () => {
   }
 
   it('skins everything but the Skirt with one metallic-0 skin material, in two draws, drawing the same triangles as without it', async () => {
-    const plain = await runPipeline(await toyCarrier(), entry(false))
-    const skinned = await runPipeline(await toyCarrier(), entry(true), undefined, null, flat)
+    const plain = await runPipeline(await toyCarrier(), entry(false), unarmed)
+    const skinned = await runPipeline(await toyCarrier(), entry(true), unarmed, null, flat)
     expect(skinned.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual(['ship:boot', 'toy-cv-skin'])
     expect(skinned.getRoot().listMaterials().find((m) => m.getName() === 'toy-cv-skin')!.getMetallicFactor()).toBe(0)
     expect(skinned.getRoot().listTextures().map((t) => t.getName()).sort()).toEqual(['toy-cv-skin-baseColor', 'toy-cv-skin-metallicRoughness', 'toy-cv-skin-normal'])
