@@ -10,10 +10,11 @@
     "license": "CC-BY-4.0"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [-6.0155, -0.2, 0], "fit": { "extent": "length", "meters": 107.5 } },
+  "remove": ["Object001_antiaircraft_0"],
   "simplify": { "ratio": 0.1, "error": 0.003 },
   "textures": { "maxSize": 256, "format": "webp" },
   "opaque": false,
-  "budget": { "maxBytes": 4000000, "maxTriangles": 70000, "maxDrawCalls": 14 },
+  "budget": { "maxBytes": 4000000, "maxTriangles": 70000, "maxDrawCalls": 16 },
   "ship": {
     "spec": "shiratsuyu-dd",
     "fit": "hull",
