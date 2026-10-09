@@ -79,6 +79,6 @@ is here, in that format, unclipped.
 <https://freesound.org/people/JovianSounds/sounds/524205/>, released under
 **CC0 1.0** (public domain dedication; no attribution required, credited here
 anyway). Mark found it after the ElevenLabs squelch takes came out unusable.
-It is the page's public HQ preview (128 kbps MP3) decoded to 16-bit PCM WAV at
-its native 44.1 kHz stereo, with no other edits. The original 24-bit WAV needs
-a Freesound login; swapping it in later would need only a re-measure.
+The file is the original download (24-bit, 44.1 kHz stereo, fetched with
+Mark's Freesound login), reduced to 16-bit PCM by dropping the low byte, the
+only format `tools/audio/wav.ts` reads. No other edits.

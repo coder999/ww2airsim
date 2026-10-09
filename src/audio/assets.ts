@@ -102,7 +102,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // radio_squelch: Freesound, CC0 (content/audio/NOTICE.md); it brackets each
   // radio line once I2 wires the voices.
   { id: 'aa_gun', path: 'content/audio/aa_gun.wav', bus: 'sfx', bytes: 123_884, peakFullScale: 0.9000, cueGain: 0.60 },
-  { id: 'radio_squelch', path: 'content/audio/radio_squelch.wav', bus: 'radio', bytes: 214_268, peakFullScale: 0.5221, cueGain: 0.60 },
+  { id: 'radio_squelch', path: 'content/audio/radio_squelch.wav', bus: 'radio', bytes: 214_268, peakFullScale: 0.5382, cueGain: 0.60 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {
