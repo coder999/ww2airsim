@@ -1,6 +1,6 @@
 import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import { describe, it, expect } from 'vitest'
-import { audioInputsFrom, spatialInputsFrom } from '../../src/render/audio.js'
+import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from '../../src/render/audio.js'
 import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
 import { createWorldOf, playerAircraft, type ShipEntity } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
@@ -38,6 +38,13 @@ describe('audioInputsFrom (design §6.1)', () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     expect(frame.controls).toBe(playerAircraft(frame.world).controls)
     expect(audioInputsFrom(frame).throttle).toBe(playerAircraft(frame.world).controls.throttle)
+  })
+
+  it('picks the radio language from the airframe the player flies (I2)', () => {
+    const at = createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) })
+    expect(radioLanguageFor(initialFrameState(f6f, at))).toBe('us')
+    // A player-flown Zero stays on the player's (allied) side for combat, but its radio is Japanese.
+    expect(radioLanguageFor(initialFrameState(loadAircraftSpec('a6m2-zero'), at))).toBe('ja')
   })
 
   it("reads gear and flap travel off the player's own state (I3)", () => {

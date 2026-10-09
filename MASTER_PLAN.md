@@ -240,13 +240,17 @@ one plan for the lot.
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
-  - a radio static bed (the squelch click is recorded, I3). The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
+  - a radio static bed under the voice (the squelch is recorded, I3; the radio bus carries the lines since I2).
 - **I2, voice (§4 Q7):**
   - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
-  - **Not wired yet.** The lines are not in `AUDIO_ASSETS` on purpose: `system.ts` loads that whole table at boot, and the lines total 16 MB. Wiring loads only the player side's 34, on demand.
-  - Still to do: tie each on-screen message to its line, feed the radio bus (`webAudio.ts`), and choose US or JA by the player's side (`CONTEXT.md`).
+  - **Wired 2026-10-09** (branch `i2-voice-wiring`, plan `docs/superpowers/plans/2026-10-09-i2-voice-wiring.md`):
+    - The HUD radio line and the LSO's cue speak through the radio bus as squelch, voice, squelch.
+    - One transmission plays at a time; cut and wave-off cut in.
+    - The lines are not in `AUDIO_ASSETS`: they load per language on first use. Japanese plays for a Japanese airframe or the axis side.
+    - `src/audio/radio.ts` maps message text to line, and its test enrolls every scenario message.
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
-  - **In `AUDIO_ASSETS`, unwired:** `gear_cycle` and `flaps_cycle` (each plays both ways; wire with C1), `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
+  - **Wired 2026-10-09:** `gear_cycle` and `flaps_cycle`, once as travel starts, both ways.
+  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
   - `torpedo_hit` is Mark's own Firefly clip (unwired, the Avenger).
   - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
   - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.

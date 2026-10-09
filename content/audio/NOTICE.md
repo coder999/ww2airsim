@@ -71,7 +71,9 @@ before generating. The same US Copyright Office caveat as above applies.
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,
   `[tense, urgent]` ...). Mark picked Clyde from a five-voice audition.
   Two exceptions, Mark's picks after Clyde drifted British on them:
-  `radio_paddles_quals_launch_us` adds an `[American accent]` tag, and
+  `radio_paddles_quals_launch_us` and `radio_tower_dulag_takeoff_us` add an
+  `[American accent]` tag (the Dulag line was re-recorded 2026-10-09 when its
+  message changed to "nineteen miles"), and
   `radio_tower_raid_clear_us` is library voice `ZthjuvLPty3kTMaNKVKb` with
   `eleven_multilingual_v2` at default settings.
 - `voice/*_ja.wav` (34): text-to-speech, premade voice "Adam"
