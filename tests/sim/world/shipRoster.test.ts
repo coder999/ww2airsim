@@ -13,6 +13,7 @@ const roster = {
   'shiratsuyu-dd': 'escort',
   'type-b-maru': 'merchant',
   'yamato-bb': 'battleship',
+  'zuikaku-cv': 'carrier',
 } as const
 
 describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
@@ -53,6 +54,7 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
     'shiratsuyu-dd': [2, 0, 7],
     'type-b-maru': null,
     'yamato-bb': [5, 6, 22],
+    'zuikaku-cv': [8, 0, 4], // four 25 mm triples to match Essex, for balance, not history (Mark, M1e)
   }
 
   it('pins every warship\'s armament and gives the merchant none', () => {

@@ -13,9 +13,9 @@ import type { ShipEntity } from '../../src/sim/loop.js'
 const f6f = loadAircraftSpec('f6f-hellcat')
 const cv = loadShipSpec('essex-cv')
 
-const carrier = (): ShipEntity => {
+const carrier = (ship = cv): ShipEntity => {
   const state = createShipState({ position: v3(0, SEA_LEVEL_M, 0), headingRad: 0, speedMps: 7.717 })
-  return { id: 'cv-1', spec: cv, state, previous: state, orders: { waypoints: [{ x: 0, z: 0 }, { x: 0, z: -9000 }], speedMps: 7.717 } }
+  return { id: 'cv-1', spec: ship, state, previous: state, orders: { waypoints: [{ x: 0, z: 0 }, { x: 0, z: -9000 }], speedMps: 7.717 } }
 }
 
 /** Wheels just touching the deck at `fromSternM` forward of the stern, rolling toward the bow at `relMps` over the deck. */
@@ -33,8 +33,7 @@ const arriving = (deck: Deck, fromSternM: number, relMps: number, sinkMps = 1.0,
 const HOOK: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: true, flapDown: true, hookDown: true }
 const NO_HOOK: Controls = { ...HOOK, hookDown: false }
 
-function run(state: AircraftState, controls: Controls, seconds: number, spec: AircraftSpec = f6f): { state: AircraftState; ticks: number } {
-  const deck = deckOf(carrier())!
+function run(state: AircraftState, controls: Controls, seconds: number, spec: AircraftSpec = f6f, deck: Deck = deckOf(carrier())!): { state: AircraftState; ticks: number } {
   let s = state
   let tick = 0
   for (; tick < 60 * seconds; tick++) {
@@ -44,10 +43,18 @@ function run(state: AircraftState, controls: Controls, seconds: number, spec: Ai
   return { state: s, ticks: tick }
 }
 
-describe('the arcade trap (Plan 8)', () => {
+/** Every carrier in content, so a new flight deck is landed on without a new file (M1e, Zuikaku). */
+const carriers = readdirSync('content/ships').filter((f) => f.endsWith('.json'))
+  .map((f) => loadShipSpec(f.replace(/\.json$/, ''))).filter((ship) => ship.flightDeck !== undefined && ship.trapZone !== undefined)
+
+it('the carrier list is every flight deck with a trap zone, so an empty filter cannot pass silently', () => {
+  expect(carriers.map((ship) => ship.id).sort()).toEqual(['casablanca-cve', 'essex-cv', 'zuikaku-cv'])
+})
+
+describe.each(carriers.map((ship) => [ship.id, ship] as const))('the arcade trap on %s (Plan 8)', (_id, ship) => {
   it('hook down inside the zone arrests: deck-relative speed decays at TRAP_DECEL_MPS2 to rest on the deck', () => {
-    const deck = deckOf(carrier())!
-    const { state, ticks } = run(arriving(deck, 60, 34), HOOK, 10)
+    const deck = deckOf(carrier(ship))!
+    const { state, ticks } = run(arriving(deck, 60, 34), HOOK, 10, f6f, deck)
     expect(state.arrested).toBe(true)
     expect(length(sub(state.velocity, deck.velocity))).toBeLessThan(0.05)
     expect(ticks / 60).toBeCloseTo(34 / TRAP_DECEL_MPS2, 0)
@@ -57,30 +64,30 @@ describe('the arcade trap (Plan 8)', () => {
   })
 
   it('hook up rolls: no arrest, and full throttle takes it off the bow', () => {
-    const deck = deckOf(carrier())!
-    const { state } = run(arriving(deck, 60, 34), { ...NO_HOOK, throttle: 1 }, 6)
+    const deck = deckOf(carrier(ship))!
+    const { state } = run(arriving(deck, 60, 34), { ...NO_HOOK, throttle: 1 }, 6, f6f, deck)
     expect(state.arrested).toBe(false)
     const local = deckLocal(deck, state.position.x, state.position.z)
     expect(local.z).toBeGreaterThan(deck.lengthM / 2)
   })
 
   it('hook down but short of the zone rolls into it and traps there; past the zone never traps', () => {
-    const deck = deckOf(carrier())!
-    const short = run(arriving(deck, 10, 34), HOOK, 10)
+    const deck = deckOf(carrier(ship))!
+    const short = run(arriving(deck, 10, 34), HOOK, 10, f6f, deck)
     expect(short.state.arrested).toBe(true)
-    const past = run(arriving(deck, deck.trapToSternM + 5, 34), HOOK, 4)
+    const past = run(arriving(deck, deck.trapToSternM + 5, 34), HOOK, 4, f6f, deck)
     expect(past.state.arrested).toBe(false)
   })
 
   it('an arrival outside the sink gate is not a trap', () => {
-    const deck = deckOf(carrier())!
+    const deck = deckOf(carrier(ship))!
     const s = step(f6f, arriving(deck, 60, 34, 6.0), HOOK, { dt: DT, tick: 1, decks: [deck] })
     expect(s.arrested).toBe(false)
   })
 
   it('leaving the deck clears the arrest flag', () => {
-    const deck = deckOf(carrier())!
-    const trapped = run(arriving(deck, 60, 34), HOOK, 10).state
+    const deck = deckOf(carrier(ship))!
+    const trapped = run(arriving(deck, 60, 34), HOOK, 10, f6f, deck).state
     // Teleport the trapped airplane's position off the side: the rule is about where the wheels are.
     const side = deckWorld(deck, deck.widthM, 0)
     const off = step(f6f, { ...trapped, position: v3(side.x, trapped.position.y + 5, side.z) }, HOOK, { dt: DT, tick: 9999, decks: [deck] })

@@ -27,6 +27,12 @@ export const MARKING_COLORS = {
   oceanGray5O: [0x5f, 0x68, 0x70], // ESTIMATE: 5-O Ocean Gray
   lightGray5L: [0x9a, 0xa0, 0xa4], // ESTIMATE: 5-L Light Gray
   dullBlackBK: [0x24, 0x26, 0x28], // ESTIMATE: BK Dull Black
+  // M1e (2026-10-09): Zuikaku's Leyte camouflage. The U.S. Navy photographs of her off Cape Engano,
+  // 25 October 1944 (English Wikipedia, "Japanese aircraft carrier Zuikaku"), show a disruptive pattern
+  // on the hull, island and flight deck, but they are black and white: every color is an ESTIMATE.
+  ijnCamoGreen: [0x3e, 0x48, 0x36], // ESTIMATE: a dark green over the Kure gray
+  ijnCamoLight: [0x8a, 0x8e, 0x86], // ESTIMATE: a light green-gray
+  ijnCamoDark: [0x3a, 0x3c, 0x3a], // ESTIMATE: a black-gray (the flight deck's darkest bands)
 } as const satisfies Record<string, readonly [number, number, number]>
 
 export type MarkingColor = keyof typeof MARKING_COLORS

@@ -5,7 +5,7 @@ import { insideRect, localToWorld } from '../../../src/sim/world/airfields.js'
 import { deckFor, span } from './parkSpotFixtures.js'
 
 describe('deck park (7g spec §3)', () => {
-  it.each(['essex-cv', 'casablanca-cve'])('%s: every spot is on the deck, forward of the trap zone, and no two overlap', (shipId) => {
+  it.each(['essex-cv', 'casablanca-cve', 'zuikaku-cv'])('%s: every spot is on the deck, forward of the trap zone, and no two overlap', (shipId) => {
     const deck = deckFor(shipId)
     const spots = deckParkSpots(deck, span)
     expect(spots.length).toBeGreaterThanOrEqual(2)

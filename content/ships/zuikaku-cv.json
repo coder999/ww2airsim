@@ -1,0 +1,46 @@
+{
+  "id": "zuikaku-cv",
+  "name": "Shōkaku-class fleet carrier",
+  "role": "carrier",
+  "lengthM": 257.5,
+  "beamM": 26.0,
+  "deckWidthM": 29.0,
+  "deckHeightM": 15.5,
+  "maxSpeedMps": 17.75,
+  "turnRateRadPerS": 0.01745,
+  "hullHp": 600,
+  "flightDeck": {"lengthM": 242.2, "widthM": 29.0, "heightM": 15.5},
+  "trapZone": {"fromSternM": 25, "toSternM": 110},
+  "paddles": {
+    "glideslopeDeg": 3.5,
+    "glideslopeToleranceDeg": 0.7,
+    "speedBandMps": 3,
+    "coneHalfAngleDeg": 20,
+    "maxRangeM": 2500,
+    "cutRangeM": 120,
+    "waveOffRangeM": 250
+  },
+  "view": {"model": "zuikaku-cv"},
+  "armament": {
+    "turrets": [
+      {"x": 36.55, "y": 11.51, "z": 15.0, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": 36.55, "y": 11.51, "z": -15.0, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": 20.75, "y": 11.51, "z": 15.0, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": 20.75, "y": 11.51, "z": -15.0, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": -56.05, "y": 11.51, "z": 15.0, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": -56.05, "y": 11.51, "z": -15.0, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": -71.28, "y": 11.51, "z": 15.0, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},
+      {"x": -71.28, "y": 11.51, "z": -15.0, "bearingDeg": -90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"}
+    ],
+    "heavyAA": [],
+    "lightAA": [
+      {"x": 0.89, "y": 14.06, "z": 16.6, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 0.89, "y": 14.06, "z": -16.6, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -43.21, "y": 14.06, "z": 16.6, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -43.21, "y": 14.06, "z": -16.6, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3}
+    ]
+  },
+  "reference": {
+    "source": "Zuikaku as at Leyte Gulf, October 1944, drawn from KTKloss's Shokaku (the sisters share a hull; Track M, M1e, Mark 2026-10-09). lengthM (257.5 m / 844 ft 10 in overall), flightDeck.lengthM and widthM (242.2 m / 794 ft 7 in, 29 m / 95 ft 2 in maximum width) and the ten transverse arrestor wires from the English Wikipedia article 'Shokaku-class aircraft carrier', read 2026-10-09; maxSpeedMps is its 34.5 kn designed speed. deckWidthM is the flight deck's 29 m. beamM (26 m) is an ESTIMATE of the waterline beam: the article gives only the 29 m overall beam. flightDeck.heightM and deckHeightM are the SAME ESTIMATE, the model's own flight deck (15.5 m / 51 ft above the waterline once fitted to 257.5 m); no freeboard figure was found. trapZone is an ESTIMATE laid over the ten wires aft, scaled from essex-cv's. paddles, turnRateRadPerS and hullHp are essex-cv's, so the two carriers play alike: CHOICES, not history. ARMAMENT, CHOSEN FOR BALANCE AGAINST essex-cv (M1d D3), NOT HISTORY: the eight twin 12.7 cm Type 89 dual-purpose mounts are real (two pairs a side on the hull sponsons, as on the mesh; generated kits) and carried as turrets with aa: heavy, as essex-cv carries its 5-inch. Light AA is four triple 25 mm Type 96 mounts, two a side, in the deck-edge gallery tubs nearest the island and aft. The real 1944 fit after the Philippine Sea was 20 triple and 36 single 25 mm (96 barrels) and eight 28-round 12 cm AA rocket launchers (same article, Armament, citing Lengerer and Campbell). The model's own 25 mm guns and 12.7 cm mounts are removed (its entry's Drop splits); its other gallery tubs stand empty."
+  }
+}

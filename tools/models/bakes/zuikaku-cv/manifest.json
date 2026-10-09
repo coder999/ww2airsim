@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "model": "zuikaku-cv",
+ "rawSha256": "72f72dbdcd8720e6b79fceb880f4aea2ad4c0d3823db8b2ed4066e046cba913c",
+ "detailSha256": "0ffa9690aa40e2cb94de23c21d9f32354677ede88887403f797c8941635a9e2d",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 190,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [
+   134,
+   163
+  ],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 3.4,
+   "aoBack": 3.1,
+   "normal": 0.8
+  },
+  "size": 2048,
+  "totalSeconds": 13.7,
+  "twoSided": true,
+  "host": "ryzen",
+  "wallSeconds": 16.7
+ },
+ "date": "2026-10-09"
+}

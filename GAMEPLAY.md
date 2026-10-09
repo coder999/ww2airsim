@@ -361,8 +361,9 @@ before art/hull-geometry work begins. `role` matches
 | Shiratsuyu-class destroyer | Escort, hostile — *Shigure* was the only survivor of Nishimura's force at Surigao Strait |
 | Mogami-class heavy cruiser | Cruiser, hostile |
 | Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
+| Shōkaku-class fleet carrier | Carrier, hostile: *Zuikaku*, Ozawa's flagship in the Northern Force decoy at Leyte Gulf (added 2026-10-09, Track M, M1e) |
 
-All ten ship classes ship with models (verified 2026-10-08). Since Track M's M1
+All eleven ship classes ship with models (verified 2026-10-09). Since Track M's M1
 (2026-10-08), every warship carries its gun mounts: main turrets, heavy AA and
 light AA at the positions its `content/ships/<id>.json` `armament` lists, each
 mount drawn separately and able to turn; the Maru carries none. Nothing fires

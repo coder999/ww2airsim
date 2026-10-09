@@ -22,6 +22,7 @@ export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'shiratsuyu-dd': { url: shipModelUrl('shiratsuyu-dd') },
   'type-b-maru': { url: shipModelUrl('type-b-maru') },
   'yamato-bb': { url: shipModelUrl('yamato-bb') },
+  'zuikaku-cv': { url: shipModelUrl('zuikaku-cv') },
 }
 
 export function shipModelUrlFor(modelId: string): string {

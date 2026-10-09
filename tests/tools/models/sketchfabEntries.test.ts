@@ -17,8 +17,8 @@ import { nodeBuildDeps, runBuild } from '../../../tools/models/build.js'
 const entries = loadModelEntries().filter((e) => e.input !== undefined)
 const sha = (b: Uint8Array): string => createHash('sha256').update(b).digest('hex')
 
-it('the Sketchfab entries are the sixteen downloads, each with its recorded hash (2026-10-08)', () => {
-  expect(entries).toHaveLength(16)
+it('the Sketchfab entries are the seventeen downloads, each with its recorded hash (2026-10-08; Zuikaku, M1e, 2026-10-09)', () => {
+  expect(entries).toHaveLength(17)
   for (const e of entries) expect(e.inputSha256, e.id).toMatch(/^[0-9a-f]{64}$/)
 })
 

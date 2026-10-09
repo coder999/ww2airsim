@@ -292,7 +292,7 @@ describe('makeShipViewLoader: the loud fallback (spec §3.4)', () => {
     for (const id of ['nope', 'constructor']) {
       const errors: string[] = []
       await makeShipViewLoader((m) => errors.push(m))({ ...dd, view: { model: id } })
-      expect(errors[0]).toMatch(new RegExp(`no ship model "${id}" \\(registered: casablanca-cve, cleveland-cl, essex-cv, fletcher-dd, kagero-dd, mogami-ca, pennsylvania-bb, shiratsuyu-dd, type-b-maru, yamato-bb\\)`))
+      expect(errors[0]).toMatch(new RegExp(`no ship model "${id}" \\(registered: casablanca-cve, cleveland-cl, essex-cv, fletcher-dd, kagero-dd, mogami-ca, pennsylvania-bb, shiratsuyu-dd, type-b-maru, yamato-bb, zuikaku-cv\\)`))
     }
   })
 })

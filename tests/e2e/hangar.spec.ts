@@ -331,7 +331,7 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'fletcher-dd', 'type-b-maru']) {
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
@@ -434,7 +434,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty',
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty',
       'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
@@ -451,7 +451,7 @@ test.describe('the Hangar', () => {
   test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
     const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
     const ids = await entries(page)
-    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(10)
+    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(11)
     for (const ship of ships) {
       const a = ship.armament
       // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
