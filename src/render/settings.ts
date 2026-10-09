@@ -1,8 +1,8 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { INTERIM_ASSET_QUALITY_TIER } from './content.js'
 import {
-  clearQualitySettings, defaultQualitySettings, loadAssetQualityTier, loadQualitySettings,
-  saveAssetQualityTier, saveQualitySettings, uniformTier,
+  clearQualitySettings, defaultQualitySettings, loadAssetQualityTier, loadQualitySettings, loadRecommendedTier,
+  saveAssetQualityTier, saveQualitySettings, saveRecommendedTier, uniformTier,
   type AssetQualityTierName, type QualitySettings, type QualityTierName,
 } from './quality.js'
 
@@ -154,7 +154,7 @@ export const DAMAGE_MODEL_OPTIONS: readonly Option<DamageModel>[] = [
 /** Spec §6: the recommendation is measured, not assumed, and only after the
  *  ~180-frame probe window has elapsed. */
 export const RECOMMENDATION_NOTE =
-  'The recommendation is measured from this machine automatically, a few seconds after launch.'
+  'The recommendation is measured from this machine automatically, a few seconds into your first sortie.'
 
 export type SettingsSnapshot = {
   readonly isOpen: boolean
@@ -264,7 +264,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
 
   let isOpen = false
   let advancedExpanded = false
-  let recommendedTier: QualityTierName | null = null
+  let recommendedTier: QualityTierName | null = loadRecommendedTier()
   let explicitChoiceMade = false
   const listeners = new Set<() => void>()
 
@@ -319,6 +319,9 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
     },
     resetToAutoDetect: (): void => {
       clearQualitySettings()
+      // The next load measures again, so the old verdict no longer stands.
+      recommendedTier = null
+      saveRecommendedTier(null)
       // `explicitChoiceMade` is deliberately NOT cleared. It guards this page
       // load's probe result (spec §5 step 3), and a player who has been
       // clicking tiers this session should not have the probe reach in and
@@ -327,7 +330,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       // says it is.
       changed()
     },
-    setRecommendedTier: (tier: QualityTierName): void => { recommendedTier = tier; changed() },
+    setRecommendedTier: (tier: QualityTierName): void => { recommendedTier = tier; saveRecommendedTier(tier); changed() },
     setCurrentQuality: (settings: QualitySettings): void => { quality = settings; changed() },
     subscribe: (next: () => void): (() => void) => {
       listeners.add(next)

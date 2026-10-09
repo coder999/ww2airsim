@@ -15,6 +15,9 @@ const STORAGE_KEY = 'ww2airsim.quality.v1'
  */
 const ASSET_STORAGE_KEY = 'ww2airsim.assetQuality.v1'
 
+/** A4: the probe's verdict, kept so the Recommended stamp survives a reload. */
+const RECOMMENDED_STORAGE_KEY = 'ww2airsim.qualityRecommended.v1'
+
 export type QualityTierName = 'high' | 'medium' | 'low'
 export type AssetQualityTierName = 'low' | 'medium' | 'high' | 'ultra'
 
@@ -135,4 +138,22 @@ export function uniformTier(settings: QualitySettings): QualityTierName | null {
   return settings.ocean === settings.scenery && settings.scenery === settings.clouds && settings.clouds === settings.fx
     ? settings.ocean
     : null
+}
+
+export function loadRecommendedTier(): QualityTierName | null {
+  try {
+    const raw = window.localStorage.getItem(RECOMMENDED_STORAGE_KEY)
+    return isQualityTierName(raw) ? raw : null
+  } catch {
+    return null
+  }
+}
+
+export function saveRecommendedTier(tier: QualityTierName | null): void {
+  try {
+    if (tier === null) window.localStorage.removeItem(RECOMMENDED_STORAGE_KEY)
+    else window.localStorage.setItem(RECOMMENDED_STORAGE_KEY, tier)
+  } catch (err) {
+    console.warn('the quality recommendation could not be saved to localStorage:', err)
+  }
 }

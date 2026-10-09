@@ -28,11 +28,11 @@ render quality with auto-detect.
 
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
-**A3. Time-of-day picker (S-M).**
+**A3. Time-of-day picker (S-M).** **Built 2026-10-09, on branch `a3a4-launch` until Mark has looked:** a Takeoff time field on Form 2, suggested from the scenario and clamped to daylight (0615-1745). Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
 - **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
-**A4. Quality auto-detect that measures the right thing (M).**
+**A4. Quality auto-detect that measures the right thing (M).** **Built 2026-10-09, same branch:** the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Not yet checked in a real vsynced Chrome (handoff).
 - **Today:** the probe takes one p95 after 180 frames **on the title screen**, under vsync. A vsynced Chrome downclocks the GPU and reads about 3× high, so Mark's desktop measured 11.4 ms and got Low (`main.ts:1424-1442`, `ocean/tiers.ts:25`).
 - **Proposal:**
   - Measure a representative flight view, not the title screen.

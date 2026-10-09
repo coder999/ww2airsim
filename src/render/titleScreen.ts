@@ -4,9 +4,11 @@ import { TITLE_ART_URL } from './content.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
-import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
+import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
+import type { QualityTierName } from './quality.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
+import { DEFAULT_TIME_OF_DAY, TACLOBAN_LAT_DEG, clampToDaylight, daylightWindow } from './sky/sun.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
@@ -700,10 +702,56 @@ export function createTitleScreen(
       descriptionHost.replaceChildren(...(option?.kind === 'range' && option.description !== undefined ? [paragraph(option.description)] : []))
       showBriefing()
     }
+    // A3: the takeoff hour, defaulting to the scenario's own (its weather's
+    // `timeOfDay`, read from the same scenario file the briefing reads) and
+    // clamped to daylight, since there is no night lighting. A scenario change
+    // resets it to that scenario's suggestion, as it resets the aircraft.
+    const daylight = daylightWindow(TACLOBAN_LAT_DEG)
+    const hourText = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
+    const hourInput = document.createElement('input')
+    hourInput.type = 'time'
+    hourInput.className = 'typed-input'
+    hourInput.step = '900'
+    hourInput.min = hourText(daylight.start)
+    hourInput.max = hourText(daylight.end)
+    hourInput.setAttribute('aria-label', 'Takeoff time')
+    const hourRow = document.createElement('div')
+    hourRow.className = 'field-row'
+    const hourLabel = document.createElement('span')
+    hourLabel.className = 'field-label'
+    hourLabel.textContent = 'Takeoff'
+    hourRow.append(hourLabel, hourInput)
+    const hourNote = document.createElement('p')
+    hourNote.style.cssText = 'margin:4px 0 0;font-size:12px;color:var(--ink-faint)'
+    let takeoffHour: number | null = null
+    let hourScenario: string | null = null
+    const hourRequest = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
+    const setHour = (h: number): void => {
+      takeoffHour = clampToDaylight(h, daylight)
+      hourInput.value = hourText(takeoffHour)
+    }
+    hourInput.addEventListener('change', () => {
+      const [hh, mm] = hourInput.value.split(':').map(Number)
+      if (hh === undefined || mm === undefined || !Number.isFinite(hh) || !Number.isFinite(mm)) return
+      setHour(hh + mm / 60)
+    })
+    const suggestHour = (): void => {
+      if (hourRequest === null || hourScenario === draft.scenarioId) return
+      const id = draft.scenarioId
+      hourScenario = id
+      hourRequest(id, (sc) => {
+        if (draft.scenarioId !== id) return
+        const suggested = clampToDaylight(sc.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY, daylight)
+        setHour(suggested)
+        hourNote.textContent = `Suggested: ${hourText(suggested).replace(':', '')}, the historical hour. Daylight ${hourText(daylight.start).replace(':', '')} to ${hourText(daylight.end).replace(':', '')}.`
+      }, () => { if (draft.scenarioId === id) hourScenario = null })
+    }
+    if (hourRequest !== null) orders.left.append(sectionTitle('Takeoff time'), hourRow, hourNote)
     const selectScenario = (id: string): void => {
       draft = flowReady ? withScenario(ctx(), id) : { ...draft, scenarioId: id }
       markGroup(scenarioRows, draft.scenarioId)
       showDescription()
+      suggestHour()
     }
     // AWARDED on each mission row whose badge the selected pilot holds (PF4).
     const refreshAwarded = (): void => {
@@ -732,6 +780,7 @@ export function createTitleScreen(
       markGroup(scenarioRows, draft.scenarioId)
       refreshAwarded()
       showDescription()
+      suggestHour()
     }
     const ordersBack = inkButton(m.back)
     const ordersNext = inkButton(m.next, true)
@@ -787,6 +836,32 @@ export function createTitleScreen(
     const ordnanceForm = sortieForm(TITLE_FORMS.ordnance)
     const loadoutGroup = radioGroup('Loadout')
     ordnanceForm.left.append(sectionTitle('Armament'), loadoutGroup)
+    // A4: the render-quality step of the launch flow. The same model and the
+    // same explicit pick as the Settings dialog's Simple row; "(recommended)"
+    // marks the probe's verdict, as the briefing's loadout is marked above.
+    const qualityGroup = radioGroup('Render quality')
+    const qualityNote = document.createElement('p')
+    qualityNote.style.cssText = 'margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-faint)'
+    ordnanceForm.left.append(sectionTitle('Render quality'), qualityGroup, qualityNote)
+    const renderQuality = (): void => {
+      const snap = settings.snapshot()
+      const rows = new Map<QualityTierName, HTMLDivElement>()
+      qualityGroup.replaceChildren()
+      for (const option of [...RENDER_QUALITY_OPTIONS].reverse()) {
+        const el = ballotOption(option.value === snap.recommendedTier ? `${option.label} (recommended)` : option.label, '', () => {
+          settings.selectSimpleTier(option.value)
+          renderQuality()
+        })
+        rows.set(option.value, el)
+        qualityGroup.appendChild(el)
+      }
+      markGroup(rows, snap.simpleTier)
+      const picked = RENDER_QUALITY_OPTIONS.find((o) => o.value === snap.simpleTier)
+      qualityNote.textContent = [
+        picked?.note ?? 'Custom: set per system in Settings.',
+        snap.recommendedTier === null ? 'Not measured yet: this machine is measured in its first seconds of flight.' : '',
+      ].filter((t) => t !== '').join(' ')
+    }
     const storesHost = document.createElement('div')
     ordnanceForm.right.append(sectionTitle('Stores'), storesHost)
     const ordnanceBack = inkButton(m.back)
@@ -819,6 +894,7 @@ export function createTitleScreen(
         if (note !== null) hangs.push(note)
       }
       storesHost.replaceChildren(...hangs.map(paragraph))
+      renderQuality()
     }
 
     // ============ Administrative memo: About / Settings ============
@@ -1157,7 +1233,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(takeoffHour === null ? {} : { timeOfDay: takeoffHour }) }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

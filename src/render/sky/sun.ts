@@ -35,6 +35,19 @@ export function sunPosition(latDeg: number, timeOfDay: number, dayOfYear = SCENA
   return { elevationDeg, azimuthDeg: (az + 180 + 360) % 360 }
 }
 
+/** A3: sunrise and sunset (solar hours, sun's center on the horizon), rounded
+ *  inward to the quarter hour: the hours a sortie may take off in, since there
+ *  is no night lighting. Leyte on day 294: 6.25 to 17.75. */
+export function daylightWindow(latDeg: number, dayOfYear = SCENARIO_DAY_OF_YEAR): { readonly start: number; readonly end: number } {
+  const cosH = -Math.tan(latDeg * DEG) * Math.tan(solarDeclinationDeg(dayOfYear) * DEG)
+  const halfDayH = Math.acos(Math.max(-1, Math.min(1, cosH))) / DEG / 15
+  return { start: Math.ceil((12 - halfDayH) * 4) / 4, end: Math.floor((12 + halfDayH) * 4) / 4 }
+}
+
+export function clampToDaylight(hour: number, window: { readonly start: number; readonly end: number }): number {
+  return Math.min(window.end, Math.max(window.start, hour))
+}
+
 /** Unit vector from the ground TOWARD the sun. +x east, +y up, +z SOUTH. */
 export function sunDirectionWorld(elevationDeg: number, azimuthDeg: number): Vec3 {
   const el = elevationDeg * DEG, az = azimuthDeg * DEG

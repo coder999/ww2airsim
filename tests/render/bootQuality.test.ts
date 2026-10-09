@@ -237,7 +237,7 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   it('binds the model to the live tier setters', () => {
     expect(source).toContain('quality.bind({ setOceanTier:')
     expect(source).toContain('setFxTier: applyFxTier')
-    expect(source).toContain('quality.applyProbeResult(next.name)')
+    expect(source).toContain('quality.applyProbeResult(tier.name)')
     expect(source).toContain('let qualityChecked = quality.probeSuppressed')
   })
 

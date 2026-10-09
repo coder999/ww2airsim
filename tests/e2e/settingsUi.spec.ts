@@ -86,7 +86,7 @@ function settingsDialog(page: Page) {
   return page.getByRole('dialog', { name: 'Settings' })
 }
 
-test('fresh profile: no Recommended tag until the probe window elapses, then one appears', async ({ page }) => {
+test('fresh profile: no Recommended tag on the title; the probe measures the first sortie, and the tag is there after a reload', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   await waitForTerrainOnly(page)
@@ -95,18 +95,24 @@ test('fresh profile: no Recommended tag until the probe window elapses, then one
   const dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
 
-  // Nothing persisted, so the probe has not resolved yet -- the pre-latch in
-  // `main.ts` (`let qualityChecked = quality.probeSuppressed`) starts false.
+  // Nothing persisted, so the probe has not resolved -- and A4 (2026-10-09)
+  // moved it into the flight, so the title never resolves it however long it
+  // stays up (incident 2026-09-20: the title is not the scene a pilot flies).
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(false)
   await expect(dlg.getByText('Recommended')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/settings-fresh-no-recommended.png' })
+  await page.waitForTimeout(6_000)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(false)
+  await dlg.getByRole('button', { name: 'Close' }).click()
 
-  // The probe resolves at ~180 GPU-timestamp samples; the reference desktop's
-  // render loop runs continuously even while the title holds the simulation
-  // (confirmed: `adaptOceanQuality()` is called every frame from the main
-  // render loop, unconditionally). 15s is generous headroom over the ~3s this
-  // measures on the reference GPU.
-  await expect(dlg.getByText('Recommended')).toBeVisible({ timeout: 15_000 })
+  await startGame(page)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.qualityProbeChecked(), undefined, { timeout: 60_000 })
+
+  // The verdict persists (A4), so a reload shows the stamp with no new probe.
+  await page.reload()
+  await waitForTerrainOnly(page)
+  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await expect(settingsDialog(page).getByText('Recommended')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
   await page.screenshot({ path: 'test-results/settings-fresh-recommended.png' })
 })

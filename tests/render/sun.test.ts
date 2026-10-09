@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  DEFAULT_TIME_OF_DAY, SCENARIO_DAY_OF_YEAR, TACLOBAN_LAT_DEG, solarDeclinationDeg, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery,
+  DEFAULT_TIME_OF_DAY, clampToDaylight, daylightWindow, SCENARIO_DAY_OF_YEAR, TACLOBAN_LAT_DEG, solarDeclinationDeg, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery,
 } from '../../src/render/sky/sun.js'
 
 describe('solar geometry (Plan 16c), Tacloban on 1944-10-20', () => {
@@ -59,5 +59,21 @@ describe('solar geometry (Plan 16c), Tacloban on 1944-10-20', () => {
     expect(() => timeOfDayFromQuery('?timeOfDay=sunset')).toThrow(/timeOfDay/)
     expect(() => timeOfDayFromQuery('?timeOfDay=24')).toThrow(/timeOfDay/)
     expect(() => timeOfDayFromQuery('?timeOfDay=-1')).toThrow(/timeOfDay/)
+  })
+})
+
+describe('daylightWindow (A3)', () => {
+  it('Leyte on the scenario day: 0615 to 1745, and the sun is up at both ends', () => {
+    const w = daylightWindow(TACLOBAN_LAT_DEG)
+    expect(w).toEqual({ start: 6.25, end: 17.75 })
+    expect(sunPosition(TACLOBAN_LAT_DEG, w.start).elevationDeg).toBeGreaterThan(0)
+    expect(sunPosition(TACLOBAN_LAT_DEG, w.end).elevationDeg).toBeGreaterThan(0)
+    expect(sunPosition(TACLOBAN_LAT_DEG, w.start - 0.25).elevationDeg).toBeLessThan(0.5)
+  })
+  it('clamps a pick into the window', () => {
+    const w = { start: 6.25, end: 17.75 }
+    expect(clampToDaylight(3, w)).toBe(6.25)
+    expect(clampToDaylight(23, w)).toBe(17.75)
+    expect(clampToDaylight(7.5, w)).toBe(7.5)
   })
 })

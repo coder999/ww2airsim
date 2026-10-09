@@ -89,7 +89,7 @@ import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
 import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
-import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameTimeMs } from './ocean/tiers.js'
+import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameIntervalsMs } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
@@ -205,10 +205,7 @@ const gpuFrameTimesMs: number[] = []
 
 /**
  * The render-pool part of each `gpuFrameTimesMs` sample on its own, which is
- * what `gpuFrameTimesMs` itself held until 2026-09-24. Kept because the
- * one-time ocean probe (`adaptOceanQuality`) was derived against it and adds
- * the ocean's compute percentiles itself; handing it the combined samples
- * would count compute twice. Also the sampling window's capacity counter:
+ * what `gpuFrameTimesMs` itself held until 2026-09-24. The sampling window's capacity counter:
  * a combined sample can be skipped (see the resolve below), this one cannot.
  */
 const gpuRenderTimesMs: number[] = []
@@ -244,6 +241,10 @@ async function boot(): Promise<void> {
   // Plan 16c, read by the DEV hook's `sun()` below; assigned at boot and
   // every frame. Apparent solar time.
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
+  /** A3: Form 2's takeoff hour for the sortie being launched; undefined flies the scenario's own. */
+  let pickedTimeOfDay: number | undefined
+  // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
+  const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
    *  to the live sky and ocean. Null until boot has built them; boot's own
    *  first `loadScenario` reads the bundle directly instead. */
@@ -598,13 +599,13 @@ async function boot(): Promise<void> {
    * down, once those objects exist.
    */
   const quality = createBootQuality()
-  // Spec §5 step 1: a saved choice means the probe (`adaptOceanQuality`,
+  // Spec §5 step 1: a saved choice means the probe (`adaptQuality`,
   // below) never runs at all -- the "probe once ever" rule -- so this starts
   // pre-latched in that path rather than the probe measuring and then
   // discarding its own result.
   //
   // Declared HERE, immediately beside `quality`, rather than down next to
-  // `adaptOceanQuality` where it used to live (Task 9 review): the `__ww2`
+  // the probe where it used to live (Task 9 review): the `__ww2`
   // DEV hook exposes this variable (`qualityProbeChecked`, below), and that
   // hook is built well before this point in `boot()` used to be reached --
   // exactly the "read a `let` before its own declaration has run" bug class
@@ -642,6 +643,7 @@ async function boot(): Promise<void> {
   const boot = createBootProgress()
   const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
     chosen = choice
+    pickedTimeOfDay = choice.timeOfDay
     track('sortie_launched', { mission: choice.scenarioId, aircraft: choice.aircraftSpec, loadout: choice.loadout })
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
     // `roster` this closure already held: `titleScreen.ts`'s own `start()`
@@ -736,6 +738,8 @@ async function boot(): Promise<void> {
       return
     }
     devSortie = sortieNeededDev(choice)
+    // Same scenario, so no `applyScenarioWeather`: only the hour can have changed (A3).
+    scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     rebuildFrame()
   }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
   // A quick launch (A6, SF-R9) builds the title and hides it at once rather
@@ -778,10 +782,11 @@ async function boot(): Promise<void> {
   }, { passive: false })
   canvas.addEventListener('dblclick', () => { mouseDelta = { ...mouseDelta, reset: true } })
 
-  // Timestamp queries also support one automatic ocean quality decision.
-  // The external diagnostics hook remains development-only.
+  // GPU timestamps are DEV-only (the budget tests and the diagnostics hook).
+  // Production tracked them for the quality probe until A4, which measures
+  // frame intervals instead (`adaptQuality`).
   boot.begin('renderer')
-  const { renderer, adapterVerdict } = await initRenderer(canvas, true)
+  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV)
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
@@ -903,8 +908,8 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict,
       oceanTier: () => oceanTier.name,
       seaState: () => beaufort,
-      // Task 9 (reference-GPU acceptance): whether `adaptOceanQuality`'s
-      // ~180-frame probe has already resolved, or was pre-latched true by a
+      // Task 9 (reference-GPU acceptance): whether the quality probe
+      // (`adaptQuality`, A4: in flight) has already resolved, or was pre-latched true by a
       // persisted choice at boot (`qualityChecked`, declared beside `quality`
       // above -- see that declaration for why it lives there now). Exists
       // because the DEV-override precedence and "an explicit pick suppresses
@@ -1257,8 +1262,7 @@ async function boot(): Promise<void> {
   sceneryTier = forcedSceneryTier ?? quality.current().scenery
   let fxTier: QualityTierName | 'off' = fxQuery.tier ?? quality.current().fx
   // Plan 16c: the scenario's hour, or the DEV override.
-  const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
-  scenarioTimeOfDay = forcedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+  scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle!.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
   sunState = { ...sunState, timeOfDay: scenarioTimeOfDay }
   boot.begin('surface')
   const cloudField = createCloudField(cloudLayers, skyNoise)
@@ -1436,27 +1440,44 @@ async function boot(): Promise<void> {
   // during boot's own awaits, when the dialog was already clickable and there
   // was nothing yet to apply it to.
   quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier, setFxTier: applyFxTier })
-  const adaptOceanQuality = async (): Promise<void> => {
-    // One downgrade after warm-up. Never oscillate tiers or repeatedly compile
-    // pipelines during flight; a DEV override holds the tier for comparison.
-    const p95 = (values: readonly number[]) => [...values].sort((a,b)=>a-b)[Math.floor(values.length * .95)] ?? 0
-    const timed = renderer.hasFeature('timestamp-query')
-    if (qualityChecked || forcedOceanTier || (timed ? gpuRenderTimesMs.length < 180 : frameTimesMs.length < 180)) return
+  // A4: the one-time quality probe, measured in flight (incident 2026-09-20:
+  // it used to read GPU timestamps on the title screen, which a vsynced
+  // browser inflates about 3x). It reads the frame rate the pilot gets, rAF
+  // interval by rAF interval: a vsynced GPU that idles and clocks down still
+  // makes every frame, and a browser whose GPU falls behind stops issuing
+  // frames until it catches up. Headless Chromium does NOT throttle rAF that
+  // way (measured on nexus 2026-10-09: 16.7 ms rAF at 26 ms of GPU work), so
+  // under the E2E harness this probe always reads High; the reference check is
+  // a real Chrome (the handoff). `tierForFrameIntervalsMs` has the rule. It
+  // skips a warm-up (shader compiles, the first terrain tiles), then reads up
+  // to PROBE_FRAMES intervals or 5 s of them: a slow machine must not fly
+  // 20 s at a tier it cannot hold. A gap over 250 ms (a hidden tab, a
+  // debugger) is not a frame and is dropped.
+  const PROBE_WARMUP = { frames: 120, ms: 2000 }
+  const PROBE_FRAMES = 240
+  const PROBE_MS = 5000
+  let warmupFrames = 0
+  let warmupMs = 0
+  let probeMs = 0
+  const probeIntervalsMs: number[] = []
+  // In DEV the probe shares its frames with the GPU timestamp sampling (budget
+  // tests need those samples); production tracks no timestamps.
+  const adaptQuality = (frameMs: number, inFlight: boolean): void => {
+    if (qualityChecked || forcedOceanTier !== undefined || !inFlight || document.hidden) return
+    if (warmupFrames < PROBE_WARMUP.frames && warmupMs < PROBE_WARMUP.ms) { warmupFrames += 1; warmupMs += frameMs; return }
+    if (frameMs > 250) return
+    probeIntervalsMs.push(frameMs)
+    probeMs += frameMs
+    if (probeIntervalsMs.length < PROBE_FRAMES && probeMs < PROBE_MS) return
     qualityChecked = true
-    const cost = timed ? p95(gpuRenderTimesMs.slice(60)) + cascades.reduce((sum,c)=>sum+p95(c.computeTimesMs().slice(60)),0)
-      : p95(frameTimesMs.slice(60))
-    // Without GPU timestamps, frame intervals include refresh cadence. Keep
-    // high at 60 fps, medium below 30 fps, low otherwise.
-    const next = timed ? tierForFrameTimeMs(cost) : cost <= 18 ? OCEAN_TIERS[0] : cost <= 34 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
-    // Spec §5 step 3, all of it -- including the case this function used to
-    // return early on (`next === oceanTier`): the measurement is still what
-    // the dialog stamps "Recommended", and still worth saving, since what
-    // makes the probe run once per BROWSER rather than once per page load is
-    // the save, not the swap. `applyProbeResult` discards its own result if
-    // the player picked a tier first; it never overwrites a deliberate choice.
-    quality.applyProbeResult(next.name)
+    const { tier, medianMs } = tierForFrameIntervalsMs(probeIntervalsMs)
+    // Spec §5 step 3: always recorded (the "Recommended" stamp, now persisted),
+    // applied and saved only when the player has not picked a tier first.
+    quality.applyProbeResult(tier.name)
+    const fps = Math.round(1000 / medianMs)
+    console.info(`quality: measured ${fps} fps in flight at ${oceanTier.name}; recommends ${tier.name}, in force ${quality.current().ocean}`)
     // J: what the probe measured against what is in force (a player's pick wins), for A4.
-    track('quality_tier', { detected: next.name, chosen: quality.current().ocean })
+    track('quality_tier', { detected: tier.name, chosen: quality.current().ocean, fps })
   }
   const sky = createSky()
   scene.add(sky)
@@ -1586,7 +1607,7 @@ async function boot(): Promise<void> {
   }
   routeOutput()
   applyScenarioWeather = (weather): void => {
-    scenarioTimeOfDay = forcedTimeOfDay ?? weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+    scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     if (forcedCloudTier !== 'off') {
       cloudLayers = weather.clouds ?? []
       cloudField.setLayers(cloudLayers)
@@ -2788,6 +2809,7 @@ async function boot(): Promise<void> {
     // While GPU samples are being collected, a frame is NOT rendered until the
     // previous frame's timestamp resolve has landed. The paragraph after the
     // next explains why the guard alone stopped being enough on 2026-09-17.
+    const inFlight = !title.up() && !swapPending && !navigationMapState.open && replay === null
     const sampling = renderer.hasFeature('timestamp-query') && gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
     if (!(sampling && gpuResolvePending)) {
       // Plan 16b: the shadow map first, inside the same frame and the same
@@ -2875,17 +2897,13 @@ async function boot(): Promise<void> {
     // read a strict alternation of 6.0 and 1.6 ms while the same scene,
     // rendered only after each resolve completed, read a flat 6.03 -- and a
     // sample covering TWO pending frames read 2.0, which no sum of frames
-    // can. The one-time ocean tier choice below reads these percentiles, so
-    // it was choosing on noise too. Serializing costs nothing measurable when
+    // can. Serializing costs nothing measurable when
     // resolves keep up (pre-scenery main: 599 samples of 601 frames, and
     // 1.84 ms either way) and halves the frame rate only while the GPU is
     // heavy AND samples are still wanted: the first FRAME_TIME_CAPACITY
-    // frames after boot or a `resetFrameTimes()`, i.e. the tier choice and
-    // an E2E budget window. Production tracks timestamps too
-    // (`initRenderer(canvas, true)`, for the ocean tier choice), so it
-    // serializes for those first frames as well; corrected 2026-10-08, this
-    // said production never tracks them.
-    void adaptOceanQuality()
+    // frames after boot or a `resetFrameTimes()`, i.e. an E2E budget window.
+    // DEV only since A4 (2026-10-09): production no longer tracks timestamps.
+    adaptQuality(frameMs, inFlight)
     if (sampling && !gpuResolvePending) {
       gpuResolvePending = true
       // The sample is the frame's whole GPU cost, render AND compute
