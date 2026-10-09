@@ -354,6 +354,16 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   the atlas size. Bytes decide the atlas: Fletcher's geometry leaves room only
   for 1,024 px (measured 2026-10-09). Shiratsuyu is left on its author's
   textures (see the M1d handoff).
+- **Camouflage on a download (M1e, 2026-10-09).** `boxSkin.detail.camo` lists
+  patches, each `on` the `sides` ((x, y) points, mirrored onto both sides of
+  the hull and island) or the `flightDeck` ((x, z) points from above), in a
+  `MARKING_COLORS` color. They are painted before everything else, so planks,
+  strakes, grime and rust lie over them. Zuikaku's entry is the example.
+- **A download's own guns.** When a download models guns that instanced kits
+  replace, `split` boxes around them with names listed in `remove` drop them
+  (Zuikaku's `Drop1..23`). `npx tsx tools/models/islands.ts <id> 20` lists the
+  shells, `--box` turns an output-frame box into a split box, and `--probe
+  x,z,y` reads the committed model's surface heights for a mount's `y`.
 - **Planks (M1c).** The `planks` marking shades boards (or linoleum sheets)
   on sky-facing faces in world (x, z), each its own shade and roughness, with
   dark seams. `railing()` and `rounded_box()` are in `kit.py`.
