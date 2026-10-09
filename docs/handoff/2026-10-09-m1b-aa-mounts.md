@@ -1,6 +1,6 @@
 # M1b handoff: visible AA mounts, drawn galleries, guns that elevate (2026-10-09)
 
-Plan: `docs/superpowers/plans/2026-10-09-m1b-aa-mounts.md` (rulings B1–B4). Branch `m1b-aa-mounts`, merged to `main`. Run unattended. Checkpoint 1 (the new 40 mm quad) and the final captures are below, for when Mark is back.
+Plan: `docs/superpowers/plans/2026-10-09-m1b-aa-mounts.md` (rulings B1–B4). Branch `m1b-aa-mounts`, merged to `main` as `e66b78a9`; `npm run verify` green on the merge (Ryzen, 363 files, 4,845 tests, 10 skipped). Run unattended. Checkpoint 1 (the new 40 mm quad) and the final captures are below, for when Mark is back.
 
 ## What ships
 
