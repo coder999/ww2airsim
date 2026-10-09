@@ -1,6 +1,7 @@
 {
   "id": "essex-cv",
   "input": "tools/models/cache/enterprise-cv6.glb",
+  "inputSha256": "74a85f09b7fb3d79af14efe38924284ad3dd23fce9f1846c839a36d72edfb515",
   "output": "content/ships/essex-cv.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98",

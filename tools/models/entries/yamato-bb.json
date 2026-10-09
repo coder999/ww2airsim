@@ -1,6 +1,7 @@
 {
   "id": "yamato-bb",
   "input": "tools/models/cache/musashi-bb.glb",
+  "inputSha256": "94bdff5992bcf3e32bf9a365ac3d3e4e99b60685209c62d7f7a939f416b1c219",
   "output": "content/ships/yamato-bb.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30",

@@ -51,6 +51,9 @@ is looking at.**
 - **Never run `git clean -fdx`.** `content/terrain/tiles/` and
   `tools/terrain/cache/` are ~275 MB of gitignored data that exists nowhere
   else. Its absence shows as extra named skips in the suite, not failures.
+  `tools/models/cache/` is the one home of the raw model downloads
+  (`npm run models:raws`, `docs/models.md` §2). A worktree symlinks it to
+  main's and never copies it.
 - **deploys are the user's call**
   - Commits and pushes are okay unasked since they are reversible and don't touch production
 

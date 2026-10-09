@@ -1,6 +1,7 @@
 {
   "id": "cleveland-cl",
   "input": "tools/models/cache/cleveland-cl.glb",
+  "inputSha256": "ede06a360aafe9fcbea6ab7723ff327c979ec3de81cfb1134df69730eca718b1",
   "output": "content/ships/cleveland-cl.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/uss-cleveland-model-fpr-14000-printing-da03808e0aa74ca89a237ce4da2ac29e",

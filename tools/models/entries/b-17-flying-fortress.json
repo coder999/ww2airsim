@@ -1,6 +1,7 @@
 {
   "id": "b-17-flying-fortress",
   "input": "tools/models/cache/boeing_b-17_flying_fortress.glb",
+  "inputSha256": "5ba6eaae156fdd6fa029d2fd7b10e74beae9d487eef9cfbcc7eafb374994a662",
   "output": "content/aircraft/b-17-flying-fortress.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/boeing-b-17-flying-fortress-927f07f6ddcf470ab0387ce5829024d5",
@@ -342,8 +343,8 @@
       "Object_16": 1,
       "Object_31": 1,
       "Object_32": 1,
-      "Object_33": 1,
-      "Object_40": 1,
+      "Object_33": 0.8,
+      "Object_40": 0.2,
       "Object_41": 1,
       "Object_42": 1,
       "Object_43": 1,

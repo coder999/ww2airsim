@@ -117,7 +117,8 @@ describe('generated entries (O1)', () => {
       const { frozen, legacyOptimize, note, split, budget, ...rest } = e
       return (void frozen, void legacyOptimize, void note, void split, void budget, rest)
     }
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, c1(rest)))
+    // The raw store (2026-10-08) adds `inputSha256` to every one.
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, inputSha256, ...rest }) => (void boxSkin, void inputSha256, c1(rest)))
     expect(now).toEqual(before.map((e) => c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })

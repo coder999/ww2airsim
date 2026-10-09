@@ -1,6 +1,7 @@
 {
   "id": "f6f-hellcat",
   "input": "tools/models/cache/f6f.glb",
+  "inputSha256": "56ee830d688ec94cfe81a898bd9befbf688c0f3260f9f092e6a6555ee27c4517",
   "output": "content/aircraft/f6f-hellcat.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/f6f-d64f29e7f1c144e6a0712ea12d83a91e",
