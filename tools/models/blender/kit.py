@@ -553,7 +553,14 @@ class Model:
         _require(length > 0 and width > 0 and height >= 0 and thickness > 0,
                  f'deck: length, width and thickness must be > 0 and height >= 0, got {length}, {width}, {height}, {thickness}')
         x, z = center
-        self.box(role, (x, height - thickness, z), (length, thickness, width), node)
+        # box()'s faces, but the top starts on an edge along x (same winding), so its chart lies long
+        # across the atlas: stood on end, a carrier's 146 m deck took a whole shelf and left the
+        # atlas 60% empty at 13 cm/px (M1c, measured 2026-10-09).
+        x0, x1, y0, y1, z0, z1 = x - length / 2, x + length / 2, height - thickness, height, z - width / 2, z + width / 2
+        v = [(x0, y0, z0), (x1, y0, z0), (x1, y1, z0), (x0, y1, z0),
+             (x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)]
+        f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (2, 3, 7, 6), (0, 4, 7, 3), (1, 2, 6, 5)]
+        self._part(role, v, f, node)
 
     def tapered_box(self, role, base, lower, upper, height, node=None):
         """A centered truncated rectangular prism, useful for bridges and islands."""
