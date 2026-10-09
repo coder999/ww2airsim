@@ -73,7 +73,7 @@ Every download's UVs failed the survey, so each ship took treatment 2: a new lay
     - `manifest.test.ts` now admits masks and 2,048 px textures on baked downloads.
   - The tests added are for island charts, `overlapFraction`, download detail expansion and the download stale-bake refusal.
 - **Hangar and ships E2E on nexus's 680M:** all Hangar checks pass, including check 15 (luminance against the flat predecessor, no re-baseline needed) and check 17 (mounts). The only failures are the three already known on nexus, which `main` fails the same way: `deckQuals.spec.ts:63` and both cases of `ships.spec.ts:62`.
-- `npm run verify` on `main` after the merge is recorded in the commit that follows this handoff.
+- `npm run verify` on `main` after the merge (`3265b8e7`, on nexus, 2026-10-09): exit 0, 370 test files, 4,893 tests passed and 10 skipped.
 
 ## Captures
 
