@@ -17,7 +17,7 @@ const downloads = loadModelEntries().filter((e) => e.ship && e.source.kind === '
 const FLAT_SOUP: Readonly<Record<string, string>> = {
   'cleveland-cl': '248de4ec470db281ee272e0f7230a724630f4c8da0606d9b93742e3dedd694af',
   'essex-cv': 'f9a6769bdeec92a7ca8a34d5b29f065a833f8759c3a3af180b6f29fc73fe279b',
-  'mogami-ca': 'ac7cadfdf0467d5ba4624f7692fa782839dcb63237d1ef175b04cf1f425096f1',
+  'mogami-ca': '9e15d1eed5569e1acfa047f159711e6f44648645e20aa0ef7bbcc11daf091197',
   'yamato-bb': '32ee71102f8cb9eb6b5893a98ecced653d6a4606f195bc1ec00255a4fd9ad3ef',
 }
 
