@@ -1,6 +1,7 @@
 {
   "id": "mogami-ca",
   "input": "tools/models/cache/mogami-ca.glb",
+  "inputSha256": "8c407727e36c7afc53bbd98611897c76dd17588c488e051123077b65729737fd",
   "output": "content/ships/mogami-ca.glb",
   "source": {
     "url": "https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71",
@@ -21,5 +22,16 @@
     "otherMaterials": "classify",
     "smokeOrigin": [0, 20.39, 0],
     "bow": "narrow-end"
-  }
+  },
+  "split": [
+    {"name": "Turret1", "select": "components", "boxMin": [-0.23846, 0.31515, -5.90729], "boxMax": [0.23846, 0.50145, -4.81185]},
+    {"name": "Turret2", "select": "components", "boxMin": [-0.23846, 0.31515, -4.76714], "boxMax": [0.23846, 0.50145, -3.6717]},
+    {"name": "Turret3", "select": "components", "boxMin": [-0.32789, 0.51263, -4.23059], "boxMax": [0.32789, 1.11251, -2.98611]},
+    {"name": "Turret4", "select": "components", "boxMin": [-0.32789, 0.56852, 3.16923], "boxMax": [0.32789, 1.10506, 4.41371]},
+    {"name": "Turret5", "select": "components", "boxMin": [-0.23846, 0.36731, 3.90698], "boxMax": [0.23846, 0.55361, 5.15146]},
+    {"name": "HeavyAA1", "select": "components", "boxMin": [0.48438, 0.47164, -0.86975], "boxMax": [0.78991, 0.76972, -0.55676]},
+    {"name": "HeavyAA2", "select": "components", "boxMin": [-0.78991, 0.47164, -0.86975], "boxMax": [-0.48438, 0.76972, -0.55676]},
+    {"name": "HeavyAA3", "select": "components", "boxMin": [0.48438, 0.47164, 0.08411], "boxMax": [0.78991, 0.76972, 0.38964]},
+    {"name": "HeavyAA4", "select": "components", "boxMin": [-0.78991, 0.47164, 0.08411], "boxMax": [-0.48438, 0.76972, 0.38964]}
+  ]
 }

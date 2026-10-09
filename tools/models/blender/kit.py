@@ -200,6 +200,16 @@ def _loft(rings):
     return verts, faces
 
 
+def quarter_of(segments):
+    return segments // 4
+
+
+def _ends(points):
+    """The two points farthest apart, in a stable order: a line's ends."""
+    a, b = max(((p, q) for p in points for q in points), key=lambda pq: sum((x - y) ** 2 for x, y in zip(*pq)))
+    return (a, b) if a <= b else (b, a)
+
+
 def _mirror_z(verts, faces):
     """The reflection in z = 0, windings reversed so faces still point outward."""
     return [(x, y, -z) for x, y, z in verts], [(tuple(reversed(f)), j) for f, j in faces]
@@ -301,6 +311,9 @@ class Model:
         self._tag = 'part'
         self._shared = None  # inside shared_chart(): (tag, role) -> its one chart key, else None
         self._hull = None  # DP2: the last hull_lines' refined stations, for hull_at
+        self._parents = {}  # node -> the node it hangs under, so the build's collapse makes them one part
+        self._hinges = {}  # control node -> [hinge-line points], written to <out>.hinges.json
+        self._fixed_hinges = {}  # bay door node -> {point, axis}, already oriented (C2), written with them
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -632,7 +645,7 @@ class Model:
                        None if charts is None else [charts[i] for i in ids],
                        False if smooth is None else [smooth[i] for i in ids])
 
-    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1):
+    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1, doors=None):
         """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
 
         Each station is ``(x, half_width, half_height, center_y[, exponent])``: a superellipse
@@ -642,6 +655,13 @@ class Model:
         side faces below each section's center go to ``lower_node`` in that role.
         ``subdivide`` k > 1 lofts k - 1 Catmull-Rom stations between each authored pair (a
         smoother silhouette); panel lines stay at the authored ones.
+
+        ``doors`` (C2) is a list of (x0, x1, half_width) bomb bays, numbered in the order given: the
+        belly quads between the rings nearest x0 and x1, out to the first ring vertex at least
+        ``half_width`` from the keel, become nodes ``BayDoor<n>L`` and ``BayDoor<n>R``, each hinged on
+        its outboard edge (recorded for the build, oriented so a positive turn opens it down and
+        out), over a dark well with inward faces, so the open bay shows a bay, not the sky through
+        the far skin. The doors keep the skin's own chart: shut, they are the skin.
         """
         _require(isinstance(segments, int) and segments >= 8 and segments % 4 == 0,
                  f'fuselage: segments must be a multiple of 4, at least 8, got {segments!r}')
@@ -678,7 +698,82 @@ class Model:
             smooth = [j is not None for _, j in faces]
             for s in authored[1:-1]:
                 self._line(side, 'u', U[s], 0.0, V[s][-1])
+        if doors:
+            keep = self._bay_doors(doors, rings, verts, faces, charts, smooth, segments, lower_role or role)
+            faces = [faces[i] for i in keep]
+            charts = None if charts is None else [charts[i] for i in keep]
+            smooth = None if smooth is None else [smooth[i] for i in keep]
         self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter, charts, smooth)
+
+    def _bay_doors(self, doors, rings, verts, faces, charts, smooth, segments, role):
+        """Takes each bay's belly quads out of a fuselage loft into its two door nodes and adds its well
+        (see ``fuselage``). Returns the indices of the faces the fuselage keeps."""
+        count = segments
+        keel = segments // 2  # t = pi: the bottom of the section (y = center - half_h)
+        xs = [ring[0][0] for ring in rings]
+        taken = set()
+        for n, (x0, x1, half_width) in enumerate(doors, start=1):
+            s0 = min(range(len(xs)), key=lambda i: abs(xs[i] - x0))
+            s1 = min(range(len(xs)), key=lambda i: abs(xs[i] - x1))
+            _require(s1 > s0, f'bay {n}: x {x0}..{x1} snaps to no ring span (rings at {xs[s0]:.3f}, {xs[s1]:.3f})')
+            mid = rings[(s0 + s1) // 2]
+            m = next((k for k in range(1, quarter_of(segments)) if abs(mid[keel - k][2] - mid[keel][2]) >= half_width), None)
+            _require(m is not None, f'bay {n}: half width {half_width} reaches past the belly')
+            for side, js in (('R', range(keel - m, keel)), ('L', range(keel, keel + m))):
+                name = f'BayDoor{n}{side}'
+                ids = [s * count + j for s in range(s0, s1) for j in js]
+                taken.update(ids)
+                fs = [faces[i] for i in ids]
+                self._emit(role, verts, fs, name, None, None, None,
+                           None if charts is None else [charts[i] for i in ids],
+                           None if smooth is None else [smooth[i] for i in ids])
+                # The hinge runs fore and aft along the outboard edge. A tapering belly bends that edge, so
+                # the line goes through its widest and highest point: inside the skin at every station.
+                edge = keel - m if side == 'R' else keel + m
+                ring_edge = [rings[s][edge] for s in range(s0, s1 + 1)]
+                a = (rings[s0][edge][0], max(p[1] for p in ring_edge), max((p[2] for p in ring_edge), key=abs))
+                axis = [1.0, 0.0, 0.0]
+                # Positive turn opens it: the keel edge, turned a little about the hinge, must go down.
+                k = rings[(s0 + s1) // 2][keel]
+                r = [k[i] - a[i] for i in range(3)]
+                if (axis[2] * r[0] - axis[0] * r[2]) > 0:  # (axis x r).y, the keel edge's vertical velocity
+                    axis = [-c for c in axis]
+                self._fixed_hinges[name] = {'point': [round(c, 6) for c in a], 'axis': [round(c, 9) for c in axis]}
+            self._bay_well(rings[s0], rings[s1], keel, m)
+        return [i for i in range(len(faces)) if i not in taken]
+
+    def _bay_well(self, fore, aft, keel, m):
+        """The dark box behind a bay's doors: its ends follow the belly arc between the hinges (so no
+        corner pokes out of the skin), its sides stand on the hinge lines, and it is open below. Wound
+        inward: it is seen from outside, through the opening, only from within."""
+        inset = 0.01
+        arc = lambda ring, dx: [(ring[j][0] + dx, ring[j][1] + inset, ring[j][2]) for j in range(keel - m, keel + m + 1)]  # noqa: E731
+        lo_f, lo_a = arc(fore, inset), arc(aft, -inset)
+        # Shallow: 0.1 m above the hinges keeps it under the wing's center section, which a deeper well cut
+        # through (a pale diamond in the open bay, 2026-10-08: the G4M's at 0.5 x the section, the Ki-21's,
+        # whose wing underside is 0.13 m above its hinges, at 0.2 m). From below it reads as a bay.
+        top = max(p[1] for p in lo_f + lo_a) + 0.1
+        zr, zl = lo_f[0][2], lo_f[-1][2]
+        verts, faces = [], []
+        def quad(p, q, r, t):
+            base = len(verts)
+            verts.extend([p, q, r, t])
+            faces.append((base, base + 1, base + 2, base + 3))
+        def end(arcpts, x, facing):
+            base = len(verts)
+            verts.extend(arcpts + [(x, top, zl), (x, top, zr)])
+            ring = list(range(base, len(verts)))
+            faces.append(tuple(ring) if facing > 0 else tuple(reversed(ring)))
+        # Arc then top, in this order, faces +x by the right-hand rule: right for the aft end (rings run
+        # tail to nose, so rings[s0] is aft, at the smaller x), and reversed for the fore end.
+        end(lo_f, lo_f[0][0], 1)
+        end(lo_a, lo_a[0][0], -1)
+        xf, xa = lo_f[0][0], lo_a[0][0]
+        # Sides on the hinge lines, the top: each wound to face into the box.
+        quad((xf, lo_f[0][1], zr), (xf, top, zr), (xa, top, zr), (xa, lo_a[0][1], zr))
+        quad((xf, lo_f[-1][1], zl), (xa, lo_a[-1][1], zl), (xa, top, zl), (xf, top, zl))
+        quad((xf, top, zr), (xf, top, zl), (xa, top, zl), (xa, top, zr))
+        self._part('dark', verts, faces, None)
 
     def wing(self, role, le_x, root_y, root_chord, tip_chord, span, sweep_deg=0.0, dihedral_deg=0.0,
              thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None,
@@ -693,8 +788,10 @@ class Model:
 
         Detail (DP0, all opt-in): ``stations`` are the section's chord fractions (e.g.
         AIRFOIL_STATIONS_FINE), ``span_segments`` lofts that many spans root to tip, and
-        ``controls`` is a list of (z0, z1, hinge chord fraction) in absolute z, clipped to the
-        panel: each is its own piece aft of the hinge, with CONTROL_GAP_M gaps around it.
+        ``controls`` is a list of (z0, z1, hinge chord fraction, name) in absolute z, clipped to the
+        panel: each is its own piece aft of the hinge, with CONTROL_GAP_M gaps around it, in node
+        ``<name>R`` (``<name>L`` for the mirror; ``name`` itself without one), with its hinge line
+        recorded for the build (C1).
         """
         half = span / 2
         tip_t = thickness if tip_thickness is None else tip_thickness
@@ -735,7 +832,7 @@ class Model:
             tip_thickness=None, center_z=0.0, node=None, stations=None, span_segments=1, controls=None):
         """A vertical tail surface standing on y = ``root_y`` in the plane z = ``center_z``.
         ``stations``, ``span_segments`` and ``controls`` are ``wing``'s, with each control's
-        (h0, h1, hinge chord fraction) in height above the root."""
+        (h0, h1, hinge chord fraction, name) in height above the root."""
         tip_t = thickness if tip_thickness is None else tip_thickness
         _require(root_chord > 0 and tip_chord > 0 and height > 0,
                  f'fin: chords and height must be > 0, got {root_chord}, {tip_chord}, {height}')
@@ -774,26 +871,58 @@ class Model:
                  'stations must run 0 to 1, strictly increasing')
         _require(isinstance(span_segments, int) and span_segments >= 1, f'span_segments must be an integer >= 1, got {span_segments!r}')
         ctrls = []
-        for z0, z1, hinge in controls or []:
+        for z0, z1, hinge, name in controls or []:
             _require(z0 < z1 and 0.3 < hinge < 0.95, f'control ({z0}, {z1}, {hinge}): need z0 < z1 and a hinge in (0.3, 0.95)')
+            _require(isinstance(name, str) and name, f'control ({z0}, {z1}, {hinge}): needs a node name, got {name!r}')
             if z1 > z_from and z0 < z_to:
-                ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to))
-        cuts = sorted({z_from, z_to} | {c for a, b, _h, _s, _e in ctrls for c in (a, b)})
+                ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to, name))
+        cuts = sorted({z_from, z_to} | {c for a, b, *_rest in ctrls for c in (a, b)})
         for za, zb in zip(cuts, cuts[1:]):
             c = next((x for x in ctrls if x[0] <= za and zb <= x[1]), None)
             if c is None:
                 self._lifting_piece(role, section, za, zb, 0.0, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
                 continue
-            _a, _b, hinge, own_start, own_end = c
+            _a, _b, hinge, own_start, own_end, name = c
             chord = min(section(za)[0], section(zb)[0])
             self._lifting_piece(role, section, za, zb, 0.0, hinge - CONTROL_GAP_M / chord, stations, span_segments, node, lower_role, lower_node, mirror, place)
             lo = za + CONTROL_GAP_M if own_start and za == _a else za
             hi = zb - CONTROL_GAP_M if own_end and zb == _b else zb
-            self._lifting_piece(role, section, lo, hi, hinge, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
+            # The control is its own part (C1). A lower-role underside goes in a child node, which the
+            # build's collapse folds into the part, since a kit node carries one role.
+            here, there = (name + 'R', name + 'L') if mirror else (name, None)
+            low = (lambda n: n + '_lower') if lower_role else (lambda n: None)
+            for n in (here, there):
+                if n is not None and lower_role:
+                    self._parents[n + '_lower'] = n
+            line = []
+            for z in (lo, hi):
+                ch, _t, le, y = section(z)
+                line.append(place((le - hinge * ch, y, z)))
+            self._hinge(here, line)
+            if there is not None:
+                self._hinge(there, [(x, y, -z) for x, y, z in line])
+            self._lifting_piece(role, section, lo, hi, hinge, 1.0, stations, span_segments, here, lower_role, low(here), mirror, place,
+                                there, low(there) if there else None)
 
-    def _lifting_piece(self, role, section, za, zb, f0, f1, stations, span_segments, node, lower_role, lower_node, mirror, place):
+    def _hinge(self, node, points):
+        """Adds a control piece's hinge-line ends to ``node``'s line; pieces of one control (split at a
+        wing break) must share one straight line, or the part cannot turn about one axis."""
+        line = self._hinges.setdefault(node, [])
+        line.extend(points)
+        a, b = _ends(line)
+        d = [q - p for p, q in zip(a, b)]
+        n = math.sqrt(sum(c * c for c in d))
+        for p in line:
+            v = [q - r for q, r in zip(p, a)]
+            t = sum(vi * di for vi, di in zip(v, d)) / (n * n)
+            off = math.sqrt(sum((vi - t * di) ** 2 for vi, di in zip(v, d)))
+            _require(off < 1e-6, f'{node}: its pieces are {off:.3g} m off one hinge line')
+
+    def _lifting_piece(self, role, section, za, zb, f0, f1, stations, span_segments, node, lower_role, lower_node, mirror, place,
+                       mirror_node=None, mirror_lower_node=None):
         """One piece of a detailed panel: the section's part between chord fractions f0 and f1,
-        lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked)."""
+        lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked, into
+        ``mirror_node`` and ``mirror_lower_node`` when given)."""
         rings, labels = [], None
         for k in range(span_segments + 1):
             z = za + (zb - za) * k / span_segments
@@ -813,7 +942,9 @@ class Model:
         self._emit(role, verts, faces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None, charts, smooth)
         if mirror:
             mverts, mfaces = _mirror_z(verts, faces)
-            self._emit(role, mverts, mfaces, node, lower_role, lower_node if lower_role else None, lower if lower_role else None,
+            m_node = node if mirror_node is None else mirror_node
+            m_lower = lower_node if mirror_node is None else mirror_lower_node
+            self._emit(role, mverts, mfaces, m_node, lower_role, m_lower if lower_role else None, lower if lower_role else None,
                        None if charts is None else self._mirror_charts(charts), smooth)
 
     def revolve(self, role, origin, direction, profile, segments=12, node=None):
@@ -935,10 +1066,46 @@ class Model:
         self.revolve(role, (hx, hy, hz), (0.0, -1.0, 0.0), [(0.0, strut), (hy - axle_y, strut)], 8, node)
         self.revolve(role, (hx, axle_y, hz - wheel_width / 2), (0.0, 0.0, 1.0), [(0.0, wheel_radius), (wheel_width, wheel_radius)], 16, node)
 
-    def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None):
+    def machine_gun(self, role, breech, direction, length, scale=1.0, node=None):
+        """One flexible machine gun from its breech along ``direction``, ``length`` long, styled on the
+        B-17 download's .50s: a cooling jacket over the rear 40% with two raised rings, a thin barrel and a
+        muzzle booster. ``scale`` sizes the radii (1 a .50 / 20 mm, about 0.75 a 7.7 mm)."""
+        _require(length > 0 and scale > 0, f'machine_gun: length and scale must be > 0, got {length}, {scale}')
+        j, ring, bar, muz = 0.030 * scale, 0.037 * scale, 0.014 * scale, 0.022 * scale
+        prof = [(0.0, j), (0.10, j), (0.101, ring), (0.13, ring), (0.131, j), (0.25, j), (0.251, ring), (0.28, ring),
+                (0.281, j), (0.40, j), (0.401, bar), (0.88, bar), (0.881, muz), (1.0, muz)]
+        self.revolve(role, breech, direction, [(t * length, r) for t, r in prof], 8, node)
+
+    def flex_gun(self, role, index, socket, direction, length, scale=1.0, barrels=1, spacing=0.12, mount_r=0.09, node=None):
+        """A flexible nose, cheek or tail gun on a ball socket at ``socket``, pointing ``direction``: the
+        socket in node ``TurretN`` (it traverses about the vertical through the socket) and the gun(s) in
+        ``TurretNGuns`` (elevating on a horizontal trunnion through it, a positive turn raising the muzzle).
+        The breech sits 20% of ``length`` inside the socket. Both hinges are written, so an entry keeps the
+        two nodes without pivots."""
+        _require(isinstance(index, int) and index > 0, f'flex_gun: index must be a positive integer, got {index!r}')
+        _require(isinstance(barrels, int) and barrels in (1, 2), f'flex_gun: barrels must be 1 or 2, got {barrels!r}')
+        d = _unit(direction)
+        _require(math.hypot(d[0], d[2]) > 0.5, f'flex_gun: direction must be within 60 deg of level, got {direction}')
+        key = node or f'Turret{index}'
+        guns = key + 'Guns'
+        sx, sy, sz = socket
+        self.revolve(role, (sx - mount_r * d[0], sy - mount_r * d[1], sz - mount_r * d[2]), d,
+                     [(0.0, 0.35 * mount_r), (0.4 * mount_r, 0.9 * mount_r), (mount_r, mount_r), (1.6 * mount_r, 0.9 * mount_r), (2.0 * mount_r, 0.35 * mount_r)], 12, key)
+        # The trunnion: up x heading flipped, (-dz, 0, dx), so a positive turn lifts the muzzle (as gun_turret's).
+        ax = _unit((-d[2], 0.0, d[0]))
+        for b in range(barrels):
+            o = (b - (barrels - 1) / 2) * spacing
+            br = (sx + o * ax[0] - 0.2 * length * d[0], sy - 0.2 * length * d[1], sz + o * ax[2] - 0.2 * length * d[2])
+            self.machine_gun(role, br, d, length, scale, guns)
+        self._fixed_hinges[key] = {'point': [round(c, 6) for c in socket], 'axis': [0.0, 1.0, 0.0]}
+        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in socket], 'axis': [round(c, 9) for c in ax]}
+
+    def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None, scale=1.0, gun_role=None):
         """A turret on the fuselage skin at ``center``: a dome ``height`` tall toward ``up`` (+1
         dorsal, -1 ventral) and ``barrels`` guns pointing ``facing`` along x, all in node
-        ``TurretN`` for H3 (numbered nose to tail by the caller)."""
+        ``TurretN`` for H3 (numbered nose to tail by the caller). The barrels are their own part,
+        ``TurretNGuns`` (in ``gun_role``, default ``role``), hinged on a horizontal trunnion so a positive turn
+        raises the muzzle."""
         _require(isinstance(index, int) and index > 0, f'gun_turret: index must be a positive integer, got {index!r}')
         _require(up in (-1, 1) and facing in (-1, 1), f'gun_turret: up and facing must be -1 or +1, got {up}, {facing}')
         _require(isinstance(barrels, int) and barrels > 0, f'gun_turret: barrels must be a positive integer, got {barrels!r}')
@@ -946,11 +1113,13 @@ class Model:
         key = node or f'Turret{index}'
         cx, cy, cz = center
         self.revolve(role, center, (0.0, float(up), 0.0), [(0.0, radius), (0.55 * height, 0.85 * radius), (height, 0.25 * radius)], 12, key)
-        gauge = 0.16 * radius
+        guns = key + 'Guns'
+        gy = cy + up * 0.45 * height
         for b in range(barrels):
             zz = cz + (b - (barrels - 1) / 2) * radius * 0.35
-            self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), cy + up * 0.45 * height - gauge / 2, zz),
-                     (barrel_length, gauge, gauge), key)
+            self.machine_gun(gun_role or role, (cx + facing * 0.6 * radius, gy, zz), (float(facing), 0.0, 0.0), barrel_length, scale, guns)
+        # Barrels along facing * x: a turn about facing * z lifts them (z x x = y).
+        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in (cx, gy, cz)], 'axis': [0.0, 0.0, float(facing)]}
 
     # --- Building parts (R4). Every one is wound outward: kitBuildings.test.ts checks it. ---
 
@@ -1270,6 +1439,9 @@ class Model:
             ob = bpy.data.objects.new(key, me)
             scene.collection.objects.link(ob)
             ob.parent = root
+        for child, parent in self._parents.items():
+            _require(child in self._nodes and parent in self._nodes, f'{child} hangs under {parent}, but one of them has no faces')
+            bpy.data.objects[child].parent = bpy.data.objects[parent]
         bpy.ops.export_scene.gltf(
             filepath=path, export_format='GLB', export_yup=True, export_apply=True,
             export_animations=False, export_cameras=False, export_lights=False,
@@ -1278,6 +1450,25 @@ class Model:
         )
         if packed is not None:
             self._write_sidecar(path, packed)
+        if self._hinges or self._fixed_hinges:
+            # C1: each control's hinge, in the glTF source frame the entry's pivots use; the build
+            # pivots every kept node named here that the entry gives no pivot of its own.
+            def end(p):
+                return [round(c, 6) for c in p]
+            hinges = {}
+            for node, line in sorted(self._hinges.items()):
+                a, b = _ends(line)
+                d = [q - p for p, q in zip(a, b)]
+                n = math.sqrt(sum(c * c for c in d))
+                d = [c / n for c in d]
+                # One orientation for every hinge, so a positive turn about it raises the trailing edge
+                # (it lies aft, -x: axis x -x = (0, -z, y)), or on a fin swings it to starboard (+z).
+                if (d[2] > 0) if abs(d[2]) >= abs(d[1]) else (d[1] < 0):
+                    d = [-c for c in d]
+                hinges[node] = {'point': end(a), 'axis': [round(c, 9) for c in d]}
+            hinges.update(self._fixed_hinges)
+            with open(path[:-4] + '.hinges.json', 'w', encoding='utf-8') as fh:
+                json.dump({'version': 1, 'model': self.name, 'hinges': hinges}, fh, sort_keys=True, separators=(',', ':'))
 
     def _write_uvs(self, me, key, faces, charts, smooth, packed):
         mpp, box, placed = packed

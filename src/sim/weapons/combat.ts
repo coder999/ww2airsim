@@ -23,6 +23,7 @@ import { shipTargetType, zeroKillsByType, type TargetType } from './targetType.j
 import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
 import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
+import { bayDoorsShut } from '../bayDoors.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -431,6 +432,8 @@ function canRelease(
 function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Release | null {
   const s = a.spec.stores
   if (s === undefined || stores.bombs <= 0) return null
+  // C2: a bay load leaves only through open doors. The pulse is spent; the HUD says why.
+  if (bayDoorsShut(a.spec, a.state.bayDoorFraction)) return null
   const draw = releaseDraw(cursor) // null draw: a bomb has no dispersion
   const bombs = stores.bombs - 1
   const rack = s.racks[(s.racks.length - 1 - bombs) % s.racks.length]!

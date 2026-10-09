@@ -20,6 +20,13 @@ export const MARKING_COLORS = {
   usaaInsigniaRed: [0x9a, 0x22, 0x26], // ESTIMATE: Insignia Red (the June-Sep 1943 outline; the red of the cited 1943 style)
   usaaOliveDrab: [0x5b, 0x58, 0x3a], // ESTIMATE: a common sRGB rendering of olive drab (the anti-glare panel); no chip read
   propTipYellow: [0xe6, 0xb8, 0x1c], // ESTIMATE: US propeller-tip yellow; no source read
+  // M1 (ships, 2026-10-08). The USN Measure colors are named by the 1941-1945 Ship Camouflage Instructions
+  // (SHIPS-2); no chip or Munsell value was read, so every value is an ESTIMATE of a weathered sRGB rendering.
+  rustStain: [0x6e, 0x3e, 0x24], // ESTIMATE: a rust streak's brown
+  navyBlue5N: [0x3a, 0x45, 0x55], // ESTIMATE: 5-N Navy Blue (Measure 21's vertical surfaces)
+  oceanGray5O: [0x5f, 0x68, 0x70], // ESTIMATE: 5-O Ocean Gray
+  lightGray5L: [0x9a, 0xa0, 0xa4], // ESTIMATE: 5-L Light Gray
+  dullBlackBK: [0x24, 0x26, 0x28], // ESTIMATE: BK Dull Black
 } as const satisfies Record<string, readonly [number, number, number]>
 
 export type MarkingColor = keyof typeof MARKING_COLORS

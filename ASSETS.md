@@ -29,13 +29,13 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/g4m-betty.glb` | authored in Blender by `tools/models/blender/g4m-betty.py` from the cited dimensions in its header (English Wikipedia, G4M1 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/b-29-superfortress.glb` | authored in Blender by `tools/models/blender/b-29-superfortress.py` from the cited dimensions in its header (English Wikipedia, B-29 specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/aircraft/p-38-lightning.glb` | authored in Blender by `tools/models/blender/p-38-lightning.py` from the cited dimensions in its header (English Wikipedia, P-38L specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
-| `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/ships/essex-cv.glb` | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
+| `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/ships/cleveland-cl.glb` | https://sketchfab.com/3d-models/uss-cleveland-model-fpr-14000-printing-da03808e0aa74ca89a237ce4da2ac29e | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/ships/mogami-ca.glb` | https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/ships/yamato-bb.glb` | https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
-| `content/ships/shiratsuyu-dd.glb` | https://sketchfab.com/3d-models/samidare-destroyer-b37939147c854e61857f5b248f9efd29 | everlasting17th (@everlastinggrey) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required |
+| `content/ships/cleveland-cl.glb` | https://sketchfab.com/3d-models/uss-cleveland-model-fpr-14000-printing-da03808e0aa74ca89a237ce4da2ac29e | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
+| `content/ships/mogami-ca.glb` | https://sketchfab.com/3d-models/ijn-mogami-model-for-14000-printing-89ccafb8c0884b868d806d7654f0fa71 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
+| `content/ships/yamato-bb.glb` | https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
+| `content/ships/shiratsuyu-dd.glb` | https://sketchfab.com/3d-models/samidare-destroyer-b37939147c854e61857f5b248f9efd29 | everlasting17th (@everlastinggrey) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
 | `content/ships/pennsylvania-bb.glb` | original Blender model from the cited dimensions and U.S. Navy plan references in `tools/models/blender/pennsylvania-bb.py` | authored for this project | AGPL-3.0-or-later |
 | `content/ships/kagero-dd.glb` | original Blender model from the cited dimensions and naval technical references in `tools/models/blender/kagero-dd.py` | authored for this project | AGPL-3.0-or-later |
 | `content/ships/casablanca-cve.glb` | original Blender model from the cited dimensions and U.S. Navy photo references in `tools/models/blender/casablanca-cve.py` | authored for this project | AGPL-3.0-or-later |
@@ -60,14 +60,23 @@ original work, AGPL-3.0-or-later. Each gets its row here when it ships.
 `content/aircraft/wildcat.glb` is a texture-recompressed derivative of the
 Sketchfab download above, produced 2026-09-24 by the first `tools/models/build.ts`
 via `@gltf-transform/cli`'s `optimize` command -- textures resized to
-1024x1024 and re-encoded as WebP, geometry untouched. That build is gone:
-its entry, `tools/models/entries/wildcat.json`, is `frozen`, so today's
-manifest-driven `npm run models:build` skips it rather than regenerate these
-bytes (Z1, 2026-09-25). Retrieved
+1024x1024 and re-encoded as WebP, every material forced opaque. That recipe
+is `tools/models/legacy.ts`; its entry, `tools/models/entries/wildcat.json`, was
+`frozen` from Z1 (2026-09-25) until C1 batch 2 (2026-10-08), when the recipe
+was shown to rebuild the committed file byte for byte from the raw download, and
+the entry took `legacyOptimize` instead. Retrieved
 and verified rigged (separate, named landing-gear nodes with baked
 retraction keyframes) 2026-09-24. Node names used by
 `src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /
 `GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
+
+**Modified in the build (C1 batch 2, 2026-10-08; CC-BY 4.0 permits modification
+with the change indicated):** ailerons are cut out of the outer wing,
+65.5% to 92.5% of the semispan with 22.8% of the chord behind the hinge (the
+F4F-3's, NACA ACR, Kleckner, 1942), as nodes `AileronR` and `AileronL`. The cut
+faces are capped. The model's own inboard `Aleron_*` pieces, which sit where the
+real airplane's split flaps are, are drawn static; split-flap plates beneath
+them are drawn in code (`src/render/scene/wildcat.ts`).
 
 **Modified at draw time (W1, 2026-09-28; CC-BY 4.0 permits modification with
 the change indicated):** the game lengthens both main landing-gear legs of this

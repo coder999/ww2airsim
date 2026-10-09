@@ -291,7 +291,7 @@ not judge or damage the landing; that is the gates in the landing rules.
 
 ## Library
 
-`hangar.html` ("Library" on the title's first form) shows every aircraft,
+`hangar.html` ("Hangar" in the title's Administration memo) shows every aircraft,
 ship, building and store in the rosters below: a turntable model, the gameplay
 figures (hit points, speed, armament, points), read live from the game's own
 content so they cannot go stale, and a short sourced history of the real
@@ -351,9 +351,11 @@ before art/hull-geometry work begins. `role` matches
 | Mogami-class heavy cruiser | Cruiser, hostile |
 | Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
 
-Three of ten are shipped content today; the rest are names and roles only,
-same status as most of the aircraft roster above. Candidate 3D models for
-several of them are recorded in `ASSETS.md` under "Candidate models".
+All ten ship classes ship with models (verified 2026-10-08). Since Track M's M1
+(2026-10-08), every warship carries its gun mounts: main turrets, heavy AA and
+light AA at the positions its `content/ships/<id>.json` `armament` lists, each
+mount drawn separately and able to turn; the Maru carries none. Nothing fires
+yet: AA fire is M2 and the main batteries M4 (`MASTER_PLAN.md`, Track M).
 
 ## Building roster
 

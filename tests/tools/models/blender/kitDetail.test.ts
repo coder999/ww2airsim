@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Document } from '@gltf-transform/core'
-import { HAVE_BLENDER, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
+import { HAVE_BLENDER, hingesSidecarPath, runBlenderScript, skinSidecarPath } from '../../../../tools/models/blender/run.js'
 import { findNode, modelIO } from '../../../../tools/models/document.js'
 import { worldTriangles } from '../buildingGeometry.js'
 
@@ -30,7 +30,7 @@ describe.skipIf(!HAVE_BLENDER)('the kit aircraft detail parts (DP0 Task 9)', () 
 
   // A node split by role (df_wing / df_wing_lower) is an open shell on its own, whose signed volume depends on
   // where the origin is; only the closed union is meaningful (as in kitAircraft.test.ts's fuse + fuse_lower).
-  it.each([['df_fuse'], ['df_wing', 'df_wing_lower'], ['df_fin'], ['Prop'], ['df_canopy'], ['df_frames']])('%s is wound outward (positive signed volume)', (...ns: string[]) => {
+  it.each([['df_fuse'], ['df_wing', 'df_wing_lower', 'AileronL', 'AileronL_lower', 'AileronR', 'AileronR_lower'], ['df_fin', 'Rudder'], ['Prop'], ['df_canopy'], ['df_frames']])('%s is wound outward (positive signed volume)', (...ns: string[]) => {
     expect(ns.reduce((s, n) => s + volume(doc, n), 0)).toBeGreaterThan(0)
   })
 
@@ -43,7 +43,7 @@ describe.skipIf(!HAVE_BLENDER)('the kit aircraft detail parts (DP0 Task 9)', () 
   })
 
   it('an aileron is its own piece: at z = 3.75 there is a chordwise gap of at least 11 mm at the hinge', () => {
-    const at = verts(doc, 'df_wing').concat(verts(doc, 'df_wing_lower')).filter((v) => Math.abs(v[2]! - 3.75) < 1e-4).map((v) => v[0]!)
+    const at = ['df_wing', 'df_wing_lower', 'AileronR', 'AileronR_lower'].flatMap((n) => verts(doc, n)).filter((v) => Math.abs(v[2]! - 3.75) < 1e-4).map((v) => v[0]!)
     // The largest gap between any two stations is 0.1 chord (125 mm here), so a max-gap check proves nothing;
     // look at the hinge itself. Chord at z = 3.75 is 2 - 0.75 = 1.25 m, the leading edge at x = 0.5 (no sweep).
     const hinge = 0.5 - 0.75 * 1.25
@@ -52,6 +52,23 @@ describe.skipIf(!HAVE_BLENDER)('the kit aircraft detail parts (DP0 Task 9)', () 
     expect(at.some((x) => Math.abs(x - hinge) < 1e-4)).toBe(true)
     expect(at.some((x) => x - hinge >= 0.011 && x - hinge < 0.03)).toBe(true)
     expect(at.filter((x) => x - hinge > 1e-4 && x - hinge < 0.011)).toEqual([])
+  })
+
+  it('each control is its own node, its hinge line written beside the glb, oriented so a positive turn raises the trailing edge (C1)', () => {
+    const side = JSON.parse(readFileSync(hingesSidecarPath(a), 'utf8')) as { hinges: Record<string, { point: number[]; axis: number[] }> }
+    expect(Object.keys(side.hinges).sort()).toEqual(['AileronL', 'AileronR', 'Rudder'])
+    // No sweep, so the aileron's hinge runs along z at x = 0.5 - 0.75 x chord; the chord tapers, so x moves with z.
+    for (const n of ['AileronL', 'AileronR']) {
+      const { point, axis } = side.hinges[n]!
+      const hingeX = (z: number): number => 0.5 - 0.75 * (2 - Math.abs(z) / 5)
+      expect(point[0]!, n).toBeCloseTo(hingeX(point[2]!), 5)
+      // axis x (-x) = (0, -axis.z, axis.y): positive y means the trailing edge rises.
+      expect(-axis[2]!, n).toBeGreaterThan(0.9)
+      expect(verts(doc, n).every((v) => v[0]! <= hingeX(v[2]!) + 1e-4), `${n} lies aft of its hinge`).toBe(true)
+    }
+    expect(side.hinges['Rudder']!.axis[1]!).toBeGreaterThan(0.9)
+    // The underside rides with its control: the build's collapse folds the child into the part.
+    expect(findNode(doc, 'AileronR_lower').getParentNode()?.getName()).toBe('AileronR')
   })
 
   it('twisted blades: the chord pitches 45 deg at the root and 18 at the tip, within 4 deg', () => {

@@ -142,3 +142,12 @@ describe('follow camera and numeric data', () => {
     expect(flapValue(0.5)).toBe('TRANSIT')
   })
 })
+
+describe('the flight data strip shows the bay doors on an airplane that has them (C2)', () => {
+  it('BAY reads SHUT, TRANSIT, OPEN on a B-29, and a fighter has no BAY row', () => {
+    const b29 = loadAircraftSpec('b-29-superfortress')
+    const bay = (f: number) => flightDataItems(b29, createState({ bayDoorFraction: f }), NEUTRAL).find((i) => i.label === 'BAY')?.value
+    expect([bay(0), bay(0.5), bay(1)]).toEqual(['SHUT', 'TRANSIT', 'OPEN'])
+    expect(flightDataItems(loadAircraftSpec('f6f-hellcat'), createState(), NEUTRAL).some((i) => i.label === 'BAY')).toBe(false)
+  })
+})

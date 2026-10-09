@@ -68,6 +68,7 @@ export function createFakeBackend(options: { failToLoad?: readonly ClipId[] } = 
       decoded.push(id)
     },
     loaded: (): readonly ClipId[] => decoded,
+    loadSamples: (id: ClipId): void => { decoded.push(id) },
     startLoop: (spec: LoopSpec): LoopHandle => {
       loopsStarted.push({ id: spec.clip, bus: spec.bus, startS: spec.loopStartS, endS: spec.loopEndS })
       const layer: FakeLayer = { clip: spec.clip, bus: spec.bus, gains: [], rates: [], cutoffs: [], glides: [] }

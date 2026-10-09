@@ -277,8 +277,9 @@ mechanism; the script header has the step order.
 - **Where it runs:** a dedicated detached worktree of `origin/main`
   (`~/.local/state/ww2airsim-e2e/worktree`, never the served working copy),
   with the terrain data copied in, and its own vite on the `ww2airsim-3` slot
-  (5174), so **that slot is reserved 02:30 onward**. If 5174 is in use the
-  night is recorded `skipped-slot-busy`. The browser is ryzen's: the console
+  (5174), or on `ww2airsim-2` (5175) when another session holds 5174 (added
+  2026-10-09, after an idle worktree's vite skipped that night). Only when both
+  are in use is the night recorded `skipped-slot-busy`. The browser is ryzen's: the console
   session's Playwright server when it is up; else, if nobody is logged in, an RDP
   session as `rdp` with a server started inside it (above); if someone is logged
   in and no console server is up the night is `skipped-no-session`, never a

@@ -29,6 +29,20 @@ This writes `content/models/candidates/<name>.glb` plus a
 gitignored folder. It is headless and needs no manual download. The token
 comes from 1Password and is never printed; the script's header says how.
 
+Once a download is vetted and has an entry, its one home is **nexus's
+`tools/models/cache/`**. That folder is gitignored, because the repo is public
+and these are other people's files (Mark, 2026-10-08). Copy the download
+there, and record its SHA-256 as the entry's `inputSha256`.
+`npm run models:raws` checks every entry's raw against its hash, and
+`-- --restore` refills the store from `candidates/`, `dist/`, or ryzen's
+remote-run mirror, keeping only a copy whose hash matches.
+`tests/tools/models/sketchfabEntries.test.ts` rebuilds every committed
+download-built model from its raw, byte for byte. A worktree links its
+`tools/models/cache` to main's (`ln -s <main>/tools/models/cache
+tools/models/cache`) and never holds a copy of its own. On 2026-10-08 the F6F's
+only working copy went with a removed worktree, and 11 of the 16 raws were
+missing from nexus.
+
 ## 3. Vet
 
 A download is not a license check. Before anything is committed, read the
@@ -59,13 +73,71 @@ The reasoning behind them is in the
 ships add the `ship` block from the
 [ship-models design](superpowers/specs/2026-09-25-ship-models-design.md).
 Name articulated parts as `keep` or `split` nodes. Turrets follow the Hangar
-spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern; a building
+spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern. **A ship's
+guns are different (Track M, M1, 2026-10-08):** their positions live in the
+ShipSpec's `armament` (`content/ships/<id>.json`), and the build writes an
+empty locator per entry, `Turret1..N`, `HeavyAA1..N`, `LightAA1..N`, with
+`extras.kit`. A download carves (a Blender script builds, via
+`tools/models/blender/naval.py`) a node named after a locator; the first of each
+kit becomes `Kit_<kit>`, posed at its mount, and the rest are dropped; a kit
+the model has no geometry for is generated (`stages/mountKits.ts`). The
+renderer instances each kit at its locators (`src/render/scene/ship.ts`), one
+draw per kit part. Every mount must stand on a surface within 0.75 m, and
+`tests/tools/shipModels.test.ts` holds the committed model to the spec.
+**M1b (2026-10-09):**
+- Each kit is two parts: `Kit_<kit>` trains, and its child `Kit_<kit>_Guns`
+  (extras `trunnion`, `maxElevationRad` from `MAX_ELEVATION_DEG` in
+  `stages/shipMounts.ts`) also elevates. Guns rest level, along +x.
+- A carved kit's guns are its long thin shells pointing forward. A carved kit
+  whose guns are welded to its mount is replaced by its generated kit.
+- Every light AA kit (40 mm and below) is generated, on the Blender ships too,
+  and drawn **1.3x true size on purpose** (`LIGHT_AA_SCALE`, Ruling B3) so it
+  reads from the air. Generated guns are `ship:gunmetal`.
+- A `lightAA` entry with a `run` is a gallery: one locator per barrel,
+  `LightAA<k>_<i>`, spread over the run bow to stern and set on the deck under
+  each. The sim keeps it one fire position.
+`tools/models/islands.ts` finds a download's gun shells in the ship frame and
+turns output-frame boxes into `split` boxes. A building
 has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
-tail, dorsal before ventral at one station. Every one needs a `pivot`: the
+tail, dorsal before ventral, then port before starboard at one station, each
+with its barrels in `Turret<N>Guns` on a horizontal trunnion oriented so a
+positive turn raises the muzzle (turret aim, 2026-10-09). A flexible nose,
+cheek or tail gun is a turret too: its `Turret<N>` is the socket (Blender:
+`kit.flex_gun`) or the gun's rear cap (a download), and both pivots sit where
+the gun leaves the skin (flex guns, 2026-10-09). Control surfaces (C1):
+`AileronL`/`AileronR`, `ElevatorL`/`ElevatorR`, `Flap1L`…`FlapNR` inboard to
+outboard, and `Rudder`, or `Rudder1`…`RudderN` port to starboard. Bay doors
+(C2): `BayDoor1L`…`BayDoorNR` nose to tail, each hinged along x at its
+outboard edge with its axis oriented so a positive turn opens it (the keel
+edge swings down and out); the rig lists them in `doors`. A Blender model
+gets them from `kit.fuselage(doors=[(x0, x1, half_width), ...])`: the belly
+quads of each bay become the door nodes, with a shallow dark well behind
+them, and their hinges go in the same `<raw>.hinges.json` sidecar (already
+oriented, so the control-surface flip does not apply). The B-17's are cut
+from its belly by a `split` whose `cut` plane runs between the skin and the
+interior shell above it, so only skin comes away.
+`surfaceDrive` in `src/render/scene/airframeRigs.ts` reads what each one
+follows from its name. Every part needs a `pivot`: the
 build moves its origin onto the hinge and records the axis the runtime turns
-it about. Never simplify a propeller (`perNode` ratio 1):
+it about. A Blender model's control surface is the exception. `kit.py`
+writes its hinge to `<raw>.hinges.json`, oriented so a positive turn raises
+the trailing edge (or swings a rudder's to starboard), and the build pivots
+every `keep` node named there that has no `pivot` of its own. The entry
+lists the node without one, so the hinge has one copy, in the script.
+A download's surface is a `split` with a `cut`: a plane through its
+`pivot.point` with the given normal, pointing aft. Triangles the box touches
+are sliced by the box and that plane, and only the slices behind the plane are
+taken. So the surface comes out exactly along its hinge, even where the mesh
+has no edge there, as on the F6F's and F4U's full-chord wing skins. A swept
+hinge takes a unit-vector `pivot.axis`. Measure the hinge from true sections
+of the skin (the C1 batch 2 handoff says how). The cut caps the openings it
+makes, on both sides, and joins a piece's primitives that share a material, so a surface carved from a
+two-primitive skin (the Zero's) is one draw. A download that already models a surface as its own mesh
+(the Ki-43's ailerons, elevators and rudder) takes a `keep` with a vector-axis `pivot` on its leading edge instead. An entry without `normalize` (the Wildcat, whose
+`legacyOptimize` keeps its hierarchy as authored) gives its cut a `point`
+instead of a pivot. Never simplify a propeller (`perNode` ratio 1):
 `tests/tools/models/aircraftRigs.test.ts` checks its N-fold symmetry about
 the pivot, and that its vertex centroid lies within 5% of its radius of the
 spin axis. The symmetry check is waived where the source prop cannot pass

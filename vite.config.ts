@@ -9,9 +9,10 @@ import { fileURLToPath } from 'node:url'
  * `tools/models/sketchfab-fetch.sh` downloads candidates into
  * (131,197,993 bytes in the main checkout, measured 2026-09-25; A6M Zero
  * spec §6.4). Committed models live in `content/aircraft/` and
- * `content/ships/`, which are copied.
+ * `content/ships/`, which are copied. `audio/candidates/` holds sound takes
+ * not yet ingested, which only the dev server's sounds.html plays (2026-10-09).
  */
-export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'models']
+export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'models', 'audio/candidates']
 
 /** `cp`'s filter for `contentRoot`. Returning false for a directory already
  *  stops `cp` descending into it; the prefix test is the belt to those
@@ -74,6 +75,38 @@ function copyContent(): Plugin {
   }
 }
 
+/** GA4 web stream for ww2airsim (property 558194335, provisioned 2026-10-08
+ *  with the `google-analytics` skill). Public by design: it ships in the page. */
+export const GA4_MEASUREMENT_ID = 'G-3VE6LD7RCS'
+/** The hosts Traefik routes to the production build
+ *  (`vps-infra/sites/ww2airsim/compose.yml`). Nothing else sends data: not
+ *  the dev server, which never runs this plugin, and not a local `vite
+ *  preview` or E2E run of a build (Mark, 2026-10-08: production only). */
+export const GA4_HOSTS: readonly string[] = ['ww2airsim.com', 'ww2airsim.marktuttle.dev']
+
+/**
+ * `vps-static-template/snippets/ga-tag.html`, injected at build time only,
+ * with one change: the script loads only on a production host.
+ * `src/render/analytics.ts` sends the custom events through the same `gtag`.
+ */
+function gaTag(): Plugin {
+  const id = GA4_MEASUREMENT_ID
+  return {
+    name: 'ww2airsim-ga-tag',
+    apply: 'build',
+    transformIndexHtml: (html) => html.replace('</body>', `<script>
+  if (${JSON.stringify(GA4_HOSTS)}.includes(location.hostname)) {
+    var s = document.createElement('script'); s.async = true; s.src = 'https://www.googletagmanager.com/gtag/js?id=${id}'; document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function(){dataLayer.push(arguments);};
+    gtag('js', new Date());
+    gtag('config', '${id}');
+  }
+</script>
+</body>`),
+  }
+}
+
 /**
  * Two dev loops, both of which exist for the same reason: `navigator.gpu` is
  * exposed only in a secure context, and a plain-HTTP LAN address is not one
@@ -123,7 +156,7 @@ const TUNNEL_HOST = 'ww2airsim.windomlane.org'
 const viaTunnel = process.env.WW2AIRSIM_TUNNEL === '1'
 
 export default defineConfig({
-  plugins: [copyContent()],
+  plugins: [copyContent(), gaTag()],
   server: {
     host: viaTunnel ? '172.17.0.1' : '127.0.0.1',
     port: 5173,
@@ -137,12 +170,14 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    // Two pages: the game, and the object library (Hangar spec §3). A
-    // second page is a second Rollup input; each bundles only what it imports.
+    // Three pages: the game, the object library (Hangar spec §3), and the
+    // sound library (2026-10-09). Each page is a Rollup input and bundles only
+    // what it imports.
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         hangar: fileURLToPath(new URL('./hangar.html', import.meta.url)),
+        sounds: fileURLToPath(new URL('./sounds.html', import.meta.url)),
       },
     },
   },

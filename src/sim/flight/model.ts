@@ -17,6 +17,7 @@ import {
 import { groundUnder } from '../world/ground.js'
 import { insideTrapZone, type Deck } from '../world/deck.js'
 import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
+import { bayDoorDragN, bayDoorsAfter } from '../bayDoors.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -378,6 +379,7 @@ export function step(
     q * spec.geometry.wingAreaM2 * (cd + windmillDragCd0(spec, controls.throttle)) +
     gearDragN(spec, state.gearFraction, q) +
     flapDragN(spec, state.flapFraction, q) +
+    bayDoorDragN(spec, state.bayDoorFraction, q) +
     q * (spec.storesLoad?.dragAreaM2 ?? 0)
   // The ground test runs only for an engine that can cut out, so an aircraft
   // without `negativeGCutout` does exactly the work it did before.
@@ -707,6 +709,8 @@ export function step(
   const gearFraction = gearAfter(spec, state.gearFraction, controls.gearDown, dt)
   // Flap travel, for the same reason and driven by `controls.flapDown`.
   const flapFraction = flapAfter(spec, state.flapFraction, controls.flapDown, dt)
+  // Bay doors (C2), the same way, driven by `controls.bayDoorsOpen`.
+  const bayDoorFraction = bayDoorsAfter(spec, state.bayDoorFraction, controls.bayDoorsOpen, dt)
 
-  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction, arrested }
+  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction, bayDoorFraction, arrested }
 }

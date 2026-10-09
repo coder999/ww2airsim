@@ -10,7 +10,21 @@
   "turnRateRadPerS": 0.05236,
   "hullHp": 180,
   "view": { "model": "kagero-dd" },
+  "armament": {
+    "turrets": [
+      {"x": 42, "y": 6.42, "z": 0, "bearingDeg": 0, "kit": "turret-127mm-twin", "barrels": 2, "aa": null},
+      {"x": -39, "y": 5.29, "z": 0, "bearingDeg": 180, "kit": "turret-127mm-twin", "barrels": 2, "aa": null}
+    ],
+    "heavyAA": [],
+    "lightAA": [
+      {"x": 19, "y": 5.54, "z": 0, "bearingDeg": 0, "kit": "mount-25mm-triple", "barrels": 2},
+      {"x": -8, "y": 5.45, "z": 4.0, "bearingDeg": 0, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -8, "y": 5.45, "z": -4.0, "bearingDeg": 0, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -25, "y": 5.48, "z": 4.0, "bearingDeg": 0, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -25, "y": 5.48, "z": -4.0, "bearingDeg": 0, "kit": "mount-25mm-triple", "barrels": 3}
+    ]
+  },
   "reference": {
-    "source": "lengthM (118.5 m overall), beamM (10.8 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Kagero-class destroyer', read 2026-09-26. Japanese Monograph 149, an official postwar translation, records the 15-ship Kagero-class construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp (Fletcher plus half a rocket) is a gameplay choice."
+    "source": "lengthM (118.5 m overall), beamM (10.8 m) and maxSpeedMps (35 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Kagero-class destroyer', read 2026-09-26. Japanese Monograph 149, an official postwar translation, records the 15-ship Kagero-class construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp (Fletcher plus half a rocket) is a gameplay choice. ARMAMENT (Track M, M1, read 2026-10-08): Yukikaze in October 1944, as tools/models/blender/kagero-dd.py cites (combinedfleet.com TROM; English Wikipedia 'Japanese destroyer Yukikaze', whose August-September 1943 refit replaced the aft 5-inch turret with a pair of triple 25 mm): two twin 127 mm/50 (low-angle), two triple 25 mm at the X mount's site, two triple abreast the aft funnel and one twin before the bridge (drawn with the triple kit, two barrels). The class 'up to 28 x 25 mm by 1944' (same article) is not dated for Yukikaze, so the later singles stay omitted (DP2's ruling). Positions are that script's ESTIMATES."
   }
 }

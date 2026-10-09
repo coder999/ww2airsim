@@ -10,7 +10,41 @@
   "turnRateRadPerS": 0.01309,
   "hullHp": 960,
   "view": { "model": "pennsylvania-bb" },
+  "armament": {
+    "turrets": [
+      {"x": 58, "y": 9.12, "z": 0, "bearingDeg": 0, "kit": "turret-14in-triple", "barrels": 3, "aa": null},
+      {"x": 35, "y": 11.57, "z": 0, "bearingDeg": 0, "kit": "turret-14in-triple", "barrels": 3, "aa": null},
+      {"x": -35, "y": 11.58, "z": 0, "bearingDeg": 180, "kit": "turret-14in-triple", "barrels": 3, "aa": null},
+      {"x": -58, "y": 8.8, "z": 0, "bearingDeg": 180, "kit": "turret-14in-triple", "barrels": 3, "aa": null}
+    ],
+    "heavyAA": [
+      {"x": 24, "y": 8.97, "z": 11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 24, "y": 8.97, "z": -11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 14, "y": 8.97, "z": 11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 14, "y": 8.97, "z": -11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 4, "y": 8.97, "z": 11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": 4, "y": 8.97, "z": -11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": -6, "y": 8.98, "z": 11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2},
+      {"x": -6, "y": 8.98, "z": -11.6, "bearingDeg": 0, "kit": "mount-5in38-twin", "barrels": 2}
+    ],
+    "lightAA": [
+      {"x": 63, "y": 9.26, "z": 10.5, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 13, "run": 20},
+      {"x": 63, "y": 9.26, "z": -10.5, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 13, "run": 20},
+      {"x": 46, "y": 9.01, "z": 12.016, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 46, "y": 9.01, "z": -12.016, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 30, "y": 8.97, "z": 12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 30, "y": 8.97, "z": -12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 20, "y": 8.97, "z": 12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": 20, "y": 8.97, "z": -12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -18, "y": 8.98, "z": 12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -18, "y": 8.98, "z": -12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -26, "y": 8.98, "z": 12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -26, "y": 8.98, "z": -12.2, "bearingDeg": 0, "kit": "mount-40mm-quad", "barrels": 4},
+      {"x": -45, "y": 9.0, "z": 13.9, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 13, "run": 24},
+      {"x": -45, "y": 9.0, "z": -13.9, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 12, "run": 22}
+    ]
+  },
   "reference": {
-    "source": "lengthM (608 ft overall), post-modernization beamM (106 ft 3 in), and maxSpeedMps (21 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Pennsylvania-class battleship', read 2026-09-26. The Naval History and Heritage Command's USS Pennsylvania (BB-38) history confirms the class, 1929-31 modernization, 1942 and 1945 refits, and Leyte service; the March 1945 U.S. Navy Booklet of General Plans is the primary silhouette reference, checked 2026-09-26. deckHeightM and turnRateRadPerS (0.75 deg/s) are ESTIMATES. hullHp (eight bombs) is a gameplay choice."
+    "source": "lengthM (608 ft overall), post-modernization beamM (106 ft 3 in), and maxSpeedMps (21 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Pennsylvania-class battleship', read 2026-09-26. The Naval History and Heritage Command's USS Pennsylvania (BB-38) history confirms the class, 1929-31 modernization, 1942 and 1945 refits, and Leyte service; the March 1945 U.S. Navy Booklet of General Plans is the primary silhouette reference, checked 2026-09-26. deckHeightM and turnRateRadPerS (0.75 deg/s) are ESTIMATES. hullHp (eight bombs) is a gameplay choice. ARMAMENT (Track M, M1, read 2026-10-08): the 1942 Mare Island refit's fit, held until 1945, of four triple 14\"/45, eight twin 5\"/38, ten quad 40 mm and 51 single 20 mm (English Wikipedia 'USS Pennsylvania (BB-38)', as tools/models/blender/pennsylvania-bb.py cites). Every position is that script's ESTIMATE (no legible 1944 plan); the 20 mm are four static galleries (13 + 13 + 13 + 12). ARMAMENT (Track M, M1, read 2026-10-08): the 1942 Mare Island refit's fit, held until 1945, of four triple 14\"/45, eight twin 5\"/38, ten quad 40 mm and 51 single 20 mm (English Wikipedia 'USS Pennsylvania (BB-38)', as tools/models/blender/pennsylvania-bb.py cites). Every position is that script's ESTIMATE (no legible 1944 plan); the 20 mm are four static galleries (13 + 13 + 13 + 12)."
   }
 }

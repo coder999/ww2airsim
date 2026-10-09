@@ -24,6 +24,8 @@ export type Controls = {
   /** The tailhook lever. Optional like `gearDown`; `undefined` reads as up.
    *  No travel is modelled (Plan 8 design section 5). */
   readonly hookDown?: boolean
+  /** The bomb-bay door lever (C2). Optional like `flapDown`; `undefined` reads as "unchanged". */
+  readonly bayDoorsOpen?: boolean
   /** One release, this tick only -- edge-triggered at the frame layer like
    *  `throttleCut`, not held like `fire`. `undefined` means no release. */
   readonly dropBomb?: boolean
@@ -63,6 +65,9 @@ export type AircraftState = {
    *  takes seconds and both the lift and the drag change across it. Defaults
    *  to 0 so every flight predating Plan 11b is unchanged. */
   readonly flapFraction: number
+  /** Bomb-bay door travel, 0 = shut, 1 = fully open (C2). Stays 0 on an airplane with no
+   *  `spec.bayDoors`; defaults to 0 so every flight predating C2 is unchanged. */
+  readonly bayDoorFraction: number
   /** The pendant is on the hook (Plan 8): set by `step` when the arcade trap
    *  rule holds, cleared when the wheels leave the deck. While set, the
    *  deck-relative velocity decays at `TRAP_DECEL_MPS2`. */
@@ -78,5 +83,6 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
   tick: init.tick ?? 0,
   gearFraction: init.gearFraction ?? 0,
   flapFraction: init.flapFraction ?? 0,
+  bayDoorFraction: init.bayDoorFraction ?? 0,
   arrested: init.arrested ?? false,
 })

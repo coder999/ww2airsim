@@ -9,9 +9,9 @@ import { countsText, type CountsReport } from './budgets.js'
  * greyed, rather than offering a control that moves nothing. Then the debug
  * toggles and the counts against the model's manifest budget, for every
  * model. The logic lives in benchController.ts and budgets.ts, which Node
- * tests; this file only draws it. H2 complete; H3 adds turret rows.
+ * tests; this file only draws it. Turrets: bearing and elevation (2026-10-09).
  */
-export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable' | 'checker'
+export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable' | 'checker' | 'mounts'
 
 export interface BenchHandlers {
   onPose(p: PartPose): void
@@ -41,6 +41,9 @@ function checkbox(label: string, checked: boolean, onChange: (on: boolean) => vo
   return { row, input }
 }
 
+const STICK = ['roll', 'pitch', 'yaw'] as const
+const AIM = [['turretBearingDeg', 'Bearing', -180, 180], ['turretElevationDeg', 'Elevation', -90, 90]] as const
+
 export function mountBench(
   slot: HTMLElement,
   parts: readonly PartSpec[],
@@ -54,8 +57,10 @@ export function mountBench(
   title.textContent = 'Test bench'
   slot.appendChild(title)
 
-  const sliders = new Map<'gear' | 'flaps' | 'prop', HTMLInputElement>()
+  const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
+  const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
+  const aims = new Map<(typeof AIM)[number][0], HTMLInputElement>()
   for (const part of parts) {
     const row = document.createElement('div')
     // Wraps: the panel is 380 px, and a slider plus Cycle, or two store boxes, overflowed it (2026-09-26).
@@ -69,6 +74,37 @@ export function mountBench(
       const note = document.createElement('span')
       note.textContent = 'not modeled'
       row.appendChild(note)
+    } else if (part.id === 'surfaces') {
+      for (const axis of STICK) {
+        const input = document.createElement('input')
+        input.type = 'range'
+        input.min = String(part.range[0])
+        input.max = String(part.range[1])
+        input.step = '0.01'
+        input.value = '0'
+        const label = `${axis[0]!.toUpperCase()}${axis.slice(1)}`
+        input.setAttribute('aria-label', label)
+        input.title = label
+        input.style.cssText = 'flex:1 1 60px;min-width:60px'
+        input.addEventListener('input', () => h.onPose({ [axis]: Number(input.value) }))
+        sticks.set(axis, input)
+        row.appendChild(input)
+      }
+    } else if (part.id === 'turrets') {
+      for (const [field, label, min, max] of AIM) {
+        const input = document.createElement('input')
+        input.type = 'range'
+        input.min = String(min)
+        input.max = String(max)
+        input.step = '1'
+        input.value = '0'
+        input.setAttribute('aria-label', `Turret ${label.toLowerCase()}`)
+        input.title = `${label} (deg)`
+        input.style.cssText = 'flex:1 1 80px;min-width:70px'
+        input.addEventListener('input', () => h.onPose({ [field]: Number(input.value) }))
+        aims.set(field, input)
+        row.appendChild(input)
+      }
     } else if (part.id === 'stores') {
       for (const which of ['bombs', 'rockets'] as const) {
         const { row: box, input } = checkbox(which === 'bombs' ? 'Bombs' : 'Rockets', true, (on) => h.onPose(which === 'bombs' ? { bombs: on } : { rockets: on }))
@@ -87,11 +123,11 @@ export function mountBench(
       input.style.cssText = 'flex:1 1 90px;min-width:80px'
       input.addEventListener('input', () => {
         const v = Number(input.value)
-        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : { throttle: v })
+        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v } : { throttle: v })
       })
       sliders.set(id, input)
       row.appendChild(input)
-      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'flaps')) {
+      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'flaps' || id === 'doors')) {
         const button = document.createElement('button')
         button.type = 'button'
         button.textContent = 'Cycle'
@@ -105,7 +141,7 @@ export function mountBench(
 
   const debugRow = document.createElement('div')
   debugRow.style.cssText = 'margin:8px 0 4px'
-  const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable'], ['checker', 'UV checker']]
+  const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable'], ['checker', 'UV checker'], ['mounts', 'Train mounts']]
   const debugBoxes = new Map<DebugToggle, HTMLInputElement>()
   for (const [which, label] of toggles) {
     const { row, input } = checkbox(label, debug[which], (on) => h.onDebug(which, on))
@@ -122,10 +158,13 @@ export function mountBench(
 
   return {
     sync(s): void {
-      const set = (id: 'gear' | 'flaps' | 'prop', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
+      const set = (id: 'gear' | 'flaps' | 'doors' | 'prop', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
       set('gear', s.gearFraction)
       set('flaps', s.flapFraction)
+      set('doors', s.bayDoorFraction)
       set('prop', s.throttle)
+      for (const axis of STICK) { const el = sticks.get(axis); if (el) el.value = String(s[axis]) }
+      for (const [field] of AIM) { const el = aims.get(field); if (el) el.value = String(s[field]) }
       const b = stores.get('bombs'), r = stores.get('rockets')
       if (b) b.checked = s.bombs
       if (r) r.checked = s.rockets

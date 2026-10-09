@@ -63,6 +63,11 @@ export function flightDataItems(spec: AircraftSpec, state: AircraftState, contro
   items.push({ label: 'BANK', value: `${number(attitude.rollRad * 180 / Math.PI, true)}°` })
   items.push({ label: 'GEAR', value: gearDisplay(state.gearFraction) })
   items.push({ label: 'FLAP', value: flapDisplay(state.flapFraction) })
+  // C2: only an airplane with bay doors has the row. OPEN means bombs can leave.
+  if (spec.bayDoors !== undefined) {
+    const f = state.bayDoorFraction
+    items.push({ label: 'BAY', value: f <= GEAR_UP_FRACTION ? 'SHUT' : f >= 1 ? 'OPEN' : 'TRANSIT' })
+  }
   return items
 }
 

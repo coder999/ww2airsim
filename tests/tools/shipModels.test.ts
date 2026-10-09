@@ -6,6 +6,7 @@ import { findNode, modelIO } from '../../tools/models/document.js'
 import { documentSoup, SMOKE_REACH_M } from '../../tools/models/stages/shipFit.js'
 import { bounds, fitProblems, residualProblems, surfaceBelow, trapLaneHalfWidth, type ShipFit } from '../../src/render/scene/shipFit.js'
 import { loadShipSpec } from '../../tools/content/load.js'
+import { bearingQuat, GUNS_SUFFIX, KIT_PREFIX, MAX_ELEVATION_DEG, MOUNT_SLACK_M, namedMounts } from '../../tools/models/stages/shipMounts.js'
 
 /**
  * Deterministic for every committed ship glb (ship-models spec §9, items 1-5), on a
@@ -59,6 +60,63 @@ describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s', (_id, e
     const under = surfaceBelow(soup, at[0], at[2], at[1])
     expect(under).not.toBeNull()
     expect(at[1] - under!).toBeLessThanOrEqual(SMOKE_REACH_M)
+  })
+})
+
+// Track M, M1 (2026-10-08): the spec's armament is the one source of gun positions, and the model
+// must carry it: a locator per entry, exactly at its point and bearing, naming its kit; one Kit_ mesh
+// per kit in use, and none unused. A model rebuilt against a moved spec, or a spec edited without a
+// rebuild, fails here naming the mount. M1b (2026-10-09): a gallery (`run`) is one locator per gun,
+// `<name>_<i>`, spread evenly over its run bow to stern and standing within MOUNT_SLACK_M of its
+// height (Ruling B2); every kit's guns are its `Kit_<kit>_Guns` child, with a trunnion and its top
+// elevation (Ruling B4).
+describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s carries its armament', (_id, entry) => {
+  it('a locator per drawn gun position at its spec point, and one Kit_ mesh per kit in use with its guns', async () => {
+    const doc = await read(entry.output)
+    const spec = loadShipSpec(entry.ship!.spec)
+    const nodes = doc.getRoot().listNodes()
+    const kits = nodes.filter((n) => n.getName().startsWith(KIT_PREFIX) && !n.getName().endsWith(GUNS_SUFFIX))
+    if (!spec.armament) {
+      expect(spec.role, entry.id).toBe('merchant')
+      expect(kits.map((n) => n.getName())).toEqual([])
+      expect(nodes.filter((n) => /^(Turret|HeavyAA|LightAA)\d+/.test(n.getName())).map((n) => n.getName())).toEqual([])
+      return
+    }
+    const mounts = namedMounts(spec.armament)
+    expect(mounts.length).toBeGreaterThan(0)
+    let drawn = 0
+    for (const { name, mount } of mounts) {
+      const guns = mount.run === undefined
+        ? [{ name, x: mount.x }]
+        : Array.from({ length: mount.barrels }, (_, i) => ({ name: `${name}_${i + 1}`, x: mount.x + mount.run! / 2 - (i * mount.run!) / (mount.barrels - 1) }))
+      for (const g of guns) {
+        const found = nodes.filter((n) => n.getName() === g.name)
+        expect(found.length, `${entry.id} ${g.name}`).toBe(1)
+        const loc = found[0]!
+        expect(loc.getMesh(), `${entry.id} ${g.name} is an empty locator`).toBeNull()
+        const [x, y, z] = loc.getTranslation()
+        expect([x, z].map((v) => +v.toFixed(3)), `${entry.id} ${g.name}`).toEqual([g.x, mount.z].map((v) => +v.toFixed(3)))
+        if (mount.run === undefined) expect(+y.toFixed(4), `${entry.id} ${g.name}`).toBe(+mount.y.toFixed(4))
+        else expect(Math.abs(y - mount.y), `${entry.id} ${g.name} stands near its gallery's height`).toBeLessThanOrEqual(MOUNT_SLACK_M)
+        expect(loc.getRotation().map((v) => +v.toFixed(5)), `${entry.id} ${g.name} bearing`).toEqual(bearingQuat(mount.bearingDeg).map((v) => +v.toFixed(5)))
+        expect(loc.getExtras()['kit'], `${entry.id} ${g.name}`).toBe(mount.kit)
+        drawn++
+      }
+    }
+    // Every barrel of a gallery is drawn: the instance count is the gallery's barrel count.
+    const galleryBarrels = mounts.filter((m) => m.mount.run !== undefined).reduce((n, m) => n + m.mount.barrels, 0)
+    expect(drawn, entry.id).toBe(mounts.filter((m) => m.mount.run === undefined).length + galleryBarrels)
+    const used = [...new Set(mounts.flatMap((m) => (m.mount.kit === null ? [] : [m.mount.kit])))].sort()
+    expect(kits.map((n) => n.getName().slice(KIT_PREFIX.length)).sort(), entry.id).toEqual(used)
+    for (const k of kits) {
+      expect(k.getMesh(), k.getName()).not.toBeNull()
+      const guns = k.listChildren().filter((c) => c.getName() === `${k.getName()}${GUNS_SUFFIX}`)
+      expect(guns.length, `${k.getName()} has its guns`).toBe(1)
+      expect(guns[0]!.getMesh(), `${k.getName()} guns`).not.toBeNull()
+      const kit = k.getName().slice(KIT_PREFIX.length)
+      expect(guns[0]!.getExtras()['maxElevationRad'], kit).toBeCloseTo(MAX_ELEVATION_DEG[kit]! * Math.PI / 180, 9)
+      expect((guns[0]!.getExtras()['trunnion'] as number[]).length, kit).toBe(3)
+    }
   })
 })
 

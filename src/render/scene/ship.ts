@@ -1,4 +1,4 @@
-import { Box3, BoxGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3 } from 'three'
+import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Raycaster, Vector3 } from 'three'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { ShipSpec } from '../../sim/world/ships.js'
 import { disposeMeshTree } from '../models/dispose.js'
@@ -30,8 +30,97 @@ export interface ShipView {
    *  it sinks and lists with the hull. fx reads it every frame (E1 R13). */
   readonly smokeOrigin: Object3D
   setDamage(fire: number, sinkingFraction: number): void
+  /** Every instanced gun mount (Track M, M1): one per armament locator with a kit, bow to stern
+   *  within Turret / HeavyAA / LightAA. Empty for the boxes. Nothing trains them until M3. */
+  readonly mounts: readonly ShipMountView[]
   /** Idempotent. A model view RELEASES its shared instance; it never disposes it (modelCache.ts). */
   dispose(): void
+}
+
+export interface ShipMountView {
+  /** The locator's name, e.g. `Turret2`. */
+  readonly name: string
+  readonly kit: string
+  /** Turns this mount alone about its own vertical axis, radians from its rest bearing, positive to port (three's +y). */
+  setTraining(rad: number): void
+  /** The kit's top elevation, radians (M1b); 0 for a kit whose guns are not a separate part. */
+  readonly maxElevationRad: number
+  /** Raises this mount's guns alone about their trunnion, radians above level, clamped to [0, maxElevationRad]. */
+  setElevation(rad: number): void
+}
+
+/** A locator: an armament entry, or one gun of a gallery (`LightAA5_3`, M1b). */
+const MOUNT_NAME = /^(Turret|HeavyAA|LightAA)\d+(_\d+)?$/
+const KIT_PREFIX = 'Kit_'
+const GUNS_SUFFIX = '_Guns'
+
+/**
+ * The instanced mount kit (M1 plan, Ruling R2): each `Kit_<kit>` node in the glb
+ * becomes one InstancedMesh per mesh under it, with an instance at every
+ * locator whose `userData.kit` names it; the kit node itself leaves the scene.
+ * A kit costs one draw however many mounts use it. Geometry and materials stay
+ * the cache's (shared, never mutated); the instance buffers are this view's.
+ */
+function instanceMounts(root: Object3D): { mounts: ShipMountView[]; dispose: () => void } {
+  root.updateMatrixWorld(true)
+  const kits = new Map<string, Object3D>()
+  const locators: Object3D[] = []
+  root.traverse((o) => {
+    if (o.name.startsWith(KIT_PREFIX) && !o.name.endsWith(GUNS_SUFFIX)) kits.set(o.name.slice(KIT_PREFIX.length), o)
+    else if (MOUNT_NAME.test(o.name)) locators.push(o)
+  })
+  const rootInverse = root.matrixWorld.clone().invert()
+  const mounts: ShipMountView[] = []
+  const owned: InstancedMesh[] = []
+  for (const [kit, kitNode] of kits) {
+    const users = locators.filter((l) => l.userData['kit'] === kit)
+    if (users.length === 0) throw new Error(`kit ${kit} has no locator`)
+    const kitInverse = kitNode.matrixWorld.clone().invert()
+    // M1b: the guns child elevates about its trunnion (kit-local); everything else only trains.
+    const gunsNode = kitNode.children.find((c) => c.name.endsWith(GUNS_SUFFIX)) ?? null
+    const trunnion = (gunsNode?.userData['trunnion'] as number[] | undefined) ?? [0, 0, 0]
+    const maxElevationRad = (gunsNode?.userData['maxElevationRad'] as number | undefined) ?? 0
+    const parts: { mesh: InstancedMesh; rel: Matrix4; guns: boolean }[] = []
+    kitNode.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      let guns = false
+      for (let p: Object3D | null = o; p !== null && p !== kitNode.parent; p = p.parent) if (p === gunsNode) guns = true
+      const mesh = new InstancedMesh(o.geometry, o.material, users.length)
+      mesh.name = `${KIT_PREFIX}${kit}${guns ? GUNS_SUFFIX : ''} instances`
+      mesh.frustumCulled = false // ponytail: instances span the hull; per-instance bounds when a ship's draw time matters
+      parts.push({ mesh, rel: kitInverse.clone().multiply(o.matrixWorld), guns })
+    })
+    kitNode.removeFromParent()
+    const toTrunnion = new Matrix4().makeTranslation(trunnion[0]!, trunnion[1]!, trunnion[2]!)
+    const fromTrunnion = new Matrix4().makeTranslation(-trunnion[0]!, -trunnion[1]!, -trunnion[2]!)
+    users.forEach((loc, i) => {
+      const at = rootInverse.clone().multiply(loc.matrixWorld)
+      const turn = new Matrix4(), raise = new Matrix4(), m = new Matrix4()
+      let training = 0, elevation = 0
+      const pose = (): void => {
+        turn.makeRotationY(training)
+        raise.copy(toTrunnion).multiply(m.makeRotationZ(elevation)).multiply(fromTrunnion)
+        for (const p of parts) {
+          m.copy(at).multiply(turn)
+          if (p.guns) m.multiply(raise)
+          p.mesh.setMatrixAt(i, m.multiply(p.rel)); p.mesh.instanceMatrix.needsUpdate = true
+        }
+      }
+      pose()
+      mounts.push({
+        name: loc.name, kit, maxElevationRad,
+        setTraining: (rad) => { training = rad; pose() },
+        setElevation: (rad) => { elevation = Math.min(Math.max(rad, 0), maxElevationRad); pose() },
+      })
+    })
+    for (const p of parts) { root.add(p.mesh); owned.push(p.mesh) }
+  }
+  const order = (n: string): number => {
+    const [, list, k, g] = /^(\D+)(\d+)(?:_(\d+))?$/.exec(n)!
+    return (list === 'Turret' ? 0 : list === 'HeavyAA' ? 1 : 2) * 1e6 + Number(k) * 1e3 + Number(g ?? 0)
+  }
+  mounts.sort((a, b) => order(a.name) - order(b.name))
+  return { mounts, dispose: () => { for (const m of owned) { m.removeFromParent(); m.dispose() } } }
 }
 
 /** The view's smoke origin in sim world metres. `worldOffset` must be what
@@ -62,7 +151,7 @@ function trapBand(spec: ShipSpec, halfWidthM: number): Mesh | null {
  * `ship.fire`, rising from `smokeOrigin` -- this view draws no smoke of its
  * own.
  */
-function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: number; z: number }, model: string | null, release: () => void): ShipView {
+function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: number; z: number }, model: string | null, release: () => void, mounts: readonly ShipMountView[] = []): ShipView {
   const sinkDepthM = new Box3().setFromObject(hullGroup).max.y + SINK_MARGIN_M
   const smokeOrigin = new Object3D()
   smokeOrigin.name = 'smoke origin'
@@ -74,6 +163,7 @@ function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: numb
     root,
     model,
     smokeOrigin,
+    mounts,
     setDamage(fire: number, sinkingFraction: number): void {
       const sinking = Math.min(1, Math.max(0, sinkingFraction))
       hullGroup.position.y = -sinking * sinkDepthM
@@ -202,12 +292,14 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
     if (typeof half !== 'number' || !(half > 0)) throw new Error(`ship ${spec.id}: model ${modelId}'s TrapBand has no positive userData.halfWidthM`)
     band = trapBand(spec, half)
   }
+  const kit = instanceMounts(instance.root)
   hullGroup.add(instance.root)
   if (band) hullGroup.add(band)
   return finishView(root, hullGroup, smokeAt, modelId, () => {
     if (band) disposeMeshTree(band)
+    kit.dispose()
     instance.release()
-  })
+  }, kit.mounts)
 }
 
 /**

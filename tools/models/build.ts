@@ -14,19 +14,21 @@
  * frozen entries, and names every entry it skipped and why. A blender entry
  * is skipped, and named, where no Blender is on PATH.
  */
+import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { getBounds, prune } from '@gltf-transform/functions'
-import { Logger, type Document, type Node } from '@gltf-transform/core'
+import { getBounds, join, prune } from '@gltf-transform/functions'
+import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
-import { BLENDER_VERSION, blenderPresent, runBlenderScript } from './blender/run.js'
+import { BLENDER_VERSION, blenderPresent, hingesSidecarPath, runBlenderScript } from './blender/run.js'
 import type { BlenderSource, SketchfabSource } from './manifest.js'
 import { findNode, modelIO } from './document.js'
 import { measureDocument, type ModelMeasure } from './measure.js'
 import { removeNodes } from './stages/remove.js'
 import { splitByBox } from './stages/split.js'
 import { collapseKept } from './stages/collapse.js'
-import { pivotNode } from './stages/pivot.js'
+import { pivotNode, type Hinge } from './stages/pivot.js'
+import { legacyOptimize } from './legacy.js'
 import { normalizeDocument } from './stages/normalize.js'
 import { simplifyDocument } from './stages/simplify.js'
 import { joinExcept } from './stages/join.js'
@@ -36,6 +38,7 @@ import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
 import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
 import { shipMaterials } from './stages/shipMaterials.js'
+import { addMountLocators, carveMounts, namedMounts } from './stages/shipMounts.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
 import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
@@ -69,8 +72,18 @@ function provenance(s: SketchfabSource | BlenderSource): Record<string, string> 
     : { source: 'blender', script: s.script, dimensions: s.dimensions, license: s.license }
 }
 
+/** A script's hinges sidecar (kit.py `export`), checked: every axis a unit vector. */
+export function parseHinges(text: string): Record<string, Hinge> {
+  const v3 = z.tuple([z.number().finite(), z.number().finite(), z.number().finite()])
+  const side = z.object({ version: z.literal(1), model: z.string(), hinges: z.record(z.string(), z.object({ point: v3, axis: v3 }).strict()) }).strict().parse(JSON.parse(text))
+  for (const [n, h] of Object.entries(side.hinges)) {
+    if (Math.abs(Math.hypot(...h.axis) - 1) > 1e-6) throw new Error(`hinge ${n}: axis is not a unit vector`)
+  }
+  return side.hinges
+}
+
 /** Every stage, in order, on a document already read. Mutates and returns it. */
-export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan): Promise<Document> {
+export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan, hinges: Readonly<Record<string, Hinge>> = {}): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
@@ -81,6 +94,9 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   removeNodes(doc, entry.remove.filter((n) => !splitNames.has(n)))
   // Presence of every kept node, before anything renames it.
   for (const k of entry.keep) findNode(doc, k.node)
+  // A hinge whose node is not kept would be joined into the body and turn nothing (C1).
+  const unkept = Object.keys(hinges).filter((n) => !entry.keep.some((k) => k.node === n))
+  if (unkept.length) throw new Error(`${entry.id}: the script hinges ${unkept.join(', ')}, which the entry does not keep`)
   // 2. split, then drop the split names `remove` lists
   for (const s of entry.split) splitByBox(doc, s)
   removeNodes(doc, entry.remove.filter((n) => splitNames.has(n)))
@@ -90,7 +106,8 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
     // collapse + 3. pivot + 4. normalize
     for (const k of entry.keep) {
       const node = collapseKept(doc, k)
-      if (k.pivot) pivotNode(doc, node, k.pivot)
+      const pivot = k.pivot ?? hinges[k.node]
+      if (pivot) pivotNode(doc, node, pivot)
     }
     for (const s of entry.split) {
       if (s.pivot && !entry.remove.includes(s.name)) pivotNode(doc, findNode(doc, s.name), s.pivot)
@@ -110,15 +127,21 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
     images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
   }
   if (entry.dedupMaterials) await dedupMaterials(doc)
-  // 5. join everything except the parts
-  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
+  // 5. join everything except the parts, and except every mount a ship's armament names (Track M, M1)
+  const mountNames = ship?.spec.armament ? namedMounts(ship.spec.armament).map((m) => m.name) : []
+  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames, ...mountNames]))
+  // A carved mount keeps one primitive per source material; join those sharing a role material within
+  // the mount, so each kit is as few draws as its roles (Fletcher's five gun materials are one fitting).
+  if (mountNames.length) await doc.transform(join({ keepMeshes: false, keepNamed: true, filter: (node) => mountNames.includes(node.getName()) }))
   // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
   if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
+  const placed = ship ? carveMounts(doc, ship.spec, ship.block.palette) : []
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
   if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)
+  if (ship) addMountLocators(doc, placed)
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
   asset.extras = { ...(asset.extras ?? {}), ...provenance(entry.source) }
@@ -182,10 +205,14 @@ export interface BuildDeps {
   haveBlender(): boolean
   /** Runs one Blender model script into `out` (run.ts's runBlenderScript). Throws on any failure. */
   blender(script: string, out: string): void
+  /** The Wildcat's original recipe, raw input to `out` (legacy.ts). */
+  legacyOptimize(input: string, out: string): void
   /** A text file (the skin sidecar, DP0). */
   readText(path: string): string
   /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
   scan: ScanLoader
+  /** The ShipSpec a ship entry fits to; content/ships by default. Toy-ship tests pass one without armament. */
+  shipSpec?: (id: string) => ShipSpec
 }
 
 /** The driver, with its file system injected so tests never touch the disk.
@@ -240,9 +267,21 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         } else if (deps.exists(sidecar)) {
           throw new Error(`${source.script} wrote a skin sidecar, but the entry has no "skin": true`)
         }
-        doc = await runPipeline(read, entry, loadShipSpec, skin)
+        const hingesPath = hingesSidecarPath(raw)
+        const hinges = deps.exists(hingesPath) ? parseHinges(deps.readText(hingesPath)) : {}
+        doc = await runPipeline(read, entry, deps.shipSpec ?? loadShipSpec, skin, deps.scan, hinges)
+      } else if (entry.legacyOptimize) {
+        // The original recipe into the cache once (it needs npx), then split only (manifest.ts).
+        const mid = `tools/models/cache/${entry.id}.legacy.glb`
+        if (!deps.exists(mid)) deps.legacyOptimize(entry.input!, mid)
+        doc = await deps.read(mid)
+        for (const k of entry.keep) findNode(doc, k.node)
+        for (const s of entry.split) splitByBox(doc, s)
+        // Slicing replaces accessors; drop only the orphans, since a full prune would also take the empty
+        // locator nodes this hierarchy keeps.
+        await doc.transform(prune({ propertyTypes: [PropertyType.ACCESSOR], keepLeaves: true }))
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
+        doc = await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
@@ -278,6 +317,7 @@ export function nodeBuildDeps(): BuildDeps {
     haveBlender: () => blenderPresent(),
     blender: (script, out) => runBlenderScript(script, out),
     readText: (p) => readFileSync(p, 'utf8'),
+    legacyOptimize,
     scan: loadScan,
   }
 }

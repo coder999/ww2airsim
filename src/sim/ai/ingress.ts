@@ -47,6 +47,20 @@ export const ORBIT_RADIUS_M = 1500
 /** How far around the circle the orbit aims (see ingressDesiredVelocity). */
 export const ORBIT_LEAD_RAD = Math.PI / 6
 
+/** C2 stub (E3 builds on it): a bomber's doors open inside this horizontal range of its
+ *  destination while it is still ahead, and close once it is past or out of range. ESTIMATE: a
+ *  level bomb run's last few miles; no AI drops a bomb yet, so nothing measures it. */
+export const BAY_DOORS_OPEN_RANGE_M = 5000
+
+/** Whether an ingress pilot's bay doors should be open (C2): inside BAY_DOORS_OPEN_RANGE_M of its
+ *  destination, horizontally, with the destination ahead of its velocity. No destination: shut. */
+export function ingressBayDoorsOpen(a: Pick<AircraftEntity, 'state'>, orders: IngressOrders, ships: readonly ShipEntity[]): boolean {
+  const d = destinationPoint(orders, ships)
+  if (d === null) return false
+  const dx = d.x - a.state.position.x, dz = d.z - a.state.position.z
+  return Math.hypot(dx, dz) <= BAY_DOORS_OPEN_RANGE_M && dx * a.state.velocity.x + dz * a.state.velocity.z > 0
+}
+
 /** A point to fly to (or orbit), with the altitude and speed to do it at. */
 export type Goal = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
 

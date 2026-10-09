@@ -20,6 +20,12 @@ export function skinSidecarPath(glb: string): string {
   return `${glb.slice(0, -4)}.skin.json`
 }
 
+/** The control-surface hinges a script writes beside its glb (C1): `{ hinges: { node: { point, axis } } }`. */
+export function hingesSidecarPath(glb: string): string {
+  if (!glb.endsWith('.glb')) throw new Error(`hingesSidecarPath: ${glb} is not a .glb`)
+  return `${glb.slice(0, -4)}.hinges.json`
+}
+
 export function parseBlenderVersion(stdout: string): string | null {
   const m = /^Blender (\d+\.\d+\.\d+)/m.exec(stdout)
   return m ? m[1]! : null
@@ -59,7 +65,10 @@ export function runBlenderScript(script: string, out: string, args: readonly str
   mkdirSync(dirname(out), { recursive: true })
   rmSync(out, { force: true })
   // A stale sidecar would skin this run's glb with another run's atlas (DP0).
-  if (out.endsWith('.glb')) rmSync(skinSidecarPath(out), { force: true })
+  if (out.endsWith('.glb')) {
+    rmSync(skinSidecarPath(out), { force: true })
+    rmSync(hingesSidecarPath(out), { force: true })
+  }
   // No __pycache__ beside kit.py (an untracked file in every checkout). Blender's bundled
   // Python ignores PYTHONDONTWRITEBYTECODE (measured 2026-09-26), so it is set in-process
   // before the script runs; Blender handles its arguments in order.

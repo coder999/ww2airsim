@@ -124,7 +124,8 @@ export type CloudMarch = {
 }
 
 export type CloudsHandle = {
-  /** False for a clear sky: nothing to march, so the caller builds no pass. */
+  /** False for a clear sky: nothing to march, so the caller routes no pass.
+   *  Live: follows the field's `setLayers`. */
   readonly enabled: boolean
   /**
    * Emits the march for one view ray into the CURRENT TSL stack and returns
@@ -149,7 +150,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const ownsField = field === undefined
   const f = field ?? createCloudField(layers, noise)
   const { shape, layerData, layerCount, eyeWorld } = f
-  const sorted = f.layers
 
   const cumulusSteps = uniform(CLOUD_TIERS.high.cumulusSteps, 'int')
   const cirrusSteps = uniform(CLOUD_TIERS.high.cirrusSteps, 'int')
@@ -433,7 +433,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   }
 
   return {
-    enabled: sorted.length > 0,
+    get enabled() { return f.layers.length > 0 },
     marchNode,
     setTier(name: CloudTierName): void {
       const t = CLOUD_TIERS[name]

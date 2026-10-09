@@ -48,9 +48,12 @@ export type TitleModel = {
   /** Form 2's way back to Form 1. */
   readonly back: string
   readonly about: string
-  /** Form 1's link to the object library, hangar.html (Hangar spec §3). */
-  readonly library: string
-  readonly libraryHref: string
+  /** The administrative memo's link to the Hangar, hangar.html (Hangar spec §3). */
+  readonly hangar: string
+  readonly hangarHref: string
+  /** The sound library, sounds.html (2026-10-09); its button shows only while Dev is checked. */
+  readonly sounds: string
+  readonly soundsHref: string
   readonly settings: string
   readonly close: string
   readonly aboutKicker: string
@@ -71,8 +74,10 @@ export function titleModel(): TitleModel {
     dev: 'Dev — unlocks everything',
     back: 'Back',
     about: 'About project',
-    library: 'Library',
-    libraryHref: `${import.meta.env.BASE_URL}hangar.html`,
+    hangar: 'Hangar',
+    hangarHref: `${import.meta.env.BASE_URL}hangar.html`,
+    sounds: 'Sounds',
+    soundsHref: `${import.meta.env.BASE_URL}sounds.html`,
     settings: 'Settings',
     close: 'Close',
     aboutKicker: 'Project Office',
@@ -86,6 +91,8 @@ export function titleModel(): TitleModel {
       'A technical playground: real terrain from the Copernicus DEM, a GEBCO sea ' +
         'floor, ESA WorldCover land cover, an FFT ocean and a deterministic flight ' +
         'model, all rendered with WebGPU.',
+      'Privacy: this site uses Google Analytics to count visits and which ' +
+        'missions are flown. No account, name or pilot roster leaves your browser.',
     ],
     credits: creditsLine(),
     licence: 'Source code: AGPL-3.0-or-later.',
@@ -829,9 +836,18 @@ export function createTitleScreen(
     adminKicker.textContent = 'Administration'
     const about = inkButton(m.about)
     const settingsButton = inkButton(m.settings)
+    // A plain link, not a mode: the Hangar is its own page (Hangar spec §3),
+    // and navigating away drops this page's state the same way a reload does.
+    // With About and Settings since 2026-10-08 (Mark): reference, not part of starting a sortie.
+    const hangar = inkButton(m.hangar)
+    hangar.addEventListener('click', () => { window.location.href = m.hangarHref })
+    // A developer's tool, not a player's (Mark 2026-10-09): shown only while Dev is checked.
+    const sounds = inkButton(m.sounds)
+    sounds.addEventListener('click', () => { window.location.href = m.soundsHref })
+    sounds.style.display = dev ? '' : 'none'
     const adminButtons = document.createElement('div')
     adminButtons.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap'
-    adminButtons.append(about, settingsButton)
+    adminButtons.append(hangar, sounds, about, settingsButton)
     adminRow.append(adminKicker, adminButtons)
     admin.sheet.appendChild(adminRow)
     overlay.appendChild(admin.panel)
@@ -1042,10 +1058,6 @@ export function createTitleScreen(
     newPilotError.style.cssText = NEW_PILOT_ERROR_STYLE
 
     rosterSheet.append(newPilotButton, newPilotForm, newPilotError)
-    // A plain link, not a mode: the library is its own page (Hangar spec §3),
-    // and navigating away drops this page's state the same way a reload does.
-    const library = inkButton(m.library)
-    library.addEventListener('click', () => { window.location.href = m.libraryHref })
     // The Dev checkbox (sortie spec), beside New game: lifts every rule on
     // Forms 2-4. Toggling it re-resolves the draft at once (Review Focus 1).
     const devLabel = document.createElement('label')
@@ -1055,10 +1067,11 @@ export function createTitleScreen(
     devBox.checked = dev
     devBox.addEventListener('change', () => {
       dev = devBox.checked
+      sounds.style.display = dev ? '' : 'none'
       if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
     })
     devLabel.append(devBox, m.dev)
-    const rosterButtons = buttonRow(library, newGame)
+    const rosterButtons = buttonRow(newGame)
     rosterButtons.prepend(devLabel)
     rosterSheet.appendChild(rosterButtons)
 
@@ -1199,7 +1212,7 @@ export function createTitleScreen(
     // pilot is selected and the boot is ready.
     const lockable = (): (HTMLButtonElement | HTMLInputElement)[] => [
       ...[...pilotRows.values()].map((r) => r.selectButton),
-      newPilotButton, newPilotConfirm, library, about, settingsButton, devBox,
+      newPilotButton, newPilotConfirm, hangar, about, settingsButton, devBox,
     ]
     const applyBootLock = (): void => {
       const locked = !boot.ready

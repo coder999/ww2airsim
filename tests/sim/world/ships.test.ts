@@ -207,7 +207,7 @@ describe('ship hit points and roles', () => {
     expect(dd.hullHp).toBe(160)
     expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: undefined })).toThrow(/hullHp/)
     expect(() => parseShipSpec({ ...raw, hullHp: 0 })).toThrow(/hullHp/)
-    expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: 240 })).not.toThrow()
+    expect(() => parseShipSpec({ ...raw, role: 'merchant', hullHp: 240, armament: undefined })).not.toThrow()
   })
 
   it("widens role to accept 'cruiser' and 'battleship' (Plan 9 Task 1), rejecting anything outside the enum", () => {
@@ -233,5 +233,25 @@ describe('the render-only view block (ship-models spec §3.1)', () => {
     expect(parseShipSpec({ ...cv, view: { model: 'essex-cv' } }).view).toEqual({ model: 'essex-cv' })
     expect(() => parseShipSpec({ ...cv, view: { model: 'Essex CV' } })).toThrow(/view\.model: must be a lowercase model id/)
     expect(() => parseShipSpec({ ...cv, view: { model: 'essex-cv', lod: 1 } })).toThrow(/view: Unrecognized key/)
+  })
+})
+
+describe('armament (Track M, M1)', () => {
+  const gun = (x: number, kit: string | null = 'mount-5in38-single') => ({ x, y: 6, z: 0, bearingDeg: 0, kit, barrels: 1 })
+  const armed = (armament: unknown, role = 'escort') => parseShipSpec({ ...dd, role, armament })
+  const ok = { turrets: [{ ...gun(40), aa: 'heavy' }], heavyAA: [], lightAA: [gun(10, null)] }
+
+  it('a warship needs one and a merchant may not have one', () => {
+    expect(() => armed(ok)).not.toThrow()
+    expect(() => armed(undefined)).toThrow(/armament: a warship needs/)
+    expect(() => armed(ok, 'merchant')).toThrow(/armament: a warship needs/)
+  })
+
+  it('needs a turret and an AA mount, lists bow to stern, and a kit everywhere but light AA', () => {
+    expect(() => armed({ ...ok, turrets: [] })).toThrow(/at least one turret/)
+    expect(() => armed({ turrets: [{ ...gun(40), aa: null }], heavyAA: [], lightAA: [] })).toThrow(/at least one AA mount/)
+    expect(() => armed({ ...ok, lightAA: [gun(-10, null), gun(10, null)] })).toThrow(/bow to stern/)
+    expect(() => armed({ ...ok, heavyAA: [gun(5, null)] })).toThrow(/null kit/)
+    expect(() => armed({ ...ok, lightAA: [{ ...gun(10), bearingDeg: 190 }] })).toThrow(/bearingDeg/)
   })
 })

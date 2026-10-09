@@ -9,8 +9,7 @@
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 118.5 } },
   "skin": true,
-  "keep": [{ "node": "Turret1" }, { "node": "Turret2" }],
-  "textures": { "maxSize": 1024, "format": "webp" },
+  "textures": { "maxSize": 2048, "format": "webp" },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {

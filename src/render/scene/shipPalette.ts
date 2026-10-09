@@ -21,6 +21,18 @@ export const SHIP_PALETTES = {
     superstructure: 0x5c6670,
     fitting: 0x4b535b,
   },
+  // M1 (2026-10-08): Measure 21, every vertical surface 5-N Navy Blue and the decks 20-B Deck Blue, as
+  // Pennsylvania wore it at Surigao Strait (tools/models/blender/pennsylvania-bb.py cites the photo).
+  // No chip was read: render choices, like the rest of this table.
+  'usn-ms21': {
+    hull: 0x3a4555,
+    deck: 0x30363f,
+    flightDeck: 0x3b3f44,
+    boot: 0x1e2124,
+    antifouling: 0x5b2a24,
+    superstructure: 0x3a4555,
+    fitting: 0x343e4c,
+  },
   // IJN naval gray varied by yard and weather. R2 uses one neutral Kure-like
   // gameplay palette so the seven ship models share S1's fallback/material path;
   // these are render choices, not measured paint chips.

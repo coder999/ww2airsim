@@ -44,10 +44,12 @@ async function boot(): Promise<void> {
   // content, so the canvas's own pixel width would otherwise widen its column
   // past the window and the panel would grow to the list's full height
   // (measured 2026-09-25: canvas right edge at 1660 px in a 1280 px window).
-  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%'
+  // The third track is the details panel (panel.ts): empty until the first pick, then its own width.
+  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);height:100%'
   const canvas = document.createElement('canvas')
   canvas.id = 'hangar-canvas'
-  canvas.style.cssText = 'width:100%;height:100%;display:block;min-width:0;min-height:0'
+  // Placed explicitly: the empty-bay prompt shares this cell, and auto-placement would move one aside.
+  canvas.style.cssText = 'grid-area:1/2;width:100%;height:100%;display:block;min-width:0;min-height:0'
   const { renderer, adapterVerdict } = await initRenderer(canvas)
   // initRenderer sizes the canvas to the whole window, inline style included
   // (renderer.ts's setSize); here it fills its grid column instead, and fit()
@@ -66,7 +68,14 @@ async function boot(): Promise<void> {
   const bench = benchEnabled(import.meta.env.DEV, location.search)
   let controller = createBenchController(null)
   let benchUi: BenchHandle | null = null
-  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false }
+  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false, mounts: false }
+  // Track M, M1: the bench's Train mounts sweeps every gun mount +-90 deg about its own axis, so a
+  // look shows each one turning alone, on its own pivot; M1b raises the guns from level to each kit's
+  // top elevation in the same sweep. Off, they rest at their spec bearing, level.
+  let sweepS = 0
+  const trainMounts = (rad: number): void => { for (const m of model?.gunMounts ?? []) m.setTraining(rad) }
+  /** `frac` of each mount's own top elevation (0 level, 1 its maximum). */
+  const elevateMounts = (frac: number): void => { for (const m of model?.gunMounts ?? []) m.setElevation(frac * m.maxElevationRad) }
   const refreshCounts = (): void => { if (model) benchUi?.setCounts(countsReport(model.root, content.budgets)) }
   const pose = (p: PartPose): void => {
     model?.pose(controller.set(p))
@@ -78,6 +87,7 @@ async function boot(): Promise<void> {
     if (which === 'wireframe') stage.setWireframe(on)
     else if (which === 'checker') stage.setChecker(on)
     else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
+    else if (which === 'mounts') { sweepS = 0; trainMounts(0); elevateMounts(0) }
     else stage.setAutoRotate(on)
   }
   // One frame of the bench: a running Cycle, then the model's own clock.
@@ -88,11 +98,13 @@ async function boot(): Promise<void> {
       benchUi?.sync(controller.state())
     }
     model?.update(frameS)
+    if (debug.mounts) { sweepS += frameS; trainMounts(Math.sin(sweepS * 0.8) * Math.PI / 2); elevateMounts(0.5 - 0.5 * Math.cos(sweepS * 0.6)) }
   }
 
   const select = async (id: string): Promise<void> => {
     const entry = catalog.find((e) => e.library.id === id)
     if (!entry) throw new Error(`hangar: no library entry "${id}"`)
+    emptyBay.remove()
     const next = await loadHangarModel(entry, loadRegisteredAirframe, loadShips)
     model?.dispose()
     model = next
@@ -115,13 +127,19 @@ async function boot(): Promise<void> {
   const panel = createPanel(root, catalog, (id) => {
     select(id).catch((e: unknown) => validationErrors.push(e instanceof Error ? e.message : String(e)))
   })
-  root.appendChild(canvas)
+  // Over the empty bay until the first pick: the canvas's own cell, so it never takes a column.
+  const emptyBay = document.createElement('div')
+  emptyBay.className = 'hangar-empty'
+  emptyBay.textContent = 'Pick an item'
+  emptyBay.style.cssText = 'grid-area:1/2;place-self:center;pointer-events:none;color:var(--paper);opacity:.7;font-family:var(--font-display);font-size:22px;letter-spacing:.15em;text-transform:uppercase'
+  root.append(canvas, emptyBay, panel.detail)
   const stage = createStage(renderer, canvas, () => {
     debug.turntable = false
     benchUi?.setDebug('turntable', false)
   })
   const fit = (): void => stage.resize(canvas.clientWidth, canvas.clientHeight)
-  window.addEventListener('resize', fit)
+  // The canvas resizes with the window, and when the details panel appears or collapses.
+  new ResizeObserver(fit).observe(canvas)
   fit()
 
   installHangarHooks(window as HangarWindow, {
@@ -141,11 +159,14 @@ async function boot(): Promise<void> {
     gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
     counts: () => (model ? countsReport(model.root, content.budgets) : null),
     storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
+    gunMounts: () => (model?.gunMounts ?? []).map((m) => m.name),
+    trainMounts,
+    elevateMounts,
     validationErrors,
   })
 
-  const first = catalog.find(drawable)
-  if (first) await select(first.library.id)
+  // Nothing is picked on load: the bay stands empty and the details panel stays away until a
+  // pick (Mark, 2026-10-08).
 
   let last = performance.now()
   renderer.setAnimationLoop(() => {

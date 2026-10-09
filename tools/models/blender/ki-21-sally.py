@@ -21,9 +21,10 @@ Figures (read 2026-09-27, English Wikipedia "Mitsubishi Ki-21", Specifications (
 DP1 detail figures (read 2026-09-28):
   armament: 5 x 7.7 mm flexible Type 89 machine guns (nose, ventral, beam and tail positions), 1 x 12.7 mm
     Ho-103 in the dorsal turret                        CITED, English Wikipedia "Mitsubishi Ki-21", Specifications
-                                                       (Ki-21-IIb), read 2026-09-28. Only the dorsal turret is
-                                                       rigged; the nose gun is drawn as a barrel (its position is
-                                                       ESTIMATE); the ventral, beam and tail guns are left out.
+                                                       (Ki-21-IIb), read 2026-09-28. The nose gun (Turret1),
+                                                       dorsal turret (Turret2) and tail gun (Turret3) are rigged;
+                                                       the nose and tail on ball sockets (2026-10-09, positions
+                                                       ESTIMATE); the ventral and beam guns are left out.
   the 60th Sentai's group symbol was a wide horizontal stripe colored by chutai; aircraft were mostly left in the
     overall green-gray                                 seen in a WebSearch summary only (2026-09-28: the ICM, iModeler
                                                        and WildEagles pages it listed were not opened), so NOT cited
@@ -56,8 +57,10 @@ DP1 detail figures (read 2026-09-28):
   additions sink at least 0.02 m into what they sit on   modeling choice: no coplanar faces (DP0)
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage datum (ESTIMATE). Pose: gear down (R3 P13).
-Leaves out: the ventral, beam and tail guns (flexible mounts, not turrets), the nose gun's mount, cockpit interior,
-bomb bay, unit markings.
+Leaves out: the ventral and beam guns (flexible mounts), cockpit interior,
+unit markings.
+Bomb bay (C2): one, under the wing box, 3.8 m long with doors 0.4 m wide either side of the keel. ESTIMATE:
+sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source gives the opening.
 """
 import math
 import os
@@ -99,6 +102,8 @@ CANOPY = [(0.288, 0.003, 0.003, 0.053), (0.238, 0.028, 0.019, 0.059), (0.175, 0.
 CANOPY_FRAMES = (0.255, 0.225, 0.195, 0.165)
 TAILPLANE = dict(span=0.338, le=0.8375, root=0.1375, taper=0.55, y=0.019, sweep=10.0)
 FIN = dict(root=0.1625, taper=0.54, height=0.15, y=0.022)
+# Bomb bay, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-2.5, 1.3, 0.4)]
 ENGINES = [0.16]              # nacelle z each side, of SPAN
 # (x ahead of the wing leading edge at that z, half-width), of LENGTH; half-height 1.05 x half-width
 NACELLE = dict(below=0.0206, stations=[(-0.20, 0.009), (-0.10, 0.034), (0.03, 0.044), (0.10, 0.044), (0.135, 0.039), (0.138, 0.019)])
@@ -200,7 +205,8 @@ def nac_point(z, dx, angle_deg):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER,
+               doors=BAYS)
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = WING_Y * L + 0.55 * ROOT_T * root_chord - FILLET['half_h'] * L
     hw_mid, _hh, _cy, n_mid = fus_section(mid)
@@ -217,7 +223,7 @@ with m.tagged('nose'), m.shared_chart():
     ng = [(X(f), w * NOSE_GLAZE_SCALE * L, h * NOSE_GLAZE_SCALE * L, y * L) for f, w, h, y in NOSE_GLAZING]
     m.canopy('glazing', UPPER, ng, [X(f) for f in NOSE_FRAMES], bar=0.018, segments=48, subdivide=4)
 
-controls = [(a * S / 2, b * S / 2, h) for a, b, h in (*FLAPS, AILERON)]
+controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in zip((*FLAPS, AILERON), ('Flap1', 'Flap2', 'Aileron'))]
 nac_z = ENGINES[0] * S
 breaks = [0.0, nac_z, S / 2]
 with m.tagged('wing'), m.shared_chart():
@@ -231,13 +237,13 @@ tp = TAILPLANE
 with m.tagged('tailplane'), m.shared_chart():
     m.wing(UPPER, X(tp['le']), tp['y'] * L, tp['root'] * L, tp['taper'] * tp['root'] * L, tp['span'] * S,
            sweep_deg=tp['sweep'], thickness=0.10, lower_role=LOWER, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2])])
+           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2], 'Elevator')])
 fin_root, fin_h = FIN['root'] * L, FIN['height'] * L
 fin_tip = FIN['taper'] * fin_root
 with m.tagged('fin'), m.shared_chart():
     m.fin(UPPER, X(1.0) + fin_root, FIN['y'] * L, fin_root, fin_tip, fin_h,
           sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2])])
+          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
 
 for i, z in enumerate(props, start=1):
     le, ny = wing_le(z), nacelle_y(z)
@@ -282,8 +288,6 @@ with m.tagged('fittings'), m.shared_chart():
                 nrm = math.hypot(*out_dir)
                 ox, oy = out_dir[0] / nrm, out_dir[1] / nrm
                 m.revolve('dark', (px, py - 0.04 * oy, pz - 0.04 * ox), (-1.0, 0.7 * oy, 0.7 * ox), [(0.0, e['r']), (e['length'], e['r'] * 0.85)], 10)
-    # Turret is below (gun_turret). Nose gun: a barrel from inside the greenhouse, its muzzle 3 cm inside the nose tip's x.
-    m.gun_barrel('dark', (X(0.030), -0.0060 * L + 0.05, 0.0), 0.0, 0.0, X(0.001) - 0.03 - X(0.030), 0.018)
     # Pitot, left wing, on the chord line: its aft end 0.10 m inside the leading edge.
     pz = -8.0
     m.strut('dark', (wing_le(pz) - 0.10, wing_y(pz), pz), (wing_le(pz) + 0.45, wing_y(pz), pz), 0.010, sides=6)
@@ -291,10 +295,17 @@ with m.tagged('fittings'), m.shared_chart():
     m.strut('dark', (X(0.320), fus_top_y(0.320, 0.0) - 0.04, 0.0), (X(0.345), fus_top_y(0.320, 0.0) + 0.85, 0.0), 0.014, 0.007, sides=6)
     # Tailwheel strut brace and fork (fixed gear).
     m.strut('dark', (X(tw['at']) - 0.02, tw['y'] * L + 0.02, 0.0), (X(tw['at']) + 0.30, tw['y'] * L - 0.35, 0.0), 0.022, sides=6)
-for i, t in enumerate(TURRETS, start=1):
+# Flexible 7.7 mm guns on ball sockets, numbered with the turret nose to tail (flex guns, 2026-10-09; ESTIMATE):
+# Turret1 the nose gun at the greenhouse tip, Turret2 the dorsal turret, Turret3 a tail gun out of the tail cone.
+with m.tagged('turret'), m.shared_chart():
+    m.flex_gun('dark', 1, (X(0.004), NOSE_GLAZING[-1][3] * L, 0.0), (1.0, 0.0, 0.0), 0.75, scale=0.75, mount_r=0.07)
+for i, t in enumerate(TURRETS, start=2):
     with m.tagged('turret'), m.shared_chart():
         m.gun_turret(UPPER, i, (X(t['at']), t['y'] * L, 0.0), t['radius'] * L, t['height'] * L, up=t['up'],
-                     barrels=t['barrels'], barrel_length=t['barrel'] * L, facing=t['facing'])
+                     barrels=t['barrels'], barrel_length=t['barrel'] * L, facing=t['facing'], scale=0.75, gun_role='dark')
+with m.tagged('turret'), m.shared_chart():
+    # The tail gun sits 0.08 m under the cone's center line: the fin's root runs on aft past the cone at that line.
+    m.flex_gun('dark', 3, (X(0.978), FUSELAGE[0][3] * L - 0.08, 0.0), (-1.0, 0.0, 0.0), 0.75, scale=0.75, mount_r=0.07)
 
 # --- Markings (ESTIMATE, see the header).
 h = HINOMARU
