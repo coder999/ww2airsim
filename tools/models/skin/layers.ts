@@ -41,9 +41,20 @@ const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x))
 const linearColor = (c: readonly number[]): V3 => [SRGB8_TO_LINEAR[c[0]!]!, SRGB8_TO_LINEAR[c[1]!]!, SRGB8_TO_LINEAR[c[2]!]!]
 
-/** Coverage 0-1 of one marking at sample (p, n), or 0. Grid markings return 0: they cut height only. */
+/** M1c: a board's own value in [0, 1), from its row and its segment: integer mixing, no state. */
+export function boardHash(a: number, b: number): number {
+  let x = Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul(b | 0, 0x165667b1)
+  x = Math.imul(x ^ (x >>> 15), 0x85ebca6b)
+  x = Math.imul(x ^ (x >>> 13), 0xc2b2ae35)
+  return ((x ^ (x >>> 16)) >>> 0) / 4294967296
+}
+
+/** Only faces at least this close to straight up take planks (decks, not their sheer's steps). */
+export const PLANK_FACING = 0.7
+
+/** Coverage 0-1 of one marking at sample (p, n), or 0. Grid and planks markings return 0: they act in paint() directly. */
 export function coverage(mk: Marking, p: V3, n: V3): number {
-  if (mk.kind === 'grid') return 0
+  if (mk.kind === 'grid' || mk.kind === 'planks') return 0
   const ramp = (inside: number): number => (mk.featherM > 0 ? clamp01(inside / mk.featherM) : inside >= 0 ? 1 : 0)
   if (mk.kind === 'slab') {
     const c = p[mk.axis === 'x' ? 0 : mk.axis === 'y' ? 1 : 2]
@@ -111,7 +122,7 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
   const patches = new Map(side.patches.map((p) => [p.id, p]))
   const lines = new Map<number, Sidecar['lines']>()
   for (const l of side.lines) lines.set(l.patch, [...(lines.get(l.patch) ?? []), l])
-  const marks = side.markings.map((m) => ({ m, color: m.kind === 'grid' ? null : linearColor(MARKING_COLORS[m.color]), tags: new Set(m.tags) }))
+  const marks = side.markings.map((m) => ({ m, color: m.kind === 'grid' || m.kind === 'planks' ? null : linearColor(MARKING_COLORS[m.color]), tags: new Set(m.tags) }))
   const bare = linearColor(BARE_METAL)
 
   for (let i = 0; i < count; i++) {
@@ -145,6 +156,17 @@ export function paint(g: GBuffer, roles: readonly string[], side: Sidecar, scans
           const c = p[a]!, d = Math.abs(c - sp * Math.round(c / sp))
           h -= m.depth * Math.max(0, 1 - d / hw)
         }
+        continue
+      }
+      if (m.kind === 'planks') {
+        if (n[1] < PLANK_FACING) continue
+        const row = Math.floor(p[2] / m.widthM), run = (p[0] + boardHash(row, 0) * m.lengthM) / m.lengthM, seg = Math.floor(run)
+        const k = 1 + m.contrast * (2 * boardHash(row, seg + 1) - 1)
+        const hw = Math.max(0.006, spacing) // a seam reaches a sample either side, as a panel line does
+        const dz = Math.abs(p[2] - m.widthM * Math.round(p[2] / m.widthM)), dx = Math.abs(run - Math.round(run)) * m.lengthM
+        const s = 1 - m.seam * Math.max(0, 1 - Math.min(dz, dx) / hw)
+        cr *= k * s; cg *= k * s; cb *= k * s
+        rough += 0.12 * (boardHash(seg + 7, row) - 0.5)
         continue
       }
       const al = coverage(m, p, n) * m.opacity

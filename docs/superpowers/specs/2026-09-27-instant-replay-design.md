@@ -119,7 +119,7 @@ Screen: a **REPLAY** label in the top corner, and a bottom bar with the timeline
 
 ## 9. Memory limit and the fallback
 
-**Limit: 64 MB retained** for a 10 s recording, measured by the Tier 1 check above (heap delta with the recording held vs. released, after forced GC under `node --expose-gc`). The first implementation task measures it before anything else is built on the recorder.
+**Limit: 80 MB retained** (64 MB until 2026-10-09: E1's honest AI gunnery keeps more rounds in flight and measured 66.8 MB; Mark ruled the replay keeps every tick rather than taking the first step below) for a 10 s recording, measured by the Tier 1 check above (heap delta with the recording held vs. released, after forced GC under `node --expose-gc`). The first implementation task measures it before anything else is built on the recorder.
 
 - **Over the limit, first step:** record every 2nd tick (300 states) and interpolate over 1/30 s for display. That halves the memory; nothing else changes.
 - **Still over, or another drawback found** (e.g. mutable sharing between recorded worlds breaks exactness): switch to **input-log re-simulation**. Snapshot one `World` 10 s back, record the player's inputs each tick, and re-run `advance` to reach t. The master spec §3 already describes a replay as `(seed, input log)`. Keyframes every 2 s bound a rewind's re-run to at most 120 ticks. Only the recorder and the player's `worldAt` change; the cameras, screen, effects and sound are untouched.

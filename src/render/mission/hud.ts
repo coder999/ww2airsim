@@ -4,7 +4,10 @@
  * it. Both read `World.mission` only; neither owns any sim state.
  */
 import { DT } from '../../sim/flight/model.js'
+import type { World } from '../../sim/loop.js'
 import { radioMessages, type MissionLogEntry, type MissionState } from '../../sim/mission/state.js'
+import { steeringCueFor, steeringCueLabel, type SteeringCue } from './steeringCue.js'
+import type { SteeringMode } from '../scene/steeringArrow.js'
 
 const MAX_SHOWN = 2
 
@@ -59,9 +62,12 @@ export function nextRadioLine(r: RadioLine, messages: readonly { readonly text: 
 }
 
 export type MissionHudHandle = {
-  update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean, friendlyFire?: { readonly tick: number; readonly text: string } | null): void
+  /** Returns the steering cue for the in-scene arrow (scene/steeringArrow.ts). */
+  update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire?: { readonly tick: number; readonly text: string } | null): SteeringCue | null
+  /** Puts the steering label beside the arrow or marker: `anchor` in NDC, null hides it. */
+  placeSteering(anchor: { readonly x: number; readonly y: number } | null, mode: SteeringMode): void
   reset(): void
-  text(): { objective: string | null; radio: string | null }
+  text(): { objective: string | null; radio: string | null; steering: string | null; steeringMode: SteeringMode | null }
 }
 
 /** `paddlesBadge.ts`'s pattern: create the two elements once, then write
@@ -77,6 +83,16 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
     'pointer-events:none;display:none;z-index:9'
   root.appendChild(objectiveEl)
 
+  // B1: the label beside the in-scene arrow or marker (scene/steeringArrow.ts), placed by `placeSteering`.
+  const steeringEl = document.createElement('div')
+  steeringEl.setAttribute('aria-label', 'Steering cue')
+  steeringEl.style.cssText =
+    'position:fixed;left:0;top:0;transform:translate(30px,-50%);padding:2px 8px;' +
+    'border:1px solid #2b3440;border-radius:4px;background:rgba(12,14,18,.6);color:#ffdf7a;' +
+    'font:12px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;white-space:nowrap;' +
+    'pointer-events:none;display:none;z-index:9'
+  root.appendChild(steeringEl)
+
   const radioEl = document.createElement('div')
   radioEl.setAttribute('role', 'status')
   radioEl.setAttribute('aria-label', 'Radio')
@@ -91,9 +107,13 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
   let radio: RadioLine = NO_RADIO
   let shownObjective: string | null = null
   let shownRadio: string | null = null
+  let shownSteering: string | null = null
+  let steeringText: string | null = null
+  let shownMode: SteeringMode | null = null
 
   return {
-    update<M>(m: MissionState<M> | null, frameMs: number, paused: boolean, friendlyFire: { readonly tick: number; readonly text: string } | null = null): void {
+    update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire: { readonly tick: number; readonly text: string } | null = null): SteeringCue | null {
+      const m = world.mission
       const objective = objectiveLineLabel(m)
       if (objective !== shownObjective) {
         shownObjective = objective
@@ -107,6 +127,24 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
         radioEl.textContent = radio.text ?? ''
         radioEl.style.display = radio.text === null ? 'none' : 'block'
       }
+
+      const steering = steeringCueFor(world, selectedNavigationId)
+      steeringText = steering === null ? null : steeringCueLabel(steering)
+      return steering
+    },
+    placeSteering(anchor, mode): void {
+      const label = anchor === null ? null : steeringText
+      if (label !== shownSteering) {
+        shownSteering = label
+        steeringEl.textContent = label ?? ''
+        steeringEl.style.display = label === null ? 'none' : 'block'
+      }
+      // The mode stands while the arrow itself is out of frame (an orbited chase view).
+      shownMode = steeringText === null ? null : mode
+      if (anchor !== null) {
+        steeringEl.style.left = `${((anchor.x + 1) / 2) * innerWidth}px`
+        steeringEl.style.top = `${((1 - anchor.y) / 2) * innerHeight}px`
+      }
     },
     reset(): void {
       radio = NO_RADIO
@@ -116,9 +154,14 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
       objectiveEl.style.display = 'none'
       radioEl.textContent = ''
       radioEl.style.display = 'none'
+      shownSteering = null
+      steeringText = null
+      shownMode = null
+      steeringEl.textContent = ''
+      steeringEl.style.display = 'none'
     },
-    text(): { objective: string | null; radio: string | null } {
-      return { objective: shownObjective, radio: shownRadio }
+    text(): { objective: string | null; radio: string | null; steering: string | null; steeringMode: SteeringMode | null } {
+      return { objective: shownObjective, radio: shownRadio, steering: shownSteering, steeringMode: shownMode }
     },
   }
 }
@@ -129,6 +172,8 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
 export type MissionDiagnostics = {
   readonly objective: string | null
   readonly radio: string | null
+  readonly steering: string | null
+  readonly steeringMode: SteeringMode | null
   readonly log: readonly MissionLogEntry[]
   readonly spawned: readonly string[]
   readonly meshes: readonly { readonly id: string; readonly visible: boolean }[]
@@ -145,7 +190,7 @@ export function missionDiagnostics<M>(
   if (m === null || entities === null) return null
   const shown = hud.text()
   return {
-    objective: shown.objective, radio: shown.radio, log: m.log, spawned: m.spawned,
+    objective: shown.objective, radio: shown.radio, steering: shown.steering, steeringMode: shown.steeringMode, log: m.log, spawned: m.spawned,
     meshes: [...entities.held.airframes].map(([id, a]) => ({ id, visible: a.root.visible })),
   }
 }

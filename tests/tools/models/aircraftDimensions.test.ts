@@ -51,7 +51,7 @@ describe('every aircraft model carries its cited span and length (R3)', () => {
     // The airframe, not its aimable guns: a flexible nose or tail gun stands out past the cited length (2026-10-09).
     const parts = doc.getRoot().listScenes()[0]!.listChildren().filter((n) => !/^Turret\d+Guns$/.test(n.getName())).map((n) => getBounds(n))
     const b = { min: [0, 1, 2].map((k) => Math.min(...parts.map((p) => p.min[k]!))), max: [0, 1, 2].map((k) => Math.max(...parts.map((p) => p.max[k]!))) }
-    const length = b.max[0] - b.min[0], span = b.max[2] - b.min[2]
+    const length = b.max[0]! - b.min[0]!, span = b.max[2]! - b.min[2]!
     expect(Math.abs(length - c.lengthM) / c.lengthM, `${id}: length ${length.toFixed(3)} m, cited ${c.lengthM}`).toBeLessThanOrEqual(tol)
     if (c.spanM !== undefined) expect(Math.abs(span - c.spanM) / c.spanM, `${id}: span ${span.toFixed(3)} m, cited ${c.spanM}`).toBeLessThanOrEqual(0.01)
   })

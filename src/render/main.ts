@@ -104,6 +104,7 @@ import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } f
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
+import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
@@ -1528,6 +1529,8 @@ async function boot(): Promise<void> {
   scene.add(cockpit)
   const gunPipper = createGunPipper(spec) // chase-view aiming reference (scene/gunPipper.ts)
   if (gunPipper) scene.add(gunPipper.root)
+  const steeringArrow = createSteeringArrow() // B1: in-scene arrow and destination marker (scene/steeringArrow.ts)
+  scene.add(steeringArrow.root)
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -2584,7 +2587,9 @@ async function boot(): Promise<void> {
     // up -- the same impact/destroyedAt/landingShown signals `openNavigationChart`
     // (above) already reads to recognise a debrief is showing.
     const debriefUp = player.impact !== null || current.world.combat.aircraft[current.world.player]!.damage.destroyedAt !== null || landingShown
-    missionHud.update(current.world.mission, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world))
+    const steering = missionHud.update(current.world, navigationMapState.selectedId, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world))
+    const steered = steeringArrow.update(steering?.target ?? null, playerAirframe.root, camera, worldOffset, replay === null && !sortieIdle && !debriefUp)
+    missionHud.placeSteering(steered.anchor, steered.mode)
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player])

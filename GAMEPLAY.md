@@ -115,6 +115,17 @@ Scenario choice plus pre-flight loadout: fuel fraction and bomb count, both
 feeding mass and drag into the flight model. The loadout screen is a
 performance decision, not decoration.
 
+### In-flight guidance
+
+The objective line names the current job. The steering cue sits in the scene:
+an amber arrow floating ahead of the nose, a little above the gun line, turned
+the way to the destination, with its name and range in miles beside it. Once
+the destination is in front of you and on screen, the arrow gives way to an
+amber diamond on the destination itself. It follows the first active primary
+objective that has a destination. Selecting a base, carrier, waypoint or
+objective target on the navigation chart (**P**) overrides that automatic
+destination until the selection disappears or is destroyed.
+
 ### Debrief
 
 Post-mission: targets destroyed with per-item points, mission total, recovery

@@ -21,6 +21,15 @@ function normalFrom(cursor: number): { readonly value: number; readonly state: n
   return { value: r * Math.cos(2 * Math.PI * u2.value), state: u2.state }
 }
 
+/** E1: a pilot's aim error for one rescore, `sigmaRad` per axis. Read off
+ *  `cursor` without advancing it (salted, so it is not the next control-noise
+ *  draw), so drawing it never moves the control noise. */
+export function aimErrorDraw(cursor: number, sigmaRad: number): { readonly right: number; readonly up: number } {
+  const right = normalFrom((cursor ^ 0x5bd1e995) >>> 0)
+  const up = normalFrom(right.state)
+  return { right: right.value * sigmaRad, up: up.value * sigmaRad }
+}
+
 /**
  * Deterministic, skill-scaled jitter on roll/pitch/yaw only -- never
  * throttle, gear, flaps, brake or fire (design §2's "wobbly, imprecise hand

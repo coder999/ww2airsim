@@ -23,6 +23,8 @@ export interface HangarHooks {
   /** Advances the model's own clock by exactly `frameS`; while frozen, nothing else moves it. */
   tick(frameS: number): void
   camera(preset: CameraPreset): void
+  /** The camera at `eye` looking at `target`, stage meters (M1c: close and distance captures at one distance for every ship). */
+  aim(eye: readonly [number, number, number], target: readonly [number, number, number]): void
   freeze(): void
   setModelVisible(visible: boolean): void
   /** The selected model drawn unlit, in its own paint; selecting another model relights (E2E check 5, R3). */
