@@ -324,6 +324,23 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   finish, chips, rivets) and `tools/models/skin/layers.ts` (paint, markings,
   panel lines, height). A change there re-skins every skinned model and moves
   the golden hashes in `tests/tools/models/skin/golden.test.ts`.
+- **Baked detail (M1c, 2026-10-09).** A script can declare bake-only surface
+  detail with `m.detail(kind, origin, axis, ...)` (portholes, doors, hatches,
+  louvers, ladders, strips; `tools/models/blender/bake.py` builds them). It is
+  never in the glb: `npm run models:bake -- <id>` builds the raw here, runs the
+  same script in Ryzen's Windows Blender (Cycles on the RX 6700 XT), and
+  commits `tools/models/bakes/<id>/{ao,normal}.png` with a manifest pinning
+  the raw glb's and the detail list's hashes. The build composes those maps
+  into the skin's patches that no other chart overlaps (the sidecar's
+  `baked`: never a `shared_chart()` chart), and never re-bakes. Change the
+  script's geometry, UVs or detail and the build stops with
+  `stale bake for <id>: ... re-bake on Ryzen`. Why committed rather than
+  built: a GPU bake is not byte-reproducible across machines
+  (`tools/models/skin/bake.ts`). A wall the bake should paint therefore must
+  not be inside `shared_chart()`.
+- **Planks (M1c).** The `planks` marking shades boards (or linoleum sheets)
+  on sky-facing faces in world (x, z), each its own shade and roughness, with
+  dark seams. `railing()` and `rounded_box()` are in `kit.py`.
 - **No coplanar overlapping faces.** Two faces of one material can now show
   different atlas texels, so a coincident face z-fights in paint. Additions
   embed by at least 0.02 m or clear by at least 0.01 m, never flush.
