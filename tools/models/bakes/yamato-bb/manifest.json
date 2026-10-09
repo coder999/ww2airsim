@@ -1,0 +1,26 @@
+{
+ "version": 1,
+ "model": "yamato-bb",
+ "rawSha256": "fed2e9cdba2424097f3f9b3a504b64629074140017fcd70aa847782d2e3fa0df",
+ "detailSha256": "1803e24a13a724e16190ca965f14eac8967740a7f12e8eb6c9cb5d3083ecaf6e",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 238,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 3.7,
+   "aoBack": 3.5,
+   "normal": 0.9
+  },
+  "size": 2048,
+  "totalSeconds": 13.7,
+  "twoSided": true,
+  "host": "ryzen",
+  "wallSeconds": 16.8
+ },
+ "date": "2026-10-09"
+}
