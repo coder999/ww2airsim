@@ -117,12 +117,14 @@ performance decision, not decoration.
 
 ### In-flight guidance
 
-The objective line names the current job. Directly below it, the steering cue
-points clockwise from the aircraft's nose and gives horizontal range in miles
-and vertical separation in feet. It follows the first active primary objective
-that has a destination. Selecting a base, carrier, waypoint or objective target
-on the navigation chart (**P**) overrides that automatic destination until the
-selection disappears or is destroyed.
+The objective line names the current job. The steering cue sits in the scene:
+an amber arrow floating ahead of the nose, a little above the gun line, turned
+the way to the destination, with its name and range in miles beside it. Once
+the destination is in front of you and on screen, the arrow gives way to an
+amber diamond on the destination itself. It follows the first active primary
+objective that has a destination. Selecting a base, carrier, waypoint or
+objective target on the navigation chart (**P**) overrides that automatic
+destination until the selection disappears or is destroyed.
 
 ### Debrief
 

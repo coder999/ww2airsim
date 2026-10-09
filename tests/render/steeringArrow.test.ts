@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrowPose, MARKER_ENTER, MARKER_EXIT, nextSteeringMode } from '../../src/render/scene/steeringArrow.js'
+import { arrowPosition, arrowScreenAngle, MARKER_ENTER, MARKER_EXIT, nextSteeringMode } from '../../src/render/scene/steeringArrow.js'
 
 // Level, nose along +x (sim/three body frame), at the origin.
 const LEVEL = { x: 0, y: 0, z: 0, w: 1 }
@@ -7,25 +7,30 @@ const LEVEL = { x: 0, y: 0, z: 0, w: 1 }
 const NOSE_NORTH = { x: 0, y: Math.SQRT1_2, z: 0, w: Math.SQRT1_2 }
 const O = { x: 0, y: 0, z: 0 }
 
-describe('arrowPose', () => {
+describe('arrowPosition', () => {
   it('floats ahead of the nose and above its line, wherever the nose points', () => {
-    const p = arrowPose(O, LEVEL, { x: 10000, y: 0, z: 0 }).position
+    const p = arrowPosition(O, LEVEL)
     expect(p.x).toBeGreaterThan(0)
     expect(p.y).toBeGreaterThan(0)
     expect(p.z).toBeCloseTo(0, 9)
-    const n = arrowPose(O, NOSE_NORTH, { x: 0, y: 0, z: -10000 }).position
+    const n = arrowPosition(O, NOSE_NORTH)
     expect(n.z).toBeCloseTo(-p.x, 6)
     expect(n.x).toBeCloseTo(0, 6)
   })
+})
 
-  it('points at the destination: ahead, right, behind', () => {
-    const far = 20000
-    expect(arrowPose(O, LEVEL, { x: far, y: 0, z: 0 }).direction.x).toBeGreaterThan(0.99)
-    expect(arrowPose(O, LEVEL, { x: 0, y: 0, z: far }).direction.z).toBeGreaterThan(0.99)
-    expect(arrowPose(O, LEVEL, { x: -far, y: 0, z: 0 }).direction.x).toBeLessThan(-0.99)
-    const up = arrowPose(O, LEVEL, { x: 0, y: far, z: 0 }).direction
-    expect(Math.hypot(up.x, up.y, up.z)).toBeCloseTo(1, 9)
-    expect(up.y).toBeGreaterThan(0.99)
+describe('arrowScreenAngle', () => {
+  // Rolling the arrow's +y tip by the angle about +z must land on the screen direction.
+  const tip = (a: number) => ({ x: -Math.sin(a), y: Math.cos(a) })
+  it('points up, right, down and left along the destination\'s screen direction', () => {
+    for (const d of [{ x: 0, y: 1 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: -1, y: 0 }, { x: 3, y: 4 }]) {
+      const t = tip(arrowScreenAngle(d)), n = Math.hypot(d.x, d.y)
+      expect(t.x).toBeCloseTo(d.x / n, 9)
+      expect(t.y).toBeCloseTo(d.y / n, 9)
+    }
+  })
+  it('points down for a destination dead behind, along the view axis', () => {
+    expect(tip(arrowScreenAngle({ x: 0, y: 0 })).y).toBeCloseTo(-1, 9)
   })
 })
 

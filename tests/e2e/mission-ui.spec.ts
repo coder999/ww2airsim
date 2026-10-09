@@ -168,13 +168,11 @@ test('steering cue follows the current objective and a chart override', async ({
   await onStrip(page, 'dev-mission-ui')
 
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
+  // B1 (2026-10-09): the label rides beside the in-scene arrow or marker; no altitude.
   await expect(steeringCue(page)).toContainText('TAKE OFF')
-  expect((await mission(page))!.steering).toContain('TAKE OFF')
+  const first = (await mission(page))!
+  expect(first.steering).toMatch(/^TAKE OFF · \d+\.\d MI$/)
   await page.keyboard.press('Slash')
-  await expectNoHudOverlap(page, ['Objective', 'Steering cue'])
-  await page.screenshot({ path: 'test-results/b1-steering-cue-1440.png' })
-  await page.setViewportSize({ width: 1920, height: 1080 })
-  await expectNoHudOverlap(page, ['Objective', 'Steering cue'])
 
   await page.keyboard.press('KeyP')
   const chart = page.getByRole('dialog', { name: 'Navigation chart' })
@@ -182,8 +180,32 @@ test('steering cue follows the current objective and a chart override', async ({
   await page.keyboard.press('KeyP')
   await expect(chart).toBeHidden()
   await expect(steeringCue(page)).toContainText('TARGET-1')
-  expect((await mission(page))!.steering).toContain('TARGET-1')
-  await page.screenshot({ path: 'test-results/b1-steering-cue-chart-override-1080.png' })
+  const second = (await mission(page))!
+  expect(second.steering).toContain('TARGET-1')
+  // Both destinations sit ahead on the strip, so the diamond marker is on them.
+  expect(first.steeringMode).toBe('marker')
+  expect(second.steeringMode).toBe('marker')
+  await expectNoHudOverlap(page, ['Objective', 'Steering cue'])
+  await page.screenshot({ path: 'test-results/b1-steering-marker-1440.png' })
+
+  // Swing the chase camera 54 deg (0.3 deg per px): the destination leaves the frame (the marker
+  // gives way past 0.9 of the half-width, near 45 deg here) and the arrow ahead of the nose takes over.
+  const box = (await page.locator('canvas').first().boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + 180, box.y + box.height / 2, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(async () => (await mission(page))!.steeringMode).toBe('arrow')
+  await expect(steeringCue(page)).toContainText('TARGET-1')
+  await expectNoHudOverlap(page, ['Objective', 'Steering cue'])
+  await page.screenshot({ path: 'test-results/b1-steering-arrow-1440.png' })
+  // Double-click recenters the camera: back to the marker.
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2)
+  await expect.poll(async () => (await mission(page))!.steeringMode).toBe('marker')
+  // The cockpit view shows it too.
+  await page.keyboard.press('KeyC')
+  await expect(steeringCue(page)).toBeVisible()
+  await page.screenshot({ path: `test-results/b1-steering-cockpit-${(await mission(page))!.steeringMode}-1440.png` })
 })
 
 test('an intermediate landing shows on the radio line and the flight continues (spec §2.4)', async ({ page }) => {

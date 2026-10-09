@@ -57,6 +57,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
   follow their nearest live resolved target; station altitude bands read level
   while the player is inside the band. Standing `protect`, `deny` and
   `approaches` orders do not mask a simultaneous recovery objective.
+- **Redesigned 2026-10-09 (Mark):** the cue moved from a HUD text line into the scene: an arrow ahead of the nose that turns toward the destination, a diamond on the destination once it is on screen, and the name and range beside either. No altitude.
 - Measurements and verification: [`docs/handoff/2026-10-08-b1-steering-cue.md`](docs/handoff/2026-10-08-b1-steering-cue.md).
 
 **B2. Bomb impact predictor (M).**

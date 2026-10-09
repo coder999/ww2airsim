@@ -87,7 +87,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
   const steeringEl = document.createElement('div')
   steeringEl.setAttribute('aria-label', 'Steering cue')
   steeringEl.style.cssText =
-    'position:fixed;left:0;top:0;transform:translate(18px,-50%);padding:2px 8px;' +
+    'position:fixed;left:0;top:0;transform:translate(30px,-50%);padding:2px 8px;' +
     'border:1px solid #2b3440;border-radius:4px;background:rgba(12,14,18,.6);color:#ffdf7a;' +
     'font:12px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;white-space:nowrap;' +
     'pointer-events:none;display:none;z-index:9'
@@ -139,7 +139,8 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
         steeringEl.textContent = label ?? ''
         steeringEl.style.display = label === null ? 'none' : 'block'
       }
-      shownMode = label === null ? null : mode
+      // The mode stands while the arrow itself is out of frame (an orbited chase view).
+      shownMode = steeringText === null ? null : mode
       if (anchor !== null) {
         steeringEl.style.left = `${((anchor.x + 1) / 2) * innerWidth}px`
         steeringEl.style.top = `${((1 - anchor.y) / 2) * innerHeight}px`
