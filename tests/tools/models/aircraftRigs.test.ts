@@ -2,9 +2,8 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import type { Document, Node } from '@gltf-transform/core'
-import { AIRFRAME_RIGS, PART_NAME, surfaceDrive, type GearRig } from '../../../src/render/scene/airframeRigs.js'
+import { AIRFRAME_RIGS, BAY_DOOR_OPEN_DEG, PART_NAME, surfaceDrive, type GearRig } from '../../../src/render/scene/airframeRigs.js'
 import { surfaceAngleRad } from '../../../src/render/scene/pivotedAirframe.js'
-import { BAY_DOOR_OPEN_DEG } from '../../../src/render/scene/bayDoors.js'
 import { measureDocument } from '../../../tools/models/measure.js'
 import { aircraftModelPath } from '../../../src/render/content.js'
 import { loadModelEntries } from '../../../tools/models/manifest.js'
@@ -12,7 +11,6 @@ import { modelIO } from '../../../tools/models/document.js'
 import { bounds, centroid, radiusAbout, rotateAbout, symmetryError, worldPositions, type Vec3 } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { airframeMeshes, retractedExcess } from './_retractedSkin.js'
-import { Raycaster, Vector3 } from 'three'
 
 const entries = loadModelEntries()
 const specIds = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''))
@@ -53,16 +51,13 @@ it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   }
 })
 
-// C2: the airframes that draw bay doors are exactly the specs that have them, and pinned, so neither
-// side can gain or lose doors alone.
-it('bay doors: drawn on exactly the specs with bayDoors (C2)', () => {
-  const drawn = Object.entries(AIRFRAME_RIGS).filter(([, r]) => r.bays !== undefined || (r.doors ?? []).length > 0).map(([id]) => id).sort()
-  // Cut from the model, or drawn in code, never both (C2): pinned, so a move from one to the other is a decision.
-  expect(Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.doors ?? []).length > 0).map(([id]) => id)).toEqual(['b-17-flying-fortress'])
-  for (const [id, r] of Object.entries(AIRFRAME_RIGS)) expect(r.bays !== undefined && (r.doors ?? []).length > 0, id).toBe(false)
+// C2: the airframes with bay doors in their models are exactly the specs that have them, and pinned,
+// so neither side can gain or lose doors alone.
+it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
+  const modeled = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.doors ?? []).length > 0).map(([id]) => id).sort()
   const specced = specIds.filter((s) => loadAircraftSpec(s).bayDoors !== undefined).sort()
-  expect(drawn).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
-  expect(specced).toEqual(drawn)
+  expect(modeled).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  expect(specced).toEqual(modeled)
 })
 
 // Pinned (C1 batches 1 and 2, 2026-10-08), so a filter that matches nothing fails rather than passing
@@ -116,7 +111,7 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     const b = bounds(pts)
     const outboard = name.endsWith('R') ? b.max[2] : b.min[2]
     expect(Math.abs(point[2] - outboard), `${name} hinge at the outboard edge`).toBeLessThan(0.01)
-    expect(point[0] >= b.min[0] && point[0] <= b.max[0], `${name} hinge within the door's length`).toBe(true)
+    expect(point[0] >= b.min[0] - 1e-3 && point[0] <= b.max[0] + 1e-3, `${name} hinge within the door's length`).toBe(true)
     // Every vertex is inboard of the hinge, and none is above it: the door hangs off its hinge.
     for (const p of pts) expect(Math.abs(p[2]) <= Math.abs(point[2]) + 1e-3 && p[1] <= point[1] + 1e-3, `${name} vertex ${p}`).toBe(true)
     // The keel edge: the points farthest from the hinge. Fully open (BAY_DOOR_OPEN_DEG) they must drop well
@@ -128,29 +123,6 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     const now = centroid(keel.map((p) => rotateAbout(p, point, axis, (BAY_DOOR_OPEN_DEG * Math.PI) / 180)))
     expect(now[1] - was[1], `${name} keel edge drops`).toBeLessThan(-0.5 * far)
     expect(Math.abs(now[2]) - Math.abs(was[2]), `${name} keel edge swings outboard`).toBeGreaterThan(0.5 * far)
-  })
-
-  it.each(rig.bays?.openings ?? [])('bay opening from x $x0 to $x1: the doors stand on the belly the committed glb draws (C2)', (bay) => {
-    // The belly the doors stand on: a ray cast up from below at the keel and at each hinge line, the median of
-    // nine stations along the bay, so one thin thing under it (the B-29's ventral whip antenna at x 2.94) does
-    // not count. Measured 2026-10-08; off by more than 3 cm and a door floats below the belly or sinks into it.
-    const meshes = airframeMeshes(doc)
-    const rc = new Raycaster()
-    const lowestAt = (z: number): number => {
-      const ys: number[] = []
-      for (let k = 0; k < 9; k++) {
-        const x = bay.x0 + ((k + 0.5) / 9) * (bay.x1 - bay.x0)
-        for (const side of [-1, 1]) {
-          rc.set(new Vector3(x, -100, side * z), new Vector3(0, 1, 0))
-          const hit = rc.intersectObjects(meshes, false)[0]
-          if (hit) ys.push(hit.point.y)
-        }
-      }
-      expect(ys.length, `hits at z ${z}`).toBeGreaterThan(12)
-      return ys.sort((p, q) => p - q)[Math.floor(ys.length / 2)]!
-    }
-    expect(Math.abs(lowestAt(0) - bay.keelY), 'keel').toBeLessThan(0.03)
-    expect(Math.abs(lowestAt(bay.halfWidthM) - bay.hingeY), 'hinge').toBeLessThan(0.03)
   })
 
   it.each(rig.surfaces ?? [])('control surface %s: hinged on its leading edge, and a positive input moves its trailing edge the right way (C1)', (name) => {

@@ -67,7 +67,10 @@ DP1 detail figures (read 2026-09-28):
   additions sink at least 0.02 m into what they sit on     modeling choice: no coplanar faces (DP0)
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage axis (ESTIMATE). Pose: gear down (R3 P13).
-Leaves out: bomb bay doors, cockpit interior, the tail 20 mm cannon, radar.
+Bomb bays (C2): two, fore and aft of the wing box, each 3.0 m long with doors 0.6 m wide either side of the
+keel. ESTIMATE: sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source
+gives the openings.
+Leaves out: cockpit interior, the tail 20 mm cannon, radar.
 """
 import math
 import os
@@ -128,6 +131,8 @@ TAIL_CANOPY = [(0.955, 0.0080, 0.0060, 0.0215), (0.942, 0.0125, 0.0095, 0.0225),
 TAIL_HOOPS = (0.935, 0.918)
 TAILPLANE = dict(span=0.307, le=0.8352, root=0.139, taper=0.43, y=0.020, sweep=10.0)
 FIN = dict(root=0.199, taper=0.40, height=0.1855, y=0.020)
+# Bomb bays, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-7.0, -4.0, 0.6), (2.0, 5.0, 0.6)]
 ENGINES = [0.1696, 0.3298]
 NACELLE = dict(below=0.015, stations=[(-0.166, 0.0066), (-0.083, 0.025), (0.0, 0.028), (0.080, 0.028), (0.106, 0.023), (0.108, 0.0116)])
 PROP = dict(ahead=0.1125, chord=0.015, spinner_r=0.0116, spinner_len=0.02)
@@ -270,7 +275,7 @@ def nac_point(z, dx, angle_deg, off=0.0):
 
 # --- Fuselage, nose glazing, flight deck, tail gunner's canopy, blisters
 with m.tagged('fuselage'), m.shared_chart():
-    m.fuselage(METAL, _stations(FUSELAGE), segments=SEGMENTS, subdivide=SUBDIVIDE)
+    m.fuselage(METAL, _stations(FUSELAGE), segments=SEGMENTS, subdivide=SUBDIVIDE, doors=BAYS)
     # Wing-root fairings, upper and lower, either side: ellipsoids straddling the wing's surface at the fuselage.
     fmid = (le_x - 0.5 * root_chord) / L
     z_root = fus_section(NOSE_X - (le_x - 0.5 * root_chord) / L)[0]

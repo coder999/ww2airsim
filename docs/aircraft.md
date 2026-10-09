@@ -344,7 +344,7 @@ Record it in the D-table as "deferred", and do not build it.
 - **A modeled cockpit.** Each airframe needs its own; every one uses the
   eye-point view (D12) until that work is scheduled.
 - **Bomber AI.** A bomber is flown by the player only.
-- **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors are C2 (`MASTER_PLAN.md`): cut from the model where it can be rebuilt with them (the B-17, `doors` in its rig, `docs/models.md` §5), else drawn in code from `AirframeRig.bays` (`src/render/scene/bayDoors.ts`; the B-29, G4M and Ki-21). A new bay bomber needs a `bayDoors` block in its spec and one of the two in its rig; `aircraftRigs.test.ts` and `combat.test.ts` pin the lists.
+- **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors are C2 (`MASTER_PLAN.md`), real door nodes in every bay bomber's model, listed in its rig's `doors` (`docs/models.md` §5): a Blender model gets them from `kit.fuselage(doors=...)`, a download from a `split` with a `cut`. A new bay bomber needs a `bayDoors` block in its spec and the door nodes in its model and rig; `aircraftRigs.test.ts` and `combat.test.ts` pin the lists.
 - **Engine-out handling** for multi-engine types (D6); the power is summed.
 
 ## Lessons from the first run (F4U-1D, 2026-09-29)

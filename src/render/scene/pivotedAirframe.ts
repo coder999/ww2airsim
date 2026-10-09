@@ -2,10 +2,9 @@
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
 import { propAngle, type Airframe, type PartId } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
-import { SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput } from './airframeRigs.js'
+import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
-import { BAY_DOOR_OPEN_DEG, buildBayDoors } from './bayDoors.js'
 
 /**
  * One airframe from a rigged glb (R3): its articulated parts were pivoted by the build (each
@@ -44,7 +43,7 @@ export function rigParts(rig: AirframeRig): PartId[] {
   if (rig.gear.length > 0) parts.push('gear')
   if (inputs.has('flap')) parts.push('flaps')
   if (inputs.has('roll') || inputs.has('pitch') || inputs.has('yaw')) parts.push('surfaces')
-  if (rig.bays !== undefined || (rig.doors ?? []).length > 0) parts.push('doors')
+  if ((rig.doors ?? []).length > 0) parts.push('doors')
   return parts
 }
 
@@ -119,9 +118,6 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     }
     freeVisuals = visuals.release
   }
-  const doorPaint = rig.bays === undefined ? null : new MeshStandardMaterial({ color: rig.bays.paint, roughness: 0.55, metalness: 0.2, side: 2 })
-  const doors = rig.bays === undefined || doorPaint === null ? null : buildBayDoors(rig.bays.openings, doorPaint)
-  if (doors) root.add(doors.group)
   let propRad = 0
   const stick = { roll: 0, pitch: 0, yaw: 0 }
   let disposed = false
@@ -133,8 +129,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       propRad = propAngle(propRad, u.throttle, u.frameS)
       for (const p of bound.props) p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad))
       for (const g of bound.gear) g.posed.node.quaternion.copy(turnedAbout(g.posed.rest, g.posed.axis, gearAngleRad(g.rig, u.gearFraction)))
-      doors?.set(u.bayDoorFraction)
-      // Cut doors (C2): the same fraction and swing as the drawn ones, about each door's own hinge.
+      // Bay doors (C2): the sim's door fraction, about each door's own hinge.
       const doorRad = (Math.min(1, Math.max(0, Number.isFinite(u.bayDoorFraction) ? u.bayDoorFraction : 0)) * BAY_DOOR_OPEN_DEG * Math.PI) / 180
       for (const d of bound.doors) d.node.quaternion.copy(turnedAbout(d.rest, d.axis, doorRad))
       for (const k of ['roll', 'pitch', 'yaw'] as const) stick[k] = slewToward(stick[k], u.controls[k], u.frameS)
@@ -148,8 +143,6 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       if (disposed) return
       disposed = true
       hung?.dispose()
-      doors?.dispose()
-      doorPaint?.dispose()
       freeVisuals()
       instance.release()
     },

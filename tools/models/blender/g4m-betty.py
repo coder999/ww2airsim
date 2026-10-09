@@ -41,7 +41,9 @@ Figures (read 2026-09-29, English Wikipedia "Mitsubishi G4M", Specifications (G4
   additions sink at least 0.02 m into what they sit on  modeling choice: no coplanar faces (DP0)
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage datum (ESTIMATE). Pose: gear down.
-Leaves out: cockpit interior, bomb bay and its doors, the retractable tailwheel's motion, wheel wells,
+Bomb bay (C2): one, under the wing box, 3.8 m long with doors 0.5 m wide either side of the keel. ESTIMATE:
+sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source gives the opening.
+Leaves out: cockpit interior, the retractable tailwheel's motion, wheel wells,
 unit markings.
 """
 import math
@@ -92,6 +94,8 @@ TAIL_GLAZING = [(0.998, 0.003, 0.003, 0.0205), (0.988, 0.0085, 0.0095, 0.0205), 
 TAIL_FRAMES = (0.982, 0.966, 0.952)
 TAILPLANE = dict(span=0.40, le=0.845, root=0.115, taper=0.50, y=0.014, sweep=8.0)
 FIN = dict(root=0.15, taper=0.40, height=0.115, y=0.022)
+# Bomb bay, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-2.6, 1.2, 0.5)]
 ENGINES = [0.18]              # nacelle z each side, of SPAN
 # (x ahead of the wing leading edge at that z, half-width), of LENGTH; half-height 1.05 x half-width
 NACELLE = dict(below=0.010, stations=[(-0.22, 0.008), (-0.11, 0.028), (0.02, 0.037), (0.09, 0.037), (0.115, 0.033), (0.118, 0.017)])
@@ -196,7 +200,8 @@ def nac_point(z, dx, angle_deg):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER,
+               doors=BAYS)
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = WING_Y * L + 0.55 * ROOT_T * root_chord - FILLET['half_h'] * L
     hw_mid, _hh, _cy, n_mid = fus_section(mid)

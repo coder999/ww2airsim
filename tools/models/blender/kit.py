@@ -200,6 +200,10 @@ def _loft(rings):
     return verts, faces
 
 
+def quarter_of(segments):
+    return segments // 4
+
+
 def _ends(points):
     """The two points farthest apart, in a stable order: a line's ends."""
     a, b = max(((p, q) for p in points for q in points), key=lambda pq: sum((x - y) ** 2 for x, y in zip(*pq)))
@@ -309,6 +313,7 @@ class Model:
         self._hull = None  # DP2: the last hull_lines' refined stations, for hull_at
         self._parents = {}  # node -> the node it hangs under, so the build's collapse makes them one part
         self._hinges = {}  # control node -> [hinge-line points], written to <out>.hinges.json
+        self._fixed_hinges = {}  # bay door node -> {point, axis}, already oriented (C2), written with them
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -640,7 +645,7 @@ class Model:
                        None if charts is None else [charts[i] for i in ids],
                        False if smooth is None else [smooth[i] for i in ids])
 
-    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1):
+    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1, doors=None):
         """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
 
         Each station is ``(x, half_width, half_height, center_y[, exponent])``: a superellipse
@@ -650,6 +655,13 @@ class Model:
         side faces below each section's center go to ``lower_node`` in that role.
         ``subdivide`` k > 1 lofts k - 1 Catmull-Rom stations between each authored pair (a
         smoother silhouette); panel lines stay at the authored ones.
+
+        ``doors`` (C2) is a list of (x0, x1, half_width) bomb bays, numbered in the order given: the
+        belly quads between the rings nearest x0 and x1, out to the first ring vertex at least
+        ``half_width`` from the keel, become nodes ``BayDoor<n>L`` and ``BayDoor<n>R``, each hinged on
+        its outboard edge (recorded for the build, oriented so a positive turn opens it down and
+        out), over a dark well with inward faces, so the open bay shows a bay, not the sky through
+        the far skin. The doors keep the skin's own chart: shut, they are the skin.
         """
         _require(isinstance(segments, int) and segments >= 8 and segments % 4 == 0,
                  f'fuselage: segments must be a multiple of 4, at least 8, got {segments!r}')
@@ -686,7 +698,82 @@ class Model:
             smooth = [j is not None for _, j in faces]
             for s in authored[1:-1]:
                 self._line(side, 'u', U[s], 0.0, V[s][-1])
+        if doors:
+            keep = self._bay_doors(doors, rings, verts, faces, charts, smooth, segments, lower_role or role)
+            faces = [faces[i] for i in keep]
+            charts = None if charts is None else [charts[i] for i in keep]
+            smooth = None if smooth is None else [smooth[i] for i in keep]
         self._emit(role, verts, faces, node, lower_role, lower_node, lambda j: quarter <= j < 3 * quarter, charts, smooth)
+
+    def _bay_doors(self, doors, rings, verts, faces, charts, smooth, segments, role):
+        """Takes each bay's belly quads out of a fuselage loft into its two door nodes and adds its well
+        (see ``fuselage``). Returns the indices of the faces the fuselage keeps."""
+        count = segments
+        keel = segments // 2  # t = pi: the bottom of the section (y = center - half_h)
+        xs = [ring[0][0] for ring in rings]
+        taken = set()
+        for n, (x0, x1, half_width) in enumerate(doors, start=1):
+            s0 = min(range(len(xs)), key=lambda i: abs(xs[i] - x0))
+            s1 = min(range(len(xs)), key=lambda i: abs(xs[i] - x1))
+            _require(s1 > s0, f'bay {n}: x {x0}..{x1} snaps to no ring span (rings at {xs[s0]:.3f}, {xs[s1]:.3f})')
+            mid = rings[(s0 + s1) // 2]
+            m = next((k for k in range(1, quarter_of(segments)) if abs(mid[keel - k][2] - mid[keel][2]) >= half_width), None)
+            _require(m is not None, f'bay {n}: half width {half_width} reaches past the belly')
+            for side, js in (('R', range(keel - m, keel)), ('L', range(keel, keel + m))):
+                name = f'BayDoor{n}{side}'
+                ids = [s * count + j for s in range(s0, s1) for j in js]
+                taken.update(ids)
+                fs = [faces[i] for i in ids]
+                self._emit(role, verts, fs, name, None, None, None,
+                           None if charts is None else [charts[i] for i in ids],
+                           None if smooth is None else [smooth[i] for i in ids])
+                # The hinge runs fore and aft along the outboard edge. A tapering belly bends that edge, so
+                # the line goes through its widest and highest point: inside the skin at every station.
+                edge = keel - m if side == 'R' else keel + m
+                ring_edge = [rings[s][edge] for s in range(s0, s1 + 1)]
+                a = (rings[s0][edge][0], max(p[1] for p in ring_edge), max((p[2] for p in ring_edge), key=abs))
+                axis = [1.0, 0.0, 0.0]
+                # Positive turn opens it: the keel edge, turned a little about the hinge, must go down.
+                k = rings[(s0 + s1) // 2][keel]
+                r = [k[i] - a[i] for i in range(3)]
+                if (axis[2] * r[0] - axis[0] * r[2]) > 0:  # (axis x r).y, the keel edge's vertical velocity
+                    axis = [-c for c in axis]
+                self._fixed_hinges[name] = {'point': [round(c, 6) for c in a], 'axis': [round(c, 9) for c in axis]}
+            self._bay_well(rings[s0], rings[s1], keel, m)
+        return [i for i in range(len(faces)) if i not in taken]
+
+    def _bay_well(self, fore, aft, keel, m):
+        """The dark box behind a bay's doors: its ends follow the belly arc between the hinges (so no
+        corner pokes out of the skin), its sides stand on the hinge lines, and it is open below. Wound
+        inward: it is seen from outside, through the opening, only from within."""
+        inset = 0.01
+        arc = lambda ring, dx: [(ring[j][0] + dx, ring[j][1] + inset, ring[j][2]) for j in range(keel - m, keel + m + 1)]  # noqa: E731
+        lo_f, lo_a = arc(fore, inset), arc(aft, -inset)
+        # Shallow: 0.1 m above the hinges keeps it under the wing's center section, which a deeper well cut
+        # through (a pale diamond in the open bay, 2026-10-08: the G4M's at 0.5 x the section, the Ki-21's,
+        # whose wing underside is 0.13 m above its hinges, at 0.2 m). From below it reads as a bay.
+        top = max(p[1] for p in lo_f + lo_a) + 0.1
+        zr, zl = lo_f[0][2], lo_f[-1][2]
+        verts, faces = [], []
+        def quad(p, q, r, t):
+            base = len(verts)
+            verts.extend([p, q, r, t])
+            faces.append((base, base + 1, base + 2, base + 3))
+        def end(arcpts, x, facing):
+            base = len(verts)
+            verts.extend(arcpts + [(x, top, zl), (x, top, zr)])
+            ring = list(range(base, len(verts)))
+            faces.append(tuple(ring) if facing > 0 else tuple(reversed(ring)))
+        # Arc then top, in this order, faces +x by the right-hand rule: right for the aft end (rings run
+        # tail to nose, so rings[s0] is aft, at the smaller x), and reversed for the fore end.
+        end(lo_f, lo_f[0][0], 1)
+        end(lo_a, lo_a[0][0], -1)
+        xf, xa = lo_f[0][0], lo_a[0][0]
+        # Sides on the hinge lines, the top: each wound to face into the box.
+        quad((xf, lo_f[0][1], zr), (xf, top, zr), (xa, top, zr), (xa, lo_a[0][1], zr))
+        quad((xf, lo_f[-1][1], zl), (xa, lo_a[-1][1], zl), (xa, top, zl), (xf, top, zl))
+        quad((xf, top, zr), (xf, top, zl), (xa, top, zl), (xa, top, zr))
+        self._part('dark', verts, faces, None)
 
     def wing(self, role, le_x, root_y, root_chord, tip_chord, span, sweep_deg=0.0, dihedral_deg=0.0,
              thickness=0.12, tip_thickness=None, root_z=0.0, mirror=True, node=None, lower_role=None, lower_node=None,
@@ -1325,7 +1412,7 @@ class Model:
         )
         if packed is not None:
             self._write_sidecar(path, packed)
-        if self._hinges:
+        if self._hinges or self._fixed_hinges:
             # C1: each control's hinge, in the glTF source frame the entry's pivots use; the build
             # pivots every kept node named here that the entry gives no pivot of its own.
             def end(p):
@@ -1341,6 +1428,7 @@ class Model:
                 if (d[2] > 0) if abs(d[2]) >= abs(d[1]) else (d[1] < 0):
                     d = [-c for c in d]
                 hinges[node] = {'point': end(a), 'axis': [round(c, 9) for c in d]}
+            hinges.update(self._fixed_hinges)
             with open(path[:-4] + '.hinges.json', 'w', encoding='utf-8') as fh:
                 json.dump({'version': 1, 'model': self.name, 'hinges': hinges}, fh, sort_keys=True, separators=(',', ':'))
 
