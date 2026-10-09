@@ -553,10 +553,6 @@ describe('Web Audio has exactly one home (Plan 15 design §7.1)', () => {
     // parsed away comments would be a check with a hole in it.
     const offenders = sourceFilesUnder('src')
       .filter((f) => f.path !== 'src/audio/webAudio.ts')
-      // sounds.html (Dev only, outside the game) loops candidate files gaplessly for Mark's ear,
-      // which <audio loop> cannot (2026-10-09). It plays files, not the game's audio, so it has
-      // nothing a fake backend would need to see.
-      .filter((f) => f.path !== 'src/render/sounds/main.ts')
       .filter((f) => /\b(AudioContext|decodeAudioData|createBufferSource)\b/.test(f.text))
       .map((f) => f.path)
     expect(offenders).toEqual([])
