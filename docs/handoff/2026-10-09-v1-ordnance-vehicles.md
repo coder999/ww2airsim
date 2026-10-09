@@ -52,7 +52,7 @@ Plan: `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`. The run was u
 - `tests/render/hangar/budgets.test.ts`: a rider tagged inside a model adds its counts and its budget.
 - `tests/render/hangar/catalog.test.ts`: the AN-M65's carriers are the six Allied airplanes; the Type 98's, the six Japanese ones.
 - Hangar E2E check 18, new: the Chi-Ha's turret and gun pose, a quarter second at 10 mph changes the side frame (the shader and the tread, on screen), and the jeep steers with the driver's hands on the rim. Seen red with the vehicle clock cut. Check 10 now reads the jeep at 11 / 11 draws, the jeep's and the driver's budgets together.
-- Verify: see "As merged" below.
+- **As merged** (`3c92f642`): `npm run verify` on `main` exits 0 on Ryzen via `remote-run`: 371 files, 4,967 tests passed, 10 skipped. Hangar E2E on nexus's 680M against the slot-3 preview: all 23 pass, after check 7c enrolled the Chi-Ha. `strike.spec.ts`'s 1440p frame-time budget fails there; nexus's frame-time numbers mean nothing (AGENTS.md), so it was not chased. Under parallel load, Cleveland's byte-identical rebuild failed once and passed when run alone and in verify.
 
 ## Captures
 
