@@ -35,16 +35,20 @@ test('Form 2 suggests the historical hour, and a picked hour is the hour the sky
   await hour.fill('04:00')
   await hour.dispatchEvent('change')
   await expect(hour).toHaveValue('06:15')
-  await hour.fill('17:00')
+  // After the last takeoff (an hour before sunset) is clamped to it.
+  await hour.fill('17:30')
+  await hour.dispatchEvent('change')
+  await expect(hour).toHaveValue('16:45')
+  await hour.fill('16:00')
   await hour.dispatchEvent('change')
   await page.screenshot({ path: `${SHOTS}/a3-form-2-takeoff.png` })
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
-  // The sky clock runs from the picked hour (sun.ts `sunClock`): a few sim seconds past 1700.
-  await expect.poll(() => sunHour(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(17)
-  expect(await sunHour(page)).toBeLessThan(17.1)
+  // The sky clock runs from the picked hour (sun.ts `sunClock`): a few sim seconds past 1600.
+  await expect.poll(() => sunHour(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(16)
+  expect(await sunHour(page)).toBeLessThan(16.1)
 })
 
 test('Form 4 offers render quality: a pick there is applied and saved, as in Settings', async ({ page }) => {

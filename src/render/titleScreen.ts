@@ -704,7 +704,8 @@ export function createTitleScreen(
     }
     // A3: the takeoff hour, defaulting to the scenario's own (its weather's
     // `timeOfDay`, read from the same scenario file the briefing reads) and
-    // clamped to daylight, since there is no night lighting. A scenario change
+    // clamped to sunrise .. an hour before sunset, since there is no night
+    // lighting (`daylightWindow`). A scenario change
     // resets it to that scenario's suggestion, as it resets the aircraft.
     const daylight = daylightWindow(TACLOBAN_LAT_DEG)
     const hourText = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
@@ -743,7 +744,7 @@ export function createTitleScreen(
         if (draft.scenarioId !== id) return
         const suggested = clampToDaylight(sc.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY, daylight)
         setHour(suggested)
-        hourNote.textContent = `Suggested: ${hourText(suggested).replace(':', '')}, the historical hour. Daylight ${hourText(daylight.start).replace(':', '')} to ${hourText(daylight.end).replace(':', '')}.`
+        hourNote.textContent = `Suggested: ${hourText(suggested).replace(':', '')}, the historical hour. Takeoff between ${hourText(daylight.start).replace(':', '')} to ${hourText(daylight.end).replace(':', '')}.`
       }, () => { if (draft.scenarioId === id) hourScenario = null })
     }
     if (hourRequest !== null) orders.left.append(sectionTitle('Takeoff time'), hourRow, hourNote)

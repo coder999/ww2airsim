@@ -35,13 +35,16 @@ export function sunPosition(latDeg: number, timeOfDay: number, dayOfYear = SCENA
   return { elevationDeg, azimuthDeg: (az + 180 + 360) % 360 }
 }
 
-/** A3: sunrise and sunset (solar hours, sun's center on the horizon), rounded
- *  inward to the quarter hour: the hours a sortie may take off in, since there
- *  is no night lighting. Leyte on day 294: 6.25 to 17.75. */
+/** A3: the hours a sortie may take off in, since there is no night lighting:
+ *  from sunrise (the sun's center on the horizon) to LAST_TAKEOFF_BEFORE_SUNSET_H
+ *  before sunset, so a sortie has daylight to fly in (Mark, 2026-10-09). Rounded
+ *  inward to the quarter hour. Leyte on day 294: sunrise 0608, sunset 1752, so
+ *  6.25 (0615) to 16.75 (1645). */
+export const LAST_TAKEOFF_BEFORE_SUNSET_H = 1
 export function daylightWindow(latDeg: number, dayOfYear = SCENARIO_DAY_OF_YEAR): { readonly start: number; readonly end: number } {
   const cosH = -Math.tan(latDeg * DEG) * Math.tan(solarDeclinationDeg(dayOfYear) * DEG)
   const halfDayH = Math.acos(Math.max(-1, Math.min(1, cosH))) / DEG / 15
-  return { start: Math.ceil((12 - halfDayH) * 4) / 4, end: Math.floor((12 + halfDayH) * 4) / 4 }
+  return { start: Math.ceil((12 - halfDayH) * 4) / 4, end: Math.floor((12 + halfDayH - LAST_TAKEOFF_BEFORE_SUNSET_H) * 4) / 4 }
 }
 
 export function clampToDaylight(hour: number, window: { readonly start: number; readonly end: number }): number {
