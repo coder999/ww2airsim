@@ -73,7 +73,19 @@ The reasoning behind them is in the
 ships add the `ship` block from the
 [ship-models design](superpowers/specs/2026-09-25-ship-models-design.md).
 Name articulated parts as `keep` or `split` nodes. Turrets follow the Hangar
-spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern; a building
+spec's §9 convention, `Turret1`…`TurretN`, numbered bow to stern. **A ship's
+guns are different (Track M, M1, 2026-10-08):** their positions live in the
+ShipSpec's `armament` (`content/ships/<id>.json`), and the build writes an
+empty locator per entry, `Turret1..N`, `HeavyAA1..N`, `LightAA1..N`, with
+`extras.kit`. A download carves (a Blender script builds, via
+`tools/models/blender/naval.py`) a node named after a locator; the first of each
+kit becomes `Kit_<kit>`, posed at its mount, and the rest are dropped; a kit
+the model has no geometry for is generated (`stages/mountKits.ts`). The
+renderer instances each kit at its locators (`src/render/scene/ship.ts`), one
+draw per kit. Every mount must stand on a surface within 0.75 m, and
+`tests/tools/shipModels.test.ts` holds the committed model to the spec.
+`tools/models/islands.ts` finds a download's gun shells in the ship frame and
+turns output-frame boxes into `split` boxes. A building
 has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
