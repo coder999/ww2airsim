@@ -2,12 +2,15 @@
 import type { Painted } from './layers.js'
 import type { Sidecar } from './sidecar.js'
 import { linearToSrgb8 } from './colors.js'
+import type { BakeMaps } from './bake.js'
 
 export interface SkinMaps { readonly size: number; readonly baseColor: Uint8Array; readonly metallicRoughness: Uint8Array; readonly normal: Uint8Array }
 
 const NEUTRAL = { base: [128, 128, 128], mr: [255, 230, 0], nrm: [128, 128, 255] } as const
 /** Normal tilt per groove unit of height change per texel (layers.ts: height is in groove units). */
 export const NORMAL_GAIN = 1
+/** M1c: how much of a committed bake's occlusion darkens the paint (1 = all of it). ESTIMATE, by eye in the Hangar. */
+export const AO_STRENGTH = 0.85
 const byte = (x: number): number => Math.round(Math.min(1, Math.max(0, x)) * 255)
 
 /**
@@ -17,7 +20,10 @@ const byte = (x: number): number => Math.round(Math.min(1, Math.max(0, x)) * 255
  * copying its first covered neighbor (left, right, up, down) from the round before, so padding
  * holds its own patch (Review Focus 4). What is still uncovered gets a neutral value.
  */
-export function compose(p: Painted, side: Sidecar, atlasPx: number): SkinMaps {
+export function compose(p: Painted, side: Sidecar, atlasPx: number, bake: BakeMaps | null = null): SkinMaps {
+  if (bake && bake.size !== atlasPx) throw new Error(`compose: the bake is ${bake.size} px, the atlas ${atlasPx} px`)
+  // M1c: the bake paints only the patches the sidecar lists (no overlapping chart: its texels are one surface's).
+  const baked = new Set(bake ? side.baked ?? [] : [])
   const W = atlasPx, S = p.size / W, n = W * W
   if (!Number.isInteger(S) || S < 1) throw new Error(`compose: sample grid ${p.size} is not a multiple of the ${W} px atlas`)
   const covered = new Uint8Array(n), patch = new Int32Array(n).fill(-1)
@@ -54,7 +60,10 @@ export function compose(p: Painted, side: Sidecar, atlasPx: number): SkinMaps {
   }
   for (let t = 0; t < n; t++) {
     if (!covered[t]) continue
-    for (let k = 0; k < 3; k++) baseColor[3 * t + k] = linearToSrgb8(color[3 * t + k]!)
+    const inBake = baked.has(patch[t]!)
+    // M1c: occlusion multiplies the linear paint, before the sRGB encode.
+    const occ = inBake ? 1 - AO_STRENGTH * (1 - bake!.ao[3 * t]! / 255) : 1
+    for (let k = 0; k < 3; k++) baseColor[3 * t + k] = linearToSrgb8(color[3 * t + k]! * occ)
     metallicRoughness[3 * t] = 255; metallicRoughness[3 * t + 1] = byte(rough[t]!); metallicRoughness[3 * t + 2] = byte(metal[t]!)
     // height normal: dh/du along +x (image right), dh/dv along +y (image down); glTF +y is image up
     let hx = -slope(t, 1, 0), hy = slope(t, 0, 1), hz = 1
@@ -62,6 +71,10 @@ export function compose(p: Painted, side: Sidecar, atlasPx: number): SkinMaps {
     let sx = sn[3 * t]!, sy = sn[3 * t + 1]!, sz = sn[3 * t + 2]!
     const sl = Math.sqrt(sx * sx + sy * sy + sz * sz) || 1; sx /= sl; sy /= sl; sz /= sl
     let nx = hx + sx, ny = hy + sy, nz = hz * sz
+    if (inBake) { // M1c: the baked detail normal, whiteout-blended over the painted one (the same convention: +y up the image)
+      const bx = bake!.normal[3 * t]! / 127.5 - 1, by = bake!.normal[3 * t + 1]! / 127.5 - 1, bz = bake!.normal[3 * t + 2]! / 127.5 - 1
+      nx += bx; ny += by; nz *= Math.max(bz, 0.05)
+    }
     const nl = Math.sqrt(nx * nx + ny * ny + nz * nz); nx /= nl; ny /= nl; nz /= nl
     normal[3 * t] = byte(nx * 0.5 + 0.5); normal[3 * t + 1] = byte(ny * 0.5 + 0.5); normal[3 * t + 2] = byte(nz * 0.5 + 0.5)
   }

@@ -33,6 +33,20 @@ describe('skin layers (DP0)', () => {
     expect(under[0]! - under[1]!).toBeLessThan(20) // still the gray underside
   })
 
+  it('planks (M1c) shade each board its own way on sky-facing faces only, with dark seams', () => {
+    const planks = { kind: 'planks', tags: ['wing'], widthM: 0.4, lengthM: 4, contrast: 0.3, seam: 0.6 }
+    const plain = build(fixtureSidecar({ lines: [] }))
+    const m = build(fixtureSidecar({ lines: [], markings: [planks] }))
+    // Patch 0 faces +y, x = u and z = v at 0.05 m a texel from texel (8, 8): rows of 8 texels across z.
+    const rows = [12, 20, 28, 36].map((y) => px(m.baseColor, 20, y)[1]!)
+    expect(new Set(rows).size).toBeGreaterThan(2)
+    // With every board one shade, a seam (z = 0.4 m, between texel rows 15 and 16) is darker than a board.
+    const even = build(fixtureSidecar({ lines: [], markings: [{ ...planks, contrast: 0 }] }))
+    expect(px(even.baseColor, 20, 16)[1]!).toBeLessThan(px(even.baseColor, 20, 12)[1]! - 5)
+    // Patch 1 faces -y: untouched.
+    expect(px(m.baseColor, 52, 12)).toEqual(px(plain.baseColor, 52, 12))
+  })
+
   it('tags restrict a marking to its parts (Review Focus 5)', () => {
     const m = build(fixtureSidecar({ lines: [], markings: [disc(['fuselage'])] }))
     const top = px(m.baseColor, 16, 16)

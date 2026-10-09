@@ -1,3 +1,4 @@
+import { aimErrorDraw } from '../../../src/sim/ai/noise.js'
 import { sidesOf } from '../../../src/sim/sides.js'
 import { describe, expect, it } from 'vitest'
 import { pilotTick, type PilotTickContext } from '../../../src/sim/ai/pilotTick.js'
@@ -46,6 +47,7 @@ describe('pilotTick', () => {
     const rescored = {
       ...decision, targetId: 't', mode: 'engage' as const, maneuver: decideManeuver(facts, GREEN_SKILL), nextRescoreS: nowS + GREEN_SKILL.reactionS,
       observedTargetPosition: target.state.position, observedTargetVelocity: target.state.velocity,
+      aimError: aimErrorDraw(decision.noiseCursor, GREEN_SKILL.aimErrorRad),
     }
     const expected = maneuverControls(pilotEntity, target, { ...rescored, safety: 'none' as const }, GREEN_SKILL)
     const out = pilotTick(pilotEntity, world.aircraft, ctx(nowS))

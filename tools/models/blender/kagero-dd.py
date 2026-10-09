@@ -88,9 +88,12 @@ with m.tagged('turrets'), m.shared_chart():
 s0 = stand(27.0, 11.0)          # the bridge's foot
 y1 = s0 + 3.0 + EMBED_M         # its first tier's roof
 y2 = y1 - EMBED_M + 2.6         # the upper tier's roof
-with m.tagged('bridge'), m.shared_chart():
+# M1c: the bridge's walls take charts of their own (no shared_chart), so the bake can paint them.
+with m.tagged('bridge'):
     m.frustum('superstructure', (27.0, s0, 0.0), (11.0, 7.4), (9.0, 6.4), 3.0 + EMBED_M)
     m.frustum('superstructure', (28.5, y1 - EMBED_M, 0.0), (7.0, 6.0), (6.0, 5.0), 2.6)
+    m.rounded_box('superstructure', (-3.6, stand(-3.6, 5.0), 0.0), 5.0, 3.4, 2.2 + EMBED_M, 0.8)  # the after deckhouse, clear of the aft funnel and the tubes (ESTIMATE)
+with m.tagged('bridgefittings'), m.shared_chart():
     # Bridge windows: a glazing slab straddling the sloped front face (x 31.75 -> 31.60 over its height),
     # 0.06-0.21 m proud (ESTIMATE; check it in the capture).
     m.box('glazing', (31.68, y1 + 1.3 - EMBED_M, 0.0), (0.26, 0.8, 5.0))
@@ -155,4 +158,63 @@ for s in (-1, 1):
         m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 5.3), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
                   points=[(-0.2, 5.4), (0.2, 5.4), (0.35, 2.8), (-0.3, 3.1)], color='rustStain', effect='stain', opacity=0.35, featherM=0.2)
 m.marking('slab', tags=['funnels'], axis='y', fromM=11.8, toM=13.6, color='exhaustSoot', effect='stain', opacity=0.5, featherM=0.5)
+# --- M1c (2026-10-09): railings, rigging and the bake's detail. Every position an ESTIMATE by eye from
+# the class's 1944 photographs (Yukikaze) as cited above; railings and ladders as IJN practice, not drawings.
+GAPS = [(g['x'] - 2.2, g['x'] + 2.2) for _, g in naval.armament('kagero-dd') if 'triple' in (g.get('kit') or '') and abs(g['z']) > 1.0]
+GAPS += [(46.0, 48.0), (-51.0, -49.0), (-57.0, -53.0)]  # bitts, bitts, depth-charge racks
+
+
+def runs(x0, x1, step, gaps):
+    """The stretches of [x0, x1] outside every gap, each as its sample points `step` apart."""
+    cuts = sorted(g for g in gaps if g[1] > x0 and g[0] < x1)
+    out, a = [], x0
+    for g0, g1 in cuts + [(x1, x1)]:
+        if g0 - a >= 2.0:
+            n = max(1, math.ceil((g0 - a) / step))
+            out.append([a + (g0 - a) * k / n for k in range(n + 1)])
+        a = max(a, g1)
+    return out
+
+
+with m.tagged('rails'), m.shared_chart():
+    for side in (-1, 1):
+        for xs in runs(-57.0, 55.0, 3.0, GAPS):
+            m.railing('fitting', [(x, stand(x, 0.3), side * (inside(x) - 0.1)) for x in xs], height=0.9, post_m=2.0)
+        m.railing('fitting', [(x, y1 - EMBED_M, side * 2.9) for x in (22.8, 24.7)], height=0.9, post_m=1.0)  # the lower tier's open roof, abaft the upper tier (x 25..32)
+with m.tagged('rigging'), m.shared_chart():
+    for side in (-1, 1):  # foremast shrouds to the deck edge, and the antenna wires aft to the mainmast
+        m.strut('fitting', (28.9, s0 + 13.0, side * 0.15), (24.0, stand(24.0, 0.3) + 0.5, side * (inside(24.0) - 0.2)), 0.015, sides=4)
+        m.strut('fitting', (28.6, s0 + 12.5, side * 2.4), (-11.8, ym + 8.5, side * 0.3), 0.012, sides=4)
+    m.strut('fitting', (28.6, s0 + 15.5, 0.0), (52.0, stand(52.0, 0.3) + 1.0, 0.0), 0.015, sides=4)  # forestay
+    m.strut('fitting', (-11.9, ym + 8.8, 0.0), (-55.0, stand(-55.0, 0.3) + 1.0, 0.0), 0.015, sides=4)  # backstay
+
+# Bake detail (kit.detail): portholes along the forecastle and the quarterdeck, doors, ladders, hatches, louvers.
+for side in (-1, 1):
+    for x in [x / 10 for x in range(-520, 480, 22)]:
+        if -34 < x < 17:
+            continue  # amidships: the machinery spaces had none
+        y = m.hull_at(x)[2] - 1.2
+        m.detail('porthole', (x, y, side * (m.hull_at(x)[3] + 1.0)), (0.0, 0.0, float(side)), radius=0.16)
+    for x0 in range(-56, 52, 12):  # the deck-edge bar
+        m.detail('strip', (x0, m.hull_at(x0)[2] - 0.08, side * (inside(x0) + 1.0)), (0.0, 0.0, float(side)),
+                 to=[x0 + 12.0, m.hull_at(x0 + 12.0)[2] - 0.08, side * (inside(x0 + 12.0) + 1.0)], width=0.1, proud=0.03)
+    m.detail('door', (25.0, s0 + 1.0, side * 4.6), (0.0, 0.0, float(side)), w=0.7, h=1.8)
+    m.detail('ladder', (23.6, s0 + 1.6, side * 4.6), (0.0, 0.0, float(side)), h=3.0)
+    for x in (27.5, 29.5, 31.0):
+        m.detail('porthole', (x, s0 + 2.1, side * 4.6), (0.0, 0.0, float(side)), radius=0.15)
+    m.detail('door', (-3.6, stand(-3.6, 5.0) + 1.0, side * 2.6), (0.0, 0.0, float(side)), w=0.7, h=1.8)
+    m.detail('louver', (10.0, stand(10.0, 2.9) + 1.4, side * 2.4), (0.0, 0.0, float(side)), w=0.9, h=0.7, slats=5)  # funnel uptake vents
+for x, z in ((36.0, 0.0), (48.0, 0.0), (-46.0, 0.0), (-31.0, 2.0), (-31.0, -2.0)):
+    m.detail('hatch', (x, m.hull_at(x)[2] + 2.0, z), (0.0, 1.0, 0.0), w=1.0, h=1.0)
+
+# Linoleum on the decks, sheets fore and aft with their brass edging dark; walkway wear; porthole rust (C3).
+m.marking('planks', tags=['hull'], widthM=1.83, lengthM=3.6, contrast=0.05, seam=0.45)
+for k, x in enumerate([x / 10 for x in range(-520, 480, 22)]):
+    if -34 < x < 17 or k % 3:
+        continue
+    for side in (-1, 1):
+        y = m.hull_at(x)[2] - 1.2
+        m.marking('polygon', tags=['hull'], origin=(x, 0.0, side * 6.0), axis=(0.0, 0.0, float(side)), uDir=(float(side), 0.0, 0.0),
+                  points=[(side * -0.05, y - 0.2), (side * 0.05, y - 0.2), (side * 0.09, y - 1.3), (side * -0.04, y - 1.1)],
+                  color='rustStain', effect='stain', opacity=0.35, featherM=0.08)
 m.export(out)

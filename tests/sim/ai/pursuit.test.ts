@@ -4,12 +4,15 @@ import {
   AI_GUN_RANGE_M,
   hasGunSolution,
   leadPursuitVelocity,
+  muzzleLeadDirection,
   pursuitControls,
   pursuitDesiredVelocity,
 } from '../../../src/sim/ai/pursuit.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
-import { add, dot, normalize, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { add, dot, length, normalize, scale, sub, v3 } from '../../../src/sim/math/vec3.js'
+import { flyProjectile, type Projectile } from '../../../src/sim/weapons/combat.js'
+import { DT } from '../../../src/sim/flight/model.js'
 import type { AircraftEntity } from '../../../src/sim/loop.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../../src/sim/ai/pilot.js'
@@ -119,7 +122,7 @@ describe('gunneryAccuracy scales the gun cone', () => {
     // narrower cone, inside green's wider one, within AI_GUN_RANGE_M.
     const angle = AI_GUN_CONE_RAD * ((VETERAN_SKILL.gunneryAccuracy + GREEN_SKILL.gunneryAccuracy) / 2)
     const range = 400
-    const target = entity('target', v3(range * Math.cos(angle), 3000, range * Math.sin(angle)), v3(0, 0, 0))
+    const target = entity('target', v3(range * Math.cos(angle), 3000, range * Math.sin(angle)), v3(100, 0, 0))
     const veteran = entity('self', v3(0, 3000, 0), v3(100, 0, 0), {
       target: 'target', skill: VETERAN_SKILL, decision: PURSUE_NOW,
     })
@@ -133,7 +136,49 @@ describe('gunneryAccuracy scales the gun cone', () => {
   it('a shooter with no pilot (e.g. the player) gets the full, unscaled cone', () => {
     const self = entity('self', v3(0, 3000, 0), v3(100, 0, 0))
     const angle = AI_GUN_CONE_RAD * 0.9
-    const target = entity('target', v3(400 * Math.cos(angle), 3000, 400 * Math.sin(angle)), v3(0, 0, 0))
+    const target = entity('target', v3(400 * Math.cos(angle), 3000, 400 * Math.sin(angle)), v3(100, 0, 0))
     expect(hasGunSolution(self, target)).toBe(true)
+  })
+})
+
+describe('E1: the gun solution is honest (relative-velocity lead, drag, drop)', () => {
+  // One primary round fired from the shooter's position along the solution,
+  // carrying the shooter's velocity, flown with production flyProjectile; the
+  // target flies straight. Closest approach in meters, measured 2026-10-09:
+  // before E1 (the target's own velocity times range over muzzle velocity, no
+  // drop) tail 0.58, abeam 39.4, deflection 28.4, head-on 1.01, climbing
+  // 10.1; after, 0.009-0.023 in all five.
+  const combat = f6f.combat!
+  const missM = (self: AircraftEntity<undefined>, target: AircraftEntity<undefined>): number => {
+    const aim = muzzleLeadDirection(self, target)!
+    let round: Projectile = {
+      owner: 'self', id: 0, position: self.state.position, previous: self.state.position,
+      velocity: add(self.state.velocity, scale(aim, combat.muzzleVelocityMps)),
+      lifeS: combat.lifetimeS, tracer: false, kind: 'round', ageS: 0,
+    }
+    // The closest approach within each tick, the relative motion taken as
+    // linear across it: a head-on round closes 66 m per tick.
+    let best = Infinity
+    let before = sub(round.position, target.state.position)
+    for (let t = DT; round.lifeS > 0; t += DT) {
+      round = flyProjectile(round, DT, null, combat.dragPerM)
+      const now = sub(round.position, add(target.state.position, scale(target.state.velocity, t)))
+      const step = sub(now, before)
+      const s = Math.min(1, Math.max(0, -dot(before, step) / Math.max(dot(step, step), 1e-12)))
+      best = Math.min(best, length(add(before, scale(step, s))))
+      before = now
+    }
+    return best
+  }
+  it.each([
+    ['tail, 300 m', v3(-300, 0, 0), v3(120, 0, 0), v3(110, 0, 0)],
+    ['abeam wingman, same velocity, 300 m', v3(0, 0, -300), v3(120, 0, 0), v3(120, 0, 0)],
+    ['30 deg deflection, 400 m', v3(-350, 0, -190), v3(130, 0, 0), v3(110, 0, 60)],
+    ['head-on, 500 m', v3(-500, 0, 0), v3(120, 0, 0), v3(-120, 0, 0)],
+    ['climbing target, 350 m', v3(-340, -80, 0), v3(140, 10, 0), v3(100, 40, 0)],
+  ] as const)('%s: within 0.3 m', (_, offset, ownVelocity, targetVelocity) => {
+    const self = entity('self', add(v3(0, 2000, 0), offset), ownVelocity)
+    const target = entity('target', v3(0, 2000, 0), targetVelocity)
+    expect(missM(self, target)).toBeLessThan(0.3)
   })
 })

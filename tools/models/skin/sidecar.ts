@@ -31,6 +31,14 @@ const Grid = z.object({
   /** Groove width, meters; depth in groove units (a panel line is 1: see layers.ts). */
   widthM: z.number().positive(), depth: z.number().positive(),
 }).strict()
+/** M1c: deck planking (or a destroyer's linoleum sheets) on sky-facing faces, in world (x, z): rows
+ *  `widthM` across z, butt joints every `lengthM` along x, staggered per row. Each board takes its own
+ *  shade (+-contrast) and roughness, and its seams darken by `seam`. */
+const Planks = z.object({
+  kind: z.literal('planks'), tags,
+  widthM: z.number().positive(), lengthM: z.number().positive(),
+  contrast: z.number().min(0).max(0.5), seam: z.number().min(0).max(1),
+}).strict()
 const unit3 = (v: readonly number[]): number[] => { const l = Math.hypot(v[0]!, v[1]!, v[2]!); return [v[0]! / l, v[1]! / l, v[2]! / l] }
 /** DP2: text in the stroke font on the plane through `origin` normal to `axis`, reading along `uDir`,
  *  up = axis x uDir (Ruling S6: model space, so a chart's handedness never mirrors it). */
@@ -46,7 +54,7 @@ const Text = z.object({
     if (Math.abs(a[1]!) >= 0.5) return true // a horizontal face (a flight deck): any reading direction
     return a[2]! * u[0]! - a[0]! * u[2]! > 0.5 // up = axis x uDir; its y must point up on a vertical face
   }, { message: 'text on a vertical face must read upright: axis x uDir must point up (a mirrored or upside-down number is refused)', path: ['uDir'] })
-const Marking = z.union([Disc, Polygon, Slab, Grid, Text])
+const Marking = z.union([Disc, Polygon, Slab, Grid, Text, Planks])
 
 export const SidecarSchema = z.object({
   version: z.literal(1),
@@ -64,6 +72,9 @@ export const SidecarSchema = z.object({
     patch: z.number().int().nonnegative(), axis: z.enum(['u', 'v']), atM: finite, fromM: finite, toM: finite, kind: z.enum(['panel', 'hinge']),
   }).strict()),
   markings: z.array(Marking),
+  /** M1c: the patches a committed bake paints (kit.py: every chart no other overlaps). Present only
+   *  when the script declares bake detail, and then the build requires its bake (skin/bake.ts). */
+  baked: z.array(z.number().int().nonnegative()).optional(),
 }).strict()
 
 export type Sidecar = z.infer<typeof SidecarSchema>
@@ -90,6 +101,7 @@ export function parseSidecar(text: string): Sidecar {
       throw new Error(`sidecar ${s.model}: patches ${s.patches[i]!.id} and ${s.patches[j]!.id} are closer than 2 x paddingPx (${2 * pad} px), so padding would bleed between them`)
     }
   }
+  for (const b of s.baked ?? []) if (!ids.has(b)) throw new Error(`sidecar ${s.model}: baked names patch ${b}, which does not exist`)
   for (const l of s.lines) if (!ids.has(l.patch)) throw new Error(`sidecar ${s.model}: a line names patch ${l.patch}, which does not exist`)
   const known = new Set(s.patches.map((p) => p.tag))
   for (const m of s.markings) for (const t of m.tags) if (!known.has(t)) throw new Error(`sidecar ${s.model}: a ${m.kind} marking names tag "${t}", which no patch has (tags: ${[...known].sort().join(', ')})`)
