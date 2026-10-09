@@ -49,7 +49,7 @@ test('two Hellcats exist and the parked one is at Tacloban', async ({ page }) =>
 
 test.describe('entities at 1440p', () => {
   test.use({ viewport: { width: 2560, height: 1440 } })
-  // Recorded, not asserted; budget4k.spec.ts is the gate. Measured here 2026-09-26
+  // Recorded, not asserted; budget.spec.ts is the gate. Measured here 2026-09-26
   // after the cloud VDB and S1 merges: p95 7.2-7.4 ms, and 2.34 ms with
   // `cloudTier=off` and all three ship models drawn (5.41 ms before either).
 

@@ -61,6 +61,12 @@ is looking at.**
 - Ryzen (`serverconfig/ryzen.md`) is the Windows machine that has the reference GPU.  
   - It is not always on but can be woken with wake-on-lan to Session 0.   SSH / non-GPU testing works in session 0
   - If GPU is needed, need a real windows login.  This is accomplished with RDP.  Playwright server is installed.
+  - **GPU testing on Ryzen is routine and pre-authorized (Mark, 2026-10-08).** Without asking, you may:
+    wake it, SSH in, start and stop a Playwright server (in session 0, in an RDP session as `rdp`, or
+    in Mark's own console session when he is logged in, via a one-shot interactive scheduled task
+    that you unregister when done), poll its ports, and open the tunnels. Chrome windows on his
+    desktop are expected. Never RDP in while he is logged in (that would log him out).
+    How each route works: `docs/testing.md` and `serverconfig/ryzen.md`.
 - Nexus (`serverconfig/nexus.md`) is a headless linux development server.  It is the authoritative copy of the code and is the main development server.
 
 ## Software
@@ -75,7 +81,13 @@ nothing, and the adapter guard passes it all the same;
 `playwright.config.ts`'s `LOCAL_LINUX_ARGS` says why. A session started before
 `mark` joined the `render` group falls back to SwiftShader: run it under
 `sg render -c '...'`, or start a new session.
-- Since parallel agents may be doing work (and testing), this can throw off GPU testing (particularly budget tests).  If a GPU budget test is being pursued, can use hwlock on Ryzen.
+- Since parallel agents may be doing work (and testing), this can throw off GPU testing (particularly budget tests).
+  - **Every budget-spec run takes `hwlock ryzen-budget <cmd>`** (exclusive), around the budget specs only,
+    never a whole suite (Mark, 2026-10-08).
+  - **`hwlock ryzen` is a no-op**: it is listed in `~/.config/hwlock/off` (since 2026-09-27, why: `serverconfig/ryzen.md`,
+    "Resource locks"). Wrapping a run in it locks nothing. Check with `hwlock status`.
+  - The lock only orders sessions on nexus. Work started on Ryzen itself (Mark, Playwright MCP sessions on the
+    desktop) is invisible to it. Before trusting a number, check that Ryzen has no other browser driving its GPU.
 - Multiple dev server slots exist: ww2airsim.windomlane.org, ww2airsim-2.windomlane.org, and ww2airsim-3.windomlane.org.  
   - each real HTTPS wired the same way as the primary hostname above:
 `ww2airsim-2.windomlane.org` (port 5175) and `ww2airsim-3.windomlane.org`
@@ -89,7 +101,7 @@ needed one — see `docs/testing.md` and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /
 `ww2airsim-3-dev.yml` for the full wiring. Whichever worktree is using a
 slot should say so if asked; there's no reservation system for ports (for
-clean GPU numbers, see `hwlock ryzen` above).
+clean GPU numbers, see `hwlock ryzen-budget` above).
 
 
 ## Fetching third-party models

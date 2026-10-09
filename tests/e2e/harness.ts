@@ -15,9 +15,9 @@ import { groundTruthTerrain, landingAhead } from '../pilot/rangePass.js'
 const LANDING_AHEAD_M = 250
 let terrain: TerrainField | null = null
 /**
- * The 1440p GPU p95 tripwire, ms: one 120 Hz frame. The performance GATE is
- * `budget4k.spec.ts` (60 Hz High, spec §2); these 1440p checks stay as
- * tripwires. Cloud Fidelity II §3.4 moved them from 6.0 ms, a number sized
+ * The 1440p GPU p95 tripwire ceiling, ms: one 120 Hz frame. The performance
+ * GATE is `budget.spec.ts`, the same number in every view since H0 (Mark
+ * 2026-10-08); a tripwire may be tighter, never looser. Cloud Fidelity II §3.4 moved them from 6.0 ms, a number sized
  * for bare terrain in Plan 13a, to this; twelve specs still said 6.0 until
  * 2026-09-29 (Mark), when takeoff/recovery's Tacloban view measured 7.6-7.9 ms
  * on the desktop under `hwlock ryzen`. One copy, so it cannot drift again.
@@ -31,8 +31,8 @@ export const TRIPWIRE_1440P_P95_MS = 8.33
  * turn furball, takeoff and recovery red for reasons that had nothing to do
  * with what they test. The gates are the dedicated budget specs.
  */
-export function recordFrameTime(p95: number): void {
-  test.info().annotations.push({ type: 'frame-time', description: `gpu p95 ${p95.toFixed(3)} ms at 1440p` })
+export function recordFrameTime(p95: number, where = 'at 1440p'): void {
+  test.info().annotations.push({ type: 'frame-time', description: `gpu p95 ${p95.toFixed(3)} ms ${where}` })
 }
 
 /** Loaded on first use, not at import: most specs never land. */

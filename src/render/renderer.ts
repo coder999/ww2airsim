@@ -42,6 +42,16 @@ export function normalizeGpuError(info: string | { message?: string }): string {
  * 256 MiB, so that limit is raised too. Asking for the adapter's own maximum
  * can never fail the device request.
  */
+/** H0 (Mark 2026-10-08): `?renderScale=` renders at a fraction of the window
+ *  size, so 4K and 1440p can be compared live on one monitor. Clamped to
+ *  [0.25, 1]; absent or not a number reads 1. The player-facing setting is
+ *  MASTER_PLAN A5. */
+export function renderScaleFromQuery(search: string): number {
+  const raw = new URLSearchParams(search).get('renderScale')
+  const v = raw === null || raw.trim() === '' ? NaN : Number(raw)
+  return Number.isFinite(v) ? Math.min(1, Math.max(0.25, v)) : 1
+}
+
 export function requiredDeviceLimits(adapterLimits: {
   readonly maxTextureDimension2D: number
   readonly maxBufferSize: number
@@ -79,6 +89,9 @@ export async function initRenderer(
   // the cadence to a display that turned out to run at 120 Hz (design spec
   // section 10.2). See `diagnostics.ts`'s `gpuFrameTimesMs`.
   trackTimestamp = false,
+  // The fraction of the window's pixel size the scene is drawn at, from
+  // `renderScaleFromQuery` (DEV only). 1 = native, capped at 2x DPR as before.
+  renderScale = 1,
 ): Promise<RendererBundle> {
   if (!('gpu' in navigator)) throw new Error('no-webgpu')
 
@@ -111,7 +124,7 @@ export async function initRenderer(
     requiredLimits: requiredDeviceLimits(adapter.limits),
   })
   await renderer.init()
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * renderScale)
   renderer.setSize(window.innerWidth, window.innerHeight)
 
   return { renderer, adapterVerdict }

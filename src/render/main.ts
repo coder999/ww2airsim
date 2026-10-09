@@ -1,6 +1,6 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
 import { positionWorld } from 'three/tsl'
-import { initRenderer, normalizeGpuError } from './renderer.js'
+import { initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
@@ -37,7 +37,7 @@ import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
-import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
 import { FX_CATALOG } from './fx/catalog.js'
 import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
@@ -787,7 +787,8 @@ async function boot(): Promise<void> {
   // Production tracked them for the quality probe until A4, which measures
   // frame intervals instead (`adaptQuality`).
   boot.begin('renderer')
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV)
+  const renderScale = import.meta.env.DEV ? renderScaleFromQuery(location.search) : 1
+  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScale)
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
@@ -1255,6 +1256,7 @@ async function boot(): Promise<void> {
   const skyNoise = await skyNoiseLoading
   boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
+  if (import.meta.env.DEV) applyCloudTune(location.search) // H0 lever pricing, before any tier is read
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
   // diverge). With nothing saved both read `high`, which is what this line

@@ -31,7 +31,7 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
 - **Enroll, don't clone.** Coverage of every airframe, ship or scenario comes from one table-driven test that reads `content/`. A new airframe should be covered without a new test file. Examples: `graded.test.ts`, `trap.test.ts`, `carrierTakeoff.test.ts`, `flyableAll.spec.ts`.
   - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
   - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
-- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget4k`, `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
+- **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget` (the gate: High gpu p95 ≤ 8.33 ms at 1440p in every view, H0 2026-10-08), `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
   - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
 - **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:
   - a relationship: `MAP_TEXEL_M === MAP_SIDE_M / MAP_TEXELS`;
@@ -155,11 +155,13 @@ ssh -N -L 39001:127.0.0.1:3000 ryzen    # this 39001 -> its Playwright server
 PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm run test:e2e
 ```
 
-Other sessions may be rendering on the same GPU. For budget numbers you
-mean to trust, run just the budget specs under `hwlock ryzen <cmd>`
-(`serverconfig/scripts/hwlock`). Hold it for the budget specs only, never a
-whole suite: while it is held every other session's compute is squeezed onto
-nexus.
+Other sessions may be rendering on the same GPU. Run the budget specs, and
+only them, under `hwlock ryzen-budget <cmd>` (`serverconfig/scripts/hwlock`;
+Mark, 2026-10-08). It orders budget runs against each other and nothing
+else. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
+(`serverconfig/ryzen.md`, "Resource locks"). Work started on Ryzen itself
+is invisible to either lock, so before trusting a number check that no other
+browser is driving its GPU.
 
 
 **No console login, correctness only: a server in session 0.** Chromium there

@@ -46,14 +46,10 @@ relevant section here in the same commit.
 | medium | 56 | 4 (0) | 0.3 | every frame | 1.5–2.5 km |
 | low | 32 | 2 (0) | 0.25 | every frame | 1.5–2.5 km |
 
-- **Budget** (`tests/e2e/budget4k.spec.ts` is the gate): gpu p95 at 4K on the
-  reference RX 6700 XT.
-  - High: 16.67 ms (60 Hz, Mark 2026-09-25).
-  - Medium: 8.33 ms.
-  - In-cloud views: 20.0 / 9.0 ms (Mark 2026-09-26).
-  - Measured 2026-09-26, outside cloud: High 10.6–16.0, Medium 6.9–7.9.
-    `photo` at High has 0.6 ms of margin.
-  - The 1440p specs are tripwires (8.33 ms total frame), not budgets.
+- **Budget** (`tests/e2e/budget.spec.ts` is the gate): gpu p95 on the
+  reference RX 6700 XT, High ≤ 8.33 ms at 1440p in every view, in-cloud
+  included (H0, Mark 2026-10-08). Medium and 4K are recorded, not asserted.
+  The measured table is in `docs/handoff/2026-10-08-h0-render-budget.md`.
 - **Looks Mark has approved:** the `photo` view (tag
   `cloud-vdb-photo-2026-09-26`), and in-cloud flight on High ("no
   apparent loss of fps", 2026-09-26, after the fixes in §3.8).
@@ -73,7 +69,7 @@ relevant section here in the same commit.
 | Noise and weather generators | `tools/sky/noise.ts`, `tools/sky/weather.ts`, `tools/sky/build.ts` |
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
-| GPU gates | `tests/e2e/budget4k.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
+| GPU gates | `tests/e2e/budget.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
 | DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did

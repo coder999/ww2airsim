@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CLOUD_TIERS, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
+import { CLOUD_TIERS, applyCloudTune, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
 import { FOG_DISTANCE_M } from '../../src/render/horizon.js'
 import { FAR_FADE_START_M } from '../../src/render/scene/atmosphereShading.js'
 import { AP_MAX_DISTANCE_M } from '../../src/render/sky/atmosphereLuts.js'
@@ -18,6 +18,17 @@ describe('clouds (Plan 16a)', () => {
     expect(cloudTierFromQuery('?cloudTier=low')).toBe('low')
     expect(cloudTierFromQuery('?x=1')).toBeUndefined()
     expect(() => cloudTierFromQuery('?cloudTier=ultra')).toThrow(/cloudTier/)
+  })
+  it('?cloudTune= overwrites tier fields for lever pricing, and refuses what it cannot apply (H0)', () => {
+    const before = structuredClone(CLOUD_TIERS.medium)
+    try {
+      expect(applyCloudTune('?x=1')).toEqual([])
+      expect(applyCloudTune('?cloudTune=medium.lightSteps:3,medium.lightLodBandM:4000/6000')).toHaveLength(2)
+      expect(CLOUD_TIERS.medium.lightSteps).toBe(3)
+      expect(CLOUD_TIERS.medium.lightLodBandM).toEqual([4000, 6000])
+      expect(() => applyCloudTune('?cloudTune=medium.nope:1')).toThrow(/cloudTune/)
+      expect(() => applyCloudTune('?cloudTune=medium.updatePeriod:4')).toThrow(/updatePeriod/)
+    } finally { Object.assign(CLOUD_TIERS.medium, before) }
   })
   it('has exactly high/medium/low, each with a resolution scale and the Task 11 step counts (photoreal spec 4.4)', () => {
     expect(Object.keys(CLOUD_TIERS)).toEqual(['high', 'medium', 'low'])

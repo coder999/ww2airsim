@@ -48,7 +48,7 @@ test.describe('ship models at 1440p', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  // Frame time is recorded, not asserted: budget4k.spec.ts's deckquals view is
+  // Frame time is recorded, not asserted: budget.spec.ts's deckquals view is
   // the gate (docs/testing.md, "Philosophy").
   const maru = loadScenarioBundle('strike-range').scenario.ships[0]!
   const [mx, mz] = maru.waypoints[0]!

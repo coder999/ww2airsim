@@ -91,7 +91,7 @@ test('the shadow pass is counted in the GPU timestamp', async ({ page }) => {
   expect(on.p95 - off.p95, 'the pass must be inside the timestamp the budget reads').toBeGreaterThan(0)
   // The two page loads make their p95 difference too noisy to be an upper
   // bound (three §3.4 runs ranged 0.648-1.130 ms). The positive delta still
-  // proves the pass is inside the timestamp; budget4k.spec.ts is the gate.
+  // proves the pass is inside the timestamp; budget.spec.ts is the gate.
   recordFrameTime(on.p95)
   expect(await errors(page)).toEqual([])
 })
