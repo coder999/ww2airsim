@@ -69,7 +69,10 @@ export const VETERAN_SKILL: PilotSkill = {
   // slice's to fix (spec Decisions, item 2). Still less than half of green's
   // noise, as noise.test.ts and pilot.test.ts require.
   controlNoise: 0.01,
-  aimErrorRad: 0.002,
+  // E1 retune (Mark, 2026-10-09, "tone veterans down"): 0.002 killed a
+  // straight-flying player from 550 yd in 2.6-3.4 s; 0.025 puts the median at
+  // 8.1 s (aiLethality.test.ts item 1) and still wins 17 of 24 duels on a green.
+  aimErrorRad: 0.025,
   gunTracking: 1,
 }
 
@@ -92,7 +95,12 @@ export const GREEN_SKILL: PilotSkill = {
   // Kept unchanged from Task 1's starting value; already >=2x
   // VETERAN_SKILL.controlNoise, as tests/sim/ai/noise.test.ts requires.
   controlNoise: 0.15,
-  aimErrorRad: 0.008,
+  // E1 retune (Mark, 2026-10-09, "green should hit harder"): 0.008 killed no
+  // maneuvering green in 24 duels. Fine tracking at any strength over 0.1 broke
+  // the 7d bar; 0.026, just worse than the veteran's aim, gives 2 of 24 and
+  // keeps aiReengage's Zero coming back (0.028-0.04 sent one cursor off
+  // extending for 130 s). Swept 2026-10-09.
+  aimErrorRad: 0.026,
   gunTracking: 0,
   // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): no yo-yo,
   // attack run, split-S or Immelmann. 7c Task 14 (Mark, 2026-09-26: "remove

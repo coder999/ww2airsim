@@ -18,23 +18,29 @@ const PURSUER = 'pursuer-1'
 describe('a passive player is shot down before point-blank range (7c spec §3.1, item 1; E1)', () => {
   // Until E1 this asserted the opposite: the veteran, toned down to
   // controlNoise 0.01 because its aim ignored drop (Mark's ruling 2026-09-25),
-  // reached point-blank in 16 of 16 runs with 1 hit among them. E1's honest
-  // gunnery (relative lead with drag, drop, fine tracking) makes a pilot
-  // lethal on purpose, and the 7c spec's Decisions item 2 asked for exactly
-  // this ordering: the veteran deadlier than green.
-  // Measured 2026-10-09, kill tick per loadout at cursors 0 / 7919 / 15838 / 23757:
-  //   veteran: clean 188 / 178 / 184 / 153, the other loadouts within 17 ticks
-  //            of those (2.6-3.4 s from 550 yd), 12 hits each.
-  //   green:   9 of 16 killed, ticks 418-1155 (7-19 s); the other 7 reached
-  //            point-blank with 3-8 hits.
-  it.each(LOADOUTS)('%s: the veteran kills inside 5 s at every noise cursor, green later or not at all', (loadout) => {
-    for (const cursor of CURSORS_4) {
-      const veteran = passiveClose(replicaWorld(tailChase, loadout, cursor), PURSUER)
-      expect(veteran.outcome, `${loadout}, cursor ${cursor}: veteran, tick ${veteran.tick}, ${veteran.pursuerHits} hits`).toBe('killed')
-      expect(veteran.tick).toBeLessThanOrEqual(5 * 60)
-      const green = passiveClose(replicaWorld(tailChase, loadout, cursor, GREEN_SKILL), PURSUER)
-      expect(green.tick, `${loadout}, cursor ${cursor}: green ${green.outcome} at ${green.tick}`).toBeGreaterThan(veteran.tick)
+  // reached point-blank in 16 of 16 runs with 1 hit among them. With E1's
+  // honest gunnery the veteran killed in 2.6-3.4 s; Mark's retune the same day
+  // ("tone veterans down", median about 8 s) set VETERAN_SKILL.aimErrorRad.
+  // Measured 2026-10-09, kill tick at cursors 0 / 7919 / 15838 / 23757, the
+  // same in every loadout to 2 ticks:
+  //   veteran: 834 / 485 / 413 / 436 (6.9-13.9 s, median 8.1 s), 12 hits each.
+  //   green:   8 of 16 killed (6.2-19.4 s); the other 8 reached point-blank
+  //            with 0-5 hits.
+  it('the veteran kills in every run, at a median near 8 s, and green kills fewer', () => {
+    const ticks: number[] = []
+    let greenKills = 0
+    for (const loadout of LOADOUTS) {
+      for (const cursor of CURSORS_4) {
+        const veteran = passiveClose(replicaWorld(tailChase, loadout, cursor), PURSUER)
+        expect(veteran.outcome, `${loadout}, cursor ${cursor}: veteran, tick ${veteran.tick}, ${veteran.pursuerHits} hits`).toBe('killed')
+        ticks.push(veteran.tick)
+        if (passiveClose(replicaWorld(tailChase, loadout, cursor, GREEN_SKILL), PURSUER).outcome === 'killed') greenKills++
+      }
     }
+    const median = [...ticks].sort((a, b) => a - b)[ticks.length / 2]! / 60
+    expect(median).toBeGreaterThanOrEqual(6)
+    expect(median).toBeLessThanOrEqual(12)
+    expect(greenKills).toBeLessThan(ticks.length)
   })
 })
 
