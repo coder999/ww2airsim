@@ -9,7 +9,7 @@ import { VIEWS, withParams } from './views.js'
  *  `CAPTURE_PAUSE=1` pauses (Esc) right after the terrain is in and waits
  *  for TRAA and the cloud history to converge: the frozen-scene comparison
  *  H0 uses to call a lever invisible. `CAPTURE_DIR` overrides the output
- *  directory under test-results/. */
+ *  directory under test-results/; `CAPTURE_BURST=n` adds n frames per view. */
 const extra = Object.fromEntries(new URLSearchParams(process.env.CAPTURE_PARAMS ?? ''))
 test.setTimeout(90_000)
 // A capture tool, not a test: a plain E2E run skips it (docs/testing.md, "Philosophy").
@@ -24,6 +24,10 @@ for (const view of VIEWS) {
     if (process.env.CAPTURE_PAUSE) await page.keyboard.press('Escape') // BINDINGS.pause
     await page.waitForTimeout(3000)
     await page.screenshot({ path: `test-results/${process.env.CAPTURE_DIR ?? 'capture'}/${view.name}.png` })
+    // `CAPTURE_BURST=n`: n more frames for a per-pixel temporal std (the clouds.md §3.8 flicker check).
+    for (let k = 0; k < Number(process.env.CAPTURE_BURST ?? 0); k++) {
+      await page.screenshot({ path: `test-results/${process.env.CAPTURE_DIR ?? 'capture'}/burst/${view.name}-${k}.png` })
+    }
     expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
     expect(errors).toEqual([])
   })
