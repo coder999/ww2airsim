@@ -199,6 +199,7 @@ title art and the terrain textures below. Cloud noise volumes under `content/sky
 | `content/audio/gear_cycle.wav` | ElevenLabs sound generation (generative AI) | Mark Tuttle | ElevenLabs Terms of Service, commercial use granted on the paid plan; see `content/audio/NOTICE.md` |
 | `content/audio/flaps_cycle.wav` | ElevenLabs sound generation (generative AI) | Mark Tuttle | ElevenLabs Terms of Service, commercial use granted on the paid plan; see `content/audio/NOTICE.md` |
 | `content/audio/flak_burst.wav` | ElevenLabs sound generation (generative AI) | Mark Tuttle | ElevenLabs Terms of Service, commercial use granted on the paid plan; see `content/audio/NOTICE.md` |
+| `content/audio/torpedo_splash.wav` | ElevenLabs sound generation (generative AI) | Mark Tuttle | ElevenLabs Terms of Service, commercial use granted on the paid plan; see `content/audio/NOTICE.md` |
 | `content/audio/voice/*.wav` (68 radio lines) | ElevenLabs text-to-speech (generative AI) | Mark Tuttle | ElevenLabs Terms of Service, commercial use granted on the paid plan; see `content/audio/NOTICE.md` |
 | `content/audio/bombs_away.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |
 | `content/audio/explosion.wav` | Adobe Firefly (generative AI) | Mark Tuttle | Adobe Terms of Use, commercial use granted to the generating user; see `content/audio/NOTICE.md` |

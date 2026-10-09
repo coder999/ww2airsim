@@ -51,10 +51,15 @@ before generating. The same US Copyright Office caveat as above applies.
   Mark's pick), trimmed. It plays for both flaps up and flaps down.
 - `flak_burst.wav`: the same way (take 1 of 3, Mark's pick), trimmed and
   normalized to a 0.97 peak because the take came out quiet.
+- `torpedo_splash.wav`: the same way (take 1 of 3, Mark's pick), trimmed.
 - `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,
   `[tense, urgent]` ...). Mark picked Clyde from a five-voice audition.
+  Two exceptions, Mark's picks after Clyde drifted British on them:
+  `radio_paddles_quals_launch_us` adds an `[American accent]` tag, and
+  `radio_tower_raid_clear_us` is library voice `ZthjuvLPty3kTMaNKVKb` with
+  `eleven_multilingual_v2` at default settings.
 - `voice/*_ja.wav` (34): text-to-speech, premade voice "Adam"
   (`pNInz6obpgDQGcFmaJgB`) speaking Japanese, model `eleven_multilingual_v2`,
   `language_code: "ja"`, default settings.

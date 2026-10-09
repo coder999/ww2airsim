@@ -21,13 +21,37 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, css: string, text = '
   return e
 }
 
-function player(src: string, loop: boolean): HTMLAudioElement {
+function player(src: string, loop: boolean): HTMLElement {
+  if (loop) return looper(src)
   const a = el('audio', 'height:32px;width:280px;flex:none')
   a.controls = true
   a.preload = 'none'
-  a.loop = loop
   a.src = src
   return a
+}
+
+// <audio loop> restarts with an audible gap (Mark heard it on aa_gun, 2026-10-09).
+// The game loops through AudioBufferSourceNode, which is sample-accurate, so
+// loops play that way here too. One loop at a time.
+let context: AudioContext | null = null
+let stopLoop: (() => void) | null = null
+function looper(src: string): HTMLButtonElement {
+  const b = el('button', 'height:32px;width:280px;flex:none;cursor:pointer', '▶ loop')
+  b.onclick = async () => {
+    const mine = b.textContent !== '▶ loop'
+    stopLoop?.()
+    if (mine) return
+    context ??= new AudioContext()
+    const buffer = await context.decodeAudioData(await (await fetch(src)).arrayBuffer())
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    source.loop = true
+    source.connect(context.destination)
+    source.start()
+    b.textContent = '■ stop'
+    stopLoop = () => { source.stop(); b.textContent = '▶ loop'; stopLoop = null }
+  }
+  return b
 }
 
 const TAG = 'font:600 11px system-ui;letter-spacing:.06em;padding:2px 6px;border-radius:3px;flex:none'

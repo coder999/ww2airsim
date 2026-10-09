@@ -36,6 +36,7 @@ export type ClipId =
   | 'gear_cycle'
   | 'flaps_cycle'
   | 'flak_burst'
+  | 'torpedo_splash'
   /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
   | 'motor'
 
@@ -91,6 +92,9 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // failed the full-throttle headroom test (tests/audio/assets.test.ts).
   { id: 'flaps_cycle', path: 'content/audio/flaps_cycle.wav', bus: 'sfx', bytes: 812_076, peakFullScale: 0.6313, cueGain: 0.35 },
   { id: 'flak_burst', path: 'content/audio/flak_burst.wav', bus: 'sfx', bytes: 124_392, peakFullScale: 0.9700, cueGain: 0.75 },
+  // ElevenLabs, 2026-10-09, Mark's pick: the torpedo hitting the water. Its
+  // release reuses bombs_away. Unwired until the Avenger drops one.
+  { id: 'torpedo_splash', path: 'content/audio/torpedo_splash.wav', bus: 'sfx', bytes: 369_544, peakFullScale: 0.9762, cueGain: 0.60 },
 ]
 
 export function assetFor(id: ClipId): AudioAsset {
