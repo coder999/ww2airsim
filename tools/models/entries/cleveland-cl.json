@@ -22,5 +22,17 @@
     "otherMaterials": "classify",
     "smokeOrigin": [0, 12.33, 0],
     "bow": "narrow-end"
-  }
+  },
+  "split": [
+    {"name": "Turret1", "select": "components", "boxMin": [-0.29946, 0.43003, -3.75857], "boxMax": [0.29946, 0.7356, -2.95186]},
+    {"name": "Turret2", "select": "components", "boxMin": [-0.29946, 0.58587, -3.01297], "boxMax": [0.29946, 0.81505, -2.20626]},
+    {"name": "Turret3", "select": "components", "boxMin": [-0.29946, 0.55837, 2.6707], "boxMax": [0.29946, 0.78449, 3.47741]},
+    {"name": "Turret4", "select": "components", "boxMin": [-0.19557, 0.40558, 3.33074], "boxMax": [0.19557, 0.62559, 4.14356]},
+    {"name": "HeavyAA1", "select": "components", "boxMin": [-0.14668, 0.60115, -2.01069], "boxMax": [0.14668, 0.82116, -1.55844]},
+    {"name": "HeavyAA2", "select": "components", "boxMin": [0.24446, 0.60115, -1.11231], "boxMax": [0.53781, 0.82116, -0.66006]},
+    {"name": "HeavyAA3", "select": "components", "boxMin": [-0.53781, 0.60115, -1.11231], "boxMax": [-0.24446, 0.82116, -0.66006]},
+    {"name": "HeavyAA4", "select": "components", "boxMin": [0.24446, 0.60115, 1.06338], "boxMax": [0.53781, 0.82116, 1.51563]},
+    {"name": "HeavyAA5", "select": "components", "boxMin": [-0.53781, 0.60115, 1.06338], "boxMax": [-0.24446, 0.82116, 1.51563]},
+    {"name": "HeavyAA6", "select": "components", "boxMin": [-0.14668, 0.60115, 1.98621], "boxMax": [0.14668, 0.82116, 2.44457]}
+  ]
 }
