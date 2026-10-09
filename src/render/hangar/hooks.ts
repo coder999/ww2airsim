@@ -50,6 +50,8 @@ export interface HangarHooks {
   trainMounts(rad: number): void
   /** Raises every gun mount's guns to `frac` of that kit's top elevation (M1b; the same sweep). */
   elevateMounts(frac: number): void
+  /** The selected vehicle's pose read back off its scene graph (V1): turret, gun, tread, wheels, steering; null for anything else. */
+  vehicle(): Readonly<Record<string, number>> | null
   readonly validationErrors: string[]
 }
 

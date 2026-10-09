@@ -479,6 +479,42 @@ test.describe('the Hangar', () => {
     }
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
+
+  test('18. the ground vehicles move: the Chi-Ha trains, elevates and runs its wheels and tread on screen; the jeep steers with its driver\'s hands on the wheel (V1)', async ({ page }) => {
+    const state = () => page.evaluate(() => (window as HangarWindow).__hangar!.vehicle())
+    await select(page, 'type97-chi-ha')
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])
+    await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
+    const aimed = (await state())!
+    expect(aimed['turretYawRad']).toBeCloseTo(-Math.PI / 2, 6)
+    expect(aimed['gunElevationRad']).toBeCloseTo((20 * Math.PI) / 180, 6) // the gun stops at its +20 degrees
+    // The wheels turn in a vertex shader and the tread is a texture offset: only the frame can show them moved.
+    await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+    await pose(page, { speedMph: 10 })
+    const before = await shot(page)
+    await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.25))
+    const after = await shot(page)
+    expect(after.equals(before), 'a quarter second at 10 mph moved neither wheels nor tread').toBe(false)
+    const ran = (await state())!
+    expect(ran['wheelTravelM']).toBeCloseTo(10 * 0.44704 * 0.25, 6)
+    expect(ran['treadOffsetU']).toBeLessThan(0)
+    expect(ran['wheelShells']).toBe(72)
+
+    await select(page, 'willys-mb-jeep')
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['drive', 'steer'])
+    await pose(page, { steer: 0.05 })
+    const steered = (await state())!
+    expect(steered['frontSteerRad']).toBeLessThan(0)
+    expect(steered['steeringWheelRad']).toBeLessThan(0)
+    // The driver rides (his arms found) and his gloved hands follow the rim (vehicleRig.test.ts measures the bound).
+    expect(steered['handOffRimM']).toBeGreaterThanOrEqual(0)
+    expect(steered['handOffRimM']).toBeLessThan(0.04)
+    const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
+    expect(r?.modelUrl ?? '').toMatch(/content\/vehicles\/willys-mb-jeep\.glb$/)
+    expect(r?.over).toBe(false)
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
 })
 
 test('the canvas and the panel fit the window: nothing renders off-screen', async ({ page }) => {

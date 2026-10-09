@@ -49,6 +49,13 @@ export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   timber: { scan: 'deck-planks', roughness: 0.85, metallic: 0, fade: 0.06, chip: 0, rivets: false, scanNormal: 0, scanSpace: 'world-xz' },
   boot: { scan: 'painted-metal', roughness: 0.75, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
   antifouling: { scan: 'painted-metal', roughness: 0.8, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.3 },
+  // Figures (V1, 2026-10-09). ESTIMATE: cloth and skin are matte with no scan (no painted-metal pits on a shirt);
+  // the helmet and the shoes keep a little of the painted-metal scan for scuffs.
+  uniform: { scan: null, roughness: 0.92, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
+  webbing: { scan: null, roughness: 0.9, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
+  skin: { scan: null, roughness: 0.6, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
+  helmet: { scan: 'painted-metal', roughness: 0.8, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.4 },
+  boots: { scan: 'painted-metal', roughness: 0.55, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0.2 },
 }
 
 export function surfaceFor(role: string): Surface {

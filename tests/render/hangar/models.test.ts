@@ -9,6 +9,7 @@ import { heightAt } from '../../../src/sim/world/terrain.js'
 import { nodeHangarContent } from './content.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { staticModelUrl, shipModelUrl } from '../../../src/render/content.js'
+import { glbScene } from '../_wildcatCache.js'
 import type { ModelInstance } from '../../../src/render/models/modelCache.js'
 
 const catalog = buildCatalog(nodeHangarContent())
@@ -250,8 +251,20 @@ describe("an entry's own model (R1)", () => {
     const tank = { ...c.library.find((e) => e.id === 'type97-chi-ha')!, model: { kind: 'vehicle' as const, id: 'type97-chi-ha' } }
     const seenVehicle: unknown[] = []
     const vehicleEntry = buildCatalog({ ...c, library: [tank] })[0]!
-    await loadHangarModel(vehicleEntry, undefined, undefined, undefined, async (ref) => { seenVehicle.push(ref); return instance().inst })
+    // A rigged vehicle (V1) needs its real nodes, so the loader hands back the committed glb's graph.
+    const tankModel = await loadHangarModel(vehicleEntry, undefined, undefined, undefined, async (ref) => { seenVehicle.push(ref); return { root: await glbScene('content/vehicles/type97-chi-ha.glb'), node: () => new Group(), release: () => {} } })
     expect(seenVehicle).toEqual([{ kind: 'vehicle', id: 'type97-chi-ha' }])
+    expect(tankModel!.parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
+    expect(tankModel!.gunMounts!.map((m) => m.name)).toEqual(['Turret1'])
+
+    // The jeep loads its driver through the rider loader, and offers speed and steering, no turret.
+    const jeep = buildCatalog({ ...c, library: [c.library.find((e) => e.id === 'willys-mb-jeep')!] })[0]!
+    const riders: string[] = []
+    const jeepModel = await loadHangarModel(jeep, undefined, undefined, undefined,
+      async () => ({ root: await glbScene('content/vehicles/willys-mb-jeep.glb'), node: () => new Group(), release: () => {} }),
+      async (id) => { riders.push(id); return { root: await glbScene(`content/figures/${id}.glb`), node: () => new Group(), release: () => {} } })
+    expect(riders).toEqual(['us-army-driver'])
+    expect(jeepModel!.parts.map((p) => p.id)).toEqual(['drive', 'steer'])
   })
 
   it('displayModelUrl resolves ships and static models through their registries, and refuses an aircraft', () => {
