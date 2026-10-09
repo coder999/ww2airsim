@@ -31,6 +31,14 @@ const Grid = z.object({
   /** Groove width, meters; depth in groove units (a panel line is 1: see layers.ts). */
   widthM: z.number().positive(), depth: z.number().positive(),
 }).strict()
+/** M1c: deck planking (or a destroyer's linoleum sheets) on sky-facing faces, in world (x, z): rows
+ *  `widthM` across z, butt joints every `lengthM` along x, staggered per row. Each board takes its own
+ *  shade (+-contrast) and roughness, and its seams darken by `seam`. */
+const Planks = z.object({
+  kind: z.literal('planks'), tags,
+  widthM: z.number().positive(), lengthM: z.number().positive(),
+  contrast: z.number().min(0).max(0.5), seam: z.number().min(0).max(1),
+}).strict()
 const unit3 = (v: readonly number[]): number[] => { const l = Math.hypot(v[0]!, v[1]!, v[2]!); return [v[0]! / l, v[1]! / l, v[2]! / l] }
 /** DP2: text in the stroke font on the plane through `origin` normal to `axis`, reading along `uDir`,
  *  up = axis x uDir (Ruling S6: model space, so a chart's handedness never mirrors it). */
@@ -46,7 +54,7 @@ const Text = z.object({
     if (Math.abs(a[1]!) >= 0.5) return true // a horizontal face (a flight deck): any reading direction
     return a[2]! * u[0]! - a[0]! * u[2]! > 0.5 // up = axis x uDir; its y must point up on a vertical face
   }, { message: 'text on a vertical face must read upright: axis x uDir must point up (a mirrored or upside-down number is refused)', path: ['uDir'] })
-const Marking = z.union([Disc, Polygon, Slab, Grid, Text])
+const Marking = z.union([Disc, Polygon, Slab, Grid, Text, Planks])
 
 export const SidecarSchema = z.object({
   version: z.literal(1),

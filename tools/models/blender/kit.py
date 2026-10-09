@@ -347,7 +347,7 @@ class Model:
 
     def marking(self, kind, **fields):
         """A marking for the skin stage, in model coordinates (tools/models/skin/sidecar.ts validates it)."""
-        _require(kind in ('disc', 'polygon', 'slab', 'grid', 'text'), f'marking: unknown kind {kind!r}')
+        _require(kind in ('disc', 'polygon', 'slab', 'grid', 'text', 'planks'), f'marking: unknown kind {kind!r}')
         self._markings.append({'kind': kind, **{k: list(v) if isinstance(v, tuple) else v for k, v in fields.items()}})
 
     def detail(self, kind, origin, axis, **params):
