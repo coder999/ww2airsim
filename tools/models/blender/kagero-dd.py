@@ -131,6 +131,18 @@ with m.tagged('boats'), m.shared_chart():
 with m.tagged('stern'), m.shared_chart():
     for s in (-1, 1):  # depth-charge racks (ESTIMATE)
         m.box('fitting', (-55.0, stand(-55.0, 3.0), s * (inside(-55.0) - 0.8)), (3.0, 0.9 + EMBED_M, 0.7))
+with m.tagged('deckfittings'), m.shared_chart():
+    # M1: a forecastle capstan and bitts, quarterdeck bitts, cowl vents, Carley floats on the bridge sides.
+    naval.capstan(m, 52.0, stand(52.0, 1.0), 0.0, EMBED_M)
+    for bx in (47.0, -50.0):
+        for side in (-1, 1):
+            naval.bitts(m, bx, stand(bx, 1.4), side * (inside(bx) - 0.9), True, EMBED_M)
+    for vx in (14.0, -3.0):
+        for side in (-1, 1):
+            naval.cowl_vent(m, vx, stand(vx, 0.5), side * 3.4, 0.0, 1.4, EMBED_M)
+    for fx in (24.0, 27.0):
+        for side in (-1, 1):
+            naval.carley_float(m, fx, s0 + 0.9, side * 3.62, 1.8, side)
 m.marking('grid', tags=['hull'], spacingM=[None, 1.5, None], widthM=0.015, depth=0.6)
 # M1 weathering: waterline grime, rust from the hawse pipes and scuppers, soot on the funnel caps.
 m.marking('slab', tags=['hull'], axis='y', fromM=-0.6, toM=0.6, color='exhaustSoot', effect='stain', opacity=0.3, featherM=0.4)

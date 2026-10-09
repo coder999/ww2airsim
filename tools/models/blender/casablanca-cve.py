@@ -108,6 +108,13 @@ with m.tagged('funnels'), m.shared_chart():
 with m.tagged('elevators'), m.shared_chart():
     for x in (-40.0, 40.0):  # impressions, 0.03 m proud: under the deck grid's 0.15 m
         m.box('fitting', (x, FD_H - EMBED_M, 0.0), (12.5, 0.05, 11.0))
+with m.tagged('deckfittings'), m.shared_chart():
+    # M1: a capstan and bitts under the bow overhang, Carley floats on the hangar sides.
+    naval.capstan(m, 72.5, stand(72.5, 1.0), 0.0, EMBED_M)
+    for side in (-1, 1):
+        naval.bitts(m, 68.0, stand(68.0, 1.4), side * (m.hull_at(68.0)[3] - 1.0), True, EMBED_M)
+        for fx in (-44.0, -28.0, -12.0, 4.0, 28.0):
+            naval.carley_float(m, fx, 8.6, side * 9.55, 2.4, side)
 m.marking('grid', tags=['hull'], spacingM=[None, 1.6, None], widthM=0.015, depth=0.6)
 # Flight deck: the bow catapult's track and the arresting wires (dark lines; geometry would break the deck grid).
 m.marking('polygon', tags=['flightdeck'], origin=(0.0, FD_H, 0.0), axis=(0.0, 1.0, 0.0), uDir=(1.0, 0.0, 0.0),
@@ -127,6 +134,13 @@ for s in (-1, 1):
         pts = [(a, -0.5), (b, -0.5), (b + rake, FD_H), (a + rake, FD_H)]
         m.marking('polygon', tags=['hull', 'hangar'], origin=(0.0, 0.0, s * 12.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
                   points=[(s * u, v) for u, v in pts], color=color, opacity=0.95)
+# The hangar's side openings, dark (ESTIMATE: three a side between the galleries' supports).
+for s in (-1, 1):
+    for ox in (-36.0, -8.0, 20.0):
+        if s == 1 and ox == 20.0:
+            continue  # under the island
+        m.marking('polygon', tags=['hangar'], origin=(0.0, 0.0, s * 9.55), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+                  points=[(s * (ox - 4.0), 8.4), (s * (ox + 4.0), 8.4), (s * (ox + 4.0), 9.9), (s * (ox - 4.0), 9.9)], color='dullBlackBK', opacity=0.9)
 # Weathering: waterline grime and rust from the hawse pipes.
 m.marking('slab', tags=['hull'], axis='y', fromM=-0.6, toM=0.7, color='exhaustSoot', effect='stain', opacity=0.3, featherM=0.4)
 for s in (-1, 1):

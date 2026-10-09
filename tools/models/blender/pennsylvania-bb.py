@@ -109,6 +109,9 @@ with m.tagged('turrets'), m.shared_chart():
                 m.tank('fitting', (x, y, z), BARBETTE_R, rise + EMBED_M, segments=48)
             y += rise
             naval.turret(m, name, x, y, z, b, TURRET_BODY, 3, GUN_L, 0.36, bag_length=0.9)
+            f = 1 if round(b) == 0 else -1  # rangefinder hoods (ears) on the gunhouse's flanks, toward its rear
+            for side in (-1, 1):
+                m.box('fitting', (x - f * 2.5, y + TURRET_BODY[2] - 0.8, side * 5.2), (1.6, 0.9, 0.8), node=name)
         elif g['kit'] is not None:
             y = stand(x, 4.2)
             naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
@@ -199,6 +202,19 @@ with m.tagged('anchors'), m.shared_chart():
     for s in (-1, 1):  # bower anchors stowed at the hawse pipes
         ax = 82.0
         m.box('dark', (ax, deck(ax) - 1.8, s * (m.hull_at(ax)[3] + 0.05)), (1.4, 1.6, 0.25))
+with m.tagged('deckfittings'), m.shared_chart():
+    # M1: forecastle capstans and bitts, quarterdeck bitts, cowl vents, Carley floats on the superstructure.
+    for cx in (70.0, 74.0):
+        naval.capstan(m, cx, stand(cx, 1.3), 0.0, EMBED_M)
+    for bx in (64.0, 79.0, -66.0, -78.0):
+        for side in (-1, 1):
+            naval.bitts(m, bx, stand(bx, 1.4), side * (inside(bx) - 1.4), True, EMBED_M)
+    for vx, vz in ((49.0, 8.0), (-47.0, 8.0), (-70.0, 6.0)):
+        for side in (-1, 1):
+            naval.cowl_vent(m, vx, stand(vx, 0.5), side * vz, 180.0 if vx > 0 else 0.0, 1.8, EMBED_M)
+    for fx in (-12.0, -6.0, 0.0, 6.0):
+        for side in (-1, 1):
+            naval.carley_float(m, fx, s0 + 1.2, side * 7.42, 2.6, side)
 # Plating strakes, world-aligned (the grid cuts only axes lying in each surface; decks cut none).
 m.marking('grid', tags=['hull'], spacingM=[None, 1.8, None], widthM=0.02, depth=0.6)
 # M1 weathering: grime along the waterline, rust streaks from the hawse pipes, soot on the funnel's top.

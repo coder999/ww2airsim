@@ -104,3 +104,35 @@ MOUNTS = {
     'mount-40mm-twin': mount_40mm_twin,
     'mount-25mm-triple': mount_25mm_triple,
 }
+
+
+# M1 deck fittings (every dimension an ESTIMATE): what makes a hull read busy at a few hundred meters.
+
+def capstan(m, x, y, z, embed):
+    """An anchor capstan: a 0.9 m drum on a 1.3 m base."""
+    m.tank('fitting', (x, y, z), 0.65, 0.25 + embed, segments=16)
+    m.tank('fitting', (x, y + 0.25, z), 0.45, 0.7, roof_rise=0.12, segments=16)
+
+
+def bitts(m, x, y, z, along_x, embed):
+    """A pair of mooring bitts 0.9 m apart on a plate, the pair laid fore-aft or athwartships."""
+    for d in (-0.45, 0.45):
+        bx, bz = (x + d, z) if along_x else (x, z + d)
+        m.tank('fitting', (bx, y, bz), 0.16, 0.55 + embed, segments=12)
+    m.box('fitting', (x, y - embed, z), (1.4, 0.06 + embed, 0.5) if along_x else (0.5, 0.06 + embed, 1.4))
+
+
+def carley_float(m, x, y, z, length, side):
+    """A Carley life float hung on a vertical face at `side` * z: a flat rounded ring, `length` long."""
+    m.strut('fitting', (x - length / 2, y, z + side * 0.18), (x + length / 2, y, z + side * 0.18), 0.17, sides=8)
+    m.strut('fitting', (x - length / 2, y + 0.75, z + side * 0.18), (x + length / 2, y + 0.75, z + side * 0.18), 0.17, sides=8)
+    for d in (-length / 2, length / 2):
+        m.strut('fitting', (x + d, y, z + side * 0.18), (x + d, y + 0.75, z + side * 0.18), 0.17, sides=8)
+
+
+def cowl_vent(m, x, y, z, bearing, height, embed):
+    """A cowl ventilator: a pipe and its bell mouth turned to `bearing` (0 bow)."""
+    r = 0.22
+    m.strut('fitting', (x, y - embed, z), (x, y + height, z), r, sides=12)
+    mx, mz = _at(x, z, bearing, 0.45, 0.0)
+    m.strut('fitting', (x, y + height - 0.1, z), (mx, y + height + 0.25, mz), r, 1.8 * r, sides=12)
