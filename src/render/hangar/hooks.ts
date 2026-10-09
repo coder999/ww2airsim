@@ -46,6 +46,8 @@ export interface HangarHooks {
   gunMounts(): string[]
   /** Turns every gun mount of the selected ship to `rad` from its rest bearing (M1; the bench's Train mounts sweeps it). */
   trainMounts(rad: number): void
+  /** Raises every gun mount's guns to `frac` of that kit's top elevation (M1b; the same sweep). */
+  elevateMounts(frac: number): void
   readonly validationErrors: string[]
 }
 

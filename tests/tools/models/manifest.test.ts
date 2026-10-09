@@ -119,7 +119,14 @@ describe('generated entries (O1)', () => {
     }
     // The raw store (2026-10-08) adds `inputSha256` to every one. Track M's M1 (2026-10-08) adds the
     // ships' `split` boxes, which carve their gun mounts (tools/models/stages/shipMounts.ts).
-    const m1 = (e: Record<string, unknown>): Record<string, unknown> => { if (!e['ship']) return e; const { split, ...rest } = e; return (void split, rest) }
+    // M1b (2026-10-09) adds instanced guns, so a ship's draw budget is its own (Fletcher's and
+    // Shiratsuyu's rose; the handoff records why), and Shiratsuyu's `remove` drops the download's AA.
+    const m1 = (e: Record<string, unknown>): Record<string, unknown> => {
+      if (!e['ship']) return e
+      const { split, budget, remove, ...rest } = e
+      const { maxDrawCalls, ...b } = budget as Record<string, unknown>
+      return (void split, void remove, void maxDrawCalls, { ...rest, budget: b })
+    }
     const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, inputSha256, ...rest }) => (void boxSkin, void inputSha256, m1(c1(rest))))
     expect(now).toEqual(before.map((e) => m1(c1({ ...e, source: { kind: 'sketchfab', ...e.source } }))))
   })

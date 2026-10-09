@@ -44,7 +44,6 @@ STATIONS = [
     (-L / 2, 1.0, 0.45, 7.0, 1.6), (-66.0, 7.2, 0.5, 7.3, 7.6), (-48.0, B / 2, 0.55, 7.5, 9.9),
     (45.0, B / 2, 0.55, 7.5, 9.9), (62.0, 7.8, 0.5, 7.6, 8.6), (72.0, 3.6, 0.45, 7.9, 5.2), (L / 2, 0.35, 0.4, 8.2, 1.2),
 ]
-SINGLE_20 = [(x, s) for x in range(-66, 67, 12) for s in (-1, 1)]
 GALLERY_Y = FD_H - FD_T - 1.6  # catwalk level, below the flight deck (a fitting above it fails the deck grid)
 DRY_RUN = os.environ.get('NAVAL_DRY_RUN') == '1'  # prints each mount's foot, for the spec's y
 
@@ -79,18 +78,17 @@ with m.tagged('galleries'), m.shared_chart():
 with m.tagged('aa'), m.shared_chart():
     for name, g in naval.armament('casablanca-cve'):
         x, z, b = g['x'], g['z'], g['bearingDeg']
-        if g['kit'] is None:
-            continue
+        if 'run' in g:
+            continue  # a 20 mm gallery on the catwalk: the build draws its guns (M1b)
         if name.startswith('Turret'):  # the stern 5"/38 on its platform, under the flight deck's overhang
             y = stand(x, 5.0)
         else:  # a 40 mm twin on its deck-edge sponson; the tub sinks 0.02 into it
             y = GALLERY_Y - 0.2
             m.box('fitting', (x, GALLERY_Y - 0.43, z), (4.0, 0.25, 4.0))
-        naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
+        if g['kit'] in naval.MOUNTS:
+            naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
         if DRY_RUN:
             print(f'MOUNT {name} {x} {round(y, 2)} {z}')
-    for x, s in SINGLE_20:
-        naval.static_20mm(m, x, GALLERY_Y + 0.25 - EMBED_M, s * (FD_W / 2 + 1.0), 0.0, 0.0)
 with m.tagged('island'), m.shared_chart():
     m.frustum('superstructure', (18.0, FD_H - EMBED_M, 10.4), (14.0, 3.2), (11.0, 2.8), 5.0 + EMBED_M)
     m.frustum('superstructure', (20.0, FD_H + 5.0 - EMBED_M, 10.4), (7.0, 2.8), (5.5, 2.4), 2.2 + EMBED_M)

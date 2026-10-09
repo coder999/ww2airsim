@@ -26,14 +26,14 @@
       {"x": -30.92, "y": 10.06, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-twin", "barrels": 2}
     ],
     "lightAA": [
-      {"x": 70, "y": 7.43, "z": 3, "bearingDeg": 0, "kit": null, "barrels": 2},
-      {"x": 70, "y": 7.43, "z": -3, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 70, "y": 7.43, "z": 3, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 2, "run": 3},
+      {"x": 70, "y": 7.43, "z": -3, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 2, "run": 3},
       {"x": 28, "y": 9.33, "z": 4, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},
       {"x": 28, "y": 9.33, "z": -4, "bearingDeg": -90, "kit": "mount-40mm-twin", "barrels": 2},
       {"x": 11.05, "y": 8.09, "z": 6.4, "bearingDeg": 90, "kit": "mount-40mm-quad", "barrels": 4},
       {"x": 11.05, "y": 8.09, "z": -6.4, "bearingDeg": -90, "kit": "mount-40mm-quad", "barrels": 4},
-      {"x": 5, "y": 6.76, "z": 7.5, "bearingDeg": 0, "kit": null, "barrels": 3},
-      {"x": 5, "y": 6.76, "z": -7.5, "bearingDeg": 0, "kit": null, "barrels": 3},
+      {"x": 5, "y": 6.76, "z": 7.5, "bearingDeg": 90, "kit": "mount-20mm-single", "barrels": 3, "run": 4.8},
+      {"x": 5, "y": 6.76, "z": -7.5, "bearingDeg": -90, "kit": "mount-20mm-single", "barrels": 3, "run": 4.8},
       {"x": -0.72, "y": 9.82, "z": 6.53, "bearingDeg": 90, "kit": "mount-40mm-quad", "barrels": 4},
       {"x": -0.72, "y": 9.82, "z": -6.53, "bearingDeg": -90, "kit": "mount-40mm-quad", "barrels": 4},
       {"x": -24, "y": 9.33, "z": 5, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},

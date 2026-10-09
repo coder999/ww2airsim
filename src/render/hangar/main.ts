@@ -70,9 +70,12 @@ async function boot(): Promise<void> {
   let benchUi: BenchHandle | null = null
   const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false, mounts: false }
   // Track M, M1: the bench's Train mounts sweeps every gun mount +-90 deg about its own axis, so a
-  // look shows each one turning alone, on its own pivot. Off, they rest at their spec bearing.
+  // look shows each one turning alone, on its own pivot; M1b raises the guns from level to each kit's
+  // top elevation in the same sweep. Off, they rest at their spec bearing, level.
   let sweepS = 0
   const trainMounts = (rad: number): void => { for (const m of model?.gunMounts ?? []) m.setTraining(rad) }
+  /** `frac` of each mount's own top elevation (0 level, 1 its maximum). */
+  const elevateMounts = (frac: number): void => { for (const m of model?.gunMounts ?? []) m.setElevation(frac * m.maxElevationRad) }
   const refreshCounts = (): void => { if (model) benchUi?.setCounts(countsReport(model.root, content.budgets)) }
   const pose = (p: PartPose): void => {
     model?.pose(controller.set(p))
@@ -84,7 +87,7 @@ async function boot(): Promise<void> {
     if (which === 'wireframe') stage.setWireframe(on)
     else if (which === 'checker') stage.setChecker(on)
     else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
-    else if (which === 'mounts') { sweepS = 0; trainMounts(0) }
+    else if (which === 'mounts') { sweepS = 0; trainMounts(0); elevateMounts(0) }
     else stage.setAutoRotate(on)
   }
   // One frame of the bench: a running Cycle, then the model's own clock.
@@ -95,7 +98,7 @@ async function boot(): Promise<void> {
       benchUi?.sync(controller.state())
     }
     model?.update(frameS)
-    if (debug.mounts) { sweepS += frameS; trainMounts(Math.sin(sweepS * 0.8) * Math.PI / 2) }
+    if (debug.mounts) { sweepS += frameS; trainMounts(Math.sin(sweepS * 0.8) * Math.PI / 2); elevateMounts(0.5 - 0.5 * Math.cos(sweepS * 0.6)) }
   }
 
   const select = async (id: string): Promise<void> => {
@@ -158,6 +161,7 @@ async function boot(): Promise<void> {
     storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
     gunMounts: () => (model?.gunMounts ?? []).map((m) => m.name),
     trainMounts,
+    elevateMounts,
     validationErrors,
   })
 

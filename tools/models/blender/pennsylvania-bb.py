@@ -79,7 +79,6 @@ SUPERFIRING_RISE_M = 2.6  # Nos. 2 and 3 stand on barbettes this far above the d
 TURRET_BODY = (9.5, 11.5, 3.4)
 BARBETTE_R = 5.2
 GUN_L = 45 * 0.3556  # 14"/45: 45 calibers of 14 in (0.3556 m) = 16.0 m, CITED arithmetic
-SINGLE_CLEAR_M = 3.0  # a 20 mm single keeps this far (plan) from a 40 mm tub's or a 5" mount's center
 DRY_RUN = os.environ.get('NAVAL_DRY_RUN') == '1'  # prints each mount's foot, for the spec's y
 
 out, opts = kit.cli_args()
@@ -98,7 +97,6 @@ def stand(x, l):
 
 
 # The guns, from the spec. Turrets: a barbette for the superfiring pair, the gunhouse on it.
-fixed = []  # (x, z) of every 5" and 40 mm mount, which the 20 mm keep clear of
 with m.tagged('turrets'), m.shared_chart():
     for name, g in naval.armament('pennsylvania-bb'):
         x, z, b = g['x'], g['z'], g['bearingDeg']
@@ -112,12 +110,11 @@ with m.tagged('turrets'), m.shared_chart():
             f = 1 if round(b) == 0 else -1  # rangefinder hoods (ears) on the gunhouse's flanks, toward its rear
             for side in (-1, 1):
                 m.box('fitting', (x - f * 2.5, y + TURRET_BODY[2] - 0.8, side * 5.2), (1.6, 0.9, 0.8), node=name)
-        elif g['kit'] is not None:
+        elif g['kit'] in naval.MOUNTS:
             y = stand(x, 4.2)
             naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
-            fixed.append((x, z))
         else:
-            continue
+            continue  # light AA: the build generates it (M1b)
         if DRY_RUN:
             print(f'MOUNT {name} {x} {round(y, 2)} {z}')
 
@@ -169,15 +166,6 @@ with m.tagged('searchlights'), m.shared_chart():
             py = s0 + dy
             m.box('fitting', (-5.5, py, s * 3.9), (2.6, 0.2, 2.4))
             m.tank('fitting', (-5.5, py + 0.2 - EMBED_M, s * 3.9), 0.55, 0.9, segments=16)
-with m.tagged('aa'), m.shared_chart():
-    for x in range(-80, 81, 8):
-        if abs(x) <= 12:
-            continue
-        for s in (-1, 1):
-            z, y = s * (inside(x) - 0.9), stand(x, 0.4)
-            if any(math.hypot(x - mx, z - mz) < SINGLE_CLEAR_M for mx, mz in fixed):
-                continue  # it would stand inside a 40 mm tub or against a 5" mount (Ruling, T7/T9)
-            naval.static_20mm(m, x, y, z, 0.0, EMBED_M)
 with m.tagged('boats'), m.shared_chart():
     # Six on the superstructure roof (x -13.5..19.5, z +-7), outboard of the funnel and aft of the bridge.
     by = y1 - EMBED_M + 0.8  # the keel (the mid station's lowest point) sinks EMBED_M into the roof

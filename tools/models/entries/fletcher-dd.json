@@ -12,7 +12,7 @@
   "normalize": { "forward": "+x", "up": "+y", "origin": [0.0021, 0, 0], "fit": { "extent": "length", "meters": 114.8 } },
   "textures": { "maxSize": 1024, "format": "webp" },
   "opaque": false,
-  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 15 },
   "ship": {
     "spec": "fletcher-dd",
     "fit": "hull",
