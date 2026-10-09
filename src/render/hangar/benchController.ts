@@ -21,12 +21,14 @@ export interface BenchState {
   readonly roll: number
   readonly pitch: number
   readonly yaw: number
+  readonly turretBearingDeg: number
+  readonly turretElevationDeg: number
   readonly bombs: boolean
   readonly rockets: boolean
   readonly cycling: CyclePart | null
 }
 
-export const REST: BenchState = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, roll: 0, pitch: 0, yaw: 0, bombs: true, rockets: true, cycling: null }
+export const REST: BenchState = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, roll: 0, pitch: 0, yaw: 0, turretBearingDeg: 0, turretElevationDeg: 0, bombs: true, rockets: true, cycling: null }
 
 export interface BenchController {
   state(): BenchState

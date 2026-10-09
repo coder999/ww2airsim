@@ -1069,7 +1069,8 @@ class Model:
     def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None):
         """A turret on the fuselage skin at ``center``: a dome ``height`` tall toward ``up`` (+1
         dorsal, -1 ventral) and ``barrels`` guns pointing ``facing`` along x, all in node
-        ``TurretN`` for H3 (numbered nose to tail by the caller)."""
+        ``TurretN`` for H3 (numbered nose to tail by the caller). The barrels are their own part,
+        ``TurretNGuns``, hinged on a horizontal trunnion so a positive turn raises the muzzle."""
         _require(isinstance(index, int) and index > 0, f'gun_turret: index must be a positive integer, got {index!r}')
         _require(up in (-1, 1) and facing in (-1, 1), f'gun_turret: up and facing must be -1 or +1, got {up}, {facing}')
         _require(isinstance(barrels, int) and barrels > 0, f'gun_turret: barrels must be a positive integer, got {barrels!r}')
@@ -1078,10 +1079,13 @@ class Model:
         cx, cy, cz = center
         self.revolve(role, center, (0.0, float(up), 0.0), [(0.0, radius), (0.55 * height, 0.85 * radius), (height, 0.25 * radius)], 12, key)
         gauge = 0.16 * radius
+        guns = key + 'Guns'
+        gy = cy + up * 0.45 * height - gauge / 2
         for b in range(barrels):
             zz = cz + (b - (barrels - 1) / 2) * radius * 0.35
-            self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), cy + up * 0.45 * height - gauge / 2, zz),
-                     (barrel_length, gauge, gauge), key)
+            self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), gy, zz), (barrel_length, gauge, gauge), guns)
+        # Barrels along facing * x: a turn about facing * z lifts them (z x x = y).
+        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in (cx, gy + gauge / 2, cz)], 'axis': [0.0, 0.0, float(facing)]}
 
     # --- Building parts (R4). Every one is wound outward: kitBuildings.test.ts checks it. ---
 
