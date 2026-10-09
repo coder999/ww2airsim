@@ -4,25 +4,28 @@ export const OCEAN_TIERS = [
   {name:'low',cascades:1,n:128},
 ] as const
 export type OceanTier = typeof OCEAN_TIERS[number]
-/** RX 6700 XT / Chromium D3D12, 1440p, Beaufort 6 at 600 m,
- * 2026-09-15: sum of render and per-cascade GPU timestamp percentiles:
- * high p50/p95 3.277/3.539 ms; medium 2.425/2.621; low 2.228/2.490.
- * These are unpaired pass percentiles, not wall-clock frame latency.
- * Keep high through 8 ms (below 8.33 ms at 120 Hz). Medium's measured
- * 0.741 cost ratio puts an 11 ms high frame near 8.15 ms; slower goes low.
- * This is a one-time downward selection, not a promise for every adapter.
+/**
+ * A4: the one-time quality verdict, from the frame intervals of the first
+ * seconds of flight at the tier in force (`main.ts`'s probe).
  *
- * **RE-MEASURED 2026-09-17, and the budget holds.** `radialSteps`' floor went
- * 64 -> 128 that day to close the 391 m ring seam, doubling the ocean mesh from
- * 266,760 to 529,416 vertices, and `mesh.ts` recorded a re-measurement as owed
- * because these figures predate it. Measured on the reference desktop through
- * `tests/e2e/terrain.spec.ts`'s frame-time budget at 1440p over Leyte: **gpu
- * p50 3.211 ms, p95 3.277 ms over 491 samples**, against the 3.277/3.539 ms
- * above. The extra vertices cost nothing measurable -- these numbers are about
- * the compute passes, and doubling a vertex count does not touch them.
+ * Frame RATE, not GPU time, and that is the whole fix for incident
+ * 2026-09-20: a vsynced browser lets the GPU idle and clock down between
+ * frames, so a timestamp span reads about 3x the same work under the Tier 2
+ * harness (Mark's desktop read 11.4 ms at p95 and got Low), while the frame
+ * rate is what the pilot sees. The median, so one hitch (a shader compile, a
+ * terrain tile) cannot decide it. High at 50 fps or better, Medium at 30,
+ * else Low: the old no-timestamp fallback's thresholds (18 and 34 ms at the
+ * p95), now the only rule.
  */
-export function tierForFrameTimeMs(ms: number): OceanTier {
-  return ms <= 8 ? OCEAN_TIERS[0] : ms <= 11 ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+export const PROBE_HIGH_MS = 20
+export const PROBE_MEDIUM_MS = 1000 / 30
+export function tierForFrameIntervalsMs(intervals: readonly number[]): { readonly tier: OceanTier; readonly medianMs: number } {
+  if (intervals.length === 0) throw new Error('quality probe: no frame intervals')
+  const sorted = [...intervals].sort((a, b) => a - b)
+  const mid = sorted.length >> 1
+  const medianMs = sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
+  const tier = medianMs <= PROBE_HIGH_MS ? OCEAN_TIERS[0] : medianMs <= PROBE_MEDIUM_MS ? OCEAN_TIERS[1] : OCEAN_TIERS[2]
+  return { tier, medianMs }
 }
 /** DEV-only override for measuring identical scenes at each quality. */
 export function oceanTierFromQuery(search: string): OceanTier | undefined {

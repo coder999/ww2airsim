@@ -16,6 +16,7 @@ import { DT } from '../../src/sim/flight/model.js'
 import { AIRFIELD_HUTS, inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { emptyStores } from '../../src/sim/weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
+import { gunsSafe } from '../../tools/ai/replica.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 
 /** The level a real page load actually flies over today -- see
@@ -336,7 +337,9 @@ describe('the energy-aware decision layer (Plan 7b)', () => {
   })
 
   it('MIN_ENGAGEMENT_RANGE_M forces Extend in production advance() at point-blank range, closing', () => {
-    let world = worldFromScenario(pursuit, null)
+    // E1: guns safe, or the veteran shoots the passive player down at about
+    // tick 190 (aiLethality.test.ts item 1) and never closes to point-blank.
+    let world = gunsSafe(worldFromScenario(pursuit, null), 'pursuer-1')
     // Run until pursuer-1 has closed inside MIN_ENGAGEMENT_RANGE_M -- reuse
     // the existing "turns onto a gun solution" test's own tick budget/loop
     // shape from this same file, then assert:

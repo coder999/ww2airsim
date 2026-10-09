@@ -149,6 +149,7 @@ async function boot(): Promise<void> {
     pose,
     tick: step,
     camera: (p) => stage.setPreset(p),
+    aim: (eye, target) => stage.aim(eye, target),
     freeze: () => { frozen = true; debug.turntable = false; benchUi?.setDebug('turntable', false); stage.freeze() },
     setModelVisible: (v) => stage.setModelVisible(v),
     setUnlit: (on) => stage.setUnlit(on),

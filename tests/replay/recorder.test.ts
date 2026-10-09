@@ -11,7 +11,7 @@ describe('recorder (replay spec §3, plan R-1)', () => {
     expect(createRecorder().snapshot()).toBeNull()
   })
   it('keeps the identical world objects, ascending', () => {
-    const r = createRecorder()
+    const r = createRecorder({ minTickGap: 1 })
     const a = w(1), b = w(2)
     r.push(a); r.push(b)
     expect(r.snapshot()!.worlds[0]).toBe(a)
@@ -25,7 +25,7 @@ describe('recorder (replay spec §3, plan R-1)', () => {
     expect(r.snapshot()!.worlds[0]).toBe(a)
   })
   it('spans the last 600 ticks and drops the oldest', () => {
-    const r = createRecorder()
+    const r = createRecorder({ minTickGap: 1 })
     for (let t = 1; t <= 2000; t++) r.push(w(t))
     const s = r.snapshot()!
     expect(s.worlds[0]!.tick).toBe(2000 - REPLAY_SPAN_TICKS)

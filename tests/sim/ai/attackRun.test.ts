@@ -5,6 +5,7 @@ import { VETERAN_SKILL, type ManeuverLatch, type ManeuverName } from '../../../s
 import { createWorldOf, type World } from '../../../src/sim/loop.js'
 import { v3, ZERO, type Vec3 } from '../../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
+import { gunsSafe } from '../../../tools/ai/replica.js'
 import { level, pilotFor, runCanned, straight, withRepertoire } from './maneuverWorlds.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -33,13 +34,16 @@ describe('attack run (7c spec §3.5)', () => {
   // 500 m behind, 0.869 from 600 m and 0.822 from 700 m.
   it('a veteran Hellcat 1,000 m above a Zero (boom-and-zoom): selected, fires in the dive, zooms back at least 60% of the height lost', () => {
     const skill = withRepertoire(VETERAN_SKILL, ['lead-pursuit', 'attack-run', 'defensive-break', 'extend'] as ManeuverName[])
-    const world = createWorldOf({
+    // Guns safe (E1): with honest gunnery the veteran shoots the Zero down in
+    // its first dive (at 11 s, measured 2026-10-09) and loiters, so there is
+    // no zoom to measure. "Fires" is the trigger the pilot calls.
+    const world = gunsSafe(createWorldOf({
       aircraft: [
         level('p', f6f, v3(-600, 4000, 0), v3(130, 0, 0), pilotFor('t', skill)),
         level('t', zero, v3(0, 3000, 0), v3(110, 0, 0)),
       ],
       player: 't',
-    })
+    }), 'p')
     const [p0, t0] = [world.aircraft.find((a) => a.id === 'p')!, world.aircraft.find((a) => a.id === 't')!]
     expect(relativeEnvelope(airframeEnvelope(p0.spec, p0.state), airframeEnvelope(t0.spec, t0.state)).pairing).toBe('boom-and-zoom')
 
@@ -47,21 +51,18 @@ describe('attack run (7c spec §3.5)', () => {
     // (a new latch) or the end of the window.
     type Run = { enteredAtS: number; entryY: number; lowest: number; highestAfterLowest: number; firedInDescent: boolean }
     const runs: Run[] = []
-    let lastShots = 0
     runCanned(world, { t: straight }, 40, (w) => {
       const s = self(w)
       const d = s.pilot!.decision
       const y = s.state.position.y
-      const shots = w.combat.aircraft['p']!.shots
       if (d.named === 'attack-run' && d.latch !== null && d.latch.enteredAtS !== runs.at(-1)?.enteredAtS) {
         runs.push({ enteredAtS: d.latch.enteredAtS, entryY: y, lowest: y, highestAfterLowest: -Infinity, firedInDescent: false })
       }
       const run = runs.at(-1)
       if (run !== undefined) {
         if (y < run.lowest) { run.lowest = y; run.highestAfterLowest = -Infinity } else run.highestAfterLowest = Math.max(run.highestAfterLowest, y)
-        if (d.named === 'attack-run' && d.latch?.phase === 0 && s.state.velocity.y < 0 && shots > lastShots) run.firedInDescent = true
+        if (d.named === 'attack-run' && d.latch?.phase === 0 && s.state.velocity.y < 0 && s.controls.fire === true) run.firedInDescent = true
       }
-      lastShots = shots
     })
     const first = runs[0]!
     expect(runs.length).toBeGreaterThanOrEqual(1)

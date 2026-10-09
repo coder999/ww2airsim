@@ -1,3 +1,4 @@
+import { aimErrorDraw } from '../../src/sim/ai/noise.js'
 import { describe, it, expect } from 'vitest'
 import {
   advance, createWorld, createWorldOf, playerAircraft, aircraftById, withControls, withAircraftState,
@@ -38,6 +39,7 @@ const PURSUE_NOW = initialDecision()
 const RESCORED_PURSUE = {
   ...initialDecision(), targetId: 'target', mode: 'engage' as const, nextRescoreS: DT + GREEN_SKILL.reactionS,
   observedTargetPosition: v3(900, 2100, 250), observedTargetVelocity: v3(80, 0, 10), noiseCursor: 3407366838,
+  aimError: aimErrorDraw(initialDecision().noiseCursor, GREEN_SKILL.aimErrorRad),
 }
 
 const f6f = loadAircraftSpec('f6f-hellcat')

@@ -28,11 +28,11 @@ render quality with auto-detect.
 
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
-**A3. Time-of-day picker (S-M).**
+**A3. Time-of-day picker (S-M). Done 2026-10-09** (merge of `a3a4-launch`): Form 2 offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
 - **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
-**A4. Quality auto-detect that measures the right thing (M).**
+**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09**, same merge: the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Mark's Chrome on Ryzen reads 104 fps and High (`qualityProbeChrome.spec.ts`).
 - **Today:** the probe takes one p95 after 180 frames **on the title screen**, under vsync. A vsynced Chrome downclocks the GPU and reads about 3× high, so Mark's desktop measured 11.4 ms and got Low (`main.ts:1424-1442`, `ocean/tiers.ts:25`).
 - **Proposal:**
   - Measure a representative flight view, not the title screen.
@@ -48,9 +48,17 @@ render quality with auto-detect.
 
 Mark's items: guide mode (an arrow to the objective; a bomb impact marker); improved autopilot; a tutorial. Terms per `CONTEXT.md`: the arrow is the **Steering cue** (always on), the marker an **Assist** (off by default, behind the Assists toggle; §4 Q2).
 
-**B1. Steering cue (S).**
-- **Today:** a course and range to a selected entity exist only inside the modal chart (P). `courseTo` is pure (`missionMap.ts:174-196`). Nothing shows direction in flight.
-- **Proposal:** a HUD arrow to the current objective (or the chart selection), with range in miles and relative altitude.
+**B1. Steering cue (S, done 2026-10-08).**
+- **Shipped:** an always-on, nose-relative HUD arrow follows the first active
+  primary objective with a finite destination. A destination selected on the
+  navigation chart overrides it; a destroyed or otherwise stale selection
+  falls back to the objective.
+- Range is in statute miles and vertical separation in feet. Destroy objectives
+  follow their nearest live resolved target; station altitude bands read level
+  while the player is inside the band. Standing `protect`, `deny` and
+  `approaches` orders do not mask a simultaneous recovery objective.
+- **Redesigned 2026-10-09 (Mark):** the cue moved from a HUD text line into the scene: an arrow ahead of the nose that turns toward the destination, a diamond on the destination once it is on screen, and the name and range beside either. No altitude.
+- Measurements and verification: [`docs/handoff/2026-10-08-b1-steering-cue.md`](docs/handoff/2026-10-08-b1-steering-cue.md).
 
 **B2. Bomb impact predictor (M).**
 - **Today:** bombs are aimed by eye.
@@ -123,6 +131,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 Mark's item is "improved AI". In priority order, by what other tracks need:
 
 1. **Gunnery honesty (M).** Lead on relative velocity, drop compensation and per-skill aim error. **This blocks almost every combat mission:** AI-vs-AI fights don't end in kills, and M4's interceptors can't shoot raiders down.
+   - **Done 2026-10-09, merged to `main`** (veterans toned down and green strengthened per Mark's rulings the same day). Plan `docs/superpowers/plans/2026-10-09-e1-gunnery.md`; handoff `docs/handoff/2026-10-09-e1-gunnery.md`. AI duels now end in kills (26 of 72 duels, from 3); a straight-flying player survives a veteran a median 8 s; green rarely kills a maneuvering target.
 2. **Attack behaviors (M):**
    - **Dive-bombing** first, as the D3A exists and bombs already work.
    - **Torpedo runs** after Track D.
@@ -227,15 +236,15 @@ one plan for the lot.
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals:**
   - wind;
-  - gear and flap motors, plus lock clunk (C1 pairs; reuse C2's synthesized door motor);
   - wheel rumble;
   - stall buffet and buzz;
   - overspeed creak;
   - radio squelch and static. The radio bus exists and nothing feeds it (`webAudio.ts:52-58`).
-- **I2, voice (§4 Q7):** Mark generates in Adobe Firefly. Scope:
-  - a catalog of every on-screen message, with a proposed **Radio line** for each reusable one ("Cleared for takeoff"); Mark strikes what he doesn't want;
-  - Voices: Paddles, Tower and Wingman, each with a US English and a Japanese take chosen by the player's side (`CONTEXT.md`);
-  - `docs/audio/firefly-prompt-sheet.md` (16 Paddles lines today) becomes a manifest, and an ingest script checks name, format and length, measures peaks, writes the `src/audio/assets.ts` entries and the `NOTICE.md`/`ASSETS.md` lines, and reports what is still missing.
+- **I2, voice (§4 Q7):**
+  - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
+  - **Not wired yet.** The lines are not in `AUDIO_ASSETS` on purpose: `system.ts` loads that whole table at boot, and the lines total 16 MB. Wiring loads only the player side's 34, on demand.
+  - Still to do: tie each on-screen message to its line, feed the radio bus (`webAudio.ts`), and choose US or JA by the player's side (`CONTEXT.md`).
+- **I3, recorded effects (Mark, 2026-10-09):** gear up/down and flaps up/down are recorded rather than synthesized, plus AA guns (5-inch, 40 mm, 20 mm; ship and ground share them), a close flak burst, and torpedo drop and hit. Prompts are in `docs/audio/firefly-prompt-sheet.md`; ElevenLabs takes are on `sounds.html`. Picked: `gear_cycle.wav` (one sound for gear up and down, in `AUDIO_ASSETS`, unwired). Flap and AA prompts were reworded after the first takes sounded like flapping wings and weak guns; awaiting Mark's review. Wiring: gear and flaps with C1, the AA guns and flak with M2, the torpedo with the Avenger.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S). Done 2026-10-08
@@ -258,6 +267,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - Every warship ends with separate turret and AA-mount nodes, with AA added where a model has none.
      - Merchants (the Maru) get no guns.
      - **M1b (done 2026-10-09,** merge `e66b78a9`, handoff `docs/handoff/2026-10-09-m1b-aa-mounts.md`): Mark couldn't see the AA, so light AA is now generated at 1.3x with shields and dark barrels, every 20 mm and 25 mm gallery draws each gun, and every mount's guns elevate (Hangar Train mounts sweep).
+     - **M1c (done 2026-10-09,** merge `83e23729`, handoff `docs/handoff/2026-10-09-m1c-ship-detail.md`): our three Blender ships gain railings, rigging, rounded deckhouses and a committed high-poly bake (AO and detail normals, Cycles on Ryzen's GPU), with deck planks or linoleum and porthole rust. Budgets unchanged.
   2. **M2 AA fire (M).** Ships and ground AAA share one system:
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;
@@ -313,7 +323,7 @@ All decided 2026-10-08 (grilling session); the tracks above carry each answer.
 4. ~~**Cockpits.**~~ Stage 1 only.
 5. ~~**Autopilot modes.**~~ G-limited lead pursuit only; nav modes dropped.
 6. ~~**Torpedo airframe.**~~ TBF/TBM Avenger first.
-7. ~~**Voice lines.**~~ Generated by Mark in Firefly; catalog, three Voices (Paddles, Tower, Wingman) each with a Japanese take, manifest and ingest script (Track I).
+7. ~~**Voice lines.**~~ Recorded 2026-10-09 with ElevenLabs (Track I, I2); catalog, three Voices (Paddles, Tower, Wingman) each with a Japanese take, manifest and ingest script (Track I).
 8. ~~**Analytics scope.**~~ Production only; one privacy line in About.
 9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; master spec §15 is frozen as history (README).
 10. ~~**T1 and W1.**~~ Keep both. Mark hand-flew T1 2026-10-08: the landing and the hands-off torque swing are right. Settled.

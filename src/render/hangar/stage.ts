@@ -159,6 +159,8 @@ export interface HangarStage {
   /** Replaces what stands on the stage. `kind` picks the ground: water for ships, a pad otherwise. */
   show(model: Object3D | null, kind: LibraryKind | null): void
   setPreset(p: CameraPreset): void
+  /** The camera at `eye`, looking at `target`, both in stage meters (M1c captures: one distance for every ship). */
+  aim(eye: readonly [number, number, number], target: readonly [number, number, number]): void
   /** Stops the turntable and makes the frame repeatable (E2E). */
   freeze(): void
   setModelVisible(visible: boolean): void
@@ -284,6 +286,14 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
     setPreset(p): void {
       preset = p
       frame()
+    },
+    aim(eye, target): void {
+      controls.target.set(...target)
+      camera.position.set(...eye)
+      camera.near = 0.5
+      camera.far = 20_000
+      camera.updateProjectionMatrix()
+      controls.update()
     },
     freeze(): void {
       controls.autoRotate = false

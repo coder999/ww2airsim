@@ -1,0 +1,24 @@
+{
+ "version": 1,
+ "model": "kagero-dd",
+ "rawSha256": "c4654dafac7c0fb613f891bfe5f3543c48e045142825a0ffda4a9be80133baaf",
+ "detailSha256": "66e745572be742a4c05422fac8b829a55db7c9aa9d95753400a686fbc8496d08",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 83,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 2.8,
+   "normal": 0.9
+  },
+  "size": 2048,
+  "totalSeconds": 5,
+  "host": "ryzen",
+  "wallSeconds": 7.5
+ },
+ "date": "2026-10-09"
+}

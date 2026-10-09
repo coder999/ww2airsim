@@ -10,7 +10,8 @@ import type { Loadout } from './weapons/stores.js'
  */
 export type StartKind = 'carrier' | 'airfield' | 'airborne'
 export type AircraftNation = AircraftSpec['side']
-export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec: string; readonly loadout: Loadout; readonly dev: boolean }
+/** `timeOfDay`: Form 2's takeoff hour (A3, solar hours); absent flies the scenario's own. */
+export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec: string; readonly loadout: Loadout; readonly dev: boolean; readonly timeOfDay?: number }
 export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'no-stations'
 export type SortieFacts = { readonly devScenario: boolean; readonly start: StartKind; readonly spec: AircraftSpec; readonly loadout: Loadout }
 

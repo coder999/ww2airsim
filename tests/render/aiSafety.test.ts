@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadFixtureScenarioBundle } from '../fixtures/scenarios.js'
-import { EVASION, LOADOUTS, aircraftOf, flyFrames, passive, replicaWorld } from '../../tools/ai/replica.js'
+import { EVASION, LOADOUTS, aircraftOf, flyFrames, gunsSafe, passive, replicaWorld } from '../../tools/ai/replica.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision } from '../../src/sim/ai/pilot.js'
 import { FLOOR_BUFFER_M, FLOOR_M, PURSUIT_FLOOR_BELOW_TARGET_M, PURSUIT_FLOOR_M } from '../../src/sim/ai/safety.js'
 import { SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
@@ -46,11 +46,15 @@ describe('the safety soak: 120 s of the 7d evasion, both skills (7c spec §3.6)'
   // on 2,649-3,044 ticks per run (`.superpowers/7c/t15-soak.ts`). With the floor
   // alone, before the acceleration term in `needsFloorRecovery`, all 8 went
   // into the sea (-14.6 to -22.7 m).
+  //
+  // E1 (2026-10-09): the pursuer's guns are safe (`gunsSafe`). With honest
+  // gunnery the veteran shoots the evading player down before the dive, so
+  // the floor never acted (bombs and rockets) and the soak proved nothing.
   for (const [name, skill] of [['green', GREEN_SKILL], ['veteran', VETERAN_SKILL]] as const) {
     it.each(LOADOUTS)(`${name}, %s: no overload damage, never below the 50 ft pursuit floor or into the sea, peak load within gLimit`, (loadout) => {
       const m = { peakG: 0, lowest: Infinity, recovered: 0 }
       const tailChase = loadFixtureScenarioBundle('pursuit-tail-chase')
-      const f = flyFrames(replicaWorld(tailChase, loadout, 0, skill), EVASION, 120, (fr) => {
+      const f = flyFrames(gunsSafe(replicaWorld(tailChase, loadout, 0, skill), 'pursuer-1'), EVASION, 120, (fr) => {
         const p = aircraftOf(fr, PURSUER)
         const rec = fr.world.combat.aircraft[PURSUER]!
         if (p.impact === null && rec.damage.destroyedAt === null) {

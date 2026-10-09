@@ -10,7 +10,8 @@ import { DT } from '../sim/flight/model.js'
  * however many frames that took.
  */
 export const REPLAY_SPAN_TICKS = 600
-/** 1 records every advanced frame; 2 halves memory (spec §9's first step). Set by Task 1's measurement. */
+/** 1 records every advanced frame. E1 (2026-10-09) briefly set 2 to stay under spec §9's 64 MB; Mark ruled
+ *  the replay records every frame like live play, and §9's limit rose to 80 MB instead (66.8 MB measured). */
 export const REPLAY_MIN_TICK_GAP = 1
 
 export type Recording = { readonly worlds: readonly World<undefined>[] }
