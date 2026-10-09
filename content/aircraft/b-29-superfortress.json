@@ -157,6 +157,11 @@
     "dragAreaM2": 3.59,
     "clIncrement": 0.7133
   },
+  "bayDoors": {
+    "travelSeconds": 2,
+    "dragAreaM2": 1.0,
+    "source": "ESTIMATE (C2, 2026-10-08): the B-29's doors were pneumatic snap-action, so a short travel; drag area is two open bays of about 6.6 sq m opening at a cavity Cd of 0.15. Nothing measured; both are tuning values."
+  },
   "stores": {
     "racks": [
       {

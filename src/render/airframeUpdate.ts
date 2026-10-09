@@ -24,6 +24,7 @@ export function airframeUpdateFor(
   return {
     gearFraction: aircraft.state.gearFraction,
     flapFraction: aircraft.state.flapFraction,
+    bayDoorFraction: aircraft.state.bayDoorFraction,
     throttle: aircraft.impact === null ? controls.throttle : 0,
     controls: { roll: controls.roll, pitch: controls.pitch, yaw: controls.yaw },
     frameS,

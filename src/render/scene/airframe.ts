@@ -5,7 +5,7 @@ import type { Object3D } from 'three'
  *  model actually has, so the Hangar bench can show the rest as "not
  *  modeled" instead of a slider that moves nothing (Hangar spec §7, Mark's
  *  decision 1, 2026-09-25). */
-export type PartId = 'prop' | 'gear' | 'flaps' | 'surfaces' | 'stores'
+export type PartId = 'prop' | 'gear' | 'flaps' | 'surfaces' | 'doors' | 'stores'
 
 /** Everything one airframe needs to pose itself for one rendered frame. */
 export interface AirframeUpdate {
@@ -13,6 +13,8 @@ export interface AirframeUpdate {
   readonly gearFraction: number
   /** `AircraftState.flapFraction`: 0 = up, 1 = fully down. */
   readonly flapFraction: number
+  /** `AircraftState.bayDoorFraction`: 0 = shut, 1 = open (C2). */
+  readonly bayDoorFraction: number
   /** [0, 1]. Pass 0 for a wreck, so its propeller stops. */
   readonly throttle: number
   /** The pilot's command, for control surfaces where a model has them. */

@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { QUIET_DAMAGE } from './inputs.js'
 import {
   GUN_CUE_INTERVAL_TICKS, HIT_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
+  MOTOR_GAIN,
 } from '../../src/audio/cues.js'
+import { motorSamples, MOTOR_PEAK, SYNTH_SAMPLE_RATE } from '../../src/audio/synth.js'
 
 const flying: AudioInputs = {
   throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 1.5, tick: 100, shots: 0,
@@ -360,6 +362,36 @@ describe('damage and carrier cues', () => {
     expect(nextAudio(hook.memory, at(102, { hookDown: true })).cues).toEqual([])
     const up = nextAudio(hook.memory, at(103, { hookDown: false }))
     expect(nextAudio(up.memory, at(104, { hookDown: true })).cues).toEqual(['hook_clunk'])
+  })
+
+  it('runs the motor while the bay doors travel, through render frames that ran no tick, and clunks once at each end (C2)', () => {
+    let m = nextAudio(NO_AUDIO_MEMORY, at(100)).memory
+    const seen: { motor: number; cues: readonly string[] }[] = []
+    // Opening over three ticks, each rendered twice (the second frame ran no fixed step), then held open.
+    for (const [tick, f] of [[101, 0.3], [101, 0.3], [102, 0.7], [102, 0.7], [103, 1], [103, 1], [104, 1], [110, 1]] as const) {
+      const r = nextAudio(m, at(tick, { bayDoorFraction: f }))
+      m = r.memory
+      seen.push({ motor: r.motor, cues: r.cues })
+    }
+    expect(seen.slice(0, 4).every((s) => s.motor === MOTOR_GAIN)).toBe(true)
+    expect(seen.slice(4).every((s) => s.motor === 0)).toBe(true)
+    expect(seen.flatMap((s) => s.cues)).toEqual(['hook_clunk'])
+    // Shutting again locks with a clunk too; a plain input (no doors) is silent.
+    const shut = nextAudio(nextAudio(m, at(111, { bayDoorFraction: 0.5 })).memory, at(112, { bayDoorFraction: 0 }))
+    expect(shut.cues).toEqual(['hook_clunk'])
+    expect(nextAudio(NO_AUDIO_MEMORY, at(5)).motor).toBe(0)
+  })
+
+  it('the synthesized motor is a seamless loop at its stated peak (C2)', () => {
+    const s = motorSamples(SYNTH_SAMPLE_RATE)
+    expect(s.length).toBe(SYNTH_SAMPLE_RATE)
+    expect(Math.max(...Array.from(s, Math.abs))).toBeCloseTo(MOTOR_PEAK, 6)
+    // Across the wrap the wave curves no more sharply than anywhere inside it: a fractional cycle count
+    // leaves the value continuous but flips the slope there, which this second difference sees.
+    const curve = (a: number, b: number, c: number): number => Math.abs(a - 2 * b + c)
+    let largest = 0
+    for (let i = 1; i < s.length - 1; i++) largest = Math.max(largest, curve(s[i - 1]!, s[i]!, s[i + 1]!))
+    expect(curve(s[s.length - 1]!, s[0]!, s[1]!)).toBeLessThanOrEqual(largest * 1.01)
   })
 
   it('a restart forgets damage, so a new flight starts whole and silent', () => {

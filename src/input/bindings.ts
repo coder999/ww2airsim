@@ -84,6 +84,9 @@ export const BINDINGS = {
   toggleFlaps: ['KeyF'],
   // Plan 8. `H` for hook; free as of 2026-09-18 (the corrected list above).
   toggleHook: ['KeyH'],
+  // C2. `O` for open: the bomb-bay door lever, edge-triggered like the hook. Free in flight as of
+  // 2026-10-08 (the replay bar's `O` is its own key map, src/replay/keys.ts).
+  toggleBayDoors: ['KeyO'],
   // `B` for brakes -- also free, and a plain key for the reason
   // `throttleDown` documents: no modifier a browser can intercept. Unlike
   // the gear, this is a hold: brakes bite while the key is down and release

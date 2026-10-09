@@ -10,6 +10,11 @@
  */
 import type { FrameState } from './frame.js'
 
+/** The bay-door notice (C2): shown while a refused release's timer runs, else `null`. */
+export function bayDoorsLabel(noticeS: number): string | null {
+  return noticeS > 0 ? 'BAY DOORS CLOSED' : null
+}
+
 /** The badge's text, or `null` when the autopilot is not engaged. */
 export function autopilotLabel(status: FrameState['autopilot']): string | null {
   if (status === null) return null
@@ -17,7 +22,9 @@ export function autopilotLabel(status: FrameState['autopilot']): string | null {
 }
 
 export type AutopilotBadgeHandle = {
-  setStatus(status: FrameState['autopilot']): void
+  /** The autopilot's status, and the C2 bay-door notice, which takes the same row: a refused
+   *  release and an engaged autopilot are both "your input did something other than expected". */
+  setStatus(status: FrameState['autopilot'], bayDoorsNoticeS?: number): void
 }
 
 /** Top centre, one row under the time badge, which owns the top edge. */
@@ -33,8 +40,8 @@ export function createAutopilotBadge(root: HTMLElement): AutopilotBadgeHandle {
 
   let shown: string | null = null
   return {
-    setStatus(status: FrameState['autopilot']): void {
-      const label = autopilotLabel(status)
+    setStatus(status: FrameState['autopilot'], bayDoorsNoticeS = 0): void {
+      const label = bayDoorsLabel(bayDoorsNoticeS) ?? autopilotLabel(status)
       if (label === shown) return
       shown = label
       el.textContent = label ?? ''

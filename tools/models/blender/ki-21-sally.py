@@ -57,7 +57,9 @@ DP1 detail figures (read 2026-09-28):
 Frame: glTF, +x forward, +y up, +z right, meters; origin at the wing root's quarter chord on the
 fuselage datum (ESTIMATE). Pose: gear down (R3 P13).
 Leaves out: the ventral, beam and tail guns (flexible mounts, not turrets), the nose gun's mount, cockpit interior,
-bomb bay, unit markings.
+unit markings.
+Bomb bay (C2): one, under the wing box, 3.8 m long with doors 0.4 m wide either side of the keel. ESTIMATE:
+sized to cover the spec's bay-fwd and bay-aft racks plus about a bomb's length; no source gives the opening.
 """
 import math
 import os
@@ -99,6 +101,8 @@ CANOPY = [(0.288, 0.003, 0.003, 0.053), (0.238, 0.028, 0.019, 0.059), (0.175, 0.
 CANOPY_FRAMES = (0.255, 0.225, 0.195, 0.165)
 TAILPLANE = dict(span=0.338, le=0.8375, root=0.1375, taper=0.55, y=0.019, sweep=10.0)
 FIN = dict(root=0.1625, taper=0.54, height=0.15, y=0.022)
+# Bomb bay, (x0, x1, door half width) in meters (C2, ESTIMATE: header).
+BAYS = [(-2.5, 1.3, 0.4)]
 ENGINES = [0.16]              # nacelle z each side, of SPAN
 # (x ahead of the wing leading edge at that z, half-width), of LENGTH; half-height 1.05 x half-width
 NACELLE = dict(below=0.0206, stations=[(-0.20, 0.009), (-0.10, 0.034), (0.03, 0.044), (0.10, 0.044), (0.135, 0.039), (0.138, 0.019)])
@@ -200,7 +204,8 @@ def nac_point(z, dx, angle_deg):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER,
+               doors=BAYS)
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = WING_Y * L + 0.55 * ROOT_T * root_chord - FILLET['half_h'] * L
     hw_mid, _hh, _cy, n_mid = fus_section(mid)

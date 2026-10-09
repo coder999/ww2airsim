@@ -83,7 +83,7 @@ describe('loadWildcat through the model cache (Z1)', () => {
     const cache = syntheticCache()
     const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
     const rest = (await wildcatGlbScene()).getObjectByName('Helice')!.rotation.z
-    a.update({ gearFraction: 0, flapFraction: 0, throttle: 1, controls: still, frameS: 0.01, cameraDistanceM: 50 })
+    a.update({ gearFraction: 0, flapFraction: 0, bayDoorFraction: 0, throttle: 1, controls: still, frameS: 0.01, cameraDistanceM: 50 })
     expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(rest + 0.4, 12)
     expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_UP.der.pos)).toBeLessThan(1e-6)
     expect(a.root.getObjectByName('GRP_Rueda_Izq')!.position.distanceTo(GEAR_UP.izq.pos)).toBeLessThan(1e-6)
@@ -184,7 +184,7 @@ describe('the Wildcat control surfaces and split flaps (C1 batch 2)', () => {
     const te = (ps: Vector3[]) => mean(ps.filter((_, i) => rest[i]!.x < minX + 0.1 * (maxX - minX)))
     const before = te(rest)
     const input = name === 'Rudder' ? { ...still, yaw: 1 } : name.startsWith('Elevator') ? { ...still, pitch: 1 } : { ...still, roll: 1 }
-    a.update({ gearFraction: 1, flapFraction: 0, throttle: 0, controls: input, frameS: 0, cameraDistanceM: 50 })
+    a.update({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: input, frameS: 0, cameraDistanceM: 50 })
     const after = te(simPoints(node, a.root))
     const [axis, want] = name === 'Rudder' ? ['z', 1] : name === 'AileronL' ? ['y', -1] : ['y', 1]
     expect(Math.sign(after[axis as 'y' | 'z'] - before[axis as 'y' | 'z']), `${source} trailing edge along ${axis}`).toBe(want)
@@ -217,7 +217,7 @@ describe('the Wildcat control surfaces and split flaps (C1 batch 2)', () => {
     const a = await loadWildcat(undefined, (url) => cache.acquire(url))
     const flaps = a.root.getObjectByName('Flaps') as Mesh
     expect(flaps.visible).toBe(false)
-    a.update({ gearFraction: 1, flapFraction: 1, throttle: 0, controls: still, frameS: 0, cameraDistanceM: 50 })
+    a.update({ gearFraction: 1, flapFraction: 1, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0, cameraDistanceM: 50 })
     expect(flaps.visible).toBe(true)
     const ps = simPoints(flaps, a.root)
     for (const plate of [ps.slice(0, 4), ps.slice(4, 8)]) {
@@ -231,7 +231,7 @@ describe('the Wildcat control surfaces and split flaps (C1 batch 2)', () => {
   it('the three hinge pins are one mesh, so the flaps cost no extra draw call over the 47 the model had', async () => {
     const cache = syntheticCache()
     const a = await loadWildcat(undefined, (url) => cache.acquire(url))
-    a.update({ gearFraction: 1, flapFraction: 1, throttle: 0, controls: still, frameS: 0, cameraDistanceM: 50 })
+    a.update({ gearFraction: 1, flapFraction: 1, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0, cameraDistanceM: 50 })
     let draws = 0
     a.root.traverse((o) => { if (o instanceof Mesh && o.visible) draws++ })
     expect(draws).toBeLessThanOrEqual(47)

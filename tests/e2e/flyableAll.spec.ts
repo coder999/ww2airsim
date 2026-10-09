@@ -48,6 +48,14 @@ for (const id of ids) {
     await page.screenshot({ path: `test-results/flyable-${id}-airborne.png` })
 
     if (bombs > 0) {
+      // C2: a bay bomber releases only through open doors, so it opens them first.
+      if (spec.bayDoors !== undefined) {
+        // Held for frames, as V is below: a bare press can fall between two frames and never be seen.
+        await page.keyboard.down('KeyO')
+        await page.waitForTimeout(120)
+        await page.keyboard.up('KeyO')
+        await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.playerFlight()!.state.bayDoorFraction), { timeout: (spec.bayDoors.travelSeconds + 5) * 1000 }).toBe(1)
+      }
       await page.keyboard.down('KeyV')
       await page.waitForTimeout(120)
       await page.keyboard.up('KeyV')

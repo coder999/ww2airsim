@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { readdirSync } from 'node:fs'
 import { loadAircraftSpec, loadScenarioBundle } from '../../../tools/content/load.js'
 import { parseAircraftSpec } from '../../../src/sim/content.js'
 import { createState, type Controls } from '../../../src/sim/flight/state.js'
@@ -277,7 +278,8 @@ describe('production fixed-step ordnance', () => {
   it('a bomber with no combat block still drops its bombs, and has no rockets to fire', () => {
     const b17 = loadAircraftSpec('b-17-flying-fortress')
     expect(b17.combat).toBeUndefined()
-    const state = createState({ position: v3(0, 1000, 0) })
+    // Doors open (C2): the next test is the one about shut doors.
+    const state = createState({ position: v3(0, 1000, 0), bayDoorFraction: 1 })
     const bomber: AircraftEntity = { id: 'b', spec: b17, state, previous: state, controls: { ...controls, fire: false, dropBomb: true, fireRockets: true }, assistMemory: undefined, impact: null, parked: false }
     const w = createWorldOf({ aircraft: [bomber], player: 'b' })
     const full = { ...w, combat: { ...w.combat, aircraft: { b: { ...w.combat.aircraft.b!, stores: storesFromLoadout(b17, 'bombs') } } } }
@@ -286,6 +288,29 @@ describe('production fixed-step ordnance', () => {
     expect(after.combat.aircraft.b!.stores.bombs).toBe(7)
     expect(after.combat.projectiles.filter(p => p.kind === 'bomb')).toHaveLength(1)
     expect(after.combat.projectiles.filter(p => p.kind === 'rocket')).toHaveLength(0)
+  })
+
+  // C2: every bay bomber, enrolled from content, so a new one with doors is covered without a new test.
+  const bayBombers = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally']
+  it('the bay bombers are exactly the specs with bay doors', () => {
+    const ids = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
+    expect(ids.length).toBeGreaterThan(10)
+    const withDoors = ids.filter((id) => loadAircraftSpec(id).bayDoors !== undefined).sort()
+    expect(withDoors).toEqual(bayBombers)
+  })
+  it.each(bayBombers)('%s: release with the doors not fully open drops nothing; fully open, it drops', (id) => {
+    const spec = loadAircraftSpec(id)
+    const drop = (bayDoorFraction: number): number => {
+      const state = createState({ position: v3(0, 1000, 0), bayDoorFraction })
+      const bomber: AircraftEntity = { id: 'b', spec, state, previous: state, controls: { ...controls, fire: false, dropBomb: true }, assistMemory: undefined, impact: null, parked: false }
+      const w = createWorldOf({ aircraft: [bomber], player: 'b' })
+      const full = { ...w, combat: { ...w.combat, aircraft: { b: { ...w.combat.aircraft.b!, stores: storesFromLoadout(spec, 'bombs') } } } }
+      const before = full.combat.aircraft.b!.stores.bombs
+      return before - advance(full, DT, still).world.combat.aircraft.b!.stores.bombs
+    }
+    expect(drop(0)).toBe(0)
+    expect(drop(0.99)).toBe(0)
+    expect(drop(1)).toBe(1)
   })
 
   it('releases once per key-down even when one advance owes several ticks', () => {

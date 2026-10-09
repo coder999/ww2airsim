@@ -34,11 +34,18 @@ export interface AirframeRig {
   readonly turrets: readonly string[]
   /** Control surface nodes (C1). What each drives and how far follows from its name (`surfaceDrive`). */
   readonly surfaces?: readonly string[]
+  /** Bomb-bay door nodes in the model itself (C2), `BayDoor<n>L/R`, each hinged on its outboard
+   *  edge with its axis oriented so a positive turn opens it: the keel edge swings down and out.
+   *  Exactly the specs with `bayDoors` have them (aircraftRigs.test.ts). */
+  readonly doors?: readonly string[]
 }
 
-export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+)[LR]|Rudder\d*)$/
+export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
 
 export type SurfaceInput = 'roll' | 'pitch' | 'yaw' | 'flap'
+
+/** How far a bay door swings, fully open (C2). ESTIMATE: hanging about straight down. */
+export const BAY_DOOR_OPEN_DEG = 85
 
 /** Full travel, degrees (Mark's default set, 2026-10-08: C1 Ruling R4). No airframe overrides it yet. */
 export const SURFACE_MAX_DEG: Readonly<Record<SurfaceInput, number>> = { roll: 20, pitch: 25, yaw: 25, flap: 45 }
@@ -92,6 +99,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3'],
+    // C2: real doors cut from its belly (entry split BayDoor1L/R, Mark's ruling 2026-10-08).
+    doors: ['BayDoor1L', 'BayDoor1R'],
   },
   'b-29-superfortress': {
     // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
@@ -104,6 +113,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-29-superfortress.py header)' },
     ],
     turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5'],
+    // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
+    doors: ['BayDoor1L', 'BayDoor1R', 'BayDoor2L', 'BayDoor2R'],
     surfaces: surfaces(2),
   },
   'd3a-val': {
@@ -149,6 +160,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
     ],
     turrets: ['Turret1'],
+    // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
+    doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
   },
   'ki-21-sally': {
@@ -160,6 +173,8 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
     ],
     turrets: ['Turret1'],
+    // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
+    doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
   },
   'ki-43-oscar': {

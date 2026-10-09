@@ -30,7 +30,7 @@ function fake(axes: Record<string, number[] | undefined>): { inst: ModelInstance
     released: () => n,
   }
 }
-const zero = { flapFraction: 0, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }
+const zero = { flapFraction: 0, bayDoorFraction: 0, controls: { roll: 0, pitch: 0, yaw: 0 }, cameraDistanceM: 0 }
 
 /**
  * `q` and `want` are one rotation, component by component (q and -q are the same rotation).

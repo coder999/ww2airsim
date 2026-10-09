@@ -31,6 +31,7 @@ import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/landing.js'
+import { bayDoorsShut } from '../sim/bayDoors.js'
 
 export type FrameState = {
   /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was
@@ -144,6 +145,12 @@ export type FrameState = {
   /** The tailhook lever, edge-triggered exactly like the flap lever (Plan 8). */
   readonly hookDown: boolean
   readonly hookPressed: boolean
+  /** The bomb-bay door lever (C2), edge-triggered exactly like the hook lever. */
+  readonly bayDoorsOpen: boolean
+  readonly bayDoorsPressed: boolean
+  /** Real seconds the "BAY DOORS CLOSED" notice has left: set by a release pressed with the
+   *  doors not fully open (C2), so the refused press is never silent. */
+  readonly bayDoorsNoticeS: number
   /** The tick of the newest mission `respot` this frame has already
    *  answered by raising the hook lever, or -1 for none (ruling F-C1,
    *  2026-09-27). The respot spot is aft of the trap zone and a trap never
@@ -229,6 +236,8 @@ const MODES: readonly CameraMode[] = ['chase', 'cockpit']
  * tests and any later speed selector all read one number.
  */
 export const TRIPLE_TIME_SCALE = 3
+/** Real seconds the "BAY DOORS CLOSED" notice shows after a refused release (C2). */
+export const BAY_DOORS_NOTICE_S = 2.5
 
 /** Which key toggles which assist. The keys themselves live in
  *  `src/input/bindings.ts` with every other key in the game; this is only the
@@ -308,6 +317,9 @@ export function initialFrameStateFor(
     flapPressed: false,
     hookDown: false,
     hookPressed: false,
+    bayDoorsOpen: false,
+    bayDoorsPressed: false,
+    bayDoorsNoticeS: 0,
     respotHandledTick: lastRespotTick(world),
     throttleCutPressed: false,
     dropBombPressed: false,
@@ -568,6 +580,11 @@ export function nextFrameState(
   const hookDown =
     hookKeyDown && !prev.hookPressed ? !hookLever : hookLever
 
+  // The bay-door lever (C2), edge-triggered identically.
+  const bayDoorsKeyDown = BINDINGS.toggleBayDoors.some((c) => pressed.has(c))
+  const bayDoorsOpen =
+    bayDoorsKeyDown && !prev.bayDoorsPressed ? !prev.bayDoorsOpen : prev.bayDoorsOpen
+
   // Release controls (Plan 6b Task 4): a PULSE, not a lever like the gear/flap/
   // hook above. At render rates above the fixed 60 Hz simulation rate, the
   // render frame that receives a key-down can run zero fixed steps. Keep that
@@ -585,6 +602,10 @@ export function nextFrameState(
     !releaseBlocked &&
     ((dropBombKeyDown && !prev.dropBombPressed) ||
       (prev.controls.dropBomb === true && prev.stepsRun === 0))
+  // C2: a release pressed with the doors not fully open is refused in the sim; say so.
+  const bayDoorsNoticeS = dropBombKeyDown && !prev.dropBombPressed && !releaseBlocked && bayDoorsShut(player.spec, player.state.bayDoorFraction)
+    ? BAY_DOORS_NOTICE_S
+    : Math.max(0, prev.bayDoorsNoticeS - elapsedSeconds)
   const fireRocketsKeyDown = BINDINGS.fireRockets.some((c) => pressed.has(c))
   const fireRockets =
     !releaseBlocked &&
@@ -609,6 +630,7 @@ export function nextFrameState(
     gearDown,
     flapDown,
     hookDown,
+    bayDoorsOpen,
     brake,
     fire: BINDINGS.fireGuns.some(c => pressed.has(c)),
     // Only present when `true`: `Controls.dropBomb`'s doc comment promises
@@ -744,6 +766,9 @@ export function nextFrameState(
     flapPressed: flapKeyDown,
     hookDown,
     hookPressed: hookKeyDown,
+    bayDoorsOpen,
+    bayDoorsPressed: bayDoorsKeyDown,
+    bayDoorsNoticeS,
     respotHandledTick: respotted ? respotTick : prev.respotHandledTick,
     throttleCutPressed: throttleCutDown,
     dropBombPressed: dropBombKeyDown,

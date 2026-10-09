@@ -2,6 +2,7 @@
 import type { AircraftSpec } from '../../sim/flight/schema.js'
 import { gearAfter } from '../../sim/ground.js'
 import { flapAfter } from '../../sim/flaps.js'
+import { bayDoorsAfter } from '../../sim/bayDoors.js'
 import type { PartPose } from './models.js'
 
 /**
@@ -10,11 +11,12 @@ import type { PartPose } from './models.js'
  * the Hangar shows exactly the timing the game flies: one full travel takes
  * the spec's `gear.travelSeconds` / `flap.travelSeconds`.
  */
-export type CyclePart = 'gear' | 'flaps'
+export type CyclePart = 'gear' | 'flaps' | 'doors'
 
 export interface BenchState {
   readonly gearFraction: number
   readonly flapFraction: number
+  readonly bayDoorFraction: number
   readonly throttle: number
   readonly roll: number
   readonly pitch: number
@@ -24,7 +26,7 @@ export interface BenchState {
   readonly cycling: CyclePart | null
 }
 
-export const REST: BenchState = { gearFraction: 1, flapFraction: 0, throttle: 0, roll: 0, pitch: 0, yaw: 0, bombs: true, rockets: true, cycling: null }
+export const REST: BenchState = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, roll: 0, pitch: 0, yaw: 0, bombs: true, rockets: true, cycling: null }
 
 export interface BenchController {
   state(): BenchState
@@ -36,19 +38,22 @@ export interface BenchController {
   advance(frameS: number): PartPose | null
 }
 
+const FIELD = { gear: 'gearFraction', flaps: 'flapFraction', doors: 'bayDoorFraction' } as const
+
 export function createBenchController(spec: AircraftSpec | null): BenchController {
   let s: BenchState = REST
   let target: 0 | 1 = 0
   return {
     state: () => s,
     set(p) {
-      const cancels = (p.gearFraction !== undefined && s.cycling === 'gear') || (p.flapFraction !== undefined && s.cycling === 'flaps')
+      const cancels = (p.gearFraction !== undefined && s.cycling === 'gear') || (p.flapFraction !== undefined && s.cycling === 'flaps') ||
+        (p.bayDoorFraction !== undefined && s.cycling === 'doors')
       s = { ...s, ...p, cycling: cancels ? null : s.cycling }
       return p
     },
     startCycle(part) {
       if (spec === null) return
-      const now = part === 'gear' ? s.gearFraction : s.flapFraction
+      const now = s[FIELD[part]]
       // Mid-cycle, a press reverses, like the lever; at rest, go to the far end.
       target = s.cycling === part ? (target === 1 ? 0 : 1) : now >= 0.5 ? 0 : 1
       s = { ...s, cycling: part }
@@ -57,10 +62,12 @@ export function createBenchController(spec: AircraftSpec | null): BenchControlle
       if (spec === null || s.cycling === null) return null
       const part = s.cycling
       const down = target === 1
-      const next = part === 'gear' ? gearAfter(spec, s.gearFraction, down, frameS) : flapAfter(spec, s.flapFraction, down, frameS)
+      const next = part === 'gear' ? gearAfter(spec, s.gearFraction, down, frameS)
+        : part === 'flaps' ? flapAfter(spec, s.flapFraction, down, frameS)
+        : bayDoorsAfter(spec, s.bayDoorFraction, down, frameS)
       const cycling = next === target ? null : part
-      s = part === 'gear' ? { ...s, gearFraction: next, cycling } : { ...s, flapFraction: next, cycling }
-      return part === 'gear' ? { gearFraction: next } : { flapFraction: next }
+      s = { ...s, [FIELD[part]]: next, cycling }
+      return { [FIELD[part]]: next }
     },
   }
 }

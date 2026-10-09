@@ -22,7 +22,9 @@
     { "node": "Flap2R" },
     { "node": "ElevatorL" },
     { "node": "ElevatorR" },
-    { "node": "Rudder" }
+    { "node": "Rudder" },
+    { "node": "BayDoor1L" },
+    { "node": "BayDoor1R" }
   ],
   "skin": true,
   "textures": { "maxSize": 1024, "format": "webp" },

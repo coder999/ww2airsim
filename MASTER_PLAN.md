@@ -90,7 +90,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - Worktree, unattended. Checkpoint: one Hangar look per batch, captures in the handoff.
 
 **C2. Bomb-bay doors (M, after C1 batch 1).**
-- **Today:** no door geometry anywhere. Each bomber's model script leaves it out by name. The policy in `aircraft.md:339` and `:373` is "bay doors get their own plan".
+- **Built 2026-10-08, on branch `c2-bay-doors` (not merged; Mark looks first).** Plan `docs/superpowers/plans/2026-10-08-c2-bay-doors.md`; handoff `docs/handoff/2026-10-08-c2-bay-doors.md`. All four have real doors in their models (Mark's rulings, 2026-10-08): the B-17's cut from its download, the B-29's (both bays), G4M's and Ki-21's built by `kit.fuselage(doors=...)`. The interim code-drawn plates are deleted. Merge only once Mark has seen all four.
 - **Decided (grilling, 2026-10-08):**
   - Bay doors on the B-29 (two bays, the test case), G4M, Ki-21 and B-17, reusing C1 batch 1's hinge machinery. The Avenger (Track D) reuses the mechanism.
   - A sim-side door state with a per-airframe travel time. The player toggles it with `O`.
