@@ -10,7 +10,31 @@
   "turnRateRadPerS": 0.05236,
   "hullHp": 160,
   "view": { "model": "fletcher-dd" },
+  "armament": {
+    "turrets": [
+      {"x": 37.36, "y": 5.45, "z": 0, "bearingDeg": 0, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"},
+      {"x": 29.59, "y": 7.39, "z": 0, "bearingDeg": 0, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"},
+      {"x": -20.11, "y": 5.68, "z": 0, "bearingDeg": 0, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"},
+      {"x": -31.2, "y": 5.68, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"},
+      {"x": -38.86, "y": 3.17, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"}
+    ],
+    "heavyAA": [],
+    "lightAA": [
+      {"x": 25.11, "y": 7.51, "z": 3.31, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": 25.11, "y": 7.51, "z": -3.31, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": 20, "y": 10.05, "z": 4.5, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": 20, "y": 10.05, "z": -4.5, "bearingDeg": -90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -8, "y": 3.69, "z": 4, "bearingDeg": 90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -8, "y": 3.69, "z": -4, "bearingDeg": -90, "kit": "mount-40mm-twin", "barrels": 2},
+      {"x": -13.73, "y": 3.54, "z": 4.46, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -13.73, "y": 3.54, "z": -4.46, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -17.84, "y": 3.54, "z": 4.46, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -17.84, "y": 3.54, "z": -4.46, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -25.45, "y": 11.2, "z": 0, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": -52, "y": 3.55, "z": 0, "bearingDeg": 0, "kit": null, "barrels": 1}
+    ]
+  },
   "reference": {
-    "source": "lengthM (376.5 ft overall), beamM (39.5 ft) and maxSpeedMps (36.5 kn) from the English Wikipedia article 'Fletcher-class destroyer', read 2026-09-18. deckWidthM is the beam; deckHeightM (main deck above the waterline) and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp is a gameplay choice (Plan 6b)."
+    "source": "lengthM (376.5 ft overall), beamM (39.5 ft) and maxSpeedMps (36.5 kn) from the English Wikipedia article 'Fletcher-class destroyer', read 2026-09-18. deckWidthM is the beam; deckHeightM (main deck above the waterline) and turnRateRadPerS (3 deg/s) are ESTIMATES. hullHp is a gameplay choice (Plan 6b). ARMAMENT (Track M, M1, read 2026-10-08): five dual-purpose 5\"/38 in single Mk 30 mounts, five twin Bofors 40 mm (ten barrels) and seven single Oerlikon 20 mm, 'four amidships and three in a heart-shaped mount on the fantail' (English Wikipedia 'Fletcher-class destroyer'). The 5\" mounts are carved at the model's own positions and facings (axis at each gunbase); the model's six 20 mm and its aft 40 mm twin stay static as fire positions, the other four 40 mm twins are generated kits and the fantail 20 mm a fire position, at ESTIMATED positions on the model's decks."
   }
 }
