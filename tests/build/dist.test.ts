@@ -161,10 +161,11 @@ describe('the built artifact', () => {
       // and cover.bin.gz below are pinned exactly rather than with `> 0`: a
       // truncated copy is a 200 that GLTFLoader then fails to parse in the
       // browser, the same failure screen by a slower route.
-      // Updated 2026-09-24 (hull-transparency fix): forceOpaqueMaterials
-      // strips the two bogus alphaMode:BLEND fields, shrinking the JSON
-      // chunk by 40 bytes.
-      expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(5_573_316)
+      // Compared with the committed file since C1 batch 2 (2026-10-08), not
+      // the literal 5,573,316 it was pinned to while frozen: the Wildcat is
+      // rebuilt now (tools/models/entries/wildcat.json, its `note`), and
+      // tests/tools/models/outputs.test.ts holds what the rebuild must keep.
+      expect(statSync(join(outDir, WILDCAT_MODEL_PATH)).size).toBe(statSync(WILDCAT_MODEL_PATH).size)
       // Ship models (ship-models spec §9): every ship entry's glb reaches
       // dist/ whole. Compared with the committed file, not a literal: a
       // rebuild is legitimate, and tests/tools/shipModels.test.ts re-measures it.

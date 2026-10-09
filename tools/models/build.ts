@@ -18,7 +18,7 @@ import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { getBounds, prune } from '@gltf-transform/functions'
-import { Logger, type Document, type Node } from '@gltf-transform/core'
+import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
 import { BLENDER_VERSION, blenderPresent, hingesSidecarPath, runBlenderScript } from './blender/run.js'
 import type { BlenderSource, SketchfabSource } from './manifest.js'
@@ -28,6 +28,7 @@ import { removeNodes } from './stages/remove.js'
 import { splitByBox } from './stages/split.js'
 import { collapseKept } from './stages/collapse.js'
 import { pivotNode, type Hinge } from './stages/pivot.js'
+import { legacyOptimize } from './legacy.js'
 import { normalizeDocument } from './stages/normalize.js'
 import { simplifyDocument } from './stages/simplify.js'
 import { joinExcept } from './stages/join.js'
@@ -197,6 +198,8 @@ export interface BuildDeps {
   haveBlender(): boolean
   /** Runs one Blender model script into `out` (run.ts's runBlenderScript). Throws on any failure. */
   blender(script: string, out: string): void
+  /** The Wildcat's original recipe, raw input to `out` (legacy.ts). */
+  legacyOptimize(input: string, out: string): void
   /** A text file (the skin sidecar, DP0). */
   readText(path: string): string
   /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
@@ -258,6 +261,16 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         const hingesPath = hingesSidecarPath(raw)
         const hinges = deps.exists(hingesPath) ? parseHinges(deps.readText(hingesPath)) : {}
         doc = await runPipeline(read, entry, loadShipSpec, skin, deps.scan, hinges)
+      } else if (entry.legacyOptimize) {
+        // The original recipe into the cache once (it needs npx), then split only (manifest.ts).
+        const mid = `tools/models/cache/${entry.id}.legacy.glb`
+        if (!deps.exists(mid)) deps.legacyOptimize(entry.input!, mid)
+        doc = await deps.read(mid)
+        for (const k of entry.keep) findNode(doc, k.node)
+        for (const s of entry.split) splitByBox(doc, s)
+        // Slicing replaces accessors; drop only the orphans, since a full prune would also take the empty
+        // locator nodes this hierarchy keeps.
+        await doc.transform(prune({ propertyTypes: [PropertyType.ACCESSOR], keepLeaves: true }))
       } else {
         doc = await runPipeline(await deps.read(entry.input!), entry, loadShipSpec, null, deps.scan)
       }
@@ -295,6 +308,7 @@ export function nodeBuildDeps(): BuildDeps {
     haveBlender: () => blenderPresent(),
     blender: (script, out) => runBlenderScript(script, out),
     readText: (p) => readFileSync(p, 'utf8'),
+    legacyOptimize,
     scan: loadScan,
   }
 }

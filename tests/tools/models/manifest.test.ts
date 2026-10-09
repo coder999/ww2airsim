@@ -25,6 +25,11 @@ describe('ModelEntrySchema', () => {
     expect(parseModelEntry({ ...valid, split: [{ name: 'T', boxMin: [0, 0, 0], boxMax: [1, 1, 1] }], remove: [] }).split[0]!.select).toBe('components')
   })
 
+  it('takes a unit-vector pivot axis, for a swept hinge (C1 batch 2)', () => {
+    const e = parseModelEntry({ ...valid, keep: [{ node: 'Rotor', as: 'Prop', pivot: { point: [1, 2, 3], axis: [0.6, 0, 0.8] } }] })
+    expect(e.keep[0]!.pivot!.axis).toEqual([0.6, 0, 0.8])
+  })
+
   it.each([
     ['an unknown top-level key', { ...valid, outptu: 'x' }, /outptu/],
     ['an output basename that is not the id', { ...valid, output: 'content/aircraft/other.glb' }, /basename must equal id/],
@@ -35,6 +40,9 @@ describe('ModelEntrySchema', () => {
     ['forward parallel to up', { ...valid, normalize: { ...valid.normalize, up: '-x' } }, /parallel/],
     ['a split box with min >= max', { ...valid, split: [{ name: 'T', boxMin: [0, 0, 0], boxMax: [1, 0, 1] }], remove: [] }, /exceed boxMin/],
     ['a pivot without normalize', { ...valid, normalize: undefined }, /pivot needs normalize/],
+    ['a pivot axis that is not a unit vector', { ...valid, keep: [{ node: 'Rotor', as: 'Prop', pivot: { point: [1, 2, 3], axis: [1, 1, 0] } }] }, /unit vector/],
+    ['a cut without a pivot', { ...valid, split: [{ name: 'T', select: 'triangles', boxMin: [0, 0, 0], boxMax: [1, 1, 1], cut: { normal: [1, 0, 0] } }] }, /a cut needs/],
+    ['a cut on components', { ...valid, split: [{ name: 'T', select: 'components', boxMin: [0, 0, 0], boxMax: [1, 1, 1], pivot: { point: [0, 0, 0], axis: '+z' }, cut: { normal: [1, 0, 0] } }] }, /a cut needs/],
     ['a name used twice', { ...valid, split: [{ name: 'Prop', boxMin: [0, 0, 0], boxMax: [1, 1, 1] }], remove: [] }, /used twice/],
     ['removing a kept node', { ...valid, remove: ['Rotor'] }, /also kept/],
     ['a noseNode that names no part', { ...valid, noseNode: 'Spinner' }, /noseNode/],
@@ -101,9 +109,16 @@ describe('generated entries (O1)', () => {
   it('keeps every pre-O1 Sketchfab entry exactly shaped, plus kind "sketchfab"', () => {
     const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
     const beforeIds = new Set(before.map((e) => e.id))
-    // DP2 adds `boxSkin` to four of these on purpose; every other field must be exactly as it was.
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, rest))
-    expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
+    // DP2 adds `boxSkin` to four of these on purpose, and C1 batch 2 (2026-10-08) unfroze the Wildcat:
+    // `frozen` out; `legacyOptimize`, `note`, its aileron `split` and a new `budget` in (its entry's
+    // `note` says why). Every other field must be exactly as it was.
+    const c1 = (e: Record<string, unknown>): Record<string, unknown> => {
+      if (e['id'] !== 'wildcat') return e
+      const { frozen, legacyOptimize, note, split, budget, ...rest } = e
+      return (void frozen, void legacyOptimize, void note, void split, void budget, rest)
+    }
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, c1(rest)))
+    expect(now).toEqual(before.map((e) => c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })
 

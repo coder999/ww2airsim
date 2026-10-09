@@ -231,12 +231,12 @@ D-answers that feed them: rig node names (D5, D6), the `view.model` (D4), and
 mounts measured before the spec's `stores` offsets are written (D9).
 
 Control surfaces (C1) are part of the rig. A Blender model gets them from
-`kit.py` by naming each control. A download needs each surface `split` into
-its own node, with a `pivot` on its hinge line, oriented as `docs/models.md`
-§5 says. That is batches 2-4 of C1. The manifest's `pivot.axis` takes only
-`±x/y/z` today (verified 2026-10-08, `tools/models/manifest.ts`), so batch 2
-first adds a vector axis for swept hinges. Add the airframe to the pinned list in
-`aircraftRigs.test.ts`, whose direction check decides whether the orientation is right.
+`kit.py` by naming each control. A download needs each surface `split` into its own node, with a `pivot` on its
+hinge line, oriented as `docs/models.md` §5 says. A download usually draws no
+hinge, and its skin triangles run the full chord, so the rule takes a `cut`
+(§5). The F6F and F4U entries are the worked examples (C1 batch 2). Add the
+airframe to the pinned list in `aircraftRigs.test.ts`, whose direction check
+decides whether the orientation is right.
 
 ## Part F: Fit the drawing
 

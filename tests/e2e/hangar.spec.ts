@@ -270,10 +270,10 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller and the strut and wheel nodes the W1 leg stretch moves, and they draw", async ({ page }) => {
+  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller, the strut and wheel nodes the W1 leg stretch moves, and its five control surfaces (C1), and they draw", async ({ page }) => {
     const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
     await setDebug(page, 'gizmos', true)
-    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
+    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['AileronL', 'AileronR', 'GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'Timon_Der', 'Timon_Izq', 'Timon_Prof', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
     const withGizmos = await shot(page)
     const m = await masks(page, empty, [plain, withGizmos])
     expect(m.xor01).toBeGreaterThan(0)

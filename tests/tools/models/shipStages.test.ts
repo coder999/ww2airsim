@@ -133,6 +133,7 @@ describe('runBuild with a ship whose fit fails', () => {
       encode: (d) => modelIO().writeBinary(d),
       log: (l) => { lines.push(l) },
       generate: () => { throw new Error('not a generated entry') },
+      legacyOptimize: () => { throw new Error('not a legacy entry') },
       haveBlender: () => false,
       blender: () => { throw new Error('not a blender entry') },
       readText: () => { throw new Error('readText: not used by this test') }, scan: () => Promise.reject(new Error('scan: not used by this test')),

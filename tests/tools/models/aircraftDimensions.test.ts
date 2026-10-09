@@ -33,7 +33,8 @@ const CITED: Readonly<Record<string, Cited>> = {
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')
 
 describe('every aircraft model carries its cited span and length (R3)', () => {
-  it('every aircraft entry but the frozen Wildcat has a cited row, and every row has an entry', () => {
+  // The Wildcat is out: it has no normalize (its own frame; wildcat.ts scales it to its spec's span, wildcat.test.ts).
+  it('every aircraft entry but the Wildcat has a cited row, and every row has an entry', () => {
     expect(aircraft.map((e) => e.id).sort()).toEqual(Object.keys(CITED).sort())
   })
 
