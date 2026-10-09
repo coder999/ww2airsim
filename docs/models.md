@@ -5,6 +5,15 @@ a passing Hangar check (Hangar spec §11). It points at the files that own
 each rule rather than restating them. Every command and path below was
 checked against the repo on 2026-09-26.
 
+**Build in Blender first; a download is the exception** (Mark, 2026-10-09).
+Our own Blender models (§"Authoring in Blender") have outclassed the Sketchfab
+low-poly downloads by a wide margin. Pennsylvania, then Mogami and Yamato
+rebuilt in M1f, replaced downloads that read as blocky prisms. Only Fletcher
+held up at the same level. So recommend an original Blender build for any new
+or upgraded model. Use this runbook only when a download is clearly as good
+(judge it by a Hangar close-up, not by its triangle count), or when it is needed
+quickly as a stand-in.
+
 ## 1. Find
 
 Search Sketchfab with the **Downloadable** filter and a **CC BY** or **CC0**

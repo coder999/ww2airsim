@@ -61,7 +61,8 @@ a coefficient to tune (R36).
 
 Options: (a) use the `.glb` already committed under `content/aircraft/`,
 (b) fetch a new licensed model (`docs/models.md` steps 1-6), (c) an original
-model. Recommend (a) when one exists: nine airframes already have one. Record
+model. Recommend (c), an original Blender model, even when (a) exists: see the
+build-first rule at the top of `docs/models.md` (Mark, 2026-10-09). Record
 the license row in `ASSETS.md` for (b). Changes: `tools/models/entries/<id>.json`,
 `view.model`, `AIRFRAME_RIGS`.
 
