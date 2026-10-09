@@ -448,13 +448,14 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test('17. every warship\'s gun mounts are its spec\'s armament, and each trains on its own: 90 deg changes the top view, 0 restores it exactly (M1)', async ({ page }) => {
-    const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null }[]> })
+  test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
+    const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
     const ids = await entries(page)
     expect(ships.filter((s) => ids.includes(s.id)).length).toBe(10)
     for (const ship of ships) {
       const a = ship.armament
-      const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : [`${p}${i + 1}`]))) : []
+      // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
+      const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : m.run === undefined ? [`${p}${i + 1}`] : Array.from({ length: m.barrels }, (_, g) => `${p}${i + 1}_${g + 1}`)))) : []
       await select(page, ship.id)
       expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts()), ship.id).toEqual(want)
       if (want.length === 0) continue
@@ -466,6 +467,15 @@ test.describe('the Hangar', () => {
       const back = await shot(page)
       expect(turned.equals(rest), `${ship.id}: training moved nothing`).toBe(false)
       expect(back.equals(rest), `${ship.id}: training back to 0 did not restore the frame`).toBe(true)
+      // M1b, Ruling B4: the guns rise about their trunnions, seen from the side, and come back down.
+      await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+      const level = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.elevateMounts(1))
+      const raised = await shot(page)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.elevateMounts(0))
+      const lowered = await shot(page)
+      expect(raised.equals(level), `${ship.id}: elevating moved nothing`).toBe(false)
+      expect(lowered.equals(level), `${ship.id}: elevation back to 0 did not restore the frame`).toBe(true)
     }
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })

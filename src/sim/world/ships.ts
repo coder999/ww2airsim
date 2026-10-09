@@ -46,17 +46,19 @@ const PaddlesObject = z
  * The point is the mount's training axis at its base. `bearingDeg` is where it
  * points at rest, clockwise from the bow (0 bow, 90 starboard, 180 stern).
  * `kit` names the instanced mesh drawn there (the model's `Kit_<kit>` node);
- * null is a fire position whose guns stay static in the hull (a gallery of
- * 20 mm singles, counted by `barrels`).
+ * null is a fire position with nothing drawn; every shipped gallery has a kit and a `run` (M1b).
  */
-const MountObject = z
-  .object({
-    x: finite, y: finite, z: finite,
-    bearingDeg: finite.refine((d) => d > -180 && d <= 180, { message: 'must be in (-180, 180]' }),
-    kit: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase kit id' }).nullable(),
-    barrels: z.number().int().positive(),
-  })
-  .strict()
+const MountFields = {
+  x: finite, y: finite, z: finite,
+  bearingDeg: finite.refine((d) => d > -180 && d <= 180, { message: 'must be in (-180, 180]' }),
+  kit: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase kit id' }).nullable(),
+  barrels: z.number().int().positive(),
+  /** A gallery of `barrels` single guns spread over this many meters fore and aft, centered on x
+   *  (M1b, Ruling B2). The sim keeps it one fire position; the model draws each gun. */
+  run: positive.optional(),
+}
+const runNeedsKit = (m: { kit: string | null; barrels: number; run?: number | undefined }): boolean => m.run === undefined || (m.kit !== null && m.barrels > 1)
+const MountObject = z.object(MountFields).strict().refine(runNeedsKit, { message: 'a run needs a kit and more than one barrel' })
 
 /** Bow to stern, so locator numbers run bow to stern (docs/models.md). */
 const bowToStern = (list: readonly { x: number }[]): boolean => list.every((m, i) => i === 0 || m.x <= list[i - 1]!.x)
@@ -64,7 +66,7 @@ const bowToStern = (list: readonly { x: number }[]): boolean => list.every((m, i
 const ArmamentObject = z
   .object({
     /** Main battery. `aa: 'heavy'` marks a dual-purpose mount (the USN 5"/38) that M2 also fires at aircraft. */
-    turrets: z.array(MountObject.extend({ aa: z.literal('heavy').nullable() }).strict()),
+    turrets: z.array(z.object({ ...MountFields, aa: z.literal('heavy').nullable() }).strict().refine(runNeedsKit, { message: 'a run needs a kit and more than one barrel' })),
     heavyAA: z.array(MountObject),
     lightAA: z.array(MountObject),
   })

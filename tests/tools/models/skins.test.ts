@@ -25,14 +25,16 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
   it('its entry says skin: true (a Blender script) or boxSkin (a download)', () => {
     expect(e.source.kind === 'blender' ? e.skin : e.boxSkin?.atlasPx).toBeTruthy()
   })
-  it('one skin material with base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1 on every primitive but a ship\'s Skirt (ship:boot) and its generated mount kits (ship:fitting)', async () => {
+  it('one skin material with base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1 on every primitive but a ship\'s Skirt (ship:boot) and its generated mount kits (ship:fitting, ship:gunmetal)', async () => {
     const doc = await read(e.output)
     const skirt = e.ship?.kind === 'waterline'
     // Track M, M1 (2026-10-08): a mount kit the model has no geometry for is generated in plain
-    // ship:fitting paint (tools/models/stages/mountKits.ts); it carries no UVs and is the only other material.
-    const generated = (n: string): boolean => n.startsWith('Kit_') && doc.getRoot().listNodes().find((x) => x.getName() === n)!.getMesh()!.listPrimitives().every((p) => p.getMaterial()?.getName() === 'ship:fitting')
-    const hasGenerated = doc.getRoot().listNodes().some((n) => n.getMesh() && generated(n.getName()))
-    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual([`${id}-skin`, ...(skirt ? ['ship:boot'] : []), ...(hasGenerated ? ['ship:fitting'] : [])].sort())
+    // ship:fitting paint (tools/models/stages/mountKits.ts), its guns in ship:gunmetal (M1b, Ruling B1);
+    // they carry no UVs and are the only other materials. A carved kit's guns keep the skin.
+    const GENERATED = ['ship:fitting', 'ship:gunmetal']
+    const generated = (n: string): boolean => n.startsWith('Kit_') && doc.getRoot().listNodes().find((x) => x.getName() === n)!.getMesh()!.listPrimitives().every((p) => GENERATED.includes(p.getMaterial()?.getName() ?? ''))
+    const used = new Set(doc.getRoot().listNodes().filter((n) => n.getMesh() && generated(n.getName())).flatMap((n) => n.getMesh()!.listPrimitives().map((p) => p.getMaterial()!.getName())))
+    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual([`${id}-skin`, ...(skirt ? ['ship:boot'] : []), ...GENERATED.filter((g) => used.has(g))].sort())
     const mat = doc.getRoot().listMaterials().find((m) => m.getName() === `${id}-skin`)!
     for (const t of [mat.getBaseColorTexture(), mat.getMetallicRoughnessTexture(), mat.getNormalTexture()]) {
       expect(t).not.toBeNull(); expect(t!.getMimeType()).toBe('image/webp')

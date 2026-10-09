@@ -4,8 +4,8 @@
 A ship script reads its armament from its own ShipSpec (content/ships/<id>.json, the one source of
 gun positions) and draws every mount with a kit there as a node named for its locator (Turret1,
 HeavyAA3, LightAA7): the build's carve stage keeps the first of each kit as the instanced mesh and
-drops the rest (tools/models/stages/shipMounts.ts). A null-kit entry is a fire position whose guns
-the script draws as static hull fittings.
+drops the rest (tools/models/stages/shipMounts.ts). Light AA kits are not drawn here: the build
+generates them (M1b, 2026-10-09).
 
 Each mount stands on (x, y, z) -- y is its foot -- and points along its rest bearing, clockwise from
 the bow seen from above (0 bow, 90 starboard, 180 stern). Every dimension is an ESTIMATE scaled to the
@@ -68,42 +68,12 @@ def mount_5in38_single(m, node, x, y, z, bearing, embed):
     _barrels(m, node, x, y, z, bearing, 1, 0.0, 1.4, 1.4, 3.5, 0.09, 5.0)
 
 
-def mount_40mm_quad(m, node, x, y, z, bearing, embed):
-    """Bofors quad in its tub: a 1.9 m ring 1.1 m high, the carriage, four 2.4 m barrels at 25 deg."""
-    m.sandbag_ring('fitting', (x, y, z), 1.9, 0.12, 1.1, segments=24, node=node)
-    m.tank('fitting', (x, y, z), 0.7, 1.0 + embed, segments=16, node=node)
-    _barrels(m, node, x, y, z, bearing, 4, 0.3, 0.3, 1.0, 2.4, 0.05, 25.0)
-
-
-def mount_40mm_twin(m, node, x, y, z, bearing, embed):
-    """Bofors twin in its tub: a 1.6 m ring 1.0 m high, the carriage, two 2.4 m barrels at 20 deg."""
-    m.sandbag_ring('fitting', (x, y, z), 1.6, 0.1, 1.0, segments=24, node=node)
-    m.tank('fitting', (x, y, z), 0.6, 1.0 + embed, segments=16, node=node)
-    _barrels(m, node, x, y, z, bearing, 2, 0.5, 0.2, 1.0, 2.4, 0.05, 20.0)
-
-
-def mount_25mm_triple(m, node, x, y, z, bearing, embed):
-    """Type 96 triple in a 1.2 m splinter ring 0.9 m high: three 2.0 m barrels at 20 deg."""
-    m.sandbag_ring('fitting', (x, y, z), 1.2, 0.08, 0.9, segments=24, node=node)
-    m.tank('fitting', (x, y, z), 0.45, 0.9 + embed, segments=16, node=node)
-    _barrels(m, node, x, y, z, bearing, 3, 0.3, 0.2, 0.9, 2.0, 0.04, 20.0)
-
-
-def static_20mm(m, x, y, z, bearing, embed):
-    """One Oerlikon on its pedestal with its shield, drawn into the hull (a null-kit gallery's gun)."""
-    m.tank('fitting', (x, y, z), 0.18, 1.0 + embed, segments=12)
-    sx, sz = _at(x, z, bearing, 0.15, 0.0)
-    m.box('fitting', (sx, y + 0.9, sz), (0.08, 0.9, 1.0) if not _quarter(bearing) else (1.0, 0.9, 0.08))
-    _barrels(m, None, x, y, z, bearing, 1, 0.0, 0.0, 1.1, 1.8, 0.03, 30.0, sides=8)
-
-
 MOUNTS = {
     'mount-5in38-twin': mount_5in38_twin,
     'mount-5in38-single': mount_5in38_single,
-    'mount-40mm-quad': mount_40mm_quad,
-    'mount-40mm-twin': mount_40mm_twin,
-    'mount-25mm-triple': mount_25mm_triple,
 }
+# Light AA (40 mm and below) is not drawn here: the build generates it (stages/mountKits.ts, M1b),
+# so a script skips any kit not in MOUNTS.
 
 
 # M1 deck fittings (every dimension an ESTIMATE): what makes a hull read busy at a few hundred meters.

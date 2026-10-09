@@ -6,12 +6,13 @@ import type { CameraPreset } from '../../src/render/hangar/framing.js'
 
 /**
  * Capture tool, not a test (docs/testing.md): every ship in the Hangar, still and with every
- * gun mount trained 60 deg, for a handoff (Track M, M1). Skipped unless E2E_CAPTURE=1; writes
+ * gun mount trained 60 deg and its guns raised to 60% of their top elevation (mid-sweep), for a
+ * handoff (Track M, M1; elevation M1b). Skipped unless E2E_CAPTURE=1; writes
  * to E2E_CAPTURE_DIR (default test-results/ship-captures).
  */
 test.skip(process.env['E2E_CAPTURE'] !== '1', 'capture tool: set E2E_CAPTURE=1')
 
-test('ship captures: three-quarter and top, at rest and trained', async ({ page }) => {
+test('ship captures: three-quarter and side, at rest and mid-sweep', async ({ page }) => {
   test.setTimeout(300_000)
   const out = process.env['E2E_CAPTURE_DIR'] ?? 'test-results/ship-captures'
   mkdirSync(out, { recursive: true })
@@ -25,12 +26,12 @@ test('ship captures: three-quarter and top, at rest and trained', async ({ page 
     await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
     for (const preset of ['three-quarter', 'side'] as CameraPreset[]) {
       await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), preset)
-      for (const [label, rad] of [['rest', 0], ['trained', Math.PI / 3]] as const) {
-        await page.evaluate((r) => (window as HangarWindow).__hangar!.trainMounts(r), rad)
+      for (const [label, rad, frac] of [['rest', 0, 0], ['swept', Math.PI / 3, 0.6]] as const) {
+        await page.evaluate(([r, f]) => { const h = (window as HangarWindow).__hangar!; h.trainMounts(r); h.elevateMounts(f) }, [rad, frac] as const)
         await settle()
         await page.locator('#hangar-canvas').screenshot({ path: `${out}/${id}-${preset}-${label}.png` })
       }
     }
-    await page.evaluate(() => (window as HangarWindow).__hangar!.trainMounts(0))
+    await page.evaluate(() => { const h = (window as HangarWindow).__hangar!; h.trainMounts(0); h.elevateMounts(0) })
   }
 })

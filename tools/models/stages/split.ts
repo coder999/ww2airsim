@@ -313,6 +313,27 @@ function selectTriangles(indices: Uint32Array, positions: ArrayLike<number>, wor
       return inside(m, rule.boxMin, rule.boxMax) && (cut === null || cut.n[0]! * m[0]! + cut.n[1]! * m[1]! + cut.n[2]! * m[2]! >= cut.d)
     })
   }
+  const shell = triangleShells(indices, positions)
+  const lo = new Map<number, number[]>(), hi = new Map<number, number[]>()
+  for (let t = 0; t < triCount; t++) {
+    const root = shell[t]!
+    for (let k = 0; k < 3; k++) {
+      const p = worldPos(indices[3 * t + k]!)
+      const l = lo.get(root) ?? [Infinity, Infinity, Infinity], h = hi.get(root) ?? [-Infinity, -Infinity, -Infinity]
+      for (let a = 0; a < 3; a++) { l[a] = Math.min(l[a]!, p[a]!); h[a] = Math.max(h[a]!, p[a]!) }
+      lo.set(root, l); hi.set(root, h)
+    }
+  }
+  return Array.from({ length: triCount }, (_, t) => {
+    const root = shell[t]!
+    return inside(lo.get(root)!, rule.boxMin, rule.boxMax) && inside(hi.get(root)!, rule.boxMin, rule.boxMax)
+  })
+}
+
+/** Each triangle's shell id: triangles sharing a vertex POSITION (bit-identical floats) are one
+ *  shell, so a hard-edged CAD shell with split normals stays one. Ids are arbitrary but equal per shell. */
+export function triangleShells(indices: Uint32Array, positions: ArrayLike<number>): number[] {
+  const triCount = indices.length / 3
   // Union-find over position keys.
   const keyOf = new Map<string, number>()
   const parent: number[] = []
@@ -330,20 +351,7 @@ function selectTriangles(indices: Uint32Array, positions: ArrayLike<number>, wor
     parent[find(kc)] = find(ka)
     triKeys.push(ka)
   }
-  const lo = new Map<number, number[]>(), hi = new Map<number, number[]>()
-  for (let t = 0; t < triCount; t++) {
-    const root = find(triKeys[t]!)
-    for (let k = 0; k < 3; k++) {
-      const p = worldPos(indices[3 * t + k]!)
-      const l = lo.get(root) ?? [Infinity, Infinity, Infinity], h = hi.get(root) ?? [-Infinity, -Infinity, -Infinity]
-      for (let a = 0; a < 3; a++) { l[a] = Math.min(l[a]!, p[a]!); h[a] = Math.max(h[a]!, p[a]!) }
-      lo.set(root, l); hi.set(root, h)
-    }
-  }
-  return Array.from({ length: triCount }, (_, t) => {
-    const root = find(triKeys[t]!)
-    return inside(lo.get(root)!, rule.boxMin, rule.boxMax) && inside(hi.get(root)!, rule.boxMin, rule.boxMax)
-  })
+  return triKeys.map((k) => find(k))
 }
 
 /** Joins `mesh`'s primitives that share a material and vertex layout into one each. */

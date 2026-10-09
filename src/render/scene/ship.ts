@@ -43,10 +43,16 @@ export interface ShipMountView {
   readonly kit: string
   /** Turns this mount alone about its own vertical axis, radians from its rest bearing, positive to port (three's +y). */
   setTraining(rad: number): void
+  /** The kit's top elevation, radians (M1b); 0 for a kit whose guns are not a separate part. */
+  readonly maxElevationRad: number
+  /** Raises this mount's guns alone about their trunnion, radians above level, clamped to [0, maxElevationRad]. */
+  setElevation(rad: number): void
 }
 
-const MOUNT_NAME = /^(Turret|HeavyAA|LightAA)\d+$/
+/** A locator: an armament entry, or one gun of a gallery (`LightAA5_3`, M1b). */
+const MOUNT_NAME = /^(Turret|HeavyAA|LightAA)\d+(_\d+)?$/
 const KIT_PREFIX = 'Kit_'
+const GUNS_SUFFIX = '_Guns'
 
 /**
  * The instanced mount kit (M1 plan, Ruling R2): each `Kit_<kit>` node in the glb
@@ -60,7 +66,7 @@ function instanceMounts(root: Object3D): { mounts: ShipMountView[]; dispose: () 
   const kits = new Map<string, Object3D>()
   const locators: Object3D[] = []
   root.traverse((o) => {
-    if (o.name.startsWith(KIT_PREFIX)) kits.set(o.name.slice(KIT_PREFIX.length), o)
+    if (o.name.startsWith(KIT_PREFIX) && !o.name.endsWith(GUNS_SUFFIX)) kits.set(o.name.slice(KIT_PREFIX.length), o)
     else if (MOUNT_NAME.test(o.name)) locators.push(o)
   })
   const rootInverse = root.matrixWorld.clone().invert()
@@ -70,28 +76,49 @@ function instanceMounts(root: Object3D): { mounts: ShipMountView[]; dispose: () 
     const users = locators.filter((l) => l.userData['kit'] === kit)
     if (users.length === 0) throw new Error(`kit ${kit} has no locator`)
     const kitInverse = kitNode.matrixWorld.clone().invert()
-    const parts: { mesh: InstancedMesh; rel: Matrix4 }[] = []
+    // M1b: the guns child elevates about its trunnion (kit-local); everything else only trains.
+    const gunsNode = kitNode.children.find((c) => c.name.endsWith(GUNS_SUFFIX)) ?? null
+    const trunnion = (gunsNode?.userData['trunnion'] as number[] | undefined) ?? [0, 0, 0]
+    const maxElevationRad = (gunsNode?.userData['maxElevationRad'] as number | undefined) ?? 0
+    const parts: { mesh: InstancedMesh; rel: Matrix4; guns: boolean }[] = []
     kitNode.traverse((o) => {
       if (!(o instanceof Mesh)) return
+      let guns = false
+      for (let p: Object3D | null = o; p !== null && p !== kitNode.parent; p = p.parent) if (p === gunsNode) guns = true
       const mesh = new InstancedMesh(o.geometry, o.material, users.length)
-      mesh.name = `${KIT_PREFIX}${kit} instances`
+      mesh.name = `${KIT_PREFIX}${kit}${guns ? GUNS_SUFFIX : ''} instances`
       mesh.frustumCulled = false // ponytail: instances span the hull; per-instance bounds when a ship's draw time matters
-      parts.push({ mesh, rel: kitInverse.clone().multiply(o.matrixWorld) })
+      parts.push({ mesh, rel: kitInverse.clone().multiply(o.matrixWorld), guns })
     })
     kitNode.removeFromParent()
-    const turn = new Matrix4(), m = new Matrix4()
+    const toTrunnion = new Matrix4().makeTranslation(trunnion[0]!, trunnion[1]!, trunnion[2]!)
+    const fromTrunnion = new Matrix4().makeTranslation(-trunnion[0]!, -trunnion[1]!, -trunnion[2]!)
     users.forEach((loc, i) => {
       const at = rootInverse.clone().multiply(loc.matrixWorld)
-      const pose = (rad: number): void => {
-        turn.makeRotationY(rad)
-        for (const p of parts) { p.mesh.setMatrixAt(i, m.copy(at).multiply(turn).multiply(p.rel)); p.mesh.instanceMatrix.needsUpdate = true }
+      const turn = new Matrix4(), raise = new Matrix4(), m = new Matrix4()
+      let training = 0, elevation = 0
+      const pose = (): void => {
+        turn.makeRotationY(training)
+        raise.copy(toTrunnion).multiply(m.makeRotationZ(elevation)).multiply(fromTrunnion)
+        for (const p of parts) {
+          m.copy(at).multiply(turn)
+          if (p.guns) m.multiply(raise)
+          p.mesh.setMatrixAt(i, m.multiply(p.rel)); p.mesh.instanceMatrix.needsUpdate = true
+        }
       }
-      pose(0)
-      mounts.push({ name: loc.name, kit, setTraining: pose })
+      pose()
+      mounts.push({
+        name: loc.name, kit, maxElevationRad,
+        setTraining: (rad) => { training = rad; pose() },
+        setElevation: (rad) => { elevation = Math.min(Math.max(rad, 0), maxElevationRad); pose() },
+      })
     })
     for (const p of parts) { root.add(p.mesh); owned.push(p.mesh) }
   }
-  const order = (n: string): number => (n.startsWith('Turret') ? 0 : n.startsWith('Heavy') ? 1 : 2) * 1e4 + Number(n.replace(/\D/g, ''))
+  const order = (n: string): number => {
+    const [, list, k, g] = /^(\D+)(\d+)(?:_(\d+))?$/.exec(n)!
+    return (list === 'Turret' ? 0 : list === 'HeavyAA' ? 1 : 2) * 1e6 + Number(k) * 1e3 + Number(g ?? 0)
+  }
   mounts.sort((a, b) => order(a.name) - order(b.name))
   return { mounts, dispose: () => { for (const m of owned) { m.removeFromParent(); m.dispose() } } }
 }

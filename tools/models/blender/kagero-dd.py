@@ -77,9 +77,11 @@ with m.tagged('turrets'), m.shared_chart():
         if name.startswith('Turret'):
             y = stand(x, 5.0)
             naval.turret(m, name, x, y, z, b, (5.0, 4.2, 2.2), 2, GUN_L, 0.1, elevation_deg=5.0)
-        else:
+        elif g['kit'] in naval.MOUNTS:
             y = stand(x, 2.4)
             naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
+        else:
+            continue  # light AA: the build generates it (M1b)
         if DRY_RUN:
             print(f'MOUNT {name} {x} {round(y, 2)} {z}')
 
