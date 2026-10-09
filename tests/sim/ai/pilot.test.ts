@@ -27,8 +27,12 @@ describe('pilot skill presets', () => {
     expect(VETERAN_SKILL.energyDiscipline).toBeGreaterThan(GREEN_SKILL.energyDiscipline)
   })
 
-  it('green reproduces today\'s exact gun cone (gunneryAccuracy 1.0)', () => {
-    expect(GREEN_SKILL.gunneryAccuracy).toBe(1.0)
+  it('green fires on a wider cone and aims worse than veteran (E1: higher aim error is worse)', () => {
+    // Until E1 green's cone was pinned at 1.0. E1's retune tried widening it
+    // (1.3-2.0): green-v-green kills stayed at 1-4 of 24 (measured 2026-10-09).
+    expect(GREEN_SKILL.gunneryAccuracy).toBeGreaterThan(VETERAN_SKILL.gunneryAccuracy)
+    expect(GREEN_SKILL.aimErrorRad).toBeGreaterThan(VETERAN_SKILL.aimErrorRad)
+    expect(GREEN_SKILL.gunTracking).toBeLessThan(VETERAN_SKILL.gunTracking)
   })
 
   it('both presets are plain, structured-clone-safe data', () => {

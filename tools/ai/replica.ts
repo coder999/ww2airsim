@@ -40,6 +40,15 @@ export function replicaWorld(bundle: ScenarioBundle, loadout: Loadout, cursor: n
   }
 }
 
+/** `world` with `id`'s guns empty: it still steers to, and calls, every
+ *  solution it would shoot, and no round leaves. The 7c spec's "guns made
+ *  safe" development override (Decisions item 2), for tests of a maneuver
+ *  that must not end in a kill (E1). */
+export function gunsSafe(world: World<undefined>, id: string): World<undefined> {
+  const rec = world.combat.aircraft[id]!
+  return { ...world, combat: { ...world.combat, aircraft: { ...world.combat.aircraft, [id]: { ...rec, guns: rec.guns.map((g) => ({ ...g, ammo: 0 })) } } } }
+}
+
 export const aircraftOf = (f: FrameState, id: string): AircraftEntity<undefined> =>
   f.world.aircraft.find((a) => a.id === id)!
 export const rangeBetween = (f: FrameState, a: string, b: string): number =>

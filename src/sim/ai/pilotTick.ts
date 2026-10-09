@@ -11,6 +11,7 @@ import { friendlyInLineOfFire } from './holdFire.js'
 import { ingressAccepts, ingressBayDoorsOpen, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
 import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
+import { aimErrorDraw } from './noise.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
 import { airborne } from './airborne.js'
@@ -227,6 +228,7 @@ function flyPilot<M>(
         nextRescoreS: ctx.nowS + pilot.skill.reactionS,
         observedTargetPosition: target.state.position,
         observedTargetVelocity: target.state.velocity,
+        aimError: aimErrorDraw(decision.noiseCursor, pilot.skill.aimErrorRad),
       }
       // A latched maneuver holds through the rescore: perception still
       // refreshes (7d), the choice does not (spec §3.5).

@@ -123,6 +123,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 Mark's item is "improved AI". In priority order, by what other tracks need:
 
 1. **Gunnery honesty (M).** Lead on relative velocity, drop compensation and per-skill aim error. **This blocks almost every combat mission:** AI-vs-AI fights don't end in kills, and M4's interceptors can't shoot raiders down.
+   - **Done 2026-10-09, merged to `main`** (veterans toned down and green strengthened per Mark's rulings the same day). Plan `docs/superpowers/plans/2026-10-09-e1-gunnery.md`; handoff `docs/handoff/2026-10-09-e1-gunnery.md`. AI duels now end in kills (26 of 72 duels, from 3); a straight-flying player survives a veteran a median 8 s; green rarely kills a maneuvering target.
 2. **Attack behaviors (M):**
    - **Dive-bombing** first, as the D3A exists and bombs already work.
    - **Torpedo runs** after Track D.

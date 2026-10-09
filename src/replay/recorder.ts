@@ -10,8 +10,11 @@ import { DT } from '../sim/flight/model.js'
  * however many frames that took.
  */
 export const REPLAY_SPAN_TICKS = 600
-/** 1 records every advanced frame; 2 halves memory (spec §9's first step). Set by Task 1's measurement. */
-export const REPLAY_MIN_TICK_GAP = 1
+/** 1 records every advanced frame; 2 halves memory (spec §9's first step). Set by Task 1's measurement.
+ *  2 since E1 (2026-10-09): honest AI gunnery keeps more rounds in flight, and
+ *  the busiest scenario's 10 s grew from 52.6 to 66.8 MB at 1, over spec §9's
+ *  64 MB (tests/replay/memory.test.ts). Replay already lerps across gaps. */
+export const REPLAY_MIN_TICK_GAP = 2
 
 export type Recording = { readonly worlds: readonly World<undefined>[] }
 
