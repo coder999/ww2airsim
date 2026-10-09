@@ -83,6 +83,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE: Summary 85 says only "fully retractable" (A6M Zero spec §7.3)' },
     ],
     turrets: [],
+    surfaces: surfaces(1),
   },
   'b-17-flying-fortress': {
     // Each prop is its three blade islands (exactly 3-fold symmetric); the spinners stay static in
@@ -187,6 +188,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
     ],
     turrets: [],
+    surfaces: surfaces(1),
   },
   'ki-84-frank': {
     // An original Blender model (ki-84-frank.py): the kit's propeller is exactly 4-fold symmetric,

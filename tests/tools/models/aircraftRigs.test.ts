@@ -42,10 +42,11 @@ const THROUGH_SKIN: Readonly<Record<string, number>> = {
  * (tools/models/stages/split.ts). Every Blender surface reads 0; the default is 2 cm (the F6F's Flap1R
  * reads 1.8 cm of sub-centimeter slivers). Exceptions are measured 2026-10-08 and only shrink: the F4U's
  * elevators leave a short gap at their roots, against the fuselage, where the source overlays a second skin.
+ * The Zero's rudder reads 5.2 cm: two open edges at the fin tip, a missing sliver about 1 mm wide (C1 batch 3).
  * Before the caps these read 1.7 to 8.2 m.
  */
 const OPEN_HINGE_FACE_M = 0.02
-const OPEN_HINGE_FACE_EXCEPTIONS: Readonly<Record<string, number>> = { 'f4u-corsair/ElevatorR': 0.34, 'f4u-corsair/ElevatorL': 0.18 }
+const OPEN_HINGE_FACE_EXCEPTIONS: Readonly<Record<string, number>> = { 'f4u-corsair/ElevatorR': 0.34, 'f4u-corsair/ElevatorL': 0.18, 'a6m2-zero/Rudder': 0.053 }
 
 /** Turning a leg to its up angle: how far its centroid rises, and how far it moves the declared way. */
 function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig): { up: number; along: number; height: number } {
@@ -73,12 +74,12 @@ it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
   expect(specced).toEqual(modeled)
 })
 
-// Pinned (C1 batches 1 and 2, 2026-10-08), so a filter that matches nothing fails rather than passing
-// empty. Batches 3-4 add rows here as their models get surfaces. The F4F is not a rig (wildcat.ts draws
+// Pinned (C1 batches 1-3, 2026-10-08), so a filter that matches nothing fails rather than passing
+// empty. Batch 4 adds rows here as its models get surfaces. The F4F is not a rig (wildcat.ts draws
 // it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
-it('control surfaces: exactly the batch-1 and batch-2 airframes, each driving roll, pitch, yaw and flaps', () => {
+it('control surfaces: exactly the batch-1 to batch-3 airframes, each driving roll, pitch, yaw and flaps', () => {
   const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
-  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['b-29-superfortress', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-84-frank', 'p-38-lightning'])
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-29-superfortress', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
   for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 

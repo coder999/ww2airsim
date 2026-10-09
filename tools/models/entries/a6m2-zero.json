@@ -16,10 +16,17 @@
     { "node": "Leg g", "as": "GearL", "pivot": { "point": [187.152, 50.282, -112.837], "axis": "+x" } }
   ],
   "split": [
-    { "name": "Tailwheel", "select": "components", "boxMin": [-181, 26, -14.5], "boxMax": [-143, 62, 13], "pivot": { "point": [-165.502, 57.507, -7.426], "axis": "+z" } }
+    { "name": "Tailwheel", "select": "components", "boxMin": [-181, 26, -14.5], "boxMax": [-143, 62, 13], "pivot": { "point": [-165.502, 57.507, -7.426], "axis": "+z" } },
+    { "name": "AileronR", "select": "triangles", "boxMin": [60, 40, 167.5], "boxMax": [123.4293, 80, 271.8], "pivot": { "point": [112.919, 56.1172, 167.5], "axis": [-0.099715, -0.08459, -0.991414] }, "cut": { "normal": [-0.99498, 0.0, 0.100073] } },
+    { "name": "AileronL", "select": "triangles", "boxMin": [60, 40, -284.4], "boxMax": [123.4293, 80, -180.1], "pivot": { "point": [112.919, 56.1172, -180.1], "axis": [0.099715, 0.08459, -0.991414] }, "cut": { "normal": [-0.99498, 0.0, -0.100073] } },
+    { "name": "Flap1R", "select": "triangles", "boxMin": [50, 30, 45.0], "boxMax": [111.4777, 70, 151.7], "pivot": { "point": [101.1429, 45.0929, 45.0], "axis": [-0.095833, -0.08983, -0.991336] }, "cut": { "normal": [-0.99536, 0.0, 0.096222] } },
+    { "name": "Flap1L", "select": "triangles", "boxMin": [50, 30, -164.3], "boxMax": [111.4777, 70, -57.6], "pivot": { "point": [101.1429, 45.0929, -57.6], "axis": [0.095833, 0.08983, -0.991336] }, "cut": { "normal": [-0.99536, 0.0, -0.096222] } },
+    { "name": "ElevatorR", "select": "triangles", "boxMin": [-180, 50, 18.0], "boxMax": [-135.8676, 75, 112.0], "pivot": { "point": [-135.8876, 62.2634, 18.0], "axis": [0.092737, 0.000726, -0.99569] }, "cut": { "normal": [-0.995691, 0.0, -0.092737] } },
+    { "name": "ElevatorL", "select": "triangles", "boxMin": [-180, 50, -124.6], "boxMax": [-135.8676, 75, -30.6], "pivot": { "point": [-135.8876, 62.2634, -30.6], "axis": [-0.092737, -0.000726, -0.99569] }, "cut": { "normal": [-0.995691, -0.0, 0.092737] } },
+    { "name": "Rudder", "select": "triangles", "boxMin": [-205, 80.0, -20], "boxMax": [-159.1116, 152.0, 8], "pivot": { "point": [-159.1316, 80.0, -6.13], "axis": [-0.079063, 0.99687, 0.0] }, "cut": { "normal": [-0.99687, -0.079063, 0.0] } }
   ],
-  "simplify": { "ratio": 0.45, "error": 0.001, "perNode": { "Rotor": 1, "Verriere": 0.15, "Leg d": 0.5, "Leg g": 0.5 } },
+  "simplify": { "ratio": 0.45, "error": 0.001, "perNode": { "Rotor": 1, "Verriere": 0.15, "Corps": 0.40, "Leg d": 0.5, "Leg g": 0.5 } },
   "textures": { "maxSize": 1024, "format": "webp" },
-  "budget": { "maxBytes": 5600000, "maxTriangles": 100000, "maxDrawCalls": 12 },
+  "budget": { "maxBytes": 5600000, "maxTriangles": 100000, "maxDrawCalls": 14 },
   "noseNode": "Prop"
 }

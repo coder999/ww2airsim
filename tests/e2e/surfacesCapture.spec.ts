@@ -1,5 +1,5 @@
 // tests/e2e/surfacesCapture.spec.ts
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { test } from '@playwright/test'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 import type { PartPose } from '../../src/render/hangar/models.js'
@@ -31,8 +31,10 @@ test('control surfaces on the bench (C1 checkpoint)', async ({ page }) => {
   // The F4F is drawn by wildcat.ts, not a rig, and has surfaces since C1 batch 2. CAPTURE_IDS narrows the list.
   const all = [...Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0).map(([id]) => id), 'f4f-wildcat']
   const ids = process.env.CAPTURE_IDS ? all.filter((id) => process.env.CAPTURE_IDS!.split(',').includes(id)) : all
+  // The Hangar selects by library id, which can differ from the spec id (the Zero is a6m-zero, spec a6m2-zero).
+  const libraryOf = new Map(readdirSync('content/library').map((f) => JSON.parse(readFileSync(`content/library/${f}`, 'utf8')) as { id: string; spec?: string }).filter((l) => l.spec).map((l) => [l.spec!, l.id]))
   for (const id of ids) {
-    await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
+    await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), libraryOf.get(id) ?? id)
     // The details panel takes a column; collapsed, the model gets the width (2026-10-08 layout).
     const collapse = page.getByRole('button', { name: 'Collapse details' })
     if (await collapse.isVisible()) await collapse.click()
