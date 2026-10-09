@@ -51,6 +51,9 @@ export type TitleModel = {
   /** The administrative memo's link to the Hangar, hangar.html (Hangar spec §3). */
   readonly hangar: string
   readonly hangarHref: string
+  /** The sound library, sounds.html (2026-10-09); its button shows only while Dev is checked. */
+  readonly sounds: string
+  readonly soundsHref: string
   readonly settings: string
   readonly close: string
   readonly aboutKicker: string
@@ -73,6 +76,8 @@ export function titleModel(): TitleModel {
     about: 'About project',
     hangar: 'Hangar',
     hangarHref: `${import.meta.env.BASE_URL}hangar.html`,
+    sounds: 'Sounds',
+    soundsHref: `${import.meta.env.BASE_URL}sounds.html`,
     settings: 'Settings',
     close: 'Close',
     aboutKicker: 'Project Office',
@@ -836,9 +841,13 @@ export function createTitleScreen(
     // With About and Settings since 2026-10-08 (Mark): reference, not part of starting a sortie.
     const hangar = inkButton(m.hangar)
     hangar.addEventListener('click', () => { window.location.href = m.hangarHref })
+    // A developer's tool, not a player's (Mark 2026-10-09): shown only while Dev is checked.
+    const sounds = inkButton(m.sounds)
+    sounds.addEventListener('click', () => { window.location.href = m.soundsHref })
+    sounds.style.display = dev ? '' : 'none'
     const adminButtons = document.createElement('div')
     adminButtons.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap'
-    adminButtons.append(hangar, about, settingsButton)
+    adminButtons.append(hangar, sounds, about, settingsButton)
     adminRow.append(adminKicker, adminButtons)
     admin.sheet.appendChild(adminRow)
     overlay.appendChild(admin.panel)
@@ -1058,6 +1067,7 @@ export function createTitleScreen(
     devBox.checked = dev
     devBox.addEventListener('change', () => {
       dev = devBox.checked
+      sounds.style.display = dev ? '' : 'none'
       if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
     })
     devLabel.append(devBox, m.dev)

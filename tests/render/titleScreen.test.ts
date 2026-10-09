@@ -28,6 +28,12 @@ describe('the title screen model (2026-09-19)', () => {
     expect(m.hangarHref).toBe(`${import.meta.env.BASE_URL}hangar.html`)
   })
 
+  it('names the Sounds button and links it to sounds.html under the base URL (2026-10-09)', () => {
+    const m = titleModel()
+    expect(m.sounds).toBe('Sounds')
+    expect(m.soundsHref).toBe(`${import.meta.env.BASE_URL}sounds.html`)
+  })
+
   it('names the Settings button, reachable at every step of the screen', () => {
     // Render-quality-selector spec §6: "visible at all times regardless of
     // which roster/scenario/loadout step is active". The DOM proof of that

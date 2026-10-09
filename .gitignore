@@ -18,6 +18,9 @@ dist-ssr/
 # left it and 8 other roster candidates from docs/handoff/2026-09-24-aircraft-
 # model-candidates.md untracked and unprotected.
 /content/models/
+# Candidate sound takes, auditioned on sounds.html before any is ingested into
+# content/audio/ (2026-10-09). Never shipped: vite.config.ts EXCLUDED_CONTENT_DIRS.
+/content/audio/candidates/
 *.tif
 *.tiff
 

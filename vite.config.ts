@@ -9,9 +9,10 @@ import { fileURLToPath } from 'node:url'
  * `tools/models/sketchfab-fetch.sh` downloads candidates into
  * (131,197,993 bytes in the main checkout, measured 2026-09-25; A6M Zero
  * spec §6.4). Committed models live in `content/aircraft/` and
- * `content/ships/`, which are copied.
+ * `content/ships/`, which are copied. `audio/candidates/` holds sound takes
+ * not yet ingested, which only the dev server's sounds.html plays (2026-10-09).
  */
-export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'models']
+export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'models', 'audio/candidates']
 
 /** `cp`'s filter for `contentRoot`. Returning false for a directory already
  *  stops `cp` descending into it; the prefix test is the belt to those
@@ -169,12 +170,14 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    // Two pages: the game, and the object library (Hangar spec §3). A
-    // second page is a second Rollup input; each bundles only what it imports.
+    // Three pages: the game, the object library (Hangar spec §3), and the
+    // sound library (2026-10-09). Each page is a Rollup input and bundles only
+    // what it imports.
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         hangar: fileURLToPath(new URL('./hangar.html', import.meta.url)),
+        sounds: fileURLToPath(new URL('./sounds.html', import.meta.url)),
       },
     },
   },

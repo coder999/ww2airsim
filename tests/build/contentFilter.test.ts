@@ -11,6 +11,8 @@ describe('contentCopyFilter (vite.config.ts)', () => {
     ['content/models/candidates/a6m2-zeke.glb', false],
     ['content/terrain/tiles', false],
     ['content/terrain/tiles/L0/0_0.bin', false],
+    ['content/audio/candidates/index.json', false],
+    ['content/audio/rocket_whoosh.wav', true],
     ['content/aircraft/wildcat.glb', true],
     ['content/terrain/L1.bin', true],
     ['content/models-notes/readme.md', true],

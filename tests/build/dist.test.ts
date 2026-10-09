@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { AIRCRAFT_CONTENT_PATH, CURL_NOISE_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH, WEATHER_MAP_PATH, WILDCAT_MODEL_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
-import { GA4_HOSTS, GA4_MEASUREMENT_ID } from '../../vite.config.js'
+import { EXCLUDED_CONTENT_DIRS, GA4_HOSTS, GA4_MEASUREMENT_ID } from '../../vite.config.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
@@ -70,12 +70,6 @@ const TERRAIN_NOTICE_PATH = 'content/terrain/NOTICE.md'
  */
 const TERRAIN_TILES_PATH = 'content/terrain/tiles'
 const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH}`, import.meta.url))
-/** The gitignored candidate-model staging area (`tools/models/sketchfab-fetch.sh`
- *  writes there). Same guard as the tiles: asserted only where the source
- *  directory exists, so a fresh clone cannot pass it for the wrong reason;
- *  tests/build/contentFilter.test.ts pins the filter itself everywhere. */
-const CANDIDATE_MODELS_PATH = 'content/models'
-const REPO_CANDIDATE_MODELS_DIR = fileURLToPath(new URL(`../../${CANDIDATE_MODELS_PATH}`, import.meta.url))
 
 /**
  * Whether the repo's own `content/terrain/L0.bin` (the SOURCE `vite build`
@@ -189,6 +183,7 @@ describe('the built artifact', () => {
       // page itself bundles the same files (contentIndex.ts), so this pins
       // what a reader of dist/ can audit, not what the page fetches.
       expect(existsSync(join(outDir, 'hangar.html')), 'dist/hangar.html').toBe(true)
+      expect(existsSync(join(outDir, 'sounds.html')), 'dist/sounds.html').toBe(true)
       const libraryFiles = readdirSync('content/library').filter((f) => f.endsWith('.json')).sort()
       expect(readdirSync(join(outDir, 'content/library')).filter((f) => f.endsWith('.json')).sort()).toEqual(libraryFiles)
 
@@ -325,11 +320,14 @@ describe('the built artifact', () => {
           'the build shipped tools/terrain/build.ts\'s scratch directory (vite.config.ts\'s content-copy filter)',
         ).toBe(false)
       }
-      if (existsSync(REPO_CANDIDATE_MODELS_DIR)) {
-        expect(
-          existsSync(join(outDir, CANDIDATE_MODELS_PATH)),
-          'the build shipped content/models/, the gitignored candidate staging area (vite.config.ts EXCLUDED_CONTENT_DIRS)',
-        ).toBe(false)
+      // Every gitignored staging area (candidate models, candidate sound
+      // takes), guarded on its source like the tiles above so a fresh clone
+      // cannot pass for the wrong reason; contentFilter.test.ts pins the
+      // filter itself everywhere.
+      for (const dir of EXCLUDED_CONTENT_DIRS) {
+        const path = `content/${dir}`
+        if (!existsSync(fileURLToPath(new URL(`../../${path}`, import.meta.url)))) continue
+        expect(existsSync(join(outDir, path)), `the build shipped ${path} (vite.config.ts EXCLUDED_CONTENT_DIRS)`).toBe(false)
       }
 
       const notice = readFileSync(join(outDir, TERRAIN_NOTICE_PATH), 'utf8')
