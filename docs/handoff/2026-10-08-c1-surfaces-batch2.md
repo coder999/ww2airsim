@@ -14,7 +14,7 @@ All three US fighters move their ailerons, elevators, rudder and flaps on the be
 
 - **Live:** `https://ww2airsim-2.windomlane.org/hangar.html?bench`, served from this worktree. Pick the F6F, F4U or F4F. The "Control surfaces" row has roll, pitch and yaw; the flaps row drives the flaps.
 - **Captures:** [`2026-10-08-c1-surfaces-batch2-shots/`](2026-10-08-c1-surfaces-batch2-shots/), three per airframe: roll right from the front, pitch up with yaw right in three-quarter, and flaps down from the side.
-- **Please look at the F4F's ailerons.** The model's own `Aleron_Der`/`Aleron_Izq` sit **inboard**, from the fuselage to mid-span, where a real F4F's flaps are. Its outer wing has no surface at all. They are driven as ailerons, as the model names them. The split flaps drawn in code hang under the same span.
+- **The F4F's ailerons are now on the outer wing** (Mark's ruling, below).
 
 ## How
 
@@ -46,7 +46,7 @@ All three US fighters move their ailerons, elevators, rudder and flaps on the be
 | --- | --- | --- | --- | --- | --- |
 | F6F | 39 | 46 | 47 | 26,399 | 32,243 |
 | F4U | 22 | 34 | 47 | 15,296 | 23,500 |
-| F4F | 47 | at most 47 (45 with the flaps up) | 47 | 100,886 | 100,890 |
+| F4F | 47 | at most 47 drawn (49 stored, see below) | 47 drawn, 49 stored | 100,886 | 102,498 |
 
 - **F6F:** each surface is one primitive (+7).
 - **F4U:** its elevators and rudder each span two materials (+12).
@@ -102,7 +102,45 @@ Two cut-stage bugs turned up on the way:
 
 **Captures** (before on the left, after on the right, the same camera): [`2026-10-08-c1-surfaces-batch2-shots/review/`](2026-10-08-c1-surfaces-batch2-shots/review/), from behind and above, from the side and from low in three-quarter, for both airplanes. The standard captures in the parent folder are re-shot with the fix.
 
+## Ruling: Mark, 2026-10-08, the F4F's ailerons move outboard
+
+**Unfreezing.** `wildcat.json` was `frozen` (Z1, 2026-09-25) because `wildcat.ts` poses the gear groups in the file's own node space, and the pipeline's join would have flattened that hierarchy. The file came from a pre-manifest recipe, `@gltf-transform/cli optimize` and then every material forced opaque (commits f4770d47, 20bcaa4e, d2a629de).
+- **The check, before changing anything:** I re-ran that recipe at CLI 4.5.0 on the raw download (`tools/models/cache/grumman_f4f_wildcat_airplane.glb`, 74,074,336 bytes). The binary chunk (all geometry and textures) and the JSON came out identical except `asset.generator`, because the CLI now resolves core 4.5.1.
+- **Through the build:** with no cut, the output is the committed file byte for byte. The re-encode writes with the repo's core 4.5.0, so even the generator matches.
+- **The change:** the recipe is `tools/models/legacy.ts`. The entry swaps `frozen` for `legacyOptimize: true`, which runs the recipe into the cache and then `split` only, so every node stays where `wildcat.ts` expects it. The reason is in the entry's `note` and in `ASSETS.md`.
+
+**The ailerons.** NACA ACR, Kleckner, "Flight Measurements of the Aileron Characteristics of a Grumman F4F-3 Airplane" (1942, NTRS 20090019131), gives:
+- inboard end: 65.5% of the wing semispan;
+- outboard end: 92.5%;
+- chord behind the hinge: about 22.8% of the wing chord.
+
+That is the F4F-3. The F4F-4's folding outer panel is taken to keep the same layout: **ESTIMATE**. The build cuts `AileronR` and `AileronL` from the wing skin there (semispan 7.829 model units, so x ±5.128 to ±7.242), hinged at 22.8% of the chord forward of the trailing edge, from true sections. The cut is capped, and both pieces are closed shells.
+
+**The inboard pieces become static.** The model's `Aleron_*` run from the fuselage to about 62% of the semispan, which is where the F4F's split flaps were. A split flap is the lower skin only: the upper skin and the trailing edge stay put. So these full-thickness pieces are wing, not flap. They are drawn static, and the split-flap plates `wildcat.ts` draws beneath them are the flap system. Their span is the model's: **ESTIMATE**, against the real flaps.
+
+**Draw calls.** The glb stores 49: the old 47 plus the two ailerons. `wildcat.ts` draws at most 47:
+- the three hinge pins merged: −2;
+- the two static inboard pieces merged: −1;
+- the split flaps, one mesh: +1.
+
+That makes 46 with the flaps up and 47 with them down, and `wildcat.test.ts` holds it. The entry's own budget is the stored figure, 49 draws, 103,000 triangles and 5.7 MB: the slices and caps add 1,612 triangles and 64 KB.
+
+**Behavior kept:** the gear clip poses, the W1 leg stretch and the stores are untouched. `wildcatGear`, `wildcatMounts`, `outputs` and `wildcat.test` pass. `dist.test.ts` now compares the shipped Wildcat with the committed file instead of the old literal 5,573,316.
+
+**Tests:**
+- `wildcat.test.ts` enrolls `AileronR`/`AileronL` in place of `Aleron_*` for the hinge and direction checks, plus a new check that both cut ailerons are closed shells.
+- Seen red:
+  - inverting the orientation rule fails both ailerons' direction checks;
+  - a trailing-edge hinge fails their leading-edge check, at 74% of the chord;
+  - a build without caps fails the closed-shell check, with 61 and 59 open edges.
+
+  The restored build is byte-identical.
+- `hangar.spec` check 9 lists the new nodes.
+- E2E on nexus: `hangar.spec` 19/19 and `wildcat.spec` pass. In `sortie.spec`, the two AD-2 tests fail on main too. "Drawn as the chosen aircraft" failed twice on its 120 s dive timeout under load and then passed three times, with no console errors.
+- Full suite on ryzen: 4,674 tests, 10 named skips.
+
+**Captures** (before on the left, after on the right): `2026-10-08-c1-surfaces-batch2-shots/review/f4f-wildcat-{top-roll,front-roll,rear-roll-flaps}-before-after.jpg`. From the top with right roll, the moving surface goes from the inboard trailing edge to the outer wing.
+
 ## Not done, and why
 
-- **The F4F's real outboard ailerons.** The frozen model draws none, and cutting them would mean unfreezing it. A decision for Mark.
 - **Batches 3 (A6M2, Ki-43) and 4 (D3A, B-17).** They go by the same `split` + `cut` route.

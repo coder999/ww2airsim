@@ -139,11 +139,18 @@ export function wildcatGearStretch(der: Object3D, izq: Object3D): (stretchM: num
   }
 }
 
-/** The model's own control surfaces (C1 batch 2), by the rig names surfaceDrive reads. "Der" is
- *  right (-x in the model). The model's ailerons sit inboard, where a real F4F's flaps are; they are
- *  driven as ailerons, as the model names them (C1 batch 2 handoff). */
+/**
+ * The control surfaces (C1 batch 2), by the rig names surfaceDrive reads; "Der" is right (-x in the
+ * model). The ailerons are cut from the outer wing by the build (tools/models/entries/wildcat.json) at
+ * the F4F-3's measured layout, 65.5% to 92.5% of the semispan with 22.8% of the chord behind the hinge
+ * (NACA ACR, Kleckner, 'Flight Measurements of the Aileron Characteristics of a Grumman F4F-3 Airplane',
+ * 1942; the F4F-4's folding outer panel is taken to keep it: ESTIMATE). The pieces the model names
+ * `Aleron_*` sit inboard, from the fuselage to mid-span, where the real F4F's split flaps are: a split
+ * flap is the lower skin only, so they are static wing, and the split flaps drawn below them move
+ * (Mark's ruling, 2026-10-08).
+ */
 export const WILDCAT_SURFACES: Readonly<Record<string, string>> = {
-  Aleron_Der: 'AileronR', Aleron_Izq: 'AileronL', Timon_Der: 'ElevatorR', Timon_Izq: 'ElevatorL', Timon_Prof: 'Rudder',
+  AileronR: 'AileronR', AileronL: 'AileronL', Timon_Der: 'ElevatorR', Timon_Izq: 'ElevatorL', Timon_Prof: 'Rudder',
 }
 
 /** A hinge in a node's parent frame: a point on it and the unit axis. */
@@ -197,8 +204,9 @@ function turnAbout(node: Object3D, rest: { pos: Vector3; quat: Quaternion }, h: 
 }
 
 /**
- * The split flaps the model does not draw (Mark, 2026-10-08): one plate under each aileron, from its
- * leading edge to its trailing edge, 0.3 model units under its lowest skin, hinged at the front. Both
+ * The split flaps the model does not draw (Mark, 2026-10-08): one plate under each inboard `Aleron_*`
+ * piece (static wing since C1 batch 2), from its leading edge to its trailing edge, 0.3 model units under
+ * its lowest skin, hinged at the front. Both
  * plates are ONE mesh posed on the CPU, so they cost one draw call, and it is hidden while the flaps are
  * up, where it would lie flush with the skin. ESTIMATE: the real F4F's flaps run under the inboard
  * wing as these do; their chord and the drop are the model's aileron's, not Grumman's figures.
@@ -206,7 +214,7 @@ function turnAbout(node: Object3D, rest: { pos: Vector3; quat: Quaternion }, h: 
 function wildcatFlaps(der: Object3D, izq: Object3D): { mesh: Mesh; set(fraction: number): void } {
   const plates = [der, izq].map((node) => {
     const pts = pointsIn(node, node.parent!)
-    const h = wildcatHinge(node, false)
+    const h = wildcatHinge(node, false) // only its orientation, which side is +x
     const xs = pts.map((p) => p.x), x0 = Math.min(...xs), x1 = Math.max(...xs)
     const zf = Math.max(...pts.map((p) => p.z)), zr = Math.min(...pts.map((p) => p.z))
     const y = Math.min(...pts.map((p) => p.y)) - 0.3
@@ -235,24 +243,26 @@ function wildcatFlaps(der: Object3D, izq: Object3D): { mesh: Mesh; set(fraction:
 }
 
 /**
- * The three hinge pins under `Pasadores` (static, one material, 64 triangles each) merged into one
- * mesh: two draw calls back, so the flaps fit the model's 47-call budget (C1 batch 2). Returns the
- * merged geometry, which this instance owns.
+ * Static meshes of one material merged into one mesh named `name` under `into`: one draw call for
+ * several. With the three hinge pins under `Pasadores` (Tensor_MAT, 64 triangles each) and the two
+ * now-static inboard `Aleron_*` pieces (Alerones_MAT), that is three calls back, so the cut ailerons
+ * and the split flaps fit the model's 47-call budget as drawn (C1 batch 2). Returns the merged
+ * geometry, which this instance owns.
  */
-function mergePins(group: Object3D): BufferGeometry | null {
-  const meshes: Mesh[] = []
-  group.traverse((o) => { if (o instanceof Mesh) meshes.push(o) })
+function mergeStatic(meshes: readonly Mesh[], into: Object3D, name: string): BufferGeometry | null {
   if (meshes.length < 2) return null
-  group.updateWorldMatrix(true, true)
-  const toGroup = new Matrix4().copy(group.matrixWorld).invert()
-  const merged = mergeGeometries(meshes.map((m) => m.geometry.clone().applyMatrix4(new Matrix4().multiplyMatrices(toGroup, m.matrixWorld))))
+  into.updateWorldMatrix(true, true)
+  const toInto = new Matrix4().copy(into.matrixWorld).invert()
+  const merged = mergeGeometries(meshes.map((m) => { m.updateWorldMatrix(true, false); return m.geometry.clone().applyMatrix4(new Matrix4().multiplyMatrices(toInto, m.matrixWorld)) }))
   if (merged === null) return null
   const one = new Mesh(merged, meshes[0]!.material)
-  one.name = 'Pasadores_merged'
+  one.name = name
   for (const m of meshes) m.removeFromParent()
-  group.add(one)
+  into.add(one)
   return merged
 }
+
+const meshesUnder = (o: Object3D): Mesh[] => { const out: Mesh[] = []; o.traverse((m) => { if (m instanceof Mesh) out.push(m) }); return out }
 
 /**
  * One Wildcat. Loads through the shared model cache (A6M Zero spec §7.1): the
@@ -276,7 +286,8 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
     return { node, name, input, hinge: wildcatHinge(node, input === 'yaw'), rest: { pos: node.position.clone(), quat: node.quaternion.clone() } }
   })
   const flaps = wildcatFlaps(instance.node('Aleron_Der'), instance.node('Aleron_Izq'))
-  const pins = mergePins(instance.node('Pasadores'))
+  const pins = mergeStatic(meshesUnder(instance.node('Pasadores')), instance.node('Pasadores'), 'Pasadores_merged')
+  const inboard = mergeStatic([...meshesUnder(instance.node('Aleron_Der')), ...meshesUnder(instance.node('Aleron_Izq'))], instance.node('Aleron_Der').parent!, 'Aleron_static')
   const stick = { roll: 0, pitch: 0, yaw: 0 }
   const helice = instance.node('Helice')
   // The prop turns about ITS OWN native axis (local Z here, not the +X
@@ -344,6 +355,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       flaps.mesh.geometry.dispose()
       ;(flaps.mesh.material as MeshStandardMaterial).dispose()
       pins?.dispose()
+      inboard?.dispose()
       instance.release()
     },
   }

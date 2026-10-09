@@ -109,9 +109,16 @@ describe('generated entries (O1)', () => {
   it('keeps every pre-O1 Sketchfab entry exactly shaped, plus kind "sketchfab"', () => {
     const before = JSON.parse(readFileSync('tests/tools/models/fixtures/entries-before-o1.json', 'utf8')) as { id: string; source: object }[]
     const beforeIds = new Set(before.map((e) => e.id))
-    // DP2 adds `boxSkin` to four of these on purpose; every other field must be exactly as it was.
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, rest))
-    expect(now).toEqual(before.map((e) => ({ ...e, source: { kind: 'sketchfab', ...e.source } })))
+    // DP2 adds `boxSkin` to four of these on purpose, and C1 batch 2 (2026-10-08) unfroze the Wildcat:
+    // `frozen` out; `legacyOptimize`, `note`, its aileron `split` and a new `budget` in (its entry's
+    // `note` says why). Every other field must be exactly as it was.
+    const c1 = (e: Record<string, unknown>): Record<string, unknown> => {
+      if (e['id'] !== 'wildcat') return e
+      const { frozen, legacyOptimize, note, split, budget, ...rest } = e
+      return (void frozen, void legacyOptimize, void note, void split, void budget, rest)
+    }
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, ...rest }) => (void boxSkin, c1(rest)))
+    expect(now).toEqual(before.map((e) => c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))
   })
 })
 

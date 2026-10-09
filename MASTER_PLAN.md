@@ -79,7 +79,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 
 **C1. Control surfaces (M per batch).**
 - **Batch 1 done 2026-10-08:** the five Blender models (B-29, Ki-21, G4M, P-38, Ki-84) move ailerons, elevators, rudders and flaps, and the Hangar bench has roll, pitch and yaw sliders. Plan `docs/superpowers/plans/2026-10-08-c1-surfaces-batch1.md`; handoff `docs/handoff/2026-10-08-c1-surfaces-batch1.md`.
-- **Batch 2 built 2026-10-08, on branch `c1-surfaces-batch2` until Mark has looked:** the F6F, F4U and F4F. The F6F and F4U surfaces are cut out of their downloads; the F4F's own surface nodes turn in `wildcat.ts`, with split flaps drawn there. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch2.md`.
+- **Batch 2 built 2026-10-08, on branch `c1-surfaces-batch2` until Mark has looked:** the F6F, F4U and F4F. The F6F and F4U surfaces are cut out of their downloads; the F4F is unfrozen and its ailerons cut from the outer wing at the F4F-3's measured layout (Mark's ruling, 2026-10-08), with its inboard pieces static and split flaps drawn under them in `wildcat.ts`. Handoff `docs/handoff/2026-10-08-c1-surfaces-batch2.md`.
 - **Still to do:** batches 3 (A6M2, Ki-43) and 4 (D3A, B-17), by the same `split` + `cut` route.
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.

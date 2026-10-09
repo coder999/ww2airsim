@@ -2,14 +2,18 @@
   "id": "wildcat",
   "input": "tools/models/cache/grumman_f4f_wildcat_airplane.glb",
   "output": "content/aircraft/wildcat.glb",
-  "source": {
-    "url": "https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4",
-    "uid": "ac26b8bf6be44ba7b903ca7fbdedf7e4",
-    "author": "rojatsu",
-    "license": "CC-BY-4.0"
-  },
-  "frozen": "wildcat.ts poses GRP_Rueda_* with gear poses measured in this file's own node space (2026-09-24), and tests/build/dist.test.ts pins its 5,573,316 bytes; a rebuild through join would change both",
-  "keep": [{ "node": "Helice" }, { "node": "GRP_Rueda_Der" }, { "node": "GRP_Rueda_Izq" }],
+  "source": { "url": "https://sketchfab.com/3d-models/grumman-f4f-wildcat-airplane-ac26b8bf6be44ba7b903ca7fbdedf7e4", "uid": "ac26b8bf6be44ba7b903ca7fbdedf7e4", "author": "rojatsu", "license": "CC-BY-4.0" },
+  "legacyOptimize": true,
+  "note": "Frozen until 2026-10-08 because wildcat.ts poses GRP_Rueda_* in this file's own node space and a rebuild through the pipeline's join would flatten that. Unfrozen for C1 batch 2 (Mark's ruling, 2026-10-08: real outboard ailerons): legacyOptimize rebuilds through the original recipe, which reproduced the committed file byte for byte except asset.generator (2026-10-08), and then runs split only, so every node stays where wildcat.ts expects it. The ailerons are cut from the wing (C1 batch 2): 5,637,388 bytes, 102,498 triangles and 49 draw calls stored (the slices and caps add 1,612 triangles), budgeted just above. 47 are drawn at most: wildcat.ts merges the three static hinge pins and the two now-static inboard surfaces at load and draws the split flaps as one mesh (tests/render/wildcat.test.ts).",
+  "keep": [
+    { "node": "Helice" },
+    { "node": "GRP_Rueda_Der" },
+    { "node": "GRP_Rueda_Izq" }
+  ],
   "textures": { "maxSize": 1024, "format": "webp" },
-  "budget": { "maxBytes": 5600000, "maxTriangles": 101000, "maxDrawCalls": 47 }
+  "budget": { "maxBytes": 5700000, "maxTriangles": 103000, "maxDrawCalls": 49 },
+  "split": [
+    { "name": "AileronR", "select": "triangles", "boxMin": [-7.242, 1.5, 0.33], "boxMax": [-5.128, 2.15, 1.18], "cut": { "normal": [-0.088675, 0.0, -0.996061], "point": [-5.128, 1.6896, 0.9737] } },
+    { "name": "AileronL", "select": "triangles", "boxMin": [5.128, 1.5, 0.33], "boxMax": [7.242, 2.15, 1.18], "cut": { "normal": [0.088675, -0.0, -0.996061], "point": [5.128, 1.6896, 0.9737] } }
+  ]
 }

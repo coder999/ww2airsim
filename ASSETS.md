@@ -60,14 +60,23 @@ original work, AGPL-3.0-or-later. Each gets its row here when it ships.
 `content/aircraft/wildcat.glb` is a texture-recompressed derivative of the
 Sketchfab download above, produced 2026-09-24 by the first `tools/models/build.ts`
 via `@gltf-transform/cli`'s `optimize` command -- textures resized to
-1024x1024 and re-encoded as WebP, geometry untouched. That build is gone:
-its entry, `tools/models/entries/wildcat.json`, is `frozen`, so today's
-manifest-driven `npm run models:build` skips it rather than regenerate these
-bytes (Z1, 2026-09-25). Retrieved
+1024x1024 and re-encoded as WebP, every material forced opaque. That recipe
+is `tools/models/legacy.ts`; its entry, `tools/models/entries/wildcat.json`, was
+`frozen` from Z1 (2026-09-25) until C1 batch 2 (2026-10-08), when the recipe
+was shown to rebuild the committed file byte for byte from the raw download, and
+the entry took `legacyOptimize` instead. Retrieved
 and verified rigged (separate, named landing-gear nodes with baked
 retraction keyframes) 2026-09-24. Node names used by
 `src/render/scene/wildcat.ts`: `Helice` (propeller), `GRP_Rueda_Der` /
 `GRP_Rueda_Izq` (main gear, right/left). The model has no flap geometry.
+
+**Modified in the build (C1 batch 2, 2026-10-08; CC-BY 4.0 permits modification
+with the change indicated):** ailerons are cut out of the outer wing,
+65.5% to 92.5% of the semispan with 22.8% of the chord behind the hinge (the
+F4F-3's, NACA ACR, Kleckner, 1942), as nodes `AileronR` and `AileronL`. The cut
+faces are capped. The model's own inboard `Aleron_*` pieces, which sit where the
+real airplane's split flaps are, are drawn static; split-flap plates beneath
+them are drawn in code (`src/render/scene/wildcat.ts`).
 
 **Modified at draw time (W1, 2026-09-28; CC-BY 4.0 permits modification with
 the change indicated):** the game lengthens both main landing-gear legs of this

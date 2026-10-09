@@ -10,7 +10,7 @@ export interface SplitRule {
   readonly boxMin: readonly [number, number, number]
   readonly boxMax: readonly [number, number, number]
   readonly pivot?: { readonly point: readonly [number, number, number] } | undefined
-  readonly cut?: { readonly normal: readonly [number, number, number] } | undefined
+  readonly cut?: { readonly normal: readonly [number, number, number]; readonly point?: readonly [number, number, number] | undefined } | undefined
 }
 
 /** A plane n . p = d, in the frame the box is in. */
@@ -285,7 +285,7 @@ function planesOf(rule: SplitRule): Plane[] {
     planes.push({ n, d: rule.boxMin[k]! }, { n, d: rule.boxMax[k]! })
   }
   if (rule.cut) {
-    const n = rule.cut.normal, q = rule.pivot!.point
+    const n = rule.cut.normal, q = rule.cut.point ?? rule.pivot!.point
     planes.push({ n, d: n[0] * q[0] + n[1] * q[1] + n[2] * q[2] })
   }
   return planes

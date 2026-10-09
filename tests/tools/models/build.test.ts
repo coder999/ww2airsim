@@ -107,6 +107,7 @@ function fakeDeps(present: string[], haveBlender = true) {
     haveBlender: () => haveBlender,
     blender: (script, out) => { blenderRuns.push(`${script} -> ${out}`) },
     readText: () => { throw new Error('readText: not used by this test') }, scan: () => Promise.reject(new Error('scan: not used by this test')),
+    legacyOptimize: () => { throw new Error('legacyOptimize: not used by this test') },
   }
   return { deps, lines, written, generated, reads, blenderRuns }
 }

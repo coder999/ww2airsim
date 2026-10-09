@@ -191,6 +191,27 @@ describe('the Wildcat control surfaces and split flaps (C1 batch 2)', () => {
     a.dispose()
   })
 
+  it.each(['AileronR', 'AileronL'])('%s, cut from the outer wing, is a closed solid: no hollow shows when it deflects (C1 batch 2)', async (name) => {
+    const cache = syntheticCache()
+    const a = await loadWildcat(undefined, (url) => cache.acquire(url))
+    const node = a.root.getObjectByName(name)!
+    const key = (p: Vector3): string => p.toArray().map((c) => Math.round(c * 1e4)).join(',')
+    const edges = new Map<string, number>()
+    node.traverse((m) => {
+      if (!(m instanceof Mesh)) return
+      const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex()!
+      for (let t = 0; t < idx.count; t += 3) for (let k = 0; k < 3; k++) {
+        const ka = key(new Vector3().fromBufferAttribute(pos, idx.getX(t + k))), kb = key(new Vector3().fromBufferAttribute(pos, idx.getX(t + (k + 1) % 3)))
+        if (ka === kb) continue
+        const e = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`
+        edges.set(e, (edges.get(e) ?? 0) + 1)
+      }
+    })
+    expect(edges.size).toBeGreaterThan(100)
+    expect([...edges.values()].filter((c) => c === 1).length, `${name} open edges`).toBe(0)
+    a.dispose()
+  })
+
   it('the split flaps are hidden up, and hang below the wing with their trailing edges down when lowered; one mesh', async () => {
     const cache = syntheticCache()
     const a = await loadWildcat(undefined, (url) => cache.acquire(url))
