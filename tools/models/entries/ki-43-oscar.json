@@ -9,10 +9,19 @@
     "license": "CC-BY-4.0"
   },
   "normalize": { "forward": "+x", "up": "+y", "yawDeg": 148.7, "origin": [1.055, 0.0075, 0.664], "fit": { "extent": "span", "meters": 10.84 } },
+  "keep": [
+    { "node": "eleron01", "as": "AileronR", "pivot": { "point": [-0.147245, -0.253681, 3.215862], "axis": [-0.242544, -0.129356, -0.961478] } },
+    { "node": "eleron", "as": "AileronL", "pivot": { "point": [0.40702, 0.037386, -4.055993], "axis": [0.244798, 0.129186, -0.960929] } },
+    { "node": "rul_vis01", "as": "ElevatorR", "pivot": { "point": [-4.956436, 0.16734, 0.965146], "axis": [-0.056217, 0.006817, -0.998395] } },
+    { "node": "rul_vis", "as": "ElevatorL", "pivot": { "point": [-4.872131, 0.157284, -1.122399], "axis": [0.056986, -0.006816, -0.998352] } },
+    { "node": "rul_napr", "as": "Rudder", "pivot": { "point": [-4.980094, 0.002181, 0.661639], "axis": [0.000244, 1, 1e-06] } }
+  ],
   "split": [
     { "name": "Prop", "select": "components", "boxMin": [2.6, -1.5, -0.8], "boxMax": [3.2, 1.5, 2.15], "pivot": { "point": [2.9, 0.0075, 0.664], "axis": "+x" } },
     { "name": "GearL", "select": "components", "boxMin": [1.05, -1.9, -1.2], "boxMax": [1.75, -0.25, -0.8], "pivot": { "point": [1.324, -0.305, -0.973], "axis": "+x" } },
-    { "name": "GearR", "select": "components", "boxMin": [1.05, -1.9, 2.12], "boxMax": [1.75, -0.25, 2.52], "pivot": { "point": [1.322, -0.306, 2.297], "axis": "+x" } }
+    { "name": "GearR", "select": "components", "boxMin": [1.05, -1.9, 2.12], "boxMax": [1.75, -0.25, 2.52], "pivot": { "point": [1.322, -0.306, 2.297], "axis": "+x" } },
+    { "name": "Flap1R", "select": "triangles", "boxMin": [-1.2, -0.62, 1.35], "boxMax": [-0.0296, 0.05, 2.88], "pivot": { "point": [-0.356, -0.4387, 1.35], "axis": [-0.195293, -0.104212, -0.975193] }, "cut": { "normal": [-0.980531, 0.0, 0.196363] } },
+    { "name": "Flap1L", "select": "triangles", "boxMin": [-1.2, -0.62, -1.552], "boxMax": [-0.0296, 0.05, -0.022], "pivot": { "point": [-0.356, -0.4387, -0.022], "axis": [0.195293, 0.104212, -0.975193] }, "cut": { "normal": [-0.980531, 0.0, -0.196363] } }
   ],
   "remove": ["kabina01", "kabina02", "Capsule01", "Capsule02"],
   "textures": { "maxSize": 1024, "format": "webp" },

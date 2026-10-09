@@ -1,6 +1,6 @@
 // tools/models/stages/split.ts
 import type { Document, mat4, Mesh, Node, Primitive } from '@gltf-transform/core'
-import { compactPrimitive } from '@gltf-transform/functions'
+import { compactPrimitive, joinPrimitives } from '@gltf-transform/functions'
 import { meshNodes, onlyScene, ownMesh } from '../document.js'
 import { applyMatrix, carve, ensureIndices } from './geometry.js'
 
@@ -79,7 +79,8 @@ function slice(prim: Primitive, world: mat4, plane: Plane, min: readonly number[
     else { const ab = cross(a, b), ac = cross(a, c); out.push(a, ab, ac, ab, b, c, ab, c, ac) }
   }
   attrs.forEach((a, i) => { const Ctor = (a.getArray() as Float32Array).constructor as Float32ArrayConstructor; a.setArray(new Ctor(data[i]!)) })
-  const Index = out.length > 0 && Math.max(...out) > 65535 ? Uint32Array : (prim.getIndices()!.getArray() as Uint32Array).constructor as Uint32ArrayConstructor
+  // A reduce, not Math.max(...out): spreading the Zero's ~250k indices overflows the call stack (2026-10-08).
+  const Index = out.reduce((m, v) => Math.max(m, v), 0) > 65535 ? Uint32Array : (prim.getIndices()!.getArray() as Uint32Array).constructor as Uint32ArrayConstructor
   prim.getIndices()!.setArray(new Index(out))
 }
 
@@ -345,6 +346,24 @@ function selectTriangles(indices: Uint32Array, positions: ArrayLike<number>, wor
   })
 }
 
+/** Joins `mesh`'s primitives that share a material and vertex layout into one each. */
+export function mergeSameMaterial(mesh: Mesh): void {
+  const groups = new Map<unknown, Map<string, Primitive[]>>()
+  for (const prim of mesh.listPrimitives()) {
+    const layout = prim.listSemantics().map((sem) => `${sem}:${prim.getAttribute(sem)!.getComponentType()}:${prim.getAttribute(sem)!.getType()}`).sort().join(',')
+    const byMaterial = groups.get(prim.getMaterial()) ?? new Map<string, Primitive[]>()
+    const key = `${prim.getMode()}|${layout}`
+    byMaterial.set(key, [...(byMaterial.get(key) ?? []), prim])
+    groups.set(prim.getMaterial(), byMaterial)
+  }
+  for (const g of [...groups.values()].flatMap((m) => [...m.values()])) {
+    if (g.length < 2) continue
+    const joined = joinPrimitives(g)
+    for (const prim of g) { mesh.removePrimitive(prim); prim.dispose() }
+    mesh.addPrimitive(joined)
+  }
+}
+
 /**
  * Stage 2: carves the geometry a rule selects out of every mesh in the scene
  * into ONE new node named `rule.name`, hung at the scene root with an
@@ -397,6 +416,9 @@ export function splitByBox(doc: Document, rule: SplitRule): Node {
     }
   }
   if (out.listPrimitives().length === 0) throw new Error(`split "${rule.name}": the box selected no triangles`)
+  // A cut surface is one part: pieces carved from two primitives of one material (the Zero's two
+  // Corps skins, 2026-10-08) become one primitive, one draw. Only cuts, so other splits keep their bytes.
+  if (rule.cut) mergeSameMaterial(out)
   const node = doc.createNode(rule.name).setMesh(out)
   onlyScene(doc).addChild(node)
   return node

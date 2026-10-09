@@ -90,7 +90,9 @@ taken. So the surface comes out exactly along its hinge, even where the mesh
 has no edge there, as on the F6F's and F4U's full-chord wing skins. A swept
 hinge takes a unit-vector `pivot.axis`. Measure the hinge from true sections
 of the skin (the C1 batch 2 handoff says how). The cut caps the openings it
-makes, on both sides. An entry without `normalize` (the Wildcat, whose
+makes, on both sides, and joins a piece's primitives that share a material, so a surface carved from a
+two-primitive skin (the Zero's) is one draw. A download that already models a surface as its own mesh
+(the Ki-43's ailerons, elevators and rudder) takes a `keep` with a vector-axis `pivot` on its leading edge instead. An entry without `normalize` (the Wildcat, whose
 `legacyOptimize` keeps its hierarchy as authored) gives its cut a `point`
 instead of a pivot. Never simplify a propeller (`perNode` ratio 1):
 `tests/tools/models/aircraftRigs.test.ts` checks its N-fold symmetry about
