@@ -132,6 +132,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
     ],
     turrets: [],
+    surfaces: surfaces(1),
   },
   'f4u-corsair': {
     // The download draws its propeller as a translucent disc (a 3-blade motion-blur texture at
@@ -144,6 +145,7 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
     ],
     turrets: [],
+    surfaces: surfaces(2),
   },
   'g4m-betty': {
     // An original Blender model (g4m-betty.py), replacing the flat, gearless download (2026-09-29): the kit's

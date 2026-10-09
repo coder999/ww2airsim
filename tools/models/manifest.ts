@@ -25,7 +25,9 @@ export const AXES = ['+x', '-x', '+y', '-y', '+z', '-z'] as const
 export type Axis = (typeof AXES)[number]
 const axis = z.enum(AXES)
 
-const PivotSchema = z.object({ point: vec3, axis }).strict()
+const unitVec3 = vec3.refine((v) => Math.abs(Math.hypot(...v) - 1) < 1e-6, { message: 'must be a unit vector' })
+/** `axis` is a named axis, or a unit vector for a swept hinge (a control surface, C1 batch 2). */
+const PivotSchema = z.object({ point: vec3, axis: z.union([axis, unitVec3]) }).strict()
 export type Pivot = z.infer<typeof PivotSchema>
 
 const KeepSchema = z.object({
@@ -44,6 +46,10 @@ const SplitSchema = z.object({
   boxMin: vec3,
   boxMax: vec3,
   pivot: PivotSchema.optional(),
+  /** C1 batch 2: the plane through `pivot.point` with this normal. Triangles the box touches are
+   *  first sliced by the box and this plane, and only slices on the normal's side are taken, so a
+   *  control surface comes out along its hinge line even where the mesh has no edge there. */
+  cut: z.object({ normal: unitVec3 }).strict().optional(),
 }).strict()
 
 const SketchfabSourceSchema = z.object({
@@ -190,6 +196,7 @@ export const ModelEntrySchema = z.object({
   if (dup !== undefined) fail(['keep'], `output name "${dup}" is used twice`)
   e.split.forEach((s, i) => {
     if (!s.boxMin.every((v, k) => v < s.boxMax[k]!)) fail(['split', i, 'boxMax'], 'must exceed boxMin on every axis')
+    if (s.cut && (s.select !== 'triangles' || !s.pivot)) fail(['split', i, 'cut'], 'a cut needs select "triangles" and a pivot, whose point the plane passes through')
   })
   if (!e.normalize) {
     e.keep.forEach((k, i) => { if (k.pivot) fail(['keep', i, 'pivot'], 'a pivot needs normalize: without it the hierarchy is left as authored') })
