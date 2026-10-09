@@ -6,7 +6,7 @@ tools/models/bake.ts does, on Ryzen's Windows Blender with Cycles on the RX 6700
 is sample-bound, serverconfig/ryzen.md "Cycles on the GPU"). A normal build never imports this file.
 
 The game mesh (`low`) is every exported mesh joined, its UVs the atlas. The high-poly is a copy of it
-plus the script's detail() list, each snapped onto the low surface by a ray cast back along its axis
+plus the script's detail() list, each snapped onto the low surface by a ray cast from its origin back along its axis
 and built in that surface's tangent frame. Both maps bake selected-to-active, so a detail's AO is
 taken on its own top, not under it. The low is pulled 5 mm inside, so no AO ray meets a surface
 coincident with the high copy. Images are Non-Color: the PNGs hold linear values.
@@ -29,7 +29,7 @@ AO_DISTANCE_M = 4.0   # occlusion reach: a superstructure darkens the deck at it
 CAGE_M = 0.06         # the deepest detail stands 0.045 m proud
 RAY_M = 0.12
 SHRINK_M = 0.005
-SNAP_M = 6.0          # a detail's origin is at most this far off its surface
+SNAP_M = 6.0          # a detail's origin is at most this far off its surface, with nothing between
 SINK_M = 0.01         # every detail sinks this far into the surface: no gap for a ray to slip through
 
 
@@ -111,7 +111,7 @@ BUILDERS = {'porthole': porthole, 'door': door, 'hatch': hatch, 'louver': louver
 def _snap(low, origin, axis):
     """The surface point and normal under `origin` along -axis (Blender frame), or None."""
     a = axis.normalized()
-    hit, loc, nrm, _ = low.ray_cast(origin + a * SNAP_M, -a, distance=2 * SNAP_M)
+    hit, loc, nrm, _ = low.ray_cast(origin, -a, distance=SNAP_M)
     return (loc, nrm.normalized()) if hit else None
 
 

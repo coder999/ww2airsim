@@ -1204,6 +1204,22 @@ class Model:
                 f.append((n + i, 2 * n, n + (i + 1) % n))        # cone, faces out and up
         self._part(role, v, f, node)
 
+    def rounded_box(self, role, base, length, width, height, radius, segments=4, node=None):
+        """(M1c) A closed upright prism standing on base (x, y, z): a `length` (x) by `width` (z) plan
+        whose corners are rounded to `radius` in `segments` flat steps each. A deckhouse."""
+        _require(height > 0 and 0 < radius < min(length, width) / 2, f'rounded_box: need height > 0 and 0 < radius < half the plan, got {height}, {radius}')
+        x, y, z = base
+        hl, hw = length / 2 - radius, width / 2 - radius
+        plan = []
+        for cx, cz, a0 in ((hl, hw, 0.0), (-hl, hw, 90.0), (-hl, -hw, 180.0), (hl, -hw, 270.0)):
+            for k in range(segments + 1):
+                a = math.radians(a0 + 90.0 * k / segments)
+                plan.append((x + cx + radius * math.cos(a), z + cz + radius * math.sin(a)))
+        n = len(plan)
+        v = [(px, y, pz) for px, pz in plan] + [(px, y + height, pz) for px, pz in plan]
+        f = [tuple(range(n))] + [(i, n + i, n + (i + 1) % n, (i + 1) % n) for i in range(n)] + [tuple(reversed(range(n, 2 * n)))]
+        self._part(role, v, f, node)
+
     def sandbag_ring(self, role, center, inner_radius, thickness, height, batter=0.0, segments=16, node=None):
         """A closed annular parapet on center (x, y, z): `thickness` across at its foot, its outer
         face leaning in by `batter` at the top. A gun pit's sandbags or a concrete emplacement."""
