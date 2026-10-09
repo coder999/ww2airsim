@@ -37,7 +37,7 @@ import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
-import { CLOUD_TIERS, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
+import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
 import { FX_CATALOG } from './fx/catalog.js'
 import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
@@ -1250,6 +1250,7 @@ async function boot(): Promise<void> {
   const skyNoise = await skyNoiseLoading
   boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
+  if (import.meta.env.DEV) applyCloudTune(location.search) // H0 lever pricing, before any tier is read
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
   // diverge). With nothing saved both read `high`, which is what this line

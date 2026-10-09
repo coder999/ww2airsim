@@ -63,6 +63,23 @@ export const CLOUD_TIERS = {
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 
+/** H0's lever pricing, DEV only: `?cloudTune=high.lightSteps:5,high.lightLodBandM:4000/6000` overwrites
+ *  tier fields in place before anything reads them, so one budget run prices a step-count or LOD change.
+ *  Returns what it applied. ponytail: mutates the const table; a typed override layer if a player setting needs it. */
+export function applyCloudTune(search: string): string[] {
+  const raw = new URLSearchParams(search).get('cloudTune')
+  if (raw === null) return []
+  return raw.split(',').map((item) => {
+    const m = /^(high|medium|low)\.(\w+):([\d./]+|null)$/.exec(item)
+    const tier = m && (CLOUD_TIERS[m[1] as CloudTierName] as Record<string, unknown>)
+    if (!m || !tier || !(m[2]! in tier)) throw new Error(`cloudTune: ${JSON.stringify(item)} is not tier.field:value`)
+    const value = m[3] === 'null' ? null : m[3]!.includes('/') ? m[3]!.split('/').map(Number) : Number(m[3])
+    if (m[2] === 'updatePeriod' && ![1, 8, 16].includes(value as number)) throw new Error('cloudTune: updatePeriod is 1, 8 or 16')
+    tier[m[2]!] = value
+    return item
+  })
+}
+
 /** DEV-only `?cloudTier=off|high|medium|low`, for measuring one scene with and without. */
 export const CLOUD_TIER_PARAM = 'cloudTier'
 export function cloudTierFromQuery(search: string): CloudTierName | 'off' | undefined {
