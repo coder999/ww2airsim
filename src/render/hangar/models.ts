@@ -3,6 +3,7 @@ import { Box3, Group, Mesh, Vector3, type Object3D } from 'three'
 import type { Airframe, PartId } from '../scene/airframe.js'
 import { loadRegisteredAirframe, type LoadAirframe } from '../scenarioEntities.js'
 import { loadRegisteredShipView, shipModelUrlFor, type LoadShipView } from '../scene/shipModels.js'
+import type { ShipMountView } from '../scene/ship.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from '../scene/buildings.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import type { StoreMounts } from '../scene/stores.js'
@@ -52,6 +53,8 @@ export interface HangarModel {
   /** Advances the model's own clock (propeller) by `frameS`. */
   update(frameS: number): void
   counts(): { readonly triangles: number; readonly drawCalls: number }
+  /** A ship's instanced gun mounts (Track M, M1), each trainable alone; absent for everything else. */
+  readonly gunMounts?: readonly ShipMountView[]
   dispose(): void
 }
 
@@ -235,7 +238,7 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
   if (s.kind === 'ship') {
     // Through the view's own dispose: a model view releases its shared instance.
     const view = await loadShip(s.spec)
-    return { ...staticModel(view.root), dispose: () => view.dispose() }
+    return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
   }
   if (s.kind === 'ordnance') {
     // Its origin is the suspension point with the body below it: stand it clear of the pad.

@@ -131,5 +131,5 @@ for s in (-1, 1):
 m.marking('slab', tags=['hull'], axis='y', fromM=-0.6, toM=0.7, color='exhaustSoot', effect='stain', opacity=0.3, featherM=0.4)
 for s in (-1, 1):
     m.marking('polygon', tags=['hull'], origin=(70.0, 0.0, s * 6.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
-              points=[(-0.4, 7.6), (0.4, 7.6), (0.9, 3.5), (-0.8, 3.8)], color='rustStain', effect='stain', opacity=0.45, featherM=0.3)
+              points=[(-0.4, 7.6), (0.4, 7.6), (0.9, 3.5), (-0.8, 3.8)], color='rustStain', effect='stain', opacity=0.3, featherM=0.3)
 m.export(out)

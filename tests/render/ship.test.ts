@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Scene, Vector3 } from 'three'
+import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Scene, Vector3 } from 'three'
 import { createShipMesh, createShipView, probeShipSurface, smokeOriginWorld } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
@@ -225,7 +225,6 @@ describe('ship models (ship-models spec §3, §6)', () => {
     expect([tip(0), tip(1), tip(2)]).toEqual([[44, 6.5, 0], [-44, 6.5, 0], [0, 6.5, 9]])
     view.mounts[1]!.setTraining(Math.PI / 2) // Turret2 alone turns 90 degrees to port of its stern bearing
     expect([tip(0), tip(1), tip(2)]).toEqual([[44, 6.5, 0], [-40, 6.5, 4], [0, 6.5, 9]])
-    void Quaternion
   })
 
   it('the boxes still sink by their own top plus 2 m, and carry no model id', () => {

@@ -204,7 +204,7 @@ m.marking('grid', tags=['hull'], spacingM=[None, 1.8, None], widthM=0.02, depth=
 m.marking('slab', tags=['hull'], axis='y', fromM=-1.0, toM=0.9, color='exhaustSoot', effect='stain', opacity=0.35, featherM=0.5)
 for s in (-1, 1):
     m.marking('polygon', tags=['hull'], origin=(82.0, 0.0, s * 9.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
-              points=[(-0.6, 8.2), (0.6, 8.2), (1.4, 2.0), (-1.2, 2.5)], color='rustStain', effect='stain', opacity=0.55, featherM=0.4)
+              points=[(-0.6, 8.2), (0.6, 8.2), (1.4, 2.0), (-1.2, 2.5)], color='rustStain', effect='stain', opacity=0.3, featherM=0.4)
     for x in (-60.0, -30.0, 30.0):  # scupper streaks down the side
         m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 16.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
                   points=[(-0.3, 8.3), (0.3, 8.3), (0.5, 4.5), (-0.4, 5.0)], color='rustStain', effect='stain', opacity=0.4, featherM=0.3)
