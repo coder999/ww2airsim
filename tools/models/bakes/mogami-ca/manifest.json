@@ -1,0 +1,43 @@
+{
+ "version": 1,
+ "model": "mogami-ca",
+ "rawSha256": "9ede8a7cd57ab39653fe423a3d2a9d18f179c0393163919f8897e400a43ee813",
+ "detailSha256": "88a6bf3bdf61693d449c68db832e8cc7c44b3c7e0d5813b0f1cbdfffc6b27a3e",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 206,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [
+   194,
+   198,
+   199,
+   200,
+   201,
+   202,
+   203,
+   207,
+   208,
+   212,
+   213,
+   214,
+   215,
+   216,
+   217,
+   221
+  ],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 3.4,
+   "aoBack": 3.3,
+   "normal": 0.9
+  },
+  "size": 2048,
+  "totalSeconds": 10,
+  "twoSided": true,
+  "host": "ryzen",
+  "wallSeconds": 13
+ },
+ "date": "2026-10-09"
+}

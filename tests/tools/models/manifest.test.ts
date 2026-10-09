@@ -63,9 +63,12 @@ describe('ModelEntrySchema', () => {
     expect(parseModelEntry({ ...kagero, skin: true }).skin).toBe(true)
     expect(() => parseModelEntry({ ...kagero, skin: true, ship: { ...kagero.ship, materials: { hull: 'keep' } } })).toThrow(/keep and mask do not apply/)
   })
-  it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified or mapped to a role (DP2)', () => {
-    const essex = JSON.parse(readFileSync('tools/models/entries/essex-cv.json', 'utf8')) as Record<string, unknown>
+  it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified, mapped to a role or masked (DP2, M1d)', () => {
+    const essex: Record<string, unknown> = { ...JSON.parse(readFileSync('tools/models/entries/essex-cv.json', 'utf8')) as Record<string, unknown>, textures: { maxSize: 1024, format: 'webp' } }
     expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 } }).boxSkin).toEqual({ atlasPx: 1024 })
+    // M1d: a masked lattice keeps its own texture beside the skin; a kept texture still does not.
+    expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), materials: { net: 'mask' } } }).boxSkin).toEqual({ atlasPx: 1024 })
+    expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), materials: { net: 'keep' } } })).toThrow(/boxSkin/)
     expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 512 } })).toThrow(/textures.maxSize/)
     expect(() => parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), otherMaterials: 'keep' } })).toThrow(/boxSkin/)
     const hangar = JSON.parse(readFileSync('tools/models/entries/hangar.json', 'utf8')) as Record<string, unknown>
@@ -127,8 +130,15 @@ describe('generated entries (O1)', () => {
       const { maxDrawCalls, ...b } = budget as Record<string, unknown>
       return (void split, void remove, void maxDrawCalls, { ...rest, budget: b })
     }
-    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, inputSha256, ...rest }) => (void boxSkin, void inputSha256, m1(c1(rest))))
-    expect(now).toEqual(before.map((e) => m1(c1({ ...e, source: { kind: 'sketchfab', ...e.source } }))))
+    // M1d (2026-10-09): a download baked at 2,048 px takes `textures.maxSize` 2048 with its boxSkin.detail.
+    const baked = new Set(loadModelEntries().filter((e) => e.boxSkin?.detail && e.boxSkin.atlasPx !== 1024).map((e) => e.id))
+    const m1d = (e: Record<string, unknown>): Record<string, unknown> => {
+      if (!baked.has(e['id'] as string)) return e
+      const { textures, ...rest } = e
+      return (void textures, rest)
+    }
+    const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, inputSha256, ...rest }) => (void boxSkin, void inputSha256, m1d(m1(c1(rest)))))
+    expect(now).toEqual(before.map((e) => m1d(m1(c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))))
   })
 })
 

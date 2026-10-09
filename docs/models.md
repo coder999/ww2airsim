@@ -338,6 +338,22 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   built: a GPU bake is not byte-reproducible across machines
   (`tools/models/skin/bake.ts`). A wall the bake should paint therefore must
   not be inside `shared_chart()`.
+- **Baked downloads (M1d, 2026-10-09).** A box-skinned download bakes the
+  same way once its entry gives `boxSkin.detail` (porthole rows, butt welds,
+  hatches, strakes, grime, planks; the schema and what each does are in
+  `tools/models/skin/downloadDetail.ts`). Detail switches `boxProject` to
+  island charts: one per island, long ones banded, parts under 2 m (6.6 ft) pooled and
+  never baked, and an island whose faces fold over each other left out of
+  `baked`. `npm run models:bake -- <id>` sends the build's bake input (the
+  skinned nodes right after projection) and detail list to Ryzen through
+  `tools/models/blender/bake_glb.py`; the manifest pins their hashes, so a
+  change to the raw, the entry's layout or its detail stops the build by
+  name. Downloads bake AO two-sided (`bake.py`'s `TWO_SIDED_BELOW`) because
+  some of their parts are inside out. A download's `mask` materials keep their
+  own textures beside the skin, and its metallic-roughness map ships at half
+  the atlas size. Bytes decide the atlas: Fletcher's geometry leaves room only
+  for 1,024 px (measured 2026-10-09). Shiratsuyu is left on its author's
+  textures (see the M1d handoff).
 - **Planks (M1c).** The `planks` marking shades boards (or linoleum sheets)
   on sky-facing faces in world (x, z), each its own shade and roughness, with
   dark seams. `railing()` and `rounded_box()` are in `kit.py`.

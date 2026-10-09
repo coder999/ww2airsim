@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "model": "cleveland-cl",
+ "rawSha256": "68dd175d955263995b4accdcb26b67cd2b4f7903b8a7dca8c9d3c2dc4e2ea806",
+ "detailSha256": "0e27c57700ca6f6ce90cf3237c83c20f96235f290c2aa04eb1683db5c56abb28",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 192,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [
+   180,
+   193
+  ],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 3.7,
+   "aoBack": 3.6,
+   "normal": 0.9
+  },
+  "size": 2048,
+  "totalSeconds": 13.8,
+  "twoSided": true,
+  "host": "ryzen",
+  "wallSeconds": 16.8
+ },
+ "date": "2026-10-09"
+}

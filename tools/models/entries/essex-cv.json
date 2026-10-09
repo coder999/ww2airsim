@@ -10,8 +10,18 @@
     "license": "CC-BY-4.0"
   },
   "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.6621], "fit": { "extent": "length", "meters": 265.8 } },
-  "textures": { "maxSize": 1024, "format": "webp" },
-  "boxSkin": { "atlasPx": 1024 },
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "boxSkin": {
+    "atlasPx": 2048,
+    "detail": {
+      "sideZM": 23,
+      "strakesM": 1.8,
+      "grimeM": [-0.5, 0.8],
+      "planks": [{"role": "flightDeck", "widthM": 0.15, "lengthM": 6.0, "contrast": 0.08, "seam": 0.35}, {"role": "deck", "widthM": 0.15, "lengthM": 6.0, "contrast": 0.08, "seam": 0.35, "belowM": 15}],
+      "portholes": [{"xM": [-105, 105], "yM": 6.0, "everyM": 3}],
+      "butts": {"xM": [-120, 120], "yM": [0.6, 8.0], "everyM": 8}
+    }
+  },
   "opaque": false,
   "budget": { "maxBytes": 1500000, "maxTriangles": 60000, "maxDrawCalls": 8 },
   "ship": {

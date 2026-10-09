@@ -17,13 +17,14 @@
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { getBounds, join, prune } from '@gltf-transform/functions'
-import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
+import { cloneDocument, getBounds, join, prune } from '@gltf-transform/functions'
+import { Logger, PropertyType, type Document, type Mesh, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
 import { BLENDER_VERSION, blenderPresent, detailSidecarPath, hingesSidecarPath, runBlenderScript } from './blender/run.js'
-import { loadBake, type BakeMaps } from './skin/bake.js'
+import { loadBake, loadBakeFor, sha256, type BakeMaps } from './skin/bake.js'
+import { downloadDetails, downloadMarkings } from './skin/downloadDetail.js'
 import type { BlenderSource, SketchfabSource } from './manifest.js'
-import { findNode, modelIO } from './document.js'
+import { findNode, modelIO, onlyScene } from './document.js'
 import { measureDocument, type ModelMeasure } from './measure.js'
 import { removeNodes } from './stages/remove.js'
 import { splitByBox } from './stages/split.js'
@@ -37,8 +38,8 @@ import { pitchScene, yawScene } from './stages/yaw.js'
 import { dedupMaterials } from './stages/dedup.js'
 import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
-import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
-import { shipMaterials } from './stages/shipMaterials.js'
+import { addShipMarkers, shipFitStage, SKIRT_NODE } from './stages/shipFit.js'
+import { isRoleMaterial, shipMaterials } from './stages/shipMaterials.js'
 import { addMountLocators, carveMounts, namedMounts } from './stages/shipMounts.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
@@ -83,8 +84,52 @@ export function parseHinges(text: string): Record<string, Hinge> {
   return side.hinges
 }
 
+/** M1d: a download's bake loader: its bake input glb and detail list in, the checked committed bake out. */
+export type DownloadBakeLoader = (id: string, input: Uint8Array, detail: string, atlasPx: number) => Promise<BakeMaps>
+export const loadDownloadBake: DownloadBakeLoader = async (id, input, detail, atlasPx) => loadBakeFor(id, sha256(input), sha256(detail), atlasPx)
+
+/** M1d: where a box-skinned download's masked primitives (railing and net lattices) wait while the skin paints the rest. */
+export const MASKED_NODE = 'Masked'
+
+/** M1d: moves every primitive whose material is not a `ship:<role>` (a `mask`) into one Masked node, which the
+ *  skin skips: it keeps its own texture and UVs, and join merges it back by material as before. */
+function isolateMasked(doc: Document): void {
+  let masked: Mesh | null = null
+  for (const node of doc.getRoot().listNodes()) {
+    const mesh = node.getMesh()
+    if (!mesh || node.getName() === SKIRT_NODE) continue
+    for (const prim of mesh.listPrimitives()) {
+      if (isRoleMaterial(prim.getMaterial())) continue
+      if (node.getWorldMatrix().some((v, i) => Math.abs(v - (i % 5 === 0 ? 1 : 0)) > 1e-9)) throw new Error(`isolateMasked: node ${node.getName()} is not at the identity`)
+      if (!masked) { masked = doc.createMesh(MASKED_NODE); onlyScene(doc).addChild(doc.createNode(MASKED_NODE).setMesh(masked)) }
+      mesh.removePrimitive(prim)
+      masked.addPrimitive(prim)
+    }
+  }
+}
+
+/** M1d: what a download's bake is baked from: the skinned nodes after box projection (geometry and atlas UVs),
+ *  as glb bytes. bake.ts sends exactly these to Ryzen, and the build hashes them to find a stale bake. */
+export async function bakeInput(doc: Document, skip: (n: Node) => boolean): Promise<Uint8Array> {
+  const copy = cloneDocument(doc)
+  for (const n of copy.getRoot().listNodes()) if (n.getMesh() && skip(n)) n.dispose()
+  await copy.transform(prune({ keepLeaves: false, keepAttributes: true })) // the UVs are unused by any texture here, and are the point
+  return modelIO().writeBinary(copy)
+}
+
+/** M1d: a box-skinned download's bake inputs, from a pipeline run that stops at its bake (tools/models/bake.ts). */
+export async function downloadBakeInputs(entry: ModelEntry, deps: BuildDeps = nodeBuildDeps()): Promise<{ input: Uint8Array; detail: string; atlasPx: number }> {
+  let got: { input: Uint8Array; detail: string; atlasPx: number } | null = null
+  const stop = new Error('bake inputs captured')
+  try {
+    await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan, {}, async (_id, input, detail, atlasPx) => { got = { input, detail, atlasPx }; throw stop })
+  } catch (error) { if (error !== stop) throw error }
+  if (!got) throw new Error(`${entry.id}: no bake inputs (does its boxSkin declare detail?)`)
+  return got
+}
+
 /** Every stage, in order, on a document already read. Mutates and returns it. */
-export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan, hinges: Readonly<Record<string, Hinge>> = {}): Promise<Document> {
+export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (id: string) => ShipSpec = loadShipSpec, skin: SkinImages | null = null, scans: ScanLoader = loadScan, hinges: Readonly<Record<string, Hinge>> = {}, bakeFor: DownloadBakeLoader | null = null): Promise<Document> {
   if (entry.source.kind === 'generated') throw new Error(`${entry.id}: runPipeline is for Sketchfab and Blender entries; a generated entry goes through finishGenerated`)
   doc.setLogger(new Logger(Logger.Verbosity.WARN))
   // 0. yaw (R3): square a posed download to the axes before anything reads a coordinate
@@ -124,8 +169,19 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   let images = skin
   if (entry.boxSkin) {
     if (!ship) throw new Error(`${entry.id}: boxSkin needs a ship block`)
-    const side = boxProject(doc, entry.id, { atlasPx: entry.boxSkin.atlasPx, palette: ship.block.palette, skip: SHIP_SKIN_OPTIONS.skip! })
-    images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
+    // M1d: with detail, island charts, the entry's weathering and its committed bake (skin/downloadDetail.ts).
+    const detail = entry.boxSkin.detail
+    if (detail) isolateMasked(doc)
+    const skip = (n: Node): boolean => SHIP_SKIN_OPTIONS.skip!(n) || n.getName() === MASKED_NODE
+    let side = boxProject(doc, entry.id, { atlasPx: entry.boxSkin.atlasPx, palette: ship.block.palette, skip, islands: detail !== undefined })
+    let bake: BakeMaps | null = null
+    if (detail) {
+      const tags = new Set(side.patches.map((p) => p.tag))
+      side = parseSidecar(JSON.stringify({ ...side, markings: downloadMarkings(detail).filter((m) => m.tags.every((t) => tags.has(t))) }))
+      if (!bakeFor) throw new Error(`${entry.id}: its boxSkin declares detail, which needs its committed bake, but no bake loader was given`)
+      bake = await bakeFor(entry.id, await bakeInput(doc, skip), JSON.stringify(downloadDetails(detail)), side.atlasPx)
+    }
+    images = await skinDocument(doc, entry.id, side, scans, { ...SHIP_SKIN_OPTIONS, skip, bake, halfRoughness: detail !== undefined })
   }
   if (entry.dedupMaterials) await dedupMaterials(doc)
   // 5. join everything except the parts, and except every mount a ship's armament names (Track M, M1)
@@ -215,6 +271,8 @@ export interface BuildDeps {
   /** M1c: the committed bake for a script's raw output, checked against it (skin/bake.ts's loadBake);
    *  absent means no bakes (the toy-model tests). */
   bake?: (id: string, raw: string, detail: string, atlasPx: number) => Promise<BakeMaps | null>
+  /** M1d: a download's committed bake (loadDownloadBake); absent means none (the toy-model tests). */
+  bakeDownload?: DownloadBakeLoader
   /** The ShipSpec a ship entry fits to; content/ships by default. Toy-ship tests pass one without armament. */
   shipSpec?: (id: string) => ShipSpec
 }
@@ -287,7 +345,7 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         // locator nodes this hierarchy keeps.
         await doc.transform(prune({ propertyTypes: [PropertyType.ACCESSOR], keepLeaves: true }))
       } else {
-        doc = await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan)
+        doc = await runPipeline(await deps.read(entry.input!), entry, deps.shipSpec ?? loadShipSpec, null, deps.scan, {}, deps.bakeDownload ?? null)
       }
     } catch (error) {
       // A stage that refuses its input (a ship fit out of tolerance, a missing node) fails
@@ -326,6 +384,7 @@ export function nodeBuildDeps(): BuildDeps {
     legacyOptimize,
     scan: loadScan,
     bake: loadBake,
+    bakeDownload: loadDownloadBake,
   }
 }
 

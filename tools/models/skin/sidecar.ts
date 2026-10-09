@@ -38,6 +38,8 @@ const Planks = z.object({
   kind: z.literal('planks'), tags,
   widthM: z.number().positive(), lengthM: z.number().positive(),
   contrast: z.number().min(0).max(0.5), seam: z.number().min(0).max(1),
+  /** M1d: only faces below this height (m): a download's turret and superstructure roofs share the deck role. */
+  belowM: z.number().finite().optional(),
 }).strict()
 const unit3 = (v: readonly number[]): number[] => { const l = Math.hypot(v[0]!, v[1]!, v[2]!); return [v[0]! / l, v[1]! / l, v[2]! / l] }
 /** DP2: text in the stroke font on the plane through `origin` normal to `axis`, reading along `uDir`,
