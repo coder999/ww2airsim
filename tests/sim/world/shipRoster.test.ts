@@ -45,14 +45,14 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
   const fits: Record<string, readonly [number, number, number] | null> = {
     'casablanca-cve': [1, 0, 12],
     'cleveland-cl': [4, 6, 14],
-    'essex-cv': [8, 0, 21],
-    'fletcher-dd': [5, 0, 7],
-    'kagero-dd': [2, 0, 6],
-    'mogami-ca': [5, 4, 12],
+    'essex-cv': [8, 0, 19],
+    'fletcher-dd': [5, 0, 12],
+    'kagero-dd': [2, 0, 5],
+    'mogami-ca': [5, 4, 16],
     'pennsylvania-bb': [4, 8, 14],
-    'shiratsuyu-dd': [2, 0, 6],
+    'shiratsuyu-dd': [2, 0, 7],
     'type-b-maru': null,
-    'yamato-bb': [3, 6, 20],
+    'yamato-bb': [5, 6, 22],
   }
 
   it('pins every warship\'s armament and gives the merchant none', () => {

@@ -6,6 +6,7 @@ import { findNode, modelIO } from '../../tools/models/document.js'
 import { documentSoup, SMOKE_REACH_M } from '../../tools/models/stages/shipFit.js'
 import { bounds, fitProblems, residualProblems, surfaceBelow, trapLaneHalfWidth, type ShipFit } from '../../src/render/scene/shipFit.js'
 import { loadShipSpec } from '../../tools/content/load.js'
+import { bearingQuat, KIT_PREFIX, namedMounts } from '../../tools/models/stages/shipMounts.js'
 
 /**
  * Deterministic for every committed ship glb (ship-models spec §9, items 1-5), on a
@@ -59,6 +60,39 @@ describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s', (_id, e
     const under = surfaceBelow(soup, at[0], at[2], at[1])
     expect(under).not.toBeNull()
     expect(at[1] - under!).toBeLessThanOrEqual(SMOKE_REACH_M)
+  })
+})
+
+// Track M, M1 (2026-10-08): the spec's armament is the one source of gun positions, and the model
+// must carry it: a locator per entry, exactly at its point and bearing, naming its kit; one Kit_ mesh
+// per kit in use, and none unused. A model rebuilt against a moved spec, or a spec edited without a
+// rebuild, fails here naming the mount.
+describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s carries its armament', (_id, entry) => {
+  it('a locator per armament entry at its spec point, and one Kit_ mesh per kit in use', async () => {
+    const doc = await read(entry.output)
+    const spec = loadShipSpec(entry.ship!.spec)
+    const nodes = doc.getRoot().listNodes()
+    const kits = nodes.filter((n) => n.getName().startsWith(KIT_PREFIX))
+    if (!spec.armament) {
+      expect(spec.role, entry.id).toBe('merchant')
+      expect(kits.map((n) => n.getName())).toEqual([])
+      expect(nodes.filter((n) => /^(Turret|HeavyAA|LightAA)\d+$/.test(n.getName())).map((n) => n.getName())).toEqual([])
+      return
+    }
+    const mounts = namedMounts(spec.armament)
+    expect(mounts.length).toBeGreaterThan(0)
+    for (const { name, mount } of mounts) {
+      const found = nodes.filter((n) => n.getName() === name)
+      expect(found.length, `${entry.id} ${name}`).toBe(1)
+      const loc = found[0]!
+      expect(loc.getMesh(), `${entry.id} ${name} is an empty locator`).toBeNull()
+      expect(loc.getTranslation().map((v) => +v.toFixed(4)), `${entry.id} ${name}`).toEqual([mount.x, mount.y, mount.z].map((v) => +v.toFixed(4)))
+      expect(loc.getRotation().map((v) => +v.toFixed(5)), `${entry.id} ${name} bearing`).toEqual(bearingQuat(mount.bearingDeg).map((v) => +v.toFixed(5)))
+      expect(loc.getExtras()['kit'], `${entry.id} ${name}`).toBe(mount.kit)
+    }
+    const used = [...new Set(mounts.flatMap((m) => (m.mount.kit === null ? [] : [m.mount.kit])))].sort()
+    expect(kits.map((n) => n.getName().slice(KIT_PREFIX.length)).sort(), entry.id).toEqual(used)
+    for (const k of kits) expect(k.getMesh(), k.getName()).not.toBeNull()
   })
 })
 

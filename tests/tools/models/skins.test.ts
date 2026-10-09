@@ -25,10 +25,14 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
   it('its entry says skin: true (a Blender script) or boxSkin (a download)', () => {
     expect(e.source.kind === 'blender' ? e.skin : e.boxSkin?.atlasPx).toBeTruthy()
   })
-  it('one skin material with base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1 on every primitive but a ship\'s Skirt (ship:boot)', async () => {
+  it('one skin material with base-color, metallic-roughness and normal WebP maps at its atlas size; TEXCOORD_0 and no TEXCOORD_1 on every primitive but a ship\'s Skirt (ship:boot) and its generated mount kits (ship:fitting)', async () => {
     const doc = await read(e.output)
     const skirt = e.ship?.kind === 'waterline'
-    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual((skirt ? [`${id}-skin`, 'ship:boot'] : [`${id}-skin`]).sort())
+    // Track M, M1 (2026-10-08): a mount kit the model has no geometry for is generated in plain
+    // ship:fitting paint (tools/models/stages/mountKits.ts); it carries no UVs and is the only other material.
+    const generated = (n: string): boolean => n.startsWith('Kit_') && doc.getRoot().listNodes().find((x) => x.getName() === n)!.getMesh()!.listPrimitives().every((p) => p.getMaterial()?.getName() === 'ship:fitting')
+    const hasGenerated = doc.getRoot().listNodes().some((n) => n.getMesh() && generated(n.getName()))
+    expect(doc.getRoot().listMaterials().map((m) => m.getName()).sort()).toEqual([`${id}-skin`, ...(skirt ? ['ship:boot'] : []), ...(hasGenerated ? ['ship:fitting'] : [])].sort())
     const mat = doc.getRoot().listMaterials().find((m) => m.getName() === `${id}-skin`)!
     for (const t of [mat.getBaseColorTexture(), mat.getMetallicRoughnessTexture(), mat.getNormalTexture()]) {
       expect(t).not.toBeNull(); expect(t!.getMimeType()).toBe('image/webp')
@@ -40,6 +44,7 @@ describe.each(skinned.map((e) => [e.id, e] as const))('skinned %s (DP0, DP2; spe
       if (!node.getMesh()) continue
       for (const p of node.getMesh()!.listPrimitives()) {
         if (node.getName() === 'Skirt') { expect(p.getMaterial()!.getName()).toBe('ship:boot'); continue }
+        if (generated(node.getName())) continue
         expect(p.getMaterial(), `${node.getName()}`).toBe(mat)
         expect(p.getAttribute('TEXCOORD_0'), `${node.getName()}`).not.toBeNull(); expect(p.getAttribute('TEXCOORD_1')).toBeNull()
       }
