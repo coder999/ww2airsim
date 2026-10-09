@@ -37,8 +37,8 @@
       {"x": -22, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
       {"x": -30, "y": 7.09, "z": 4.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
       {"x": -30, "y": 7.09, "z": -4.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
-      {"x": -36, "y": 7.09, "z": 6, "bearingDeg": 90, "kit": null, "barrels": 9},
-      {"x": -36, "y": 7.09, "z": -6, "bearingDeg": -90, "kit": null, "barrels": 9},
+      {"x": -36, "y": 7.09, "z": 7.5, "bearingDeg": 90, "kit": "mount-25mm-single", "barrels": 9, "run": 12},
+      {"x": -36, "y": 7.09, "z": -7.5, "bearingDeg": -90, "kit": "mount-25mm-single", "barrels": 9, "run": 12},
       {"x": -38, "y": 7.09, "z": 4.5, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
       {"x": -38, "y": 7.09, "z": -4.5, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3}
     ]
