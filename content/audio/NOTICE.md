@@ -63,6 +63,9 @@ before generating. The same US Copyright Office caveat as above applies.
 - `aa_gun.wav`: a seamless 0.65 s loop cut from a 20 mm take's firing, with a
   3 ms crossfade at the seam and a +6 dB high shelf at 2 kHz (Mark found the
   plain cut muffled).
+- `ship_gun_heavy.wav`: the same way, from the 5-inch gun prompt (take 5 of 6,
+  chosen for its depth after Mark left the pick open), trimmed. It is for
+  ship main batteries.
 - `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,

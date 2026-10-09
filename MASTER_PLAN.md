@@ -124,6 +124,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. **Weapon:** a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
   3. **Damage:** a waterline hit that does more than a bomb of equal weight. Whether that becomes flooding or a simple multiplier is a design call.
   4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
+  5. **Sound (ready, 2026-10-09):** release reuses `bombs_away`; `torpedo_splash` and `torpedo_hit` are in `AUDIO_ASSETS`, unwired (Track I, I3).
 - Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G).
 
 ### Track E: Better AI (L)
@@ -247,7 +248,8 @@ one plan for the lot.
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
   - **In `AUDIO_ASSETS`, unwired:** `gear_cycle` and `flaps_cycle` (each plays both ways; wire with C1), `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
   - `torpedo_hit` is Mark's own Firefly clip (unwired, the Avenger).
-  - **Staged:** the 40 mm and 5-inch takes sound like big naval guns, not AA, and are kept for ship main guns.
+  - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
+  - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
 ### Track J: Google Analytics (S). Done 2026-10-08
@@ -280,7 +282,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - the default is dangerous: lingering low over a destroyer costs you.
      - Builds on E1's lead and aim error.
   3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
-  4. **M4 Main batteries (M-L).** Ship against ship and against ground targets.
+  4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.

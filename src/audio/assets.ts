@@ -39,6 +39,7 @@ export type ClipId =
   | 'torpedo_splash'
   | 'torpedo_hit'
   | 'aa_gun'
+  | 'ship_gun_heavy'
   | 'radio_squelch'
   /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
   | 'motor'
@@ -106,6 +107,10 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // radio_squelch: Freesound, CC0 (content/audio/NOTICE.md); it brackets each
   // radio line once I2 wires the voices.
   { id: 'aa_gun', path: 'content/audio/aa_gun.wav', bus: 'sfx', bytes: 123_884, peakFullScale: 0.9000, cueGain: 0.60 },
+  // ElevenLabs, 2026-10-09: one heavy naval gun shot, the deepest of the 5-inch
+  // takes (Mark: "either one is fine", so take 5, 61% of its energy below 150 Hz).
+  // For battleship and cruiser main batteries; unwired until M4.
+  { id: 'ship_gun_heavy', path: 'content/audio/ship_gun_heavy.wav', bus: 'sfx', bytes: 532_688, peakFullScale: 0.8146, cueGain: 0.60 },
   { id: 'radio_squelch', path: 'content/audio/radio_squelch.wav', bus: 'radio', bytes: 214_268, peakFullScale: 0.5382, cueGain: 0.60 },
 ]
 
