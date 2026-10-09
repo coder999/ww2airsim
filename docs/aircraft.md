@@ -158,8 +158,12 @@ Mark's approval, and mark it in capitals in the spec. Every figure carries a
 Options: fixed guns as sourced (count, caliber, rate, muzzle velocity,
 convergence), structure and subsystem hit points, damage zones. Recommend
 copying the shape of the nearest existing aircraft's `combat` block and
-replacing each number with a sourced one. Turrets are out of scope; record
-"no turrets" for a bomber. A bomber may have no `combat` block at all (the
+replacing each number with a sourced one. **Turrets and flexible guns as
+appropriate** (Mark, 2026-10-09, replacing "no turrets"): rig every real
+turret and flex gun on the turret-aim and flex-gun machinery
+(`docs/handoff/2026-10-09-turret-aim.md`, `2026-10-09-flex-guns.md`) so
+they aim. Gunners that fire are Track E3 and arrive for every airframe at
+once. A bomber may have no `combat` block at all (the
 B-17): it still drops bombs, but it cannot fire or be hit.
 
 ### D12. Cockpit view
