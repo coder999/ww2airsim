@@ -38,6 +38,7 @@ import { compressTextures } from './stages/textures.js'
 import { forceOpaque } from './stages/opaque.js'
 import { addShipMarkers, shipFitStage } from './stages/shipFit.js'
 import { shipMaterials } from './stages/shipMaterials.js'
+import { addMountLocators, carveMounts, namedMounts } from './stages/shipMounts.js'
 import { loadShipSpec } from '../content/load.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
 import { parseSidecar, skinSidecarPath } from './skin/sidecar.js'
@@ -126,15 +127,18 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
     images = await skinDocument(doc, entry.id, side, scans, SHIP_SKIN_OPTIONS)
   }
   if (entry.dedupMaterials) await dedupMaterials(doc)
-  // 5. join everything except the parts
-  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames]))
+  // 5. join everything except the parts, and except every mount a ship's armament names (Track M, M1)
+  const mountNames = ship?.spec.armament ? namedMounts(ship.spec.armament).map((m) => m.name) : []
+  await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames, ...mountNames]))
   // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
   if (images) attachSkinTextures(doc, entry.id, images)
   if (entry.opaque) forceOpaque(doc)
+  if (ship) carveMounts(doc, ship.spec)
   await doc.transform(prune({ keepSolidTextures: true, keepLeaves: false }))
   // After prune, which drops empty leaf nodes: the runtime's markers are exactly that.
   if (ship && fitted) addShipMarkers(doc, ship.block, ship.spec, fitted)
+  if (ship) addMountLocators(doc, ship.spec)
   // Provenance travels inside the file (checked by tests/tools/models/outputs.test.ts).
   const asset = doc.getRoot().getAsset()
   asset.extras = { ...(asset.extras ?? {}), ...provenance(entry.source) }

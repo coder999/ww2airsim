@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Scene } from 'three'
+import { Box3, BoxGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Scene, Vector3 } from 'three'
 import { createShipMesh, createShipView, probeShipSurface, smokeOriginWorld } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
@@ -193,6 +193,39 @@ describe('ship models (ship-models spec §3, §6)', () => {
     other.dispose()
     expect(cache.refCount('cv.glb')).toBe(0)
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('instances each Kit_ node at its locators: one draw per kit, the kit node gone, each mount trained alone (Track M, M1)', async () => {
+    // A kit whose barrel points +x from its axis, and three locators: bow, stern (bearing 180), and starboard (90).
+    const withKit = (): Object3D => {
+      const root = syntheticShip()
+      const kit = new Mesh(new BoxGeometry(4, 1, 1).translate(2, 0.5, 0), new MeshStandardMaterial())
+      kit.name = 'Kit_gun'
+      kit.position.set(40, 6, 0)
+      root.add(kit)
+      const at = (name: string, x: number, z: number, bearingDeg: number): void => {
+        const l = new Object3D(); l.name = name; l.position.set(x, 6, z)
+        l.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), -bearingDeg * Math.PI / 180)
+        l.userData['kit'] = 'gun'; root.add(l)
+      }
+      at('Turret1', 40, 0, 0); at('Turret2', -40, 0, 180); at('HeavyAA1', 0, 5, 90)
+      return root
+    }
+    const view = createShipView(dd, 'fletcher-dd', await createModelCache(async () => withKit()).acquire('k.glb'))
+    const instanced: InstancedMesh[] = []
+    view.root.traverse((o) => { if (o instanceof InstancedMesh) instanced.push(o) })
+    expect(instanced.map((m) => m.count)).toEqual([3])
+    expect(view.root.getObjectByName('Kit_gun')).toBeUndefined()
+    expect(view.mounts.map((m) => m.name)).toEqual(['Turret1', 'Turret2', 'HeavyAA1'])
+    // Where each barrel tip (kit-local [4, 0.5, 0]) lands, in the instance root's frame.
+    const tip = (i: number): number[] => {
+      const m = new Matrix4(); instanced[0]!.getMatrixAt(i, m)
+      return new Vector3(4, 0.5, 0).applyMatrix4(m).toArray().map((v) => Math.round(v * 1e6) / 1e6)
+    }
+    expect([tip(0), tip(1), tip(2)]).toEqual([[44, 6.5, 0], [-44, 6.5, 0], [0, 6.5, 9]])
+    view.mounts[1]!.setTraining(Math.PI / 2) // Turret2 alone turns 90 degrees to port of its stern bearing
+    expect([tip(0), tip(1), tip(2)]).toEqual([[44, 6.5, 0], [-40, 6.5, 4], [0, 6.5, 9]])
+    void Quaternion
   })
 
   it('the boxes still sink by their own top plus 2 m, and carry no model id', () => {
