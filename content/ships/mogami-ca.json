@@ -9,7 +9,7 @@
   "maxSpeedMps": 18.01,
   "turnRateRadPerS": 0.02618,
   "hullHp": 420,
-  "view": { "model": "mogami-ca" },
+  "view": { "model": "mogami-ca", "ensign": { "flag": "ijn-rising-sun", "at": [-14.0, 24.0, 0], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": 67.54, "y": 4.99, "z": 0, "bearingDeg": 0, "kit": "turret-8in-twin", "barrels": 2, "aa": null},

@@ -9,7 +9,7 @@
   "maxSpeedMps": 16.72,
   "turnRateRadPerS": 0.02618,
   "hullHp": 360,
-  "view": { "model": "cleveland-cl" },
+  "view": { "model": "cleveland-cl", "ensign": { "flag": "us48", "at": [-13.0, 30.0, 0], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": 58.56, "y": 7.28, "z": 0, "bearingDeg": 0, "kit": "turret-6in-triple", "barrels": 3, "aa": null},

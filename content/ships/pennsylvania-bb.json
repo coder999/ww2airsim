@@ -9,7 +9,7 @@
   "maxSpeedMps": 10.8,
   "turnRateRadPerS": 0.01309,
   "hullHp": 960,
-  "view": { "model": "pennsylvania-bb" },
+  "view": { "model": "pennsylvania-bb", "ensign": { "flag": "us48", "at": [-17.8, 28.6, 0], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": 58, "y": 9.12, "z": 0, "bearingDeg": 0, "kit": "turret-14in-triple", "barrels": 3, "aa": null},

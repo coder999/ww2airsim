@@ -9,7 +9,7 @@
   "maxSpeedMps": 14.4,
   "turnRateRadPerS": 0.01309,
   "hullHp": 1200,
-  "view": { "model": "yamato-bb" },
+  "view": { "model": "yamato-bb", "ensign": { "flag": "ijn-rising-sun", "at": [-40.0, 30.0, 0], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": 51.3, "y": 6.54, "z": 0, "bearingDeg": 0, "kit": "turret-18in-triple", "barrels": 3, "aa": null},

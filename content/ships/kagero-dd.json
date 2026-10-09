@@ -9,7 +9,7 @@
   "maxSpeedMps": 18.01,
   "turnRateRadPerS": 0.05236,
   "hullHp": 180,
-  "view": { "model": "kagero-dd" },
+  "view": { "model": "kagero-dd", "ensign": { "flag": "ijn-rising-sun", "at": [-12.0, 13.8, 0], "flyM": 3.5 } },
   "armament": {
     "turrets": [
       {"x": 42, "y": 6.42, "z": 0, "bearingDeg": 0, "kit": "turret-127mm-twin", "barrels": 2, "aa": null},
