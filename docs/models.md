@@ -82,8 +82,20 @@ empty locator per entry, `Turret1..N`, `HeavyAA1..N`, `LightAA1..N`, with
 kit becomes `Kit_<kit>`, posed at its mount, and the rest are dropped; a kit
 the model has no geometry for is generated (`stages/mountKits.ts`). The
 renderer instances each kit at its locators (`src/render/scene/ship.ts`), one
-draw per kit. Every mount must stand on a surface within 0.75 m, and
+draw per kit part. Every mount must stand on a surface within 0.75 m, and
 `tests/tools/shipModels.test.ts` holds the committed model to the spec.
+**M1b (2026-10-09):**
+- Each kit is two parts: `Kit_<kit>` trains, and its child `Kit_<kit>_Guns`
+  (extras `trunnion`, `maxElevationRad` from `MAX_ELEVATION_DEG` in
+  `stages/shipMounts.ts`) also elevates. Guns rest level, along +x.
+- A carved kit's guns are its long thin shells pointing forward. A carved kit
+  whose guns are welded to its mount is replaced by its generated kit.
+- Every light AA kit (40 mm and below) is generated, on the Blender ships too,
+  and drawn **1.3x true size on purpose** (`LIGHT_AA_SCALE`, Ruling B3) so it
+  reads from the air. Generated guns are `ship:gunmetal`.
+- A `lightAA` entry with a `run` is a gallery: one locator per barrel,
+  `LightAA<k>_<i>`, spread over the run bow to stern and set on the deck under
+  each. The sim keeps it one fire position.
 `tools/models/islands.ts` finds a download's gun shells in the ship frame and
 turns output-frame boxes into `split` boxes. A building
 has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
