@@ -28,11 +28,11 @@ render quality with auto-detect.
 
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
-**A3. Time-of-day picker (S-M).** **Built 2026-10-09, on branch `a3a4-launch` until Mark has looked:** a Takeoff time field on Form 2, suggested from the scenario and clamped from sunrise to an hour before sunset (0615-1645, Mark's ruling). Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
+**A3. Time-of-day picker (S-M). Done 2026-10-09** (merge of `a3a4-launch`): Form 2 offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
 - **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
-**A4. Quality auto-detect that measures the right thing (M).** **Built 2026-10-09, same branch:** the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Mark's Chrome on Ryzen reads 104 fps and High (`qualityProbeChrome.spec.ts`).
+**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09**, same merge: the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Mark's Chrome on Ryzen reads 104 fps and High (`qualityProbeChrome.spec.ts`).
 - **Today:** the probe takes one p95 after 180 frames **on the title screen**, under vsync. A vsynced Chrome downclocks the GPU and reads about 3× high, so Mark's desktop measured 11.4 ms and got Low (`main.ts:1424-1442`, `ocean/tiers.ts:25`).
 - **Proposal:**
   - Measure a representative flight view, not the title screen.

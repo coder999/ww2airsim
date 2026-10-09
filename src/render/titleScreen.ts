@@ -8,7 +8,7 @@ import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type
 import type { QualityTierName } from './quality.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
-import { DEFAULT_TIME_OF_DAY, TACLOBAN_LAT_DEG, clampToDaylight, daylightWindow } from './sky/sun.js'
+import { DEFAULT_TIME_OF_DAY, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type TakeoffTime } from './sky/sun.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
@@ -702,52 +702,46 @@ export function createTitleScreen(
       descriptionHost.replaceChildren(...(option?.kind === 'range' && option.description !== undefined ? [paragraph(option.description)] : []))
       showBriefing()
     }
-    // A3: the takeoff hour, defaulting to the scenario's own (its weather's
-    // `timeOfDay`, read from the same scenario file the briefing reads) and
-    // clamped to sunrise .. an hour before sunset, since there is no night
-    // lighting (`daylightWindow`). A scenario change
-    // resets it to that scenario's suggestion, as it resets the aircraft.
-    const daylight = daylightWindow(TACLOBAN_LAT_DEG)
-    const hourText = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
-    const hourInput = document.createElement('input')
-    hourInput.type = 'time'
-    hourInput.className = 'typed-input'
-    hourInput.step = '900'
-    hourInput.min = hourText(daylight.start)
-    hourInput.max = hourText(daylight.end)
-    hourInput.setAttribute('aria-label', 'Takeoff time')
-    const hourRow = document.createElement('div')
-    hourRow.className = 'field-row'
-    const hourLabel = document.createElement('span')
-    hourLabel.className = 'field-label'
-    hourLabel.textContent = 'Takeoff'
-    hourRow.append(hourLabel, hourInput)
-    const hourNote = document.createElement('p')
-    hourNote.style.cssText = 'margin:4px 0 0;font-size:12px;color:var(--ink-faint)'
-    let takeoffHour: number | null = null
+    // A3: Morning, Midday or Dusk (Mark, 2026-10-09), each hour from the sun
+    // model (`takeoffHours`). The one nearest the scenario's historical hour
+    // (its weather's `timeOfDay`, from the same scenario file the briefing
+    // reads) is preselected and marked suggested; a scenario change resets it,
+    // as it resets the aircraft. Null until that file arrives: the scenario's
+    // own hour then flies.
+    const takeoff = takeoffHours(TACLOBAN_LAT_DEG)
+    const hhmm = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
+    const TAKEOFF_LABELS: Readonly<Record<TakeoffTime, string>> = { morning: 'Morning', midday: 'Midday', dusk: 'Dusk' }
+    const takeoffGroup = radioGroup('Takeoff time')
+    let takeoffTime: TakeoffTime | null = null
+    let suggestedTime: TakeoffTime | null = null
     let hourScenario: string | null = null
     const hourRequest = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
-    const setHour = (h: number): void => {
-      takeoffHour = clampToDaylight(h, daylight)
-      hourInput.value = hourText(takeoffHour)
+    const renderTakeoff = (): void => {
+      takeoffGroup.replaceChildren()
+      const rows = new Map<TakeoffTime, HTMLDivElement>()
+      for (const t of Object.keys(takeoff) as TakeoffTime[]) {
+        const label = `${TAKEOFF_LABELS[t]} (${hhmm(takeoff[t])}${t === suggestedTime ? ', suggested' : ''})`
+        const el = ballotOption(label, '', () => { takeoffTime = t; renderTakeoff() })
+        rows.set(t, el)
+        takeoffGroup.appendChild(el)
+      }
+      markGroup(rows, takeoffTime)
     }
-    hourInput.addEventListener('change', () => {
-      const [hh, mm] = hourInput.value.split(':').map(Number)
-      if (hh === undefined || mm === undefined || !Number.isFinite(hh) || !Number.isFinite(mm)) return
-      setHour(hh + mm / 60)
-    })
     const suggestHour = (): void => {
       if (hourRequest === null || hourScenario === draft.scenarioId) return
       const id = draft.scenarioId
       hourScenario = id
       hourRequest(id, (sc) => {
         if (draft.scenarioId !== id) return
-        const suggested = clampToDaylight(sc.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY, daylight)
-        setHour(suggested)
-        hourNote.textContent = `Suggested: ${hourText(suggested).replace(':', '')}, the historical hour. Takeoff between ${hourText(daylight.start).replace(':', '')} to ${hourText(daylight.end).replace(':', '')}.`
+        suggestedTime = nearestTakeoffTime(sc.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY, takeoff)
+        takeoffTime = suggestedTime
+        renderTakeoff()
       }, () => { if (draft.scenarioId === id) hourScenario = null })
     }
-    if (hourRequest !== null) orders.left.append(sectionTitle('Takeoff time'), hourRow, hourNote)
+    if (hourRequest !== null) {
+      renderTakeoff()
+      orders.left.append(sectionTitle('Takeoff time'), takeoffGroup)
+    }
     const selectScenario = (id: string): void => {
       draft = flowReady ? withScenario(ctx(), id) : { ...draft, scenarioId: id }
       markGroup(scenarioRows, draft.scenarioId)
@@ -1234,7 +1228,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(takeoffHour === null ? {} : { timeOfDay: takeoffHour }) }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

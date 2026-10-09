@@ -23,32 +23,27 @@ async function toOrders(page: Page): Promise<Locator> {
   return title
 }
 
-test('Form 2 suggests the historical hour, and a picked hour is the hour the sky flies', async ({ page }) => {
+test('Form 2 offers Morning, Midday and Dusk, suggests the one nearest the historical hour, and the chosen hour is the hour flown', async ({ page }) => {
   const title = await toOrders(page)
-  const hour = title.getByLabel('Takeoff time')
+  const times = title.getByRole('radiogroup', { name: 'Takeoff time' })
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: wholeLabel('Airfield Strike') }).click()
-  await expect(hour).toHaveValue('07:30')
-  await expect(title.getByText(/Suggested: 0730, the historical hour/)).toBeVisible()
+  // Airfield Strike's historical hour is 0730: Morning.
+  await expect(times.getByRole('radio', { name: 'Morning (0740, suggested)' })).toHaveAttribute('aria-checked', 'true')
+  await expect(times.getByRole('radio')).toHaveText(['Morning (0740, suggested)', 'Midday (1200)', 'Dusk (1645)'])
+  // Convoy Strike's is 1500: Dusk, and a mission change resets the pick.
+  await times.getByRole('radio', { name: 'Midday (1200)' }).click()
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: wholeLabel('Convoy Strike') }).click()
-  await expect(hour).toHaveValue('15:00')
-  // Before sunrise is clamped to it.
-  await hour.fill('04:00')
-  await hour.dispatchEvent('change')
-  await expect(hour).toHaveValue('06:15')
-  // After the last takeoff (an hour before sunset) is clamped to it.
-  await hour.fill('17:30')
-  await hour.dispatchEvent('change')
-  await expect(hour).toHaveValue('16:45')
-  await hour.fill('16:00')
-  await hour.dispatchEvent('change')
+  await expect(times.getByRole('radio', { name: 'Dusk (1645, suggested)' })).toHaveAttribute('aria-checked', 'true')
+  await times.getByRole('radio', { name: 'Midday (1200)' }).click()
+  await expect(times.getByRole('radio', { name: 'Midday (1200)' })).toHaveAttribute('aria-checked', 'true')
   await page.screenshot({ path: `${SHOTS}/a3-form-2-takeoff.png` })
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
-  // The sky clock runs from the picked hour (sun.ts `sunClock`): a few sim seconds past 1600.
-  await expect.poll(() => sunHour(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(16)
-  expect(await sunHour(page)).toBeLessThan(16.1)
+  // The sky clock runs from the chosen hour (sun.ts `sunClock`): a few sim seconds past 1200, not the scenario's 1500.
+  await expect.poll(() => sunHour(page), { timeout: 30_000 }).toBeGreaterThanOrEqual(12)
+  expect(await sunHour(page)).toBeLessThan(12.1)
 })
 
 test('Form 4 offers render quality: a pick there is applied and saved, as in Settings', async ({ page }) => {
