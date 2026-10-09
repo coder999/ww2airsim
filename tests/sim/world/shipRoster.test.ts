@@ -45,7 +45,7 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
   const fits: Record<string, readonly [number, number, number] | null> = {
     'casablanca-cve': [1, 0, 12],
     'cleveland-cl': [4, 6, 14],
-    'essex-cv': [8, 0, 19],
+    'essex-cv': [8, 0, 4], // cut to four 40 mm quads for balance, not history (Mark, M1d)
     'fletcher-dd': [5, 0, 12],
     'kagero-dd': [2, 0, 5],
     'mogami-ca': [5, 4, 16],
