@@ -257,3 +257,20 @@ export function createWebAudioBackend(): AudioBackend {
     },
   }
 }
+
+/**
+ * The Sounds page's loop player (src/render/sounds/main.ts): one file looped
+ * sample-accurately, as the game does, because `<audio loop>` restarts with a
+ * gap. Lives here so the page needs no Web Audio of its own. Resolves to stop.
+ */
+let previewContext: AudioContext | null = null
+export async function playLoopedPreview(url: string): Promise<() => void> {
+  previewContext ??= new AudioContext()
+  const buffer = await previewContext.decodeAudioData(await (await fetch(url)).arrayBuffer())
+  const source = previewContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+  source.connect(previewContext.destination)
+  source.start()
+  return () => source.stop()
+}
