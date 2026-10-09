@@ -15,7 +15,7 @@ const downloads = loadModelEntries().filter((e) => e.ship && e.source.kind === '
  *  Re-pinned per ship by Track M's M1 (2026-10-08), whose mount kits carve the guns out, keep one
  *  copy of each kit posed in place and add generated kits: each re-pin is its own commit, saying why. */
 const FLAT_SOUP: Readonly<Record<string, string>> = {
-  'cleveland-cl': '248de4ec470db281ee272e0f7230a724630f4c8da0606d9b93742e3dedd694af',
+  'cleveland-cl': '75a075b42aeea203c3550f86c85fcc49976c57cedf1ebe040e50056bc236b431',
   'essex-cv': 'ba4207c26320846d30557b0a59dadcc58688a02c9d370215ae04d2ff04c2e402',
   'mogami-ca': '9e15d1eed5569e1acfa047f159711e6f44648645e20aa0ef7bbcc11daf091197',
   'yamato-bb': '82b3367e92c5a1aacbecc9f0c348da0281be2ff9d2f1ac62ce70875b379fd800',
