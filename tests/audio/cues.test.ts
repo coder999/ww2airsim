@@ -382,6 +382,23 @@ describe('damage and carrier cues', () => {
     expect(nextAudio(NO_AUDIO_MEMORY, at(5)).motor).toBe(0)
   })
 
+  it('plays the gear and flap cycle once per travel start, both ways, not per frame or on a reversal (I3)', () => {
+    for (const [key, clip] of [['gearFraction', 'gear_cycle'], ['flapFraction', 'flaps_cycle']] as const) {
+      // Spawned down: the first frame is not a travel. Then up over three ticks, each rendered twice
+      // (the second frame ran no fixed step), reversed mid-travel, held, and later lowered again.
+      const frames = [[100, 1], [101, 1], [102, 0.8], [102, 0.8], [103, 0.6], [103, 0.6], [104, 0.7], [105, 0.9],
+        [106, 1], [120, 1], [121, 0.9], [122, 0.8]] as const
+      let m = NO_AUDIO_MEMORY
+      const fired: number[] = []
+      for (const [tick, f] of frames) {
+        const r = nextAudio(m, at(tick, { [key]: f }))
+        m = r.memory
+        if (r.cues.includes(clip)) fired.push(tick)
+      }
+      expect(fired, clip).toEqual([102, 121])
+    }
+  })
+
   it('the synthesized motor is a seamless loop at its stated peak (C2)', () => {
     const s = motorSamples(SYNTH_SAMPLE_RATE)
     expect(s.length).toBe(SYNTH_SAMPLE_RATE)

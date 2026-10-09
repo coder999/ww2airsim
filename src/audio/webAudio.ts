@@ -1,5 +1,6 @@
 import type { ClipId } from './assets.js'
-import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, SpatialLoopHandle, Position } from './backend.js'
+import type { AudioBackend, BackendState, ListenerPose, LoopHandle, LoopSpec, RadioPart, SpatialLoopHandle, Position } from './backend.js'
+import type { VoiceId } from './radio.js'
 import { BIQUAD_FLAT_Q_DB, BUS_GAIN, FILTER_OPEN_HZ, RADIO_BAND_HIGH_HZ, RADIO_BAND_LOW_HZ, RADIO_DRIVE, CABIN_PRESETS, PANNER_REF_DISTANCE_M, type Bus, type CabinPreset } from './mix.js'
 
 /**
@@ -34,6 +35,14 @@ export function createWebAudioBackend(): AudioBackend {
   const master = context.createGain()
   master.connect(context.destination)
   const buffers = new Map<ClipId, AudioBuffer>()
+  const voices = new Map<VoiceId, AudioBuffer>()
+  /** Transmissions on the air: each has its own gain, so a cut-in can fade it rather than click. */
+  const onAir = new Set<{ gain: GainNode; sources: AudioBufferSourceNode[] }>()
+  const decode = async (url: string): Promise<AudioBuffer> => {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`)
+    return context.decodeAudioData(await response.arrayBuffer())
+  }
 
   const start = CABIN_PRESETS.chase
 
@@ -142,9 +151,52 @@ export function createWebAudioBackend(): AudioBackend {
     resume: async (): Promise<void> => { await context.resume() },
 
     load: async (id: ClipId, url: string): Promise<void> => {
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`)
-      buffers.set(id, await context.decodeAudioData(await response.arrayBuffer()))
+      buffers.set(id, await decode(url))
+    },
+
+    loadVoice: async (id: VoiceId, url: string): Promise<number> => {
+      const buffer = await decode(url)
+      voices.set(id, buffer)
+      return buffer.duration
+    },
+
+    now: (): number => context.currentTime,
+
+    playRadio: (parts: readonly RadioPart[]): void => {
+      const gain = context.createGain()
+      gain.connect(buses.radio)
+      const entry = { gain, sources: [] as AudioBufferSourceNode[] }
+      const now = context.currentTime
+      let pending = 0
+      for (const part of parts) {
+        const buffer = buffers.get(part.id as ClipId) ?? voices.get(part.id as VoiceId)
+        if (buffer === undefined) continue
+        const level = context.createGain()
+        level.gain.value = part.gain
+        level.connect(gain)
+        const source = context.createBufferSource()
+        source.buffer = buffer
+        source.connect(level)
+        pending++
+        source.onended = (): void => {
+          source.disconnect(); level.disconnect()
+          if (--pending === 0) { gain.disconnect(); onAir.delete(entry) }
+        }
+        source.start(now + part.atS)
+        entry.sources.push(source)
+      }
+      if (pending > 0) onAir.add(entry)
+      else gain.disconnect()
+    },
+
+    stopRadio: (): void => {
+      const now = context.currentTime
+      for (const { gain, sources } of onAir) {
+        // A 10 ms fade, then stop: an instant stop mid-word clicks.
+        gain.gain.setTargetAtTime(0, now, 0.01)
+        for (const s of sources) s.stop(now + 0.06)
+      }
+      onAir.clear()
     },
 
     loaded: (): readonly ClipId[] => [...buffers.keys()],

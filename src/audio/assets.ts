@@ -13,6 +13,7 @@
  * fail there rather than distort in somebody's speakers.
  */
 import type { Bus } from './mix.js'
+import type { VoiceId } from './radio.js'
 
 export type ClipId =
   | 'propeller'
@@ -84,12 +85,12 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   { id: 'flak_distant', path: 'content/audio/flak_distant.wav', bus: 'sfx', bytes: 691_970, peakFullScale: 0.8984, cueGain: 0.60 },
   { id: 'hook_clunk', path: 'content/audio/hook_clunk.wav', bus: 'sfx', bytes: 192_770, peakFullScale: 0.9336, cueGain: 0.60 },
   // ElevenLabs, 2026-10-09 (content/audio/NOTICE.md): one hydraulic cycle Mark
-  // picked to play for both gear up and gear down. Not wired until C1 moves the
-  // gear. cueGain sits below the other one-shots because he asked for it a bit
-  // quieter; the level is reasoned, not yet heard in flight.
+  // picked to play for both gear up and gear down, once as travel starts
+  // (cues.ts). cueGain sits below the other one-shots because he asked for it
+  // a bit quieter; the level is reasoned, not yet heard in flight.
   { id: 'gear_cycle', path: 'content/audio/gear_cycle.wav', bus: 'sfx', bytes: 789_892, peakFullScale: 0.8026, cueGain: 0.35 },
-  // ElevenLabs, 2026-10-09, Mark's picks; neither is wired yet. flaps_cycle
-  // plays for both flaps up and flaps down (with C1). flak_burst is the CLOSE
+  // ElevenLabs, 2026-10-09, Mark's picks. flaps_cycle plays for both flaps up
+  // and flaps down, as gear_cycle does. flak_burst (unwired, M2) is the CLOSE
   // burst (flak_distant is the far one), normalized up from a quiet take, and
   // its cueGain is the loudest of the one-shots because Mark wants it loud
   // when it bursts near the airplane (M2 scales it down with distance). 0.80
@@ -124,4 +125,10 @@ export function assetFor(id: ClipId): AudioAsset {
 
 export function audioUrl(id: ClipId): string {
   return `${import.meta.env.BASE_URL}${assetFor(id).path}`
+}
+
+/** A radio line's file (I2). These are not `AUDIO_ASSETS` rows: that table loads
+ *  at boot, and the lines load per language on first use (system.ts). */
+export function voiceUrl(id: VoiceId): string {
+  return `${import.meta.env.BASE_URL}content/audio/voice/${id}.wav`
 }

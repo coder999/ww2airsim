@@ -1,9 +1,10 @@
 import { motorSamples, SYNTH_SAMPLE_RATE } from './synth.js'
-import { AUDIO_ASSETS, assetFor, audioUrl, type ClipId } from './assets.js'
+import { AUDIO_ASSETS, assetFor, audioUrl, voiceUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position, SpatialLoopHandle } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { ENGINE_LAYER_FOR, LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
 import { NO_SPATIAL_MEMORY, nextSpatial, type SpatialInputs, type SpatialMemory } from './spatial.js'
+import { NO_RADIO_MEMORY, SQUELCH_LEAD_S, VOICE_STEMS, nextRadio, voiceId, type PaddlesCall, type RadioMemory, type VoiceId, type VoiceLanguage } from './radio.js'
 import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
 
 /**
@@ -32,7 +33,15 @@ export type AudioSnapshot = {
   readonly cuesFired: number
   readonly spatialPlayed: number
   readonly view: View | null
+  /** Every radio line sent, in order (I2). */
+  readonly radioPlayed: readonly VoiceId[]
 }
+
+/** A voice line's gain into the radio bus, before the bus's own (a tuning value for Mark's ear). */
+export const VOICE_GAIN = 0.8
+
+/** What the radio hears this frame (I2): the HUD's message, the LSO's cue, and the player's language. */
+export type RadioFrame = { readonly message: string | null; readonly paddles: PaddlesCall | null; readonly language: VoiceLanguage }
 
 /** Everything replay puts aside and brings back: the cue memory and the spatial one. */
 export type AudioSystemMemory = { readonly cues: AudioMemory; readonly spatial: SpatialMemory }
@@ -84,6 +93,9 @@ export type AudioSystem = {
   setMuted(muted: boolean): void
   muted(): boolean
   snapshot(): AudioSnapshot
+  /** Voices the radio (I2): live, unpaused frames only -- the caller gates replay, pause and the title.
+   *  The first call for a language starts loading its lines; a line not yet decoded waits or is dropped. */
+  updateRadio(frame: RadioFrame): void
 }
 
 export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LAYERS): AudioSystem {
@@ -109,6 +121,10 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   // still rendered while a replay is paused, and nothing else about it may
   // change.
   let held = false
+  let radioMemory: RadioMemory = NO_RADIO_MEMORY
+  const radioPlayed: VoiceId[] = []
+  const voiceSeconds = new Map<VoiceId, number>()
+  const languagesLoading = new Set<VoiceLanguage>()
 
   const finitePosition = (p: Position): boolean => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)
 
@@ -303,6 +319,34 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       backend.setDistanceGain(next, DISTANCE_GLIDE_TAU_S)
     },
 
+    updateRadio(frame: RadioFrame): void {
+      const { language } = frame
+      if (!languagesLoading.has(language)) {
+        languagesLoading.add(language)
+        for (const stem of VOICE_STEMS) {
+          const id = voiceId(stem, language)
+          // Per line, each failure swallowed: the policy `load` has for every clip.
+          backend.loadVoice(id, voiceUrl(id)).then((s) => { voiceSeconds.set(id, s) }, () => {})
+        }
+      }
+      const out = nextRadio(radioMemory, {
+        nowS: backend.now(), message: frame.message, paddles: frame.paddles,
+        durationS: (stem) => voiceSeconds.get(voiceId(stem, language)) ?? null,
+      })
+      radioMemory = out.memory
+      const start = out.start
+      if (start === null) return
+      if (start.preempt) backend.stopRadio()
+      const id = voiceId(start.stem, language)
+      const squelch = backend.loaded().includes('radio_squelch') ? assetFor('radio_squelch').cueGain : null
+      backend.playRadio([
+        ...(squelch === null ? [] : [{ id: 'radio_squelch' as const, gain: squelch, atS: 0 }]),
+        { id, gain: VOICE_GAIN, atS: SQUELCH_LEAD_S },
+        ...(squelch === null ? [] : [{ id: 'radio_squelch' as const, gain: squelch, atS: SQUELCH_LEAD_S + start.voiceS }]),
+      ])
+      radioPlayed.push(id)
+    },
+
     snapshot(): AudioSnapshot {
       return {
         state: backend.state(),
@@ -316,6 +360,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
         cuesFired,
         spatialPlayed,
         view,
+        radioPlayed,
       }
     },
   }

@@ -10,6 +10,8 @@ import type { SpatialInputs } from '../audio/spatial.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { playerAircraft } from '../sim/loop.js'
+import { sideOf } from '../sim/sides.js'
+import { voiceLanguageFor, type VoiceLanguage } from '../audio/radio.js'
 import type { FrameState } from './frame.js'
 
 /**
@@ -80,6 +82,8 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     arrested: aircraft.arrested,
     hookDown: frame.controls.hookDown === true,
     bayDoorFraction: aircraft.bayDoorFraction,
+    gearFraction: aircraft.gearFraction,
+    flapFraction: aircraft.flapFraction,
     damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
   }
 }
@@ -137,4 +141,12 @@ export function spatialInputsFrom(
       .filter((h) => h.cause !== 'round' && h.outcome === 'detonated')
       .map((h) => ({ tick: h.tick, surface: h.surface, position: h.point })),
   }
+}
+
+/** The radio's language (I2, CONTEXT.md "Voice"): Japanese when the player flies a Japanese
+ *  airframe or sits on the axis side of the scenario, US English otherwise. The airframe counts
+ *  because `sideOf` keeps a player-flown Zero on the player's (allied) side for combat. */
+export function radioLanguageFor(frame: Pick<FrameState, 'world'>): VoiceLanguage {
+  const player = playerAircraft(frame.world)
+  return voiceLanguageFor(player.spec.side === 'japanese' ? 'axis' : sideOf(frame.world, player))
 }

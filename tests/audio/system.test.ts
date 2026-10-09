@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { QUIET_DAMAGE } from './inputs.js'
 import { assetFor } from '../../src/audio/assets.js'
-import { createAudioSystem } from '../../src/audio/system.js'
+import { VOICE_GAIN, createAudioSystem } from '../../src/audio/system.js'
+import { SQUELCH_LEAD_S, VOICE_STEMS, voiceId } from '../../src/audio/radio.js'
 import { createFakeBackend } from './fakeBackend.js'
 import type { AudioInputs } from '../../src/audio/cues.js'
 import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
@@ -296,5 +297,46 @@ describe('replay support (instant replay R-4)', () => {
       audio.updateSpatial(sp(2, { decks: [{ id: 'd', center: { x: 300, y: 0, z: 0 }, lengthM: 250 }] }))
       expect(fake.spatialLoops.map((l) => l.clip)).toEqual(['carrier_deck'])
     })
+  })
+})
+
+describe('the radio (I2)', () => {
+  const CAP = 'Essex CIC: Hold CAP over the task group, angels ten. Raid expected from the northwest.'
+  const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0))
+
+  it('loads only the player language, then sends squelch, voice, squelch on the radio bus', async () => {
+    const fake = createFakeBackend({ voiceSeconds: Object.fromEntries(VOICE_STEMS.map((s) => [voiceId(s, 'ja'), 2])) })
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.updateRadio({ message: null, paddles: null, language: 'ja' })
+    await settle()
+    expect(fake.voicesRequested).toHaveLength(34)
+    expect(fake.voicesRequested.every((id) => id.endsWith('_ja'))).toBe(true)
+    fake.clockS = 10
+    audio.updateRadio({ message: CAP, paddles: null, language: 'ja' })
+    const squelch = assetFor('radio_squelch').cueGain
+    expect(fake.radio).toEqual([{ atS: 10, parts: [
+      { id: 'radio_squelch', gain: squelch, atS: 0 },
+      { id: 'radio_tower_cap_station_ja', gain: VOICE_GAIN, atS: SQUELCH_LEAD_S },
+      { id: 'radio_squelch', gain: squelch, atS: SQUELCH_LEAD_S + 2 },
+    ] }])
+    expect(audio.snapshot().radioPlayed).toEqual(['radio_tower_cap_station_ja'])
+    // A second language is its own load, on first use.
+    audio.updateRadio({ message: null, paddles: null, language: 'us' })
+    expect(fake.voicesRequested.filter((id) => id.endsWith('_us'))).toHaveLength(34)
+  })
+
+  it('stops the transmission on the air before a cut-in', async () => {
+    const fake = createFakeBackend({ voiceSeconds: Object.fromEntries(VOICE_STEMS.map((s) => [voiceId(s, 'us'), 2])) })
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.updateRadio({ message: null, paddles: null, language: 'us' })
+    await settle()
+    audio.updateRadio({ message: CAP, paddles: null, language: 'us' })
+    expect(fake.radioStops).toEqual([])
+    fake.clockS = 0.5
+    audio.updateRadio({ message: CAP, paddles: 'wave-off', language: 'us' })
+    expect(fake.radioStops).toEqual([0.5])
+    expect(fake.radio.map((r) => r.parts[1]!.id)).toEqual(['radio_tower_cap_station_us', 'radio_paddles_waveoff_1_us'])
   })
 })

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { quickLaunch, debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
+import { ENGINE_LAYER_FOR } from '../../src/audio/layers.js'
 
 /**
  * E2E is `src/audio/webAudio.ts`'s only coverage, on purpose: the vitest
@@ -27,9 +28,10 @@ test('the context is running once the game has been played, and every clip decod
   // gesture that resumes the context is the New game click itself.
   await quickLaunch(page, { scenario: 'free-flight' })
   await waitForTerrain(page)
+  // Contains, not equals: synthesized clips (C2's motor, synth.ts) are loaded beside the files.
   await expect
-    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 })
-    .toBe(AUDIO_ASSETS.length)
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded), { timeout: 30_000 })
+    .toEqual(expect.arrayContaining(AUDIO_ASSETS.map((a) => a.id)))
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().state), { timeout: 15_000 }).toBe('running')
   // None of them FAILED, which `loaded.length` alone cannot distinguish from a
   // clip that is merely slow.
@@ -109,9 +111,11 @@ test('the engine layer starts, and the view follows the camera', async ({ page }
   await waitForTerrain(page)
   // KeyY is unbound (KeyP now toggles the mission map, which swallows the KeyC below)
   await page.keyboard.press('KeyY')
+  // Whichever family the default airframe uses: since 2026-10-08 the Hellcat is `engine_radial_big`.
+  const engineLayers: readonly string[] = Object.values(ENGINE_LAYER_FOR)
   await expect
-    .poll(() => page.evaluate(() => Object.keys((window as DiagWindow).__ww2!.audio().layers)), { timeout: 30_000 })
-    .toContain('engine')
+    .poll(async () => (await page.evaluate(() => Object.keys((window as DiagWindow).__ww2!.audio().layers))).some((id) => engineLayers.includes(id)), { timeout: 30_000 })
+    .toBe(true)
 
   // Every camera mode maps to cockpit or chase, so after a full cycle of KeyC
   // the snapshot's view has taken BOTH values at some point.
@@ -128,5 +132,16 @@ test('the engine layer starts, and the view follows the camera', async ({ page }
     if ((await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())) === initialMode && i > 0) break
   }
   expect([...seen].sort(), 'cycling the camera should reach both cabin presets').toEqual(['chase', 'cockpit'])
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().failed)).toEqual([])
+})
+
+test('a mission message is voiced on the radio, in the player language (I2)', async ({ page }) => {
+  // The wire no fake backend can prove: main.ts hands the HUD's radio line to the audio system, the
+  // US lines load on first use and decode, and the CAP orders at tick 1 go out as a transmission.
+  await quickLaunch(page, { scenario: 'combat-air-patrol' })
+  await waitForTerrain(page)
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().radioPlayed), { timeout: 30_000 })
+    .toContain('radio_tower_cap_station_us')
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().failed)).toEqual([])
 })
