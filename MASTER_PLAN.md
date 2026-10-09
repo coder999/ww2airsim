@@ -128,7 +128,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - **Torpedo runs** after Track D.
    - **Kamikaze**, for the "Kamikaze Watch" mission.
    - Raiders that actually attack instead of orbiting.
-3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`): gunners add firing.
+3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
    - wingman commands (7f §4.5);

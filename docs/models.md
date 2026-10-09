@@ -101,9 +101,12 @@ turns output-frame boxes into `split` boxes. A building
 has no bow, so its turrets are numbered +x to -x, then -z to +z (R4).
 Aircraft parts (R3): `Prop`, or `Prop1`…`PropN` from port to starboard;
 `GearL`, `GearR`, `GearNose`, `Tailwheel`; `Turret1`…`TurretN` nose to
-tail, dorsal before ventral at one station, each with its barrels in
-`Turret<N>Guns` on a horizontal trunnion oriented so a positive turn raises the
-muzzle (turret aim, 2026-10-09). Control surfaces (C1):
+tail, dorsal before ventral, then port before starboard at one station, each
+with its barrels in `Turret<N>Guns` on a horizontal trunnion oriented so a
+positive turn raises the muzzle (turret aim, 2026-10-09). A flexible nose,
+cheek or tail gun is a turret too: its `Turret<N>` is the socket (Blender:
+`kit.flex_gun`) or the gun's rear cap (a download), and both pivots sit where
+the gun leaves the skin (flex guns, 2026-10-09). Control surfaces (C1):
 `AileronL`/`AileronR`, `ElevatorL`/`ElevatorR`, `Flap1L`…`FlapNR` inboard to
 outboard, and `Rudder`, or `Rudder1`…`RudderN` port to starboard. Bay doors
 (C2): `BayDoor1L`…`BayDoorNR` nose to tail, each hinged along x at its
