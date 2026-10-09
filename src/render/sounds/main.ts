@@ -67,13 +67,16 @@ void (async () => {
   candidates.append(el('h2', 'font-size:16px;margin:24px 0 8px', `Not in game: candidates (${takes.length} takes, ${groups.length} cues)`))
   for (const g of groups) {
     const box = el('div', 'padding:10px 0;border-bottom:1px solid #2a323b')
-    box.dataset['search'] = [g.cue, ...g.takes.map((t) => t.text ?? '')].join(' ')
+    // The box matches if any take does; each take row also filters itself, so "jerry" narrows to one voice.
+    const searchOf = (t: CandidateTake): string => [g.cue, t.take, t.note, t.text ?? ''].join(' ')
+    box.dataset['search'] = g.takes.map(searchOf).join(' ')
     const head = el('div', 'display:flex;gap:8px;align-items:center;margin-bottom:4px')
     head.append(el('span', 'font:600 14px monospace', g.cue))
     if (g.replaces) head.append(tag(`REPLACES IN-GAME ${g.replaces}`, '#e3b75a'))
     box.append(head)
     for (const t of g.takes) {
       const row = el('div', 'display:flex;align-items:center;gap:12px;padding:3px 0;flex-wrap:wrap')
+      row.dataset['search'] = searchOf(t)
       row.append(tag('NOT IN GAME', '#e07a6a'), player(CANDIDATES + t.file, false),
         el('span', 'font:12px monospace;width:150px', t.clip.endsWith('_ja') ? `JA · ${t.take}` : t.clip.endsWith('_us') ? `US · ${t.take}` : t.take),
         el('span', 'flex:1;min-width:200px', t.text ?? ''),
