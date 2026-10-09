@@ -336,9 +336,9 @@ export type Ww2Diagnostics = {
   /** A2: the Beaufort force the ocean cascades were last built for (the scenario's wind, or `?beaufort=`). */
   readonly seaState: () => number
   /**
-   * Whether `main.ts`'s `adaptOceanQuality` probe has already resolved this
-   * page load -- `true` either because it measured (a fresh profile, once
-   * the ~180-frame warm-up window elapses) or because a persisted
+   * Whether `main.ts`'s quality probe (`adaptQuality`) has already resolved this
+   * page load -- `true` either because it measured (a fresh profile, a few
+   * seconds into the first sortie: A4, 2026-10-09) or because a persisted
    * render-quality choice pre-latched it at boot, per the "probe once ever"
    * rule (design spec §5 step 1). Added in Task 9 (reference-GPU acceptance)
    * because the DEV-override-wins and probe-suppression claims were

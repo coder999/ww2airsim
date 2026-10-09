@@ -306,4 +306,13 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     expect(model.snapshot().explicitChoiceMade).toBe(false)
     expect(applied).toEqual([])
   })
+
+  it('the recommendation survives a reload (A4) and Reset to auto-detect clears it', () => {
+    createSettingsModel().setRecommendedTier('medium')
+    const reloaded = createSettingsModel()
+    expect(reloaded.snapshot().recommendedTier).toBe('medium')
+    reloaded.resetToAutoDetect()
+    expect(reloaded.snapshot().recommendedTier).toBeNull()
+    expect(createSettingsModel().snapshot().recommendedTier).toBeNull()
+  })
 })

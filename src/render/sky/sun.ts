@@ -35,6 +35,30 @@ export function sunPosition(latDeg: number, timeOfDay: number, dayOfYear = SCENA
   return { elevationDeg, azimuthDeg: (az + 180 + 360) % 360 }
 }
 
+/** A3: the three takeoff times Form 2 offers (Mark, 2026-10-09), each from the
+ *  sun model rather than a clock: Morning is sunrise + 1.5 h to the nearest
+ *  5 min; Midday is solar noon (12.0 in this file's apparent solar time); Dusk
+ *  is LAST_TAKEOFF_BEFORE_SUNSET_H before sunset, to the quarter hour below,
+ *  so a sortie still has daylight to fly in (there is no night lighting).
+ *  Leyte on day 294: sunrise 0608, sunset 1752, so 0740, 1200 and 1645. */
+export const LAST_TAKEOFF_BEFORE_SUNSET_H = 1
+export type TakeoffTime = 'morning' | 'midday' | 'dusk'
+export function takeoffHours(latDeg: number, dayOfYear = SCENARIO_DAY_OF_YEAR): Readonly<Record<TakeoffTime, number>> {
+  const cosH = -Math.tan(latDeg * DEG) * Math.tan(solarDeclinationDeg(dayOfYear) * DEG)
+  const halfDayH = Math.acos(Math.max(-1, Math.min(1, cosH))) / DEG / 15
+  return {
+    morning: Math.round((12 - halfDayH + 1.5) * 12) / 12,
+    midday: 12,
+    dusk: Math.floor((12 + halfDayH - LAST_TAKEOFF_BEFORE_SUNSET_H) * 4) / 4,
+  }
+}
+
+/** The takeoff time nearest `hour` (a scenario's historical hour): Form 2's suggestion. */
+export function nearestTakeoffTime(hour: number, hours: Readonly<Record<TakeoffTime, number>>): TakeoffTime {
+  const times = Object.keys(hours) as TakeoffTime[]
+  return times.reduce((best, t) => (Math.abs(hours[t] - hour) < Math.abs(hours[best] - hour) ? t : best))
+}
+
 /** Unit vector from the ground TOWARD the sun. +x east, +y up, +z SOUTH. */
 export function sunDirectionWorld(elevationDeg: number, azimuthDeg: number): Vec3 {
   const el = elevationDeg * DEG, az = azimuthDeg * DEG
