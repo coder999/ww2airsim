@@ -138,6 +138,9 @@ NACELLE = dict(below=0.015, stations=[(-0.166, 0.0066), (-0.083, 0.025), (0.0, 0
 PROP = dict(ahead=0.1125, chord=0.015, spinner_r=0.0116, spinner_len=0.02)
 TRICYCLE = True
 GEAR = dict(ahead=-0.016, below=0.027, length=0.0994, wheel_r=0.022, wheel_w=0.016, retracts='forward')
+# The hinges hang below the skin (main 0.27 m under the nacelle, nose 0.32 m under the fuselage, ray-cast 2026-10-09):
+# the struts reach up past it, so no leg floats (Mark, 2026-10-09).
+GEAR_REACH_M, NOSE_REACH_M = 0.40, 0.45
 NOSE_GEAR = dict(at=0.103, y=-0.042, wheel_r=0.016, wheel_w=0.012, retracts='aft')
 # (x aft of the nose, center y, up, radius, height, barrels, barrel length, facing), all of LENGTH but up/barrels/facing
 TURRETS = [
@@ -378,12 +381,13 @@ for i, z in enumerate(props, start=1):
                     pr['spinner_len'] * L, node=f'Prop{i}', blade_sections=BLADE_SECTIONS)
 
 
-def wheel_leg(hinge, length, wheel_r, wheel_w, node, twin=True):
-    """A strut down to an axle with one or two wheels; the lowest wheel point is `length` below the hinge."""
+def wheel_leg(hinge, length, wheel_r, wheel_w, node, twin=True, reach=0.0):
+    """A strut down to an axle with one or two wheels; the lowest wheel point is `length` below the hinge.
+    The strut starts `reach` (m) above the hinge, so it meets the skin when the hinge hangs below it."""
     hx, hy, hz = hinge
     axle_y = hy - length + wheel_r
     strut_r = 0.16 * wheel_r
-    m.revolve('dark', (hx, hy, hz), (0.0, -1.0, 0.0), [(0.0, strut_r), (hy - axle_y, strut_r)], 12, node)
+    m.revolve('dark', (hx, hy + reach, hz), (0.0, -1.0, 0.0), [(0.0, strut_r), (hy + reach - axle_y, strut_r)], 12, node)
     if twin:
         each = 0.44 * wheel_w
         offs = (-0.56 * wheel_w, 0.56 * wheel_w)
@@ -405,10 +409,10 @@ with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         z = side * ENGINES[0] * S
         hinge[name] = (wing_le(z) + g['ahead'] * L, main_hinge_y, z)
-        wheel_leg(hinge[name], g['length'] * L, g['wheel_r'] * L, g['wheel_w'] * L, name)
+        wheel_leg(hinge[name], g['length'] * L, g['wheel_r'] * L, g['wheel_w'] * L, name, reach=GEAR_REACH_M)
     ng = NOSE_GEAR
     nose_hinge = (X(ng['at']), ng['y'] * L, 0.0)
-    wheel_leg(nose_hinge, ng['y'] * L - ground_y, ng['wheel_r'] * L, ng['wheel_w'] * L, 'GearNose')
+    wheel_leg(nose_hinge, ng['y'] * L - ground_y, ng['wheel_r'] * L, ng['wheel_w'] * L, 'GearNose', reach=NOSE_REACH_M)
 with m.tagged('fittings'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         hx, hy, hz = hinge[name]
