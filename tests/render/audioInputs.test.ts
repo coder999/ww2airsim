@@ -40,6 +40,11 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(audioInputsFrom(frame).throttle).toBe(playerAircraft(frame.world).controls.throttle)
   })
 
+  it("reads gear and flap travel off the player's own state (I3)", () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), gearFraction: 0.25, flapFraction: 0.75 }))
+    expect(audioInputsFrom(frame)).toMatchObject({ gearFraction: 0.25, flapFraction: 0.75 })
+  })
+
   it("reports engineRunning false once the player's impact is set, and carries the kind through", () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0) }))
     expect(audioInputsFrom(frame).engineRunning).toBe(true)

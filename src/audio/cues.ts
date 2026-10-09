@@ -88,6 +88,10 @@ export type AudioInputs = {
   /** Bomb-bay door travel (`AircraftState.bayDoorFraction`, C2): the motor runs while it moves,
    *  and the doors lock with a clunk at either end. Optional so a hand-built input reads as shut. */
   readonly bayDoorFraction?: number
+  /** Gear and flap travel (`AircraftState.gearFraction`/`flapFraction`, 0 up, 1 down): each plays its
+   *  cycle clip once when it starts to travel. Optional so a hand-built input reads as never moving. */
+  readonly gearFraction?: number
+  readonly flapFraction?: number
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
    *  `null` when there is no carrier. */
   /** For each cause in `DAMAGE_CUES`, the tick of the newest event of that kind at the player
@@ -130,13 +134,31 @@ export type AudioMemory = {
   /** The tick the doors last moved, or null: the motor runs a tick or two past each move, so a
    *  render frame that ran no fixed step does not flicker it off. */
   readonly doorsMovedTick: number | null
+  /** Gear and flap travel last seen (null before the first frame of a flight, so a spawn with the
+   *  gear down is not a travel), and the tick each last moved (`doorsMovedTick`'s rule). */
+  readonly gear: Travel
+  readonly flaps: Travel
+}
+
+type Travel = { readonly last: number | null; readonly movedTick: number | null }
+const STILL: Travel = { last: null, movedTick: null }
+
+/** A device that travels plays its cycle clip once when it STARTS moving: the first change after it
+ *  has been still for more than `MOTOR_HOLD_TICKS`. Not on every frame it moves, so a render frame
+ *  that ran no fixed step cannot re-cue it, and not on a reversal mid-travel, which never stops. */
+function travel(prev: Travel, fraction: number | undefined, tick: number): { next: Travel; started: boolean } {
+  if (fraction === undefined || prev.last === null || fraction === prev.last) {
+    return { next: { last: fraction ?? null, movedTick: prev.movedTick }, started: false }
+  }
+  const started = prev.movedTick === null || tick - prev.movedTick > MOTOR_HOLD_TICKS
+  return { next: { last: fraction, movedTick: tick }, started }
 }
 
 export const NO_AUDIO_MEMORY: AudioMemory = {
   wasOnGround: null, firedImpactTick: null, lastTick: 0, lastShots: 0, gunCueUntilTick: 0,
   lastBombsDropped: 0, lastRocketsFired: 0, airborneSinceTick: null, airborneLatched: false, lastSinkMps: 0,
   lastStructure: 1, damageCueUntil: {}, engineFailed: false, lastArrested: false, lastHookDown: false,
-  lastBayDoorFraction: 0, doorsMovedTick: null,
+  lastBayDoorFraction: 0, doorsMovedTick: null, gear: STILL, flaps: STILL,
 }
 
 /** The motor keeps running this many ticks after the doors last moved (see `doorsMovedTick`). */
@@ -307,6 +329,11 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   const doorsMoving = doors !== lastDoors
   if (doorsMoving && (doors <= 0 || doors >= 1)) cues.push('hook_clunk')
   const doorsMovedTick = doorsMoving ? inputs.tick : restarted ? null : prev.doorsMovedTick
+  // Gear and flaps (I3, Mark 2026-10-09): one recorded cycle each, played both ways.
+  const gear = travel(restarted ? STILL : prev.gear, inputs.gearFraction, inputs.tick)
+  if (gear.started) cues.push('gear_cycle')
+  const flaps = travel(restarted ? STILL : prev.flaps, inputs.flapFraction, inputs.tick)
+  if (flaps.started) cues.push('flaps_cycle')
   const motorOn = doorsMovedTick !== null && inputs.tick - doorsMovedTick <= MOTOR_HOLD_TICKS && doors > 0 && doors < 1
 
   return {
@@ -316,6 +343,7 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
       airborneSinceTick, airborneLatched, lastSinkMps: inputs.sinkMps,
       lastStructure: inputs.structure, damageCueUntil, engineFailed: failing,
       lastArrested: inputs.arrested, lastHookDown: inputs.hookDown, lastBayDoorFraction: doors, doorsMovedTick,
+      gear: gear.next, flaps: flaps.next,
     },
     motor: motorOn ? MOTOR_GAIN : 0,
     cues,
