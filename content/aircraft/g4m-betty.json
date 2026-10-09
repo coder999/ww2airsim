@@ -122,7 +122,7 @@
           -0.3,
           0
         ],
-        "store": "an-m65"
+        "store": "type98-no25"
       },
       {
         "id": "bay-aft",
@@ -131,23 +131,13 @@
           -0.3,
           0
         ],
-        "store": "an-m65"
+        "store": "type98-no25"
       }
     ],
     "rails": [],
     "types": {
-      "an-m65": {
-        "kind": "bomb",
-        "massKg": 453.6,
-        "dragAreaM2": 0.09,
-        "fillerKg": 240.9,
-        "damage": 120,
-        "blastRadiusM": 30,
-        "armS": 0.5,
-        "lifetimeS": 60,
-        "dragPerM": 2e-05
-      }
+      "type98-no25": {"kind": "bomb", "massKg": 241, "dragAreaM2": 0.036, "fillerKg": 96, "damage": 48, "blastRadiusM": 22, "armS": 0.5, "lifetimeS": 60, "dragPerM": 1.5e-05}
     },
-    "source": "Two bomb racks INSIDE the fuselage hull, in tandem on the centerline (z 0) under the wing center section, lugs at y -0.30 m and x -1.7 and +0.3 m so the an-m65 mesh (bottom -0.60 m below its lug, 1.81 m long) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts holds every store above the belly and below the crown); no racks are drawn on the outside and the bombs drop with no bay doors (Mark, 2026-09-29, D7; bay doors are a later plan). The positions are ESTIMATES. HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, carried in the internal bay under the wing center section, with no doors when a torpedo is carried (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29; the torpedo mass conflicts, 800 vs 858 kg). No Japanese bomb store exists and none was added (D7): the shared an-m65 (AN-M65 1,000 lb GP, 453.6 kg) stands in, two of them = 907 kg (2,000 lb) as the nearest match by mass to the 800 kg bomb (+13 percent); the bomb figures are the American bomb's, not a Japanese one's. A load count above 8 would be capped at the 8 racks, which does not arise here. The bomb mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
+    "source": "Two bomb racks INSIDE the fuselage hull, in tandem on the centerline (z 0) under the wing center section, lugs at y -0.30 m and x -1.7 and +0.3 m so the type98-no25 mesh (bottom 0.355 m below its lug, 1.80 m long) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts holds every store above the belly and below the crown); no racks are drawn on the outside and the bombs drop with no bay doors (Mark, 2026-09-29, D7; bay doors are a later plan). The positions are ESTIMATES. HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, carried in the internal bay under the wing center section, with no doors when a torpedo is carried (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29; the torpedo mass conflicts, 800 vs 858 kg). The racks carry two Type 98 No. 25 250 kg bombs = 482 kg (1,063 lb): two of the historic 4 x 250 kg, and 60 percent of the 800 kg bomb by mass. The store is the Type 98 No. 25 250 kg land bomb, type98-no25 (V2, Mark, 2026-10-09): 241 kg all-up and 96 kg filler, SOURCED (English Wikipedia 'List of Japanese World War II navy bombs', from TM 9-1985-4, read 2026-10-09); its drag, damage and blast figures are DERIVED from the fleet's AN-M65 ESTIMATES (see a6m2-zero.json stores.source). A load count above 8 would be capped at the 8 racks, which does not arise here. The bomb mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
   }
 }

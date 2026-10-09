@@ -61,7 +61,8 @@ a coefficient to tune (R36).
 
 Options: (a) use the `.glb` already committed under `content/aircraft/`,
 (b) fetch a new licensed model (`docs/models.md` steps 1-6), (c) an original
-model. Recommend (a) when one exists: nine airframes already have one. Record
+model. Recommend (c), an original Blender model, even when (a) exists: see the
+build-first rule at the top of `docs/models.md` (Mark, 2026-10-09). Record
 the license row in `ASSETS.md` for (b). Changes: `tools/models/entries/<id>.json`,
 `view.model`, `AIRFRAME_RIGS`.
 
@@ -130,8 +131,8 @@ Recommend the historically standard load, not the maximum.
 ### D8. Which stores
 
 Each rack or rail names a `store` that must exist in `types` and, for the
-name shown on Form 4, in the Library as an ordnance entry (`an-m65`, `hvar`
-today). Options: an existing store, or a new one. Recommend an existing one
+name shown on Form 4, in the Library as an ordnance entry (`an-m65`, `type98-no25`,
+`hvar` today; a Japanese bomber carries `type98-no25`, V2 2026-10-09). Options: an existing store, or a new one. Recommend an existing one
 where the real weapon matches; a new store needs a mass, drag area, filler,
 damage and blast figure each with a source, plus its Library ordnance card.
 
@@ -158,8 +159,12 @@ Mark's approval, and mark it in capitals in the spec. Every figure carries a
 Options: fixed guns as sourced (count, caliber, rate, muzzle velocity,
 convergence), structure and subsystem hit points, damage zones. Recommend
 copying the shape of the nearest existing aircraft's `combat` block and
-replacing each number with a sourced one. Turrets are out of scope; record
-"no turrets" for a bomber. A bomber may have no `combat` block at all (the
+replacing each number with a sourced one. **Turrets and flexible guns as
+appropriate** (Mark, 2026-10-09, replacing "no turrets"): rig every real
+turret and flex gun on the turret-aim and flex-gun machinery
+(`docs/handoff/2026-10-09-turret-aim.md`, `2026-10-09-flex-guns.md`) so
+they aim. Gunners that fire are Track E3 and arrive for every airframe at
+once. A bomber may have no `combat` block at all (the
 B-17): it still drops bombs, but it cannot fire or be hit.
 
 ### D12. Cockpit view

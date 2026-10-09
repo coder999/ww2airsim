@@ -1,5 +1,6 @@
 // src/render/sounds/main.ts
 import { AUDIO_ASSETS } from '../../audio/assets.js'
+import { playLoopedPreview } from '../../audio/webAudio.js'
 import { groupCandidates, type CandidateTake } from './library.js'
 
 /**
@@ -31,9 +32,8 @@ function player(src: string, loop: boolean): HTMLElement {
 }
 
 // <audio loop> restarts with an audible gap (Mark heard it on aa_gun, 2026-10-09).
-// The game loops through AudioBufferSourceNode, which is sample-accurate, so
-// loops play that way here too. One loop at a time.
-let context: AudioContext | null = null
+// The game loops sample-accurately, so loops play that way here too (via
+// playLoopedPreview). One loop at a time.
 let stopLoop: (() => void) | null = null
 function looper(src: string): HTMLButtonElement {
   const b = el('button', 'height:32px;width:280px;flex:none;cursor:pointer', '▶ loop')
@@ -41,15 +41,9 @@ function looper(src: string): HTMLButtonElement {
     const mine = b.textContent !== '▶ loop'
     stopLoop?.()
     if (mine) return
-    context ??= new AudioContext()
-    const buffer = await context.decodeAudioData(await (await fetch(src)).arrayBuffer())
-    const source = context.createBufferSource()
-    source.buffer = buffer
-    source.loop = true
-    source.connect(context.destination)
-    source.start()
+    const stop = await playLoopedPreview(src)
     b.textContent = '■ stop'
-    stopLoop = () => { source.stop(); b.textContent = '▶ loop'; stopLoop = null }
+    stopLoop = () => { stop(); b.textContent = '▶ loop'; stopLoop = null }
   }
   return b
 }

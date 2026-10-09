@@ -42,7 +42,8 @@ export interface CountsReport {
   readonly scene: Counts
   /** Only the subtrees the model cache tagged with `userData.modelUrl`; null if none. */
   readonly model: Counts | null
-  /** The one tagged URL, or null (none, or more than one). */
+  /** The first tagged URL in traversal order, the entry's own model; null if none. A figure riding
+   *  in it (the jeep's driver, V1) is tagged too, and adds its counts and its budget. */
   readonly modelUrl: string | null
   readonly budget: ModelBudget | null
   /** The model exceeds its budget on triangles or draw calls. */
@@ -50,21 +51,38 @@ export interface CountsReport {
 }
 
 export function countsReport(root: Object3D, table: BudgetTable): CountsReport {
+  // Every tagged subtree counts once: a rider tagged inside a tagged model (V1) is its own, not the model's.
   const tagged: Object3D[] = []
   const find = (o: Object3D): void => {
-    if (typeof o.userData.modelUrl === 'string') { tagged.push(o); return }
+    if (typeof o.userData.modelUrl === 'string') tagged.push(o)
     o.children.forEach(find)
   }
   find(root)
   const scene = sceneCounts(root)
   if (tagged.length === 0) return { scene, model: null, modelUrl: null, budget: null, over: false }
   let triangles = 0, drawCalls = 0
-  for (const t of tagged) { const c = sceneCounts(t); triangles += c.triangles; drawCalls += c.drawCalls }
+  for (const t of tagged) {
+    const c = sceneCounts(t)
+    triangles += c.triangles; drawCalls += c.drawCalls
+    for (const inner of tagged) if (inner !== t && inner.parent !== null && isInside(inner, t)) {
+      const d = sceneCounts(inner); triangles -= d.triangles; drawCalls -= d.drawCalls
+    }
+  }
   const urls = [...new Set(tagged.map((t) => t.userData.modelUrl as string))]
-  const modelUrl = urls.length === 1 ? urls[0]! : null
-  const budget = modelUrl === null ? null : budgetForUrl(table, modelUrl)
+  const modelUrl = urls[0]!
+  // Each glb is held to its own budget by the build; drawn together, the readout holds them to the sum.
+  const budgets = urls.map((u) => budgetForUrl(table, u))
+  const budget = budgets.some((b) => b === null) ? null : budgets.reduce<ModelBudget>((s, b) => ({
+    maxBytes: s.maxBytes + b!.maxBytes, maxTriangles: s.maxTriangles + b!.maxTriangles, maxDrawCalls: s.maxDrawCalls + b!.maxDrawCalls,
+  }), { maxBytes: 0, maxTriangles: 0, maxDrawCalls: 0 })
   const over = budget !== null && (triangles > budget.maxTriangles || drawCalls > budget.maxDrawCalls)
   return { scene, model: { triangles, drawCalls }, modelUrl, budget, over }
+}
+
+/** `o` is a descendant of `ancestor`. */
+function isInside(o: Object3D, ancestor: Object3D): boolean {
+  for (let p = o.parent; p !== null; p = p.parent) if (p === ancestor) return true
+  return false
 }
 
 export function countsText(r: CountsReport): { readonly lines: readonly string[]; readonly over: boolean } {

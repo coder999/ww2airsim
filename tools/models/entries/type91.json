@@ -1,0 +1,19 @@
+{
+  "id": "type91",
+  "output": "content/ordnance/type91.glb",
+  "source": {
+    "kind": "generated",
+    "generator": "tools/models/generated/type91.ts",
+    "dimensions": "English Wikipedia 'Type 91 torpedo': infobox 5.270 m long, 45 cm diameter; wooden kyoban stabilizer plates on the tail fins from Rev. 1 (1936). Read 2026-10-09. Every other figure is an ESTIMATE in the generator's header.",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 400000,
+    "maxTriangles": 4000,
+    "maxDrawCalls": 1
+  }
+}

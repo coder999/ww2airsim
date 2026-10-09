@@ -9,6 +9,10 @@ import type { MeshData } from '../../../tools/models/generated/mesh.js'
 import { INSIGNIA_YELLOW } from '../../../tools/models/generated/colors.js'
 import { AN_M65_AXIS_Y, AN_M65_CITED, AN_M65_SEAT_X, anM65Parts } from '../../../tools/models/generated/an-m65.js'
 import { HVAR_AXIS_Y, HVAR_CITED, hvarParts } from '../../../tools/models/generated/hvar.js'
+import { TYPE98_AXIS_Y, TYPE98_CITED, type98Parts } from '../../../tools/models/generated/type98-no25.js'
+import { torpedoAxisY, torpedoParts, type TorpedoShape } from '../../../tools/models/generated/torpedo.js'
+import { MK13_CITED, MK13_SHAPE } from '../../../tools/models/generated/mk13.js'
+import { TYPE91_CITED, TYPE91_SHAPE } from '../../../tools/models/generated/type91.js'
 
 const xs = (m: MeshData): number[] => m.positions.filter((_, i) => i % 3 === 0)
 const ys = (m: MeshData): number[] => m.positions.filter((_, i) => i % 3 === 1)
@@ -75,6 +79,32 @@ describe('HVAR: measured dimensions within 1% of the cited figures (O1, spec §7
   it('the lug tops are the highest point of body and lugs; the X fins rise above them', () => {
     for (const m of [p.body, p.lugs]) expect(Math.max(...ys(m))).toBeLessThanOrEqual(1e-12)
     expect(Math.max(...ys(p.fins))).toBeGreaterThan(0)
+  })
+})
+
+describe('Type 98 No. 25: measured dimensions within 1% of the cited figures (V2)', () => {
+  const p = type98Parts()
+  it('overall length 180 cm, tail 83 cm (32.5 in), body diameter 30 cm', () => {
+    within1pct(Math.max(...xs(p.body)) - Math.min(...xs(p.tail)), TYPE98_CITED.overallLengthM, 'overall length')
+    within1pct(extent(xs(p.tail)), TYPE98_CITED.tailLengthM, 'tail length')
+    within1pct(2 * maxRadius(p.body, TYPE98_AXIS_Y), TYPE98_CITED.bodyDiameterM, 'body diameter')
+  })
+  it('the lug top is the highest point of body and lug, at the origin plane', () => {
+    expect(Math.max(...ys(p.lug))).toBeCloseTo(0, 12)
+    expect(Math.max(...ys(p.body))).toBeLessThanOrEqual(1e-12)
+  })
+})
+
+describe.each([['Mk 13', MK13_SHAPE, MK13_CITED], ['Type 91', TYPE91_SHAPE, TYPE91_CITED]] as const)('%s torpedo: measured dimensions within 1%% of the cited figures (V1)', (_name, shape: TorpedoShape, cited) => {
+  const p = torpedoParts(shape)
+  it('overall length, nose to propeller hub, and body diameter', () => {
+    const all = [p.body, p.fins, p.stabilizer, p.props].flatMap(xs)
+    within1pct(extent(all), cited.overallLengthM, 'overall length')
+    within1pct(2 * maxRadius(p.body, torpedoAxisY(shape)), cited.diameterM, 'diameter')
+  })
+  it('the lug top is the highest point of the body, at the origin plane', () => {
+    expect(Math.max(...ys(p.lug))).toBeCloseTo(0, 12)
+    expect(Math.max(...ys(p.body))).toBeLessThanOrEqual(1e-12)
   })
 })
 

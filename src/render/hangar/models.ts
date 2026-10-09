@@ -9,15 +9,16 @@ import { disposeMeshTree } from '../models/dispose.js'
 import type { StoreMounts } from '../scene/stores.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
-import { ordnanceModelUrl } from '../content.js'
+import { figureModelUrl, ordnanceModelUrl } from '../content.js'
 import type { CatalogEntry } from './catalog.js'
 import type { ModelRef } from './library.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
+import { VEHICLE_RIDERS, VEHICLE_RIGS, type VehiclePart, type VehicleRig } from '../scene/vehicleRig.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
  *  the propeller; H2 adds stores (and Cycle, in the bench); turret aim (2026-10-09) turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores'
+  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores' | 'drive' | 'steer'
   readonly label: string
   /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). `aim`: bearing and elevation, degrees. */
   readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick' | 'aim'
@@ -43,6 +44,10 @@ export interface PartPose {
   readonly bombs?: boolean
   /** Rockets on the rails (true) or fired (false); H2. */
   readonly rockets?: boolean
+  /** A vehicle's road speed, mph, + forward (V1): its wheels and tracks turn with it. */
+  readonly speedMph?: number
+  /** A vehicle's steering, -1 full left to 1 full right (V1). */
+  readonly steer?: number
 }
 
 export interface HangarModel {
@@ -56,8 +61,10 @@ export interface HangarModel {
   /** Advances the model's own clock (propeller) by `frameS`. */
   update(frameS: number): void
   counts(): { readonly triangles: number; readonly drawCalls: number }
-  /** A ship's instanced gun mounts (Track M, M1), each trainable alone; absent for everything else. */
+  /** A ship's instanced gun mounts (Track M, M1), each trainable alone, or a vehicle's turret (V1); absent for everything else. */
   readonly gunMounts?: readonly ShipMountView[]
+  /** A rigged vehicle's pose as its scene graph holds it (V1), for E2E; absent for everything else. */
+  readonly vehicle?: VehicleRig
   dispose(): void
 }
 
@@ -71,10 +78,17 @@ const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'stores', label: 'Stores', kind: 'toggle', range: [0, 1] },
 ]
 
+/** A rigged vehicle's rows (V1): only the parts it has, so a jeep lists no turret. */
+const VEHICLE_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
+  { id: 'turrets', label: 'Turret', kind: 'aim', range: [-180, 180] },
+  { id: 'drive', label: 'Speed (mph)', kind: 'rate', range: [-10, 30] },
+  { id: 'steer', label: 'Steering', kind: 'fraction', range: [-1, 1] },
+]
+
 /** One row per bench part, `modeled` read off the airframe's own `parts`
  *  (Z1's `Airframe.parts`), so a missing part is reported, never hidden. */
 export function partSpecsFor(parts: readonly PartId[]): PartSpec[] {
-  return BENCH_PARTS.map((p) => ({ ...p, modeled: parts.includes(p.id) }))
+  return BENCH_PARTS.map((p) => ({ ...p, modeled: parts.includes(p.id as PartId) }))
 }
 
 /** Triangles and draw calls three.js issues for `root`: one draw per visible
@@ -204,10 +218,16 @@ const loadRegisteredStore: LoadStore = (id) => acquireModel(ordnanceModelUrl(id)
 /** Loads a ship, building or vehicle model named by an entry's own `model` (R1). */
 export type LoadDisplay = (ref: ModelRef) => Promise<ModelInstance>
 
+/** Loads a figure that rides in a vehicle (V1), by its id. */
+export type LoadRider = (id: string) => Promise<ModelInstance>
+
+const loadRegisteredRider: LoadRider = (id) => acquireModel(figureModelUrl(id))
+
 /** The committed glb a display model resolves to, through its kind's registry. */
 export function displayModelUrl(ref: ModelRef): string {
   if (ref.kind === 'ship') return shipModelUrlFor(ref.id)
   if (ref.kind === 'building' || ref.kind === 'vehicle') return staticModelUrlFor(ref.kind, ref.id)
+  if (ref.kind === 'ordnance') return ordnanceModelUrl(ref.id)
   throw new Error(`displayModelUrl: aircraft model "${ref.id}" loads through the airframe registry, not as a static model`)
 }
 
@@ -219,7 +239,7 @@ const loadRegisteredDisplay: LoadDisplay = (ref) => acquireModel(displayModelUrl
  * need not be the model the spec flies (the Hellcat's is, since sortie forms A4), and it hangs no stores. Ships stand at their waterline origin, and
  * buildings and vehicles on their own y = 0 (the Blender kit's frame, spec §4.2).
  */
-async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDisplay: LoadDisplay): Promise<HangarModel> {
+async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDisplay: LoadDisplay, loadRider: LoadRider): Promise<HangarModel> {
   if (ref.kind === 'aircraft') {
     const model = aircraftModel(await loadAirframe(ref.id, undefined), 0, undefined)
     model.update(0)
@@ -227,7 +247,58 @@ async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDispl
     return model
   }
   const instance = await loadDisplay(ref)
+  if (ref.kind === 'ordnance') return ordnanceStand(instance)
+  const rigFor = ref.kind === 'vehicle' ? VEHICLE_RIGS[ref.id] : undefined
+  if (rigFor) {
+    // Riders sit at the vehicle's origin, in its frame, before the rig looks for their arms.
+    const riders = await Promise.all((VEHICLE_RIDERS[ref.id] ?? []).map(loadRider))
+    for (const r of riders) instance.root.add(r.root)
+    return vehicleModel(instance, rigFor(instance.root), riders)
+  }
   return { ...staticModel(instance.root), dispose: () => instance.release() }
+}
+
+/** MPH to m/s, for the bench's speed row (imperial on screen, SI in the rig). */
+const MPH = 0.44704
+
+/** A vehicle on the bench (V1): turret aim from the turret sliders, and a speed the model's own
+ *  clock integrates into distance, so wheels and tracks keep turning while the speed is held. */
+function vehicleModel(instance: ModelInstance, rig: VehicleRig, riders: readonly ModelInstance[]): HangarModel {
+  let speedMps = 0, steer = 0, distanceM = 0
+  const apply = (): void => rig.drive(distanceM, steer)
+  return {
+    ...staticModel(instance.root),
+    parts: VEHICLE_PARTS.filter((p) => rig.parts.includes(p.id as VehiclePart)).map((p) => ({ ...p, modeled: true })),
+    gunMounts: rig.mounts,
+    vehicle: rig,
+    pose(p): void {
+      for (const m of rig.mounts) {
+        if (p.turretBearingDeg !== undefined) m.setTraining((-p.turretBearingDeg * Math.PI) / 180)
+        if (p.turretElevationDeg !== undefined) m.setElevation((p.turretElevationDeg * Math.PI) / 180)
+      }
+      if (p.speedMph !== undefined) speedMps = p.speedMph * MPH
+      if (p.steer !== undefined) steer = p.steer
+      apply()
+    },
+    update(frameS): void {
+      distanceM += speedMps * frameS
+      apply()
+    },
+    dispose(): void {
+      rig.dispose()
+      for (const r of riders) { instance.root.remove(r.root); r.release() }
+      instance.release()
+    },
+  }
+}
+
+/** A store's origin is its suspension point with the body below it: stand it clear of the pad. */
+function ordnanceStand(instance: ModelInstance): HangarModel {
+  const stand = new Group()
+  stand.name = 'ordnance stand'
+  stand.add(instance.root)
+  stand.position.y = -new Box3().setFromObject(instance.root).min.y + 0.2
+  return { ...staticModel(stand), dispose: () => instance.release() }
 }
 
 /**
@@ -239,8 +310,8 @@ async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDispl
  * as the game's in-flight pools do (O1). An entry's own `model` wins over its
  * spec (R1). null = neither: "Not yet in service".
  */
-export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView, loadStore: LoadStore = loadRegisteredStore, loadDisplay: LoadDisplay = loadRegisteredDisplay): Promise<HangarModel | null> {
-  if (entry.library.model !== undefined) return displayModel(entry.library.model, loadAirframe, loadDisplay)
+export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView, loadStore: LoadStore = loadRegisteredStore, loadDisplay: LoadDisplay = loadRegisteredDisplay, loadRider: LoadRider = loadRegisteredRider): Promise<HangarModel | null> {
+  if (entry.library.model !== undefined) return displayModel(entry.library.model, loadAirframe, loadDisplay, loadRider)
   const s = entry.subject
   if (s === null) return null
   if (s.kind === 'aircraft') {
@@ -254,15 +325,7 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
     const view = await loadShip(s.spec)
     return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
   }
-  if (s.kind === 'ordnance') {
-    // Its origin is the suspension point with the body below it: stand it clear of the pad.
-    const instance = await loadStore(s.storeId)
-    const stand = new Group()
-    stand.name = 'ordnance stand'
-    stand.add(instance.root)
-    stand.position.y = -new Box3().setFromObject(instance.root).min.y + 0.2
-    return { ...staticModel(stand), dispose: () => instance.release() }
-  }
+  if (s.kind === 'ordnance') return ordnanceStand(await loadStore(s.storeId))
   // The largest footprint of this kind stands for all of them.
   const b = [...s.placements].sort((x, y) => y.building.widthM * y.building.lengthM - x.building.widthM * x.building.lengthM)[0]!.building
   const collector = makeCollector()

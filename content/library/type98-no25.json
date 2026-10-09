@@ -1,0 +1,21 @@
+{
+  "id": "type98-no25",
+  "name": "Type 98 No. 25 250 kg land bomb",
+  "kind": "ordnance",
+  "side": "japanese",
+  "spec": "type98-no25",
+  "blurb": "The bomb every Japanese bomber in the game carries. Its model is generated from the U.S. Army's postwar manual on Japanese ordnance.",
+  "history": "The Type 98 No. 25 was the Imperial Japanese Navy's 250 kg general-purpose land bomb, adopted in 1938. A cast steel nose and a welded and riveted steel body carried about 96 kg of picric acid or Type 98 explosive, with a sheet-steel tail cone and four fins braced by box struts.\n\nIt was painted gray, with a green nose band and green tail struts. Carrier dive bombers such as the D3A Val carried bombs of this class against ships and airfields from Pearl Harbor onward.",
+  "sources": [
+    {
+      "title": "List of Japanese World War II navy bombs",
+      "url": "https://en.wikipedia.org/wiki/List_of_Japanese_World_War_II_navy_bombs",
+      "read": "2026-10-09"
+    },
+    {
+      "title": "Bomb, 250 kg Land, Type 98 No. 25 (bulletpicker.com, from TM 9-1985-4)",
+      "url": "https://bulletpicker.com/bomb_-250-kg-land_-type-98-no_.html",
+      "read": "2026-10-09"
+    }
+  ]
+}

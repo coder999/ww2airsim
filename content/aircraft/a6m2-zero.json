@@ -102,8 +102,8 @@
   },
   "stores": {
     "racks": [
-      { "id": "left-rack", "offset": [-0.373,-0.424,-2.6], "store": "an-m65" },
-      { "id": "right-rack", "offset": [-0.374,-0.425,2.6], "store": "an-m65" }
+      { "id": "left-rack", "offset": [-0.374,-0.346,-2.6], "store": "type98-no25" },
+      { "id": "right-rack", "offset": [-0.374,-0.346,2.6], "store": "type98-no25" }
     ],
     "rails": [
       { "id": "left-rail-1", "offset": [-0.566,-0.314,-3.6], "store": "hvar" },
@@ -114,10 +114,10 @@
       { "id": "right-rail-3", "offset": [-0.499,-0.176,5], "store": "hvar" }
     ],
     "types": {
-      "an-m65": {"kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 2e-05},
+      "type98-no25": {"kind": "bomb", "massKg": 241, "dragAreaM2": 0.036, "fillerKg": 96, "damage": 48, "blastRadiusM": 22, "armS": 0.5, "lifetimeS": 60, "dragPerM": 1.5e-05},
       "hvar": {"kind": "rocket", "massKg": 61, "dragAreaM2": 0.03, "warheadKg": 20.6, "damage": 40, "blastRadiusM": 8, "burnS": 1.0, "burnDeltaVMps": 419, "railElevationDeg": 1.8, "lifetimeS": 12, "dragPerM": 8e-05}
     },
-    "source": "Dev stores only (2026-09-29): the Zero has no sourced under-wing rocket or 500 lb bomb load. Station spacing, store types and store figures are the F6F's (see f6f-hellcat.json stores.source, labeled there); only the offsets differ, measured on the Zero's own drawn wing with `npm run models:mounts` (ESTIMATE: 40% chord for bombs, 50% for rockets, 0.02 m clearance). The Hellcat layout hung on the Zero put the stores 0.6 m above its wing underside, visible on top of the wings."
+    "source": "Dev stores only (2026-09-29): the Zero has no sourced under-wing rocket load. Rail spacing, the hvar store and its figures are the F6F's (see f6f-hellcat.json stores.source, labeled there). The store is the Type 98 No. 25 250 kg land bomb, type98-no25 (V2, Mark, 2026-10-09: one Japanese bomb for every Japanese bomber, the Navy's bomb on Army airplanes too): 241 kg all-up and 96 kg filler, SOURCED (English Wikipedia 'List of Japanese World War II navy bombs', from TM 9-1985-4, read 2026-10-09). Its other figures are DERIVED from the fleet's AN-M65 ESTIMATES (f6f-hellcat.json stores.source), so they are ESTIMATES too: dragAreaM2 0.036 is the AN-M65's 0.09 scaled by frontal area (30 cm against 18.8 in), dragPerM 1.5e-05 its 2e-05 scaled by drag area per kilogram, damage 48 its 120 scaled by filler (96 / 240.9) and blastRadiusM 22 its 30 by the cube root of filler; armS and lifetimeS are the AN-M65's. Offsets are measured on the Zero's own drawn wing with `npm run models:mounts` (ESTIMATE: 40% chord for bombs, 50% for rockets, 0.02 m clearance); the racks were re-measured for the Type 98 on 2026-10-09. The Hellcat layout hung on the Zero put the stores 0.6 m above its wing underside, visible on top of the wings."
   },
   "ai": { "excludedManeuvers": ["immelmann"] },
   "view": { "eyePointM": [-0.896, 0.73, 0], "model": "a6m2-zero" }

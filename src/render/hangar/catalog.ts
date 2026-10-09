@@ -85,7 +85,7 @@ function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
 function modelPathFor(e: LibraryEntry, s: CatalogSubject | null): string | 'code' | null {
   if (e.model !== undefined) {
     const { kind, id } = e.model
-    return kind === 'aircraft' ? aircraftModelPath(id) : kind === 'ship' ? shipModelPath(id) : staticModelPath(kind, id)
+    return kind === 'aircraft' ? aircraftModelPath(id) : kind === 'ship' ? shipModelPath(id) : kind === 'ordnance' ? ordnanceModelPath(id) : staticModelPath(kind, id)
   }
   if (s === null) return null
   if (s.kind === 'aircraft') return aircraftModelPath(s.spec.view.model)

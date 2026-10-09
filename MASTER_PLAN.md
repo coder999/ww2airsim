@@ -116,9 +116,15 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
 - **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
 
+### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
+
+- **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Render and Hangar only, in `src/render/scene/vehicleRig.ts`: no vehicle is in the sim yet, so neither moves in a scenario. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
+- **Open:** vehicles as sim entities (ground targets that drive) would be their own plan; the rigs take a distance and a steer, so a sim pose drives them unchanged.
+
 ### Track D: Torpedoes (L)
 
 - **Today:** projectile `kind` is round, bomb or rocket (`combat.ts:85`). Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location. No torpedo bomber is in the roster. The G4M historically carried the Type 91, but its spec carries bombs.
+- **Drawn already (V1, 2026-10-09):** the Mk 13 and Type 91 torpedo models (`content/ordnance/mk13.glb`, `type91.glb`, in the Library), with their suspension point at the origin like every store, so step 2 adds a store type and hangs them. M4's ship torpedoes reuse the same two models (Mark's ruling: simplicity over history). Plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`; handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`.
 - **Proposal, in order:**
   1. **Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.
   2. **Weapon:** a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.

@@ -14,29 +14,44 @@ import { createModelCache } from '../../src/render/models/modelCache.js'
 
 const docOnce = modelIO().readBinary(new Uint8Array(readFileSync(WILDCAT_MODEL_PATH)))
 
+/** Any committed glb's scene graph the same way (V1's vehicle rigs read it), plus what a rig needs
+ *  beyond the Wildcat's: texture coordinates, each primitive's material name, and node extras as
+ *  `userData`, as GLTFLoader gives them. */
+export async function glbScene(path: string): Promise<Group> {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync(path)))
+  const root = new Group()
+  for (const n of onlyScene(doc).listChildren()) root.add(build(n))
+  return root
+}
+
 function build(n: Node): Object3D {
   const mesh = n.getMesh()
   let o: Object3D
   if (mesh === null) o = new Group()
   else {
     const xyz: number[] = []
+    const uvs: number[] = []
     const index: number[] = []
-    const v = [0, 0, 0]
+    const v = [0, 0, 0], t = [0, 0]
     for (const p of mesh.listPrimitives()) {
       const a = p.getAttribute('POSITION')
       if (a === null) continue
       const base = xyz.length / 3
       for (let i = 0; i < a.getCount(); i++) { a.getElement(i, v); xyz.push(v[0]!, v[1]!, v[2]!) }
+      const uv = p.getAttribute('TEXCOORD_0')
+      for (let i = 0; i < a.getCount(); i++) { if (uv) uv.getElement(i, t); uvs.push(uv ? t[0]! : 0, uv ? t[1]! : 0) }
       const idx = p.getIndices()
       if (idx === null) for (let i = 0; i < a.getCount(); i++) index.push(base + i)
       else for (let i = 0; i < idx.getCount(); i++) index.push(base + idx.getScalar(i))
     }
     const g = new BufferGeometry()
     g.setAttribute('position', new Float32BufferAttribute(xyz, 3))
+    g.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
     g.setIndex(index)
-    o = new Mesh(g, new MeshStandardMaterial())
+    o = new Mesh(g, new MeshStandardMaterial({ name: mesh.listPrimitives()[0]?.getMaterial()?.getName() ?? '' }))
   }
   o.name = n.getName()
+  o.userData = { ...n.getExtras() }
   o.position.fromArray(n.getTranslation())
   o.quaternion.fromArray(n.getRotation())
   o.scale.fromArray(n.getScale())

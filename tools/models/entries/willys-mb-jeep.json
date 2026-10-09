@@ -11,8 +11,14 @@
   },
   "normalize": { "forward": "+z", "up": "+y", "yawDeg": -5.7, "origin": [-0.922, 0.043, -0.080], "fit": { "extent": "length", "meters": 3.377 } },
   "split": [
-    { "name": "CanvasJeep", "select": "components", "boxMin": [0.019, -1, -2], "boxMax": [2, 3, 2] }
+    { "name": "CanvasJeep", "select": "components", "boxMin": [0.019, -1, -2], "boxMax": [2, 3, 2] },
+    { "name": "WheelFL", "select": "components", "boxMin": [-0.56, -0.01, 0.57], "boxMax": [-0.26, 0.70, 1.27], "pivot": { "point": [-0.4165, 0.35, 0.9195], "axis": "+x" } },
+    { "name": "WheelFR", "select": "components", "boxMin": [-1.66, -0.01, 0.57], "boxMax": [-1.36, 0.70, 1.27], "pivot": { "point": [-1.4785, 0.35, 0.92], "axis": "+x" } },
+    { "name": "WheelRL", "select": "components", "boxMin": [-0.50, -0.01, -1.2], "boxMax": [-0.25, 0.70, -0.5], "pivot": { "point": [-0.378, 0.352, -0.853], "axis": "+x" } },
+    { "name": "WheelRR", "select": "components", "boxMin": [-1.65, -0.01, -1.2], "boxMax": [-1.40, 0.70, -0.5], "pivot": { "point": [-1.525, 0.352, -0.8535], "axis": "+x" } },
+    { "name": "SteeringWheel", "select": "components", "boxMin": [-0.82, 0.82, -0.175], "boxMax": [-0.46, 1.09, 0.075], "pivot": { "point": [-0.64, 0.952, -0.0405], "axis": [-0.050082083, 0.688224747, -0.72376687] } }
   ],
+  "note": "V1 (2026-10-09): each wheel (tire and hub cap) is its own node, pivoted at its tire's center (the rear pair are two nodes because the leaf springs between them are shells a one-box split would take too), and the steering wheel (rim, spokes, horn) turns about its column, whose axis is measured from the column shell's ends. Coordinates are in the yaw-turned frame.",
   "remove": ["CanvasJeep"],
   "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }

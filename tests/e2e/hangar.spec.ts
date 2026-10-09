@@ -246,7 +246,7 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test('7c. every turreted bomber aims its turrets from the bench: bearing 90 and elevation 30 change the top view, 0 and 0 restore it exactly (turret aim, 2026-10-09)', async ({ page }) => {
+  test('7c. every turreted bomber and tank aims its turrets from the bench: bearing 90 and elevation 30 change the top view, 0 and 0 restore it exactly (turret aim, 2026-10-09)', async ({ page }) => {
     const turreted: string[] = []
     for (const id of await entries(page)) {
       await select(page, id)
@@ -260,7 +260,8 @@ test.describe('the Hangar', () => {
       expect(aimed.equals(rest), `${id}: aiming moved nothing`).toBe(false)
       expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
     }
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+    // The Chi-Ha's turret joined V1 (2026-10-09).
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -477,6 +478,42 @@ test.describe('the Hangar', () => {
       expect(raised.equals(level), `${ship.id}: elevating moved nothing`).toBe(false)
       expect(lowered.equals(level), `${ship.id}: elevation back to 0 did not restore the frame`).toBe(true)
     }
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
+
+  test('18. the ground vehicles move: the Chi-Ha trains, elevates and runs its wheels and tread on screen; the jeep steers with its driver\'s hands on the wheel (V1)', async ({ page }) => {
+    const state = () => page.evaluate(() => (window as HangarWindow).__hangar!.vehicle())
+    await select(page, 'type97-chi-ha')
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])
+    await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
+    const aimed = (await state())!
+    expect(aimed['turretYawRad']).toBeCloseTo(-Math.PI / 2, 6)
+    expect(aimed['gunElevationRad']).toBeCloseTo((20 * Math.PI) / 180, 6) // the gun stops at its +20 degrees
+    // The wheels turn in a vertex shader and the tread is a texture offset: only the frame can show them moved.
+    await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+    await pose(page, { speedMph: 10 })
+    const before = await shot(page)
+    await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.25))
+    const after = await shot(page)
+    expect(after.equals(before), 'a quarter second at 10 mph moved neither wheels nor tread').toBe(false)
+    const ran = (await state())!
+    expect(ran['wheelTravelM']).toBeCloseTo(10 * 0.44704 * 0.25, 6)
+    expect(ran['treadOffsetU']).toBeLessThan(0)
+    expect(ran['wheelShells']).toBe(72)
+
+    await select(page, 'willys-mb-jeep')
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['drive', 'steer'])
+    await pose(page, { steer: 0.05 })
+    const steered = (await state())!
+    expect(steered['frontSteerRad']).toBeLessThan(0)
+    expect(steered['steeringWheelRad']).toBeLessThan(0)
+    // The driver rides (his arms found) and his gloved hands follow the rim (vehicleRig.test.ts measures the bound).
+    expect(steered['handOffRimM']).toBeGreaterThanOrEqual(0)
+    expect(steered['handOffRimM']).toBeLessThan(0.04)
+    const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
+    expect(r?.modelUrl ?? '').toMatch(/content\/vehicles\/willys-mb-jeep\.glb$/)
+    expect(r?.over).toBe(false)
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 })

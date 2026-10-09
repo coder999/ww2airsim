@@ -54,6 +54,24 @@ describe('countsReport', () => {
     expect(countsText(r)).toEqual({ lines: ['Scene 12 triangles, 1 draw calls', 'No manifest budget'], over: false })
   })
 
+  it('a rider tagged inside the model (the jeep\'s driver, V1) adds its counts and its budget; the model\'s own URL leads', () => {
+    const two = parseBudgets({
+      '/e/a.json': { output: 'content/vehicles/a.glb', budget: { maxBytes: 1, maxTriangles: 12, maxDrawCalls: 1 } },
+      '/e/b.json': { output: 'content/figures/b.glb', budget: { maxBytes: 1, maxTriangles: 12, maxDrawCalls: 1 } },
+    })
+    const model = new Group(); model.userData.modelUrl = '/content/vehicles/a.glb'; model.add(box())
+    const rider = new Group(); rider.userData.modelUrl = '/content/figures/b.glb'; rider.add(box())
+    model.add(rider)
+    const root = new Group(); root.add(model)
+    const r = countsReport(root, two)
+    expect(r.modelUrl).toBe('/content/vehicles/a.glb')
+    expect(r.model).toEqual({ triangles: 24, drawCalls: 2 })
+    expect(r.budget).toEqual({ maxBytes: 2, maxTriangles: 24, maxDrawCalls: 2 })
+    expect(r.over).toBe(false)
+    rider.add(box())
+    expect(countsReport(root, two).over).toBe(true)
+  })
+
   it('reads model against budget in the text', () => {
     const model = new Group(); model.userData.modelUrl = '/content/aircraft/a.glb'; model.add(box())
     const root = new Group(); root.add(model)

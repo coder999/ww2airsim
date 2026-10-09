@@ -46,6 +46,12 @@ PALETTE = {
     'underside': (0xA3 / 255, 0xA8 / 255, 0x9A / 255),
     'naturalMetal': (0xB4 / 255, 0xB8 / 255, 0xBC / 255),
     'glazing': (0x2E / 255, 0x3A / 255, 0x44 / 255),
+    # Figures (V1): a US Army soldier's kit, each an ESTIMATE named in the figure script's header.
+    'uniform': (0x5E / 255, 0x5B / 255, 0x3F / 255),
+    'helmet': (0x4A / 255, 0x4C / 255, 0x33 / 255),
+    'webbing': (0x9A / 255, 0x8C / 255, 0x64 / 255),
+    'boots': (0x5C / 255, 0x3A / 255, 0x21 / 255),
+    'skin': (0xC4 / 255, 0x9A / 255, 0x7A / 255),
 }
 
 

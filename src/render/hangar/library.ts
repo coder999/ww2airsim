@@ -13,9 +13,9 @@ import type { ProvenanceTable } from './provenance.js'
  */
 export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'ordnance'] as const
 export type LibraryKind = (typeof LIBRARY_KINDS)[number]
-/** The kinds that can carry their own model (model-roster spec §4.3). Ordnance draws its store
- *  model by its spec (O1), so it takes none. */
-export const MODEL_KINDS = ['aircraft', 'ship', 'building', 'vehicle'] as const
+/** The kinds that can carry their own model (model-roster spec §4.3). Ordnance in a spec draws its
+ *  store model by that spec (O1); ordnance no spec carries yet (the torpedoes, V1) names its own. */
+export const MODEL_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'ordnance'] as const
 export type ModelKind = (typeof MODEL_KINDS)[number]
 export interface ModelRef { readonly kind: ModelKind; readonly id: string }
 export const SIDES = ['allied', 'japanese'] as const
@@ -36,7 +36,7 @@ export const LibraryEntrySchema = z.object({
   spec: z.string().min(1).optional(),
   /** A model the Hangar draws for this entry, in place of the spec's `view.model` (model-roster
    *  spec §4.3). With no `spec`, the entry is drawn but is "not in the game yet". The id resolves
-   *  in AIRFRAME_MODELS, SHIP_MODELS or STATIC_MODELS by kind (tests/render/hangar/roster.test.ts). */
+   *  in AIRFRAME_MODELS, SHIP_MODELS, STATIC_MODELS or the generated ordnance entries by kind (tests/render/hangar/roster.test.ts). */
   model: z.object({ kind: z.enum(MODEL_KINDS), id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict().optional(),
   /** One or two sentences: what it is in this game. Never a gameplay number (§4.2). */
   blurb: z.string().min(1),
