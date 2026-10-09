@@ -10,7 +10,23 @@
   "turnRateRadPerS": 0.05236,
   "hullHp": 160,
   "view": { "model": "shiratsuyu-dd" },
+  "armament": {
+    "turrets": [
+      {"x": 37.0, "y": 4.39, "z": 0, "bearingDeg": 0, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": null},
+      {"x": -33.5, "y": 2.94, "z": -0.2, "bearingDeg": 180, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": null}
+    ],
+    "heavyAA": [],
+    "lightAA": [
+      {"x": 30.2, "y": 5.15, "z": 2.58, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 30.2, "y": 5.15, "z": -2.58, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 29.8, "y": 7.5, "z": 0, "bearingDeg": 0, "kit": null, "barrels": 2},
+      {"x": 2.5, "y": 7.7, "z": 0, "bearingDeg": 0, "kit": null, "barrels": 3},
+      {"x": -29.0, "y": 6.14, "z": 1.94, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -29.0, "y": 6.14, "z": -1.94, "bearingDeg": 0, "kit": null, "barrels": 1},
+      {"x": -48.5, "y": 3.8, "z": 0, "bearingDeg": 0, "kit": null, "barrels": 1}
+    ]
+  },
   "reference": {
-    "source": "lengthM (107.5 m overall), beamM (9.9 m) and maxSpeedMps (34 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Shiratsuyu-class destroyer', read 2026-09-26. Japanese Monograph 145, an official postwar translation, records six Shiratsuyu-class ships in the 1931 construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s, Fletcher's existing gameplay figure) are ESTIMATES. hullHp equals the Fletcher's 160 as a gameplay choice."
+    "source": "lengthM (107.5 m overall), beamM (9.9 m) and maxSpeedMps (34 kn, converted with 1 kn = 0.514444 m/s) from the English Wikipedia article 'Shiratsuyu-class destroyer', read 2026-09-26. Japanese Monograph 145, an official postwar translation, records six Shiratsuyu-class ships in the 1931 construction program (primary class confirmation, checked 2026-09-26). deckHeightM and turnRateRadPerS (3 deg/s, Fletcher's existing gameplay figure) are ESTIMATES. hullHp equals the Fletcher's 160 as a gameplay choice. ARMAMENT (Track M, M1, read 2026-10-08): the class's 2x2 + 1x1 Type 3 127 mm and the wartime removal of the single X mount for a triple 25 mm, with 13 to 21 x 25 mm in twin and triple mounts plus 4 x 13 mm (English Wikipedia 'Shiratsuyu-class destroyer'); Samidare's X mount 'probably removed/replaced by triple 25mm mount' at the 13-19 December 1943 Yokosuka refit (combinedfleet.com TROM 'IJN Samidare'). Both twin mounts are low-angle (aa null). Positions are measured on the model (the Samidare download): each twin mount at its gunhouse's foot; the light AA as fire positions at the model's own gun tubs (kit null: those guns stay static in the hull), 12 barrels drawn."
   }
 }
