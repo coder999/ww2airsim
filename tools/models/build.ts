@@ -17,7 +17,7 @@
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { getBounds, prune } from '@gltf-transform/functions'
+import { getBounds, join, prune } from '@gltf-transform/functions'
 import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
 import { BLENDER_VERSION, blenderPresent, hingesSidecarPath, runBlenderScript } from './blender/run.js'
@@ -130,6 +130,9 @@ export async function runPipeline(doc: Document, entry: ModelEntry, shipSpec: (i
   // 5. join everything except the parts, and except every mount a ship's armament names (Track M, M1)
   const mountNames = ship?.spec.armament ? namedMounts(ship.spec.armament).map((m) => m.name) : []
   await joinExcept(doc, new Set([...entry.keep.map((k) => k.as ?? k.node), ...entry.keep.map((k) => k.node), ...splitNames, ...mountNames]))
+  // A carved mount keeps one primitive per source material; join those sharing a role material within
+  // the mount, so each kit is as few draws as its roles (Fletcher's five gun materials are one fitting).
+  if (mountNames.length) await doc.transform(join({ keepMeshes: false, keepNamed: true, filter: (node) => mountNames.includes(node.getName()) }))
   // 6. textures, 7. opaque. A skin's maps go on after compressTextures, which would re-encode them (DP0).
   await compressTextures(doc, entry.textures.maxSize)
   if (images) attachSkinTextures(doc, entry.id, images)
