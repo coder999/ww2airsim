@@ -122,8 +122,9 @@ s0 = stand(2.0, 35.0)           # the superstructure's foot
 y1 = s0 + 4.0 + EMBED_M         # its first tier's roof
 y2 = y1 - EMBED_M + 4.0         # the lower bridge's roof
 y3 = y2 - EMBED_M + 3.2         # the upper bridge's roof
-with m.tagged('superstructure'), m.shared_chart():
-    m.frustum('superstructure', (2.0, s0, 0.0), (35.0, 15.0), (33.0, 14.0), 4.0 + EMBED_M)
+# M1c: the big walls take charts of their own (no shared_chart), so the bake can paint them; the fittings stay shared.
+with m.tagged('superstructure'):
+    m.rounded_box('superstructure', (2.0, s0, 0.0), 34.0, 14.5, 4.0 + EMBED_M, 2.2)
     # Conning tower: the armored cylinder at the fore end, rising through both bridge levels.
     m.tank('superstructure', (17.5, y1 - 0.06, 0.0), 2.75, 6.3, segments=32)  # sunk deeper than the bridge: no shared floor
     # Lower and upper bridge, each with wings spanning past the tier below.
@@ -131,6 +132,9 @@ with m.tagged('superstructure'), m.shared_chart():
     m.box('superstructure', (15.0, y2 - 0.3, 0.0), (4.0, 0.3 + EMBED_M, 16.0))  # lower wings
     m.frustum('superstructure', (14.0, y2 - EMBED_M, 0.0), (9.0, 7.0), (8.4, 6.6), 3.2)
     m.box('superstructure', (16.0, y3 - 0.3, 0.0), (3.0, 0.3 + EMBED_M, 12.0))  # upper wings
+    ad = stand(-22.0, 12.0)  # aft deckhouse, x -28..-16: clear of No. 3's barbette (to -29.8) and of the pole mainmast
+    m.rounded_box('superstructure', (-22.0, ad, 0.0), 12.0, 9.0, 3.6 + EMBED_M, 1.4)
+with m.tagged('superfittings'), m.shared_chart():
     # Window bands straddling each sloped face at their mid height (Kagero's pattern): never coplanar with it.
     m.box('glazing', (18.34, y2 + 1.3, 0.0), (0.26, 0.9, 5.6))   # upper bridge
     m.box('glazing', (19.21, y1 + 1.9, 0.0), (0.26, 0.9, 7.0))   # lower bridge
@@ -138,6 +142,7 @@ with m.tagged('superstructure'), m.shared_chart():
     m.tank('fitting', (14.0, y3 - EMBED_M, 0.0), 1.0, 0.9, segments=16)
     m.frustum('fitting', (14.0, y3 + 0.88, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
     m.gun_barrel('fitting', (14.0, y3 + 2.0, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
+    m.box('fitting', (14.6, y3 + 2.86, 0.0), (0.25, 1.3, 2.2))  # Mk 4 fire-control radar antenna (M1c)
     # Tripod foremast to the fire-control top, the Mk 34 director and the SK air-search array on it.
     top = (12.0, s0 + 27.0, 0.0)
     for leg in ((9.5, -3.0), (9.5, 3.0), (14.5, 0.0)):
@@ -148,12 +153,11 @@ with m.tagged('superstructure'), m.shared_chart():
     m.gun_barrel('fitting', (top[0], top[1] + 3.2, -2.8), -90.0, 0.0, 5.6, 0.14, 0.14, 12)
     m.strut('fitting', (top[0] - 1.0, top[1] + 3.96, 0.0), (top[0] - 1.0, top[1] + 8.0, 0.0), 0.15, 0.1, sides=8)
     m.lattice_mast('fitting', (top[0] - 1.0, top[1] + 8.0, 0.0), 4.6, 4.6, 0.6, 1, 0.06)  # SK array, edge-on fore-aft
-    # Aft deckhouse with the aft Mk 37 and a CXAM-type array on its pole mast.
-    ad = stand(-22.0, 12.0)  # x -28..-16: clear of No. 3's barbette (to -29.8) and of the pole mainmast
-    m.frustum('superstructure', (-22.0, ad, 0.0), (12.0, 9.0), (11.0, 8.4), 3.6 + EMBED_M)
+    # The aft deckhouse's Mk 37 and a CXAM-type array on its pole mast.
     m.tank('fitting', (-22.0, ad + 3.6, 0.0), 1.0, 0.9, segments=16)
     m.frustum('fitting', (-22.0, ad + 4.48, 0.0), (3.6, 3.0), (3.0, 2.6), 2.0)
     m.gun_barrel('fitting', (-22.0, ad + 5.6, -2.6), -90.0, 0.0, 5.2, 0.14, 0.14, 12)
+    m.box('fitting', (-21.4, ad + 6.46, 0.0), (0.25, 1.3, 2.2))  # Mk 4 antenna (M1c)
     m.strut('fitting', (-27.5, ad + 3.6 - EMBED_M, 0.0), (-27.5, ad + 17.0, 0.0), 0.3, 0.18, sides=8)
     m.lattice_mast('fitting', (-27.5, ad + 17.0, 0.0), 5.2, 5.2, 0.5, 1, 0.06)  # CXAM-type array
 with m.tagged('funnel'):
@@ -214,4 +218,77 @@ for s in (-1, 1):
         m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 16.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
                   points=[(-0.3, 8.3), (0.3, 8.3), (0.5, 4.5), (-0.4, 5.0)], color='rustStain', effect='stain', opacity=0.4, featherM=0.3)
 m.marking('slab', tags=['funnel'], axis='y', fromM=s0 + 14.5, toM=s0 + 17.0, color='exhaustSoot', effect='stain', opacity=0.6, featherM=0.6)
+# --- M1c (2026-10-09): railings, rigging and the bake's detail. Every position an ESTIMATE by eye from
+# 80-G-K-2106 and the 1945 General Plans; railings and ladders as Navy practice, not a measured drawing.
+LIGHT = [g for _, g in naval.armament('pennsylvania-bb') if 'quad' in (g.get('kit') or '') and 'run' not in g]
+GAPS = [(g['x'] - g['run'] / 2 - 1.0, g['x'] + g['run'] / 2 + 1.0) for _, g in naval.armament('pennsylvania-bb') if 'run' in g]
+GAPS += [(g['x'] - 3.2, g['x'] + 3.2) for g in LIGHT]
+GAPS += [(64.0 - 1.5, 64.0 + 1.5), (79.0 - 1.5, 79.0 + 1.5), (-66.0 - 1.5, -66.0 + 1.5), (-78.0 - 1.5, -78.0 + 1.5)]  # the bitts
+
+
+def runs(x0, x1, step, gaps):
+    """The stretches of [x0, x1] outside every gap, each as its sample points `step` apart."""
+    cuts = sorted(g for g in gaps if g[1] > x0 and g[0] < x1)
+    out, a = [], x0
+    for g0, g1 in cuts + [(x1, x1)]:
+        if g0 - a >= 2.0:
+            n = max(1, math.ceil((g0 - a) / step))
+            out.append([a + (g0 - a) * k / n for k in range(n + 1)])
+        a = max(a, g1)
+    return out
+
+
+with m.tagged('rails'), m.shared_chart():
+    for side in (-1, 1):
+        for xs in runs(-88.0, 86.0, 4.0, GAPS):
+            m.railing('fitting', [(x, deck(x), side * (inside(x) - 0.12)) for x in xs], height=1.0, post_m=2.4)
+    for side in (-1, 1):  # the first superstructure tier's roof edge, abaft the bridge
+        m.railing('fitting', [(x, y1 - EMBED_M, side * 7.1) for x in (-13.5, -6.5, 0.5, 7.5)], height=0.9, post_m=2.4)
+with m.tagged('rigging'), m.shared_chart():
+    for side in (-1, 1):  # foremast shrouds to the bridge wings, and the long antenna wires aft to the mainmast's yard
+        m.strut('fitting', (top[0] - 0.5, top[1] - 0.3, side * 1.2), (17.0, y3 + EMBED_M, side * 5.6), 0.02, sides=4)
+        m.strut('fitting', (top[0] - 1.0, top[1] + 7.0, side * 0.3), (-17.5, ym + 13.4, side * 3.8), 0.018, sides=4)
+    m.strut('fitting', (top[0] + 1.0, top[1] + 6.0, 0.0), (70.0, deck(70.0) + 1.0, 0.0), 0.02, sides=4)  # forestay
+    m.strut('fitting', (-17.5, ym + 16.0, 0.0), (-80.0, deck(-80.0) + 1.0, 0.0), 0.02, sides=4)  # backstay
+
+# Bake detail (kit.detail): portholes, doors, ladders, hatches, louvers and the deck-edge bar.
+for side in (-1, 1):
+    zo = side * 20.0
+    for row, dy in enumerate((1.5, 3.6)):
+        for x in [x / 10 for x in range(-760, 761, 26)]:
+            if row == 1 and -55 < x < 45:
+                continue  # the blister below the second row's height
+            y = deck(x) - dy
+            if y > 1.0:
+                m.detail('porthole', (x, y, side * (m.hull_at(x)[3] + 2.0)), (0.0, 0.0, float(side)), radius=0.2)
+    for x0 in range(-84, 84, 21):  # the deck-edge bar, in runs that follow the sheer
+        m.detail('strip', (x0, deck(x0) - 0.12, side * (inside(x0) + 2.0)), (0.0, 0.0, float(side)),
+                 to=[x0 + 21.0, deck(x0 + 21.0) - 0.12, side * (inside(x0 + 21.0) + 2.0)], width=0.14, proud=0.035)
+    for x in (-12.0, -2.0, 9.0):  # superstructure doors and portholes on the first tier
+        m.detail('door', (x, s0 + 1.05, side * 8.0), (0.0, 0.0, float(side)), w=0.8, h=1.9)
+        m.detail('ladder', (x + 1.6, s0 + 2.0, side * 8.0), (0.0, 0.0, float(side)), h=3.8)
+    for x in [x / 10 for x in range(-130, 150, 18)]:
+        if min(abs(x - d) for d in (-12.0, -2.0, 9.0)) > 1.2 and min(abs(x - d - 1.6) for d in (-12.0, -2.0, 9.0)) > 0.8:
+            m.detail('porthole', (x, s0 + 2.7, side * 8.0), (0.0, 0.0, float(side)), radius=0.18)
+    for x in (8.0, 12.0, 16.0):  # the lower bridge's portholes
+        m.detail('porthole', (x, y1 + 1.6, side * 5.8), (0.0, 0.0, float(side)), radius=0.17)
+    m.detail('door', (-22.0, ad + 1.05, side * 5.3), (0.0, 0.0, float(side)), w=0.8, h=1.9)
+    for x in (-26.0, -18.0):
+        m.detail('porthole', (x, ad + 2.5, side * 5.3), (0.0, 0.0, float(side)), radius=0.18)
+    m.detail('louver', (-5.6, s0 + 7.5, side * 4.5), (0.0, 0.0, float(side)), w=1.4, h=1.0, slats=6)  # funnel intakes
+    m.detail('louver', (5.0, s0 + 2.4, side * 8.0), (0.0, 0.0, float(side)), w=1.6, h=0.9, slats=5)
+for x, z in ((67.0, -4.0), (67.0, 4.0), (77.0, 0.0), (-70.0, -5.0), (-70.0, 5.0), (-75.0, 0.0), (-44.0, 6.0), (-44.0, -6.0)):  # clear of the gunhouses
+    m.detail('hatch', (x, deck(x) + 2.0, z), (0.0, 1.0, 0.0), w=1.5, h=1.5)
+
+# Deck planks, the Deck Blue worn along the walkways, salt and rust under the portholes (C3).
+m.marking('planks', tags=['hull'], widthM=0.16, lengthM=7.3, contrast=0.1, seam=0.35)
+for side in (-1, 1):
+    m.marking('polygon', tags=['hull'], origin=(0.0, DECK, 0.0), axis=(0.0, 1.0, 0.0), uDir=(1.0, 0.0, 0.0),
+              points=[(-72.0, side * 9.0), (60.0, side * 9.0), (60.0, side * 11.0), (-72.0, side * 11.0)], color='lightGray5L', effect='wear', opacity=0.45, featherM=0.8)
+    for k, x in enumerate([x / 10 for x in range(-760, 761, 26)]):
+        if k % 3 == 0 and deck(x) - 1.5 > 1.0:
+            y = deck(x) - 1.5
+            m.marking('polygon', tags=['hull'], origin=(x, 0.0, side * 16.0), axis=(0.0, 0.0, float(side)), uDir=(float(side), 0.0, 0.0),
+                      points=[(side * -0.07, y - 0.25), (side * 0.07, y - 0.25), (side * 0.12, y - 1.6), (side * -0.05, y - 1.3)],
+                      color='rustStain', effect='stain', opacity=0.35, featherM=0.1)
 m.export(out)

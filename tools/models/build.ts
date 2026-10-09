@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url'
 import { getBounds, join, prune } from '@gltf-transform/functions'
 import { Logger, PropertyType, type Document, type Node } from '@gltf-transform/core'
 import { loadModelEntries, type ModelEntry } from './manifest.js'
-import { BLENDER_VERSION, blenderPresent, hingesSidecarPath, runBlenderScript } from './blender/run.js'
+import { BLENDER_VERSION, blenderPresent, detailSidecarPath, hingesSidecarPath, runBlenderScript } from './blender/run.js'
+import { loadBake, type BakeMaps } from './skin/bake.js'
 import type { BlenderSource, SketchfabSource } from './manifest.js'
 import { findNode, modelIO } from './document.js'
 import { measureDocument, type ModelMeasure } from './measure.js'
@@ -211,6 +212,9 @@ export interface BuildDeps {
   readText(path: string): string
   /** A pinned scan for the skin stage (skin/scans.ts's loadScan). */
   scan: ScanLoader
+  /** M1c: the committed bake for a script's raw output, checked against it (skin/bake.ts's loadBake);
+   *  absent means no bakes (the toy-model tests). */
+  bake?: (id: string, raw: string, detail: string, atlasPx: number) => Promise<BakeMaps | null>
   /** The ShipSpec a ship entry fits to; content/ships by default. Toy-ship tests pass one without armament. */
   shipSpec?: (id: string) => ShipSpec
 }
@@ -260,10 +264,12 @@ export async function runBuild(entries: readonly ModelEntry[], argv: readonly st
         if (entry.skin) {
           if (!deps.exists(sidecar)) throw new Error(`the entry says skin: true, but ${source.script} wrote no ${sidecar} (kit.Model(name, skin=<px>))`)
           const side = parseSidecar(deps.readText(sidecar))
+          const bake = deps.bake ? await deps.bake(entry.id, raw, detailSidecarPath(raw), side.atlasPx) : null
+          if (side.baked && !bake) throw new Error(`${entry.id}: its sidecar lists baked patches but no bake was loaded`)
           // DP2 (Rulings S1, S2): a ship paints in its palette and is not metallic.
           skin = entry.ship
-            ? await skinDocument(read, entry.id, withShipColors(side, entry.ship), deps.scan, SHIP_SKIN_OPTIONS)
-            : await skinDocument(read, entry.id, side, deps.scan)
+            ? await skinDocument(read, entry.id, withShipColors(side, entry.ship), deps.scan, { ...SHIP_SKIN_OPTIONS, bake })
+            : await skinDocument(read, entry.id, side, deps.scan, { bake })
         } else if (deps.exists(sidecar)) {
           throw new Error(`${source.script} wrote a skin sidecar, but the entry has no "skin": true`)
         }
@@ -319,6 +325,7 @@ export function nodeBuildDeps(): BuildDeps {
     readText: (p) => readFileSync(p, 'utf8'),
     legacyOptimize,
     scan: loadScan,
+    bake: loadBake,
   }
 }
 

@@ -1,0 +1,24 @@
+{
+ "version": 1,
+ "model": "pennsylvania-bb",
+ "rawSha256": "92c74ad17573d4b3d7d0c542e66b234fdac7efe70afbeafb0604b6813edb5962",
+ "detailSha256": "b39b5c9880ba0220f6ad77df94dccd4c99597e94cfa63cd9a75244794faa89f2",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 232,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 3.4,
+   "normal": 0.9
+  },
+  "size": 2048,
+  "totalSeconds": 5.7,
+  "host": "ryzen",
+  "wallSeconds": 10.4
+ },
+ "date": "2026-10-09"
+}

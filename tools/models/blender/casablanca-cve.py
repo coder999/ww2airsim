@@ -59,7 +59,8 @@ def stand(x, l):
 
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, node='Hull', deck_role='deck', deck_node='MainDeck', subdivide=SUBDIVIDE)
-with m.tagged('hangar'), m.shared_chart():
+# M1c: the hangar, island and funnel walls take charts of their own (no shared_chart), so the bake can paint them.
+with m.tagged('hangar'):
     for s in (-1, 1):
         m.box('superstructure', (-4.0, 7.5 - EMBED_M, s * 9.4), (104.0, FD_H - FD_T - 7.5 + 2 * EMBED_M, 0.3))
     m.box('superstructure', (-56.0, 7.5 - EMBED_M, 0.0), (0.3, FD_H - FD_T - 7.5 + 2 * EMBED_M, 18.5))
@@ -70,11 +71,9 @@ with m.tagged('supports'), m.shared_chart():
     for x in (-70.0, -64.0, 54.0, 60.0, 66.0):  # overhang supports fore and aft (ESTIMATE)
         for s in (-1, 1):
             m.strut('fitting', (x, m.hull_at(x)[2] - EMBED_M, s * (m.hull_at(x)[3] - 0.6)), (x, FD_H - FD_T + EMBED_M, s * 9.0), 0.18, sides=6)
-with m.tagged('galleries'), m.shared_chart():
+with m.tagged('galleries'):  # M1c: own charts; shared, the two 128 m catwalks' faces unioned into a 962 px square
     for s in (-1, 1):
         m.box('fitting', (-3.0, GALLERY_Y, s * (FD_W / 2 + 0.6)), (128.0, 0.25, 1.4))
-        for x in range(-62, 63, 8):
-            m.strut('fitting', (x, GALLERY_Y + 0.25 - EMBED_M, s * (FD_W / 2 + 1.2)), (x, GALLERY_Y + 1.25, s * (FD_W / 2 + 1.2)), 0.03, sides=4)
 with m.tagged('aa'), m.shared_chart():
     for name, g in naval.armament('casablanca-cve'):
         x, z, b = g['x'], g['z'], g['bearingDeg']
@@ -89,9 +88,10 @@ with m.tagged('aa'), m.shared_chart():
             naval.MOUNTS[g['kit']](m, name, x, y, z, b, EMBED_M)
         if DRY_RUN:
             print(f'MOUNT {name} {x} {round(y, 2)} {z}')
-with m.tagged('island'), m.shared_chart():
+with m.tagged('island'):
     m.frustum('superstructure', (18.0, FD_H - EMBED_M, 10.4), (14.0, 3.2), (11.0, 2.8), 5.0 + EMBED_M)
     m.frustum('superstructure', (20.0, FD_H + 5.0 - EMBED_M, 10.4), (7.0, 2.8), (5.5, 2.4), 2.2 + EMBED_M)
+with m.tagged('islandfittings'), m.shared_chart():
     m.box('glazing', (23.10, FD_H + 5.9, 10.4), (0.26, 0.6, 2.0))  # straddles the sloped face: 0.04-0.24 m proud
     m.strut('fitting', (22.0, FD_H + 7.2 - EMBED_M, 10.4), (22.0, FD_H + 13.0, 10.4), 0.18, 0.12, sides=8)  # mast
     m.lattice_mast('fitting', (22.0, FD_H + 13.0, 10.4), 1.2, 0.6, 2.4, 2, 0.06)  # radar (ESTIMATE)
@@ -100,7 +100,7 @@ with m.tagged('island'), m.shared_chart():
     m.box('fitting', (19.0, FD_H + 7.9 - EMBED_M, 10.4), (0.9, 0.5, 1.4))
     m.strut('fitting', (22.0, FD_H + 10.5, 10.4), (23.6, FD_H + 10.5, 10.4), 0.05, sides=4)  # SG radar arm
     m.box('fitting', (23.7, FD_H + 10.2, 10.4), (0.3, 0.6, 1.2))  # SG radar
-with m.tagged('funnels'), m.shared_chart():
+with m.tagged('funnels'):
     m.strut('superstructure', (15.0, FD_H + 5.0 - EMBED_M, 10.4), (15.0, FD_H + 10.0, 10.4), 1.25, 1.2, sides=48)
     m.strut('dark', (15.0, FD_H + 9.7, 10.4), (15.0, FD_H + 10.2, 10.4), 1.21, 1.21, sides=48)
 with m.tagged('elevators'), m.shared_chart():
@@ -144,4 +144,56 @@ m.marking('slab', tags=['hull'], axis='y', fromM=-0.6, toM=0.7, color='exhaustSo
 for s in (-1, 1):
     m.marking('polygon', tags=['hull'], origin=(70.0, 0.0, s * 6.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
               points=[(-0.4, 7.6), (0.4, 7.6), (0.9, 3.5), (-0.8, 3.8)], color='rustStain', effect='stain', opacity=0.3, featherM=0.3)
+# --- M1c (2026-10-09): catwalk railings, mast stays and the bake's detail. Every position an ESTIMATE by eye
+# from the class's 1944 photographs (Gambier Bay, as cited above); rails and ladders as Navy practice.
+GAPS = [(g['x'] - 2.0, g['x'] + 2.0) for _, g in naval.armament('casablanca-cve') if 'twin' in (g.get('kit') or '')]
+
+
+def runs(x0, x1, step, gaps):
+    """The stretches of [x0, x1] outside every gap, each as its sample points `step` apart."""
+    cuts = sorted(g for g in gaps if g[1] > x0 and g[0] < x1)
+    out, a = [], x0
+    for g0, g1 in cuts + [(x1, x1)]:
+        if g0 - a >= 2.0:
+            n = max(1, math.ceil((g0 - a) / step))
+            out.append([a + (g0 - a) * k / n for k in range(n + 1)])
+        a = max(a, g1)
+    return out
+
+
+with m.tagged('rails'), m.shared_chart():
+    for s in (-1, 1):  # the catwalks' outboard guard rails, broken by each 40 mm sponson
+        gaps = [g for g, (_, mt) in zip(GAPS, [x for x in naval.armament('casablanca-cve') if 'twin' in (x[1].get('kit') or '')]) if mt['z'] * s > 0]
+        for xs in runs(-66.0, 60.0, 6.0, gaps):
+            m.railing('fitting', [(x, GALLERY_Y + 0.25 - EMBED_M, s * (FD_W / 2 + 1.22)) for x in xs], height=1.0, post_m=2.4)
+    m.railing('fitting', [(x, FD_H + 5.0 - EMBED_M, 10.4 - 1.3) for x in (14.5, 16.5)], height=0.9, post_m=1.0)  # the island roof's inboard edge
+with m.tagged('rigging'), m.shared_chart():
+    for dz in (-1.0, 1.0):  # mast stays to the island roof
+        m.strut('fitting', (22.0, FD_H + 12.5, 10.4 + dz * 0.1), (19.0, FD_H + 7.2 + EMBED_M, 10.4 + dz * 1.0), 0.015, sides=4)
+
+# Bake detail (kit.detail): hull portholes, island doors and ladders, funnel louvers, the deck-edge bar.
+for s in (-1, 1):
+    for x in [x / 10 for x in range(-700, 701, 26)]:
+        m.detail('porthole', (x, 5.6, s * (m.hull_at(x)[3] + 1.0)), (0.0, 0.0, float(s)), radius=0.18)
+    for x0 in range(-72, 72, 18):  # the main deck's edge bar under the overhangs and along the hangar
+        m.detail('strip', (x0, m.hull_at(x0)[2] - 0.1, s * (m.hull_at(x0)[3] + 1.0)), (0.0, 0.0, float(s)),
+                 to=[x0 + 18.0, m.hull_at(x0 + 18.0)[2] - 0.1, s * (m.hull_at(x0 + 18.0)[3] + 1.0)], width=0.12, proud=0.03)
+    for x in (-48.0, -20.0, 0.0, 40.0):  # hangar side doors, clear of the openings and the Carley floats
+        m.detail('door', (x, 8.5, s * 10.2), (0.0, 0.0, float(s)), w=0.8, h=1.9)
+for x in (14.0, 22.0):  # island doors and ladders (outboard face, +z)
+    m.detail('door', (x, FD_H + 1.05, 12.6), (0.0, 0.0, 1.0), w=0.7, h=1.9)
+    m.detail('ladder', (x + 1.4, FD_H + 2.4, 12.6), (0.0, 0.0, 1.0), h=4.4)
+for x in (16.0, 19.0, 22.0):
+    m.detail('porthole', (x, FD_H + 3.6, 12.6), (0.0, 0.0, 1.0), radius=0.16)
+    m.detail('porthole', (x, FD_H + 3.6, 8.2), (0.0, 0.0, -1.0), radius=0.16)
+m.detail('louver', (15.0, FD_H + 7.0, 12.2), (0.0, 0.0, 1.0), w=1.0, h=0.8, slats=5)
+
+# Douglas-fir flight deck planks (they read from the groove as a grain, not as boards), porthole rust (C3).
+m.marking('planks', tags=['flightdeck'], widthM=0.15, lengthM=6.1, contrast=0.08, seam=0.3)
+for s in (-1, 1):
+    for k, x in enumerate([x / 10 for x in range(-700, 701, 26)]):
+        if k % 3 == 0:
+            m.marking('polygon', tags=['hull'], origin=(x, 0.0, s * 10.0), axis=(0.0, 0.0, float(s)), uDir=(float(s), 0.0, 0.0),
+                      points=[(s * -0.06, 5.35), (s * 0.06, 5.35), (s * 0.1, 4.0), (s * -0.05, 4.3)],
+                      color='rustStain', effect='stain', opacity=0.35, featherM=0.08)
 m.export(out)
