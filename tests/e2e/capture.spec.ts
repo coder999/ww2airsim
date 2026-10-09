@@ -11,7 +11,7 @@ import { VIEWS, withParams } from './views.js'
  *  H0 uses to call a lever invisible. `CAPTURE_DIR` overrides the output
  *  directory under test-results/; `CAPTURE_BURST=n` adds n frames per view. */
 const extra = Object.fromEntries(new URLSearchParams(process.env.CAPTURE_PARAMS ?? ''))
-test.setTimeout(90_000)
+test.setTimeout(180_000) // a CAPTURE_BURST of 30 remote screenshots takes up to a minute
 // A capture tool, not a test: a plain E2E run skips it (docs/testing.md, "Philosophy").
 test.skip(!process.env.E2E_CAPTURE, 'set E2E_CAPTURE=1 to run the eight-view capture')
 for (const view of VIEWS) {
