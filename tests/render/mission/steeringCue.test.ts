@@ -18,16 +18,8 @@ describe('steeringCueFor', () => {
     const cue = steeringCueFor(world, null)!
     expect(cue.label).toBe('Rally')
     expect(cue.source).toBe('objective')
-    expect(cue.bearingRad).toBeCloseTo(0, 9)
     expect(cue.rangeMi).toBeCloseTo(1, 9)
-    expect(cue.relativeAltitudeFt).toBeCloseTo((4000 - 3000) / 0.3048, 6)
-  })
-
-  it('reports right, behind and left relative to the nose', () => {
-    const objective = (x: number, z: number) => [{ id: 'rally', label: 'Rally', priority: 'primary', kind: 'reach', point: { x, z }, radiusM: 100 }]
-    expect(steeringCueFor(missionWorld({ objectives: objective(0, 1609.344) }), null)!.bearingRad).toBeCloseTo(Math.PI / 2, 9)
-    expect(Math.abs(steeringCueFor(missionWorld({ objectives: objective(-1609.344, 0) }), null)!.bearingRad)).toBeCloseTo(Math.PI, 9)
-    expect(steeringCueFor(missionWorld({ objectives: objective(0, -1609.344) }), null)!.bearingRad).toBeCloseTo(-Math.PI / 2, 9)
+    expect(cue.target).toEqual({ x: 1609.344, y: 4000, z: 0 })
   })
 
   it('a chart selection overrides the automatic objective and uses the live entity altitude', () => {
@@ -39,7 +31,7 @@ describe('steeringCueFor', () => {
     const cue = steeringCueFor(world, 'aircraft:bandit-1')!
     expect(cue.source).toBe('chart')
     expect(cue.label).toBe('bandit-1')
-    expect(cue.relativeAltitudeFt).toBeCloseTo((4500 - 3000) / 0.3048, 6)
+    expect(cue.target).toEqual({ x: 0, y: 4500, z: -1609.344 })
   })
 
   it('a destroy objective chooses its nearest live resolved target', () => {
@@ -79,15 +71,13 @@ describe('steeringCueFor', () => {
       radiusM: 100, altitudeM: [2000, 4000], seconds: 60,
     }] })
     world = putPlayer(world, v3(0, 3000, 0), 120, 0)
-    expect(steeringCueFor(world, null)!.relativeAltitudeFt).toBe(0)
+    expect(steeringCueFor(world, null)!.target.y).toBe(3000)
   })
 })
 
 describe('steeringCueLabel', () => {
-  it('formats statute miles and signed feet with stable cockpit rounding', () => {
-    expect(steeringCueLabel({ label: 'CAP station', bearingRad: 0, rangeMi: 6.74, relativeAltitudeFt: 2349, source: 'objective' }))
-      .toBe('CAP STATION · 6.7 MI · ALT +2,300 FT')
-    expect(steeringCueLabel({ label: 'Target', bearingRad: 0, rangeMi: 0.04, relativeAltitudeFt: -151, source: 'chart' }))
-      .toBe('TARGET · 0.0 MI · ALT −200 FT')
+  it('names the destination and its range in statute miles, with no altitude', () => {
+    expect(steeringCueLabel({ label: 'CAP station', rangeMi: 6.74 })).toBe('CAP STATION · 6.7 MI')
+    expect(steeringCueLabel({ label: 'Target', rangeMi: 0.04 })).toBe('TARGET · 0.0 MI')
   })
 })

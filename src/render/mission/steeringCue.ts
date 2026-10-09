@@ -1,19 +1,17 @@
 import { playerAircraft, type World } from '../../sim/loop.js'
-import { qRotate } from '../../sim/math/quat.js'
-import { v3 } from '../../sim/math/vec3.js'
+import { v3, type Vec3 } from '../../sim/math/vec3.js'
 import { heightAt } from '../../sim/world/terrain.js'
 import { mapPoints, selectedPoint, type MapPoint } from '../missionMap.js'
 import { METERS_PER_MILE } from '../radar.js'
-import { M_PER_FT } from './chartScale.js'
 
-/** Read-only HUD guidance over the live world. It owns no navigation state:
+/** Read-only guidance over the live world. It owns no navigation state:
  *  the chart selection remains render state, and mission progress remains in
- *  `World.mission`. Positive bearing is clockwise from the aircraft's nose. */
+ *  `World.mission`.
+ *  `target` is the world point the 3D arrow and marker use (scene/steeringArrow.ts). */
 export type SteeringCue = {
   readonly label: string
-  readonly bearingRad: number
   readonly rangeMi: number
-  readonly relativeAltitudeFt: number
+  readonly target: Vec3
   readonly source: 'objective' | 'chart'
 }
 
@@ -30,8 +28,8 @@ const groundHeight = <M>(world: World<M>, point: Pick<MapPoint, 'x' | 'z'>): num
 
 /** A point's useful vertical destination. A station with an altitude band
  *  asks only for the nearest edge when the player is outside it, and reads
- *  level while inside it. That makes the cue guidance rather than a command
- *  to chase an arbitrary midpoint. */
+ *  level while inside it, so the arrow points at the band rather than an
+ *  arbitrary midpoint. */
 function targetAltitude<M>(world: World<M>, point: MapPoint, playerY: number): number {
   const id = entityId(point)
   if (point.kind === 'aircraft') return world.aircraft.find((a) => a.id === id)?.state.position.y ?? groundHeight(world, point)
@@ -95,29 +93,17 @@ export function steeringCueFor<M>(world: World<M>, selectedId: string | null): S
   const player = playerAircraft(world)
   const dx = target.point.x - player.state.position.x
   const dz = target.point.z - player.state.position.z
-  const nose = qRotate(player.state.attitude, v3(1, 0, 0))
-  const flatLength = Math.hypot(nose.x, nose.z)
-  const forwardX = flatLength > 1e-9 ? nose.x / flatLength : 0
-  const forwardZ = flatLength > 1e-9 ? nose.z / flatLength : -1
-  const rightX = -forwardZ
-  const rightZ = forwardX
-  const ahead = dx * forwardX + dz * forwardZ
-  const right = dx * rightX + dz * rightZ
-  const bearingRad = dx === 0 && dz === 0 ? 0 : Math.atan2(right, ahead)
   const y = targetAltitude(world, target.point, player.state.position.y)
   return {
     label: target.label,
-    bearingRad,
     rangeMi: Math.hypot(dx, dz) / METERS_PER_MILE,
-    relativeAltitudeFt: (y - player.state.position.y) / M_PER_FT,
+    target: v3(target.point.x, y, target.point.z),
     source: target.source,
   }
 }
 
-/** Rounded for a stable cockpit readout: range to a tenth of a mile and
- *  vertical separation to the nearest hundred feet. */
-export function steeringCueLabel(cue: SteeringCue): string {
-  const altitudeFt = Math.round(cue.relativeAltitudeFt / 100) * 100
-  const altitude = altitudeFt === 0 ? '0' : `${altitudeFt > 0 ? '+' : '−'}${Math.abs(altitudeFt).toLocaleString('en-US')}`
-  return `${cue.label.toUpperCase()} · ${cue.rangeMi.toFixed(1)} MI · ALT ${altitude} FT`
+/** The label beside the arrow or marker: name and range to a tenth of a
+ *  mile. No altitude (Mark, 2026-10-09). */
+export function steeringCueLabel(cue: Pick<SteeringCue, 'label' | 'rangeMi'>): string {
+  return `${cue.label.toUpperCase()} · ${cue.rangeMi.toFixed(1)} MI`
 }
