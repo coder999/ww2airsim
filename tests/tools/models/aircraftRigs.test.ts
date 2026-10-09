@@ -278,11 +278,13 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
     }
   }, 120_000)
 
-  it('turrets run nose to tail, dorsal before ventral at one station, each on a vertical axis', () => {
+  // A pair of flexible guns at one station and height (the B-17's cheek guns, 2026-10-09) runs port, then starboard.
+  it('turrets run nose to tail, dorsal before ventral, then port before starboard at one station, each on a vertical axis', () => {
     const centers = rig.turrets.map((t) => { const n = one(doc, t); expect(Math.abs(pivotOf(n).axis[1]), `${t} axis`).toBeGreaterThan(0.999); return centroid(worldPositions(n)) })
     for (let i = 0; i + 1 < centers.length; i++) {
       const [a, b] = [centers[i]!, centers[i + 1]!]
-      expect(a[0] > b[0] + 0.5 || (Math.abs(a[0] - b[0]) <= 0.5 && a[1] > b[1]), `${rig.turrets[i]} before ${rig.turrets[i + 1]}`).toBe(true)
+      const station = Math.abs(a[0] - b[0]) <= 0.5
+      expect(a[0] > b[0] + 0.5 || (station && a[1] > b[1] + 0.1) || (station && Math.abs(a[1] - b[1]) <= 0.1 && a[2] < b[2]), `${rig.turrets[i]} before ${rig.turrets[i + 1]}`).toBe(true)
     }
   })
 
@@ -312,12 +314,17 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
       const reach = Math.hypot(muzzle[0] - tp.point[0], muzzle[1] - tp.point[1], muzzle[2] - tp.point[2]) + 0.5
       const near = tris.filter((tri) => tri.some((v) => Math.hypot(v[0] - tp.point[0], v[1] - tp.point[1], v[2] - tp.point[2]) < reach))
       const half = arc.traverseDeg ?? 180
-      // Every 15 deg of traverse and 5 of elevation, both ends included.
+      // The exposed barrel: from 40% of breech to muzzle, or from 5 cm past the socket when the gun's rear half is
+      // inside the skin (a flexible gun's trunnion is where it leaves the airframe: the B-17's tail guns, 2026-10-09).
+      const len = Math.hypot(muzzle[0] - breech[0], muzzle[1] - breech[1], muzzle[2] - breech[2])
+      const atSocket = ((gp.point[0] - breech[0]) * (muzzle[0] - breech[0]) + (gp.point[1] - breech[1]) * (muzzle[1] - breech[1]) + (gp.point[2] - breech[2]) * (muzzle[2] - breech[2])) / (len * len)
+      const from = Math.max(0.4, atSocket + 0.05 / len)
+      // Every 15 deg of traverse and 5 of elevation, both ends of each included.
       const hits: string[] = []
-      for (let tr = -half; tr <= half; tr += 15) {
+      for (const tr of [...Array.from({ length: Math.ceil((2 * half) / 15) }, (_, i) => -half + 15 * i), half]) {
         for (const el of [...Array.from({ length: Math.ceil((arc.elevationDeg[1] - arc.elevationDeg[0]) / 5) }, (_, i) => arc.elevationDeg[0] + 5 * i), arc.elevationDeg[1]]) {
           const pose = (p: Vec3): Vec3 => rotateAbout(rotateAbout(p, gp.point, gp.axis, ((el - arc.restElevationDeg) * Math.PI) / 180), tp.point, tp.axis, (tr * Math.PI) / 180)
-          const a = pose(breech.map((b, k) => b + 0.4 * (muzzle[k]! - b)) as unknown as Vec3), b = pose(muzzle)
+          const a = pose(breech.map((b, k) => b + from * (muzzle[k]! - b)) as unknown as Vec3), b = pose(muzzle)
           if (near.some((tri) => segmentHits(a, b, tri))) hits.push(`${tr}/${el}`)
         }
       }

@@ -142,12 +142,14 @@ GEAR = dict(ahead=-0.016, below=0.027, length=0.0994, wheel_r=0.022, wheel_w=0.0
 # the struts reach up past it, so no leg floats (Mark, 2026-10-09).
 GEAR_REACH_M, NOSE_REACH_M = 0.40, 0.45
 NOSE_GEAR = dict(at=0.103, y=-0.042, wheel_r=0.016, wheel_w=0.012, retracts='aft')
-# (x aft of the nose, center y, up, radius, height, barrels, barrel length, facing), all of LENGTH but up/barrels/facing
+# (x aft of the nose, center y, up, radius, height, barrels, barrel length, facing), all of LENGTH but up/barrels/facing.
+# Barrel 0.0325 (0.98 m; was 0.040, 1.21 m, which Mark read as too long, 2026-10-09): 0.84 m (2.75 ft) stands
+# out of the dome, the M2's 2.5 to 3 ft beyond the turret (ESTIMATE).
 TURRETS = [
-    (0.1695, 0.046, 1, 0.0166, 0.015, 2, 0.040, 1),
-    (0.186, -0.046, -1, 0.0166, 0.015, 2, 0.040, 1),
-    (0.6495, 0.046, 1, 0.0166, 0.015, 2, 0.040, -1),
-    (0.6826, -0.046, -1, 0.0166, 0.015, 2, 0.040, -1),
+    (0.1695, 0.046, 1, 0.0166, 0.015, 2, 0.0325, 1),
+    (0.186, -0.046, -1, 0.0166, 0.015, 2, 0.0325, 1),
+    (0.6495, 0.046, 1, 0.0166, 0.015, 2, 0.0325, -1),
+    (0.6826, -0.046, -1, 0.0166, 0.015, 2, 0.0325, -1),
     (0.9542, 0.010, 1, 0.0116, 0.010, 2, 0.023, -1),
 ]
 
@@ -428,11 +430,11 @@ with m.tagged('fittings'), m.shared_chart():
         m.box('dark', (nx, ny_ - 1.1, nz + side * (nw + 0.16)), (0.45, 1.3, 0.03), node='GearNose')
     m.strut('dark', (nx + 0.02, ny_ - 0.10, 0.0), (nx + 0.45, ny_ - 1.3, 0.0), 0.028, sides=6, node='GearNose')
 
-# --- Turrets: gun_turret domes, a base ring and a sight bulge on each (one role per node: all naturalMetal)
+# --- Turrets: gun_turret domes, a base ring and a sight bulge on each (one role per node: the turret naturalMetal, its guns dark)
 with m.tagged('turret'), m.shared_chart():
     for i, (at, y, up, radius, height, barrels, barrel, facing) in enumerate(TURRETS, start=1):
         c = (X(at), y * L, 0.0)
-        m.gun_turret(METAL, i, c, radius * L, height * L, up=up, barrels=barrels, barrel_length=barrel * L, facing=facing)
+        m.gun_turret(METAL, i, c, radius * L, height * L, up=up, barrels=barrels, barrel_length=barrel * L, facing=facing, gun_role='dark')
         rr = radius * L
         m.revolve(METAL, (c[0], c[1] - up * 0.10, c[2]), (0.0, float(up), 0.0), [(0.0, 1.10 * rr), (0.16, 1.10 * rr)], 16, f'Turret{i}')
         m.revolve(METAL, (c[0] + facing * 0.40 * rr, c[1] + up * 0.38 * height * L, c[2]), (float(facing), 0.0, 0.0), [(0.0, 0.34 * rr), (0.34 * rr, 0.20 * rr)], 12, f'Turret{i}')

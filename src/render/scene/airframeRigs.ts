@@ -58,6 +58,9 @@ export interface TurretArc {
 
 const fullCircle = (elevationDeg: readonly [number, number], restElevationDeg = 0): TurretArc =>
   ({ traverseDeg: null, elevationDeg, restElevationDeg, source: 'ESTIMATE (turret aim plan, 2026-10-09)' })
+/** A flexible nose, cheek or tail gun on a ball socket: a small cone about where it points as modeled. */
+const flexCone = (restElevationDeg = 0, elevationDeg: readonly [number, number] = [-20, 30], traverseDeg = 30): TurretArc =>
+  ({ traverseDeg, elevationDeg, restElevationDeg, source: 'ESTIMATE: a flexible gun on a ball socket, not a turret (flex guns, 2026-10-09)' })
 
 export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+(Guns)?|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
 
@@ -118,12 +121,17 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearR', upAngleDeg: 60, retracts: 'forward', source: 'as GearL' },
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE' },
     ],
-    turrets: ['Turret1', 'Turret2', 'Turret3'],
+    // Turret1 chin, Turret2 and Turret3 the port and starboard cheek guns, Turret4 top, Turret5 ball, Turret6 the
+    // tail guns. The cheek and tail guns are flexible guns, not turrets: each "turret" is the gun's rear cap, and both
+    // pivots sit where the gun leaves the skin (flex guns, 2026-10-09). The waist guns are static.
+    turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5', 'Turret6'],
     // The download's own guns, split per turret; their modeled elevations measured 2026-10-09.
     turretArcs: {
       Turret1: { traverseDeg: 86, elevationDeg: [-46, 26], restElevationDeg: -31.3, source: 'ESTIMATE: Bendix chin turret' },
-      Turret2: fullCircle([0, 85], 13.6),
-      Turret3: fullCircle([-90, 0], -7.3),
+      Turret2: flexCone(-0.4), Turret3: flexCone(-0.4),
+      Turret4: fullCircle([0, 85], 13.6),
+      Turret5: fullCircle([-90, 0], -7.3),
+      Turret6: flexCone(14.6),
     },
     // C2: real doors cut from its belly (entry split BayDoor1L/R, Mark's ruling 2026-10-08).
     doors: ['BayDoor1L', 'BayDoor1R'],
@@ -189,14 +197,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     // An original Blender model (g4m-betty.py), replacing the flat, gearless download (2026-09-29): the kit's
     // propellers are exactly 3-fold symmetric (three blades: English Wikipedia 'Mitsubishi G4M', read
     // 2026-09-29). The mains fold aft into the nacelles (ESTIMATE); the tailwheel is fixed and static.
-    // Turret1 is the dorsal turret; the tail cannon and beam blisters are static.
+    // Turret1 is the nose gun and Turret3 the tail cannon, each on a ball socket; Turret2 is the dorsal
+    // turret. The beam blisters are static.
     props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
     gear: [
       { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (g4m-betty.py header)' },
     ],
-    turrets: ['Turret1'],
-    turretArcs: { Turret1: fullCircle([0, 80]) },
+    turrets: ['Turret1', 'Turret2', 'Turret3'],
+    turretArcs: { Turret1: flexCone(), Turret2: fullCircle([0, 80]), Turret3: flexCone() },
     // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
@@ -204,13 +213,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
   'ki-21-sally': {
     // An original Blender model (ki-21-sally.py): the kit's propellers are exactly 3-fold symmetric.
     // The mains fold aft into the nacelles; the tailwheel is fixed and static. Every retraction is an ESTIMATE.
+    // Turret1 (nose) and Turret3 (tail) are 7.7 mm guns on ball sockets; Turret2 is the dorsal turret.
+    // The tail gun tops out at +10 deg: above it the barrel reaches the fin's root (measured 2026-10-09).
     props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
     gear: [
       { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (ki-21-sally.py header)' },
     ],
-    turrets: ['Turret1'],
-    turretArcs: { Turret1: fullCircle([0, 80]) },
+    turrets: ['Turret1', 'Turret2', 'Turret3'],
+    turretArcs: { Turret1: flexCone(), Turret2: fullCircle([0, 80]), Turret3: flexCone(0, [-30, 10]) },
     // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),

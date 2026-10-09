@@ -1066,11 +1066,46 @@ class Model:
         self.revolve(role, (hx, hy, hz), (0.0, -1.0, 0.0), [(0.0, strut), (hy - axle_y, strut)], 8, node)
         self.revolve(role, (hx, axle_y, hz - wheel_width / 2), (0.0, 0.0, 1.0), [(0.0, wheel_radius), (wheel_width, wheel_radius)], 16, node)
 
-    def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None):
+    def machine_gun(self, role, breech, direction, length, scale=1.0, node=None):
+        """One flexible machine gun from its breech along ``direction``, ``length`` long, styled on the
+        B-17 download's .50s: a cooling jacket over the rear 40% with two raised rings, a thin barrel and a
+        muzzle booster. ``scale`` sizes the radii (1 a .50 / 20 mm, about 0.75 a 7.7 mm)."""
+        _require(length > 0 and scale > 0, f'machine_gun: length and scale must be > 0, got {length}, {scale}')
+        j, ring, bar, muz = 0.030 * scale, 0.037 * scale, 0.014 * scale, 0.022 * scale
+        prof = [(0.0, j), (0.10, j), (0.101, ring), (0.13, ring), (0.131, j), (0.25, j), (0.251, ring), (0.28, ring),
+                (0.281, j), (0.40, j), (0.401, bar), (0.88, bar), (0.881, muz), (1.0, muz)]
+        self.revolve(role, breech, direction, [(t * length, r) for t, r in prof], 8, node)
+
+    def flex_gun(self, role, index, socket, direction, length, scale=1.0, barrels=1, spacing=0.12, mount_r=0.09, node=None):
+        """A flexible nose, cheek or tail gun on a ball socket at ``socket``, pointing ``direction``: the
+        socket in node ``TurretN`` (it traverses about the vertical through the socket) and the gun(s) in
+        ``TurretNGuns`` (elevating on a horizontal trunnion through it, a positive turn raising the muzzle).
+        The breech sits 20% of ``length`` inside the socket. Both hinges are written, so an entry keeps the
+        two nodes without pivots."""
+        _require(isinstance(index, int) and index > 0, f'flex_gun: index must be a positive integer, got {index!r}')
+        _require(isinstance(barrels, int) and barrels in (1, 2), f'flex_gun: barrels must be 1 or 2, got {barrels!r}')
+        d = _unit(direction)
+        _require(math.hypot(d[0], d[2]) > 0.5, f'flex_gun: direction must be within 60 deg of level, got {direction}')
+        key = node or f'Turret{index}'
+        guns = key + 'Guns'
+        sx, sy, sz = socket
+        self.revolve(role, (sx - mount_r * d[0], sy - mount_r * d[1], sz - mount_r * d[2]), d,
+                     [(0.0, 0.35 * mount_r), (0.4 * mount_r, 0.9 * mount_r), (mount_r, mount_r), (1.6 * mount_r, 0.9 * mount_r), (2.0 * mount_r, 0.35 * mount_r)], 12, key)
+        # The trunnion: up x heading flipped, (-dz, 0, dx), so a positive turn lifts the muzzle (as gun_turret's).
+        ax = _unit((-d[2], 0.0, d[0]))
+        for b in range(barrels):
+            o = (b - (barrels - 1) / 2) * spacing
+            br = (sx + o * ax[0] - 0.2 * length * d[0], sy - 0.2 * length * d[1], sz + o * ax[2] - 0.2 * length * d[2])
+            self.machine_gun(role, br, d, length, scale, guns)
+        self._fixed_hinges[key] = {'point': [round(c, 6) for c in socket], 'axis': [0.0, 1.0, 0.0]}
+        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in socket], 'axis': [round(c, 9) for c in ax]}
+
+    def gun_turret(self, role, index, center, radius, height, up=1, barrels=2, barrel_length=1.2, facing=1, node=None, scale=1.0, gun_role=None):
         """A turret on the fuselage skin at ``center``: a dome ``height`` tall toward ``up`` (+1
         dorsal, -1 ventral) and ``barrels`` guns pointing ``facing`` along x, all in node
         ``TurretN`` for H3 (numbered nose to tail by the caller). The barrels are their own part,
-        ``TurretNGuns``, hinged on a horizontal trunnion so a positive turn raises the muzzle."""
+        ``TurretNGuns`` (in ``gun_role``, default ``role``), hinged on a horizontal trunnion so a positive turn
+        raises the muzzle."""
         _require(isinstance(index, int) and index > 0, f'gun_turret: index must be a positive integer, got {index!r}')
         _require(up in (-1, 1) and facing in (-1, 1), f'gun_turret: up and facing must be -1 or +1, got {up}, {facing}')
         _require(isinstance(barrels, int) and barrels > 0, f'gun_turret: barrels must be a positive integer, got {barrels!r}')
@@ -1078,14 +1113,13 @@ class Model:
         key = node or f'Turret{index}'
         cx, cy, cz = center
         self.revolve(role, center, (0.0, float(up), 0.0), [(0.0, radius), (0.55 * height, 0.85 * radius), (height, 0.25 * radius)], 12, key)
-        gauge = 0.16 * radius
         guns = key + 'Guns'
-        gy = cy + up * 0.45 * height - gauge / 2
+        gy = cy + up * 0.45 * height
         for b in range(barrels):
             zz = cz + (b - (barrels - 1) / 2) * radius * 0.35
-            self.box(role, (cx + facing * (0.6 * radius + barrel_length / 2), gy, zz), (barrel_length, gauge, gauge), guns)
+            self.machine_gun(gun_role or role, (cx + facing * 0.6 * radius, gy, zz), (float(facing), 0.0, 0.0), barrel_length, scale, guns)
         # Barrels along facing * x: a turn about facing * z lifts them (z x x = y).
-        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in (cx, gy + gauge / 2, cz)], 'axis': [0.0, 0.0, float(facing)]}
+        self._fixed_hinges[guns] = {'point': [round(c, 6) for c in (cx, gy, cz)], 'axis': [0.0, 0.0, float(facing)]}
 
     # --- Building parts (R4). Every one is wound outward: kitBuildings.test.ts checks it. ---
 
