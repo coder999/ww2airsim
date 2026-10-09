@@ -1,0 +1,19 @@
+{
+  "id": "type98-no25",
+  "output": "content/ordnance/type98-no25.glb",
+  "source": {
+    "kind": "generated",
+    "generator": "tools/models/generated/type98-no25.ts",
+    "dimensions": "English Wikipedia 'List of Japanese World War II navy bombs' (from TM 9-1985-4, 1953): Type 98 No. 25, 241 kg, 96 kg filler, 180 cm long, 83 cm sheet-steel tail; bulletpicker.com (TM 9-1985-4 p. 50, OP 1667 p. 53): gray overall, green nose band and tail struts, four fins with box struts; 30 cm from the unlabeled warhead column of Wikipedia 'Type 21 and Type 22 rocket-bombs' (SECONDARY). Read 2026-10-09. Every other figure is an ESTIMATE in the generator's header.",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 400000,
+    "maxTriangles": 4000,
+    "maxDrawCalls": 1
+  }
+}

@@ -28,12 +28,12 @@ const TURRETS: Readonly<Record<string, readonly string[]>> = { 'type97-chi-ha': 
 
 /** Each vehicle's own proof that its nose is at +x; a model turned 180° fails it. */
 const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail: string }>> = {
-  // The gun makes Turret1 extend farther forward than aft from the centered vehicle footprint.
+  // The 57 mm gun (Gun1 since V1 split it from Turret1) reaches forward of the turret ring, near the bow.
   // A centroid-distance heuristic is invalid here: the offset turret makes its rear corner a few
   // centimeters farther from the vertex centroid than the muzzle even while the gun faces +x.
   'type97-chi-ha': (doc) => {
-    const b = getBounds(findNode(doc, 'Turret1'))
-    return { ok: b.max[0] > -b.min[0] + 0.5, detail: `Turret1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
+    const b = getBounds(findNode(doc, 'Gun1'))
+    return { ok: b.min[0] > 0.5, detail: `Gun1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
   },
   // The spare tire rides on the rear panel, higher than any road wheel: the highest Tires vertex is aft.
   'willys-mb-jeep': (doc) => {

@@ -13,6 +13,7 @@ import { fitMount, sceneTriangles, wingSection, type MountFit, type WingSection 
 import type { MeshData } from './generated/mesh.js'
 import { anM65Mesh } from './generated/an-m65.js'
 import { hvarMesh } from './generated/hvar.js'
+import { type98Mesh } from './generated/type98-no25.js'
 import { wildcatToSimMatrix } from '../../src/render/scene/wildcatFrame.js'
 import { loadAircraftSpec } from '../content/load.js'
 import type { Stores } from '../../src/sim/flight/schema.js'
@@ -31,7 +32,7 @@ export const MIN_CLEARANCE_M = 0.02
 /** Wing forward of this, tail surfaces aft (measured 2026-09-26: trailing edge >= 0.07 m, tailplane <= -4.1 m). */
 export const WING_MIN_X_M = -2
 
-export const STORE_MESHES: Readonly<Record<string, () => MeshData>> = { 'an-m65': anM65Mesh, hvar: hvarMesh }
+export const STORE_MESHES: Readonly<Record<string, () => MeshData>> = { 'an-m65': anM65Mesh, hvar: hvarMesh, 'type98-no25': type98Mesh }
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
 

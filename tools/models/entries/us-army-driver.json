@@ -1,0 +1,19 @@
+{
+  "id": "us-army-driver",
+  "output": "content/figures/us-army-driver.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/us-army-driver.py",
+    "dimensions": "the seat, steering pivot, column and rim measured off content/vehicles/willys-mb-jeep.glb (2026-10-09); every body figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 0.945 } },
+  "keep": [
+    { "node": "ArmL", "pivot": { "point": [-0.33, 1.286, -0.552], "axis": "+z" } },
+    { "node": "ArmR", "pivot": { "point": [-0.33, 1.286, -0.152], "axis": "+z" } }
+  ],
+  "note": "V1 (2026-10-09): built in the jeep's frame so it loads at the jeep's origin, in the driver's seat. The fit is the authored length (0.945 m, scale 1). The arms are their own parts, pivoted at the shoulders, so vehicleRig.ts can swing each hand after the steering wheel.",
+  "skin": true,
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 200000, "maxTriangles": 3000, "maxDrawCalls": 3 }
+}

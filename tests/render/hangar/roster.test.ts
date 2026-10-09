@@ -14,14 +14,15 @@ import { nodeHangarContent } from './content.js'
  */
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
-  aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/',
+  aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/', ordnance: 'content/ordnance/',
 }
 
 /** Why `ref` does not resolve to a registered model with its manifest entry and committed glb; null if it does. */
 function refProblem(ref: ModelRef, entries: readonly ModelEntry[]): string | null {
   const registered = ref.kind === 'aircraft' ? Object.hasOwn(AIRFRAME_MODELS, ref.id)
     : ref.kind === 'ship' ? Object.hasOwn(SHIP_MODELS, ref.id)
-      : Object.hasOwn(STATIC_MODELS[ref.kind], ref.id)
+      : ref.kind === 'ordnance' ? entries.some((e) => e.id === ref.id && e.source.kind === 'generated')
+        : Object.hasOwn(STATIC_MODELS[ref.kind], ref.id)
   if (!registered) return `${ref.kind} model "${ref.id}" is not registered`
   const entry = entries.find((e) => e.id === ref.id)
   if (!entry) return `${ref.kind} model "${ref.id}" has no tools/models/entries/${ref.id}.json`

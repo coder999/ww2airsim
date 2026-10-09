@@ -57,7 +57,7 @@ export function mountBench(
   title.textContent = 'Test bench'
   slot.appendChild(title)
 
-  const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop', HTMLInputElement>()
+  const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
   const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
   const aims = new Map<(typeof AIM)[number][0], HTMLInputElement>()
@@ -117,13 +117,14 @@ export function mountBench(
       input.type = 'range'
       input.min = String(part.range[0])
       input.max = String(part.range[1])
-      input.step = '0.01'
+      input.step = id === 'drive' ? '1' : '0.01'
       input.value = id === 'gear' ? '1' : '0'
       input.setAttribute('aria-label', part.label)
       input.style.cssText = 'flex:1 1 90px;min-width:80px'
       input.addEventListener('input', () => {
         const v = Number(input.value)
-        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v } : { throttle: v })
+        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v }
+          : id === 'drive' ? { speedMph: v } : id === 'steer' ? { steer: v } : { throttle: v })
       })
       sliders.set(id, input)
       row.appendChild(input)
@@ -158,11 +159,13 @@ export function mountBench(
 
   return {
     sync(s): void {
-      const set = (id: 'gear' | 'flaps' | 'doors' | 'prop', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
+      const set = (id: 'gear' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
       set('gear', s.gearFraction)
       set('flaps', s.flapFraction)
       set('doors', s.bayDoorFraction)
       set('prop', s.throttle)
+      set('drive', s.speedMph)
+      set('steer', s.steer)
       for (const axis of STICK) { const el = sticks.get(axis); if (el) el.value = String(s[axis]) }
       for (const [field] of AIM) { const el = aims.get(field); if (el) el.value = String(s[field]) }
       const b = stores.get('bombs'), r = stores.get('rockets')

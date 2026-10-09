@@ -163,6 +163,7 @@ async function boot(): Promise<void> {
     gunMounts: () => (model?.gunMounts ?? []).map((m) => m.name),
     trainMounts,
     elevateMounts,
+    vehicle: () => model?.vehicle?.state() ?? null,
     validationErrors,
   })
 

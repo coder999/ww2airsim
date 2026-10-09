@@ -11,8 +11,10 @@
   },
   "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, -0.052], "fit": { "extent": "length", "meters": 5.5 } },
   "split": [
-    { "name": "Turret1", "select": "components", "boxMin": [-0.45, 1.56, -1.85], "boxMax": [0.99, 2.40, 0.86] }
+    { "name": "Turret1", "select": "components", "boxMin": [-0.45, 1.56, -1.85], "boxMax": [0.99, 2.40, 0.86], "pivot": { "point": [0.36, 1.566, -0.3], "axis": "+y" } },
+    { "name": "Gun1", "select": "components", "boxMin": [0.30, 1.67, -1.83], "boxMax": [0.42, 1.86, -1.03], "pivot": { "point": [0.36, 1.765, -1.1], "axis": "+x" } }
   ],
+  "note": "V1 (2026-10-09): Turret1 trains about the turret ring's center (ESTIMATE, the turret body's footprint less its mantlet and rear machine gun) and Gun1, the 57 mm barrel and its recoil cylinder, elevates about the mantlet (ESTIMATE, the barrel's breech end). Gun1 splits after Turret1, so it takes the barrel back out of it. The road wheels stay in the hull mesh: src/render/scene/vehicleRig.ts turns them in a vertex shader, one draw for all twenty.",
   "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
 }

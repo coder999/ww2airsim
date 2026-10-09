@@ -131,8 +131,8 @@ Recommend the historically standard load, not the maximum.
 ### D8. Which stores
 
 Each rack or rail names a `store` that must exist in `types` and, for the
-name shown on Form 4, in the Library as an ordnance entry (`an-m65`, `hvar`
-today). Options: an existing store, or a new one. Recommend an existing one
+name shown on Form 4, in the Library as an ordnance entry (`an-m65`, `type98-no25`,
+`hvar` today; a Japanese bomber carries `type98-no25`, V2 2026-10-09). Options: an existing store, or a new one. Recommend an existing one
 where the real weapon matches; a new store needs a mass, drag area, filler,
 damage and blast figure each with a source, plus its Library ordnance card.
 

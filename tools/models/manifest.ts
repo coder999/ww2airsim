@@ -130,8 +130,8 @@ export const ModelEntrySchema = z.object({
   inputSha256: z.string().regex(/^[0-9a-f]{64}$/).optional(),
   /** Committed. Aircraft to content/aircraft/, ships to content/ships/, ordnance to
    *  content/ordnance/ (generated only), and the Library-only buildings and vehicles to
-   *  content/buildings/ and content/vehicles/ (R1). */
-  output: z.string().regex(/^content\/(aircraft|ships|ordnance|buildings|vehicles)\/[a-z0-9-]+\.glb$/),
+   *  content/buildings/ and content/vehicles/ (R1), and figures that ride in them to content/figures/ (V1). */
+  output: z.string().regex(/^content\/(aircraft|ships|ordnance|buildings|vehicles|figures)\/[a-z0-9-]+\.glb$/),
   source: SourceSchema,
   /** Why this entry's committed output must not be regenerated, if it must not. A frozen
    *  entry is skipped by a bare `models:build` and refused by `models:build -- <id>`

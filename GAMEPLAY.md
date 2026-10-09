@@ -451,8 +451,11 @@ dimensions ([ordnance spec §2](docs/superpowers/specs/2026-09-26-ordnance-and-e
 
 | Store | Kind |
 | --- | --- |
-| AN-M65 1,000 lb general-purpose bomb | bomb |
+| AN-M65 1,000 lb general-purpose bomb | bomb (Allied aircraft) |
+| Type 98 No. 25 250 kg land bomb | bomb (Japanese aircraft) |
 | 5-inch High Velocity Aircraft Rocket (HVAR) | rocket |
+| Mk 13 aircraft torpedo | torpedo, drawn only (Track D) |
+| Type 91 aerial torpedo | torpedo, drawn only (Track D) |
 
 ## Scenarios
 
