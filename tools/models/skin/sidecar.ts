@@ -64,6 +64,9 @@ export const SidecarSchema = z.object({
     patch: z.number().int().nonnegative(), axis: z.enum(['u', 'v']), atM: finite, fromM: finite, toM: finite, kind: z.enum(['panel', 'hinge']),
   }).strict()),
   markings: z.array(Marking),
+  /** M1c: the patches a committed bake paints (kit.py: every chart no other overlaps). Present only
+   *  when the script declares bake detail, and then the build requires its bake (skin/bake.ts). */
+  baked: z.array(z.number().int().nonnegative()).optional(),
 }).strict()
 
 export type Sidecar = z.infer<typeof SidecarSchema>
@@ -90,6 +93,7 @@ export function parseSidecar(text: string): Sidecar {
       throw new Error(`sidecar ${s.model}: patches ${s.patches[i]!.id} and ${s.patches[j]!.id} are closer than 2 x paddingPx (${2 * pad} px), so padding would bleed between them`)
     }
   }
+  for (const b of s.baked ?? []) if (!ids.has(b)) throw new Error(`sidecar ${s.model}: baked names patch ${b}, which does not exist`)
   for (const l of s.lines) if (!ids.has(l.patch)) throw new Error(`sidecar ${s.model}: a line names patch ${l.patch}, which does not exist`)
   const known = new Set(s.patches.map((p) => p.tag))
   for (const m of s.markings) for (const t of m.tags) if (!known.has(t)) throw new Error(`sidecar ${s.model}: a ${m.kind} marking names tag "${t}", which no patch has (tags: ${[...known].sort().join(', ')})`)

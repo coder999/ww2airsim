@@ -23,6 +23,7 @@
     "sky:build": "tsx tools/sky/build.ts",
     "textures:build": "tsx tools/textures/build.ts",
     "models:build": "tsx tools/models/build.ts",
+    "models:bake": "tsx tools/models/bake.ts",
     "models:inspect": "tsx tools/models/inspect.ts",
     "models:mounts": "tsx tools/models/mounts.ts",
     "models:rig": "tsx tools/models/rig.ts",

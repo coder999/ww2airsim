@@ -15,12 +15,15 @@ every part is now wound outward.
 import contextlib
 import json
 import math
+import os
 import sys
 
 import bpy
 
 # sRGB 0-1, the base (unweathered) colors of src/render/scene/buildings.ts, so a
 # kit building matches what the game draws today.
+DETAIL_KINDS = ('porthole', 'door', 'hatch', 'louver', 'ladder', 'strip')
+
 PALETTE = {
     'steel': (0x59 / 255, 0x64 / 255, 0x5A / 255),
     'concrete': (0x8D / 255, 0x89 / 255, 0x78 / 255),
@@ -314,6 +317,8 @@ class Model:
         self._parents = {}  # node -> the node it hangs under, so the build's collapse makes them one part
         self._hinges = {}  # control node -> [hinge-line points], written to <out>.hinges.json
         self._fixed_hinges = {}  # bay door node -> {point, axis}, already oriented (C2), written with them
+        self._shared_keys = set()  # M1c: chart keys made inside shared_chart() (overlapping, so never baked)
+        self._details = []  # M1c: bake-only detail (detail()); written to <out>.detail.json, never exported
 
     @contextlib.contextmanager
     def tagged(self, tag):
@@ -345,6 +350,31 @@ class Model:
         _require(kind in ('disc', 'polygon', 'slab', 'grid', 'text'), f'marking: unknown kind {kind!r}')
         self._markings.append({'kind': kind, **{k: list(v) if isinstance(v, tuple) else v for k, v in fields.items()}})
 
+    def detail(self, kind, origin, axis, **params):
+        """(M1c) Bake-only surface detail: never in the glb, only in the high-poly the bake projects onto
+        the atlas (bake.py builds it). `origin` is a point just off the surface and `axis` the outward
+        direction the bake ray-casts back along to find it, model coordinates. Kinds and their params
+        are bake.py's BUILDERS. With any detail, the sidecar lists the patches the bake may paint."""
+        _require(kind in DETAIL_KINDS, f'detail: unknown kind {kind!r}; kinds are {DETAIL_KINDS}')
+        self._details.append({'kind': kind, 'origin': [float(c) for c in origin], 'axis': [float(c) for c in axis],
+                              **{k: (list(v) if isinstance(v, tuple) else v) for k, v in params.items()}})
+
+    def railing(self, role, points, height=1.0, post_m=2.4, rails=2, radius=0.025, node=None):
+        """(M1c) Stanchions and rails along a polyline of feet (model coordinates, each on its deck):
+        a post at every point and at most `post_m` apart between them, `rails` rails at even heights
+        up to `height`. Thin 4-sided struts: geometry, not an alpha strip (the build has no alpha path)."""
+        _require(len(points) >= 2 and height > 0 and post_m > 0 and rails >= 1, f'railing: need >= 2 points and positive sizes, got {len(points)}')
+        feet = [tuple(points[0])]
+        for a, b in zip(points, points[1:]):
+            n = max(1, math.ceil(_dist(a, b) / post_m))
+            feet += [tuple(a[i] + (b[i] - a[i]) * k / n for i in range(3)) for k in range(1, n + 1)]
+        for f in feet:
+            self.strut(role, f, (f[0], f[1] + height, f[2]), radius, sides=4, node=node)
+        for r in range(1, rails + 1):
+            h = height * r / rails - radius
+            for a, b in zip(points, points[1:]):
+                self.strut(role, (a[0], a[1] + h, a[2]), (b[0], b[1] + h, b[2]), radius, sides=4, node=node)
+
     def _new_chart(self):
         key = len(self._charts)
         self._charts[key] = self._tag
@@ -368,6 +398,7 @@ class Model:
                 slot = (self._tag, role)
                 if slot not in self._shared:
                     self._shared[slot] = self._new_chart()
+                    self._shared_keys.add(self._shared[slot])
                 key = self._shared[slot]
             out.append((key, tuple((_dot(_sub(q, p[0]), u), _dot(_sub(q, p[0]), v)) for q in p)))
         return out
@@ -412,6 +443,8 @@ class Model:
             if key not in remap:
                 remap[key] = len(self._charts)
                 self._charts[remap[key]] = self._charts[key]
+                if key in self._shared_keys:
+                    self._shared_keys.add(remap[key])
         for (k, axis, at, lo, hi, kind) in list(self._lines):
             if k in remap:
                 self._lines.append((remap[k], axis, at, lo, hi, kind))
@@ -1450,6 +1483,12 @@ class Model:
         )
         if packed is not None:
             self._write_sidecar(path, packed)
+        if self._details:
+            with open(path[:-4] + '.detail.json', 'w', encoding='utf-8') as fh:
+                json.dump({'version': 1, 'model': self.name, 'details': self._details}, fh, sort_keys=True, separators=(',', ':'))
+            if os.environ.get('WW2_BAKE_DIR'):
+                import bake  # noqa: PLC0415, beside this file; only a bake run (tools/models/bake.ts on Ryzen) needs Cycles
+                bake.run(self._details, os.environ['WW2_BAKE_DIR'], self.skin)
         if self._hinges or self._fixed_hinges:
             # C1: each control's hinge, in the glTF source frame the entry's pivots use; the build
             # pivots every kept node named here that the entry gives no pivot of its own.
@@ -1497,5 +1536,7 @@ class Model:
             'lines': [{'patch': k, 'axis': a, 'atM': at, 'fromM': lo, 'toM': hi, 'kind': kind} for k, a, at, lo, hi, kind in self._lines],
             'markings': self._markings,
         }
+        if self._details:  # M1c: the patches a bake may paint: every chart that no other chart overlaps
+            side['baked'] = sorted(k for k in placed if k not in self._shared_keys)
         with open(path[:-4] + '.skin.json', 'w', encoding='utf-8') as fh:
             json.dump(side, fh, sort_keys=True, separators=(',', ':'))

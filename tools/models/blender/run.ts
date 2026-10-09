@@ -26,6 +26,12 @@ export function hingesSidecarPath(glb: string): string {
   return `${glb.slice(0, -4)}.hinges.json`
 }
 
+/** The bake-only detail list a script writes beside its glb (M1c, kit.Model.detail): what a committed bake was baked from. */
+export function detailSidecarPath(glb: string): string {
+  if (!glb.endsWith('.glb')) throw new Error(`detailSidecarPath: ${glb} is not a .glb`)
+  return `${glb.slice(0, -4)}.detail.json`
+}
+
 export function parseBlenderVersion(stdout: string): string | null {
   const m = /^Blender (\d+\.\d+\.\d+)/m.exec(stdout)
   return m ? m[1]! : null
@@ -68,6 +74,7 @@ export function runBlenderScript(script: string, out: string, args: readonly str
   if (out.endsWith('.glb')) {
     rmSync(skinSidecarPath(out), { force: true })
     rmSync(hingesSidecarPath(out), { force: true })
+    rmSync(detailSidecarPath(out), { force: true })
   }
   // No __pycache__ beside kit.py (an untracked file in every checkout). Blender's bundled
   // Python ignores PYTHONDONTWRITEBYTECODE (measured 2026-09-26), so it is set in-process
