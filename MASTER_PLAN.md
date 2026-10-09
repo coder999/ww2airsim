@@ -149,6 +149,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | Escort | E1, E3 (bombers to escort) |
   | Kamikaze Watch | E2 (kamikaze behavior) |
   | Flattop Hunt | a Japanese carrier model; D for the full version |
+  | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
 
 - **Campaign by day** (missions spec §6.2): needs per-day airfield ownership plus the above. Build it after the missions, not before.
 
@@ -240,6 +241,34 @@ one plan for the lot.
 
 `0fe24aab`: GA4 property 558194335 (`G-3VE6LD7RCS`). The tag is in the production build only and loads only on `ww2airsim.com` and `ww2airsim.marktuttle.dev`. The events are `sortie_launched`, `mission_outcome`, `quality_tier` (detected against chosen, for A4) and `boot_ready`. There is a privacy line in the About memo. Deployed 2026-10-08 (run 37852717790); the page source on both production hosts carries the tag, and windomlane does not (curl, same day). Handoff `docs/handoff/2026-10-08-order-1.md`.
 
+
+### Track M: Ships (L)
+
+Mark's items (2026-10-08): better ship models, turrets that work and fire, and AA on every warship.
+- **Today** (verified 2026-10-08):
+  - 10 ship classes. Pennsylvania, Kagero and Casablanca are our own Blender models (`tools/models/blender/*.py`); the other 7 are Sketchfab downloads (`ASSETS.md`).
+  - Only Pennsylvania (`Turret1..4`) and Kagero (`Turret1..2`) have separate turret nodes. Most downloads are one merged mesh.
+  - Nothing fires at the player except enemy aircraft. Ground `aaa` structures are targets only (`sim/weapons/structures.ts`), and ships have no guns.
+  - Ships have one `hullHp` pool (Track D).
+- **Decided (Mark, 2026-10-08), in order:**
+  1. **M1 Models (M-L).** Starts now, in its own worktree, beside order 2.
+     - Our three Blender ships gain detail, silhouette, paint and textures.
+     - Each download is split in Blender where its mesh allows; otherwise it is rebuilt as our own model.
+     - Every warship ends with separate turret and AA-mount nodes, with AA added where a model has none.
+     - Merchants (the Maru) get no guns.
+  2. **M2 AA fire (M).** Ships and ground AAA share one system:
+     - heavy guns throw timed flak bursts at altitude;
+     - light guns fire tracer rounds through the existing ballistics at close range;
+     - both sides fire, under the friendly-fire rules;
+     - the default is dangerous: lingering low over a destroyer costs you.
+     - Builds on E1's lead and aim error.
+  3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
+  4. **M4 Main batteries (M-L).** Ship against ship and against ground targets.
+     - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
+     - Waterline damage and flooding stay with Track D.
+  5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
+  6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
+
 ---
 
 ## 2. Proposed order
@@ -251,16 +280,16 @@ prerequisites are met.
 | Order | Work | Why here |
 | --- | --- | --- |
 | 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
-| 2 | A3, A4; B1 | Fixes what every player sees first; A4 closes the trees incident |
+| 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
-| 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice | Player experience; C1 and I1 share the flap and gear motion |
+| 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | F missions that are now unblocked (Single Combat, Scramble); L1 terrain allocation then trees; K in-cloud pacing | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
-| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore | |
+| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
-A rough total by the size key: about 25-35 plans.
+A rough total by the size key: about 30-40 plans.
 
 ---
 
