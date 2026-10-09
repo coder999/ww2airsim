@@ -451,7 +451,7 @@ test.describe('the Hangar', () => {
   test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
     const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
     const ids = await entries(page)
-    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(11)
+    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(12)
     for (const ship of ships) {
       const a = ship.armament
       // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.

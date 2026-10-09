@@ -1,0 +1,20 @@
+{
+  "id": "abukuma-cl",
+  "output": "content/ships/abukuma-cl.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/abukuma-cl.py",
+    "dimensions": "162.1 m overall and 14.2 m beam from content/ships/abukuma-cl.json (English Wikipedia 'Japanese cruiser Abukuma'); the 1944 armament from the same article; the silhouette from the Nagara class's general-arrangement drawings, every height an ESTIMATE",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 162.1 } },
+  "skin": true,
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "abukuma-cl", "fit": "hull", "kind": "waterline", "palette": "ijn",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [20.4, 19.2, 0], "bow": "narrow-end"
+  }
+}

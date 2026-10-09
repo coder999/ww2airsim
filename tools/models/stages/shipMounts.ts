@@ -45,6 +45,7 @@ export const MAX_ELEVATION_DEG: Readonly<Record<string, number>> = {
   'mount-5in38-single-open': 85, // Mk 24 open (Yorktown-class): +85
   'mount-127mm-twin-ijn': 90, // 12.7 cm/40 Type 89 (A1): +90
   'turret-127mm-twin': 55, // 12.7 cm/50 3rd Year Type, Model C (Kagero; Shiratsuyu's Model B also +55)
+  'turret-140mm-single': 30, // 14 cm/50 3rd Year Type single mount (Abukuma, M1f): +30 (ESTIMATE; the gun's twin mount reached +35)
   'turret-6in-triple': 60, // 6"/47 Mk 16 (Cleveland): +60
   'turret-8in-twin': 55, // 20.3 cm/50 3rd Year No. 2, Model E2 (Mogami, 1939 refit): +55
   'turret-8in-twin-raised': 55,
