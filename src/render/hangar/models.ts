@@ -208,6 +208,7 @@ export type LoadDisplay = (ref: ModelRef) => Promise<ModelInstance>
 export function displayModelUrl(ref: ModelRef): string {
   if (ref.kind === 'ship') return shipModelUrlFor(ref.id)
   if (ref.kind === 'building' || ref.kind === 'vehicle') return staticModelUrlFor(ref.kind, ref.id)
+  if (ref.kind === 'ordnance') return ordnanceModelUrl(ref.id)
   throw new Error(`displayModelUrl: aircraft model "${ref.id}" loads through the airframe registry, not as a static model`)
 }
 
@@ -227,7 +228,17 @@ async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDispl
     return model
   }
   const instance = await loadDisplay(ref)
+  if (ref.kind === 'ordnance') return ordnanceStand(instance)
   return { ...staticModel(instance.root), dispose: () => instance.release() }
+}
+
+/** A store's origin is its suspension point with the body below it: stand it clear of the pad. */
+function ordnanceStand(instance: ModelInstance): HangarModel {
+  const stand = new Group()
+  stand.name = 'ordnance stand'
+  stand.add(instance.root)
+  stand.position.y = -new Box3().setFromObject(instance.root).min.y + 0.2
+  return { ...staticModel(stand), dispose: () => instance.release() }
 }
 
 /**
@@ -254,15 +265,7 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
     const view = await loadShip(s.spec)
     return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
   }
-  if (s.kind === 'ordnance') {
-    // Its origin is the suspension point with the body below it: stand it clear of the pad.
-    const instance = await loadStore(s.storeId)
-    const stand = new Group()
-    stand.name = 'ordnance stand'
-    stand.add(instance.root)
-    stand.position.y = -new Box3().setFromObject(instance.root).min.y + 0.2
-    return { ...staticModel(stand), dispose: () => instance.release() }
-  }
+  if (s.kind === 'ordnance') return ordnanceStand(await loadStore(s.storeId))
   // The largest footprint of this kind stands for all of them.
   const b = [...s.placements].sort((x, y) => y.building.widthM * y.building.lengthM - x.building.widthM * x.building.lengthM)[0]!.building
   const collector = makeCollector()

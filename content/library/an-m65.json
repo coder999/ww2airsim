@@ -4,7 +4,7 @@
   "kind": "ordnance",
   "side": "allied",
   "spec": "an-m65",
-  "blurb": "The bomb every strike loadout hangs under the wings today. Its model is generated from the Navy's own 1947 ordnance pamphlet.",
+  "blurb": "The bomb every Allied strike loadout carries. Its model is generated from the Navy's own 1947 ordnance pamphlet.",
   "history": "The AN-M65 was the standard American 1,000-pound general-purpose bomb of the Second World War, used by both the Army Air Forces and the Navy (the AN prefix marks an Army-Navy standard). About half its weight was high explosive, Amatol or TNT, in a thin steel case with an ogival nose, a boat-tailed aft end and a box-type tail. It was hung by two lugs fourteen inches apart and fuzed at the nose and tail.\n\nThe bombs were painted olive drab with yellow bands marking the high-explosive filler. Carrier fighters such as the F6F Hellcat carried it under the wing and on the centerline against ships, bridges and airfields in the Pacific.",
   "sources": [
     { "title": "OP 1664, U.S. Explosive Ordnance (Bureau of Ordnance, 1947)", "url": "https://archive.org/details/OP1664USExplosiveOrdnance", "read": "2026-09-26" },

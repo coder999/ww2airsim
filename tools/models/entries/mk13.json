@@ -1,0 +1,19 @@
+{
+  "id": "mk13",
+  "output": "content/ordnance/mk13.glb",
+  "source": {
+    "kind": "generated",
+    "generator": "tools/models/generated/mk13.ts",
+    "dimensions": "NavWeaps 'United States of America Torpedoes of World War II' (Mark 13): 22.4 in diameter, Mod 0 overall 13 ft 5 in (161 in); Naval Ordnance and Gunnery (1957) ch. 12: 13 ft 5 in, 22.42 in, a shroud ring round the tail vanes. Read 2026-10-09. Every other figure is an ESTIMATE in the generator's header.",
+    "license": "AGPL-3.0-or-later"
+  },
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 400000,
+    "maxTriangles": 4000,
+    "maxDrawCalls": 1
+  }
+}
