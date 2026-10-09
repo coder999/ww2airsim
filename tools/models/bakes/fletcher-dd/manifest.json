@@ -1,0 +1,33 @@
+{
+ "version": 1,
+ "model": "fletcher-dd",
+ "rawSha256": "437f17af85b8eb4664026202512e5cdd1c3385becc3cfc8ac7df55a09a2504c7",
+ "detailSha256": "81ffa34f917a0992db1b39aa4051303c7b894273cc24ce50c85125d78e35cc25",
+ "size": 1024,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 50,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [
+   0,
+   1,
+   2,
+   19,
+   20,
+   21
+  ],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 1.1,
+   "aoBack": 0.7,
+   "normal": 0.3
+  },
+  "size": 1024,
+  "totalSeconds": 79.6,
+  "twoSided": true,
+  "host": "ryzen",
+  "wallSeconds": 82.8
+ },
+ "date": "2026-10-09"
+}

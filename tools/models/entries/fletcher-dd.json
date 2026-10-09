@@ -11,6 +11,15 @@
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0.0021, 0, 0], "fit": { "extent": "length", "meters": 114.8 } },
   "textures": { "maxSize": 1024, "format": "webp" },
+  "boxSkin": {
+    "atlasPx": 1024,
+    "detail": {
+      "sideZM": 8,
+      "grimeM": [-0.4, 0.5],
+      "butts": {"xM": [-54, 54], "yM": [-0.5, 3.6], "everyM": 6},
+      "hatches": [{"xM": [-50, 50], "yM": 7, "everyM": 12, "zM": [-2.5, 2.5], "reachM": 4}]
+    }
+  },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 15 },
   "ship": {
