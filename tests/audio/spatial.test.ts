@@ -98,6 +98,16 @@ describe('nextSpatial one-shots', () => {
     expect(splash.clip).toBe('water_crash')
   })
 
+  // D3 T2 (Mark, 2026-10-09): a torpedo plays its own takes, near or far.
+  it('plays the torpedo splash at its water entry and the torpedo hit at a hull, at any range', () => {
+    for (const d of [400, 5000]) {
+      const entry = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [{ ...blast(100, d, 'water'), torpedo: 'splash' }] })).memory.pending[0]!
+      const hit = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [{ ...blast(100, d, 'ship'), torpedo: 'hit' }] })).memory.pending[0]!
+      expect(entry.clip).toBe('torpedo_splash')
+      expect(hit.clip).toBe('torpedo_hit')
+    }
+  })
+
   it('does not replay a detonation it has already seen, nor hear one beyond earshot', () => {
     const b = blast(100, 500)
     const a = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [b] }))
