@@ -1,6 +1,6 @@
 # L1.1 handoff: terrain on demand, Medium by default
 
-**Date:** 2026-10-10. **Plan:** [`2026-10-10-l1-1-terrain-on-demand.md`](../superpowers/plans/2026-10-10-l1-1-terrain-on-demand.md). **Branch:** `worktree-agent-ad00fe23fe9031a4f` (not merged by this run). **Run:** unattended; viewing checkpoint: the final product only.
+**Date:** 2026-10-10. **Plan:** [`2026-10-10-l1-1-terrain-on-demand.md`](../superpowers/plans/2026-10-10-l1-1-terrain-on-demand.md). **Merged to `main` 2026-10-10** (d3ae825a), not deployed. **Run:** unattended; viewing checkpoint: the final product only.
 
 ## What changed
 
@@ -72,6 +72,8 @@ Every view is within 0.15 ms of H0's, and none is slower by more than 0.04 ms. T
 The final product is on slot `ww2airsim-2.windomlane.org` only while this worktree's dev server runs; it was stopped at the end of this run. After merge, `ww2airsim.windomlane.org` (`npm run dev:lan` on `main`) shows it. Use a fresh browser profile, or clear `ww2airsim.assetQuality.v1`, to be a first-time visitor: Settings then shows Asset Quality **Medium**. A visitor who already saved Low keeps Low. Deploying is Mark's call: production first visits would then fetch the extra 134 MB.
 
 ## Rulings for Mark
+
+**Mark's answers (2026-10-10):** merge it; ruling 1, keep the suite on L1; ruling 4, queued as MASTER_PLAN L1 item 1a. Rulings 2 and 3 stand as built. After the merge (with A5), `npm run verify` on ryzen: 393 files, 5,421 passed, 12 skipped.
 
 Each was taken conservatively so the run could continue.
 

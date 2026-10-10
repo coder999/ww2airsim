@@ -1,6 +1,6 @@
 # L1.1: terrain on demand, then Medium by default
 
-**Status (2026-10-10):** built on the branch, not merged; see the handoff. Deviations from the plan below: the window is 1025 samples, not 513 (the measured reach was 256 samples, not 128; the first sweep used L1's spacing for L0), and the headless suite's ground truth stays on L1 (`GROUND_TRUTH_TIER`, handoff ruling 1). Master plan item: Track L, L1 item 1. Handoff: `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`.
+**Status (2026-10-10):** merged to `main` (d3ae825a); see the handoff. Deviations from the plan below: the window is 1025 samples, not 513 (the measured reach was 256 samples, not 128; the first sweep used L1's spacing for L0), and the headless suite's ground truth stays on L1 (`GROUND_TRUTH_TIER`, handoff ruling 1). Master plan item: Track L, L1 item 1. Handoff: `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`.
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode:** unattended.
 **Location:** a worktree, branch `worktree-agent-ad00fe23fe9031a4f`. Not merged to `main` by this run; the parent session reviews and merges.
