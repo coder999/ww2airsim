@@ -113,6 +113,7 @@ import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import type { GodMode } from '../sim/godMode.js'
+import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -411,7 +412,14 @@ async function boot(): Promise<void> {
     // illegal non-Dev choice fails loudly, by name, through the caller's
     // showFailure); and a Dev loadout on a spec with no stations hangs the
     // Hellcat's layout (SF-R2, SF-R3).
-    const nextBundle = await loadScenarioBundle(choice.scenarioId, fetch, choice.aircraftSpec)
+    // Some missions have a second file for a Japanese pilot (`AXIS_VARIANTS`): which one loads depends on the side of the airplane chosen.
+    let scenarioFile = choice.scenarioId
+    if (AXIS_VARIANTS[scenarioFile] !== undefined) {
+      const res = await fetch(aircraftUrl(choice.aircraftSpec))
+      if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
+      scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
+    }
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev })

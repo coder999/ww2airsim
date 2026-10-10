@@ -118,7 +118,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'friendly-fire-field', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
+      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'friendly-fire-field', 'range-test', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
       'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker

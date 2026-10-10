@@ -19,8 +19,8 @@ function duckWorld() {
   // 2.5 km away, head-on, which is the hardest case for "never engages".
   const scenario = {
     ...bundle.scenario,
-    aircraft: bundle.scenario.aircraft.map((a) => a.id === 'pursuer-1'
-      ? { ...a, airborneAt: { ...a.airborneAt!, speedMps: 80 }, pilot: { skill: 'green' as const, passive: { orbitRadiusM: RADIUS_M } } }
+    aircraft: bundle.scenario.aircraft.map((a) => a.id === 'pursuer-1' && 'airborneAt' in a
+      ? { ...a, airborneAt: { ...a.airborneAt, speedMps: 80 }, pilot: { skill: 'green' as const, passive: { orbitRadiusM: RADIUS_M } } }
       : a),
   }
   return worldFromScenario({ ...bundle, scenario }, terrain)

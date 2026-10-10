@@ -90,3 +90,15 @@ export function sortieBundle(bundle: ScenarioBundle, loadout: Loadout, devStores
     aircraftSpecs: { ...bundle.aircraftSpecs, [devKey]: { ...spec, stores: devStores } },
   }
 }
+
+/**
+ * Scenarios with a second file for a Japanese pilot (the Range Test: what
+ * spawns depends on the side of the airplane chosen). The title screen and
+ * `?scenario=` know only the first id; `scenarioFileFor` picks the file at
+ * load. The variant is NOT a title-screen option of its own.
+ */
+export const AXIS_VARIANTS: Readonly<Record<string, string>> = { 'range-test': 'range-test-axis' }
+
+export function scenarioFileFor(scenarioId: string, pilotNation: AircraftNation): string {
+  return pilotNation === 'japanese' ? AXIS_VARIANTS[scenarioId] ?? scenarioId : scenarioId
+}

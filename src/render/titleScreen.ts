@@ -197,6 +197,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // amended; the parked start became a run-in when T1's tail-down attitude
   // took the guns off a parked target, 2026-09-29).
   { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): on a run-in to Tacloban with a parked allied Hellcat on the runway.' },
+  // L3 / Range Test (2026-10-10): take off from Tacloban into a target range. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship; WHICH enemy follows the side of the airplane picked (`AXIS_VARIANTS`, `src/sim/sortie.ts`). Best flown with God mode.
+  { value: 'range-test', label: 'Range Test (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed: take off from Tacloban. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship. Pick an American airplane for Japanese targets, a Japanese one for American. Shoot them to see damage, smoke and sinking; God mode helps.' },
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).

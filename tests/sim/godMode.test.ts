@@ -97,7 +97,7 @@ describe('god mode: advance', () => {
   it('keeps bouncing: ten seconds of diving at the ground never ends the flight', () => {
     const me = player(world0)
     const x = me.state.position.x, z = me.state.position.z
-    const diving = withAircraftState(world0, id, { ...me.state, position: v3(x, heightAt(terrain, x, z) + 60, z), velocity: v3(70, -70, 0), controls: { ...me.controls, pitch: -1 } })
+    const diving = withControls(withAircraftState(world0, id, { ...me.state, position: v3(x, heightAt(terrain, x, z) + 60, z), velocity: v3(70, -70, 0) }), id, { ...me.controls, pitch: -1 })
     expect(player(fly(diving, 10, god)).impact).toBeNull()
   })
 })
