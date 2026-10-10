@@ -154,15 +154,16 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 4 missions and 6 ranges ship.
+  - 6 missions and 6 ranges ship.
   - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
-  - Five more missions are designed in GAMEPLAY.md and not built: Scramble, Escort, Flattop Hunt, Kamikaze Watch, Single Combat.
+  - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
+  - Three more missions are designed in GAMEPLAY.md and not built: Escort, Flattop Hunt, Kamikaze Watch.
 - **Each mission's dependency:**
 
   | Mission | Needs |
   | --- | --- |
-  | Single Combat | nothing new; buildable now |
-  | Scramble | E1 (interceptors must kill) |
+  | ~~Single Combat~~ | done 2026-10-09 (F2) |
+  | ~~Scramble~~ | done 2026-10-09 (F2) |
   | Escort | E1, E3 (bombers to escort) |
   | Kamikaze Watch | E2 (kamikaze behavior) |
   | Flattop Hunt | a Japanese carrier model; D for the full version |
@@ -311,7 +312,7 @@ prerequisites are met.
 | 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
 | 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
-| 5 | F missions that are now unblocked (Single Combat, Scramble); L1 terrain allocation then trees; K in-cloud pacing | |
+| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); L1 terrain allocation then trees; K in-cloud pacing | |
 | 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |

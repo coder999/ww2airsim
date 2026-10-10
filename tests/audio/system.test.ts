@@ -310,7 +310,7 @@ describe('the radio (I2)', () => {
     await audio.load()
     audio.updateRadio({ message: null, paddles: null, language: 'ja' })
     await settle()
-    expect(fake.voicesRequested).toHaveLength(34)
+    expect(fake.voicesRequested).toHaveLength(VOICE_STEMS.length)
     expect(fake.voicesRequested.every((id) => id.endsWith('_ja'))).toBe(true)
     fake.clockS = 10
     audio.updateRadio({ message: CAP, paddles: null, language: 'ja' })
@@ -323,7 +323,7 @@ describe('the radio (I2)', () => {
     expect(audio.snapshot().radioPlayed).toEqual(['radio_tower_cap_station_ja'])
     // A second language is its own load, on first use.
     audio.updateRadio({ message: null, paddles: null, language: 'us' })
-    expect(fake.voicesRequested.filter((id) => id.endsWith('_us'))).toHaveLength(34)
+    expect(fake.voicesRequested.filter((id) => id.endsWith('_us'))).toHaveLength(VOICE_STEMS.length)
   })
 
   it('stops the transmission on the air before a cut-in', async () => {

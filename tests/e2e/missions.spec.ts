@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -75,6 +75,7 @@ async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
 /** M3's captures are `m3-<id>-<what>.png`; M4's CAP captures are
  *  `m4-cap-<what>.png`, the names its plan and handoff use. */
 function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
+  if (id === 'scramble' || id === 'single-combat') return `f2-${id}-${what}.png`
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
@@ -288,3 +289,23 @@ test('Combat Air Patrol: briefing, CAP STATION n/180 S, CIC call, wave 1 spawns 
   expect(cap, 'one CAP station row').toHaveLength(1)
   expect(['COMPLETE', 'INCOMPLETE']).toContain(cap[0]![1])
 })
+
+/** F2 (2026-10-09): what only this tier proves for the two newest missions, that the shipped files
+ *  reach the screen and the opening call is voiced. Their verdicts are flown headless
+ *  (tests/sim/mission/missions/scramble.test.ts, single-combat.test.ts). */
+for (const [id, label, voice] of [
+  ['scramble', 'Scramble', 'radio_tower_scramble_us'],
+  ['single-combat', 'Single Combat', 'radio_tower_single_bandit_us'],
+] as const) {
+  test(`${label}: briefing, objective line, the tower call on screen and on the radio, chart`, async ({ page }) => {
+    const title = await orders(page, `${label} Pilot`)
+    const s = await briefingFor(page, title, id, label)
+    await launched(page, title, id)
+    await expect(objectiveLine(page)).toContainText(s.objectives![0]!.label.toUpperCase())
+    await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+    await expect
+      .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().radioPlayed), { timeout: 30_000 })
+      .toContain(voice)
+    await chartListsObjectives(page, s, id)
+  })
+}

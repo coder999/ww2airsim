@@ -50,6 +50,10 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Tacloban tower: cleared for takeoff. Dulag strip is nineteen miles south.': 'radio_tower_dulag_takeoff',
   'Strike lead: bandits scrambling off Dulag!': 'radio_wingman_dulag_bandits',
   'Strike lead: hangars are down. Head home to Tacloban.': 'radio_wingman_dulag_hangars_down',
+  "Tacloban tower: single bandit, a Frank, five miles west, angels ten. He's yours.": 'radio_tower_single_bandit',
+  'Tacloban tower: splash one Frank. Come on home.': 'radio_tower_splash_frank',
+  'Tacloban tower: scramble! Bettys inbound from the northwest, thirty miles, angels ten.': 'radio_tower_scramble',
+  "Tacloban tower: raid's broken up. Bring it home.": 'radio_tower_scramble_clear',
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

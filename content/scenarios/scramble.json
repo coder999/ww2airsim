@@ -1,0 +1,258 @@
+{
+  "id": "scramble",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": "runwayCenter"
+      },
+      "chocked": false
+    },
+    {
+      "id": "raid-1",
+      "spec": "g4m-betty",
+      "tags": [
+        "raid"
+      ],
+      "airborneAt": {
+        "position": [
+          -65021,
+          3000,
+          -82960
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "ingress": {
+          "route": [
+            {
+              "x": -40272,
+              "z": -58211,
+              "altitudeM": 3000,
+              "speedMps": 90
+            }
+          ],
+          "destination": {
+            "airfield": "tacloban"
+          }
+        }
+      }
+    },
+    {
+      "id": "raid-2",
+      "spec": "g4m-betty",
+      "tags": [
+        "raid"
+      ],
+      "airborneAt": {
+        "position": [
+          -65171,
+          3000,
+          -82810
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "raid-1",
+        "slot": 1
+      }
+    },
+    {
+      "id": "raid-3",
+      "spec": "g4m-betty",
+      "tags": [
+        "raid"
+      ],
+      "airborneAt": {
+        "position": [
+          -64871,
+          3000,
+          -83110
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "raid-1",
+        "slot": 2
+      }
+    },
+    {
+      "id": "raid-4",
+      "spec": "g4m-betty",
+      "tags": [
+        "raid"
+      ],
+      "airborneAt": {
+        "position": [
+          -65321,
+          3000,
+          -82660
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "raid-1",
+        "slot": 3
+      }
+    },
+    {
+      "id": "escort-1",
+      "spec": "a6m2-zero",
+      "tags": [
+        "escort"
+      ],
+      "airborneAt": {
+        "position": [
+          -65421,
+          3500,
+          -83360
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "ingress": {
+          "route": [
+            {
+              "x": -40272,
+              "z": -58211,
+              "altitudeM": 3500,
+              "speedMps": 90
+            }
+          ],
+          "destination": {
+            "airfield": "tacloban"
+          }
+        }
+      }
+    },
+    {
+      "id": "escort-2",
+      "spec": "a6m2-zero",
+      "tags": [
+        "escort"
+      ],
+      "airborneAt": {
+        "position": [
+          -65571,
+          3500,
+          -83210
+        ],
+        "headingDeg": 135,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "escort-1",
+        "slot": 1
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 4,
+    "timeOfDay": 8,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 700,
+        "coverage": 0.4
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "up",
+      "label": "Take off",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "tacloban"
+    },
+    {
+      "id": "raid",
+      "label": "Bettys",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "raid"
+      ]
+    },
+    {
+      "id": "shield",
+      "label": "Keep the raid off",
+      "priority": "primary",
+      "kind": "deny",
+      "hostiles": [
+        "raid"
+      ],
+      "around": {
+        "x": -29666,
+        "z": -47605
+      },
+      "radiusM": 5000
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "raid"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "scramble",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Tacloban tower: scramble! Bettys inbound from the northwest, thirty miles, angels ten."
+        }
+      ]
+    },
+    {
+      "id": "broken",
+      "when": {
+        "completed": "raid"
+      },
+      "then": [
+        {
+          "message": "Tacloban tower: raid's broken up. Bring it home."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "scramble",
+    "name": "Scramble"
+  },
+  "briefing": {
+    "situation": "Bettys are inbound for Tacloban from the northwest, about thirty miles out at ten thousand feet, with a pair of Zeros riding along. Get off the strip, climb, and shoot down all four bombers before any of them gets within three miles of the field. The Zeros are not your job unless they make themselves one. Recover at Tacloban.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "Once the Americans were ashore on Leyte, the Japanese set out to make the island the decisive air battle of the Philippines as well as the decisive ground and naval one. On 24 October 1944 an estimated 150 to 200 Japanese planes, most of them twin-engined bombers, came at northern Leyte in daylight; sixty-six were shot down for certain, and three American aircraft crash-landed, two of them on the Tacloban airstrip. For weeks afterwards the shipping off Tacloban and Dulag and the Tacloban strip itself were the raids' principal targets, by day and by night. This mission is inspired by those raids rather than a reconstruction of any one of them. The four Navy G4M Bettys and their two Zeros stand in for the mixed Army and Navy bombers and fighters of the real raids.",
+    "sources": [
+      "M. Hamlin Cannon, \"Leyte: The Return to the Philippines\" (United States Army in World War II, Office of the Chief of Military History, 1954), chapter VI, \"The Japanese Reaction\": https://www.gutenberg.org/ebooks/48991"
+    ]
+  }
+}
