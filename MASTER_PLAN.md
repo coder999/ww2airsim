@@ -209,7 +209,7 @@ H1-H3: those names already mean the Hangar plans.)
   - **Photoreal Task 14** is H0's last step: tripwires re-derived from H0's final numbers, the probe check in Mark's Chrome, the handoff and its entry here.
   - **How it runs:** in a worktree, unattended. Viewing checkpoints: the re-baseline ruling and the final result, both collected in the handoff.
 - **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
-- **Measured 2026-10-09/10, waiting on Mark's rulings** (branch `h0-measure`, handoff `docs/handoff/2026-10-08-h0-render-budget.md`): the only invisible lever bought 0.2-0.4 ms, and four views stay red (in-deck 12.31, photo 9.09, runway 8.67, deckquals 8.59 ms). Skipping the cloud-edge re-march (`?h0EdgeMarch=0`) buys 1.3-3.2 ms at the price of edge shimmer.
+- **Done 2026-10-10, Mark's rulings applied** (handoff `docs/handoff/2026-10-08-h0-render-budget.md`, "Rulings and the as-merged result"): the cloud-edge re-march skip is the default, so every High view clears 8.33 ms at 1440p; in-deck-1900 has its own 10.0 ms gate (9.51 ms measured); terrainTextures' runway keeps 9.0 ms. Every view but in-deck is inside the 7.5 ms margin (worst: deckquals 7.01 ms).
 
 ### Track K: Clouds (size L)
 

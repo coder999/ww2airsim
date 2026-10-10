@@ -359,9 +359,9 @@ In the order I would take them. Items marked (Mark) need his decision first.
 5. **Win back margin on `photo`/High** (issue 5): priced by H0 (2026-10-10,
    `docs/handoff/2026-10-08-h0-render-budget.md`). The immediate marches at
    cloud silhouettes are the biggest single cost (1.3-3.2 ms at 1440p High);
-   skipping them (`?h0EdgeMarch=0`) raises frozen-scene edge flicker, so it
-   waits on Mark's ruling with the other visible levers there. Not yet tried:
-   cheaper archetype reads.
+   Mark took the skip as the default on 2026-10-10, accepting more frozen-scene
+   edge flicker; DEV `?h0EdgeMarch=1` compares. Not yet tried: cheaper
+   archetype reads.
 6. **Unify the GPU lock file** across sessions, and chase the
    `waitForTerrain` flake.
 7. **Housekeeping** (issue 9), and the stale comments listed in the

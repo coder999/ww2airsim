@@ -66,6 +66,40 @@ Rulings needed:
 4. **terrainTextures' runway limit:** it is your 9.0 ms from 2026-09-29. H0's rule caps every tripwire at
    the 8.33 ms gate, which would turn it red at today's 8.65 ms, so it stays at 9.0 until you rule.
 
+## Rulings and the as-merged result (Mark, 2026-10-10)
+
+1. **`h0EdgeMarch=0` is the default.** Edge shimmer accepted. DEV `?h0EdgeMarch=1` (or `half`) brings the
+   old behavior back for comparison.
+2. **in-deck-1900 is gated at 10.0 ms**, its own limit in `budget.spec.ts`. Every other view keeps 8.33 ms.
+3. Not needed, since ruling 1 was taken.
+4. **terrainTextures' runway keeps 9.0 ms**, an exception to the 8.33 ms cap.
+
+As merged (main b4c88f1e plus this doc), 1440p High gpu p95 on the reference GPU through the console
+Playwright server. Median of three runs, at 08:22 and 08:58-09:03 MDT. The two later runs were monitored: ryzen's CPU stayed low
+and no other 3D client was on the GPU. The first was unmonitored but agrees with them to within 0.1 ms:
+
+| View | Before the rulings | As merged | Gate |
+| --- | --- | --- | --- |
+| in-deck-1900 | 12.31 | 9.51 | 10.0 |
+| deckquals | 8.59 | 7.01 | 8.33 |
+| runway | 8.67 | 6.70 | 8.33 |
+| photo | 9.09 | 6.29 | 8.33 |
+| high-6000 | 8.07 | 6.20 | 8.33 |
+| sunset | 7.81 | 6.10 | 8.33 |
+| above-deck-3200 | 6.88 | 5.88 | 8.33 |
+| under-deck-1200 | 7.36 | 5.77 | 8.33 |
+| low-land-600 | 7.53 | 5.67 | 8.33 |
+
+The cloud correctness specs (`cloudTemporal`, `clouds`, `cloudPixels`, `cloudShadow`) passed: 24 passed, 1
+skipped. The tripwires derived above were not re-derived. They were set from the slower build, so they only
+gained slack.
+
+**A measurement trap found on the way:** six other runs that day spiked to 14-18 ms p95 in stretches of one to
+two minutes. One stretch overlapped another session's Playwright captures on the same console server (a second
+Chrome on the GPU). The rest happened with no other 3D client at all, and ryzen's CPU was at 45-60% (peaks of
+100%) through every spiking stretch: `vmmemWSL`, another session's `remote-run npm run verify`.
+`hwlock ryzen-budget` covers neither.
+
 ## Where the time goes (Task 1)
 
 Per view at 1440p High, the baseline minus each ablation, in milliseconds:

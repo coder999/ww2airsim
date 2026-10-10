@@ -161,7 +161,10 @@ Mark, 2026-10-08). It orders budget runs against each other and nothing
 else. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
 (`serverconfig/ryzen.md`, "Resource locks"). Work started on Ryzen itself
 is invisible to either lock, so before trusting a number check that no other
-browser is driving its GPU.
+browser is driving its GPU. So is a `remote-run` job (it runs in ryzen's WSL):
+on 2026-10-10 a concurrent `remote-run npm run verify` held ryzen's CPU at 45-60% and
+pushed budget views from about 6 ms to 14-18 ms p95, with no other 3D client on the GPU
+(H0 handoff, "Rulings and the as-merged result"). Check ryzen's CPU as well as its GPU.
 
 
 **Mark's console session (verified 2026-10-10, after a reboot).** When `markt` is logged in
