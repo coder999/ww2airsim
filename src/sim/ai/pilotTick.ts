@@ -149,7 +149,8 @@ function flyPilot<M>(
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
-    const scored = chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
+    // A sitting duck (Range Test) never picks a target: it cannot fire or evade.
+    const scored = pilot.passive !== undefined ? null : chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
     // 7g spec §1, §6: the return-to-base decision, for a pilot with a home
     // only (ruling P3: nothing else is written for one without, so every
     // pre-7g world is bit-identical). RTB pre-empts engage unless a threat is
@@ -215,7 +216,7 @@ function flyPilot<M>(
     decision = {
       ...decision, mode,
       // Latched on entering a loiter, so it holds what it had, not a drift.
-      loiter: mode !== 'loiter' ? null : decision.loiter ?? loiterReference(a),
+      loiter: mode !== 'loiter' ? null : decision.loiter ?? loiterReference(a, pilot.passive?.orbitRadiusM),
     }
     target = chosen === null ? null : snapshot.find((c) => c.id === chosen)!
     if (target === null) {
@@ -255,7 +256,7 @@ function flyPilot<M>(
   // home, and the pilot loiters from here rather than throwing.
   if ((decision.mode === 'rtb' || decision.mode === 'landed') && pilot.home!.kind === 'ship' && recoveryGeometry(pilot.home!, ctx) === null) {
     pilot = withoutHome(pilot)
-    decision = { ...withoutRecovery(decision), mode: 'loiter', loiter: loiterReference(a) }
+    decision = { ...withoutRecovery(decision), mode: 'loiter', loiter: loiterReference(a, pilot.passive?.orbitRadiusM) }
   }
   // 7c spec §3.2: the envelope is checked every tick, after the rescore, and
   // outranks any maneuver. It never changes the 7b intent (ruling R11).
@@ -301,7 +302,7 @@ function flyPilot<M>(
   if (target === null) {
     const orders = pilot.ingress
     const base = orders === undefined
-      ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a, decision.loiter ?? loiterReference(a)))
+      ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a, decision.loiter ?? loiterReference(a, pilot.passive?.orbitRadiusM)))
       : decision.legIndex > orders.route.length
         ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships)
         : {

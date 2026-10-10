@@ -82,6 +82,9 @@ const PilotObject = z.object({
   /** 7h: a parked aircraft that takes off under its own pilot (needs an
    *  airfield `parkedAt`, not chocked). */
   takeoff: z.literal(true).optional(),
+  /** A sitting duck (Range Test): loiters in a circle of this radius and never
+   *  engages, evades or fires. Excludes every other order. */
+  passive: z.object({ orbitRadiusM: positive }).strict().optional(),
 }).strict().refine((p) => p.target === undefined || p.ingress === undefined, {
   message: "ingress excludes target: a raider's target is chosen, never fixed", path: ['ingress'],
 }).refine((p) => p.leader === undefined || (p.target === undefined && p.ingress === undefined), {
@@ -90,6 +93,8 @@ const PilotObject = z.object({
   message: 'leader and slot go together', path: ['slot'],
 }).refine((p) => p.takeoff === undefined || p.leader === undefined, {
   message: "takeoff excludes leader: a wingman flies its leader's formation", path: ['takeoff'],
+}).refine((p) => p.passive === undefined || (p.target === undefined && p.ingress === undefined && p.leader === undefined && p.home === undefined && p.takeoff === undefined), {
+  message: 'passive excludes target, ingress, leader, home and takeoff: a sitting duck takes no orders', path: ['passive'],
 })
 
 /** Plan 7e (spec §4.1). Absent: the player is allied, every other aircraft
@@ -114,6 +119,7 @@ function pilotAssignmentFrom(
     ...ingress,
     ...(orders === undefined ? {} : { formation: orders }),
     ...(home === undefined ? {} : { home }),
+    ...(pilot.passive === undefined ? {} : { passive: { orbitRadiusM: pilot.passive.orbitRadiusM } }),
     skill: pilot.skill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL,
     // Immediately overwritten at the first rescore (nextRescoreS: 0
     // guarantees tick 1 triggers one). The noise cursor is seeded from the

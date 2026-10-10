@@ -9,16 +9,27 @@ export const LOITER_MIN_SPEED_STALL_RATIO = 1.3
  *  ±LOITER_MAX_VERTICAL_MPS: the ingress route's law (ingress.ts). */
 export const LOITER_ALTITUDE_GAIN_PER_S = 0.3
 export const LOITER_MAX_VERTICAL_MPS = 10
+/** How hard an orbit steers back onto its circle, per unit of relative radial error. */
+const ORBIT_RADIAL_GAIN = 4
 
-export type LoiterReference = { readonly headingRad: number; readonly altitudeM: number }
+/** `orbit`: a sitting duck's circle (Range Test), fixed when the loiter began. */
+export type LoiterReference = {
+  readonly headingRad: number
+  readonly altitudeM: number
+  readonly orbit?: { readonly centreX: number; readonly centreZ: number; readonly radiusM: number }
+}
 
 /** The heading and altitude a loiter starting now holds: the current ground
  *  track (or the nose, when barely moving) and the current altitude. */
-export function loiterReference<M>(self: AircraftEntity<M>): LoiterReference {
+export function loiterReference<M>(self: AircraftEntity<M>, orbitRadiusM?: number): LoiterReference {
   const v = self.state.velocity
   const track = Math.hypot(v.x, v.z) >= 1 ? v : qRotate(self.state.attitude, v3(1, 0, 0))
   const headingRad = Math.hypot(track.x, track.z) < 1e-6 ? 0 : Math.atan2(track.z, track.x)
-  return { headingRad, altitudeM: self.state.position.y }
+  if (orbitRadiusM === undefined) return { headingRad, altitudeM: self.state.position.y }
+  // The centre lies to the LEFT of the heading (+y up, +z south: left of east is north), so the circle is flown counter-clockwise seen from above.
+  const centreX = self.state.position.x + orbitRadiusM * Math.sin(headingRad)
+  const centreZ = self.state.position.z - orbitRadiusM * Math.cos(headingRad)
+  return { headingRad, altitudeM: self.state.position.y, orbit: { centreX, centreZ, radiusM: orbitRadiusM } }
 }
 
 /**
@@ -31,5 +42,13 @@ export function loiterDesiredVelocity<M>(self: AircraftEntity<M>, ref: LoiterRef
   const speed = Math.max(length(self.state.velocity), LOITER_MIN_SPEED_STALL_RATIO * self.spec.reference.stallSpeedMps)
   const vy = Math.min(LOITER_MAX_VERTICAL_MPS, Math.max(-LOITER_MAX_VERTICAL_MPS, LOITER_ALTITUDE_GAIN_PER_S * (ref.altitudeM - self.state.position.y)))
   const h = Math.sqrt(Math.max(0, speed * speed - vy * vy))
-  return v3(Math.cos(ref.headingRad) * h, vy, Math.sin(ref.headingRad) * h)
+  if (ref.orbit === undefined) return v3(Math.cos(ref.headingRad) * h, vy, Math.sin(ref.headingRad) * h)
+  // Tangent to the circle (radial turned a quarter-turn the way the loiter began), bent inward or outward in proportion to how far off the circle it is.
+  const rx = self.state.position.x - ref.orbit.centreX, rz = self.state.position.z - ref.orbit.centreZ
+  const d = Math.max(Math.hypot(rx, rz), 1e-6)
+  const off = Math.max(-1, Math.min(1, (d - ref.orbit.radiusM) / ref.orbit.radiusM))
+  const dx = rz / d - ORBIT_RADIAL_GAIN * off * (rx / d)
+  const dz = -rx / d - ORBIT_RADIAL_GAIN * off * (rz / d)
+  const norm = Math.hypot(dx, dz)
+  return v3(dx / norm * h, vy, dz / norm * h)
 }

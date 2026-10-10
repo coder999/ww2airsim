@@ -4,14 +4,16 @@ import { loadAircraftSpec, loadScenario, loadScenarioBundle } from '../../../too
 import {
   PRODUCTION_MISSIONS, SCENARIO_OPTIONS, badgeName, isKnownScenarioId, scenarioOptions,
 } from '../../../src/render/titleScreen.js'
-import { eligibleAircraft, startKindOf } from '../../../src/sim/sortie.js'
+import { AXIS_VARIANTS, eligibleAircraft, startKindOf } from '../../../src/sim/sortie.js'
 
 const FILES = readdirSync(new URL('../../../content/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
+// A Japanese-pilot variant file belongs to its mission and is not an option of its own.
+const OPTION_FILES = FILES.filter((f) => !Object.values(AXIS_VARIANTS).includes(f))
 
 describe('scenario options agree with content (M2 R5, R6)', () => {
-  it('every content/scenarios file is an option, Dev-only ones included (A1)', () =>
-    expect(SCENARIO_OPTIONS.map((o) => o.value).sort()).toEqual(FILES))
+  it('every content/scenarios file is an option, Dev-only ones included (A1), except a declared Japanese-pilot variant', () =>
+    expect(SCENARIO_OPTIONS.map((o) => o.value).sort()).toEqual(OPTION_FILES))
   it('A2: ?scenario= reaches every known scenario, Dev-only ones included, and nothing else', () => {
     expect(isKnownScenarioId('dev-mission-ui')).toBe(true)
     expect(isKnownScenarioId('furball-range')).toBe(true)
@@ -28,7 +30,7 @@ describe('scenario options agree with content (M2 R5, R6)', () => {
   })
   it('A1: exactly the test beds are Dev-only, and every range has a description', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.dev).map((o) => o.value).sort())
-      .toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range', 'takeoff-range'])
+      .toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'range-test', 'recovery-range', 'takeoff-range'])
     for (const o of SCENARIO_OPTIONS.filter((r) => r.kind === 'range')) expect(o.description, o.value).toMatch(/\S/)
   })
   it("every non-Dev scenario's own aircraft is eligible with Dev off", () => {

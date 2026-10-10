@@ -1,0 +1,259 @@
+{
+  "id": "range-test",
+  "player": "player-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "player-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": 0,
+          "z": 700
+        }
+      },
+      "chocked": false
+    },
+    {
+      "id": "duck-a6m2-zero",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -27266,
+          600,
+          -47605
+        ],
+        "headingDeg": 0,
+        "speedMps": 48.8,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-b5n2-kate",
+      "spec": "b5n2-kate",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -28170,
+          730,
+          -45729
+        ],
+        "headingDeg": 51.4,
+        "speedMps": 47.6,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-d3a-val",
+      "spec": "d3a-val",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -30200,
+          860,
+          -45265
+        ],
+        "headingDeg": 102.9,
+        "speedMps": 46.5,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-g4m-betty",
+      "spec": "g4m-betty",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -31828,
+          990,
+          -46564
+        ],
+        "headingDeg": 154.3,
+        "speedMps": 52.2,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-ki-21-sally",
+      "spec": "ki-21-sally",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -31828,
+          1120,
+          -48646
+        ],
+        "headingDeg": 205.7,
+        "speedMps": 58.5,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-ki-43-oscar",
+      "spec": "ki-43-oscar",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -30200,
+          1250,
+          -49945
+        ],
+        "headingDeg": 257.1,
+        "speedMps": 49.7,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-ki-84-frank",
+      "spec": "ki-84-frank",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -28170,
+          1380,
+          -49481
+        ],
+        "headingDeg": 308.6,
+        "speedMps": 63.8,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "ship-abukuma-cl",
+      "spec": "abukuma-cl",
+      "side": "axis",
+      "waypoints": [
+        [
+          -27666,
+          -47605
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-kagero-dd",
+      "spec": "kagero-dd",
+      "side": "axis",
+      "waypoints": [
+        [
+          -27916,
+          -48605
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-mogami-ca",
+      "spec": "mogami-ca",
+      "side": "axis",
+      "waypoints": [
+        [
+          -28166,
+          -48105
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-shiratsuyu-dd",
+      "spec": "shiratsuyu-dd",
+      "side": "axis",
+      "waypoints": [
+        [
+          -27666,
+          -47105
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-type-b-maru",
+      "spec": "type-b-maru",
+      "side": "axis",
+      "waypoints": [
+        [
+          -27666,
+          -48105
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-yamato-bb",
+      "spec": "yamato-bb",
+      "side": "axis",
+      "waypoints": [
+        [
+          -28166,
+          -47605
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "ship-zuikaku-cv",
+      "spec": "zuikaku-cv",
+      "side": "axis",
+      "waypoints": [
+        [
+          -28416,
+          -48605
+        ]
+      ],
+      "speedMps": 0
+    }
+  ],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 0,
+    "timeOfDay": 12
+  }
+}

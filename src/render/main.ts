@@ -114,6 +114,8 @@ import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import type { GodMode } from '../sim/godMode.js'
+import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -402,13 +404,24 @@ async function boot(): Promise<void> {
    * showed a practical way to trigger (every reference-GPU run has boot's
    * own call resolve first).
    */
+  /** God mode for the flight about to start (Dev only): the racks as launched are captured here, since `advance` cannot recover them once a bomb has gone. */
+  let godMode: GodMode | undefined
+  const godFor = (world: World, wanted: boolean): GodMode | undefined =>
+    wanted ? { stores: world.combat.aircraft[world.player]!.stores } : undefined
   const loadScenario = async (choice: SortieChoice): Promise<void> => {
     // The chosen aircraft replaces the scenario's player spec before the spec
     // fetch; the choice is validated against the rules (sortie spec: an
     // illegal non-Dev choice fails loudly, by name, through the caller's
     // showFailure); and a Dev loadout on a spec with no stations hangs the
     // Hellcat's layout (SF-R2, SF-R3).
-    const nextBundle = await loadScenarioBundle(choice.scenarioId, fetch, choice.aircraftSpec)
+    // Some missions have a second file for a Japanese pilot (`AXIS_VARIANTS`): which one loads depends on the side of the airplane chosen.
+    let scenarioFile = choice.scenarioId
+    if (AXIS_VARIANTS[scenarioFile] !== undefined) {
+      const res = await fetch(aircraftUrl(choice.aircraftSpec))
+      if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
+      scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
+    }
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev })
@@ -520,6 +533,10 @@ async function boot(): Promise<void> {
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
     const w = worldFromScenario(sortieBundle(bundle!, chosen.loadout, devStores), null, chosen.loadout)
+    // God mode (Dev only): from the title screen's checkbox, or `?god=1` in a
+    // DEV build for quick launches and tests. Captured per world, so a Restart
+    // refills the racks it counts against.
+    godMode = godFor(w, (chosen.dev && chosen.god === true) || (import.meta.env.DEV && new URLSearchParams(window.location.search).get('god') === '1'))
     // `forcedPilotSkill` replaces whatever skill the scenario's own content
     // pinned (e.g. pursuit-range.json's `veteran`) on every entity that has
     // a pilot at all; entities with no `pilot` (the player, any unpiloted
@@ -2371,7 +2388,7 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
-    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse)
+    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
