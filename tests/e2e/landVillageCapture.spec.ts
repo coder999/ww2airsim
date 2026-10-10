@@ -16,15 +16,22 @@ const VARIANTS = [
   { name: 'shipping', params: {} },
   { name: 'synth2', params: { drape: 'synth2' } },
   { name: 'synth2-villages', params: { drape: 'synth2', villages: 'on' } },
+  // Shipping again, last: the first run of a session carries warm-up in its tail.
+  { name: 'shipping-again', params: {} },
 ] as const
 const VIEWS = [
   { name: 'alt-1000ft', back: 2200, y: 1000 * FT },
   { name: 'alt-3000ft', back: 4500, y: 3000 * FT },
+  { name: 'alt-6000ft', back: 9000, y: 6000 * FT },
 ] as const
 
+const REPEATS = Number(process.env.LAND_REPEATS ?? 1)
+const ONLY = process.env.LAND_VIEW
 test.setTimeout(180_000)
-for (const view of VIEWS) for (const v of VARIANTS) {
-  test(`${view.name} ${v.name}`, async ({ page }) => {
+// Interleaved (r outermost) so slow drift on a shared GPU lands on every variant alike.
+for (let r = 0; r < REPEATS; r++) for (const view of VIEWS) for (const v of VARIANTS) {
+  if (ONLY !== undefined && view.name !== ONLY) continue
+  test(`${view.name} ${v.name} #${r}`, async ({ page }) => {
     mkdirSync(OUT, { recursive: true })
     await page.setViewportSize({ width: 2560, height: 1440 })
     const url = spawnUrl({ x: village.x - view.back, y: view.y, z: village.z })
@@ -38,10 +45,10 @@ for (const view of VIEWS) for (const v of VARIANTS) {
       errors: (window as DiagWindow).__ww2!.validationErrors,
     }))
     expect(t.gpu.length, 'no GPU timestamp samples').toBeGreaterThan(100)
-    console.log(`LANDTIME ${view.name} ${v.name} gpu p50 ${percentile(t.gpu, 0.5).toFixed(3)} p95 ${percentile(t.gpu, 0.95).toFixed(3)} ms over ${t.gpu.length}`)
+    console.log(`LANDTIME ${view.name} ${v.name} #${r} gpu p50 ${percentile(t.gpu, 0.5).toFixed(3)} p95 ${percentile(t.gpu, 0.95).toFixed(3)} ms over ${t.gpu.length}`)
     await page.keyboard.press('Slash')
     await page.waitForTimeout(600)
-    await page.screenshot({ path: `${OUT}/${view.name}-${v.name}.png` })
+    if (r === 0) await page.screenshot({ path: `${OUT}/${view.name}-${v.name}.png` })
     expect(t.errors).toEqual([])
   })
 }
