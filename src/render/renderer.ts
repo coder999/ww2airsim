@@ -31,7 +31,10 @@ export function normalizeGpuError(info: string | { message?: string }): string {
 /**
  * The device limits to request beyond WebGPU's defaults.
  *
- * Terrain level L0 is an 8193x8193 height texture (Asset Quality Medium and
+ * Raised for a whole-world terrain L0 texture. Since L1.1 (2026-10-10) L0 is a
+ * 1025-square window (`terrain/mesh.ts`) and nothing needs these limits that
+ * is known of; the request stays because it cannot fail. The history: L0 was
+ * an 8193x8193 height texture (Asset Quality Medium and
  * above), one texel past the default `maxTextureDimension2D` of 8192. Without
  * this request every GPU rejected it, the terrain bind group went invalid, and
  * the whole scene pass drew nothing but the clouds -- found on Mark's work

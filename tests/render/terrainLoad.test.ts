@@ -14,8 +14,8 @@ import {
   physicsFieldFor,
   TERRAIN_HEADER,
 } from '../../src/render/terrain/load.js'
-import { createTerrainMesh, sampleLevelsForRing } from '../../src/render/terrain/mesh.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelUrl } from '../../src/render/content.js'
+import { createTerrainMesh, sampleLevelsForRing, WINDOW_REACH_SAMPLES, WINDOW_SAMPLES } from '../../src/render/terrain/mesh.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER, terrainLevelUrl } from '../../src/render/content.js'
 import { LOD, selectNodes } from '../../src/render/terrain/lod.js'
 import { initialFrameState, withTerrain } from '../../src/render/frame.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
@@ -26,16 +26,14 @@ import { loadAircraftSpec } from '../../tools/content/load.js'
 import { loadTerrainLevel, TERRAIN_DIR } from '../../tools/terrain/load.js'
 
 /**
- * The level these tests exercise as "the" finest fetched level -- mirrors
- * `main.ts`'s own placeholder, `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`
- * (see its own comment for what it is and why), rather than hardcoding a
- * number, so this file measures the same level the app actually asks for
- * today. Before Task 2 (2026-09-24) `FINEST_FETCHED_LEVEL` was a fixed
+ * The level these tests exercise as "the" finest fetched level --
+ * `content.ts`'s `GROUND_TRUTH_TIER` (see its own comment for what it is and
+ * why; the L0 window has its own describe below). Before Task 2 (2026-09-24) `FINEST_FETCHED_LEVEL` was a fixed
  * constant this file imported directly; it is now a function of the Asset
  * Quality tier, tested in its own right below
  * (`describe('finestFetchedLevelFor', ...)`).
  */
-const FINEST_FETCHED_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const FINEST_FETCHED_LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 
 /**
  * Sample edge of one pyramid level, computed from the exponent rather than
@@ -147,13 +145,11 @@ describe('finestFetchedLevelFor', () => {
     // (L0) -- they differ only in how much real texture/asset headroom a
     // later spec adds on top, which does not exist yet.
     //
-    // The literal `'low'`, not `INTERIM_ASSET_QUALITY_TIER`, is deliberate
+    // The literal `'low'`, not `GROUND_TRUTH_TIER`, is deliberate
     // here: this test is pinning the TIER-TO-LEVEL MAPPING's contract (`low`
     // means 1, full stop), which must hold regardless of which tier
-    // `main.ts` currently uses as its placeholder -- unlike the
-    // `GROUND_TRUTH_LEVEL`-style constants elsewhere in this file and
-    // others, which deliberately DO track `INTERIM_ASSET_QUALITY_TIER` so
-    // they keep measuring whatever the app actually flies over.
+    // is the default -- unlike the `GROUND_TRUTH_LEVEL`-style constants
+    // elsewhere, which track `GROUND_TRUTH_TIER`.
     expect(finestFetchedLevelFor('low')).toBe(1)
     expect(finestFetchedLevelFor('medium')).toBe(0)
     expect(finestFetchedLevelFor('high')).toBe(0)
@@ -356,6 +352,119 @@ describe('terrain mesh', () => {
   })
 })
 
+describe('terrain levels held on demand (L1.1, 2026-10-10)', () => {
+  const coarsest = TERRAIN_HEADER.levels - 1
+  /** Every height-texture byte a mesh holds, whole levels and windows alike. */
+  function heightTextureBytes(mesh: ReturnType<typeof createTerrainMesh>): number {
+    let bytes = 0
+    for (let level = 0; level <= coarsest; level++) {
+      for (const get of [() => mesh.levelTexture(level), () => mesh.levelWindow(level).texture]) {
+        try {
+          bytes += (get().image.data as Float32Array).byteLength
+        } catch {
+          // not held this way
+        }
+      }
+    }
+    return bytes
+  }
+
+  it('costs an L0 floor one window more than an L1 floor, not a whole L0 texture', () => {
+    // Before L1.1 an L0 floor allocated every level whole: 358,043,428 bytes,
+    // which is what kept the first-visit default at Low (fetchedLevel.ts).
+    const fromL0 = createTerrainMesh(TERRAIN_HEADER, 0)
+    const fromL1 = createTerrainMesh(TERRAIN_HEADER, 1)
+    expect(heightTextureBytes(fromL0)).toBe(heightTextureBytes(fromL1) + WINDOW_SAMPLES ** 2 * 4)
+    expect(heightTextureBytes(fromL0)).toBeLessThan(100e6)
+    // The ocean needs a whole-world grid; a window would silently map the
+    // whole world onto a few miles of it.
+    expect(fromL0.wholeLevel).toBe(1)
+    expect(() => fromL0.levelTexture(0)).toThrow(/window/)
+    expect(fromL0.levelTexture(fromL0.wholeLevel).image.width).toBe(samplesAtLevel(TERRAIN_HEADER, 1))
+  })
+
+  // A synthetic L0: 134 MB, as the real level is, built inside the one test that uses it.
+  const n0 = samplesAtLevel(TERRAIN_HEADER, 0)
+  const sample = (row: number, col: number): number => ((row * 7 + col * 13) % 20000) - 10000
+
+  it('fills the window with the level, in metres, where the origin says, and refills it as the camera moves', () => {
+    const mesh = createTerrainMesh(TERRAIN_HEADER, 0)
+    const l0 = new Int16Array(n0 * n0)
+    for (let r = 0; r < n0; r++) for (let c = 0; c < n0; c++) l0[r * n0 + c] = sample(r, c)
+    mesh.setLevel(0, l0)
+    const check = (): void => {
+      const { texture, origin } = mesh.levelWindow(0)
+      const data = texture.image.data as Float32Array
+      for (const [r, c] of [[0, 0], [WINDOW_SAMPLES - 1, WINDOW_SAMPLES - 1], [17, 300], [400, 3]] as const) {
+        expect(data[r * WINDOW_SAMPLES + c]).toBeCloseTo(sample(origin.y + r, origin.x + c) / 10, 4)
+      }
+    }
+    mesh.update(3e3, -47e3)
+    check()
+    const { texture, origin } = mesh.levelWindow(0)
+    const before = { x: origin.x, y: origin.y, version: texture.version }
+    mesh.update(3e3 + 100, -47e3) // a few samples: no refill
+    expect([origin.x, origin.y, texture.version]).toEqual([before.x, before.y, before.version])
+    mesh.update(40e3, 20e3) // miles away: re-centred and refilled
+    expect(origin.x).not.toBe(before.x)
+    expect(texture.version).toBeGreaterThan(before.version)
+    check()
+  })
+
+  it('keeps every patch inside the windows of the levels it reads, along flights across the world', () => {
+    // The guard on WINDOW_REACH_SAMPLES: a patch reading past its window's
+    // edge draws clamped, wrong terrain with no error anywhere. Walked rather
+    // than jumped, so the window lags the camera as it does in flight.
+    const mesh = createTerrainMesh(TERRAIN_HEADER, 0)
+    const half = TERRAIN_HEADER.halfExtentM
+    const paths = [
+      [-99_000, -99_000, 99_000, 99_000],
+      [99_000, -60_000, -99_000, 10_000],
+      [-20_000, 99_000, 30_000, -99_000],
+      [-99_500, 99_500, 99_500, 99_500],
+    ] as const
+    let checked = 0
+    for (const [x0, z0, x1, z1] of paths) {
+      for (let t = 0; t <= 1; t += 1 / 1000) {
+        const x = x0 + (x1 - x0) * t
+        const z = z0 + (z1 - z0) * t
+        mesh.update(x, z)
+        for (const node of selectNodes(x, z)) {
+          const { fine, coarse } = sampleLevelsForRing(node.ring, 0, coarsest)
+          for (const level of new Set([fine, coarse])) {
+            let origin
+            try {
+              origin = mesh.levelWindow(level).origin
+            } catch {
+              continue // held whole
+            }
+            const n = samplesAtLevel(TERRAIN_HEADER, level)
+            const step = (2 * half) / (n - 1)
+            const lo = (v: number) => Math.max(0, Math.floor((v - node.sizeM / 2 + half) / step))
+            const hi = (v: number) => Math.min(n - 1, Math.ceil((v + node.sizeM / 2 + half) / step))
+            // The reach the window is placed by bounds the reach the rings
+            // actually have. Only at the moment of a refill does the window's
+            // edge sit that close, so this is the check that sees a reach
+            // set too small (250 against the measured 256 fails here).
+            const cx = (x + half) / step
+            const cz = (z + half) / step
+            expect(lo(node.centreX)).toBeGreaterThanOrEqual(Math.floor(cx) - WINDOW_REACH_SAMPLES)
+            expect(hi(node.centreX)).toBeLessThanOrEqual(Math.ceil(cx) + WINDOW_REACH_SAMPLES)
+            expect(lo(node.centreZ)).toBeGreaterThanOrEqual(Math.floor(cz) - WINDOW_REACH_SAMPLES)
+            expect(hi(node.centreZ)).toBeLessThanOrEqual(Math.ceil(cz) + WINDOW_REACH_SAMPLES)
+            expect(lo(node.centreX)).toBeGreaterThanOrEqual(origin.x)
+            expect(hi(node.centreX)).toBeLessThanOrEqual(origin.x + WINDOW_SAMPLES - 1)
+            expect(lo(node.centreZ)).toBeGreaterThanOrEqual(origin.y)
+            expect(hi(node.centreZ)).toBeLessThanOrEqual(origin.y + WINDOW_SAMPLES - 1)
+            checked++
+          }
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(1000)
+  })
+})
+
 describe('load/mesh coupling', () => {
   it('the loader and the mesh agree on the coarsest level a ring can reach', async () => {
     // Until review round 2, `load.ts` and `mesh.ts` each wrote their own copy
@@ -484,7 +593,11 @@ describe('terrain under the airplane', () => {
     // Drawn, but NOT given to the physics: a coarse mip averages peaks down
     // and valleys up, and `advance` never overwrites the first impact it
     // records (load.ts's `physicsFieldFor`).
-    expect(seen).toEqual([{ level: coarseLevel, data: coarseData }])
+    // Identity, not `toEqual`: at an L0 floor the coarse level is L1, 16.8M
+    // samples, and `toEqual` walking it ran the worker out of heap (L1.1).
+    expect(seen.length).toBe(1)
+    expect(seen[0]!.level).toBe(coarseLevel)
+    expect(seen[0]!.data).toBe(coarseData)
     expect(afterCoarse.world.terrain).toBeNull()
 
     const n = samplesAtLevel(TERRAIN_HEADER, FINEST_FETCHED_LEVEL)

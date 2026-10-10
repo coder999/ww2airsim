@@ -32,32 +32,38 @@ export function finestFetchedLevelFor(tier: AssetQualityTierName): number {
 }
 
 /**
- * The Asset Quality tier every page load uses until a later task (Task 6,
- * `docs/superpowers/plans/2026-09-24-plan-ui-realism.md`) reads a real,
- * persisted choice into the boot sequence. `main.ts`'s `finestFetchedLevel`
- * and `terrain/mesh.ts`'s `finestLevel` parameter both trace back to this
- * one constant (`main.ts` is the only call site; `mesh.ts` takes the level
- * as a parameter rather than resolving its own, precisely so the two cannot
- * independently disagree -- Task 2 review, 2026-09-25).
+ * The first-visit Asset Quality tier: what a page load uses when nothing is
+ * persisted (`settings.ts`, `bootQuality.ts`). The name is historical; since
+ * Task 6 (2026-09-24) it has been the first-visit default, not a placeholder.
  *
- * Every test that measures "ground truth" against what the app actually
- * flies over today imports THIS constant too, rather than hardcoding `'low'`
- * a second time -- so if a future change flips this single value, every one
- * of those tests moves with it instead of silently measuring a level the
- * app no longer uses.
+ * `'medium'` since L1.1 (2026-10-10), the render-quality-selector spec §10
+ * default and Mark's 2026-09-27 ruling: full L0 terrain (80 ft posts). It was
+ * `'low'` until then because the terrain mesh allocated every level whole, an
+ * L0 floor costing 358 MB of height textures; L0 is now held as a window
+ * around the camera (`terrain/mesh.ts`, `WINDOW_SAMPLES`). The cost a first
+ * visit still pays is the 134 MB `L0.bin` download, before the game can fly
+ * (handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`).
  *
- * Deliberately `'low'`, not the design spec's eventual `'medium'`
- * first-visit default (`docs/superpowers/specs/2026-09-24-render-quality-
- * selector-design.md` §10 addendum): `createTerrainMesh` allocates one
- * `Float32Array(n^2)` per level from the floor upward, all at once, for the
- * life of the mesh -- an L0 floor is ~358 MB of textures per instance
- * (8193x8193's 268 MB alone) against ~90 MB starting from L1, and nothing
- * has added lazy/on-demand allocation to fix that yet. Measured 2026-09-24:
- * an L0 floor OOM'd a single vitest worker running ~15 `createTerrainMesh`
- * calls in one file ("JavaScript heap out of memory" at ~4.1 GB), and the
- * same allocation runs in a real browser tab the instant this flips to
- * `'medium'` -- a real memory ceiling, not a test-only inconvenience.
- * `'medium'` would also mean every real page load unconditionally fetches
- * the 134 MB `L0.bin`, with no Settings UI yet to opt out.
+ * Tests that measure "ground truth" do NOT follow this any more; they read
+ * `GROUND_TRUTH_TIER`, below.
  */
-export const INTERIM_ASSET_QUALITY_TIER: AssetQualityTierName = 'low'
+export const INTERIM_ASSET_QUALITY_TIER: AssetQualityTierName = 'medium'
+
+/**
+ * The tier whose finest level the headless suite measures the world against
+ * (landings, takeoff runs, missions, the soak, airfield and village
+ * placement): Low, L1. It equalled the first-visit default until L1.1
+ * (2026-10-10) and was split from it there, on purpose:
+ *
+ * - CI checks out without Git LFS (`ci.yml`), and L0 is LFS, so a suite on L0
+ *   would skip nearly every terrain test in CI. L1 is a plain blob.
+ * - About 25 files hold numbers calibrated on L1 (a landing snapshot, the
+ *   Zero's Dulag takeoff run, mission outcomes). Moved to L0 on 2026-10-10,
+ *   seven tests in six files failed on calibration, and the soak ran out of
+ *   memory. Re-measuring them on L0 is an open item (L1.1 handoff).
+ *
+ * The consequence, stated: by default the game now flies over L0 while these
+ * tests fly over L1 (worst |L0 - L1| 40.35 m, `terrainLod.test.ts`). The E2E
+ * specs, which run in the browser, fly what the player does.
+ */
+export const GROUND_TRUTH_TIER: AssetQualityTierName = 'low'

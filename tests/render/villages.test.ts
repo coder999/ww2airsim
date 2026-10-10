@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { Mesh } from 'three'
 import { createTerrainField, heightAt } from '../../src/sim/world/terrain.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 import { loadAirfield } from '../../tools/content/load.js'
 import { inAirfieldClearing } from '../../src/render/scene/airfield.js'
 import { nearTownHut } from '../../src/render/scene/vegetation.js'
@@ -10,7 +10,7 @@ import { createVillages, villageFootprints, villageHuts, type Village } from '..
 import villagesData from '../../content/scenery/villages.json'
 
 const header = loadTerrainHeader()
-const level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const level = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 const field = createTerrainField(header, level, loadTerrainLevel(level, header))
 const airfields = [loadAirfield('tacloban'), loadAirfield('dulag')]
 const villages = villagesData as readonly Village[]

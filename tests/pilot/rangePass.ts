@@ -1,6 +1,6 @@
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/fetchedLevel.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/fetchedLevel.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { localToWorld, runwayHeadingRad } from '../../src/sim/world/airfields.js'
 import { restPitchRad, wheelDepthM } from '../../src/sim/gearContact.js'
@@ -38,9 +38,9 @@ export const RANGE_PASS = {
   flareHeightM: 5,
 } as const
 
-/** The terrain a real page load flies over (`INTERIM_ASSET_QUALITY_TIER`). */
+/** The terrain the headless suite measures on (`GROUND_TRUTH_TIER`). */
 export function groundTruthTerrain(): TerrainField {
-  const level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+  const level = finestFetchedLevelFor(GROUND_TRUTH_TIER)
   const header = loadTerrainHeader()
   return createTerrainField(header, level, loadTerrainLevel(level, header))
 }

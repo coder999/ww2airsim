@@ -12,6 +12,15 @@ The first hand-off (screenshots, the measured GPU frame cost, the LOD
 height-error tables) is
 [`handoff/2026-09-14-plan4-terrain.md`](handoff/2026-09-14-plan4-terrain.md).
 
+## Height textures: L0 is a window around the camera
+
+Since L1.1 (2026-10-10) the default Asset Quality is Medium, whose finest level is L0. The mesh
+holds L0 as a 1025-square window around the camera, refilled from the decoded level when the
+camera nears its edge, and every coarser level whole; the ocean reads L1, the finest whole level.
+How and why, with the measured reach: `src/render/terrain/mesh.ts` (`FINEST_WHOLE_LEVEL`,
+`WINDOW_SAMPLES`, `WINDOW_REACH_SAMPLES`). Memory, download and time to ready, before and after:
+[`handoff/2026-10-10-l1-1-terrain-on-demand.md`](handoff/2026-10-10-l1-1-terrain-on-demand.md).
+
 ## Curved shoreline render surface
 
 The simulation DEM and `heightAt` still define land, contact and physics.  The

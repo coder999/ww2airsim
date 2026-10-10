@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { loadAircraftSpec, loadScenario, bundleForScenario, loadShipSpec } from '../../tools/content/load.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { advance, playerAircraft, withControls, type World } from '../../src/sim/loop.js'
@@ -29,7 +29,7 @@ import { length, v3 } from '../../src/sim/math/vec3.js'
  * flaps 1, 1 m before the bow).
  */
 
-const LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 const START_FROM_STERN_M = 7
 const PULL_AIRSPEED_MPS = 40
 const NOSE_DOWN_STALL_MULTIPLE = 1.05

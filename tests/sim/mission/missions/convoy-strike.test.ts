@@ -25,7 +25,7 @@
  *   a north wind is a headwind for the northbound approach. Clouds and time
  *   of day are the plan's.
  * - **Nothing else needed tuning.** The success run, measured 2026-09-27 at
- *   terrain level `finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)` (L1):
+ *   terrain level `finestFetchedLevelFor(GROUND_TRUTH_TIER)` (L1):
  *   Convoy complete and "two down" at tick 3 (staged), the vector call at
  *   tick 60, landed at Tacloban at tick 7538 (before the 2026-09-28 move of the recovery field to Bayug, which is closer; re-measure).
  */
