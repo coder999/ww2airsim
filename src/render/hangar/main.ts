@@ -1,4 +1,5 @@
 // src/render/hangar/main.ts
+import { setEnsignTime } from '../scene/ensign.js'
 import { initRenderer, normalizeGpuError } from '../renderer.js'
 import { showFailure, type FailureKind } from '../failure.js'
 import { buildCatalog, drawable, type CatalogEntry } from './catalog.js'
@@ -91,7 +92,10 @@ async function boot(): Promise<void> {
     else stage.setAutoRotate(on)
   }
   // One frame of the bench: a running Cycle, then the model's own clock.
+  let ensignS = 0
   const step = (frameS: number): void => {
+    ensignS += frameS
+    setEnsignTime(ensignS)
     const p = controller.advance(frameS)
     if (p) {
       model?.pose(p)

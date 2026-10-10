@@ -3,6 +3,7 @@ import { readdirSync } from 'node:fs'
 import { loadShipSpec } from '../../../tools/content/load.js'
 
 const roster = {
+  'abukuma-cl': 'cruiser',
   'casablanca-cve': 'carrier',
   'cleveland-cl': 'cruiser',
   'essex-cv': 'carrier',
@@ -44,6 +45,7 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
   // entries; a light AA entry is one gun tub, or one gallery of 20 mm singles. Counts follow
   // the late-1944 fits cited in each spec's reference.source; the merchant carries none.
   const fits: Record<string, readonly [number, number, number] | null> = {
+    'abukuma-cl': [5, 1, 4], // four 25 mm triples, for balance, not history (Mark, M1f F3)
     'casablanca-cve': [1, 0, 12],
     'cleveland-cl': [4, 6, 14],
     'essex-cv': [8, 0, 4], // cut to four 40 mm quads for balance, not history (Mark, M1d)

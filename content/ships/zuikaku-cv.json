@@ -20,7 +20,7 @@
     "cutRangeM": 120,
     "waveOffRangeM": 250
   },
-  "view": {"model": "zuikaku-cv"},
+  "view": { "model": "zuikaku-cv", "ensign": { "flag": "ijn-rising-sun", "at": [39.5, 28.0, 11.7], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": 36.55, "y": 11.51, "z": 15.0, "bearingDeg": 90, "kit": "mount-127mm-twin-ijn", "barrels": 2, "aa": "heavy"},

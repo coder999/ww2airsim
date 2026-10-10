@@ -4,6 +4,7 @@ import type { ShipSpec } from '../../sim/world/ships.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import type { ModelInstance } from '../models/modelCache.js'
 import { SHIP_PALETTES } from './shipPalette.js'
+import { createEnsign } from './ensign.js'
 
 /** A fixed list angle once a hull is taking on water, degrees (Plan 6b Task
  *  8, spec §4). Always the same side -- a ship that could list either way
@@ -295,8 +296,11 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
   const kit = instanceMounts(instance.root)
   hullGroup.add(instance.root)
   if (band) hullGroup.add(band)
+  const ensign = createEnsign(spec) // its texture is shared per flag: dispose only the geometry and material
+  if (ensign) hullGroup.add(ensign)
   return finishView(root, hullGroup, smokeAt, modelId, () => {
     if (band) disposeMeshTree(band)
+    if (ensign) { ensign.geometry.dispose(); ensign.material.dispose() }
     kit.dispose()
     instance.release()
   }, kit.mounts)
@@ -308,13 +312,13 @@ export function createShipView(spec: ShipSpec, modelId: string, instance: ModelI
  * proof that what the eye lands on is what the sim rests the wheels on, in the
  * real renderer and not only in Node math). `'ship'` points are in the ship's
  * own frame (+x bow, midships 0); `'world'` points are world x, z. The smoke
- * origin marker is not a surface and is skipped.
+ * origin marker and the ensign are not surfaces and are skipped.
  */
 export function probeShipSurface(view: ShipView, points: readonly { readonly x: number; readonly z: number }[], space: 'ship' | 'world'): (number | null)[] {
   view.root.updateWorldMatrix(true, true)
   const hullGroup = view.root.getObjectByName('hull group')
   if (!hullGroup) return points.map(() => null)
-  const targets = hullGroup.children.filter((c) => c.name !== 'smoke origin')
+  const targets = hullGroup.children.filter((c) => c.name !== 'smoke origin' && c.name !== 'ensign')
   const above = new Box3().setFromObject(hullGroup).max.y + 10
   const ray = new Raycaster()
   const down = new Vector3(0, -1, 0)
