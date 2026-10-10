@@ -30,6 +30,8 @@ for (const [name, at, waitMs] of [
   ['low-close', { x: SHIP.x - 700, y: 100, z: SHIP.z + 250 }, 4000],
   // High: the scenario's own start, 2,000 ft and two miles east of the destroyer heading west: only the flak reaches.
   ['high-2mi', null, 14_000],
+  // 6,000 ft, from three miles west of the destroyer, heading east at it: the flak at the height the gate views use.
+  ['high-6000ft', { x: SHIP.x - 5200, y: 1830, z: SHIP.z }, 24_000],
 ] as const) {
   test(`aa-range ${name}: the destroyer shoots and it can be seen`, async ({ page }) => {
     mkdirSync(OUT, { recursive: true })
@@ -41,10 +43,14 @@ for (const [name, at, waitMs] of [
     await page.waitForTimeout(waitMs)
     await page.keyboard.press('Slash')
     await page.waitForTimeout(400)
+    // At 6,000 ft the flak scatters wide while the guns range in, so a puff is in the picture only some of the time: keep a short series.
+    if (name === 'high-6000ft') {
+      for (let k = 0; k < 8; k++) { await page.screenshot({ path: `${OUT}/aa-${name}-${k}.png` }); await page.waitForTimeout(1500) }
+    }
     const state = await aa(page)
     // The guns have been firing at this airplane; God mode kept it flying.
     expect(state.rounds + state.pendingBursts + state.burstsRecent + state.firing, 'the AA is firing').toBeGreaterThan(0)
-    if (name !== 'high-2mi') expect(state.burstsRecent + state.rounds, 'tracers or flak in the air').toBeGreaterThan(0)
+    if (!name.startsWith('high')) expect(state.burstsRecent + state.rounds, 'tracers or flak in the air').toBeGreaterThan(0)
     await page.screenshot({ path: `${OUT}/aa-${name}.png` })
     expect((await snapshot(page)).errors).toEqual([])
     expect(errors).toEqual([])
