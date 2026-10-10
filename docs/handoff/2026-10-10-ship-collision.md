@@ -1,6 +1,6 @@
 # Air-to-ship collision (2026-10-10)
 
-Plan: `docs/superpowers/plans/2026-10-10-ship-collision.md`. Branch `ship-collision`, cut from `main` `7704b8bf`, unattended, final product only. Viewing checkpoint: the captures below.
+Plan: `docs/superpowers/plans/2026-10-10-ship-collision.md`. Branch `ship-collision` (merged to `main` 2026-10-10 and removed), cut from `main` `7704b8bf`, unattended, final product only. Viewing checkpoint: the captures below.
 
 ## What was built
 

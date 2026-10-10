@@ -1,6 +1,6 @@
 # Air-to-ship collision
 
-**Status (2026-10-10):** in progress on branch `ship-collision` (cut from `main` `7704b8bf`). Master plan: a one-line rule under Track E item 2 (E2's kamikaze text is rewritten). Handoff (when done): `docs/handoff/2026-10-10-ship-collision.md`.
+**Status (2026-10-10):** built and merged to `main` (branch `ship-collision`, cut from `main` `7704b8bf`, since removed). The kamikaze rework (task 6) is NOT done: it is parked on `ship-collision-kamikaze-wip`. Master plan: a one-line rule under Track E item 2 (E2's kamikaze text is rewritten). Handoff (when done): `docs/handoff/2026-10-10-ship-collision.md`.
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode:** unattended.
 **Location:** a worktree.
