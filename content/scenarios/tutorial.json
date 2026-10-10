@@ -97,7 +97,7 @@
       "priority": "primary",
       "kind": "state",
       "altitudeM": [
-        457,
+        457.2,
         1524
       ],
       "after": "gear-up"
