@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { advance, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
@@ -104,4 +105,26 @@ describe('formation level bombing', () => {
     expect(r.leadImpacts.some((p) => p.x > 30)).toBe(true) // long
     expect(Math.min(...r.impacts.map((p) => Math.hypot(p.x, p.z)))).toBeLessThan(60)
   })
+})
+
+describe('the Bomber Range (Dev): Mark\'s test bed for E3', () => {
+  it('its four bombers hold one formation to Tacloban and bomb it', () => {
+    // Measured 2026-10-10 (terrain null): station errors held at 2-19 m all the way, the B-17, B-29 and Ki-21
+    // dropped everything at about 330-360 s; the G4M carries a torpedo, which a wingman never drops.
+    const raw = JSON.parse(readFileSync('content/scenarios/bomber-range.json', 'utf8')) as unknown
+    let w = worldFromScenario(bundleForScenario(parseScenario(raw)), null)
+    const wings = ['superfort-1', 'betty-1', 'sally-1']
+    let worst = 0
+    for (let t = 0; t < Math.round(420 / DT); t++) {
+      w = advance(w, DT).world
+      const lead = w.aircraft.find((a) => a.id === 'fort-1')!
+      for (const id of wings) {
+        const a = w.aircraft.find((x) => x.id === id)!
+        worst = Math.max(worst, stationErrorM(a, lead, a.pilot!.formation!.slot))
+      }
+    }
+    expect(worst).toBeLessThan(40)
+    for (const id of ['fort-1', 'superfort-1', 'sally-1']) expect(w.combat.aircraft[id]!.stores.bombs, id).toBe(0)
+    expect(w.combat.aircraft['betty-1']!.stores.bombs).toBe(1)
+  }, 60_000)
 })
