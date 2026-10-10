@@ -43,12 +43,14 @@ export type AaRun = {
   readonly lightHits: number
   readonly bursts: number
   readonly burstsInRadius: number
+  /** The world when the run ended. */
+  readonly world: World<undefined>
 }
 
 const base = JSON.parse(readFileSync(new URL('../../../content/scenarios/aa-range.json', import.meta.url), 'utf8')) as Record<string, unknown>
 const SHIP = { x: -27916, z: -48605 }
 
-export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd'): World<undefined> {
+export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd', shipSide: 'axis' | 'allied' = 'axis'): World<undefined> {
   const phase = (seed * 0.61803398875) % 1
   const orbit = profile !== 'pass'
   // Orbit: start on the ring, heading counter-clockwise tangent. Pass: start west of the ship, heading east.
@@ -63,7 +65,7 @@ export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd'): 
     ...base,
     airfieldSides: { tacloban: 'allied' },
     aircraft: [{ id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position, headingDeg, speedMps: speedOf(profile) } }],
-    ships: [{ id: 'dd-1', spec: ship, side: 'axis', waypoints: [[SHIP.x, SHIP.z]], speedMps: 0 }],
+    ships: [{ id: 'dd-1', spec: ship, side: shipSide, waypoints: [[SHIP.x, SHIP.z]], speedMps: 0 }],
   })
   const w = worldFromScenario(bundleForScenario(scenario), null)
   return { ...w, combat: { ...w.combat, aa: initialAa(seed + 1) } }
@@ -103,10 +105,10 @@ export function runAa(profile: Profile, seed: number, ship = 'fletcher-dd', seco
     tally()
     const d = w.combat.aircraft[id]!.damage
     if (d.burningSince !== null || d.destroyedAt !== null || playerAircraft(w).impact !== null) {
-      return { lostS: (i + 1) * DT, structure: d.structure, seconds: (i + 1) * DT, lightHits, bursts, burstsInRadius }
+      return { lostS: (i + 1) * DT, structure: d.structure, seconds: (i + 1) * DT, lightHits, bursts, burstsInRadius, world: w }
     }
   }
-  return { lostS: null, structure: w.combat.aircraft[id]!.damage.structure, seconds, lightHits, bursts, burstsInRadius }
+  return { lostS: null, structure: w.combat.aircraft[id]!.damage.structure, seconds, lightHits, bursts, burstsInRadius, world: w }
 }
 
 export type Sweep = { readonly runs: number; readonly meanLightHits: number; readonly meanBursts: number; readonly meanBurstsInRadius: number; readonly lost: number; readonly lostTimes: readonly number[]; readonly medianLostS: number | null; readonly meanStructure: number }
@@ -123,4 +125,24 @@ export function sweep(profile: Profile, seeds: number, ship = 'fletcher-dd'): Sw
     medianLostS: times.length === 0 ? null : times[Math.floor(times.length / 2)]!,
     meanStructure: results.reduce((s, r) => s + r.structure, 0) / seeds,
   }
+}
+
+/**
+ * The cost bed: the Range Test with EVERY warship armed and hostile (the Japanese six from `range-test`
+ * and the Allied five from `range-test-axis`, all flagged axis, plus both cargo ships, which have no guns),
+ * and the Hellcat circling in the middle of them at 300 ft. Terrain null.
+ */
+export function crowdedWorld(): World<undefined> {
+  const read = (id: string): Record<string, unknown> => JSON.parse(readFileSync(new URL(`../../../content/scenarios/${id}.json`, import.meta.url), 'utf8')) as Record<string, unknown>
+  const a = read('range-test') as { ships: { id: string }[] }, b = read('range-test-axis') as { ships: { id: string }[] }
+  const centre = { x: -27916, z: -48105 }
+  const ships = [...a.ships, ...b.ships.map((s) => ({ ...s, id: `${s.id}-b` }))].map((s, k) => ({
+    ...s, side: 'axis', waypoints: [[centre.x + ((k % 4) - 1.5) * 300, centre.z + (Math.floor(k / 4) - 1) * 300]], speedMps: 0,
+  }))
+  const scenario = parseScenario({
+    id: 'aa-crowded', player: 'f6f-1', airfields: ['tacloban'], airfieldSides: { tacloban: 'allied' },
+    aircraft: [{ id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position: [centre.x + 400, HEIGHT_M, centre.z], headingDeg: 0, speedMps: LINGER_MPS } }],
+    ships, weather: { windFromDeg: 0, windMps: 0, timeOfDay: 12 },
+  })
+  return worldFromScenario(bundleForScenario(scenario), null)
 }
