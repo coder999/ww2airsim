@@ -64,6 +64,16 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   "Cease fire! Cease fire! You're hitting friendlies!": 'radio_wingman_friendly_fire',
   // Lands with the missed pass's own wave-off call; a second voice on top would sound wrong.
   'No wave-offs: failed': null,
+  // The tutorial's instructor (B4) is text-only, deliberately: no recordings, so an edit to a line costs nothing.
+  "Instructor: Welcome to Tacloban. Hold = to bring the throttle to full, and keep your brakes off.": null,
+  "Instructor: Rolling. Hold her straight with Z and X, ease back on the stick (S) at 85 miles an hour, and let her fly off.": null,
+  "Instructor: Airborne. Raise the gear: G.": null,
+  "Instructor: Gear's up. Climb above fifteen hundred feet.": null,
+  "Instructor: Good. Follow the amber arrow to the marker over the bay, three miles northeast.": null,
+  "Instructor: Now strafe the two parked Hellcats at the south end of the strip. Line up, close inside a thousand feet, and fire: Space.": null,
+  "Instructor: Targets down. Bombs away on the cargo ship in the bay if you have them: U shows where a bomb will land, V drops one. Then join the final.": null,
+  "Instructor: On the final. Gear down (G), flaps down (F), and slow to under 120 miles an hour.": null,
+  "Instructor: Good. Line up on the runway and put her down.": null,
   // The dev scenarios (dev-mission-ui.json) have no recorded lines.
   'Tower: cleared for takeoff.': null,
   'Tower: a friendly is passing overhead.': null,

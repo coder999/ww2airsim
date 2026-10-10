@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })

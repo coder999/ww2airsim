@@ -118,7 +118,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
+      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'tutorial', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
       'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
@@ -142,6 +142,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['airfield-strike']).toBe('Airfield Strike')
     expect(labels['convoy-strike']).toBe('Convoy Strike')
     expect(labels['combat-air-patrol']).toBe('Combat Air Patrol')
+    expect(labels.tutorial).toBe('Basic Flying')
     expect(labels.scramble).toBe('Scramble')
     expect(labels['single-combat']).toBe('Single Combat')
   })
@@ -150,9 +151,10 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.label.includes('Deck Quals')).map((o) => o.value)).toEqual(['deck-quals'])
   })
 
-  it('without Dev, exactly the M3, M4 and F2 missions, each with its badge; every other row is a range (M2 R5, A1)', () => {
+  it('without Dev, exactly the B4, M3, M4 and F2 missions, the tutorial first, each with its badge; every other row is a range (M2 R5, A1)', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
       .toEqual([
+        ['tutorial', { id: 'basic-flying', name: 'Basic Flying' }],
         ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],
         ['airfield-strike', { id: 'airfield-strike', name: 'Airfield Strike' }],
         ['convoy-strike', { id: 'convoy-strike', name: 'Convoy Strike' }],

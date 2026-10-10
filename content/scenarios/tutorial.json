@@ -1,0 +1,294 @@
+{
+  "id": "tutorial",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": "runwayCenter"
+      },
+      "chocked": false
+    },
+    {
+      "id": "target-1",
+      "spec": "f6f-hellcat",
+      "tags": [
+        "target"
+      ],
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": 0,
+          "z": 550
+        }
+      },
+      "chocked": true
+    },
+    {
+      "id": "target-2",
+      "spec": "f6f-hellcat",
+      "tags": [
+        "target"
+      ],
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": {
+          "x": -12,
+          "z": 500
+        }
+      },
+      "chocked": true
+    }
+  ],
+  "ships": [
+    {
+      "id": "maru-1",
+      "spec": "type-b-maru",
+      "side": "axis",
+      "waypoints": [
+        [
+          -23666,
+          -47605
+        ]
+      ],
+      "speedMps": 0
+    }
+  ],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 3,
+    "timeOfDay": 9
+  },
+  "objectives": [
+    {
+      "id": "throttle",
+      "label": "Full throttle",
+      "priority": "primary",
+      "kind": "state",
+      "throttle": [
+        0.9,
+        1
+      ]
+    },
+    {
+      "id": "up",
+      "label": "Take off",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "tacloban",
+      "after": "throttle"
+    },
+    {
+      "id": "gear-up",
+      "label": "Gear up",
+      "priority": "primary",
+      "kind": "state",
+      "gear": "up",
+      "after": "up"
+    },
+    {
+      "id": "climb",
+      "label": "Climb above 1,500 ft",
+      "priority": "primary",
+      "kind": "state",
+      "altitudeM": [
+        457,
+        1524
+      ],
+      "after": "gear-up"
+    },
+    {
+      "id": "marker",
+      "label": "Fly to the marker",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -25666,
+        "z": -50605
+      },
+      "radiusM": 1500,
+      "altitudeM": [
+        150,
+        1524
+      ],
+      "after": "climb"
+    },
+    {
+      "id": "strafe",
+      "label": "Strafe the parked Hellcats",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "target"
+      ],
+      "after": "marker"
+    },
+    {
+      "id": "bomb",
+      "label": "Bomb the cargo ship",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "maru-1"
+      ],
+      "after": "strafe"
+    },
+    {
+      "id": "final",
+      "label": "Join the final",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -29666,
+        "z": -42805
+      },
+      "radiusM": 1500,
+      "altitudeM": [
+        100,
+        700
+      ],
+      "after": "strafe"
+    },
+    {
+      "id": "config",
+      "label": "Gear and flaps down, under 120 mph",
+      "priority": "primary",
+      "kind": "state",
+      "gear": "down",
+      "flaps": "down",
+      "airspeedMps": [
+        0,
+        53.6
+      ],
+      "after": "final"
+    },
+    {
+      "id": "land",
+      "label": "Land",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "config"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "welcome",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Instructor: Welcome to Tacloban. Hold = to bring the throttle to full, and keep your brakes off."
+        }
+      ]
+    },
+    {
+      "id": "rolling",
+      "when": {
+        "completed": "throttle"
+      },
+      "then": [
+        {
+          "message": "Instructor: Rolling. Hold her straight with Z and X, ease back on the stick (S) at 85 miles an hour, and let her fly off."
+        }
+      ]
+    },
+    {
+      "id": "airborne",
+      "when": {
+        "completed": "up"
+      },
+      "then": [
+        {
+          "message": "Instructor: Airborne. Raise the gear: G."
+        }
+      ]
+    },
+    {
+      "id": "gear-is-up",
+      "when": {
+        "completed": "gear-up"
+      },
+      "then": [
+        {
+          "message": "Instructor: Gear's up. Climb above fifteen hundred feet."
+        }
+      ]
+    },
+    {
+      "id": "follow",
+      "when": {
+        "completed": "climb"
+      },
+      "then": [
+        {
+          "message": "Instructor: Good. Follow the amber arrow to the marker over the bay, three miles northeast."
+        }
+      ]
+    },
+    {
+      "id": "gunnery",
+      "when": {
+        "completed": "marker"
+      },
+      "then": [
+        {
+          "message": "Instructor: Now strafe the two parked Hellcats at the south end of the strip. Line up, close inside a thousand feet, and fire: Space."
+        }
+      ]
+    },
+    {
+      "id": "bombing",
+      "when": {
+        "completed": "strafe"
+      },
+      "then": [
+        {
+          "message": "Instructor: Targets down. Bombs away on the cargo ship in the bay if you have them: U shows where a bomb will land, V drops one. Then join the final."
+        }
+      ]
+    },
+    {
+      "id": "configure",
+      "when": {
+        "completed": "final"
+      },
+      "then": [
+        {
+          "message": "Instructor: On the final. Gear down (G), flaps down (F), and slow to under 120 miles an hour."
+        }
+      ]
+    },
+    {
+      "id": "landing",
+      "when": {
+        "completed": "config"
+      },
+      "then": [
+        {
+          "message": "Instructor: Good. Line up on the runway and put her down."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "basic-flying",
+    "name": "Basic Flying"
+  },
+  "briefing": {
+    "situation": "Basic Flying. A training sortie at Tacloban with an instructor on the radio, one step at a time: full throttle, take off, gear up, climb, fly to the marker over the bay, strafe the two parked Hellcats, bomb the cargo ship if you carry bombs, then join the final, set the gear and flaps, slow to under 120 mph and land. The bomb run is optional. Bombs are the recommended loadout; the Impact marker (U) is an optional Assist that shows where one will land.",
+    "loadout": "bombs"
+  },
+  "history": {
+    "text": "A pilot new to the theater rarely went straight into a fight. He flew familiarization first: a takeoff and a pattern, gunnery and bombing practice on a range, and a landing, with the squadron's old hands watching. On Leyte the strip at Tacloban was one of the airfields American forces took in the first days after the landing on 20 October 1944, and it was raided for weeks afterwards. This mission is inspired by that routine rather than a reconstruction of any one lesson: the instructor's voice, the two parked Hellcats and the cargo ship in the bay are staged for the game.",
+    "sources": [
+      "M. Hamlin Cannon, \"Leyte: The Return to the Philippines\" (United States Army in World War II, Office of the Chief of Military History, 1954), chapter VI, \"The Japanese Reaction\": https://www.gutenberg.org/ebooks/48991"
+    ]
+  }
+}

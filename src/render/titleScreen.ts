@@ -206,6 +206,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).
+  // B4 (2026-10-10): first among the missions, for a new player. "Basic Flying" is a substring of no other label.
+  { value: 'tutorial', label: 'Basic Flying', kind: 'mission', badge: { id: 'basic-flying', name: 'Basic Flying' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'bombs' },
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
