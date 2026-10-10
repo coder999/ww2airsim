@@ -1,0 +1,18 @@
+{
+  "store": "bomb",
+  "releaseTick": 381,
+  "sampledTick": 380,
+  "exactTick": true,
+  "predicted": {
+    "x": -24162.898851186805,
+    "y": 0,
+    "z": -47607.6
+  },
+  "actual": {
+    "x": -24162.898851186805,
+    "y": 0,
+    "z": -47607.6
+  },
+  "missM": 0,
+  "pairSpreadM": 0
+}
