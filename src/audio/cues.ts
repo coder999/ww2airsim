@@ -93,10 +93,11 @@ export type AudioInputs = {
    *  cycle clip once when it starts to travel. Optional so a hand-built input reads as never moving. */
   readonly gearFraction?: number
   readonly flapFraction?: number
-  /** I1, all optional so a hand-built input is quiet: airspeed through the air (m/s), the stall
-   *  speed at the current flaps, the spec's dive limit, and rolling speed over the surface. */
+  /** I1, all optional so a hand-built input is quiet: airspeed through the air (m/s), the share of
+   *  the wing's maximum lift in use (`stallFor`), the spec's dive limit, and rolling speed over the
+   *  surface. */
   readonly airspeedMps?: number
-  readonly stallSpeedMps?: number
+  readonly liftFraction?: number
   readonly diveSpeedMps?: number
   readonly groundSpeedMps?: number
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
@@ -375,7 +376,7 @@ function synthLayers(inputs: AudioInputs): AudioFrame['synth'] {
   const alive = inputs.impact === null
   const wind = windFor(alive ? inputs.airspeedMps : 0)
   const rumble = rumbleFor(alive ? inputs.onGround : null, inputs.groundSurface, inputs.groundSpeedMps)
-  const stall = stallFor(alive && inputs.onGround === false, inputs.airspeedMps, inputs.stallSpeedMps)
+  const stall = stallFor(alive && inputs.onGround === false, inputs.liftFraction)
   return {
     wind, rumble,
     buffet: { gain: stall.buffet }, buzz: { gain: stall.buzz },

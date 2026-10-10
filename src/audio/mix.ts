@@ -160,17 +160,22 @@ export function rumbleFor(onGround: boolean | null, surface: string | null, grou
 }
 
 /** Buffet starts at 1.15 x the stall speed and is full at it; the buzzer cuts in at 1.07 x and is
- *  full 0.02 below. Both from airspeed at 1 g (ponytail: a hard turn's accelerated stall does not
- *  buffet early; read angle of attack if Mark wants it). */
+ *  full at 1.05 x. Speeds at 1 g, but read through the wing's lift (Mark, 2026-10-09: "use angle of
+ *  attack"): at 1 g, flying at k x the stall speed uses 1/k^2 of the wing's maximum lift, so the
+ *  same onsets come early in a hard pull, where an accelerated stall really does buffet. */
 export const BUFFET_ONSET = 1.15
 export const BUZZ_ONSET = 1.07
+const BUZZ_FULL = 1.05
+const liftAt = (speedMultiple: number): number => 1 / speedMultiple ** 2
 
-export function stallFor(airborne: boolean, airspeedMps: number | undefined, stallSpeedMps: number | undefined): { buffet: number; buzz: number } {
-  if (!airborne || !(stallSpeedMps! > 0)) return { buffet: 0, buzz: 0 }
-  const ratio = (airspeedMps ?? Infinity) / stallSpeedMps!
+/** `liftFraction`: the lift coefficient in use over the most the wing makes before it stalls,
+ *  1 or more once it is past the stalling angle (render/audio.ts). */
+export function stallFor(airborne: boolean, liftFraction: number | undefined): { buffet: number; buzz: number } {
+  if (!airborne || !(liftFraction! > 0)) return { buffet: 0, buzz: 0 }
+  const f = liftFraction!
   return {
-    buffet: SYNTH_GAIN_MAX.buffet * clamp01((BUFFET_ONSET - ratio) / (BUFFET_ONSET - 1)),
-    buzz: SYNTH_GAIN_MAX.buzz * clamp01((BUZZ_ONSET - ratio) / 0.02),
+    buffet: SYNTH_GAIN_MAX.buffet * clamp01((f - liftAt(BUFFET_ONSET)) / (1 - liftAt(BUFFET_ONSET))),
+    buzz: SYNTH_GAIN_MAX.buzz * clamp01((f - liftAt(BUZZ_ONSET)) / (liftAt(BUZZ_FULL) - liftAt(BUZZ_ONSET))),
   }
 }
 

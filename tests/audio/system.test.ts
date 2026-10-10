@@ -348,7 +348,7 @@ describe('the synthesized layers (I1)', () => {
     await audio.load()
     audio.update(flying)
     expect(fake.layers.filter((l) => l.clip === 'noise' || l.clip === 'buffet')).toEqual([])
-    audio.update({ ...flying, airspeedMps: 41, stallSpeedMps: 40, diveSpeedMps: 200 })
+    audio.update({ ...flying, airspeedMps: 41, liftFraction: 0.95, diveSpeedMps: 200 })
     const wind = fake.layers.find((l) => l.clip === 'noise' && l.bus === 'ambient')!
     expect(wind.gains.at(-1)).toBeCloseTo(windFor(41).gain, 12)
     expect(wind.cutoffs.at(-1)).toBeCloseTo(windFor(41).cutoffHz, 12)
