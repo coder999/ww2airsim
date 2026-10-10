@@ -14,7 +14,11 @@ describe('contentCopyFilter (vite.config.ts)', () => {
     ['content/audio/candidates/index.json', false],
     ['content/audio/rocket_whoosh.wav', true],
     ['content/aircraft/wildcat.glb', true],
+    ['content/terrain/L0.bin', false],
+    ['content/terrain/L12.bin', false],
+    ['content/terrain/L0.bin.gz', true],
     ['content/terrain/L1.bin.gz', true],
+    ['content/bathy/depth.bin', true],
     ['content/models-notes/readme.md', true],
   ])('%s -> copied: %s', (path, expected) => {
     expect(copies(resolve('/repo', path))).toBe(expected)

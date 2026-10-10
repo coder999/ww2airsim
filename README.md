@@ -57,9 +57,8 @@ One home per kind of fact. Point at it from elsewhere; never copy it.
 Node, npm, and **Git LFS** (`git-lfs`). `content/terrain/L0.bin.gz` (37 MB) is committed via
 Git LFS rather than as a plain blob, so that each rebuild of it does not grow the history. A
 checkout without git-lfs installed (or without `git lfs pull` run) gets a
-~130-byte pointer file in its place, and `npm run verify` fails with an
-exact-byte-count mismatch that reads exactly like data corruption, not like a
-missing prerequisite. Install once per machine, then pull if a clone predates
+~130-byte pointer file in its place. L0-dependent checks then skip with a
+named reason, and Medium cannot load until the real file is fetched. Install once per machine, then pull if a clone predates
 this:
 
 ```sh

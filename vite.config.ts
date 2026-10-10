@@ -1,6 +1,6 @@
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
 import { cp } from 'node:fs/promises'
-import { resolve, sep } from 'node:path'
+import { relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
@@ -20,7 +20,12 @@ export const EXCLUDED_CONTENT_DIRS: readonly string[] = ['terrain/tiles', 'model
  *  with the same name (`models-notes/`) is still copied. */
 export function contentCopyFilter(contentRoot: string): (source: string) => boolean {
   const excluded = EXCLUDED_CONTENT_DIRS.map((d) => resolve(contentRoot, ...d.split('/')))
-  return (source) => !excluded.some((dir) => source === dir || source.startsWith(dir + sep))
+  return (source) => {
+    // L1.1a: old raw levels can linger in remote-run's data mirror.
+    const path = relative(contentRoot, source).split(sep).join('/')
+    if (/^terrain\/L\d+\.bin$/.test(path)) return false
+    return !excluded.some((dir) => source === dir || source.startsWith(dir + sep))
+  }
 }
 
 /**

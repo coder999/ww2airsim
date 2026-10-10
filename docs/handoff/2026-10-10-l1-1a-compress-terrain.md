@@ -78,5 +78,5 @@ Each was taken conservatively so the run could continue.
 ## Open items
 
 - **Merging needs the LFS object pushed.** `git push` of the branch, or of `main` after the merge, uploads `L0.bin.gz`'s 37 MB LFS object. Until that happens, `deploy.yml`'s `lfs: true` checkout cannot fetch it. The old `L0.bin` object stays in LFS history.
-- **ryzen's remote-run data mirror** still holds the old `content/terrain/L0.bin`. Paths dropped from `.remote-run-data` linger (`remote-run` header). It is harmless, because nothing reads that name, but `vite build` there copies it into `dist/`. Delete it by hand if wanted.
+- **Resolved during integration:** ryzen's data mirror retains the old `content/terrain/L0.bin`. The build now excludes obsolete `terrain/L<n>.bin` files, so retained cache data cannot inflate the release artifact. The content-filter cases cover raw levels, compressed levels and unrelated binary content; the real-build assertion requires no raw terrain levels in `dist/`.
 - **Not measured: time to ready on a slow link.** The 25 Mbit/s row is computed, not measured.

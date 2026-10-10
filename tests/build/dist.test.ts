@@ -262,6 +262,7 @@ describe('the built artifact', () => {
       expect(builtHtml).toContain(`gtag/js?id=${GA4_MEASUREMENT_ID}`)
       for (const host of GA4_HOSTS) expect(builtHtml).toContain(JSON.stringify(host))
       expect(GA4_HOSTS.length).toBeGreaterThan(0)
+      expect(readdirSync(join(outDir, 'content/terrain')).filter((name) => /^L\d+\.bin$/.test(name))).toEqual([])
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- since Task 6
       // (2026-09-24) the FIRST-VISIT default rather than a placeholder;

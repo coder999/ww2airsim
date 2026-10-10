@@ -26,6 +26,9 @@ Every level ships gzipped (`L<n>.bin.gz`, since L1.1a, 2026-10-10), the `cover.b
 why it decides by the bytes and not the response header. Sizes and timings:
 [`handoff/2026-10-10-l1-1a-compress-terrain.md`](handoff/2026-10-10-l1-1a-compress-terrain.md).
 
+The release build excludes obsolete uncompressed `terrain/L<n>.bin` files that may
+remain in local or remote build caches after L1.1a; only the `.bin.gz` levels ship.
+
 ## Curved shoreline render surface
 
 The simulation DEM and `heightAt` still define land, contact and physics.  The
