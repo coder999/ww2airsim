@@ -36,6 +36,17 @@ Then measure, in a script, not by eye:
 
 Output: `docs/handoff/2026-10-xx-l3-phase0.md` with the captures and a go/no-go per phase below. **Each later phase runs only if Phase 0 shows its fault.**
 
+## Phase 0 results: the three DEM measurements (run 2026-10-09, read-only, nothing changed)
+
+| Question | Measured | Verdict |
+| --- | --- | --- |
+| Is the source a surface model? | Source files are named `Copernicus_DSM_COG_10_*` (DSM). | Yes, canopy is in the heights. |
+| Are rivers already valleys in the DEM? | Centerline height minus bank height (average of both banks): 8 rivers, 1,939 points, sea-level reaches excluded. At a 490 ft offset the centerline is lower than the banks by a median of **25 ft (Binahaan, 1,027 points) and 43 ft (Daguitan, 675 points)** on the two long reaches, and 100 to 154 ft on short mountain reaches. | **Yes. Rivers are in the data as valleys.** River incision (3c) is not needed. |
+| Does canopy show as roughness? | Post-to-post curvature (a 3x3 Laplacian, per 640 ft cover cell) at matched slope: on flat ground forest **3.0 ft vs 1.1 ft** for crop/open (0.92 vs 0.33 m); at 3 to 8% slope 5.4 vs 3.5 ft; at 8 to 15% slope 8.3 vs 6.8 ft. | **A real but small signal** (1 to 2 ft per post), confounded because forest also sits on rougher ground. De-canopy (3b) is low value. |
+| Is the bilinear resample costing detail? | Bicubic minus bilinear over a 3.9 km square: **2.5 ft RMS, 12 ft max** in hilly terrain; 0.5 ft RMS on the coastal plain. Approximate: done in lat/lon source space at the same 80 ft spacing, not through the exact tangent-plane build. | **Not worth regenerating 13 levels** for 2.5 ft on 80 ft posts. 3a is dropped. |
+
+Conclusion for Phase 3: **the DEM is not the weak link.** Of 3a to 3d, only render-only sub-posting detail (3d) is still open, and it belongs to the ground texture question, not the heights.
+
 ## Phase 1: WITHDRAWN (rivers and roads as ribbons)
 
 Mark remembered correctly; this was explored and did not help:
