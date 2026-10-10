@@ -1,11 +1,13 @@
 import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
-import { ageDamage, damagedSpec, type Damage } from './damage/model.js'
+import { ageDamage, damagedSpec, engineOutput, idSeed, type Damage } from './damage/model.js'
+import { createRng } from './rng.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { airVelocity, DT, step } from './flight/model.js'
 import type { TerrainField } from './world/terrain.js'
-import type { Vec3 } from './math/vec3.js'
+import { add, length, scale, v3, type Vec3 } from './math/vec3.js'
+import { qIntegrateBodyRates } from './math/quat.js'
 import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from './ground.js'
 import { wheelDepthOf } from './gearContact.js'
@@ -691,8 +693,8 @@ function stepAircraftEntity<M>(
   damage: Damage,
   stores: StoresState,
 ): AircraftEntity<M> {
-  if (damage.destroyedAt !== null) return entity
   if (entity.impact !== null) return entity
+  if (damage.destroyedAt !== null) return stepWreck(entity, tick, terrain, decks)
 
   // `assist` runs once per fixed STEP, here, and BEFORE `stepper` -- not
   // once per `advance` call and not on the entity's `controls` directly.
@@ -724,7 +726,7 @@ function stepAircraftEntity<M>(
       && supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity),
   }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
-  let current = stepper(storesSpec(damagedSpec(entity.spec, damage), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, engineOutput(damage, tick, entity.id, DT)), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
   }
@@ -793,7 +795,8 @@ function stepAircraftEntity<M>(
         verticalSpeedMps: current.velocity.y,
         groundHeightM: ground.heightM,
         surface: ground.surface,
-        kind: contactOutcome(entity.spec, current, ground.surface),
+        // A burning airplane does not survive a ditching (damage stages, Mark 2026-10-09).
+        kind: damage.burningSince === null ? contactOutcome(entity.spec, current, ground.surface) : 'destroyed',
       }
       // `previous` follows `current` so the renderer interpolates to exactly
       // the point of contact whatever `alpha` is, the same convention
@@ -804,6 +807,47 @@ function stepAircraftEntity<M>(
     }
   }
   return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
+}
+
+/** A tumbling wreck's terminal speed, m/s (about 155 mph). ESTIMATE. */
+export const WRECK_TERMINAL_MPS = 70
+
+/** The tumble a wreck falls with, rad/s about body {x, y, z}, from its id
+ *  alone so a replay tumbles it the same way. ESTIMATE: up to 2 rad/s of roll. */
+export function wreckTumble(id: string): Vec3 {
+  const r = createRng(idSeed(id))
+  const signed = (max: number): number => (r() * 2 - 1) * max
+  return v3(signed(2), signed(0.4), signed(0.8))
+}
+
+/**
+ * After a mid-air explosion (damage stages, Mark 2026-10-09): what is left
+ * falls under gravity and quadratic drag to WRECK_TERMINAL_MPS, tumbling,
+ * no controls and no lift, until it reaches the ground, the sea or a deck.
+ * That contact is always `destroyed`, never a ditching. Before damage stages
+ * a destroyed airplane froze where it died.
+ */
+function stepWreck<M>(entity: AircraftEntity<M>, tick: number, terrain: TerrainField | null, decks: readonly Deck[]): AircraftEntity<M> {
+  const s = entity.state
+  const g = 9.80665
+  const dragPerM = g / (WRECK_TERMINAL_MPS * WRECK_TERMINAL_MPS)
+  const slowed = scale(s.velocity, 1 / (1 + dragPerM * length(s.velocity) * DT))
+  const velocity = add(slowed, v3(0, -g * DT, 0))
+  const bodyRates = wreckTumble(entity.id)
+  const current: AircraftState = {
+    ...s, tick, velocity, bodyRates,
+    position: add(s.position, scale(add(s.velocity, velocity), DT / 2)),
+    attitude: qIntegrateBodyRates(s.attitude, bodyRates, DT),
+  }
+  const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
+  if (ground !== null && current.position.y <= ground.heightM) {
+    const impact: Impact = {
+      tick: current.tick, position: current.position, verticalSpeedMps: current.velocity.y,
+      groundHeightM: ground.heightM, surface: ground.surface, kind: 'destroyed',
+    }
+    return { ...entity, state: current, previous: current, impact }
+  }
+  return { ...entity, state: current, previous: s }
 }
 
 /** `controls` with the one-shot release pulse REMOVED, every held control --
@@ -895,9 +939,13 @@ export function advance<M>(
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
+    // Taken before `ageDamage`, which is where a fire burns an airframe out:
+    // that explosion is a loss with no killing hit, and `creditDownedAircraft`
+    // must see it go down this tick (damage stages, Mark 2026-10-09).
+    const combatAtStart = combat
     combat = { ...combat, aircraft: Object.fromEntries(aircraft.map(a => {
       const rec = combat.aircraft[a.id]!
-      return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT) }]
+      return [a.id, { ...rec, damage: ageDamage(a.spec, rec.damage, DT, tick) }]
     })) }
     // Every AI reads this SAME start-of-tick array. Commands are derived before
     // any aircraft is stepped, so reversing the entity array cannot let one
@@ -914,7 +962,6 @@ export function advance<M>(
         record.damage, record.stores,
       )
     })
-    const combatAtStart = combat
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
     // After `stepCombat`, which is where an overload break-up happens, and

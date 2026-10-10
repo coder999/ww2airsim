@@ -329,7 +329,8 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
   }
   const failing = inputs.engineHealth < ENGINE_FAILING_HEALTH
   const wasFailed = restarted ? false : prev.engineFailed
-  if (failing && !wasFailed && inputs.engineRunning) cues.push('engine_sputter')
+  // Not `engineRunning`: since damage stages that is false in a sputter's cut-out windows too.
+  if (failing && !wasFailed && inputs.impact === null) cues.push('engine_sputter')
   if (inputs.arrested && !(restarted ? false : prev.lastArrested)) cues.push('wire_catch')
   if (inputs.hookDown && !(restarted ? false : prev.lastHookDown)) cues.push('hook_clunk')
   // C2: the motor runs while the doors move; they lock, with the hook's clunk, on reaching either end.

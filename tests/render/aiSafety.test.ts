@@ -9,6 +9,7 @@ import { createState } from '../../src/sim/flight/state.js'
 import { advance, createWorldOf, type AircraftEntity } from '../../src/sim/loop.js'
 import { qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
 import { dot, scale, sub, v3 } from '../../src/sim/math/vec3.js'
+import { isDoomed } from '../../src/sim/damage/model.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const PURSUER = 'pursuer-1'
@@ -135,7 +136,8 @@ describe('a diving AI Zero neither breaks up nor hits the sea (Review Focus 3)',
       w = advance(w, DT).world
       const z = w.aircraft.find((a) => a.id === 'z')!
       m.lowest = Math.min(m.lowest, z.state.position.y)
-      m.targetLowest = Math.min(m.targetLowest, w.aircraft.find((a) => a.id === 't')!.state.position.y)
+      // While it flies: shot down, it falls by design (damage stages, 2026-10-09).
+      if (!isDoomed(w.combat.aircraft['t']!.damage)) m.targetLowest = Math.min(m.targetLowest, w.aircraft.find((a) => a.id === 't')!.state.position.y)
       m.peakG = Math.max(m.peakG, w.combat.aircraft['z']!.stress.loadFactorG)
       if (z.pilot!.decision.safety !== 'none') m.guarded++
     }

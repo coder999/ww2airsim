@@ -104,8 +104,15 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
       }
       const age = (w.tick - destroyedAt) * DT
       if (a.impact === null && age < KILL_TRAIL_S) {
-        sustained.push({ key: `kill:${a.id}`, recipe: 'kill.air', intensity: 1 - age / KILL_TRAIL_S, position: pose.position, velocity: ZERO })
+        sustained.push({ key: `kill:${a.id}`, recipe: 'kill.air', intensity: 1 - age / KILL_TRAIL_S, position: pose.position, velocity: a.state.velocity })
       }
+      // The wreck falls burning (damage stages, 2026-10-09), all the way down.
+      if (a.impact === null) sustained.push({ key: `fire:${a.id}`, recipe: 'aircraft.fire', intensity: 1, position: pose.position, velocity: a.state.velocity })
+    } else if (a.impact === null && rec.damage.burningSince !== null) {
+      sustained.push({
+        key: `fire:${a.id}`, recipe: 'aircraft.fire', intensity: 1,
+        position: add(pose.position, qRotate(pose.attitude, ENGINE_SMOKE_OFFSET_BODY)), velocity: a.state.velocity,
+      })
     } else if (a.impact === null && rec.damage.engine < 1) {
       sustained.push({
         key: `engine:${a.id}`, recipe: 'engine.smoke', intensity: 1 - clamp01(rec.damage.engine),

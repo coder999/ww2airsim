@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { Group, Object3D, Quaternion, Vector3 } from 'three'
 import type { ModelInstance } from '../../src/render/models/modelCache.js'
-import { gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout, turretAim, TURRET_SLEW_DEG_S } from '../../src/render/scene/pivotedAirframe.js'
+import { DEBRIS_S, debrisFlight, gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout, turretAim, TURRET_SLEW_DEG_S } from '../../src/render/scene/pivotedAirframe.js'
 import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig, type TurretArc } from '../../src/render/scene/airframeRigs.js'
 import { propAngle } from '../../src/render/scene/airframe.js'
 
@@ -78,6 +78,24 @@ describe('the pivoted airframe (R3)', () => {
     expectRotation(inst.node('Prop').quaternion, spun, 'Prop')
     a.update({ ...zero, gearFraction: 0, throttle: 0, frameS: 1 })
     expectRotation(inst.node('Prop').quaternion, spun, 'Prop') // throttle 0: the prop stops
+  })
+
+  it('destroyed in the air, the prop flies off and tumbles, the legs stay; scrubbed back, it is whole (damage stages)', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    inst.node('Prop').position.set(4, 0, 0)
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: { ageS: 0, seed: 7 } })
+    expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: { ageS: 3, seed: 7 } })
+    const flown = debrisFlight(3, (7 + Math.imul(1, 0x9e3779b1)) >>> 0)
+    expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0).add(flown.offset))).toBeLessThan(1e-9)
+    expect(flown.offset.length()).toBeGreaterThan(5)
+    expect(inst.node('GearL').position.length()).toBe(0)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: { ageS: DEBRIS_S + 1, seed: 7 } })
+    expect(inst.node('Prop').visible).toBe(false)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: null })
+    expect(inst.node('Prop').visible).toBe(true)
+    expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
   })
 
   it('a part with no baked pivot axis throws, naming the model and node, and releases the instance (Review Focus 1)', async () => {

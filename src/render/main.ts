@@ -2619,7 +2619,11 @@ async function boot(): Promise<void> {
     // frame controls, every other its own pilot's, and a wreck's prop stops.
     view.world.aircraft.forEach((a, i) => {
       const playerControls = a.id === view.world.player ? view.controls : null
-      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000), aim: turretAimFor(view.world, view.poses, i) })
+      const damage = view.world.combat.aircraft[a.id]?.damage ?? null
+      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000, damage, view.world.tick, a.id), aim: turretAimFor(view.world, view.poses, i) })
+      // An airframe that exploded in the air is gone once its wreck reaches the surface: the crash
+      // effect covers the spot (damage stages, 2026-10-09). The player's own is the debrief's.
+      if (a.id !== view.world.player) airframes[i]!.root.visible = !(damage?.destroyedAt != null && a.impact !== null)
     })
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {

@@ -1,7 +1,7 @@
 import type { AircraftEntity } from '../loop.js'
 import { dot, length, sub } from '../math/vec3.js'
 import { sameSide, type Side } from '../sides.js'
-import { isAircraftDown, type CombatState } from '../weapons/combat.js'
+import { isAircraftDoomed, type CombatState } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
 import { airborne } from './airborne.js'
@@ -38,7 +38,7 @@ export const STICKY_BONUS_M = 1000
 export type TargetingView<M> = {
   /** The start-of-tick aircraft array every pilot reads. */
   readonly snapshot: readonly AircraftEntity<M>[]
-  /** The start-of-tick combat records (`isAircraftDown`). */
+  /** The start-of-tick combat records (`isAircraftDoomed`). */
   readonly combat: CombatState['aircraft']
   /** `sidesOf` over the snapshot, built once per tick by `advance`. */
   readonly sides: Readonly<Record<string, Side>>
@@ -55,13 +55,13 @@ export type TargetingOptions<M> = {
   readonly accept?: (contact: AircraftEntity<M>, rangeM: number) => boolean
 }
 
-/** Opposite side, not down (destroyed or impacted), airborne by ground state
+/** Opposite side, not down or burning (`isAircraftDoomed`), airborne by ground state
  *  (7g spec §2: never the spawn flag `parked`), and within
  *  `DETECTION_RANGE_M`. */
 export function isContact<M>(self: AircraftEntity<M>, c: AircraftEntity<M>, view: TargetingView<M>): boolean {
   if (c.id === self.id) return false
   if (view.sides[c.id] === undefined || sameSide(view.sides, self.id, c.id)) return false
-  if (isAircraftDown(view.combat, c)) return false
+  if (isAircraftDoomed(view.combat, c)) return false
   if (!airborne(c, view.terrain, view.decks)) return false
   return length(sub(c.state.position, self.state.position)) <= DETECTION_RANGE_M
 }
@@ -86,7 +86,7 @@ export function contactScore<M>(
   score += TAIL_BONUS_M * tailFraction
   for (const f of view.snapshot) {
     // A downed friendly keeps its last targetId; it engages nothing.
-    if (f.id === self.id || f.pilot == null || f.pilot.decision.targetId !== c.id || isAircraftDown(view.combat, f)) continue
+    if (f.id === self.id || f.pilot == null || f.pilot.decision.targetId !== c.id || isAircraftDoomed(view.combat, f)) continue
     if (sameSide(view.sides, self.id, f.id)) score -= ENGAGED_PENALTY_M
   }
   if (c.id === opts.current) score += STICKY_BONUS_M

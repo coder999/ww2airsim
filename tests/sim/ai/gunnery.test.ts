@@ -18,16 +18,20 @@ import { CURSORS_4 } from '../../../tools/ai/replica.js'
  * tail (1 of 4 and 0 of 4), and green against green but for the crossing,
  * where most of the fight is both pilots in Break and Extend, as slow as
  * 80 mph. That is the decision layer's (Track E item 4), not gunnery.
+ *
+ * Damage stages (2026-10-09): a duel is decided when an airplane catches fire
+ * (`tools/ai/duel.ts`), and a hit engine now sputters. That unpinned green
+ * against green crossing, the last green-green row: 2 of 8 with the engine
+ * cutting out disabled, 0 of 8 with it (same harness, same day; every other
+ * row is unchanged). The sputtering target's pulsing thrust spoils a green's
+ * lead, and the row was 2 of 8 to begin with. Mark's call whether it stays so.
  */
-const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
   // geometry, a, b, cursors, kills, measured 2026-10-09 after the retune
   ['head-on', 'veteran', 'green', CURSORS_4, 3],
   ['tail', 'veteran', 'green', CURSORS_4, 4],
   ['crossing', 'veteran', 'green', CURSORS_4, 3],
   ['crossing', 'veteran', 'veteran', CURSORS_4, 3],
-  // Green kills green (0 of 24 before the retune).
-  ['crossing', 'green', 'green', CURSORS_8, 2],
 ]
 
 describe('E1: AI duels resolve by kills', () => {

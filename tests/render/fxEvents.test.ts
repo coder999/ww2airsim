@@ -116,6 +116,20 @@ describe('fx events (effects design §3.2)', () => {
     expect(nextFxEvents(NO_FX_MEMORY, view(5, combat, aircraft)).sustained).toEqual([])
   })
 
+  it('a burning airframe trails fire from the engine in place of smoke; the wreck burns down to the surface', () => {
+    const { combat, aircraft } = base()
+    const rec = combat.aircraft['a']!
+    const lit: CombatState = { ...combat, aircraft: { ...combat.aircraft, a: { ...rec, damage: { ...rec.damage, engine: 0.25, burningSince: 4 } } } }
+    const s = nextFxEvents(NO_FX_MEMORY, view(5, lit, aircraft)).sustained
+    expect(s.map((x) => x.key)).toEqual(['fire:a'])
+    expect(s[0]).toMatchObject({ recipe: 'aircraft.fire', intensity: 1, velocity: v3(100, 0, 0) })
+    expect(s[0]!.position.x).toBeCloseTo(3.2, 9)
+    const wreck: CombatState = { ...lit, aircraft: { ...lit.aircraft, a: { ...lit.aircraft['a']!, damage: { ...lit.aircraft['a']!.damage, destroyedAt: 5 } } } }
+    expect(nextFxEvents(NO_FX_MEMORY, view(6, wreck, aircraft)).sustained.map((x) => x.key).sort()).toEqual(['fire:a', 'kill:a'])
+    const down = aircraft.map((a) => a.id === 'a' ? { ...a, impact: { tick: 6, position: a.state.position, verticalSpeedMps: -70, groundHeightM: 0, surface: 'water' as const, kind: 'destroyed' as const } } : a)
+    expect(nextFxEvents(NO_FX_MEMORY, view(7, wreck, down)).sustained).toEqual([])
+  })
+
   it('ship fire scales with fire, stops once sunk, and needs a smoke origin', () => {
     const { combat, aircraft } = base()
     const burning = (fire: number, sinkingFraction: number): CombatState =>

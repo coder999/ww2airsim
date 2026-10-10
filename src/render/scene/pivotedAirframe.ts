@@ -5,6 +5,7 @@ import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
+import { createRng } from '../../sim/rng.js'
 
 /**
  * One airframe from a rigged glb (R3): its articulated parts were pivoted by the build (each
@@ -102,6 +103,23 @@ function slewAngle(current: number, target: number, dtS: number): number {
 
 interface Posed { readonly node: Object3D; readonly axis: Vector3; readonly rest: Quaternion }
 
+/** Seconds a broken-off part tumbles before it is gone from sight. ESTIMATE. */
+export const DEBRIS_S = 12
+
+/** One loose part's flight from the explosion, in world meters off where the rig puts it, and its
+ *  spin: a pure function of (seconds since, seed), so a replay scrubbed backwards reassembles the
+ *  airplane. It is thrown out at 6-18 m/s, mostly upward, its own drag stopping it within a few
+ *  seconds (tau 1.5 s), and drops away from the falling fuselage at 2-5 m/s^2. ESTIMATE, all of it. */
+export function debrisFlight(ageS: number, seed: number): { readonly offset: Vector3; readonly axis: Vector3; readonly angleRad: number } {
+  const r = createRng(seed)
+  const dir = new Vector3(r() * 2 - 1, r() * 0.8 + 0.2, r() * 2 - 1).normalize()
+  const speed = 6 + 12 * r(), drop = 2 + 3 * r(), tau = 1.5
+  const axis = new Vector3(r() - 0.5, r() - 0.5, r() - 0.5).normalize()
+  const spin = 4 + 8 * r()
+  const offset = dir.multiplyScalar(speed * tau * (1 - Math.exp(-ageS / tau))).add(new Vector3(0, -0.5 * drop * ageS * ageS, 0))
+  return { offset, axis, angleRad: spin * ageS }
+}
+
 interface Turret {
   readonly turret: Posed
   readonly guns: Posed
@@ -180,6 +198,9 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   }
   let propRad = 0
   const stick = { roll: 0, pitch: 0, yaw: 0 }
+  // Damage stages (2026-10-09): what breaks away in a mid-air explosion, and where each sits whole.
+  const loose = [...bound.props, ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
+  const scratch = new Vector3()
   let disposed = false
   return {
     root,
@@ -205,6 +226,18 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
         t.turret.node.quaternion.copy(turnedAbout(t.turret.rest, t.turret.axis, t.traverse))
         t.guns.node.quaternion.copy(turnedAbout(t.guns.rest, t.guns.axis, t.elevation))
       }
+      const debris = u.debris ?? null
+      loose.forEach((l, i) => {
+        l.node.position.copy(l.restPosition)
+        l.node.visible = debris === null || debris.ageS < DEBRIS_S
+        if (debris === null || l.node.parent === null) return
+        const f = debrisFlight(debris.ageS, (debris.seed + Math.imul(i + 1, 0x9e3779b1)) >>> 0)
+        l.node.parent.updateWorldMatrix(true, false)
+        scratch.copy(l.restPosition)
+        l.node.parent.localToWorld(scratch).add(f.offset)
+        l.node.position.copy(l.node.parent.worldToLocal(scratch))
+        l.node.quaternion.multiply(new Quaternion().setFromAxisAngle(f.axis, f.angleRad))
+      })
     },
     dispose(): void {
       if (disposed) return

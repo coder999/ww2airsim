@@ -336,13 +336,20 @@ describe('damage and carrier cues', () => {
     expect(crash.cues).toEqual(['water_crash'])
   })
 
-  it('sputters once when the engine drops below half health, and only while it is running', () => {
+  it('sputters once when the engine drops below half health, and only while it is flying', () => {
     const a = nextAudio(NO_AUDIO_MEMORY, at(100))
     const b = nextAudio(a.memory, at(101, { engineHealth: 0.4 }))
     expect(b.cues).toEqual(['engine_sputter'])
     expect(nextAudio(b.memory, at(102, { engineHealth: 0.2 })).cues).toEqual([])
-    const wreck = nextAudio(a.memory, at(101, { engineHealth: 0.4, engineRunning: false }))
+    const wreck = nextAudio(a.memory, at(101, { engineHealth: 0.4, engineRunning: false, impact: { tick: 101, kind: 'destroyed', surface: 'land' } }))
     expect(wreck.cues).not.toContain('engine_sputter')
+    // Damage stages: a sputter's cut-out window (not running, still flying) still cues it.
+    expect(nextAudio(a.memory, at(101, { engineHealth: 0.4, engineRunning: false })).cues).toContain('engine_sputter')
+  })
+
+  it('the engine loop is silent in a sputter\'s cut-out window and back after it', () => {
+    expect(nextAudio(NO_AUDIO_MEMORY, at(1, { engineHealth: 0.4, engineRunning: false })).engine.gain).toBe(0)
+    expect(nextAudio(NO_AUDIO_MEMORY, at(1, { engineHealth: 0.4 })).engine.gain).toBeGreaterThan(0)
   })
 
   it('fades the engine loop with health below half, and leaves it alone above', () => {

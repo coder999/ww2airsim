@@ -1,0 +1,34 @@
+{
+  "id": "damage-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": { "position": [-27000, 2500, -16479], "headingDeg": 90, "speedMps": 120 }
+    },
+    {
+      "id": "zero-1",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "airborneAt": { "position": [-26650, 2500, -16479], "headingDeg": 90, "speedMps": 105, "throttle": 0.6 }
+    },
+    {
+      "id": "zero-2",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "airborneAt": { "position": [-26100, 2520, -16420], "headingDeg": 90, "speedMps": 105, "throttle": 0.6 }
+    },
+    {
+      "id": "zero-3",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "airborneAt": { "position": [-25500, 2480, -16540], "headingDeg": 90, "speedMps": 105, "throttle": 0.6 }
+    }
+  ],
+  "ships": [],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 12 }
+}

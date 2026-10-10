@@ -26,6 +26,10 @@ export interface AirframeUpdate {
   /** Where the turrets point: a direction in the airframe's own frame (x forward, y up, z starboard),
    *  or null/absent to stow them. Visual only (turret aim plan, 2026-10-09). */
   readonly aim?: { readonly x: number; readonly y: number; readonly z: number } | null
+  /** Destroyed in the air (damage stages, 2026-10-09): seconds since, and a per-aircraft seed, for
+   *  the propellers and control surfaces breaking away. Null or absent: whole. A pure function of
+   *  these two, so a replay scrubbed backwards puts the parts back. */
+  readonly debris?: { readonly ageS: number; readonly seed: number } | null
 }
 
 /** Implemented by every airframe module (hellcat.ts, wildcat.ts, and each

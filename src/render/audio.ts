@@ -3,7 +3,8 @@ import type { CombatImpact } from '../sim/weapons/impacts.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
 import { effectiveStallSpeedMps, onGround } from '../sim/ground.js'
-import { airVelocity } from '../sim/flight/model.js'
+import { airVelocity, DT } from '../sim/flight/model.js'
+import { engineOutput } from '../sim/damage/model.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { length, sub } from '../sim/math/vec3.js'
 import { qRotate, type Quat } from '../sim/math/quat.js'
@@ -45,7 +46,9 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     // holds, so this is the throttle the simulation actually ran, not a copy
     // that can drift.
     throttle: frame.controls.throttle,
-    engineRunning: impact === null,
+    // The sim's own engine output (damage stages): a sputtering engine's loop cuts out in the same
+    // windows its thrust does, and a dead, burning or exploded one is silent.
+    engineRunning: impact === null && engineRunningAt(frame.world, frame.world.player),
     impact: impact === null ? null : { tick: impact.tick, kind: impact.kind, surface: impact.surface },
     // The WORLD's clock, not the airplane's: they agree after every step, and
     // the cue's "a tick that went backwards means a new flight" rule is about
@@ -94,6 +97,12 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
   }
 }
 
+/** Whether `id`'s engine makes power this tick (`engineOutput`); whole for a hand-built world with no record. */
+function engineRunningAt(world: FrameState['world'], id: string): boolean {
+  const damage = world.combat.aircraft[id]?.damage
+  return damage === undefined || engineOutput(damage, world.tick, id, DT) > 0
+}
+
 /** The newest event of each `DamageCause` at the player: a round that struck an aircraft within
  *  `ROUND_HIT_NEAR_M`, a bomb or rocket detonation within `DAMAGE_BLAST_NEAR_M`. */
 function damageEventsNear(impacts: readonly CombatImpact[], at: Vec3): AudioInputs['damage'] {
@@ -140,7 +149,7 @@ export function spatialInputsFrom(
         position: a.state.position,
         velocity: a.state.velocity,
         shots: world.combat.aircraft[a.id]?.shots ?? 0,
-        engineHealth: world.combat.aircraft[a.id]?.damage.engine ?? 1,
+        engineHealth: engineRunningAt(world, a.id) ? world.combat.aircraft[a.id]?.damage.engine ?? 1 : 0,
       })),
     decks: decksOf(world.ships).map((d, i) => ({ id: `deck${i}`, center: d.center, lengthM: d.lengthM })),
     blasts: world.combat.impacts

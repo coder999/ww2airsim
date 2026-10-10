@@ -4,6 +4,7 @@ import type { AircraftEntity, World } from '../../src/sim/loop.js'
 import type { Loadout } from '../../src/sim/weapons/stores.js'
 import type { PilotSkill } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
+import { isDoomed } from '../../src/sim/damage/model.js'
 import { qRotate } from '../../src/sim/math/quat.js'
 import { length, sub, v3 } from '../../src/sim/math/vec3.js'
 // Type-only: tools/ never imports a test module at runtime.
@@ -53,8 +54,11 @@ export const aircraftOf = (f: FrameState, id: string): AircraftEntity<undefined>
   f.world.aircraft.find((a) => a.id === id)!
 export const rangeBetween = (f: FrameState, a: string, b: string): number =>
   length(sub(aircraftOf(f, a).state.position, aircraftOf(f, b).state.position))
+/** Shot down: on fire or destroyed (`isDoomed`). Since damage stages
+ *  (2026-10-09) a burning airframe takes up to BURN_S to explode, but the
+ *  pursuer's job was done when it caught fire. */
 export const playerDestroyed = (f: FrameState): boolean =>
-  f.world.combat.aircraft[f.world.player]!.damage.destroyedAt !== null
+  isDoomed(f.world.combat.aircraft[f.world.player]!.damage)
 
 /** Frames of 1/60 s. `keys` is sampled at the END of each frame's time
  *  (frame i covers t = i/60), matching the probes this plan was measured

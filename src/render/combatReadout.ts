@@ -56,6 +56,7 @@ export function combatReadoutLabel(rec: AircraftCombat | undefined): string | nu
   if (rec.stress.overspeed) parts.push(`OVERSPEED ${Math.round(rec.stress.airspeedMps)}`)
   if (rec.damage.destroyedAt !== null) parts.push('DESTROYED')
   else {
+    if (rec.damage.burningSince !== null) parts.push('ON FIRE')
     const damaged = damagedSystems(rec.damage)
     if (damaged.length > 0) parts.push(`DMG ${damaged.map((s) => SYSTEM_WORDS[s]).join(', ')}`)
   }

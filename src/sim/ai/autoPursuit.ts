@@ -7,6 +7,7 @@ import { airborne } from './airborne.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { pursuitDesiredVelocity } from './pursuit.js'
 import { sideOf } from '../sides.js'
+import { isAircraftDoomed } from '../weapons/combat.js'
 
 /**
  * The player's pursuit autopilot (Mark, 2026-09-25): while its key is held,
@@ -53,7 +54,7 @@ export function autoPursuitTarget<M>(world: World<M>): AircraftEntity<M> | null 
     if (a.id === world.player || a.impact !== null) continue
     if (!airborne(a, world.terrain, decks)) continue
     if (sideOf(world, a) === sideOf(world, self)) continue
-    if (world.combat.aircraft[a.id]?.damage.destroyedAt != null) continue
+    if (isAircraftDoomed(world.combat.aircraft, a)) continue
     if (heightAboveSurfaceM(world, a.state.position) < AUTO_PURSUIT_FLOOR_AGL_M) continue
     const range = length(sub(a.state.position, self.state.position))
     if (range < bestRange) {

@@ -1,13 +1,16 @@
 import { parseScenario, worldFromScenario } from '../../src/sim/scenario.js'
 import { advance, type World } from '../../src/sim/loop.js'
 import { DT } from '../../src/sim/flight/model.js'
+import { isDoomed } from '../../src/sim/damage/model.js'
 import { bundleForScenario } from '../content/load.js'
 
 /**
  * E1's instrument: AI-vs-AI 1v1 duels through production `advance`, no
  * terrain. Two F6Fs, `a` allied and `b` axis, each targeting the other; the
  * player parks 30 km away, out of everyone's way. A duel ends at the first
- * kill or `maxS`.
+ * kill or `maxS`. A kill is the first airplane set alight or destroyed
+ * (`isDoomed`): since damage stages (2026-10-09) the fire takes up to
+ * BURN_S more to explode it, but the fight was decided when it caught.
  *
  *   npx tsx tools/ai/duel.ts            # every geometry x skill pair, 8 cursors
  */
@@ -44,7 +47,7 @@ export function duel(g: Geometry, a: Skill, b: Skill, cursor: number, maxS = 180
   let w = duelWorld(g, a, b, cursor)
   for (let i = 1; i <= maxS / DT; i++) {
     w = advance(w, DT).world
-    const da = w.combat.aircraft['a']!.damage.destroyedAt !== null, db = w.combat.aircraft['b']!.damage.destroyedAt !== null
+    const da = isDoomed(w.combat.aircraft['a']!.damage), db = isDoomed(w.combat.aircraft['b']!.damage)
     if (da || db) return result(w, db ? 'a' : 'b', i * DT)
   }
   return result(w, null, null)

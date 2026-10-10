@@ -100,8 +100,10 @@ describe('production fixed-step gunnery', () => {
     expect(three.combat.aircraft.shooter!.damage.structure).toBe(1)
   })
   it('stops on the nearest target and never awards duplicate kills', () => {
-    const w = createWorldOf({ aircraft: [plane('shooter', 0, true), plane('far', 500), plane('near', 300)], player: 'shooter' })
-    const after = run(w, 180)
+    let after = createWorldOf({ aircraft: [plane('shooter', 0, true), plane('far', 500), plane('near', 300)], player: 'shooter' })
+    // Up to the explosion: from then the wreck falls out of the line (damage
+    // stages, 2026-10-09) and the stream goes on to `far`, as it should.
+    for (let i = 0; i < 180 && after.combat.aircraft.near!.damage.destroyedAt === null; i++) after = run(after, 1)
     expect(after.combat.aircraft.near!.damage.destroyedAt).not.toBeNull()
     expect(after.combat.aircraft.far!.damage.structure).toBe(1)
     expect(after.combat.aircraft.shooter!.kills).toBe(1)

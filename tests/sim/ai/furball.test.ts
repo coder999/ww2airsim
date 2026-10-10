@@ -4,6 +4,7 @@ import { advance, type World } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { PURSUIT_FLOOR_M } from '../../../src/sim/ai/safety.js'
 import { sidesOf } from '../../../src/sim/sides.js'
+import { isDoomed } from '../../../src/sim/damage/model.js'
 import { LOADOUTS } from '../../../tools/ai/replica.js'
 import { loadScenarioBundle } from '../../../tools/content/load.js'
 
@@ -38,7 +39,8 @@ function soak(loadout: (typeof LOADOUTS)[number] = 'clean'): Run {
     for (const a of world.aircraft) {
       const s = a.state
       if (![s.position.x, s.position.y, s.position.z, s.velocity.x, s.velocity.y, s.velocity.z].every(Number.isFinite)) nan = true
-      minHeight[a.id] = Math.min(minHeight[a.id] ?? Infinity, s.position.y)
+      // Flown height only: a burning or exploded airplane falls by design (damage stages, 2026-10-09).
+      if (!isDoomed(world.combat.aircraft[a.id]!.damage)) minHeight[a.id] = Math.min(minHeight[a.id] ?? Infinity, s.position.y)
       peakG[a.id] = Math.max(peakG[a.id] ?? -Infinity, world.combat.aircraft[a.id]!.stress.loadFactorG)
     }
   }

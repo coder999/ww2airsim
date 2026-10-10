@@ -7,7 +7,7 @@ import { SEA_LEVEL_M, type TerrainField } from '../world/terrain.js'
 import { groundUnder } from '../world/ground.js'
 import { insideDeck, type Deck } from '../world/deck.js'
 import { onGround } from '../ground.js'
-import { healthyDamage, damageFromHit, type Damage } from '../damage/model.js'
+import { healthyDamage, damageFromHit, withStructure, type Damage } from '../damage/model.js'
 import {
   damageFromStructuralOverload,
   initialStructuralStress,
@@ -358,12 +358,7 @@ export function damageShip(before: ShipDamage, hullHp: number, amount: number, t
 function blastDamageAircraft(spec: AircraftSpec, before: Damage, amount: number, tick: number, attacker: string): Damage {
   const c = spec.combat
   if (c === undefined || before.destroyedAt !== null) return before
-  const structure = Math.max(0, before.structure - amount / c.structureHp)
-  const destroyed = structure < 1e-10
-  return {
-    ...before, structure: destroyed ? 0 : structure,
-    destroyedAt: destroyed ? tick : null, attacker: destroyed ? attacker : before.attacker,
-  }
+  return withStructure(before, Math.max(0, before.structure - amount / c.structureHp), tick, attacker)
 }
 
 /** The one store type a rack (or a rail) carries, under the same
@@ -640,7 +635,9 @@ export function stepCombat(
   ): void => {
     const shooter = records[owner]
     if (shooter === undefined) return
-    const killed = before_.destroyedAt === null && after.destroyedAt !== null
+    // Only a direct kill of an unburnt airframe: a burning one's is the fire's,
+    // and `creditDownedAircraft` gives it to whoever set it alight.
+    const killed = before_.destroyedAt === null && after.destroyedAt !== null && before_.burningSince === null
     if (!round && !killed) return
     if (sides !== null && sameSide(sides, owner, targetId)) {
       records[owner] = {
@@ -671,7 +668,9 @@ export function stepCombat(
     // down later: a wingman's graze must not steal the player's kill (Mark,
     // 2026-09-25; whole-branch review, 2026-09-26).
     const ownSide = owner === target.id || (sides !== null && sameSide(sides, owner, target.id))
-    const lastHitBy = ownSide ? rec.lastHitBy : owner
+    // Burning, the credit is already settled on whoever set it alight
+    // (damage stages, Mark 2026-10-09): later hits only hurry the explosion.
+    const lastHitBy = ownSide || rec.damage.burningSince !== null ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
     if (ownSide && owner !== target.id && damage !== rec.damage) noteFriendlyFire(owner, 'aircraft', target.id)
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
@@ -806,6 +805,16 @@ export function isAircraftDown(
   return a.impact !== null || (records[a.id]?.damage.destroyedAt ?? null) !== null
 }
 
+/** Down, or burning and so as good as down: what the AI stops chasing,
+ *  following or fearing (damage stages, Mark 2026-10-09). Credit and the
+ *  mission still wait for `isAircraftDown`. */
+export function isAircraftDoomed(
+  records: CombatState['aircraft'],
+  a: { readonly id: string; readonly impact: unknown },
+): boolean {
+  return isAircraftDown(records, a) || (records[a.id]?.damage.burningSince ?? null) !== null
+}
+
 /**
  * Credits a kill for every aircraft that went down THIS tick without a
  * killing hit, to whoever last hit it (`AircraftCombat.lastHitBy`): Mark,
@@ -813,10 +822,13 @@ export function isAircraftDown(
  * hit by the player should count as a kill". No time limit -- one hit is
  * enough, however long before the loss.
  *
- * A killing hit sets `damage.attacker` and is credited on the spot by
- * `stepCombat`, so it is skipped here; nothing else sets `attacker` (the
- * overload break-up clears it). A downed aircraft stays down -- a destroyed
- * one is no longer stepped, a crashed one keeps its first impact -- so the
+ * A killing hit on an unburnt airframe sets `damage.attacker` and is
+ * credited on the spot by `stepCombat`, so it is skipped here. A BURNING
+ * airframe (damage stages, Mark 2026-10-09) is credited here, when it
+ * explodes or hits the ground, to `damage.attacker`, the hit that set it
+ * alight (or `lastHitBy`, which stops moving once it burns, when an overload
+ * break-up cleared that). A downed aircraft stays down -- a wreck falls but
+ * keeps its `destroyedAt`, a crashed one keeps its first impact -- so the
  * up-to-down transition happens once and so does the credit.
  *
  * `before`/`beforeAircraft` are the start of the tick, `after`/
@@ -836,19 +848,23 @@ export function creditDownedAircraft(
   let records: Record<string, AircraftCombat> | null = null
   for (const a of afterAircraft) {
     const rec = after.aircraft[a.id]
-    if (rec === undefined || rec.lastHitBy === null || rec.damage.attacker !== null) continue
+    if (rec === undefined) continue
+    const burnt = rec.damage.burningSince !== null
+    if (!burnt && rec.damage.attacker !== null) continue // a direct kill, credited by `stepCombat`
+    const credited = burnt ? rec.damage.attacker ?? rec.lastHitBy : rec.lastHitBy
+    if (credited === null) continue
     if (!isAircraftDown(after.aircraft, a)) continue
     const was = beforeAircraft.find((b) => b.id === a.id)
     if (was === undefined || isAircraftDown(before.aircraft, was)) continue
     records ??= { ...after.aircraft }
-    const shooter = records[rec.lastHitBy]
+    const shooter = records[credited]
     if (shooter === undefined) continue
-    if (sides !== null && sameSide(sides, rec.lastHitBy, a.id)) {
-      records[rec.lastHitBy] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+    if (sides !== null && sameSide(sides, credited, a.id)) {
+      records[credited] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
       continue
     }
     const type = a.spec.role
-    records[rec.lastHitBy] = {
+    records[credited] = {
       ...shooter,
       kills: shooter.kills + 1,
       killsByType: { ...shooter.killsByType, [type]: shooter.killsByType[type] + 1 },

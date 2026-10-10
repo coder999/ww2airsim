@@ -1,9 +1,12 @@
 import type { AircraftEntity, ShipEntity } from '../loop.js'
 import type { CombatState } from '../weapons/combat.js'
-import { isAircraftDown } from '../weapons/combat.js'
+import { idSeed } from '../damage/model.js'
+import type { Controls } from '../flight/state.js'
+import { isAircraftDoomed } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
-import { length, sub, type Vec3 } from '../math/vec3.js'
+import { length, sub, v3, type Vec3 } from '../math/vec3.js'
+import { qRotate, type Quat } from '../math/quat.js'
 import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
@@ -45,7 +48,7 @@ function chooseTarget<M>(
 ): string | null {
   if (pilot.target !== null) {
     const fixed = view.snapshot.find((c) => c.id === pilot.target)
-    return fixed === undefined || isAircraftDown(view.combat, fixed) ? null : fixed.id
+    return fixed === undefined || isAircraftDoomed(view.combat, fixed) ? null : fixed.id
   }
   // 7f spec §4: a wingman fights what threatens its leader or itself, and
   // passes the leader so 7e's LEADER_THREAT_BONUS_M applies.
@@ -84,6 +87,20 @@ export function pilotTick<M>(
   return { ...flown, controls: { ...flown.controls, bayDoorsOpen: ingressBayDoorsOpen(flown, orders, ctx.ships) } }
 }
 
+/** The nose-down angle a burning AI airplane is held to, radians (50 deg). ESTIMATE. */
+export const BURNING_DIVE_RAD = (-50 * Math.PI) / 180
+
+/** What a burning AI airplane is flown with: throttle off, guns quiet, a slow
+ *  roll one way (by id, so it is the same every replay), and the nose worked
+ *  down to BURNING_DIVE_RAD whichever way up it is: a falling spiral. ESTIMATE. */
+export function burningControls(id: string, attitude: Quat): Controls {
+  const nose = qRotate(attitude, v3(1, 0, 0))
+  const up = qRotate(attitude, v3(0, 1, 0))
+  const pitchRad = Math.asin(Math.max(-1, Math.min(1, nose.y)))
+  const pitch = Math.max(-0.6, Math.min(0.6, 2 * (BURNING_DIVE_RAD - pitchRad) * (up.y < 0 ? -1 : 1)))
+  return { pitch, roll: (idSeed(id) & 1) === 0 ? 0.25 : -0.25, yaw: 0, throttle: 0, fire: false }
+}
+
 function flyPilot<M>(
   a: AircraftEntity<M>,
   snapshot: readonly AircraftEntity<M>[],
@@ -93,6 +110,9 @@ function flyPilot<M>(
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
+  // Burning (damage stages, Mark 2026-10-09): the pilot stops flying. A dead
+  // stick rolling one way and nosing down sends it in a falling spiral.
+  if (record.damage.burningSince !== null) return { ...a, controls: burningControls(a.id, a.state.attitude) }
   // 7g spec §3: `landed` is terminal and short-circuits before the rescore:
   // no target choice, no safety override, no noise. The recovery holds it on
   // the brakes and, once, respots it (`state`, and `previous` with it, so the
@@ -131,7 +151,7 @@ function flyPilot<M>(
   let leader: AircraftEntity<M> | null = null
   if (pilot.formation !== undefined) {
     const l = snapshot.find((c) => c.id === pilot!.formation!.leader)
-    if (l === undefined || isAircraftDown(ctx.combat.aircraft, l)) pilot = leaderlessPilot(pilot, l, ctx.nowS)
+    if (l === undefined || isAircraftDoomed(ctx.combat.aircraft, l)) pilot = leaderlessPilot(pilot, l, ctx.nowS)
     else leader = l
   }
   // A leader still on its deck or runway is loitered on, not formed on (spec §4).
@@ -143,7 +163,7 @@ function flyPilot<M>(
   // decision has not recorded it yet (a hand-built one) still flies it.
   const heldId = pilot.target ?? decision.targetId
   const held = heldId === null ? undefined : snapshot.find((c) => c.id === heldId)
-  const lost = heldId !== null && (held === undefined || isAircraftDown(ctx.combat.aircraft, held))
+  const lost = heldId !== null && (held === undefined || isAircraftDoomed(ctx.combat.aircraft, held))
   let target: AircraftEntity<M> | null = lost ? null : (held ?? null)
   if (decision.latch !== null && latchExpired(decision.latch, ctx.nowS)) {
     decision = { ...decision, latch: null, named: DEFAULT_MANEUVER[decision.maneuver] }

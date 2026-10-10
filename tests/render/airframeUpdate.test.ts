@@ -1,6 +1,8 @@
 // tests/render/airframeUpdate.test.ts
 import { describe, expect, it } from 'vitest'
-import { airframeUpdateFor, TURRET_TRACK_RANGE_M, turretAimFor } from '../../src/render/airframeUpdate.js'
+import { airframeUpdateFor, TURRET_TRACK_RANGE_M, turretAimFor, WINDMILL_THROTTLE } from '../../src/render/airframeUpdate.js'
+import { ENGINE_DEAD_BELOW, healthyDamage } from '../../src/sim/damage/model.js'
+import { DT } from '../../src/sim/flight/model.js'
 import { qFromAxisAngle, qIdentity } from '../../src/sim/math/quat.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -14,12 +16,28 @@ const origin = v3(0, 0, 0)
 describe('airframeUpdateFor', () => {
   it("an AI aircraft reads its own entity's controls, gear and flaps", () => {
     const u = airframeUpdateFor(alive, null, v3(3, 4, 12), origin, 0.016)
-    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13 })
+    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13, debris: null })
   })
 
   it("the player's aircraft reads the frame's raw controls instead", () => {
     const player = { pitch: 0, roll: 0, yaw: 0, throttle: 1 }
     expect(airframeUpdateFor(alive, player, origin, origin, 0.016).throttle).toBe(1)
+  })
+
+  it('a dead engine windmills its propeller; a cutting-out one between cuts runs at the throttle', () => {
+    const dead = { ...healthyDamage(), engine: ENGINE_DEAD_BELOW / 2 }
+    expect(airframeUpdateFor(alive, null, origin, origin, 0.016, dead, 10, 'z').throttle).toBe(WINDMILL_THROTTLE)
+    const burning = { ...healthyDamage(), burningSince: 3 }
+    expect(airframeUpdateFor(alive, null, origin, origin, 0.016, burning, 10, 'z').throttle).toBe(WINDMILL_THROTTLE)
+    expect(airframeUpdateFor(alive, null, origin, origin, 0.016, healthyDamage(), 10, 'z').throttle).toBe(0.6)
+  })
+
+  it('destroyed in the air: the propeller stops and the parts get the seconds since and a seed', () => {
+    const blown = { ...healthyDamage(), destroyedAt: 100 }
+    const u = airframeUpdateFor(alive, null, origin, origin, 0.016, blown, 160, 'z')
+    expect(u.throttle).toBe(0)
+    expect(u.debris!.ageS).toBeCloseTo(60 * DT, 12)
+    expect(u.debris!.seed).toBe(airframeUpdateFor(alive, null, origin, origin, 0.016, blown, 300, 'z').debris!.seed)
   })
 
   it('a wreck, player or AI, gets throttle 0 so its propeller stops', () => {
