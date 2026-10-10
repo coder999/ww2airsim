@@ -123,15 +123,16 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 
 ### Track D: Torpedoes (L)
 
-- **Steps 1 and 2 done (D1, 2026-10-09):** the TBM-3 Avenger and the B5N2 Kate are onboarded (Blender-built, carrier-capable, flyable from the picker), and `torpedo` is a store kind: a drop envelope judged at release, a water entry, a straight run at depth, an arming run, and a hull hit for the store's damage (`combat.ts`, `tests/sim/weapons/torpedo.test.ts`). The G4M carries a Type 91. Plan `docs/superpowers/plans/2026-10-09-d1-torpedo-planes.md`; handoff `docs/handoff/2026-10-09-d1-torpedo-planes.md`. Steps 3 to 5 stay open.
+- **Steps 1 and 2 done (D1, 2026-10-09):** the TBM-3 Avenger and the B5N2 Kate are onboarded (Blender-built, carrier-capable, flyable from the picker), and `torpedo` is a store kind: a drop envelope judged at release, a water entry, a straight run at depth, an arming run, and a hull hit for the store's damage (`combat.ts`, `tests/sim/weapons/torpedo.test.ts`). The G4M carries a Type 91. Plan `docs/superpowers/plans/2026-10-09-d1-torpedo-planes.md`; handoff `docs/handoff/2026-10-09-d1-torpedo-planes.md`. Step 3 and the sound done in D3 (below); step 4 stays open.
+- **Step 3 and the sound done (D3, 2026-10-09):** a torpedo hit floods: the blow, then 0.6x the warhead drained over 60 s on the hit side, floods adding up, the ship listing toward the water and slowing (`src/sim/weapons/flooding.ts`, `tests/sim/weapons/flooding.test.ts`); bombs never flood. `torpedo_splash` and `torpedo_hit` play; torpedo airplanes say "Torpedo" in the loadout, legend, HUD and Hangar. Plan `docs/superpowers/plans/2026-10-09-d3-torpedo-flooding.md`; handoff `docs/handoff/2026-10-09-d3-torpedo-flooding.md`.
 - **Before D1:** projectile `kind` was round, bomb or rocket. Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location.
 - **Drawn already (V1, 2026-10-09):** the Mk 13 and Type 91 torpedo models (`content/ordnance/mk13.glb`, `type91.glb`, in the Library), with their suspension point at the origin like every store, so step 2 adds a store type and hangs them. M4's ship torpedoes reuse the same two models (Mark's ruling: simplicity over history). Plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`; handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`.
 - **Proposal, in order:**
   1. ~~**Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.~~ Done (D1), with the B5N2 Kate.
   2. ~~**Weapon:** a torpedo store~~ Done (D1): a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
-  3. **Damage:** a waterline hit that does more than a bomb of equal weight. Whether that becomes flooding or a simple multiplier is a design call.
+  3. ~~**Damage:** a waterline hit that does more than a bomb of equal weight.~~ Done (D3): flooding, Mark's pick over a multiplier.
   4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
-  5. **Sound (ready, 2026-10-09):** release reuses `bombs_away`; `torpedo_splash` and `torpedo_hit` are in `AUDIO_ASSETS`, unwired (Track I, I3).
+  5. ~~**Sound.**~~ Done (D3): release reuses `bombs_away`; `torpedo_splash` plays at water entry, `torpedo_hit` at a hull hit.
 - Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G): it exists since D1.
 
 ### Track E: Better AI (L)

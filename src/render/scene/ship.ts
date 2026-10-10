@@ -30,7 +30,8 @@ export interface ShipView {
   /** An empty marker at the stack/SmokeOrigin, child of the hull group, so
    *  it sinks and lists with the hull. fx reads it every frame (E1 R13). */
   readonly smokeOrigin: Object3D
-  setDamage(fire: number, sinkingFraction: number): void
+  /** `listRad`: a flooded hull's list, positive to starboard (`floodListRad`, D3 T3). */
+  setDamage(fire: number, sinkingFraction: number, listRad?: number): void
   /** Every instanced gun mount (Track M, M1): one per armament locator with a kit, bow to stern
    *  within Turret / HeavyAA / LightAA. Empty for the boxes. Nothing trains them until M3. */
   readonly mounts: readonly ShipMountView[]
@@ -165,10 +166,13 @@ function finishView(root: Group, hullGroup: Group, smokeAt: { x: number; y: numb
     model,
     smokeOrigin,
     mounts,
-    setDamage(fire: number, sinkingFraction: number): void {
+    setDamage(fire: number, sinkingFraction: number, listRad = 0): void {
       const sinking = Math.min(1, Math.max(0, sinkingFraction))
       hullGroup.position.y = -sinking * sinkDepthM
-      hullGroup.rotation.x = -sinking * (LIST_DEG * Math.PI / 180)
+      // Bow on local +x, starboard local +z: a positive rotation.x lays the masts to starboard. A
+      // flooded hull lists toward its flooded side (D3 T3) and goes down the way it already leans.
+      const leans = listRad > 0 ? 1 : -1
+      hullGroup.rotation.x = listRad + leans * sinking * (LIST_DEG * Math.PI / 180)
       root.visible = sinking < 1
     },
     dispose(): void {

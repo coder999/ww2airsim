@@ -74,3 +74,7 @@ _Avoid_: fish, tin fish
 **Drop envelope**:
 The fastest airspeed and the greatest height above the sea at which a torpedo can be released and still run. Outside it, the torpedo breaks up on the water.
 _Avoid_: release limits, launch window
+
+**Flood**:
+Water a torpedo hit lets into a hull. It keeps taking hull points for a while after the hit, lists the ship toward the holed side and slows it; several floods add up. Bombs never flood.
+_Avoid_: leak, progressive damage

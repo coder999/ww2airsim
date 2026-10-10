@@ -138,3 +138,12 @@ it('binds P only to the Plan 14 navigation chart', () => {
   }
   expect(legendLines().find((line) => line.startsWith('Navigation chart'))).toContain('P')
 })
+
+// D3 T1 (Mark, 2026-10-09): on a torpedo airplane the release row says "Torpedo", same keys.
+it('names the release row after the racks', () => {
+  const bombs = legendLines().find((l) => l.startsWith('Bombs'))
+  const torpedo = legendLines(false, 'Torpedo').find((l) => l.startsWith('Torpedo'))
+  expect(bombs).toBeDefined()
+  expect(torpedo).toBe(bombs!.replace('Bombs', 'Torpedo'))
+  expect(legendLines(false, 'Torpedo').some((l) => l.startsWith('Bombs'))).toBe(false)
+})

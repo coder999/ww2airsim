@@ -292,4 +292,17 @@ describe('spatialInputsFrom (spatial audio)', () => {
     expect(out.aircraft[0]).toMatchObject({ shots: 9, family: 'radial_big' })
     expect(out.blasts).toEqual([{ tick: 3, surface: 'water', position: v3(1, 2, 3) }])
   })
+
+  // D3 T2 (Mark, 2026-10-09): a torpedo's water entry and break-up on the water are splashes, its
+  // hull detonation a hit; a break-up on a deck or land is silent, and a run's end plays nothing.
+  it('marks torpedo entries and break-ups on the water as splashes, and a hull detonation as a hit', () => {
+    const frame = base()
+    const at = (outcome: CombatImpact['outcome'], surface: CombatImpact['surface'], tick: number): CombatImpact =>
+      ({ tick, cause: 'torpedo', outcome, surface, point: v3(1, 2, 3) })
+    const world = { ...frame.world, combat: { ...frame.world.combat, impacts: [
+      at('entered', 'water', 1), at('broke-up', 'water', 2), at('broke-up', 'ship', 3), at('detonated', 'ship', 4), at('expired', 'water', 5),
+    ] } }
+    const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
+    expect(out.blasts.map((b) => [b.tick, b.torpedo])).toEqual([[1, 'splash'], [2, 'splash'], [4, 'hit']])
+  })
 })

@@ -124,7 +124,7 @@ const keysOf = (name: BindingName): string =>
   [...new Set(BINDINGS[name].map(keyLabel))].join(' / ')
 
 /** One display line per row: the label, then its keys. */
-export function legendLines(muted = false): readonly string[] {
+export function legendLines(muted = false, racks: 'Bombs' | 'Torpedo' = 'Bombs'): readonly string[] {
   return LEGEND_ROWS.map((row) => {
     const keys = row.pair
       ? row.bindings.map(keysOf).join('  /  ')
@@ -133,7 +133,9 @@ export function legendLines(muted = false): readonly string[] {
     // fix: the player has no other way to tell silence-by-choice from an
     // audio system that failed to load.
     const suffix = muted && row.bindings.includes('toggleMute') ? '  (muted)' : ''
-    return `${row.label}  ${keys}${suffix}`
+    // The release row names what the player's racks carry (D3 T1).
+    const label = row.bindings.includes('dropBomb') ? racks : row.label
+    return `${label}  ${keys}${suffix}`
   })
 }
 
@@ -200,6 +202,8 @@ export type LegendHandle = {
   /** Marks the Mute row, so silence-by-choice is distinguishable from audio
    *  that failed to load. */
   setMuted(muted: boolean): void
+  /** Names the release row after the player's racks: "Bombs" or "Torpedo" (`racksLabel`). */
+  setRacks(racks: 'Bombs' | 'Torpedo'): void
 }
 
 /**
@@ -251,9 +255,10 @@ export function createLegend(root: HTMLElement): LegendHandle {
 
   let open = true
   let muted = false
+  let racks: 'Bombs' | 'Torpedo' = 'Bombs'
   const render = (): void => {
     lines.data = open
-      ? [...legendLines(muted), '', `${TOGGLE_KEYS}  hide`].join('\n')
+      ? [...legendLines(muted, racks), '', `${TOGGLE_KEYS}  hide`].join('\n')
       : `${TOGGLE_KEYS}  controls`
     credit.style.display = open ? '' : 'none'
   }
@@ -265,6 +270,11 @@ export function createLegend(root: HTMLElement): LegendHandle {
     },
     setMuted(next: boolean): void {
       muted = next
+      render()
+    },
+    setRacks(next: 'Bombs' | 'Torpedo'): void {
+      if (next === racks) return
+      racks = next
       render()
     },
   }

@@ -11,6 +11,7 @@ import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from './ground.js'
 import { wheelDepthOf } from './gearContact.js'
 import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
 import { stepShip } from './world/ships.js'
+import { floodSpeedFraction } from './weapons/flooding.js'
 import type { Airfield } from './world/airfields.js'
 import type { Deck } from './world/deck.js'
 import { decksOf } from './world/deck.js'
@@ -889,6 +890,8 @@ export function advance<M>(
       const dmg = combat.ships[s.id]
       const orders = dmg && dmg.destroyedTick !== null
         ? { waypoints: [{ x: s.state.position.x, z: s.state.position.z }], speedMps: 0 }
+        // A flooded hull (D3 T3) makes only a share of its maximum speed.
+        : dmg ? { ...s.orders, speedMps: Math.min(s.orders.speedMps, s.spec.maxSpeedMps) * floodSpeedFraction(dmg, s.spec.hullHp) }
         : s.orders
       return { ...s, previous: s.state, state: stepShip(s.spec, s.state, orders, { dt: DT, tick }) }
     })

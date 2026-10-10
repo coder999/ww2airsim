@@ -78,6 +78,8 @@ describe('the combat readout (Plan 6)', () => {
     expect(combatReadoutLabel(rec)).not.toContain('B ')
     const loaded = { ...rec, stores: { bombs: 2, rockets: 6 } }
     expect(combatReadoutLabel(loaded)).toBe('AMMO 2400   B 2  R 6   HITS 0   KILLS 0   HP 100%')
+    // D3 T1: a torpedo airplane's racks read `T`.
+    expect(combatReadoutLabel(loaded, 'Torpedo')).toBe('AMMO 2400   T 2  R 6   HITS 0   KILLS 0   HP 100%')
     const bombsOnly = { ...rec, stores: { bombs: 1, rockets: 0 } }
     expect(combatReadoutLabel(bombsOnly)).toBe('AMMO 2400   B 1  R 0   HITS 0   KILLS 0   HP 100%')
     const empty = { ...rec, stores: { bombs: 0, rockets: 0 } }

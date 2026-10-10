@@ -24,6 +24,7 @@ import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.
 import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 import { bayDoorsShut } from '../bayDoors.js'
+import { floodFrom, hitSide, type FloodState } from './flooding.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -100,7 +101,7 @@ export type ShipDamage = {
   readonly hp: number; readonly fire: number
   readonly destroyedTick: number | null; readonly attacker: string | null
   readonly sinkingFraction: number
-}
+} & FloodState
 export const healthyShipDamage = (hp: number): ShipDamage =>
   ({ hp, fire: 0, destroyedTick: null, attacker: null, sinkingFraction: 0 })
 export type CombatState = {
@@ -786,6 +787,12 @@ export function stepCombat(
       const point = atWaterline(add(p.previous, scale(sub(p.position, p.previous), hit.t)))
       impacts.push({ tick, cause: 'torpedo', outcome: 'detonated', surface: 'ship', point })
       damageShipAt(hit.ship, store.damage, p.owner)
+      // Track D step 3 (D3 T3): the hole floods, on the side the torpedo came in on.
+      const flooded = shipDamage[hit.ship.id]
+      if (flooded !== undefined && flooded.destroyedTick === null) {
+        const side = hitSide(hit.ship.state.position, hit.ship.state.headingRad, point)
+        shipDamage[hit.ship.id] = { ...flooded, floods: [...(flooded.floods ?? []), floodFrom(store.damage, side, p.owner)] }
+      }
       applyBlast(point, store.damage, store.blastRadiusM, { t: hit.t, kind: 'ship', ship: hit.ship }, p.owner)
       return
     }
@@ -843,6 +850,24 @@ export function stepCombat(
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
     if (store !== null) applyBlast(point, store.damage, store.blastRadiusM, contact, p.owner)
+  }
+
+  // Flooding (D3 T3) drains on its own clock, like sinking, before the sinking pass so a flood
+  // that finishes a hull this tick starts it down this tick. A sunk or sinking hull stops flooding.
+  for (const ship of ships) {
+    let d = shipDamage[ship.id]
+    if (d?.floods === undefined || d.floods.length === 0 || d.destroyedTick !== null) continue
+    const left: (typeof d.floods)[number][] = []
+    let port = d.floodedPortHp ?? 0
+    let starboard = d.floodedStarboardHp ?? 0
+    for (const f of d.floods) {
+      const drain = Math.min(f.leftHp, f.rateHps * dt)
+      d = damageShip(d, ship.spec.hullHp, drain, tick, f.attacker)
+      if (f.side > 0) starboard += drain
+      else port += drain
+      if (f.leftHp - drain > 1e-9) left.push({ ...f, leftHp: f.leftHp - drain })
+    }
+    shipDamage[ship.id] = { ...d, floods: left, floodedPortHp: port, floodedStarboardHp: starboard }
   }
 
   // Sinking advances on its own clock, hit or not (spec §3.6), and crossing

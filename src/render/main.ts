@@ -16,6 +16,8 @@ import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
+import { racksLabel } from '../sim/weapons/stores.js'
+import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
 import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from './audio.js'
@@ -989,6 +991,8 @@ async function boot(): Promise<void> {
             headingRad: s.state.headingRad,
             hp: damage?.hp ?? s.spec.hullHp,
             sinkingFraction: damage?.sinkingFraction ?? 0,
+            listRad: damage === undefined ? 0 : floodListRad(damage, s.spec.hullHp),
+            speedMps: s.state.speedMps,
           }
         }),
       // Plan 6b Task 8: the render-side twin of `ships` above, for the same
@@ -2477,6 +2481,7 @@ async function boot(): Promise<void> {
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
     const viewPlayer = playerAircraft(view.world)
+    legend.setRacks(racksLabel(player.spec))
     renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -2608,7 +2613,7 @@ async function boot(): Promise<void> {
     missionHud.placeSteering(steered.anchor, steered.mode)
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
-    combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
+    combatReadout.setRecord(current.world.combat.aircraft[current.world.player], racksLabel(player.spec))
     tracers.update(view.world.combat.projectiles)
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
@@ -2630,7 +2635,7 @@ async function boot(): Promise<void> {
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
-      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
+      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction, floodListRad(damage, s.spec.hullHp))
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the
     // CURRENT `World.combat.structures` map unconditionally every frame

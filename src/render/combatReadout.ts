@@ -34,7 +34,7 @@ export const ammoRemaining = (rec: AircraftCombat): number => rec.guns.reduce((s
  * fixture, or a scenario whose player flies an unarmed spec, shows nothing
  * rather than a row of zeros.
  */
-export function combatReadoutLabel(rec: AircraftCombat | undefined): string | null {
+export function combatReadoutLabel(rec: AircraftCombat | undefined, racks: 'Bombs' | 'Torpedo' = 'Bombs'): string | null {
   if (rec === undefined || rec.guns.length === 0) return null
   const parts: string[] = []
   // Friendly fire (spec §7, ruling FF-8): a tag from the first friendly hit
@@ -46,7 +46,8 @@ export function combatReadoutLabel(rec: AircraftCombat | undefined): string | nu
   // absent for a clean airplane, or once every store is gone (spec §4:
   // "the stores remaining (`B 2  R 6`) in the readout while any are
   // carried").
-  if (rec.stores.bombs + rec.stores.rockets > 0) parts.push(`B ${rec.stores.bombs}  R ${rec.stores.rockets}`)
+  // A torpedo airplane's racks count as `T` (D3 T1, Mark 2026-10-09).
+  if (rec.stores.bombs + rec.stores.rockets > 0) parts.push(`${racks === 'Torpedo' ? 'T' : 'B'} ${rec.stores.bombs}  R ${rec.stores.rockets}`)
   parts.push(`HITS ${rec.hits}`, `KILLS ${rec.kills}`)
   // Spec: "The readout counts SUNK and RAZED beside KILLS."
   if (rec.shipsSunk > 0) parts.push(`SUNK ${rec.shipsSunk}`)
@@ -131,7 +132,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
   }
 }
 
-export type CombatReadoutHandle = { setRecord(rec: AircraftCombat | undefined): void }
+export type CombatReadoutHandle = { setRecord(rec: AircraftCombat | undefined, racks?: 'Bombs' | 'Torpedo'): void }
 
 export function createCombatReadout(root: HTMLElement): CombatReadoutHandle {
   const el = document.createElement('div')
@@ -144,8 +145,8 @@ export function createCombatReadout(root: HTMLElement): CombatReadoutHandle {
   root.appendChild(el)
   let shown: string | null = null
   return {
-    setRecord(rec: AircraftCombat | undefined): void {
-      const label = combatReadoutLabel(rec)
+    setRecord(rec: AircraftCombat | undefined, racks: 'Bombs' | 'Torpedo' = 'Bombs'): void {
+      const label = combatReadoutLabel(rec, racks)
       if (label === shown) return
       shown = label
       el.textContent = label ?? ''

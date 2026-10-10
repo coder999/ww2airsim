@@ -159,10 +159,16 @@ export function spatialInputsFrom(
       })),
     decks: decksOf(world.ships).map((d, i) => ({ id: `deck${i}`, center: d.center, lengthM: d.lengthM })),
     blasts: world.combat.impacts
-      .filter((h) => h.cause !== 'round' && h.outcome === 'detonated')
-      .map((h) => ({ tick: h.tick, surface: h.surface, position: h.point })),
+      .filter((h) => h.cause !== 'round' && (h.outcome === 'detonated' || torpedoSplash(h)))
+      .map((h) => h.cause === 'torpedo'
+        ? { tick: h.tick, surface: h.surface, position: h.point, torpedo: h.outcome === 'detonated' ? 'hit' as const : 'splash' as const }
+        : { tick: h.tick, surface: h.surface, position: h.point }),
   }
 }
+
+/** A torpedo meeting the sea: its entry, or a break-up on the water (D3 T2). */
+const torpedoSplash = (h: CombatImpact): boolean =>
+  h.cause === 'torpedo' && h.surface === 'water' && (h.outcome === 'entered' || h.outcome === 'broke-up')
 
 /** The radio's language (I2, CONTEXT.md "Voice"): Japanese when the player flies a Japanese
  *  airframe or sits on the axis side of the scenario, US English otherwise. The airframe counts

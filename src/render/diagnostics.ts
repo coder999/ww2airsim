@@ -180,6 +180,8 @@ export type Ww2Diagnostics = {
   readonly ships: () => readonly {
     readonly id: string; readonly x: number; readonly z: number; readonly headingRad: number
     readonly hp: number; readonly sinkingFraction: number
+    /** D3 T3: the flood list (positive to starboard, `floodListRad`) and the speed actually made. */
+    readonly listRad: number; readonly speedMps: number
   }[]
   /**
    * Every strike-target structure (airfield buildings, Plan 6b Task 8), by
