@@ -29,7 +29,7 @@ Live on dev slot 3 while this session runs: https://ww2airsim-3.windomlane.org/?
 
 - `npm run verify` on ryzen: **383 files, 5,284 tests passed, 12 skipped**, typecheck and lint clean.
 - New tests: god mode in the sim (8: bounce math, ammo/stores/fuel/damage restored, others untouched, off is a no-op, a dive bounces and never records a crash, ten seconds of diving never ends the flight); the passive pilot (4: never targets or fires, circles within 7% of the radius, holds altitude); a sitting duck is hit and damaged by a burst astern and never fires back; the two scenarios (roster completeness for each side, cargo in both, sides, altitude separation, no overlapping hulls, take-off path clear, committed files equal what the generator writes).
-- In the browser on the ryzen GPU, via the live game's own diagnostics (5 runs, all passed): both pilots see **7 of 7** enemy airplanes, all in `loiter` with no target, 1,500 to 3,600 m of Tacloban; and 7 ships for the Allied pilot (6 Japanese warships plus the cargo ship) or 6 for the Japanese pilot (5 American plus the cargo ship), all within 3 km; the god-mode dive ran with no WebGPU validation errors and no console errors.
+- In the browser on the ryzen GPU, via the live game's own diagnostics (5 runs, all passed): both pilots see **7 of 7** enemy airplanes, all in `loiter` with no target, 4,900 to 11,800 ft from Tacloban; and 7 ships for the Allied pilot (6 Japanese warships plus the cargo ship) or 6 for the Japanese pilot (5 American plus the cargo ship), all within 9,800 ft; the god-mode dive ran with no WebGPU validation errors and no console errors.
 
 ## Screenshots
 
