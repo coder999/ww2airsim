@@ -10,10 +10,10 @@ import { quatFromXTo, type TracerInstance } from './tracers.js'
  * range, which is what keeps a tracer legible across a mile of air. Legibility choices, not calibres.
  */
 export const AA_TRACER_CAPACITY = 384
-/** Shortest streak drawn, metres: about a tenth of a second of an 880 m/s round's flight. */
-export const AA_TRACER_MIN_LENGTH_M = 30
+/** Shortest streak drawn, metres: about a fortieth of a second of an 880 m/s round's flight. */
+export const AA_TRACER_MIN_LENGTH_M = 20
 /** Thinnest streak, metres, up close. */
-export const AA_TRACER_MIN_WIDTH_M = 0.4
+export const AA_TRACER_MIN_WIDTH_M = 0.3
 /** Width per metre of distance from the eye (2 px at 1440p with a 60 degree view is about 0.0014 rad). */
 export const AA_TRACER_WIDTH_PER_M = 0.0014
 
