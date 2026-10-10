@@ -116,6 +116,13 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
 - **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
 
+**C4. Damage stages (M). Built 2026-10-09, not merged; waiting on Mark's flight.**
+- **Mark's report (2026-10-09):** a shot Zero froze in mid-air.
+- **Now:** a hit engine smokes, sputters below half health, and stalls dead below 15%. At 25% structure the airframe catches fire and is doomed. AI pilots spiral down, and the fire burns it out in 15 s. At zero it explodes, its props and control surfaces break away, and the wreck falls to the surface.
+- **Credit** waits for the explosion or the impact (Mark's ruling).
+- Branch `worktree-agent-ae648b20d14101ecc`; plan `docs/superpowers/plans/2026-10-09-aircraft-damage-stages.md`; handoff `docs/handoff/2026-10-09-aircraft-damage-stages.md`. Dev range: `?scenario=damage-range&launch`.
+- **Open:** the handoff's five unattended rulings. The two that matter most: lethality is up about 25% (9 .50 hits on a Hellcat, not 12), and hits on a burning airplane take nothing.
+
 ### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
 
 - **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Render and Hangar only, in `src/render/scene/vehicleRig.ts`: no vehicle is in the sim yet, so neither moves in a scenario. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.

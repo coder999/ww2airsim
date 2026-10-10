@@ -89,6 +89,8 @@ export type CombatDiagnostics = {
     readonly id: string
     readonly structure: number
     readonly destroyed: boolean
+    /** On fire (damage stages, 2026-10-09): doomed, not yet destroyed. */
+    readonly burning: boolean
     readonly damaged: readonly DamageSystem[]
     /** Plan 7e: kills credited to this aircraft, same-side kills, and who
      *  destroyed it (`damage.attacker`), for the furball's E2E spec. */
@@ -122,7 +124,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
     aircraft: frame.world.aircraft.map((a) => {
       const rec = combat.aircraft[a.id]!
       return {
-        id: a.id, structure: rec.damage.structure, destroyed: rec.damage.destroyedAt !== null, damaged: damagedSystems(rec.damage),
+        id: a.id, structure: rec.damage.structure, destroyed: rec.damage.destroyedAt !== null, burning: rec.damage.burningSince !== null, damaged: damagedSystems(rec.damage),
         kills: rec.kills, friendlyKills: rec.friendlyKills, attacker: rec.damage.attacker,
       }
     }),
