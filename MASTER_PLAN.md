@@ -40,7 +40,7 @@ render quality with auto-detect.
   - Show the recommendation on a quality step in the launch flow, with an override.
 - This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
 
-**A5. Render scale in Settings (S, after H0 and A4).**
+**A5. Render scale in Settings (S, after H0 and A4). Done 2026-10-10** (branch `a5-render-scale`): Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 

@@ -1,6 +1,6 @@
 # A5: Render scale in Settings
 
-**Status (2026-10-10):** planned. Master plan item: Track A, A5. Branch `a5-render-scale`, cut from `main` `d2dc6f8e`, in its own worktree.
+**Status (2026-10-10):** built on the branch, not merged. Handoff `docs/handoff/2026-10-10-a5-render-scale.md`. Master plan item: Track A, A5. Branch `a5-render-scale`, cut from `main` `d2dc6f8e`, in its own worktree.
 **Decisions (Mark, 2026-10-10):**
 - Options **50%, 75% and 100%** of native resolution, applied on top of `devicePixelRatio` (which stays capped at 2).
 - **Default 100%**, so nothing changes until a player picks a lower one. Persisted like the other settings.
