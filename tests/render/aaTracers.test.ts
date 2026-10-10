@@ -10,10 +10,15 @@ const round = (id: number, x: number, extra: Partial<Projectile> = {}): Projecti
 const EYE = v3(0, 100, 0)
 
 describe('AA tracers (M2)', () => {
-  it('draws only AA tracers, and the airplane tracer mesh draws none of them', () => {
-    const mix = [round(1, 500), round(2, 600, { tracer: false }), { ...round(3, 700, { owner: 'f6f-1' }), aa: undefined } as unknown as Projectile]
+  it('routes ship AA to the thick mesh and fixed guns and defensive gunners to the airplane mesh', () => {
+    const mix = [
+      round(1, 500), round(2, 600, { tracer: false }),
+      { ...round(3, 700, { owner: 'f6f-1' }), aa: undefined } as unknown as Projectile,
+      round(4, 800, { owner: 'b17-1', gunner: true }),
+      round(5, 900, { owner: 'b17-1', gunner: true, tracer: false }),
+    ]
     expect(aaTracerInstances(mix, EYE)).toHaveLength(1)
-    expect(tracerInstances(mix).map((t) => t.position.x)).toEqual([700 - 0.5 * Math.max(14, 3)])
+    expect(tracerInstances(mix).map((t) => t.position.x)).toEqual([700 - 7, 800 - 7])
   })
   it('is longer than a tick of travel, and thicker the farther it is, but never thinner than a floor', () => {
     const [near, far] = aaTracerInstances([round(1, 50), round(2, 3000)], EYE)

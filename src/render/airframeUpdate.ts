@@ -59,7 +59,7 @@ export const TURRET_TRACK_RANGE_M = 1500
  * Where aircraft `index`'s turrets point this frame (turret aim plan, 2026-10-09): the nearest
  * hostile aircraft within TURRET_TRACK_RANGE_M, as a unit direction in its own body frame, or null
  * (stowed) when there is none or it is a wreck, burning or exploded. Those are never targets either.
- * Visual only: no gun fires, so a burning bomber's gunners have nothing to stop.
+ * Visual aiming only; E3's sim gunners choose their own targets and stop firing when the bomber burns.
  */
 export function turretAimFor(
   world: {

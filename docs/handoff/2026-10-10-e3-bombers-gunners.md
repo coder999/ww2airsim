@@ -2,7 +2,7 @@
 
 Plan: `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`. Branch `e3-bombers-gunners`, cut from `main` `91da48f0`, in worktree `.claude/worktrees/agent-a9bc867f9b5e66ad5`. **Not merged.** Run unattended. The viewing checkpoint is the final product, below.
 
-**Look at it:** Dev on, then *Bomber Range (dev)* (`?scenario=bomber-range&launch`, add `&god=1` to be harmless). Once the branch is on a dev server, sit behind the formation and close slowly: tracers come back at you. Then try a high-side pass.
+**Look at it:** the E3 worktree is served on dev slot 2, [Bomber Range](https://ww2airsim-2.windomlane.org/?scenario=bomber-range&launch&god=1). Dev on, then *Bomber Range (dev)* (`?scenario=bomber-range&launch`, add `&god=1` to be harmless). Sit behind the formation and close slowly: tracers come back at you. Then try a high-side pass.
 
 ## What shipped
 
@@ -92,7 +92,25 @@ At 1.5, a four-ship formation killed 13 of 16 sloppy attackers. That is deadly, 
   - `bomberRangeCapture.spec.ts` passed. The gunners fired over 50 salvos with rounds in the air, the wingmen were in `formation` mode, and there were no WebGPU or console errors.
   - `gunnery.spec.ts`: 2 of 4 passed. "firing at 1440p" failed on its GPU sample count (8 against 120), the known load symptom the E1 handoff describes. The strafing pass ended in `impact` once and passed when run alone. Its scenario has no bomber, so nothing here touches it.
 
-## Captures (nexus GPU, God mode, 2026-10-10)
+## Completion verification (Codex, 2026-10-10)
+
+Continued Claude's existing branch without changing the calibrated sim behavior.
+
+- Enrolled gunner tracers in the existing mesh-routing test: defensive rounds draw once in the airplane mesh; ship AA stays in its thicker mesh; non-tracers stay invisible.
+- Corrected the stale renderer comment claiming no turret fires.
+- Fixed the gunnery browser check's four-second sampling race: it still fires for at least four seconds and requires more than 120 GPU samples, then waits up to 15 additional seconds for those samples. No sample or combat threshold was lowered.
+- Reference-GPU browser checks: all eight selected checks passed across the initial run and the two targeted reruns: adapter, camera sweep, Medium terrain, Bomber Range, and all four gunnery checks. The formation fired more than 50 salvos with rounds in flight and retained its three wingmen; no console or WebGPU errors. The final firing check collected 201 samples and fired 324 rounds.
+- Initial browser failures: Medium terrain's diagnostic read coincided with a Vite reload caused by the comment edit; the firing check collected 101 samples under shared-machine load. Medium passed with files held stable; firing passed with the bounded sample wait.
+- Full verification on Ryzen: typecheck, lint and dependency checks passed; 400 of 401 test files passed, with 5,560 tests passed and 12 skipped. The sole failure was the existing `aiLethality.test.ts` exceeding its 30-second limit during concurrent full suites. Its unchanged isolated rerun passed all nine tests in 13.5 seconds (the timed-out case took 12.1 seconds).
+- Final edited files passed typecheck and lint on Ryzen; the tracer suite passed all three tests.
+- GPU frame times from these correctness runs were recorded under concurrent compute load and are not budget measurements.
+
+Reference-GPU captures, God mode:
+
+![formation on Ryzen](2026-10-10-e3-bombers-gunners-shots/ryzen-formation.png)
+![defensive tracers on Ryzen](2026-10-10-e3-bombers-gunners-shots/ryzen-gunners.png)
+
+## Original captures (nexus GPU, God mode, 2026-10-10)
 
 `docs/handoff/2026-10-10-e3-bombers-gunners-shots/`: the formation ahead at the start, then the formation with gunner tracers coming back (two moments). The Hellcat sinks slowly with nobody on the stick, so the formation sits high in the frame.
 
