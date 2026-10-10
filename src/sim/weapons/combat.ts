@@ -187,7 +187,7 @@ export const SINK_SECONDS = 90
  * round from abeam below the deck edge died on that column and never reached
  * the hull (measured 2026-09-26; Mark: the Essex "should be able to be
  * damaged by rounds that hit below flight deck"). */
-function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
+export function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
   if (terrain === null) return null
   const delta = sub(to, from)
   const steps = Math.max(1, Math.ceil(length(delta) / 2))
@@ -217,7 +217,7 @@ function groundHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number |
  * no terrain field yet. Spec §3.4 lists "sea level" as its own candidate for
  * exactly that reason. Closed form, not sampled: the surface is a plane.
  */
-function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
+export function seaHit(from: Vec3, to: Vec3, terrain: TerrainField | null): number | null {
   if (from.y <= SEA_LEVEL_M || to.y > SEA_LEVEL_M) return null
   const t = (from.y - SEA_LEVEL_M) / (from.y - to.y)
   const point = add(from, scale(sub(to, from), t))
@@ -372,7 +372,7 @@ function blastDamageAircraft(spec: AircraftSpec, before: Damage, amount: number,
 /** The one store type a rack (or a rail) carries, under the same
  *  one-type-per-mount assumption `storesSpec` already records and the shipped
  *  content satisfies. */
-function storeTypeOf(spec: AircraftSpec, kind: 'bomb' | 'rocket' | 'torpedo'): StoreType | null {
+export function storeTypeOf(spec: AircraftSpec, kind: 'bomb' | 'rocket' | 'torpedo'): StoreType | null {
   const s = spec.stores
   if (s === undefined) return null
   const mount = kind === 'rocket' ? s.rails[0] : s.racks[0]
