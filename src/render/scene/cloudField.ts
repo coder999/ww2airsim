@@ -1,6 +1,6 @@
 import { Data3DTexture, DataTexture, LinearFilter, NearestFilter, RedFormat, RGBAFormat, RGFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
-import { Fn, If, abs, clamp, float, floor, fract, max, min, mix, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
+import { Fn, If, Loop, abs, clamp, float, floor, fract, int, length, max, min, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec2, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
@@ -195,6 +195,13 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
 /** A cloud density sampler: density in [0, 1] at a TRUE world point for one
  *  layer, 0 outside its slab. */
 export type DensityFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>) => Node<'float'>
+/** `density` plus the optical path toward `sun` (world unit vector) in metres
+ *  of density: `vec2(density, sunPath)`. The path is a `lightSteps`-sample march
+ *  through the cloud's own archetype in its cube frame (K Task 1.3, 2026-10-10):
+ *  it reads only the cumulus volume, never the weather map or the noise, so a
+ *  light sample costs one texture read instead of the full field. Cirrus and
+ *  empty air return a path of 0. */
+export type DensityLitFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>, sun: Node<'vec3'>, lightSteps: Node<'int'>) => Node<'vec2'>
 
 export type CloudField = {
   readonly shape: Data3DTexture
@@ -217,13 +224,8 @@ export type CloudField = {
   setLayers(layers: readonly CloudLayer[]): void
   /** Density in [0, 1] at a TRUE world point for one layer; 0 outside its slab. */
   readonly density: DensityFn
-  /** `density` without the cumulus detail erosion (one volume read fewer):
-   *  the cheap sample for the cloud light march (photoreal Task 11), where
-   *  the shadow a 5 m erosion texel casts is below what a 60 m+ light step
-   *  resolves anyway (Schneider 2015 does the same). Cirrus is unchanged. */
-  readonly densityCoarse: DensityFn
   /**
-   * `density`/`densityCoarse` as laid-out TSL functions (loading spec §A.3):
+   * `density`/`densityLit` as laid-out TSL functions (loading spec §A.3):
    * emitted once per shader as WGSL functions instead of inlined at every
    * call site -- inlining more copies in the light march was the boot
    * freeze (12 s when the spec measured it, 39 s after the stacked-lobe
@@ -235,12 +237,12 @@ export type CloudField = {
    * `fns` exposes the two underlying laid-out TSL `Fn` objects themselves
    * (before `bind()` closes over them), for the per-material-identity test
    * ONLY (tests/render/cloudField.test.ts) -- comparing the returned
-   * `density`/`densityCoarse` closures cannot catch a memoized/shared `Fn`
+   * `density`/`densityLit` closures cannot catch a memoized/shared `Fn`
    * because `bind()` allocates a fresh closure on every call regardless, so
    * `a.density !== b.density` is true even if both wrapped the SAME `Fn`.
    * Production code has no reason to touch `fns`.
    */
-  laidOut(): { density: DensityFn; densityCoarse: DensityFn; fns: { readonly density: unknown; readonly densityCoarse: unknown } }
+  laidOut(): { density: DensityFn; densityLit: DensityLitFn; fns: { readonly density: unknown; readonly densityLit: unknown } }
   /** Lowest cumulus layer's [base, top] in metres, or null when the deck has no cumulus. */
   lowestCumulus(): { baseM: number; topM: number } | null
   update(eye: Vec3, driftSeconds: number, wind: Vec3 | null): void
@@ -320,17 +322,20 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const drift = uniform(new Vector2())
 
   /** Density in [0, 1] at a world point for one layer; 0 outside the slab.
-   *  `detailed` false skips the detail erosion (`densityCoarse`); `layout`
+   *  `lit` adds the sun path through the archetype and returns a vec2
+   *  (`DensityLitFn`); `layout`
    *  true makes it a laid-out WGSL function rather than inlined (`laidOut`).
    *  The body reads no uniform: `drifted` and `theta` arrive as parameters
    *  (`driftedOf`, `thetaFor`), because a laid-out Fn's code is cached with
    *  the first material's uniform binding names. Textures are fine inside
    *  it as long as the instance is per-material (verified 2026-09-25). */
-  const makeDensity = (detailed: boolean, layout: boolean) => {
-    const fn = Fn(([p, drifted, base, thickness, coverage, kind, theta]: [Node<'vec3'>, Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>]) => {
+  const makeDensity = (layout: boolean, lit: boolean) => {
+    const fn = Fn(([p, drifted, base, thickness, coverage, kind, theta, sun, lightSteps]: [Node<'vec3'>, Node<'vec3'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'float'>, Node<'vec3'>, Node<'int'>]) => {
       const h = p.y.sub(base).div(thickness)
       const inside = h.greaterThan(0).and(h.lessThan(1))
       const d = float(0).toVar()
+      /** Optical path toward the sun, metres of density (`lit` only). */
+      const sunPath = float(0).toVar()
       If(inside, () => {
         // The committed volume spans 110..247 of 255 (the Perlin-Worley remap
         // lifts the low end on purpose); stretched back to 0..1 here so
@@ -390,7 +395,8 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
             const radius = mix(float(WEATHER_RADIUS_M[0]), float(WEATHER_RADIUS_M[1]), wm.a).mul(grow)
             const local = tileXZ.sub(centre).div(radius)
             const variant = saturate(sin(peak.mul(43.1).add(0.7)).mul(0.5).add(0.5)).toVar()
-            const hc = p.y.sub(base).div(thickness.mul(mix(float(0.42), float(1), variant))).toVar()
+            const heightScale = thickness.mul(mix(float(0.42), float(1), variant)).toVar()
+            const hc = p.y.sub(base).div(heightScale).toVar()
             const alive = smoothstep(theta, theta.add(CLOUD_ALIVE_RAMP), peak).toVar()
             // The baked stacked-lobe archetype in the cloud's own frame.
             // Rotation and scale come from its strength, so neighbours do not
@@ -407,25 +413,32 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
               .and(uvw.z.greaterThan(0)).and(uvw.z.lessThan(1))
             const stored = float(0).toVar()
             If(alive.greaterThan(0).and(inVolume), () => { stored.assign(texture3D(cumulus, uvw).r) })
-            return { stored, alive, hc, variant }
+            // The sun direction in this cloud's cube frame, in cube units per
+            // world metre: the same rotation and per-axis stretch as `uvw`
+            // (u = lx/2 + 0.5 over 2 x radius x scale; v over heightScale).
+            // The slow horizontal warp above is ignored for the direction.
+            // `lit` only: the plain variant is called without `sun`.
+            const cubeDir = lit ? vec3(
+              sun.x.mul(ca).sub(sun.z.mul(sa)).div(radius.mul(scaleX).mul(2)),
+              sun.y.div(heightScale),
+              sun.x.mul(sa).add(sun.z.mul(ca)).div(radius.mul(scaleZ).mul(2)),
+            ) : vec3(0, 1, 0)
+            return { stored, alive, hc, variant, uvw, cubeDir }
           }
           const first = candidate(texture(weatherMap, weatherUv))
-          let stored: Node<'float'> = first.stored, alive: Node<'float'> = first.alive
-          let hc: Node<'float'> = first.hc, type: Node<'float'> = first.variant
-          if (detailed) {
-            // The denser of the two draws this point: a cloud that grows past
-            // the texels it wins is not sliced off at its neighbour's
-            // boundary. The coarse density (the light march's, seven reads a
-            // step) keeps the winner only: a runner-up matters only at the
-            // seams, and there it would change a shadow, not a silhouette.
-            // Measured 2026-09-26 at 4K High in-deck: 32.5 ms p95 with both.
-            const second = candidate(texture(runnerMap, weatherUv))
-            const useSecond = second.stored.mul(second.alive).greaterThan(first.stored.mul(first.alive)).toVar()
-            stored = select(useSecond, second.stored, first.stored).toVar()
-            alive = select(useSecond, second.alive, first.alive).toVar()
-            hc = select(useSecond, second.hc, first.hc).toVar()
-            type = select(useSecond, second.variant, first.variant).toVar()
-          }
+          // The denser of the two draws this point: a cloud that grows past
+          // the texels it wins is not sliced off at its neighbour's
+          // boundary. Measured 2026-09-26 at 4K High in-deck: 32.5 ms p95
+          // with both (the old light march read it seven times a step; the
+          // cube-frame sun march below reads the weather map not at all).
+          const second = candidate(texture(runnerMap, weatherUv))
+          const useSecond = second.stored.mul(second.alive).greaterThan(first.stored.mul(first.alive)).toVar()
+          const stored = select(useSecond, second.stored, first.stored).toVar()
+          const alive = select(useSecond, second.alive, first.alive).toVar()
+          const hc = select(useSecond, second.hc, first.hc).toVar()
+          const type = select(useSecond, second.variant, first.variant).toVar()
+          const uvw = lit ? select(useSecond, second.uvw, first.uvw).toVar() : first.uvw
+          const cubeDir = lit ? select(useSecond, second.cubeDir, first.cubeDir).toVar() : first.cubeDir
           If(alive.greaterThan(0), () => {
             // Where the archetype is empty there is no cloud: the shape noise
             // only sculpts an existing body. Without this gate its +-0.065
@@ -447,31 +460,58 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
               // silhouette rather than thresholding a 2D radial disc.
               const gradient = smoothstep(0, CLOUD_BASE_RAMP_M, p.y.sub(base)).mul(smoothstep(1, 0.8, hc))
               const body = smoothstep(0.015, 0.22, sculpted).mul(gradient).mul(alive).toVar()
-              if (detailed) {
-                // Erosion only lowers density, so where the base shape is empty
-                // the detail volume is not read at all (photoreal Task 11).
-                If(body.greaterThan(0), () => {
-                  const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
-                  const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
-                  const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
-                  const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
-                  // Wispy near each cloud's base, billowy above it.
-                  const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
-                  d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
-                })
-              } else {
-                d.assign(body)
-              }
+              // Erosion only lowers density, so where the base shape is empty
+              // the detail volume is not read at all (photoreal Task 11).
+              If(body.greaterThan(0), () => {
+                const curlXZ = texture(curl, warped.xz.div(CURL_TILE_M)).rg.mul(2).sub(1)
+                const detailP = warped.add(vec3(curlXZ.x.mul(CURL_DISPLACEMENT_M), 0, curlXZ.y.mul(CURL_DISPLACEMENT_M)))
+                const ds = texture3D(detail, detailP.div(DETAIL_TILE_M))
+                const e = ds.r.mul(0.625).add(ds.g.mul(0.25)).add(ds.b.mul(0.125))
+                // Wispy near each cloud's base, billowy above it.
+                const detailMod = mix(e, float(1).sub(e), saturate(hc.mul(5)))
+                d.assign(saturate(remapNode(body, detailMod.mul(DETAIL_EROSION), float(1), float(0), float(1))))
+                if (lit) {
+                  // K Task 1.3: the sun path through THIS cloud's archetype,
+                  // marched in its cube frame. `lightSteps` samples over
+                  // geometrically growing segments (1, 2, 4, ... units) that
+                  // together reach the cube face the sun ray leaves by, so the
+                  // nearest samples are the finest (photoreal Task 11's
+                  // scheme). Each sample gets the same 0.015..0.22 remap the
+                  // view density gets, without the noise, so a metre of
+                  // archetype shadows as a metre of cloud. Divided by the cube
+                  // units per metre to return metres, and scaled by `alive`
+                  // so a cloud fading in shadows itself as faintly as it draws.
+                  // Neighbouring clouds and the erosion cast no shadow here;
+                  // the full-field march that did cost 1.3-3 ms (H0).
+                  const perMetre = length(cubeDir).toVar()
+                  const n = cubeDir.div(perMetre).toVar()
+                  const face = (nd: Node<'float'>, u: Node<'float'>): Node<'float'> =>
+                    select(nd.greaterThan(0), float(1).sub(u), u).div(max(abs(nd), 1e-5))
+                  const exit = min(min(face(n.x, uvw.x), face(n.y, uvw.y)), face(n.z, uvw.z)).toVar()
+                  const stepsF = lightSteps.toFloat().toVar()
+                  const segment = exit.div(pow(float(2), stepsF).sub(1)).toVar()
+                  const edge = float(0).toVar()
+                  const path = float(0).toVar()
+                  Loop({ start: int(0), end: lightSteps, type: 'int', condition: '<', name: 'l' } as unknown as Node<'int'>, () => {
+                    const sample = texture3D(cumulus, uvw.add(n.mul(edge.add(segment.mul(0.5))))).r
+                    path.addAssign(smoothstep(0.015, 0.22, sample).mul(segment))
+                    edge.addAssign(segment)
+                    segment.mulAssign(2)
+                  })
+                  sunPath.assign(path.div(perMetre).mul(alive))
+                }
+              })
             })
           })
         })
       })
-      return d
+      // One node out, never an object (clouds.ts, marchNode's note).
+      return lit ? vec2(d, sunPath) : d
     })
     if (layout) {
       fn.setLayout({
-        name: detailed ? 'cloudDensity' : 'cloudDensityCoarse',
-        type: 'float',
+        name: lit ? 'cloudDensityLit' : 'cloudDensity',
+        type: lit ? 'vec2' : 'float',
         inputs: [
           { name: 'p', type: 'vec3' },
           { name: 'drifted', type: 'vec3' },
@@ -480,6 +520,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
           { name: 'coverage', type: 'float' },
           { name: 'kind', type: 'float' },
           { name: 'theta', type: 'float' },
+          ...(lit ? [{ name: 'sun', type: 'vec3' }, { name: 'lightSteps', type: 'int' }] as const : []),
         ],
       })
     }
@@ -497,10 +538,14 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   }
   /** Where the noise has drifted to, from the `drift` uniform. */
   const driftedOf = (p: Node<'vec3'>): Node<'vec3'> => vec3(p.x.add(drift.x), p.y, p.z.add(drift.y))
+  // A laid-out Fn is called with exactly its declared inputs: the plain
+  // variant declares seven, so it gets seven (its body ignores `sun` and
+  // `lightSteps`, which arrive undefined).
   const bind = (fn: ReturnType<typeof makeDensity>): DensityFn =>
-    (p, base, thickness, coverage, kind) => fn(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage))
-  const density = bind(makeDensity(true, false))
-  const densityCoarse = bind(makeDensity(false, false))
+    (p, base, thickness, coverage, kind) => (fn as unknown as (...a: Node<'float' | 'vec3'>[]) => Node<'float'>)(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage))
+  const bindLit = (fn: ReturnType<typeof makeDensity>): DensityLitFn =>
+    (p, base, thickness, coverage, kind, sun, lightSteps) => fn(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage), sun, lightSteps) as unknown as Node<'vec2'>
+  const density = bind(makeDensity(false, false))
 
   const layerVec = (l: CloudLayer | undefined, out: Vector4): Vector4 =>
     l ? out.set(l.baseM, l.thicknessM, l.coverage, l.kind === 'cirrus' ? KIND_CIRRUS : KIND_CUMULUS) : out.set(0, 0, 0, 0)
@@ -515,11 +560,10 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
       layerCount.value = sorted.length
     },
     density,
-    densityCoarse,
     laidOut: () => {
-      const rawDensity = makeDensity(true, true)
-      const rawDensityCoarse = makeDensity(false, true)
-      return { density: bind(rawDensity), densityCoarse: bind(rawDensityCoarse), fns: { density: rawDensity, densityCoarse: rawDensityCoarse } }
+      const rawDensity = makeDensity(true, false)
+      const rawDensityLit = makeDensity(true, true)
+      return { density: bind(rawDensity), densityLit: bindLit(rawDensityLit), fns: { density: rawDensity, densityLit: rawDensityLit } }
     },
     lowestCumulus: () => {
       const first = sorted.find((l) => l.kind === 'cumulus')

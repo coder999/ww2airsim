@@ -1,7 +1,6 @@
-import { Vector2 } from 'three'
 import type { Node } from 'three/webgpu'
 import {
-  Break, Fn, If, Loop, clamp, dot, smoothstep, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
+  Break, Fn, If, Loop, clamp, dot, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
@@ -43,10 +42,11 @@ export { cloudDriftM }
  * 4K); medium and low kept 8.33. Since H0 (2026-10-08) the gate is High at
  * 8.33 ms at 1440p, budget.spec.ts; 4K and medium are recorded. High spends
  * it on the clouds: resolution scale 0.5 (in-deck-1900 p95 measured 16.66
- * ms at 0.6 and 14.9-17.0 ms at 0.55), 6 light samples, the first
- * `fineLightSteps` of them on the DETAILED density (the creases between
- * billows are shadows cast by the erosion), and no distance light LOD
- * (`lightLodBandM` null; the lower tiers blend it out over 1.5-2.5 km).
+ * ms at 0.6 and 14.9-17.0 ms at 0.55) and 6 light samples.
+ *
+ * K Task 1.3 (2026-10-10): `lightSteps` now counts archetype reads in the
+ * cloud's cube frame (cloudField.ts, `DensityLitFn`), not full-field density
+ * calls. `fineLightSteps` and `lightLodBandM` went with the old march.
  *
  * Cloud Fidelity II §3.2 (2026-09-25): `updatePeriod: 16` marches one texel
  * per 4x4 block per frame (cloudPass.ts), and High spends the saving on 128
@@ -61,13 +61,13 @@ export { cloudDriftM }
  * docs/handoff/2026-10-08-h0-render-budget.md.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 1, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
-  medium: { cumulusSteps: 56, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
-  low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
+  high: { cumulusSteps: 128, lightSteps: 6, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
+  medium: { cumulusSteps: 56, lightSteps: 4, cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
+  low: { cumulusSteps: 32, lightSteps: 2, cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
 } as const
 export type CloudTierName = keyof typeof CLOUD_TIERS
 
-/** H0's lever pricing, DEV only: `?cloudTune=high.lightSteps:5,high.lightLodBandM:4000/6000` overwrites
+/** H0's lever pricing, DEV only: `?cloudTune=high.lightSteps:5,high.resolutionScale:0.75` overwrites
  *  tier fields in place before anything reads them, so one budget run prices a step-count or LOD change.
  *  Returns what it applied. ponytail: mutates the const table; a typed override layer if a player setting needs it. */
 export function applyCloudTune(search: string): string[] {
@@ -108,18 +108,8 @@ const CIRRUS_SIGMA = 0.0015
  *  last 3% of a ray's light changes its color by well under a gray level.
  *  Was 0.01 with no opaque fill (the 1% leaked the background). */
 const OPAQUE_TRANSMITTANCE = 0.03
-/** Light-march level of detail, a BUDGET LEVER (photoreal Task 11, 4K
- *  in-deck-1900): once the view ray's transmittance is below this, a step
- *  contributes at most this fraction of the pixel, and its light march drops
- *  to `LIGHT_STEPS_DEEP` near samples (plus the cone sample) spanning the
- *  same distance. */
-const LIGHT_LOD_TRANSMITTANCE = 0.3
-const LIGHT_STEPS_DEEP = 2
-/** ... and with distance, blended across the tier's `lightLodBandM`. */
 /** Step multiplier through empty air inside the layer's slab. */
 const EMPTY_STEP_SCALE = 2
-/** A distance no view ray reaches (FOG_DISTANCE_M is 100 km): "no LOD band". */
-const NO_LOD_M = 1e7
 
 /** DEV-only `?cloudDebug=`: `nodepth` marches to the fog distance ignoring the
  *  scene depth; `depth` paints the depth bound as grey (black near, white at
@@ -174,14 +164,8 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
 
   const cumulusSteps = uniform(CLOUD_TIERS.high.cumulusSteps, 'int')
   const cirrusSteps = uniform(CLOUD_TIERS.high.cirrusSteps, 'int')
+  /** Sun-path samples through the archetype per lit step (cloudField.ts, `DensityLitFn`). */
   const lightSteps = uniform(CLOUD_TIERS.high.lightSteps, 'int')
-  /** 2^lightSteps - 1: the light march's near span in units of its first
-   *  (shortest) segment. */
-  const lightUnits = uniform(2 ** CLOUD_TIERS.high.lightSteps - 1)
-  /** Light samples, nearest first, that read the detailed density. */
-  const fineLightSteps = uniform(CLOUD_TIERS.high.fineLightSteps, 'int')
-  /** The distance light LOD band [start, end] in metres; far away = none. */
-  const lodBand = uniform(new Vector2(NO_LOD_M, NO_LOD_M * 2))
   /** 0 normal, 1 ignore depth, 2 paint the depth bound. */
   const debug = uniform(0, 'int')
 
@@ -198,7 +182,7 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
   const marchNode = (dirIn: Node<'vec3'>, sceneTIn: Node<'float'>, dither: Node<'float'>): CloudMarch => {
     // One laid-out pair per material build: `marchNode` runs once for the
     // CloudMarch material and once for CloudUpdate (loading spec §A.3).
-    const { density, densityCoarse } = f.laidOut()
+    const { density, densityLit } = f.laidOut()
     const dir = normalize(dirIn).toVar()
     // The view-sun angle is constant along the ray, so the octaves' phase
     // terms are evaluated once here, not per step.
@@ -315,62 +299,19 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
           const p = eyeWorld.add(dir.mul(t))
           // Curvature: altitude above the sunk surface rises with distance.
           const pc = vec3(p.x, p.y.add(horizonSinkNode(t.mul(horizontal))), p.z)
-          const dens = density(pc, base, thickness, coverage, kind)
+          // Density and the sun path (metres of density) in one laid-out call:
+          // the sun path is marched through the cloud's archetype in its own
+          // cube frame (cloudField.ts, K Task 1.3, 2026-10-10). The old
+          // full-field light march (6 samples x the weather decode and noise
+          // reads, plus a far cone sample and a distance LOD band) was the
+          // biggest cost after the view steps themselves (H0).
+          const lit2 = densityLit(pc, base, thickness, coverage, kind, sun, lightSteps).toVar()
+          const dens = lit2.x.toVar()
           peakDensity.assign(max(peakDensity, dens))
           If(dens.greaterThan(0.001), () => {
-            // Light march toward the sun, cumulus only: a 300 m cirrus sheet
-            // casts no shadow on itself worth four density samples a step --
-            // measured 2026-09-19, marching it cost 1.6 ms of the 2.5 ms budget.
-            // Photoreal Task 11: `lightSteps` samples over geometrically
-            // growing segments (1, 2, 4, ... units) that together span the
-            // sun ray's path to the layer top, capped at one thickness, then
-            // ONE long "cone" sample for the stretch out to three
-            // thicknesses (Schneider 2015's far sample). Each sample stands
-            // for its segment's length, so `shadow` is the optical path in
-            // metres of density.
-            const shadow = float(0).toVar()
-            If(isCirrus.not(), () => {
-              const toTop = top.sub(pc.y).div(max(sun.y, 0.05)).toVar()
-              const near = min(toTop, thickness).toVar()
-              // Optical path over [0, near] from `count` geometric segments.
-              const nearMarch = (count: Node<'int'>, units: Node<'float'>, name: string, fine: Node<'int'>): Node<'float'> => {
-                const path = float(0).toVar()
-                const segment = near.div(units).toVar()
-                const edge = float(0).toVar()
-                Loop({ start: int(0), end: count, type: 'int', condition: '<', name } as unknown as Node<'int'>, (inputs) => {
-                  const idx = (inputs as unknown as Record<string, Node<'int'>>)[name]!
-                  const lp = pc.add(sun.mul(edge.add(segment.mul(0.5)))).toVar()
-                  If(idx.lessThan(fine), () => {
-                    path.addAssign(density(lp, base, thickness, coverage, kind).mul(segment))
-                  }).Else(() => {
-                    path.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(segment))
-                  })
-                  edge.addAssign(segment)
-                  segment.mulAssign(2)
-                })
-                return path
-              }
-              // Budget lever (photoreal Task 11): the full near march fades
-              // out over the tier's LOD band and wherever the view ray's
-              // transmittance is below LIGHT_LOD_TRANSMITTANCE, into a
-              // LIGHT_STEPS_DEEP-segment march over the same span. Across
-              // the band BOTH are marched and blended, so no ring can form.
-              const full = float(1).sub(smoothstep(lodBand.x, lodBand.y, t))
-                .mul(transmittance.greaterThan(LIGHT_LOD_TRANSMITTANCE).select(float(1), float(0))).toVar()
-              const fullPath = float(0).toVar()
-              const deepPath = float(0).toVar()
-              If(full.greaterThan(0), () => { fullPath.assign(nearMarch(lightSteps, lightUnits, 'l', fineLightSteps)) })
-              If(full.lessThan(1), () => { deepPath.assign(nearMarch(int(LIGHT_STEPS_DEEP), float(2 ** LIGHT_STEPS_DEEP - 1), 'm', int(0))) })
-              shadow.assign(mix(deepPath, fullPath, full))
-              const far = min(toTop, thickness.mul(3)).toVar()
-              If(far.greaterThan(near), () => {
-                const lp = pc.add(sun.mul(near.add(far).mul(0.5)))
-                shadow.addAssign(densityCoarse(lp, base, thickness, coverage, kind).mul(far.sub(near)))
-              })
-            })
             // Cirrus keeps its constant light (0.85 of the sun reaches it)
             // but gets the phase function; cumulus uses the octaves.
-            const tauSun = isCirrus.select(float(-Math.log(0.85)), shadow.mul(sigma))
+            const tauSun = isCirrus.select(float(-Math.log(0.85)), lit2.y.mul(sigma))
             const sunLight = multiScatterNode(phases, tauSun).mul(MS_SCALE)
             // Beer-powder's powder half on the LOCAL optical depth over a
             // fixed length (the Beer half is in the octaves): thin wisps
@@ -461,10 +402,6 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
       cumulusSteps.value = t.cumulusSteps
       cirrusSteps.value = t.cirrusSteps
       lightSteps.value = t.lightSteps
-      lightUnits.value = 2 ** t.lightSteps - 1
-      fineLightSteps.value = t.fineLightSteps
-      const band = t.lightLodBandM ?? [NO_LOD_M, NO_LOD_M * 2]
-      lodBand.value.set(band[0], band[1])
     },
     setDebug(mode: CloudDebug | undefined): void {
       const modes: Record<CloudDebug, number> = { nodepth: 1, depth: 2, layer: 3, shape: 4, density: 5, slab: 6, point: 7, eye: 8 }

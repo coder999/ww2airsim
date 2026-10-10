@@ -23,9 +23,9 @@ describe('clouds (Plan 16a)', () => {
     const before = structuredClone(CLOUD_TIERS.medium)
     try {
       expect(applyCloudTune('?x=1')).toEqual([])
-      expect(applyCloudTune('?cloudTune=medium.lightSteps:3,medium.lightLodBandM:4000/6000')).toHaveLength(2)
+      expect(applyCloudTune('?cloudTune=medium.lightSteps:3,medium.resolutionScale:0.4')).toHaveLength(2)
       expect(CLOUD_TIERS.medium.lightSteps).toBe(3)
-      expect(CLOUD_TIERS.medium.lightLodBandM).toEqual([4000, 6000])
+      expect(CLOUD_TIERS.medium.resolutionScale).toBe(0.4)
       expect(() => applyCloudTune('?cloudTune=medium.nope:1')).toThrow(/cloudTune/)
       expect(() => applyCloudTune('?cloudTune=medium.updatePeriod:4')).toThrow(/updatePeriod/)
     } finally { Object.assign(CLOUD_TIERS.medium, before) }
@@ -62,8 +62,6 @@ describe('clouds (Plan 16a)', () => {
     // 0.35 -> 0.5 the same day: high targets 60 Hz (budget4k.spec.ts);
     // in-deck-1900 at 4K measured 16.66 ms at 0.6 and 14.9-17.0 at 0.55.
     expect(CLOUD_TIERS.high.resolutionScale).toBeGreaterThanOrEqual(0.35)
-    expect(CLOUD_TIERS.high.lightLodBandM).toBeNull()
-    expect(CLOUD_TIERS.high.fineLightSteps).toBeGreaterThan(0)
     expect([CLOUD_TIERS.high.resolutionScale, CLOUD_TIERS.medium.resolutionScale, CLOUD_TIERS.low.resolutionScale]).toEqual([0.5, 0.3, 0.25])
     expect([CLOUD_TIERS.high.updatePeriod, CLOUD_TIERS.medium.updatePeriod, CLOUD_TIERS.low.updatePeriod]).toEqual([8, 1, 1])
   })
