@@ -1,0 +1,114 @@
+{
+  "id": "single-combat",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          -14666,
+          3000,
+          -47605
+        ],
+        "headingDeg": 270,
+        "speedMps": 120
+      }
+    },
+    {
+      "id": "frank-1",
+      "spec": "ki-84-frank",
+      "tags": [
+        "bandit"
+      ],
+      "airborneAt": {
+        "position": [
+          -22666,
+          3000,
+          -47505
+        ],
+        "headingDeg": 90,
+        "speedMps": 125
+      },
+      "pilot": {
+        "target": "f6f-1",
+        "skill": "veteran"
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 4,
+    "timeOfDay": 13,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1500,
+        "thicknessM": 600,
+        "coverage": 0.25
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "bandit",
+      "label": "Frank",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "frank-1"
+      ]
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "bandit"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "tally",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Tacloban tower: single bandit, a Frank, five miles west, angels ten. He's yours."
+        }
+      ]
+    },
+    {
+      "id": "splash",
+      "when": {
+        "completed": "bandit"
+      },
+      "then": [
+        {
+          "message": "Tacloban tower: splash one Frank. Come on home."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "single-combat",
+    "name": "Single Combat"
+  },
+  "briefing": {
+    "situation": "A single Ki-84 Frank is over the gulf, five miles west of you at ten thousand feet and coming straight at you. Its pilot is a veteran, and his airplane is as fast as yours and climbs better. Shoot him down, then recover at Tacloban.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "The Nakajima Ki-84 Hayate, which the Allies code-named Frank, was the Japanese Army's newest fighter in 1944, and it entered combat in numbers in the air battle over Leyte at the end of that year. From 21 October the commander of the 4th Air Army threw every unit he had at the Americans on the island, including a fighter brigade that had only just arrived from Japan. This mission is inspired by those encounters rather than a reconstruction of any one of them: a lone veteran meets you over Leyte Gulf, and Tacloban, the strip the Japanese raids were trying to close, is your field.",
+    "sources": [
+      "M. Hamlin Cannon, \"Leyte: The Return to the Philippines\" (United States Army in World War II, Office of the Chief of Military History, 1954), chapter VI, \"The Japanese Reaction\": https://www.gutenberg.org/ebooks/48991",
+      "Pacific Wrecks, \"Nakajima Ki-84 Hayate (Frank) - Technical Information\": https://pacificwrecks.com/aircraft/ki-84/tech.html"
+    ]
+  }
+}
