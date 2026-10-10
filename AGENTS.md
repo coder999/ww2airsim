@@ -100,6 +100,11 @@ nothing, and the adapter guard passes it all the same;
     never a whole suite (Mark, 2026-10-08).
   - **`hwlock ryzen` is a no-op**: it is listed in `~/.config/hwlock/off` (since 2026-09-27, why: `serverconfig/ryzen.md`,
     "Resource locks"). Wrapping a run in it locks nothing. Check with `hwlock status`.
+  - **Leave shared Playwright plumbing up when you finish** (Mark, 2026-10-10): the nexus-side tunnels
+    (`39001` to the console server, `39002` to session 0) and ryzen's Playwright servers serve every
+    session at once, so closing one mid-run fails another session's tests with `ECONNREFUSED`. Reuse a
+    tunnel that is already listening, open one only if it is not, and never kill one in cleanup. Stop only
+    what you alone started and nobody else can be using, such as a one-off server on its own port.
   - The lock only orders sessions on nexus. Work started on Ryzen itself (Mark, Playwright MCP sessions on the
     desktop) is invisible to it. Before trusting a number, check that Ryzen has no other browser driving its GPU.
 - Multiple dev server slots exist: ww2airsim.windomlane.org, ww2airsim-2.windomlane.org, and ww2airsim-3.windomlane.org.  
