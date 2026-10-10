@@ -5,6 +5,9 @@
     "tacloban",
     "dulag"
   ],
+  "airfieldSides": {
+    "dulag": "allied"
+  },
   "aircraft": [
     {
       "id": "f6f-1",
