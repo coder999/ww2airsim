@@ -17,7 +17,7 @@ export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
-  'kill.air', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
+  'kill.air', 'flak.burst', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
@@ -130,6 +130,14 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'kill.air': { emitters: [fireball(6, [16, 41], [2.4, 3.2]), sparks(16),
     { ...ejecta(30), direction: 'sphere', spreadDeg: 180, speedMps: [8, 30], lifeS: [3, 5], sizeM: [0.9, 0.6], tint: [0.06, 0.06, 0.07], dragPerS: 0.2, streakS: 0.04 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3.5, 16], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
+  // M2: an AA shell bursting. A short orange flash, then a ragged black cloud that hangs and drifts for
+  // several seconds. Sized for legibility at a few thousand feet (a 22-48 m puff is 10-20 pixels across at 1.5 miles
+  // at 1440p), not to scale: the lethal radius is AA_TUNING.heavy.burstRadiusM (40 m). Estimate, never compared
+  // with a photograph.
+  'flak.burst': { emitters: [
+    { ...fireball(2, [7, 15], [0.7, 1.0]), radiusM: 2 },
+    { mode: 'burst', sheet: 'smoke', count: 6, lifeS: [4.5, 7.5], speedMps: [2, 9], direction: 'sphere', spreadDeg: 180, radiusM: 7, sizeM: [22, 48], alpha: 0.85, tint: [0.035, 0.035, 0.04], dragPerS: 1.1, accelYMps2: 0.3 },
+  ], source: 'estimate (M2, 2026-10-10): sizes and life chosen for legibility from the cockpit at AA range' },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
   // Damage stages round 2: grey, light at low intensity and heavy at high (rate follows intensity);
   // smoke.black joins it for the last stretch before the fire (events.ts SMOKE_BLACK_FROM).

@@ -1,0 +1,13 @@
+{
+  "id": "aa-range",
+  "player": "f6f-1",
+  "airfields": ["tacloban"],
+  "airfieldSides": { "tacloban": "axis" },
+  "aircraft": [
+    { "id": "f6f-1", "spec": "f6f-hellcat", "airborneAt": { "position": [-24900, 610, -48605], "headingDeg": 270, "speedMps": 125 } }
+  ],
+  "ships": [
+    { "id": "dd-1", "spec": "fletcher-dd", "side": "axis", "waypoints": [[-27916, -48605]], "speedMps": 0 }
+  ],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 12 }
+}

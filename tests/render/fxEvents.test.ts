@@ -49,6 +49,17 @@ describe('fx events (effects design §3.2)', () => {
     expect(crashRecipe('deck')).toBe('crash.deck')
   })
 
+  // M2: a flak burst goes off in the air, and is the one 'air' impact that is drawn.
+  it('draws a flak burst once, where it went off (M2)', () => {
+    expect(impactRecipe({ cause: 'flak', outcome: 'detonated', surface: 'air' })).toBe('flak.burst')
+    expect(impactRecipe({ cause: 'bomb', outcome: 'expired', surface: 'air' })).toBeNull()
+    const { combat, aircraft } = base()
+    const c1 = withImpacts(combat, [hit(3, { cause: 'flak', surface: 'air', point: v3(7, 800, 9) })])
+    const f1 = nextFxEvents(NO_FX_MEMORY, view(3, c1, aircraft))
+    expect(f1.triggers).toEqual([{ recipe: 'flak.burst', position: v3(7, 800, 9), velocity: ZERO }])
+    expect(nextFxEvents(f1.memory, view(4, c1, aircraft)).triggers).toEqual([])
+  })
+
   it('emits each new impact once, and none twice across frames', () => {
     const { combat, aircraft } = base()
     const c1 = withImpacts(combat, [hit(3)])

@@ -171,7 +171,10 @@ export function spatialInputsFrom(
       .filter((h) => h.cause !== 'round' && (h.outcome === 'detonated' || torpedoSplash(h)))
       .map((h) => h.cause === 'torpedo'
         ? { tick: h.tick, surface: h.surface, position: h.point, torpedo: h.outcome === 'detonated' ? 'hit' as const : 'splash' as const }
-        : { tick: h.tick, surface: h.surface, position: h.point }),
+        : h.cause === 'flak'
+          ? { tick: h.tick, surface: h.surface, position: h.point, flak: true as const }
+          : { tick: h.tick, surface: h.surface, position: h.point }),
+    aaGuns: world.combat.aa.firing.map((f) => ({ id: f.id, position: f.at })),
   }
 }
 

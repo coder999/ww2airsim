@@ -78,6 +78,8 @@ export const ROCKET_BURN_S = 1.0
 export const ROCKET_NOZZLE_AFT_M = 0.76
 
 export function impactRecipe(i: Pick<CombatImpact, 'cause' | 'outcome' | 'surface'>): RecipeId | null {
+  // A flak burst goes off in the air (M2): the one cause whose 'air' impact is drawn.
+  if (i.cause === 'flak') return 'flak.burst'
   if (i.outcome === 'expired' || i.surface === 'air') return null
   if (i.cause === 'round') return `round.${i.surface}` as RecipeId
   // A torpedo's hit throws up the water column a near miss in the sea does; its water entry and a

@@ -278,12 +278,14 @@ export function destructionModel(
   state: AircraftState,
   attacker: string | null,
   killsSinceLastBank: Readonly<Record<TargetType, number>>,
+  /** M2: the attacker is a ship or a battery, not an airplane. */
+  byAntiaircraft = false,
 ): DebriefModel {
   return {
     headline: 'KILLED',
     detail: attacker === null
       ? 'The airframe failed under structural overload.'
-      : 'The aircraft was destroyed in combat.',
+      : byAntiaircraft ? 'The aircraft was shot down by antiaircraft fire.' : 'The aircraft was destroyed in combat.',
     figures: [
       { label: 'Final speed', value: mph(length(state.velocity)) },
       { label: 'Altitude', value: feet(state.position.y) },

@@ -20,7 +20,7 @@ const ids = (xs: readonly { spec: { id: string } }[]) => xs.map((x) => x.spec.id
 describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   it('Dev off hides exactly the Dev rows', () => {
     const hidden = SCENARIO_OPTIONS.filter((o) => !visibleScenarios(ctx(false)).includes(o)).map((o) => o.value).sort()
-    expect(hidden).toEqual(['bomber-range', 'damage-range', 'dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'range-test', 'recovery-range', 'takeoff-range'])
+    expect(hidden).toEqual(['aa-range', 'bomber-range', 'damage-range', 'dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'range-test', 'recovery-range', 'takeoff-range'])
     expect(visibleScenarios(ctx(true))).toEqual(SCENARIO_OPTIONS)
   })
   it('a carrier start offers the Hellcat, Wildcat, Corsair and Avenger; Dev adds the Zero', () => {

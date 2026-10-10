@@ -82,22 +82,35 @@ export function muzzleLeadDirection<M>(
   const relative = sub(target.state.position, self.state.position)
   const range = length(relative)
   if (range < 1e-6 || range > AI_GUN_RANGE_M) return null
+  const aim = solveMuzzleLead(relative, self.state.velocity, target.state.velocity, combat.muzzleVelocityMps, combat.dragPerM, combat.lifetimeS)
+  return aim === null ? null : aimWithError(aim, self.pilot?.decision.aimError)
+}
+
+/**
+ * The firing solution itself, shared by the AI pilots and by anti-aircraft
+ * fire (M2, `weapons/aaFire.ts`): the unit aim direction that puts a round
+ * fired from a shooter moving at `own` on a target `relative` metres away
+ * moving at `targetVelocity`, or `null` when the round cannot get there in
+ * `lifetimeS`. Pure arithmetic, no aim error.
+ */
+export function solveMuzzleLead(
+  relative: Vec3, own: Vec3, targetVelocity: Vec3, muzzleMps: number, dragPerM: number, lifetimeS: number,
+): Vec3 | null {
   // A round leaves at V = own velocity + muzzle velocity along the aim, and
   // flyProjectile's quadratic drag slows the whole vector, the inherited part
   // included: after t its travel is V * tau, tau = ln(1 + k|V|t) / (k|V|).
   // So the muzzle part must cover the target's travel, less the inherited
   // part's tau-shortened travel, plus the drop: solved by fixed point on t.
-  const k = combat.dragPerM, mv = combat.muzzleVelocityMps
-  const own = self.state.velocity
+  const k = dragPerM, mv = muzzleMps
   let aim = relative
   for (let i = 0; i < 6; i++) {
     const v0 = length(add(own, scale(aim, mv / length(aim))))
     const tau = length(aim) / mv
     const t = k === 0 ? tau : Math.expm1(k * v0 * tau) / (k * v0)
-    if (!Number.isFinite(t) || t > combat.lifetimeS) return null
-    aim = add(sub(add(relative, scale(target.state.velocity, t)), scale(own, tau)), v3(0, 0.5 * STANDARD_GRAVITY_MPS2 * t * t, 0))
+    if (!Number.isFinite(t) || t > lifetimeS) return null
+    aim = add(sub(add(relative, scale(targetVelocity, t)), scale(own, tau)), v3(0, 0.5 * STANDARD_GRAVITY_MPS2 * t * t, 0))
   }
-  return length(aim) < 1e-6 ? null : aimWithError(normalize(aim), self.pilot?.decision.aimError)
+  return length(aim) < 1e-6 ? null : normalize(aim)
 }
 
 /** `direction` tilted by a pilot's aim error: `right` radians to the

@@ -23,7 +23,14 @@ const PLAYER_FAR = { id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position: [
 const RAIDER = { id: 'raid-1', spec: 'f6f-hellcat', airborneAt: { position: [0, 3000, 0], headingDeg: 0, speedMps: 130 }, pilot: { skill: 'green', ingress: { route: ROUTE, destination: { ship: 'cv-1' } } } }
 const CARRIER = { id: 'cv-1', spec: 'essex-cv', side: 'allied', waypoints: [[-8000, -48000], [-8000, -60000]], speedMps: 10 }
 const raw = (aircraft: unknown[]) => ({ id: 'ingress-test', player: 'f6f-1', airfields: ['tacloban'], aircraft, ships: [CARRIER], weather: { windFromDeg: 0, windMps: 0 } })
-const build = (aircraft: unknown[]) => worldFromScenario(bundleForScenario(parseScenario(raw(aircraft))), null)
+// M2 (2026-10-10): the carrier's guns are off here. This file is about the raider's ROUTE and orbit; with the
+// Essex's AA live (M2) the raider is shot down on the orbit it is being measured on. The AA has its own tests
+// (tests/sim/weapons/aaCombat.test.ts, and Combat Air Patrol's mission test for what it does to a raid).
+const build = (aircraft: unknown[]) => {
+  const bundle = bundleForScenario(parseScenario(raw(aircraft)))
+  const cv = bundle.shipSpecs['essex-cv']!
+  return worldFromScenario({ ...bundle, shipSpecs: { ...bundle.shipSpecs, 'essex-cv': { ...cv, armament: undefined } } }, null)
+}
 const raider = (w: World<undefined>) => aircraftById(w, 'raid-1')!
 const speedOf = (w: World<undefined>) => length(raider(w).state.velocity)
 

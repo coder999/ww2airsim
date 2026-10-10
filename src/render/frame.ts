@@ -9,7 +9,7 @@ import {
   type World,
 } from '../sim/loop.js'
 import type { TerrainField } from '../sim/world/terrain.js'
-import { buildStructures } from '../sim/weapons/structures.js'
+import { rebuildStructures } from '../sim/weapons/structures.js'
 import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
@@ -435,7 +435,7 @@ export function withTerrain(frame: FrameState, terrain: TerrainField | null): Fr
     world: {
       ...frame.world,
       terrain,
-      structures: buildStructures(frame.world.airfields, terrain),
+      structures: rebuildStructures(frame.world.structures, frame.world.airfields, terrain),
     },
   }
 }

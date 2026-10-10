@@ -70,6 +70,7 @@ describe('the combat readout (Plan 6)', () => {
     for (const row of d.aircraft) expect(row).toMatchObject({ kills: 0, friendlyKills: 0, attacker: null })
     expect(d.projectiles).toBe(0)
     expect(d.tracers).toBe(0)
+    expect(d.aa).toEqual({ rounds: 0, pendingBursts: 0, firing: 0, burstsRecent: 0 }) // M2: quiet sky, quiet guns
     expect(combatDiagnosticsFor({ ...frame, controls: { ...frame.controls, fire: true } }).player.firing).toBe(true)
   })
 

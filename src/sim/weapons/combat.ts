@@ -25,6 +25,8 @@ import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 import { bayDoorsShut } from '../bayDoors.js'
 import { floodFrom, hitSide, type FloodState } from './flooding.js'
+import { AA_TUNING, aaOwnersOf, aaTargetsOf, flakBlastHp, initialAa, stepAa, takeDueBursts, type AaState } from './aaFire.js'
+import type { ShipArmament } from '../world/ships.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -37,6 +39,8 @@ export type CombatShip = {
   readonly spec: {
     readonly lengthM: number; readonly beamM: number; readonly deckHeightM: number
     readonly hullHp: number; readonly role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant'
+    /** M2: the guns that fire at aircraft (`aaFire.ts`). A merchant has none. */
+    readonly armament?: ShipArmament | undefined
   }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
@@ -96,6 +100,9 @@ export type Projectile = {
   /** The firing mount's `guns[].type`, for a typed mount only. Absent on
    *  every round an untyped mount fires, so those rounds are unchanged. */
   readonly gunType?: string
+  /** M2: an anti-aircraft round, fired by a ship or battery (`owner` is its id, not an airplane's). The value is the
+   *  hit scale it does to an airplane. It flies and hits in `stepCombat`'s AA branch: hostile airplanes only. */
+  readonly aa?: number
 }
 export type ShipDamage = {
   readonly hp: number; readonly fire: number
@@ -117,6 +124,8 @@ export type CombatState = {
    *  bounded (`IMPACT_RING_CAPACITY`). Written here, read only by the
    *  renderer's effects (ordnance-and-effects design §3.1). */
   readonly impacts: readonly CombatImpact[]
+  /** M2: anti-aircraft fire in flight and its gun timers (`aaFire.ts`). */
+  readonly aa: AaState
 }
 export function createCombat(
   aircraft: readonly CombatAircraft[],
@@ -137,6 +146,7 @@ export function createCombat(
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
     structures: Object.fromEntries(structures.map(s => [s.id, healthyStructureDamage(s.hp)])),
     impacts: [],
+    aa: initialAa(seed),
   }
 }
 
@@ -810,7 +820,76 @@ export function stepCombat(
     alive.push(p)
   }
 
+  // M2: anti-aircraft fire. Bursts that are due go off first, then the ships and batteries pick targets.
+  // Needs both side tables: with either missing (every caller that predates friendly fire) there is no AA.
+  let aaState = before.aa
+  const hostileTo = new Map<Side, CombatAircraft[]>()
+  const hostileAircraft = (side: Side | undefined): readonly CombatAircraft[] => {
+    if (side === undefined || sides === null) return []
+    let list = hostileTo.get(side)
+    if (list === undefined) {
+      list = aircraft.filter((a) => sides[a.id] !== side && a.impact === null && a.spec.combat !== undefined && records[a.id]?.damage.destroyedAt === null)
+      hostileTo.set(side, list)
+    }
+    return list
+  }
+  if (sides !== null && targetSides !== null) {
+    const taken = takeDueBursts(aaState, tick)
+    aaState = taken.aa
+    for (const burst of taken.due) {
+      impacts.push({ tick, cause: 'flak', outcome: 'detonated', surface: 'air', point: burst.point })
+      for (const a of aircraft) {
+        if (sides[a.id] === burst.side) continue
+        const amount = flakBlastHp(length(sub(a.state.position, burst.point)))
+        if (amount !== null) damageAircraftAt(a, amount, null, burst.owner, null)
+      }
+    }
+    const owners = aaOwnersOf(
+      afloat, structures, targetSides.ships, targetSides.structures,
+      (id) => shipDamage[id]?.destroyedTick != null, (id) => structureDamage[id]?.destroyedTick != null,
+    )
+    if (owners.length > 0) {
+      const targets = aaTargetsOf(aircraft, dt, sides, (id) => {
+        const d = records[id]?.damage
+        return d === undefined || d.destroyedAt !== null || d.burningSince !== null
+      })
+      let live = 0
+      for (const f of flying) if (f.p.aa !== undefined) live++
+      const stepped = stepAa(aaState, owners, targets, tick, dt, live)
+      aaState = stepped.aa
+      for (const r of stepped.rounds) {
+        if (flying.length >= MAX_PROJECTILES) break
+        flying.push({ p: { ...r, id: nextId++ }, dt, start: 0 })
+      }
+    }
+  }
+
+  /** An AA round's tick: it meets a hostile airplane, the sea or the ground, or flies on. */
+  const flyAaRound = (shot: { p: Projectile; dt: number; start: number }): void => {
+    if (shot.dt <= 0) return
+    const flown = flyProjectile(shot.p, shot.dt, wind, AA_TUNING.light.dragPerM)
+    const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
+    const hostile = hostileAircraft(targetSides?.ships[p.owner] ?? targetSides?.structures[p.owner])
+    // Broad phase: only an airplane within 20 m of this tick's segment is worth the box tests.
+    const seg = sub(p.position, p.previous), segLen2 = Math.max(1e-9, seg.x * seg.x + seg.y * seg.y + seg.z * seg.z)
+    const near = hostile.filter((a) => {
+      const w = sub(a.state.position, p.previous)
+      const u = Math.min(1, Math.max(0, (w.x * seg.x + w.y * seg.y + w.z * seg.z) / segLen2))
+      return length(sub(w, scale(seg, u))) < 20
+    })
+    const contact = nearestContact(p, shot.start, near, [], [], terrain, [])
+    if (contact === null) {
+      if (p.lifeS > 1e-12) alive.push(p)
+      return
+    }
+    if (contact.kind !== 'aircraft') return // sea and ground swallow it silently: no splash per round
+    const point = add(p.previous, scale(seg, contact.t))
+    impacts.push({ tick, cause: 'round', outcome: 'detonated', surface: 'aircraft', point })
+    damageAircraftAt(contact.aircraft, 0, contact.system, p.owner, point, p.aa!, contact.engine)
+  }
+
   for (const shot of flying) {
+    if (shot.p.aa !== undefined) { flyAaRound(shot); continue }
     const ownerSpec = specs.get(shot.p.owner)
     if (ownerSpec === undefined || shot.dt <= 0) continue
     const store = shot.p.kind === 'round' ? null : storeTypeOf(ownerSpec, shot.p.kind)
@@ -895,7 +974,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts) }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same

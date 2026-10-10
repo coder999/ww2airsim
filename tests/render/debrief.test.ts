@@ -88,6 +88,8 @@ describe('the debrief', () => {
 
     const combat = destructionModel(state, 'bandit-1', zeroKillsByType())
     expect(combat.detail).toContain('combat')
+    // M2: a ship's or battery's id is not an airplane's, and the debrief says so.
+    expect(destructionModel(state, 'dd-1', zeroKillsByType(), true).detail).toContain('antiaircraft')
   })
 
   it('shows sink rate as a positive number, not the signed velocity it comes from', () => {

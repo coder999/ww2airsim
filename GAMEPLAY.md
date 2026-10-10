@@ -368,8 +368,18 @@ before art/hull-geometry work begins. `role` matches
 All eleven ship classes ship with models (verified 2026-10-09). Since Track M's M1
 (2026-10-08), every warship carries its gun mounts: main turrets, heavy AA and
 light AA at the positions its `content/ships/<id>.json` `armament` lists, each
-mount drawn separately and able to turn; the Maru carries none. Nothing fires
-yet: AA fire is M2 and the main batteries M4 (`MASTER_PLAN.md`, Track M).
+mount drawn separately and able to turn; the Maru carries none. **Anti-aircraft
+fire (M2, 2026-10-10):** every armed ship and every AAA battery shoots at any
+airplane of the other side in range, never its own. Heavy guns (the 5-inch and
+12.7 cm mounts) throw **flak bursts** that go off near you and hurt in a radius;
+light guns (20, 25, 40 mm) fire **orange tracers** at close range. The default
+is Moderate: circling a destroyer at 300 ft costs a Hellcat in about 20
+seconds, a straight fast pass over it usually survives, and at 6,000 ft the
+flak takes about a minute and a half. The guns shoot wide until they have
+ranged in on you and lose you if you fly over them, so speed and not lingering
+are what protect you. The main batteries are M4 (`MASTER_PLAN.md`, Track M); the
+mounts do not yet turn to follow their target (M3). The numbers are
+`AA_TUNING` in `src/sim/weapons/aaFire.ts`.
 
 ## Building roster
 
@@ -388,10 +398,10 @@ What can be shot, verified against `content/bases/` and
 | --- | --- | --- | --- | --- |
 | Large hangar (barrel-roof) | `hangar` | Building | 120 | Tacloban ×3 (34×42 m, 34×42 m, 28×36 m) |
 | Control tower | `tower` | Building | 40 | Tacloban |
-| Anti-aircraft battery | `aaa` | AAA battery | 30 | Tacloban ×1; does not fire back yet |
+| Anti-aircraft battery | `aaa` | AAA battery | 30 | Tacloban ×1; fires back at the other side's airplanes (M2): one 5-inch-class flak gun and one 40 mm twin |
 | Hangar | `hangar` | Building | 90 | Dulag ×1 (22×28 m) |
 | Maintenance shed | `hangar` | Building | 50 | Dulag ×1 (12×16 m) |
-| Anti-aircraft battery | `aaa` | AAA battery | 30 | Dulag ×2; gameplay content (missions spec §4.2); does not fire back yet |
+| Anti-aircraft battery | `aaa` | AAA battery | 30 | Dulag ×2; gameplay content (missions spec §4.2); fires back at the player (M2) |
 
 Hit points are gameplay choices, not historical figures. One bomb or three
 rockets razes a 120-HP hangar; strafing works too but takes 30 rounds. Razing only counts toward a mission's

@@ -104,6 +104,9 @@ export type CombatDiagnostics = {
   readonly projectiles: number
   readonly tracers: number
   readonly poolSaturated: number
+  /** M2: anti-aircraft fire right now (rounds in the air, flak bursts still to go off, ships and batteries whose light guns fired lately) and
+   *  the flak bursts in the impact ring, so an E2E spec can read that the guns are firing instead of comparing pictures. */
+  readonly aa: { readonly rounds: number; readonly pendingBursts: number; readonly firing: number; readonly burstsRecent: number }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -134,6 +137,12 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
     projectiles: combat.projectiles.length,
     tracers: combat.projectiles.filter((p) => p.tracer).length,
     poolSaturated: combat.poolSaturated,
+    aa: {
+      rounds: combat.projectiles.filter((p) => p.aa !== undefined).length,
+      pendingBursts: combat.aa.bursts.length,
+      firing: combat.aa.firing.length,
+      burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
+    },
   }
 }
 

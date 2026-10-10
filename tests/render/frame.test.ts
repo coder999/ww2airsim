@@ -432,6 +432,18 @@ describe('ground spawn: the hold-for-terrain trap (Task 14)', () => {
     expect(f.stepsRun).toBe(0)
   })
 
+  // Found 2026-10-10 (M2): the terrain arriving rebuilt the structures and dropped the side `createWorldOf` stamped on each,
+  // so every battery read as axis and Tacloban's own AAA shot the Hellcat taking off from it.
+  it('keeps every structure\'s side when the terrain arrives (M2)', () => {
+    const w = worldFromScenario(loadScenarioBundle('aa-range'), null)
+    expect(w.structures.length).toBeGreaterThan(0)
+    expect(w.structures.every((x) => x.side === 'axis')).toBe(true) // the scenario flips Tacloban to axis
+    const home = worldFromScenario(loadScenarioBundle('free-flight'), null)
+    expect(home.structures.some((x) => x.side === 'allied')).toBe(true) // Tacloban is the player's own field
+    const out = withTerrain({ ...initialFrameStateFor(home), world: home }, FLAT_FIELD)
+    expect(out.world.structures.map((x) => [x.id, x.side])).toEqual(home.structures.map((x) => [x.id, x.side]))
+  })
+
   it('resumes integrating, settled rather than falling or buried, the instant terrain arrives', () => {
     let f = groundStart()
     for (let i = 0; i < 30; i++) f = nextFrameState(f, 1 / 60, keys()) // still holding

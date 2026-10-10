@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  AI_ENGINE_SUM_MAX, ENGINE_AUDIBLE_M, MAX_ENGINE_SOURCES, NO_SPATIAL_MEMORY, airCutoffHz, dopplerRate, nextSpatial,
+  AA_GUN_AUDIBLE_M, AA_GUN_SUM_MAX, AI_ENGINE_SUM_MAX, ENGINE_AUDIBLE_M, MAX_AA_GUN_SOURCES, MAX_ENGINE_SOURCES, NO_SPATIAL_MEMORY, airCutoffHz, dopplerRate, nextSpatial,
   type SpatialAircraft, type SpatialInputs, type SpatialMemory,
 } from '../../src/audio/spatial.js'
 
@@ -108,6 +108,15 @@ describe('nextSpatial one-shots', () => {
     }
   })
 
+  // M2 (Track I, I3): a flak burst plays the close take (flak_burst) within FLAK_SWITCH_M and the far one (flak_distant) beyond.
+  it('plays flak_burst for a close flak burst and flak_distant for a far one', () => {
+    const burst = (x: number) => ({ tick: 100, surface: 'air', position: { x, y: 1000, z: 0 }, flak: true as const })
+    expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [burst(150)] })).memory.pending[0]!.clip).toBe('flak_burst')
+    expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [burst(5000)] })).memory.pending[0]!.clip).toBe('flak_distant')
+    // Not flak: the same place is a plain detonation.
+    expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [{ ...burst(150), flak: undefined as never }] })).memory.pending[0]!.clip).toBe('explosion')
+  })
+
   it('does not replay a detonation it has already seen, nor hear one beyond earshot', () => {
     const b = blast(100, 500)
     const a = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [b] }))
@@ -155,5 +164,23 @@ describe('nextSpatial carrier deck', () => {
     expect(over.at.x).toBeCloseTo(0, 6)
     expect(Number.isFinite(over.at.z)).toBe(true)
     expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ decks: [deck(5000, 0)] })).loops).toEqual([])
+  })
+})
+
+describe('nextSpatial light AA guns (M2, I3)', () => {
+  const gun = (id: string, x: number) => ({ id, position: { x, y: 10, z: 0 } })
+  it('is one aa_gun loop per firing ship, at the gun, nearest first, at most three', () => {
+    const { loops } = nextSpatial(NO_SPATIAL_MEMORY, inputs({ aaGuns: [gun('d', 1500), gun('a', 300), gun('c', 900), gun('b', 600)] }))
+    expect(loops.map((l) => [l.key, l.layer])).toEqual([['aa:a', 'aa_gun'], ['aa:b', 'aa_gun'], ['aa:c', 'aa_gun']])
+    expect(loops.length).toBe(MAX_AA_GUN_SOURCES)
+    expect(loops[0]!.at.x).toBeCloseTo(300, 6) // to the right of a camera looking north
+    expect(loops[0]!.gain).toBeGreaterThan(loops[2]!.gain)
+    expect(loops[0]!.cutoffHz).toBeGreaterThan(loops[2]!.cutoffHz)
+  })
+  it('is silent out of earshot, with no guns, and never sums past the cap', () => {
+    expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ aaGuns: [gun('far', AA_GUN_AUDIBLE_M + 500)] })).loops).toEqual([])
+    expect(nextSpatial(NO_SPATIAL_MEMORY, inputs()).loops).toEqual([])
+    const close = nextSpatial(NO_SPATIAL_MEMORY, inputs({ aaGuns: [gun('a', 20), gun('b', 30), gun('c', 40)] })).loops
+    expect(close.reduce((sum, l) => sum + l.gain, 0)).toBeLessThanOrEqual(AA_GUN_SUM_MAX + 1e-9)
   })
 })

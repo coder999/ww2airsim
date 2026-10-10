@@ -13,7 +13,7 @@ export type ImpactSurface = 'water' | 'land' | 'deck' | 'aircraft' | 'ship' | 's
  *  projectile was), in world metres. */
 export type CombatImpact = {
   readonly tick: number
-  readonly cause: 'round' | 'bomb' | 'rocket' | 'torpedo'
+  readonly cause: 'round' | 'bomb' | 'rocket' | 'torpedo' | 'flak'
   /** `entered` and `broke-up` are a torpedo's only: it reached the water and began its run, or it
    *  met the water outside its drop envelope (or met anything else first) and broke up. */
   readonly outcome: 'detonated' | 'expired' | 'entered' | 'broke-up'

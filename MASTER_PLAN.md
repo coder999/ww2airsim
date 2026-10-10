@@ -258,7 +258,7 @@ one plan for the lot.
 
 ### Track I: Sound (M, two plans)
 
-- **Today (counted 2026-10-09):** 25 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose), `flak_burst`, `aa_gun`, `torpedo_splash`, `torpedo_hit`, `ship_gun_heavy`.
+- **Today (counted from `src/audio/assets.ts` 2026-10-10, after M2):** 29 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose) and `ship_gun_heavy` (M4).
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals. Done 2026-10-09** (branch `i1-synth-sounds`, plan `docs/superpowers/plans/2026-10-09-i1-synth-sounds.md`, handoff `docs/handoff/2026-10-09-i1-synth-sounds.md`):
   - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (angle of attack, below), overspeed creak (the spec's dive limit), and radio static under each transmission.
@@ -276,8 +276,8 @@ one plan for the lot.
     - `src/audio/radio.ts` maps message text to line, and its test enrolls every scenario message.
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
   - **Wired 2026-10-09:** `gear_cycle` and `flaps_cycle`, once as travel starts, both ways.
-  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2). `rocket_whoosh` is now take 2 (wired). `radio_squelch` (Freesound CC0) is wired: it brackets each radio line (I2).
-  - `torpedo_hit` is Mark's own Firefly clip (unwired, the Avenger).
+  - **Wired since:** `torpedo_splash` and `torpedo_hit` (D3, 2026-10-09; a torpedo's release reuses `bombs_away`), `flak_burst` (the close burst) and `aa_gun` (a 20 mm loop, every AA gun, ship and ground) with M2 (2026-10-10). `rocket_whoosh` is now take 2 (wired). `radio_squelch` (Freesound CC0) is wired: it brackets each radio line (I2).
+  - `torpedo_hit` is Mark's own Firefly clip.
   - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
   - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
@@ -306,12 +306,12 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - **M1d (done 2026-10-09,** merge `3265b8e7`, handoff `docs/handoff/2026-10-09-m1d-download-detail.md`): five of the six downloaded warships (Yamato, Mogami, Cleveland, Essex, Fletcher) get M1c's baked AO and detail and the same weathering, through a non-overlapping island atlas built in the TS pipeline. Shiratsuyu keeps its author's textures, which read better than the skin did. Essex's light AA is cut to four 40 mm quads, two per side (Mark: balance, not history). Budgets unchanged.
      - **M1e (done 2026-10-09,** merge `74c33b60`, handoff `docs/handoff/2026-10-09-m1e-zuikaku.md`): the first Japanese carrier, Zuikaku as at Leyte, from KTKloss's Shōkaku (CC BY 4.0). She is armed to match Essex (eight twin 12.7 cm and four triple 25 mm; Mark: balance, not history), camouflaged, baked like M1d, and landable: every carrier now runs the arcade trap tests.
      - **M1f (done 2026-10-09,** handoff `docs/handoff/2026-10-09-m1f-ship-rebuilds.md`): Mogami, Yamato, Cleveland and Essex are rebuilt in Blender to Fletcher's level (stepped bridges with framed windows, real funnels, railings, rigging, baked detail), replacing their downloads; Abukuma (Nagara class, Surigao Strait) is added; every warship flies its waving ensign and the Maru flies none; Shiratsuyu measured right at 107.5 m.
-  2. **M2 AA fire (M).** Ships and ground AAA share one system:
+  2. ~~**M2 AA fire (M).**~~ Built 2026-10-10 (branch `m2-aa-fire`, plan `docs/superpowers/plans/2026-10-10-m2-aa-fire.md`, handoff `docs/handoff/2026-10-10-m2-aa-fire.md`; not yet merged). Ships and ground AAA share one system (`src/sim/weapons/aaFire.ts`, every number in `AA_TUNING`):
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;
      - both sides fire, under the friendly-fire rules;
-     - the default is dangerous: lingering low over a destroyer costs you.
-     - Builds on E1's lead and aim error.
+     - the default is Moderate, measured and pinned: lingering at 300 ft over a destroyer costs a Hellcat in about 20 s, a fast straight pass usually survives.
+     - Builds on E1's lead and aim error. `aa_gun` and `flak_burst` (Track I, I3) are wired; the Dev scenario `aa-range` is the test bed. Mounts do not yet train toward their target (M3).
   3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
