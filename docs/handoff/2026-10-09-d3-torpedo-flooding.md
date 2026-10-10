@@ -1,6 +1,6 @@
 # D3 handoff: torpedo flooding, torpedo sounds, and "Torpedo" in the loadout (2026-10-09)
 
-Plan: `docs/superpowers/plans/2026-10-09-d3-torpedo-flooding.md`. Track D step 3 in `MASTER_PLAN.md`, plus D1's leftovers. The run was unattended, in worktree `d3-torpedo-flooding`. Viewing checkpoint: the final product only.
+Plan: `docs/superpowers/plans/2026-10-09-d3-torpedo-flooding.md`. Track D step 3 in `MASTER_PLAN.md`, plus D1's leftovers. The run was unattended, in worktree `d3-torpedo-flooding`. Viewing checkpoint: the final product only. Merged to `main` as `5f306eeb`. `npm run verify` on `main` (on Ryzen via `remote-run`) passed: 377 test files, 5,249 tests passed, 12 skipped.
 
 ## What ships
 
