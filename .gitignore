@@ -57,3 +57,6 @@ src/**/__*__.ts
 
 # Python bytecode from importing kit.py outside Blender (DP0, 2026-09-28)
 __pycache__/
+
+# Blender spike scratch (tools/sky/blender/README.md)
+/tools/sky/blender/out/
