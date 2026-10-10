@@ -46,6 +46,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   },
   { label: 'Stall limiter', bindings: ['toggleStallLimiter'] },
   { label: 'Auto-rudder', bindings: ['toggleAutoRudder'] },
+  { label: 'Impact marker (Assist, off)', bindings: ['toggleImpactMarker'] },
   { label: 'Triple time', bindings: ['toggleTripleTime'] },
   { label: 'Gear', bindings: ['toggleGear'] },
   { label: 'Flaps', bindings: ['toggleFlaps'] },

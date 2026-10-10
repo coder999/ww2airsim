@@ -16,7 +16,7 @@ import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
-import { racksLabel } from '../sim/weapons/stores.js'
+import { emptyStores, racksLabel } from '../sim/weapons/stores.js'
 import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
@@ -111,6 +111,8 @@ import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './t
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
+import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
+import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
@@ -144,7 +146,7 @@ import {
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { length, v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
-import { FRAME_TIME_CAPACITY, type Ww2Diagnostics } from './diagnostics.js'
+import { FRAME_TIME_CAPACITY, type ImpactMarkerDiagnostics, type Ww2Diagnostics } from './diagnostics.js'
 import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
 import { coverFieldFor, loadCover } from './landcover/load.js'
@@ -699,7 +701,7 @@ async function boot(): Promise<void> {
     // `spawnPosition` and `cascades`.
     const rebuildFrame = (): void => {
       if (frame) {
-        const rebuilt = initialFrameStateFor(buildWorld(frame.world.terrain), frame.assists)
+        const rebuilt = initialFrameStateFor(buildWorld(frame.world.terrain), frame.assists, frame.impactMarker)
         frame = rebuilt.groundSpawn && rebuilt.world.terrain !== null
           ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
           : rebuilt
@@ -966,6 +968,7 @@ async function boot(): Promise<void> {
       // installed before `frame` exists. The fallback is the same value
       // `initialFrameStateFor` would have produced.
       assists: () => frame?.assists ?? DEFAULT_ASSIST_SETTINGS,
+      impactMarker: () => impactDiagnostics,
       // Added in Task 10, and the only way to confirm that task's last wire
       // from outside: the heightfield the physics can hit arrives over the
       // network and changes nothing on screen -- the terrain is drawn from
@@ -1572,6 +1575,10 @@ async function boot(): Promise<void> {
   if (gunPipper) scene.add(gunPipper.root)
   const steeringArrow = createSteeringArrow() // B1: in-scene arrow and destination marker (scene/steeringArrow.ts)
   scene.add(steeringArrow.root)
+  const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)
+  scene.add(impactMarker.root)
+  const impactPredictor = createImpactPredictor()
+  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null }
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -1688,6 +1695,7 @@ async function boot(): Promise<void> {
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
+  const impactBadge = createImpactBadge(root)
   const autopilotBadge = createAutopilotBadge(root)
   const pauseBadge = createPauseBadge(root)
   const paddlesBadge = createPaddlesBadge(root)
@@ -1718,7 +1726,7 @@ async function boot(): Promise<void> {
     // (rather than re-entering the hold above) exactly when `buildWorld` was
     // handed one -- restart never needs to wait a second time for a
     // heightfield that is already cached in `frame!`.
-    const restarted = initialFrameStateFor(buildWorld(frame!.world.terrain), frame!.assists)
+    const restarted = initialFrameStateFor(buildWorld(frame!.world.terrain), frame!.assists, frame!.impactMarker)
     frame =
       restarted.groundSpawn && restarted.world.terrain !== null
         ? settleOnTerrain(restarted, restarted.world.terrain)
@@ -2641,6 +2649,22 @@ async function boot(): Promise<void> {
     }
     const steered = steeringArrow.update(steering?.target ?? null, playerAirframe.root, camera, worldOffset, replay === null && !sortieIdle && !debriefUp)
     missionHud.placeSteering(steered.anchor, steered.mode)
+    // B2: the impact marker. Off, the predictor is never called; on, it is memoized per sim tick.
+    {
+      const live = replay === null && !sortieIdle && !debriefUp
+      const me = playerAircraft(current.world)
+      const on = current.impactMarker && live
+      const prediction = impactPredictor(
+        on, me.spec, me.state, current.world.combat.aircraft[me.id]?.stores ?? emptyStores,
+        current.world.terrain, current.world.wind, decksOf(current.world.ships),
+      )
+      const shown = impactMarker.update(
+        prediction?.point ?? null, prediction?.armed ?? true, camera, worldOffset, impactMarkerShown(current.impactMarker, live, prediction),
+      )
+      const label = impactLabel(on, prediction, me.state.position)
+      impactBadge.set(label)
+      impactDiagnostics = { on, shown, label, prediction }
+    }
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player], racksLabel(player.spec))

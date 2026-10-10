@@ -118,6 +118,15 @@ export type FrameState = {
    */
   readonly assistTogglesDown: AssistTogglesDown
   /**
+   * B2: whether the bomb and rocket impact marker is shown. An Assist in Mark's sense (a period-incorrect
+   * aid, OFF by default) but deliberately not in `AssistSettings`: those flags feed the flight stack and
+   * pinned tests enumerate them, while this one only decides whether the renderer draws a marker. Nothing
+   * in the sim reads it.
+   */
+  readonly impactMarker: boolean
+  /** Whether the impact-marker key was down last frame, for edge detection. */
+  readonly impactMarkerPressed: boolean
+  /**
    * Whether the pilot currently has the gear commanded down: the PLAYER's
    * `parked` (Plan 12; `initialFrameStateFor` reads `playerAircraft(world).parked`).
    * Before Task 14 this was a hardcoded `false`, justified by the old spawn
@@ -295,6 +304,8 @@ function lastRespotTick(world: World<undefined>): number {
 export function initialFrameStateFor(
   world: World<undefined>,
   assists: AssistSettings = DEFAULT_ASSIST_SETTINGS,
+  /** B2: kept across a restart like `assists`; off at a fresh page load. */
+  impactMarker = false,
 ): FrameState {
   const player = playerAircraft(world)
   const { poses, shipPoses, render } = posesFor(world, 0)
@@ -315,6 +326,8 @@ export function initialFrameStateFor(
     tripleTimePressed: false,
     assists,
     assistTogglesDown: NO_TOGGLES_DOWN,
+    impactMarker,
+    impactMarkerPressed: false,
     gearDown: player.parked,
     gearPressed: false,
     // Flaps UP on every spawn, parked included: unlike the gear, there is no
@@ -687,6 +700,10 @@ export function nextFrameState(
     autoRudder: flipped('autoRudder'),
   }
 
+  // B2: the impact marker toggles on the key's rising edge, like every toggle above.
+  const impactKeyDown = BINDINGS.toggleImpactMarker.some((c) => pressed.has(c))
+  const impactMarker = impactKeyDown && !prev.impactMarkerPressed ? !prev.impactMarker : prev.impactMarker
+
   // THE production assist path: without this argument the whole assists layer
   // is inert in the browser and every behavioural test still passes, because
   // those call `applyAssists` directly (found during Plan 3 execution, plan
@@ -770,6 +787,8 @@ export function nextFrameState(
     tripleTimePressed: tripleTimeDown,
     assists,
     assistTogglesDown,
+    impactMarker,
+    impactMarkerPressed: impactKeyDown,
     gearDown,
     gearPressed: gearKeyDown,
     flapDown,

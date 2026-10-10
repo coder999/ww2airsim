@@ -57,6 +57,10 @@ export const BINDINGS = {
   // the master spec's ordering.
   toggleStallLimiter: ['KeyL'],
   toggleAutoRudder: ['KeyR'],
+  // B2 (2026-10-10). `U` for the impact marker, an Assist that is OFF by default and not part of
+  // `AssistSettings`: it draws where a released store would land and never touches the flight. `I` is
+  // flight data and `O` the bay doors, so U is the nearest free letter (grep KeyU found nothing).
+  toggleImpactMarker: ['KeyU'],
   // `T` for triple time, as the 1991 original bound it. A bare letter for the
   // reason `throttleDown` documents: Ctrl+T opens a browser tab and
   // `preventDefault` does not stop it.
