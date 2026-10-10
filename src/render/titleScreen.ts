@@ -1,7 +1,7 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
-import type { Loadout } from '../sim/weapons/stores.js'
+import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
 import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
@@ -47,6 +47,8 @@ export type TitleModel = {
   readonly next: string
   /** Form 1's Dev checkbox (sortie spec): lifts every rule. */
   readonly dev: string
+  /** Form 1's God mode checkbox: enabled only while Dev is checked (godMode.ts). */
+  readonly god: string
   /** Form 2's way back to Form 1. */
   readonly back: string
   readonly about: string
@@ -74,6 +76,7 @@ export function titleModel(): TitleModel {
     launch: 'Launch',
     next: 'Next',
     dev: 'Dev — unlocks everything',
+    god: 'God mode — cannot be hurt, never runs out, crashes bounce',
     back: 'Back',
     about: 'About project',
     hangar: 'Hangar',
@@ -196,6 +199,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // amended; the parked start became a run-in when T1's tail-down attitude
   // took the guns off a parked target, 2026-09-29).
   { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): on a run-in to Tacloban with a parked allied Hellcat on the runway.' },
+  // L3 / Range Test (2026-10-10): take off from Tacloban into a target range. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship; WHICH enemy follows the side of the airplane picked (`AXIS_VARIANTS`, `src/sim/sortie.ts`). Best flown with God mode.
+  { value: 'range-test', label: 'Range Test (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed: take off from Tacloban. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship. Pick an American airplane for Japanese targets, a Japanese one for American. Shoot them to see damage, smoke and sinking; God mode helps.' },
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).
@@ -476,6 +481,8 @@ export function createTitleScreen(
   // `settings`, not in `build()` -- it survives return-to-title and resets on
   // a page load. A `?scenario=` naming a Dev-only row checks it (A2).
   let dev = missions.options.find((o) => o.value === currentScenarioId)?.dev === true
+  // God mode: session state like Dev, and only ever true while Dev is.
+  let god = false
 
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
@@ -873,8 +880,11 @@ export function createTitleScreen(
       const allowed = flowReady ? loadoutsFor(ctx(), draft.aircraftSpec) : [draft.loadout]
       // The briefing is two forms back, so its recommendation is marked here (A3).
       const recommended = optionOf(draft.scenarioId)?.recommendedLoadout
+      const racks = racksLabel(missions.flyable.find((x) => x.spec.id === draft.aircraftSpec)?.spec)
       for (const option of LOADOUT_OPTIONS.filter((o) => allowed.includes(o.value))) {
-        const el = ballotOption(option.value === recommended ? `${option.label} (recommended)` : option.label, '', () => {
+        // A torpedo airplane's racks say "Torpedo" (D3 T1); every other label is the option's own.
+        const label = option.value === 'bombs' ? racks : option.label
+        const el = ballotOption(option.value === recommended ? `${label} (recommended)` : label, '', () => {
           draft = { ...draft, loadout: option.value }
           renderOrdnance()
         })
@@ -1141,13 +1151,25 @@ export function createTitleScreen(
     const devBox = document.createElement('input')
     devBox.type = 'checkbox'
     devBox.checked = dev
+    const godLabel = document.createElement('label')
+    godLabel.style.cssText = devLabel.style.cssText.replace('margin-right:auto;', 'margin-right:12px;')
+    const godBox = document.createElement('input')
+    godBox.type = 'checkbox'
+    godBox.checked = god && dev
+    godBox.disabled = !dev
+    godBox.addEventListener('change', () => { god = godBox.checked })
     devBox.addEventListener('change', () => {
       dev = devBox.checked
       sounds.style.display = dev ? '' : 'none'
+      // God mode needs Dev: unchecking Dev clears it and locks the box.
+      godBox.disabled = !dev
+      if (!dev) { god = false; godBox.checked = false }
       if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
     })
     devLabel.append(devBox, m.dev)
+    godLabel.append(godBox, m.god)
     const rosterButtons = buttonRow(newGame)
+    rosterButtons.prepend(godLabel)
     rosterButtons.prepend(devLabel)
     rosterSheet.appendChild(rosterButtons)
 
@@ -1233,7 +1255,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

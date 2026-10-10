@@ -1,0 +1,22 @@
+{
+  "id": "b5n2-kate",
+  "name": "Nakajima B5N2 Kate",
+  "rosterName": "Nakajima B5N Kate",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "The Japanese Navy's carrier torpedo bomber, with a Type 91 torpedo on its belly and a rear gun that tracks but does not fire. It has no forward guns. Its speed and climb come from one published source, and its stall speeds are estimates.",
+  "history": "The Nakajima B5N, the Navy Type 97 Carrier Attack Bomber, entered service in 1937 as the Imperial Japanese Navy's first carrier airplane with retractable landing gear; the Allies called it \"Kate\". A crew of three sat under a long greenhouse canopy: pilot, observer, and a radio operator who also manned the rear gun.\n\nB5N2s carried the torpedoes and the heavy armor-piercing bombs that sank the battleships at Pearl Harbor, and in 1942 they sank or helped sink the carriers Lexington, Yorktown and Hornet. Outclassed by 1944, the type was replaced in front-line service by the B6N Jill.",
+  "sources": [
+    {
+      "title": "Nakajima B5N",
+      "url": "https://en.wikipedia.org/wiki/Nakajima_B5N",
+      "read": "2026-10-09"
+    },
+    {
+      "title": "Type 91 torpedo",
+      "url": "https://en.wikipedia.org/wiki/Type_91_torpedo",
+      "read": "2026-10-09"
+    }
+  ],
+  "spec": "b5n2-kate"
+}

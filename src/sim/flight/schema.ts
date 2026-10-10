@@ -38,7 +38,7 @@ const altitudeTable = z
  * later tasks build, not to this task.
  */
 const StoreTypeObject = z.object({
-  kind: z.enum(['bomb', 'rocket']),
+  kind: z.enum(['bomb', 'rocket', 'torpedo']),
   massKg: positive,
   dragAreaM2: positive,
   damage: positive,
@@ -54,9 +54,22 @@ const StoreTypeObject = z.object({
   burnDeltaVMps: positive.optional(),
   /** Rail boresight above the gunsight line, degrees: the pilot's aim allowance for the drop. */
   railElevationDeg: z.number().finite().min(0).max(5).optional(),
+  // torpedo-only (Track D step 2, D1 plan): the drop envelope, then a straight run at a set depth.
+  // `fillerKg` is the warhead's explosive, as for a bomb; `armS` is unused for a torpedo.
+  /** Fastest airspeed at release that still runs; faster, it breaks up on the water. */
+  maxDropSpeedMps: positive.optional(),
+  /** Highest release above the sea that still runs. */
+  maxDropHeightM: positive.optional(),
+  runSpeedMps: positive.optional(),
+  runRangeM: positive.optional(),
+  runDepthM: positive.optional(),
+  /** Water run before the exploder arms; a hit inside it is a dud. */
+  armRunM: nonNegative.optional(),
 }).strict()
   .refine((t) => t.kind !== 'bomb' || (t.fillerKg !== undefined && t.armS !== undefined), { message: 'a bomb needs fillerKg and armS' })
   .refine((t) => t.kind !== 'rocket' || (t.warheadKg !== undefined && t.burnS !== undefined && t.burnDeltaVMps !== undefined), { message: 'a rocket needs warheadKg, burnS and burnDeltaVMps' })
+  .refine((t) => t.kind !== 'torpedo' || [t.fillerKg, t.maxDropSpeedMps, t.maxDropHeightM, t.runSpeedMps, t.runRangeM, t.runDepthM, t.armRunM].every((v) => v !== undefined),
+    { message: 'a torpedo needs fillerKg, maxDropSpeedMps, maxDropHeightM, runSpeedMps, runRangeM, runDepthM and armRunM' })
 
 const StoresSchema = z.object({
   racks: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(8),
@@ -66,6 +79,8 @@ const StoresSchema = z.object({
   source: z.string().min(1),
 }).strict()
   .refine((s) => [...s.racks, ...s.rails].every((m) => m.store in s.types), { message: 'every rack/rail store id must exist in types' })
+  // A torpedo hangs on a rack and leaves it like a bomb (D1); a rail fires rockets only.
+  .refine((s) => s.rails.every((m) => s.types[m.store]?.kind !== 'torpedo'), { message: 'a torpedo goes on a rack, not a rail' })
 
 export type StoreType = z.infer<typeof StoreTypeObject>
 export type Stores = z.infer<typeof StoresSchema>

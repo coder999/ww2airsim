@@ -88,8 +88,8 @@ export function loopEndSeconds(): number {
 export type EngineFamily = 'radial' | 'radial_big' | 'multi_heavy' | 'allison'
 
 const MULTI_HEAVY_IDS: readonly string[] = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally']
-/** `engine.maxPowerW` of about 1.47 MW and up (2,000 hp); the next single radial down is the D3A at 0.95 MW. */
-const RADIAL_BIG_IDS: readonly string[] = ['f6f-hellcat', 'f4u-corsair', 'ki-84-frank']
+/** `engine.maxPowerW` of about 1.42 MW and up (the TBM-3's 1,900 hp to 2,000 hp); the next single radial down is the D3A at 0.95 MW. */
+const RADIAL_BIG_IDS: readonly string[] = ['f6f-hellcat', 'f4u-corsair', 'ki-84-frank', 'tbm-3-avenger']
 
 /** By aircraft id, not an aircraft-JSON key: the JSON is sourced physics data and the sim must not
  *  know about sound. An id nobody lists is a radial, which is the safe default. */
@@ -160,17 +160,22 @@ export function rumbleFor(onGround: boolean | null, surface: string | null, grou
 }
 
 /** Buffet starts at 1.15 x the stall speed and is full at it; the buzzer cuts in at 1.07 x and is
- *  full 0.02 below. Both from airspeed at 1 g (ponytail: a hard turn's accelerated stall does not
- *  buffet early; read angle of attack if Mark wants it). */
+ *  full at 1.05 x. Speeds at 1 g, but read through the wing's lift (Mark, 2026-10-09: "use angle of
+ *  attack"): at 1 g, flying at k x the stall speed uses 1/k^2 of the wing's maximum lift, so the
+ *  same onsets come early in a hard pull, where an accelerated stall really does buffet. */
 export const BUFFET_ONSET = 1.15
 export const BUZZ_ONSET = 1.07
+const BUZZ_FULL = 1.05
+const liftAt = (speedMultiple: number): number => 1 / speedMultiple ** 2
 
-export function stallFor(airborne: boolean, airspeedMps: number | undefined, stallSpeedMps: number | undefined): { buffet: number; buzz: number } {
-  if (!airborne || !(stallSpeedMps! > 0)) return { buffet: 0, buzz: 0 }
-  const ratio = (airspeedMps ?? Infinity) / stallSpeedMps!
+/** `liftFraction`: the lift coefficient in use over the most the wing makes before it stalls,
+ *  1 or more once it is past the stalling angle (render/audio.ts). */
+export function stallFor(airborne: boolean, liftFraction: number | undefined): { buffet: number; buzz: number } {
+  if (!airborne || !(liftFraction! > 0)) return { buffet: 0, buzz: 0 }
+  const f = liftFraction!
   return {
-    buffet: SYNTH_GAIN_MAX.buffet * clamp01((BUFFET_ONSET - ratio) / (BUFFET_ONSET - 1)),
-    buzz: SYNTH_GAIN_MAX.buzz * clamp01((BUZZ_ONSET - ratio) / 0.02),
+    buffet: SYNTH_GAIN_MAX.buffet * clamp01((f - liftAt(BUFFET_ONSET)) / (1 - liftAt(BUFFET_ONSET))),
+    buzz: SYNTH_GAIN_MAX.buzz * clamp01((f - liftAt(BUZZ_ONSET)) / (liftAt(BUZZ_FULL) - liftAt(BUZZ_ONSET))),
   }
 }
 

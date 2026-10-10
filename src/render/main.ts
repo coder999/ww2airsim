@@ -11,11 +11,13 @@ import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { aircraftUrl, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
+import { aircraftUrl, BEACHES_URL, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
+import { racksLabel } from '../sim/weapons/stores.js'
+import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
 import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from './audio.js'
@@ -96,8 +98,11 @@ import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
+import { createVillages, type Village } from './scene/villages.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
+import { loadBeaches } from './scene/beaches.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
+import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
@@ -109,6 +114,8 @@ import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import type { GodMode } from '../sim/godMode.js'
+import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -397,13 +404,24 @@ async function boot(): Promise<void> {
    * showed a practical way to trigger (every reference-GPU run has boot's
    * own call resolve first).
    */
+  /** God mode for the flight about to start (Dev only): the racks as launched are captured here, since `advance` cannot recover them once a bomb has gone. */
+  let godMode: GodMode | undefined
+  const godFor = (world: World, wanted: boolean): GodMode | undefined =>
+    wanted ? { stores: world.combat.aircraft[world.player]!.stores } : undefined
   const loadScenario = async (choice: SortieChoice): Promise<void> => {
     // The chosen aircraft replaces the scenario's player spec before the spec
     // fetch; the choice is validated against the rules (sortie spec: an
     // illegal non-Dev choice fails loudly, by name, through the caller's
     // showFailure); and a Dev loadout on a spec with no stations hangs the
     // Hellcat's layout (SF-R2, SF-R3).
-    const nextBundle = await loadScenarioBundle(choice.scenarioId, fetch, choice.aircraftSpec)
+    // Some missions have a second file for a Japanese pilot (`AXIS_VARIANTS`): which one loads depends on the side of the airplane chosen.
+    let scenarioFile = choice.scenarioId
+    if (AXIS_VARIANTS[scenarioFile] !== undefined) {
+      const res = await fetch(aircraftUrl(choice.aircraftSpec))
+      if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
+      scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
+    }
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev })
@@ -515,6 +533,10 @@ async function boot(): Promise<void> {
    */
   const buildWorld = (terrain: TerrainField | null): World<undefined> => {
     const w = worldFromScenario(sortieBundle(bundle!, chosen.loadout, devStores), null, chosen.loadout)
+    // God mode (Dev only): from the title screen's checkbox, or `?god=1` in a
+    // DEV build for quick launches and tests. Captured per world, so a Restart
+    // refills the racks it counts against.
+    godMode = godFor(w, (chosen.dev && chosen.god === true) || (import.meta.env.DEV && new URLSearchParams(window.location.search).get('god') === '1'))
     // `forcedPilotSkill` replaces whatever skill the scenario's own content
     // pinned (e.g. pursuit-range.json's `veteran`) on every entity that has
     // a pilot at all; entities with no `pilot` (the player, any unpiloted
@@ -989,6 +1011,8 @@ async function boot(): Promise<void> {
             headingRad: s.state.headingRad,
             hp: damage?.hp ?? s.spec.hullHp,
             sinkingFraction: damage?.sinkingFraction ?? 0,
+            listRad: damage === undefined ? 0 : floodListRad(damage, s.spec.hullHp),
+            speedMps: s.state.speedMps,
           }
         }),
       // Plan 6b Task 8: the render-side twin of `ships` above, for the same
@@ -1246,6 +1270,13 @@ async function boot(): Promise<void> {
   const surfaceTexturesLoading: Promise<SurfaceTextures | null> = forcedTerrainTextures === 'off'
     ? Promise.resolve(null)
     : loadSurfaceTextures(renderer).catch((err: unknown) => { console.warn('terrain textures unavailable; drawing the procedural surface:', err); return null })
+  const beachesDisabled = import.meta.env.DEV && new URLSearchParams(location.search).get('beaches') === 'off'
+  const beachesLoading = beachesDisabled
+    ? Promise.resolve(null)
+    : loadBeaches(BEACHES_URL).catch((err: unknown) => {
+        console.warn('curved beaches unavailable; drawing the terrain shoreline:', err)
+        return null
+      })
   // Photoreal Task 9 fix 2: build the sky-irradiance table (sky/palette.ts,
   // ~0.3 s of CPU) HERE, during the async load phase, rather than lazily on
   // the first `atmospherePalette` call -- which is inside the frame loop, so
@@ -1290,6 +1321,7 @@ async function boot(): Promise<void> {
   // hardcoded literal.
   const surfaceTextures = await surfaceTexturesLoading
   const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow, surfaceTextures)
+  const beaches = await beachesLoading
   // Scenery `low` draws the procedural surface (plan Ruling 3). `?terrainTextures=on`
   // holds the textures on whatever the tier.
   terrain.setSurfaceDetail(forcedTerrainTextures === 'on' || sceneryTier !== 'low')
@@ -1515,6 +1547,12 @@ async function boot(): Promise<void> {
       .then((v) => { ordnance.setStoreModels(v.byStore.get(bombStore)!, v.byStore.get(rocketStore)!) })
       .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
   }
+  // D1: a torpedo rack's store draws the torpedo pool.
+  if (bombStore !== undefined && spec.stores?.types[bombStore]?.kind === 'torpedo') {
+    loadStoreVisuals([bombStore], 0)
+      .then((v) => { ordnance.setTorpedoModel(v.byStore.get(bombStore)!) })
+      .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
+  }
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -1540,6 +1578,7 @@ async function boot(): Promise<void> {
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
   scene.add(terrain.object)
+  if (beaches) scene.add(beaches.object)
   // `vegetation` itself is declared above, beside `cover`, not here -- see
   // that comment for why.
 
@@ -2349,7 +2388,7 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
-    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse)
+    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode)
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
@@ -2471,6 +2510,7 @@ async function boot(): Promise<void> {
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
     const viewPlayer = playerAircraft(view.world)
+    legend.setRacks(racksLabel(player.spec))
     renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -2483,6 +2523,7 @@ async function boot(): Promise<void> {
     // arithmetic now lives in frame.ts instead.
     const worldOffset = worldOffsetFor(view.eye.position)
     scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
+    beaches?.update(view.eye.position.x, view.eye.position.z)
     camera.position.set(0, 0, 0)
     const cameraOrientation = toThreeOrientation(view.eye.attitude)
     camera.quaternion.set(
@@ -2584,7 +2625,7 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS)
+    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS)
     pauseBadge.setPaused(current.paused)
     const paddles = paddlesFor(current)
     paddlesBadge.setCue(paddles)
@@ -2602,7 +2643,7 @@ async function boot(): Promise<void> {
     missionHud.placeSteering(steered.anchor, steered.mode)
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
-    combatReadout.setRecord(current.world.combat.aircraft[current.world.player])
+    combatReadout.setRecord(current.world.combat.aircraft[current.world.player], racksLabel(player.spec))
     tracers.update(view.world.combat.projectiles)
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
@@ -2628,7 +2669,7 @@ async function boot(): Promise<void> {
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
-      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
+      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction, floodListRad(damage, s.spec.hullHp))
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the
     // CURRENT `World.combat.structures` map unconditionally every frame
@@ -2960,6 +3001,7 @@ async function boot(): Promise<void> {
       droppedSteps: current.droppedSteps,
       tick: current.world.tick,
       adapter: adapterVerdict.summary,
+      position: playerAircraft(current.world).state.position,
     })
     // The first frame built every material; the title can unlock.
     if (!boot.ready) {
@@ -3047,7 +3089,13 @@ async function boot(): Promise<void> {
       // keeps them off `AIRFIELD_HUTS`.
       const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields)
       scene.add(towns.object)
-      vegetation = createVegetation(arrived, next.world.airfields, towns.hutFootprints)
+      // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
+      // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+      const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
+        ? createVillages(arrived, villagesData as readonly Village[], next.world.airfields)
+        : null
+      if (villages) scene.add(villages.object)
+      vegetation = createVegetation(arrived, next.world.airfields, [...towns.hutFootprints, ...(villages?.footprints ?? [])])
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --

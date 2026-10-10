@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, startGame, TRIPWIRE_1440P_P95_MS, type DiagWindow } from './harness.js'
+import { debriefDialog, percentile, startGame, type DiagWindow } from './harness.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { localToWorld } from '../../src/sim/world/airfields.js'
@@ -245,7 +245,9 @@ test('a level rocket pass at Dulag: three E presses raze a hangar', async ({ pag
 
 test.describe('frame-time budget with stores hanging and ordnance damage up', () => {
   test.use({ viewport: { width: 2560, height: 1440 } })
-  const GPU_BUDGET_P95_MS = TRIPWIRE_1440P_P95_MS
+  // Re-derived 2026-10-10 (H0, docs/superpowers/plans/2026-10-08-h0-render-budget.md): min(ceil(1.2 x 4.28 ms) to
+  // 0.1, 8.33), 4.28 the median 1440p p95 of three runs on the reference GPU. The gate is budget.spec.ts.
+  const GPU_BUDGET_P95_MS = 5.2
 
   // Deliberately ONE damaged, smoking hangar rather than the brief's "two
   // smoke columns": the maru is 6 km from Dulag (scenario.test.ts pins the

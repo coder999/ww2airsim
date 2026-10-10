@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { flySweep, percentile, snapshot, spawnUrl, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
+import { flySweep, percentile, snapshot, spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 import { toLocal } from '../../src/sim/world/projection.js'
 import { type Town } from '../../src/render/scene/towns.js'
 import { ROAD_PATHS } from '../../src/render/terrain/rivers.js'
@@ -223,8 +223,9 @@ test.describe('frame-time budget', () => {
    *  doubling (+2 ms) still fails it. The same rule as before applies:
    *  tighten or re-measure as the content changes; never widen to whatever
    *  passes. */
-  // Mark relaxed the 1440p budget to one 120 Hz frame on 2026-09-29: measured 6.4 ms on the reference GPU.
-  const GPU_BUDGET_P95_MS = TRIPWIRE_1440P_P95_MS
+  // Re-derived 2026-10-10 (H0, docs/superpowers/plans/2026-10-08-h0-render-budget.md): min(ceil(1.2 x 6.74 ms) to
+  // 0.1, 8.33), 6.74 the median 1440p p95 of three runs on the reference GPU. The gate is budget.spec.ts.
+  const GPU_BUDGET_P95_MS = 8.1
   /** Milliseconds of wall-clock frame interval, 95th percentile. NOT a budget
    *  -- at a fixed 10.0 ms cadence this can only ever read ~10 -- but a
    *  doubled interval is a missed frame DEADLINE (not a missed vsync: the

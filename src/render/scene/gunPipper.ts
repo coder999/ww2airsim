@@ -35,7 +35,7 @@ const PIPPER_DEG = 1.0
 const RING_INNER_FRACTION = 0.72
 
 export function createGunPipper(spec: AircraftSpec): GunPipper | null {
-  // A bomber's block has no fixed guns (damage stages round 2): no pipper.
+  // No fixed guns (a bomber, damage stages round 2; the B5N2, D1): no pipper.
   if (spec.combat === undefined || spec.combat.guns.length === 0) return null
   const h = gunHarmonization(spec.combat, spec.view.eyePointM)
   const outerRadiusM = h.rangeM * Math.tan((PIPPER_DEG * Math.PI) / 360)

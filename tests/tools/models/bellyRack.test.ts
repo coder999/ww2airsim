@@ -1,11 +1,12 @@
-// The D3A Val's bomb rack hangs on the belly centerline, on the outside of the hull: neither a wing mount (wildcatMounts.test.ts) nor an
-// internal bay (internalBay.test.ts). This holds its offset to the drawn belly (D3A onboarding, 2026-09-30).
+// A belly rack hangs on the centerline, on the outside of the hull: neither a wing mount (wildcatMounts.test.ts) nor an
+// internal bay (internalBay.test.ts). This holds its offset to the drawn belly: the D3A Val's bomb (D3A onboarding,
+// 2026-09-30) and the B5N2 Kate's torpedo (D1, 2026-10-09).
 import { describe, expect, it } from 'vitest'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { sectionAtFor, STORE_MESHES, MIN_CLEARANCE_M } from '../../../tools/models/mounts.js'
 
-const spec = loadAircraftSpec('d3a-val')
-const at = await sectionAtFor(spec.view.model, -20)
+const BELLY = ['d3a-val', 'b5n2-kate']
+const sections = new Map(await Promise.all(BELLY.map(async (id) => [id, await sectionAtFor(loadAircraftSpec(id).view.model, -20)] as const)))
 const bounds = (store: string) => {
   const m = STORE_MESHES[store]!() as unknown as { positions: ArrayLike<number> }
   const lo = [Infinity, Infinity, Infinity]
@@ -17,7 +18,9 @@ const bounds = (store: string) => {
   return { lo, hi }
 }
 
-describe('d3a-val belly rack', () => {
+describe.each(BELLY)('%s belly rack', (id) => {
+  const spec = loadAircraftSpec(id)
+  const at = sections.get(id)!
   it('is one centerline rack and no rails', () => {
     expect(spec.stores!.racks.map((r) => [r.id, r.offset[2]])).toEqual([['belly-rack', 0]])
     expect(spec.stores!.rails).toEqual([])

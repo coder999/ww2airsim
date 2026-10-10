@@ -16,6 +16,13 @@
   (`marktuttle.dev` passed 30 days; `ww2airsim.com` is still blocked). Before naming the host, assert it is up:
   `curl -sS -o /dev/null -w '%{http_code}\n' https://ww2airsim.windomlane.org/`
   must print `200`.
+- **Heavy jobs go to ryzen, not nexus** (Mark, 2026-10-10: a Python bake plus a Chromium held over
+  8.5 GB and OOM'd nexus). Tests, `tsc`, eslint and `npm run verify` run through `remote-run`; GPU
+  captures and budget runs use the ryzen GPU (`docs/testing.md`). The ground generator
+  (`tools/drape/gen.py`) is the one thing that still runs where its data is: run it with nothing else going.
+- **When Mark reports a place** ("blue patches near a beach"), ask for the DEV overlay's top-left lines:
+  latitude, longitude, altitude and a `?spawnX=..&spawnY=..&spawnZ=..` query that respawns there.
+  Open that URL on a slot to see what he saw. (He heads east when he respawns, so ask for his heading too.)
 - **Email him every plan and spec, as HTML, when it is written** — do not wait
   to be asked: `python3 tools/mail-doc.py <file.md> "<subject>"`. Never re-run
   it with `--debug` to confirm a send that already exited 0.
@@ -95,12 +102,9 @@ nothing, and the adapter guard passes it all the same;
 GPU alongside another session's, point that worktree's own
 `vite.config.ts` at one of these — change `TUNNEL_HOST` and `server.port`
 to match, then `WW2AIRSIM_TUNNEL=1 npx vite --port 5175` (or `5174`) from
-the worktree. That edit is local scratch, never committed. **Also set
-`cacheDir` to a slot-specific path** (e.g. `node_modules/.vite-5175`): a
-worktree's `node_modules` is a symlink to main's, so a second server
-re-optimizes main's shared `node_modules/.vite/deps` and the primary
-server then 504s `three.js`/`zod` — the Hangar loads black until it is
-restarted (hit 2026-10-09). Both slots are
+the worktree. That edit is local scratch, never committed. `vite.config.ts` gives each checkout and `--port` its own dependency cache
+(`.vite/cache-<port>`), so slot servers no longer break the primary's
+(hit 2026-10-09 and 2026-10-10). Both slots are
 persistent, reusable infrastructure, not scoped to whichever plan first
 needed one — see `docs/testing.md` and
 `vps-local/shared/traefik/dynamic/ww2airsim-2-dev.yml` /

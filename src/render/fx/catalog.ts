@@ -17,11 +17,11 @@ export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
-  'kill.air', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse',
+  'kill.air', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
-export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor']
+export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor', 'torpedo.wake']
 
 const range = z.tuple([z.number().nonnegative(), z.number().nonnegative()]).refine(([a, b]) => a <= b, 'range must be [min, max]')
 const emitterSchema = z.object({
@@ -151,6 +151,11 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { mode: 'stream', sheet: 'flame', ratePerS: 20, lifeS: [0.8, 1.2], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 3, sizeM: [4.6, 7], alpha: 0.9, tint: [1, 1, 1], emissive: 1, dragPerS: 1, accelYMps2: 2, frameRateHz: 12 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 8, lifeS: [10, 14], speedMps: [3, 6], direction: 'up', spreadDeg: 12, radiusM: 3, sizeM: [9.3, 46], alpha: 0.65, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
   ], source: ESTIMATE },
+  // D1: a running torpedo's track, foam at the surface over it. Low, flat and white, fed slowly so
+  // it trails a few hundred feet behind a 33-to-42-knot run.
+  'torpedo.wake': { emitters: [
+    { mode: 'stream', sheet: 'spray', ratePerS: 12, lifeS: [6, 10], speedMps: [0, 0.6], direction: 'ring', spreadDeg: 5, sizeM: [1.2, 3.5], alpha: 0.55, tint: WATER, dragPerS: 2, accelYMps2: 0 },
+  ], source: 'estimate (D1, 2026-10-09): rate, size and life are estimates' },
   // Strike design §4: "a 60 s fading smoke column" (events.ts COLLAPSE_SMOKE_S).
   'structure.collapse': { emitters: [
     { mode: 'burst', sheet: 'dust', count: 24, lifeS: [3, 6], speedMps: [6, 14], direction: 'ring', spreadDeg: 25, radiusM: 6, sizeM: [9.3, 31], alpha: 0.75, tint: DUST, dragPerS: 1, accelYMps2: 0.3 },

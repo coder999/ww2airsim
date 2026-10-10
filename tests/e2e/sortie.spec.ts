@@ -44,7 +44,9 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await expect(title.getByRole('region', { name: 'Briefing' })).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/sortie-form-2.png` })
   await next(title)
-  await expect(rows(title, 'Aircraft')).toHaveCount(3)
+  // Four since D1 (70cb2cb5) onboarded the carrier-capable TBM Avenger; its Kate is Japanese, so Dev-only.
+  await expect(rows(title, 'Aircraft')).toHaveCount(4)
+  await expect(radio(title, 'Aircraft', 'Grumman TBF/TBM Avenger')).toBeVisible()
   await expect(radio(title, 'Aircraft', 'Grumman F6F Hellcat')).toBeVisible()
   await expect(radio(title, 'Aircraft', 'Grumman F4F Wildcat')).toBeVisible()
   await expect(radio(title, 'Aircraft', 'Vought F4U Corsair')).toBeVisible()
@@ -76,7 +78,8 @@ test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and re
   // Since 495941c (2026-09-29) the Zero has its own stores block, so the Dev
   // fallback to the Hellcat's stations (and its note) no longer applies.
   await expect(title).not.toContainText('dev layout')
-  await expect(title).toContainText('2 × AN-M65')
+  // Since V2 (66d38d90) every Japanese bomber carries the Type 98 No. 25, not the AN-M65.
+  await expect(title).toContainText('2 × Type 98 No. 25')
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   await waitForScenario(page, 'free-flight')

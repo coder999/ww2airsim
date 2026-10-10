@@ -50,7 +50,9 @@ export type SpatialInputs = {
   readonly listener: { readonly position: Vec; readonly forward: Vec; readonly up: Vec; readonly velocity: Vec }
   readonly aircraft: readonly SpatialAircraft[]
   readonly decks: readonly { readonly id: string; readonly center: Vec; readonly lengthM: number }[]
-  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec }[]
+  /** Detonations, plus a torpedo's water entry (D3 T2): `torpedo` marks a torpedo event, `'splash'`
+   *  at entry or a break-up on the water, `'hit'` at a hull. */
+  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec; readonly torpedo?: 'splash' | 'hit' }[]
 }
 /** `at` is listener-relative in Web Audio axes: x right, y up, -z ahead. */
 export type SpatialLoop = {
@@ -187,7 +189,9 @@ export function nextSpatial(
     .map((b) => ({ b, d: len(sub(b.position, listenerAt)) }))
   for (const { b } of fresh) blastTick = blastTick === null ? b.tick : Math.max(blastTick, b.tick)
   fresh.filter((f) => f.d <= BLAST_HEARD_M).sort((p, q) => p.d - q.d).slice(0, MAX_BLASTS_PER_UPDATE).forEach(({ b, d }) => {
-    const clip: ClipId = d > FLAK_SWITCH_M ? 'flak_distant' : b.surface === 'water' ? 'water_crash' : 'explosion'
+    // A torpedo has its own takes at any range (D3 T2, Track I's I3); distance still dulls them.
+    const clip: ClipId = b.torpedo === 'splash' ? 'torpedo_splash' : b.torpedo === 'hit' ? 'torpedo_hit'
+      : d > FLAK_SWITCH_M ? 'flak_distant' : b.surface === 'water' ? 'water_crash' : 'explosion'
     enqueue(clip, b.position, d, BLAST_REF_M)
   })
 

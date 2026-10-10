@@ -154,6 +154,11 @@ export async function startGame(
 ): Promise<void> {
   const title = page.getByRole('dialog', { name: 'Title' })
   const newGame = title.getByRole('button', { name: 'New game' })
+  // isVisible does not wait: called straight after goto/reload, it can run before
+  // the title exists and skip the launch (the 2026-10-10 nightly's ocean and AD-2
+  // reds). So wait for a ready title, or a world already running without one.
+  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true'
+    || ((window as DiagWindow).__ww2?.tick() ?? 0) > 0, undefined, { timeout: 60_000 })
   if (!(await newGame.isVisible())) return
 
   const existingPilot = title.locator('button[aria-pressed]').first()

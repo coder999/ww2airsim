@@ -116,29 +116,35 @@
   "stores": {
     "racks": [
       {
-        "id": "bay-fwd",
+        "id": "bay",
         "offset": [
-          -1.7,
+          -0.5,
           -0.3,
           0
         ],
-        "store": "type98-no25"
-      },
-      {
-        "id": "bay-aft",
-        "offset": [
-          0.3,
-          -0.3,
-          0
-        ],
-        "store": "type98-no25"
+        "store": "type91"
       }
     ],
     "rails": [],
     "types": {
-      "type98-no25": {"kind": "bomb", "massKg": 241, "dragAreaM2": 0.036, "fillerKg": 96, "damage": 48, "blastRadiusM": 22, "armS": 0.5, "lifetimeS": 60, "dragPerM": 1.5e-05}
+      "type91": {
+        "kind": "torpedo",
+        "massKg": 835,
+        "dragAreaM2": 0.0825,
+        "fillerKg": 205,
+        "damage": 102,
+        "blastRadiusM": 28,
+        "lifetimeS": 60,
+        "dragPerM": 1e-05,
+        "maxDropSpeedMps": 91.7,
+        "maxDropHeightM": 100,
+        "runSpeedMps": 21.6,
+        "runRangeM": 2000,
+        "runDepthM": 3,
+        "armRunM": 200
+      }
     },
-    "source": "Two bomb racks INSIDE the fuselage hull, in tandem on the centerline (z 0) under the wing center section, lugs at y -0.30 m and x -1.7 and +0.3 m so the type98-no25 mesh (bottom 0.355 m below its lug, 1.80 m long) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts holds every store above the belly and below the crown); no racks are drawn on the outside and the bombs drop with no bay doors (Mark, 2026-09-29, D7; bay doors are a later plan). The positions are ESTIMATES. HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, carried in the internal bay under the wing center section, with no doors when a torpedo is carried (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29; the torpedo mass conflicts, 800 vs 858 kg). The racks carry two Type 98 No. 25 250 kg bombs = 482 kg (1,063 lb): two of the historic 4 x 250 kg, and 60 percent of the 800 kg bomb by mass. The store is the Type 98 No. 25 250 kg land bomb, type98-no25 (V2, Mark, 2026-10-09): 241 kg all-up and 96 kg filler, SOURCED (English Wikipedia 'List of Japanese World War II navy bombs', from TM 9-1985-4, read 2026-10-09); its drag, damage and blast figures are DERIVED from the fleet's AN-M65 ESTIMATES (see a6m2-zero.json stores.source). A load count above 8 would be capped at the 8 racks, which does not arise here. The bomb mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
+    "source": "One rack INSIDE the fuselage hull on the centerline (z 0) under the wing center section, its lug at x -0.5 m, y -0.30 m, so the type91 mesh (5.27 m long, bottom 0.515 m below its lug) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts); the position is an ESTIMATE. It releases only through the bay doors (C2). HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, in the bay under the wing center section; with a torpedo the bay doors were removed and the torpedo rode partly exposed (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29). MODELED (D1 plan D8, Mark, 2026-10-09): one Type 91 aerial torpedo, the store the G4M was built to carry, in place of V1's two Type 98 No. 25 bombs; the doors stay modeled, so the drop needs them open. The store, type91, is the Type 91 Mod 2: 835 kg (1,841 lb) all-up and 205 kg (452 lb) of explosive, SOURCED (NavWeaps 'Japan Torpedoes of World War II', read 2026-10-09; English Wikipedia 'Type 91 torpedo', variants table from Ichikawa, Kodaira and Kawada 1985 p. 24, gives 838 and 204.0 kg); 42 knots (21.6 m/s) for 2,000 m (2,200 yd), SOURCED (NavWeaps). DROP ENVELOPE: at most 91.7 m/s (330 km/h, 178 knots) at release, SOURCED-SECONDARY (English Wikipedia 'Type 91 torpedo': the launch-speed specification was raised from 240 to 330 km/h; uncited there), and at most 100 m (330 ft) above the sea, an ESTIMATE that is forgiving on purpose (Mark, D1): the operational release was about 20 m (66 ft), with 500 and 1,000 m test launches using the kyoban (same article, uncited). Outside the envelope it breaks up on the water. RUN: depth 3 m (10 ft) and an arming run of 200 m (220 yd) are ESTIMATES (no source read gives either). DERIVED from the fleet's AN-M65 ESTIMATES, as the Type 98's were: drag area 0.0825 m2 by frontal area (0.45 m against the AN-M65's 0.47 m diameter), dragPerM 1.0e-5 by frontal area over mass, damage 102 by explosive (205 / 240.9 x 120), blast radius 28 m by the cube root of the explosive (30 x (205 / 240.9)^(1/3)). lifetimeS 60 covers the fall; the run's own length is runRangeM / runSpeedMps. The torpedo's mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
   },
   "combat": {
     "roundsPerMinute": 750,

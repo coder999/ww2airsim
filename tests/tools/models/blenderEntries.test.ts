@@ -84,5 +84,5 @@ describe.skipIf(!HAVE_BLENDER)('blender entries rebuild byte-identically to thei
     const deps = { ...nodeBuildDeps(), write: (p: string, b: Uint8Array) => { written.set(p, b) }, log: () => {} }
     expect(await runBuild([entry], [id], deps)).toBe(0)
     expect(sha(written.get(entry.output)!)).toBe(sha(new Uint8Array(readFileSync(entry.output))))
-  }, 120_000)
+  }, 300_000) // Essex (M1f) builds in 57 s alone and took 127 s under the full suite on nexus (2026-10-09)
 })

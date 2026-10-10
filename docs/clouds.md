@@ -38,11 +38,11 @@ relevant section here in the same commit.
     (`cloudLighting.ts`);
   - a movable sun (`sky/sun.ts`, `sky/palette.ts`).
 - **Tiers:** `CLOUD_TIERS` in `src/render/scene/clouds.ts` is authoritative.
-  As of this date:
+  As of this date (H0 changed high's fine light steps 2 -> 1, 2026-10-10):
 
 | Tier | View steps | Light steps (fine) | Resolution | Update | Distance light LOD |
 | --- | --- | --- | --- | --- | --- |
-| high | 128 | 6 (2) | 0.5 | 1 texel in 8 per frame | none |
+| high | 128 | 6 (1) | 0.5 | 1 texel in 8 per frame | none |
 | medium | 56 | 4 (0) | 0.3 | every frame | 1.5–2.5 km |
 | low | 32 | 2 (0) | 0.25 | every frame | 1.5–2.5 km |
 
@@ -356,9 +356,12 @@ In the order I would take them. Items marked (Mark) need his decision first.
 4. **Low edge shimmer** (issue 3): try a neighborhood-clamped history on
    Low, or a slightly higher Low resolution within its budget. Check each
    back-to-back against a frozen-scene flicker burst (the method in §3.8).
-5. **Win back margin on `photo`/High** (issue 5) before adding any new
-   cloud feature. Candidates, by expected yield: fewer immediate marches at
-   silhouettes, cheaper archetype reads, per-view step tuning.
+5. **Win back margin on `photo`/High** (issue 5): priced by H0 (2026-10-10,
+   `docs/handoff/2026-10-08-h0-render-budget.md`). The immediate marches at
+   cloud silhouettes are the biggest single cost (1.3-3.2 ms at 1440p High);
+   Mark took the skip as the default on 2026-10-10, accepting more frozen-scene
+   edge flicker; DEV `?h0EdgeMarch=1` compares. Not yet tried: cheaper
+   archetype reads.
 6. **Unify the GPU lock file** across sessions, and chase the
    `waitForTerrain` flake.
 7. **Housekeeping** (issue 9), and the stale comments listed in the

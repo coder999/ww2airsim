@@ -6,6 +6,7 @@ import { qRotate } from '../../sim/math/quat.js'
 import { add, length, scale, v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
 import type { CombatState } from '../../sim/weapons/combat.js'
 import type { CombatImpact } from '../../sim/weapons/impacts.js'
+import { SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import type { RecipeId } from './catalog.js'
 import { engineHealths, smokeLevel } from '../../sim/damage/model.js'
 
@@ -79,6 +80,9 @@ export const ROCKET_NOZZLE_AFT_M = 0.76
 export function impactRecipe(i: Pick<CombatImpact, 'cause' | 'outcome' | 'surface'>): RecipeId | null {
   if (i.outcome === 'expired' || i.surface === 'air') return null
   if (i.cause === 'round') return `round.${i.surface}` as RecipeId
+  // A torpedo's hit throws up the water column a near miss in the sea does; its water entry and a
+  // break-up are the smaller rocket splash.
+  if (i.cause === 'torpedo') return i.outcome === 'detonated' ? 'bomb.water' : 'rocket.water'
   const water = i.surface === 'water'
   if (i.cause === 'bomb') return water ? 'bomb.water' : 'bomb.land'
   return water ? 'rocket.water' : 'rocket.land'
@@ -156,6 +160,12 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
     const speed = length(p.velocity)
     const aft = speed > 1e-9 ? scale(p.velocity, -ROCKET_NOZZLE_AFT_M / speed) : ZERO
     sustained.push({ key: `rocket:${p.id}`, recipe: 'rocket.motor', intensity: 1, position: add(p.position, aft), velocity: p.velocity })
+  }
+
+  // D1: a running torpedo's wake, at the surface over it.
+  for (const p of w.combat.projectiles) {
+    if (p.kind !== 'torpedo' || p.runM === undefined) continue
+    sustained.push({ key: `torpedo:${p.id}`, recipe: 'torpedo.wake', intensity: 1, position: v3(p.position.x, SEA_LEVEL_M + 0.2, p.position.z), velocity: ZERO })
   }
 
   for (const [id, d] of Object.entries(w.combat.ships)) {

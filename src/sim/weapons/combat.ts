@@ -24,6 +24,7 @@ import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.
 import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 import { bayDoorsShut } from '../bayDoors.js'
+import { floodFrom, hitSide, type FloodState } from './flooding.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
@@ -79,12 +80,19 @@ export type AircraftCombat = {
    *  `stores.rockets` decrement exactly -- a release can be a pair. */
   readonly bombsDropped: number
   readonly rocketsFired: number
+  /** Cumulative: this aircraft's torpedoes that met the water outside their drop envelope, or met
+   *  anything else first, and broke up. What the HUD's "TORPEDO BROKE UP" notice follows. */
+  readonly torpedoesBrokeUp: number
 }
 export type Projectile = {
   readonly owner: string; readonly id: number; readonly position: Vec3; readonly previous: Vec3
   readonly velocity: Vec3; readonly lifeS: number; readonly tracer: boolean
-  readonly kind: 'round' | 'bomb' | 'rocket'
+  readonly kind: 'round' | 'bomb' | 'rocket' | 'torpedo'
   readonly ageS: number
+  /** A torpedo released outside its drop envelope: it breaks up when it meets the water. */
+  readonly dud?: true
+  /** A torpedo in the water: meters run since entry. Absent while it falls. */
+  readonly runM?: number
   /** The firing mount's `guns[].type`, for a typed mount only. Absent on
    *  every round an untyped mount fires, so those rounds are unchanged. */
   readonly gunType?: string
@@ -93,7 +101,7 @@ export type ShipDamage = {
   readonly hp: number; readonly fire: number
   readonly destroyedTick: number | null; readonly attacker: string | null
   readonly sinkingFraction: number
-}
+} & FloodState
 export const healthyShipDamage = (hp: number): ShipDamage =>
   ({ hp, fire: 0, destroyedTick: null, attacker: null, sinkingFraction: 0 })
 export type CombatState = {
@@ -123,7 +131,7 @@ export function createCombat(
       damage: healthyDamage(engineCountOf(a.spec)), stress: initialStructuralStress(a.state, a.spec.limits),
       shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
-      bombsDropped: 0, rocketsFired: 0,
+      bombsDropped: 0, rocketsFired: 0, torpedoesBrokeUp: 0,
     }])),
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
@@ -364,10 +372,10 @@ function blastDamageAircraft(spec: AircraftSpec, before: Damage, amount: number,
 /** The one store type a rack (or a rail) carries, under the same
  *  one-type-per-mount assumption `storesSpec` already records and the shipped
  *  content satisfies. */
-function storeTypeOf(spec: AircraftSpec, kind: 'bomb' | 'rocket'): StoreType | null {
+function storeTypeOf(spec: AircraftSpec, kind: 'bomb' | 'rocket' | 'torpedo'): StoreType | null {
   const s = spec.stores
   if (s === undefined) return null
-  const mount = kind === 'bomb' ? s.racks[0] : s.rails[0]
+  const mount = kind === 'rocket' ? s.rails[0] : s.racks[0]
   return mount === undefined ? null : s.types[mount.store] ?? null
 }
 
@@ -435,10 +443,15 @@ function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Re
   const type = s.types[rack.store]
   if (type === undefined) return null
   const position = mountWorld(a, tupleVector(rack.offset), 0)
+  // A torpedo leaves a rack like a bomb; the drop envelope is judged here, at release, on the
+  // airplane's speed and its height above the sea (Track D step 2).
+  const torpedo = type.kind === 'torpedo'
+  const dud = torpedo && (length(a.previous.velocity) > type.maxDropSpeedMps! || position.y - SEA_LEVEL_M > type.maxDropHeightM!)
   return {
     projectiles: [{
       owner: a.id, position, previous: position, velocity: a.previous.velocity,
-      lifeS: type.lifetimeS, tracer: false, kind: 'bomb', ageS: 0,
+      lifeS: type.lifetimeS, tracer: false, kind: torpedo ? 'torpedo' : 'bomb', ageS: 0,
+      ...(dud ? { dud: true as const } : {}),
     }],
     rngState: draw.state, stores: { ...stores, bombs },
   }
@@ -734,6 +747,69 @@ export function stepCombat(
     }
   }
 
+  /** A falling torpedo meets something. The sea, inside its drop envelope: it starts its run at its
+   *  set depth, along its heading, with a splash. Anything else -- a bad drop, a deck, a hull, land,
+   *  an airplane -- and it breaks up, harmlessly, counted against its owner for the HUD. */
+  const enterWater = (p: Projectile, store: StoreType, contact: Contact, point: Vec3): void => {
+    const heading = v3(p.velocity.x, 0, p.velocity.z)
+    const runs = contact.kind === 'ground' && contact.sea && p.dud !== true && length(heading) > 1e-6
+    impacts.push({ tick, cause: 'torpedo', outcome: runs ? 'entered' : 'broke-up', surface: contactSurface(contact, point, terrain, decks), point })
+    if (!runs) {
+      const rec = records[p.owner]
+      if (rec !== undefined) records[p.owner] = { ...rec, torpedoesBrokeUp: rec.torpedoesBrokeUp + 1 }
+      return
+    }
+    const at = v3(point.x, SEA_LEVEL_M - store.runDepthM!, point.z)
+    alive.push({
+      ...p, position: at, previous: at, velocity: scale(normalize(heading), store.runSpeedMps!),
+      lifeS: store.runRangeM! / store.runSpeedMps!, runM: 0,
+    })
+  }
+
+  /** A torpedo in the water: a straight run at its set speed and depth. Its hull contact is read at
+   *  the waterline, where the hull box begins, since a hull box has no depth below it. A hit before
+   *  the exploder arms is a dud; running aground or out of range ends it. */
+  const runTorpedo = (before_: Projectile, store: StoreType, stepS: number, start: number): void => {
+    const position = add(before_.position, scale(before_.velocity, stepS))
+    const p: Projectile = {
+      ...before_, previous: before_.position, position, lifeS: before_.lifeS - stepS,
+      ageS: before_.ageS + stepS, runM: before_.runM! + store.runSpeedMps! * stepS,
+    }
+    const atWaterline = (q: Vec3): Vec3 => v3(q.x, SEA_LEVEL_M + 0.5, q.z)
+    let hit: { t: number; ship: CombatShip } | null = null
+    for (const ship of afloat) {
+      const t = hullHit(atWaterline(p.previous), atWaterline(p.position), ship, start)
+      if (t !== null && (hit === null || t < hit.t)) hit = { t, ship }
+    }
+    if (hit !== null) {
+      if (p.runM! < store.armRunM!) return
+      const point = atWaterline(add(p.previous, scale(sub(p.position, p.previous), hit.t)))
+      impacts.push({ tick, cause: 'torpedo', outcome: 'detonated', surface: 'ship', point })
+      damageShipAt(hit.ship, store.damage, p.owner)
+      // Track D step 3 (D3 T3): the hole floods, on the side the torpedo came in on.
+      const flooded = shipDamage[hit.ship.id]
+      if (flooded !== undefined && flooded.destroyedTick === null) {
+        const side = hitSide(hit.ship.state.position, hit.ship.state.headingRad, point)
+        shipDamage[hit.ship.id] = { ...flooded, floods: [...(flooded.floods ?? []), floodFrom(store.damage, side, p.owner)] }
+      }
+      applyBlast(point, store.damage, store.blastRadiusM, { t: hit.t, kind: 'ship', ship: hit.ship }, p.owner)
+      return
+    }
+    // Only land ends a run, not the seabed: the heightfield is not reliable bathymetry near shore (measured
+    // 2026-10-09: with a seabed test, an in-game Mk 13 dropped off Leyte at its 3 m depth ended the tick it
+    // entered the water).
+    const floor = groundUnder(terrain, [], p.position.x, p.position.z)
+    if (floor !== null && floor.surface !== 'water') {
+      impacts.push({ tick, cause: 'torpedo', outcome: 'expired', surface: 'land', point: atWaterline(p.position) })
+      return
+    }
+    if (p.lifeS <= 1e-12) {
+      impacts.push({ tick, cause: 'torpedo', outcome: 'expired', surface: 'water', point: atWaterline(p.position) })
+      return
+    }
+    alive.push(p)
+  }
+
   for (const shot of flying) {
     const ownerSpec = specs.get(shot.p.owner)
     if (ownerSpec === undefined || shot.dt <= 0) continue
@@ -742,6 +818,10 @@ export function stepCombat(
     // Only a round needs the owner's combat block; a bomber's bomb flies without one.
     const source = ownerSpec.combat
     if (store === null && source === undefined) continue
+    if (shot.p.runM !== undefined && store !== null) {
+      runTorpedo(shot.p, store, shot.dt, shot.start)
+      continue
+    }
     const ballistic = store === null ? gunBallistics(source!, shot.p.gunType) : null
     const burned = shot.p.kind === 'rocket' && store !== null
       ? { ...shot.p, velocity: burnedVelocity(shot.p.velocity, store.burnDeltaVMps ?? 0, store.burnS ?? 1, shot.p.ageS, shot.dt) }
@@ -759,12 +839,34 @@ export function stepCombat(
     // (spec §3.4). Nor is it an impact (E1 Ruling R2).
     if (p.kind === 'bomb' && store !== null && p.ageS < (store.armS ?? 0)) continue
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
+    if (p.kind === 'torpedo' && store !== null) {
+      enterWater(p, store, contact, point)
+      continue
+    }
     impacts.push({ tick, cause: p.kind, outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point })
     const damage = store === null ? source!.roundDamage : store.damage
     if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1, contact.engine)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
     if (store !== null) applyBlast(point, store.damage, store.blastRadiusM, contact, p.owner)
+  }
+
+  // Flooding (D3 T3) drains on its own clock, like sinking, before the sinking pass so a flood
+  // that finishes a hull this tick starts it down this tick. A sunk or sinking hull stops flooding.
+  for (const ship of ships) {
+    let d = shipDamage[ship.id]
+    if (d?.floods === undefined || d.floods.length === 0 || d.destroyedTick !== null) continue
+    const left: (typeof d.floods)[number][] = []
+    let port = d.floodedPortHp ?? 0
+    let starboard = d.floodedStarboardHp ?? 0
+    for (const f of d.floods) {
+      const drain = Math.min(f.leftHp, f.rateHps * dt)
+      d = damageShip(d, ship.spec.hullHp, drain, tick, f.attacker)
+      if (f.side > 0) starboard += drain
+      else port += drain
+      if (f.leftHp - drain > 1e-9) left.push({ ...f, leftHp: f.leftHp - drain })
+    }
+    shipDamage[ship.id] = { ...d, floods: left, floodedPortHp: port, floodedStarboardHp: starboard }
   }
 
   // Sinking advances on its own clock, hit or not (spec §3.6), and crossing

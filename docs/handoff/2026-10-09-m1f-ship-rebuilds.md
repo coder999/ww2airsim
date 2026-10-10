@@ -77,7 +77,7 @@ Viewing checkpoint: the final product only. The captures are below. While the ru
 
 ## Tests
 
-- **Unit and integration tiers:** pass in the worktree. The full result after the merge is below.
+- **`npm run verify` on `main` after the merge, on nexus: 375 files, 5,066 tests passed, 10 skipped.** The first run timed out Essex's byte-identical rebuild at 120 s under the full suite's load: it took 127 s, against 57 s alone. `blenderEntries.test.ts` now allows 300 s.
 - **E2E on nexus's 680M:** Hangar, ships and deck quals pass, except three failures `main` already has there: `deckQuals.spec.ts:63` and both `ships.spec.ts:62` cases.
   - Check 15 (luminance) held for every ship without re-baselining.
   - Check 17 failed once on the waving flag: training a mount back to 0° could not restore the frame. The fix is the Hangar's freezable clock above, and check 17 now passes.

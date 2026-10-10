@@ -2,9 +2,13 @@ import { DAMAGE_BLAST_NEAR_M, ROUND_HIT_NEAR_M, type AudioInputs } from '../audi
 import type { CombatImpact } from '../sim/weapons/impacts.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
-import { effectiveStallSpeedMps, onGround } from '../sim/ground.js'
-import { airVelocity, DT } from '../sim/flight/model.js'
+import { onGround } from '../sim/ground.js'
+import { airVelocity, angleOfAttack, DT } from '../sim/flight/model.js'
 import { engineOutput } from '../sim/damage/model.js'
+import { alphaCritRad, liftCoefficient } from '../sim/aero.js'
+import { flapClIncrement } from '../sim/flaps.js'
+import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { AircraftState } from '../sim/flight/state.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { length, sub } from '../sim/math/vec3.js'
 import { qRotate, type Quat } from '../sim/math/quat.js'
@@ -90,7 +94,7 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     flapFraction: aircraft.flapFraction,
     // I1: the wind follows speed through the air, the wheels speed over what is under them.
     airspeedMps: length(airVelocity(aircraft, frame.world.wind)),
-    stallSpeedMps: effectiveStallSpeedMps(spec, aircraft.flapFraction),
+    liftFraction: liftFraction(spec, { ...aircraft, velocity: airVelocity(aircraft, frame.world.wind) }),
     diveSpeedMps: spec.limits.diveSpeedMps,
     groundSpeedMps: ground === null ? 0 : Math.hypot(aircraft.velocity.x - ground.velocity.x, aircraft.velocity.z - ground.velocity.z),
     damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
@@ -101,6 +105,17 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
 function engineRunningAt(world: FrameState['world'], id: string): boolean {
   const damage = world.combat.aircraft[id]?.damage
   return damage === undefined || engineOutput(damage, world.tick, id, DT) > 0
+}
+
+/** The share of the wing's maximum lift in use, from the angle of attack through the air (I1's
+ *  stall warning, `stallFor`). Signed lift over the most it makes at the stalling angle with the
+ *  flaps where they are, so a hard pull reads high at any speed; past the stalling angle it is 1. */
+function liftFraction(spec: AircraftSpec, air: AircraftState): number {
+  const alpha = angleOfAttack(air)
+  const crit = alphaCritRad(spec)
+  if (Math.abs(alpha) >= crit) return 1
+  const flaps = flapClIncrement(spec, air.flapFraction)
+  return Math.abs(liftCoefficient(spec, alpha, flaps)) / liftCoefficient(spec, crit, flaps)
 }
 
 /** The newest event of each `DamageCause` at the player: a round that struck an aircraft within
@@ -153,10 +168,16 @@ export function spatialInputsFrom(
       })),
     decks: decksOf(world.ships).map((d, i) => ({ id: `deck${i}`, center: d.center, lengthM: d.lengthM })),
     blasts: world.combat.impacts
-      .filter((h) => h.cause !== 'round' && h.outcome === 'detonated')
-      .map((h) => ({ tick: h.tick, surface: h.surface, position: h.point })),
+      .filter((h) => h.cause !== 'round' && (h.outcome === 'detonated' || torpedoSplash(h)))
+      .map((h) => h.cause === 'torpedo'
+        ? { tick: h.tick, surface: h.surface, position: h.point, torpedo: h.outcome === 'detonated' ? 'hit' as const : 'splash' as const }
+        : { tick: h.tick, surface: h.surface, position: h.point }),
   }
 }
+
+/** A torpedo meeting the sea: its entry, or a break-up on the water (D3 T2). */
+const torpedoSplash = (h: CombatImpact): boolean =>
+  h.cause === 'torpedo' && h.surface === 'water' && (h.outcome === 'entered' || h.outcome === 'broke-up')
 
 /** The radio's language (I2, CONTEXT.md "Voice"): Japanese when the player flies a Japanese
  *  airframe or sits on the axis side of the scenario, US English otherwise. The airframe counts

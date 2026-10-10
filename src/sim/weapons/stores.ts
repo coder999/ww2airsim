@@ -5,6 +5,15 @@ export const emptyStores: StoresState = { bombs: 0, rockets: 0 }
 
 export type Loadout = 'clean' | 'bombs' | 'rockets' | 'both'
 
+/** What the racks carry, in a pilot's words: "Torpedo" where the racks hold a torpedo store (the
+ *  Avenger, the Kate, the Betty), else "Bombs" (D3 T1, Mark 2026-10-09). The loadout picker, the
+ *  controls legend and the Hangar bench all read it, so the label follows the content. */
+export function racksLabel(spec: AircraftSpec | undefined): 'Torpedo' | 'Bombs' {
+  const s = spec?.stores
+  const rack = s?.racks[0]
+  return rack !== undefined && s!.types[rack.store]?.kind === 'torpedo' ? 'Torpedo' : 'Bombs'
+}
+
 /** Counts from the title screen's choice (spec §2.4: loadout is NOT scenario
  *  content). A spec with no `stores` block only ever returns `emptyStores`. */
 export function storesFromLoadout(spec: AircraftSpec, loadout: Loadout): StoresState {

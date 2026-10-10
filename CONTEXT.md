@@ -64,3 +64,34 @@ _Avoid_: flag (alone), colors
 **Difficulty**:
 The global player setting that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. A scenario's skill values are the baseline it shifts.
 _Avoid_: skill level, challenge
+
+## Weapons
+
+**Torpedo**:
+An aerial torpedo: dropped from a rack like a bomb, it enters the sea and runs straight at a set depth and speed until it meets a hull, runs ashore or runs out of range. It damages only a ship.
+_Avoid_: fish, tin fish
+
+**Drop envelope**:
+The fastest airspeed and the greatest height above the sea at which a torpedo can be released and still run. Outside it, the torpedo breaks up on the water.
+_Avoid_: release limits, launch window
+
+**Flood**:
+Water a torpedo hit lets into a hull. It keeps taking hull points for a while after the hit, lists the ship toward the holed side and slows it; several floods add up. Bombs never flood.
+_Avoid_: leak, progressive damage
+
+**God mode**:
+A Dev-only setting (a checkbox beside Dev): the player cannot be damaged, fuel, ammunition, bombs, torpedoes and rockets never run out, and any contact with the ground, sea or deck bounces the airplane back up instead of ending the flight. Other airplanes are unaffected.
+_Avoid_: cheat, invincibility, infinite ammo
+
+**Sitting duck**:
+An AI airplane under the `passive` order: it never picks a target, so it never evades or fires, and it circles at a fixed radius and altitude. The Range Test's enemy airplanes are sitting ducks.
+_Avoid_: dummy, drone
+
+**Range Test**:
+The Dev mission that spawns every enemy airplane as a sitting duck and every enemy ship at anchor near Tacloban, plus the cargo ship; which enemy follows the side of the airplane you picked.
+_Avoid_: shooting gallery
+
+**Neutral ship**:
+In the Range Test, a ship that is always a legal target whichever side you fly: the cargo ship takes the side opposite the pilot. The sim has only two sides; a true neutral is not built.
+_Avoid_: civilian
+

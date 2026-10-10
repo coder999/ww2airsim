@@ -1,6 +1,7 @@
 import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import { describe, it, expect } from 'vitest'
 import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from '../../src/render/audio.js'
+import { SYNTH_GAIN_MAX, stallFor } from '../../src/audio/mix.js'
 import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
 import { createWorldOf, playerAircraft, type ShipEntity } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
@@ -47,13 +48,26 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(radioLanguageFor(initialFrameState(loadAircraftSpec('a6m2-zero'), at))).toBe('ja')
   })
 
-  it("reads airspeed, the stall speed at the flaps, and the dive limit off the player (I1)", () => {
+  it("reads airspeed, the lift in use, and the dive limit off the player (I1)", () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), flapFraction: 1 }))
     const i = audioInputsFrom(frame)
     expect(i.airspeedMps).toBeCloseTo(120, 6)
-    expect(i.stallSpeedMps).toBe(f6f.reference.stallSpeedFlapMps)
+    expect(i.liftFraction).toBeGreaterThan(0)
+    expect(i.liftFraction).toBeLessThan(1)
     expect(i.diveSpeedMps).toBe(f6f.limits.diveSpeedMps)
     expect(i.groundSpeedMps).toBe(0) // no ground under it yet
+  })
+
+  it('warns of a stall from the angle of attack, so a hard pull buffets at any speed (I1, Mark 2026-10-09)', () => {
+    // Same 268 mph, three attitudes: level, nose 12 degrees up into the flow, and past the stalling angle.
+    const at = (pitchDeg: number) => audioInputsFrom(initialFrameState(f6f, createState({
+      position: v3(0, 1000, 0), velocity: v3(120, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), (pitchDeg * Math.PI) / 180),
+    }))).liftFraction!
+    expect(at(12)).toBeGreaterThan(at(0))
+    expect(at(f6f.aero.alphaCritDeg + 2)).toBe(1)
+    // 120 m/s is far above a Hellcat's stall speed, so only the angle can put it into the buffet.
+    expect(stallFor(true, at(f6f.aero.alphaCritDeg + 2)).buffet).toBe(SYNTH_GAIN_MAX.buffet)
+    expect(stallFor(true, at(0)).buffet).toBe(0)
   })
 
   it("reads gear and flap travel off the player's own state (I3)", () => {
@@ -277,5 +291,18 @@ describe('spatialInputsFrom (spatial audio)', () => {
     expect(out.aircraft.map((a) => a.id)).toEqual(['wing'])
     expect(out.aircraft[0]).toMatchObject({ shots: 9, family: 'radial_big' })
     expect(out.blasts).toEqual([{ tick: 3, surface: 'water', position: v3(1, 2, 3) }])
+  })
+
+  // D3 T2 (Mark, 2026-10-09): a torpedo's water entry and break-up on the water are splashes, its
+  // hull detonation a hit; a break-up on a deck or land is silent, and a run's end plays nothing.
+  it('marks torpedo entries and break-ups on the water as splashes, and a hull detonation as a hit', () => {
+    const frame = base()
+    const at = (outcome: CombatImpact['outcome'], surface: CombatImpact['surface'], tick: number): CombatImpact =>
+      ({ tick, cause: 'torpedo', outcome, surface, point: v3(1, 2, 3) })
+    const world = { ...frame.world, combat: { ...frame.world.combat, impacts: [
+      at('entered', 'water', 1), at('broke-up', 'water', 2), at('broke-up', 'ship', 3), at('detonated', 'ship', 4), at('expired', 'water', 5),
+    ] } }
+    const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
+    expect(out.blasts.map((b) => [b.tick, b.torpedo])).toEqual([[1, 'splash'], [2, 'splash'], [4, 'hit']])
   })
 })

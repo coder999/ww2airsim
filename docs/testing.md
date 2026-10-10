@@ -41,7 +41,7 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
 - **Every skip has a reason the code can check.** `skipIf(terrain === null)` or `skipIf(!HAVE_BLENDER)` are fine: the data or tool is absent, and the skip names it. An unconditional skip is either:
   - waiting on a named ruling from Mark (say which, and in which handoff); or
   - a known gap, which belongs in "Known gaps" below, not in the suite as a skipped test.
-- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable.
+- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable. The L3 and Range Test ones: `landGapCapture.spec.ts` (shipping, `synth`, `synthsr` or `synth2` at three altitudes), `landVillageCapture.spec.ts` (GPU frame time and a screenshot over the densest village, `LAND_REPEATS` and `LAND_VIEW` for interleaved repeats; run it under `hwlock ryzen-budget`) and `rangeTestCapture.spec.ts` (both Range Test missions, read through `__ww2.aircraft()` and `__ww2.ships()`, and a god-mode dive). `E2E_CAPTURE_DIR` picks where the pictures go.
 - **Delete a test with its code.** Unwired code and its tests go together, because git remembers.
 - **Grepping source is a last resort.** A few tests assert that `main.ts` contains a call (for example `bootQuality.test.ts`) because the wiring has no seam to call. They break on renames. The fix is to extract that wiring into a function a test can call, not to add more greps.
 - **Keep files cheap.**
@@ -161,8 +161,31 @@ Mark, 2026-10-08). It orders budget runs against each other and nothing
 else. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
 (`serverconfig/ryzen.md`, "Resource locks"). Work started on Ryzen itself
 is invisible to either lock, so before trusting a number check that no other
-browser is driving its GPU.
+browser is driving its GPU. So is a `remote-run` job (it runs in ryzen's WSL):
+on 2026-10-10 a concurrent `remote-run npm run verify` held ryzen's CPU at 45-60% and
+pushed budget views from about 6 ms to 14-18 ms p95, with no other 3D client on the GPU
+(H0 handoff, "Rulings and the as-merged result"). Check ryzen's CPU as well as its GPU.
 
+
+**Mark's console session (verified 2026-10-10, after a reboot).** When `markt` is logged in
+at the console and no Playwright server is listening on ryzen port 3000, start one in
+that session with a one-shot interactive scheduled task, tunnel it, and remove everything
+afterwards. Chrome windows appear on his desktop; that is expected. Never do this while he
+is logged out (use the RDP route below instead).
+
+```sh
+ssh ryzen '
+Set-Content C:\e2e\serve-console.ps1 -Value @("`$env:PLAYWRIGHT_BROWSERS_PATH = ''C:\e2e\browsers''","Set-Location C:\e2e","npx playwright run-server --port 3000 --host 127.0.0.1 --unsafe") -Encoding ascii
+$a = New-ScheduledTaskAction -Execute powershell.exe -Argument "-NoProfile -ExecutionPolicy Bypass -File C:\e2e\serve-console.ps1"
+$p = New-ScheduledTaskPrincipal -UserId MARKDESKTOP\markt -LogonType Interactive
+Register-ScheduledTask -TaskName l3-serve-console-once -Action $a -Principal $p -Force | Out-Null
+Start-ScheduledTask -TaskName l3-serve-console-once'
+ssh -f -N -L 39001:127.0.0.1:3000 ryzen
+# ... run with PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://<slot-host> ...
+ssh ryzen 'Stop-ScheduledTask l3-serve-console-once; Unregister-ScheduledTask l3-serve-console-once -Confirm:$false; Get-NetTCPConnection -LocalPort 3000 -State Listen -EA 0 | % { Stop-Process -Id $_.OwningProcess -Force }; Remove-Item C:\e2e\serve-console.ps1'
+```
+
+Playwright on nexus and ryzen must be the same version (1.63.0 on 2026-10-10).
 
 **No console login, correctness only: a server in session 0.** Chromium there
 gets the GPU only headless with `--use-angle=d3d11` (`PW_SESSION0=1` sends it),

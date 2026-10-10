@@ -521,6 +521,27 @@ Detail: [`docs/handoff/2026-09-30-ki21-onboard.md`](handoff/2026-09-30-ki21-onbo
 - **The B-17's 11.27 g lift-off bump is not visible to a consecutive-tick velocity probe** (the same probe reads 1.28 g on the B-17), so it
   cannot be used to check another airplane that way.
 
+## Lessons from the D1 run (TBM-3 Avenger and B5N2 Kate, 2026-10-09)
+
+Detail: [`docs/handoff/2026-10-09-d1-torpedo-planes.md`](handoff/2026-10-09-d1-torpedo-planes.md).
+
+- **The harness carries `testMassKg - emptyKg` as disposable load whatever the fuel capacity.** Pair the graded figures with the
+  weight the source quotes (the TBM-3E's normal loaded weight, Francillon's gross for the Kate), not empty plus full fuel; a light
+  test mass put the Kate's climb 75% over.
+- **A source can overrule the plan's D-table.** D11 named forward guns for the B5N2; Francillon gives it only the rear gun. A
+  combat block may now have no guns (`guns: []`): it keeps hit zones, so the airplane can be shot down, and the gunsight and AI
+  lead skip it. Say so in `combat.source`.
+- **A gun turret behind a long greenhouse needs a traverse limit.** The barrel sweep found the Avenger's ball turret reaching the
+  canopy dead ahead; its arc stops 30 degrees short. A ventral flexible gun pointing aft and down needs its elevation held below
+  the belly's rise.
+- **Bay doors on a deep, curved belly do not drop.** `aircraftRigs.test.ts` wants the keel edge to fall as the door opens; a door
+  whose keel already hangs well below its hinge only swings sideways. Lay the bay under a flat stretch of belly.
+- **Landing gear that folds outboard** is `retracts: 'outboard'` (added for the Avenger).
+- **A flyable card with a `model` takes the Hangar's display path, which hangs no stores.** The Kate's card has none, so the Hangar
+  hangs its torpedo; the Avenger's keeps one, as every bay bomber's does, because check 6 looks for stores from the front and a
+  bay load is invisible there.
+- **A carrier airframe traps on its own side's fleet carrier** in `trap.test.ts` (Essex, or Zuikaku for a Japanese type).
+
 ## The worked example
 
 The Wildcat also shows the two things a stock model may need: a load-time

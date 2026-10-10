@@ -60,4 +60,9 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // (normalize.origin x -0.25; the drawn wheels stood at x 0.000, which the schema's mainX > 0 rejects): mains at x 0.250, the
   // retractable tailwheel the first aft point to touch at 16.417 degrees, steeper than the Zero's 12.2 (the long drawn legs).
   'ki-84-frank': { mainWheelXM: 0.100, tailDownPitchRad: 16.417 * DEG },
+  // Measured 2026-10-09 (D1 onboarding) with drawnPoints, the propeller excluded: mains at x 0.250, y -1.985; the fixed
+  // tailwheel the first aft point to touch at 9.853 degrees.
+  'tbm-3-avenger': { mainWheelXM: 0.250, tailDownPitchRad: 9.853 * DEG },
+  // Measured 2026-10-09 (D1 onboarding) the same way: mains at x 0.206, y -2.009; the fixed tailwheel at 13.168 degrees.
+  'b5n2-kate': { mainWheelXM: 0.206, tailDownPitchRad: 13.168 * DEG },
 }

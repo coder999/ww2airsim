@@ -9,14 +9,13 @@ import { VIEWS, withParams } from './views.js'
  * motion pass. The accepted ceiling leaves 0.15 ms for reconstruction while
  * requiring at least 0.10 ms back from the original path.
  *
- * Re-baselined 2026-09-29: content merged since (terrain textures, about
- * 0.25 ms of it, verified with ?terrainTextures=off; cloud and other work
- * for the rest) moved this view's p50 to 4.19 ms (4.187-4.207 over five
- * runs on the reference GPU under hwlock). The reference is the same
- * no-MRT path measured on today's build, so the 0.15 ms tolerance still
- * catches the MRT tax coming back.
+ * Re-baselined at 1440p by H0 (2026-10-10, docs/superpowers/plans/2026-10-08-h0-render-budget.md, R7):
+ * p50 2.499-2.597 ms over five runs on the reference GPU under `hwlock ryzen-budget`, median 2.50, on
+ * the same no-MRT path. The 0.15 ms tolerance is kept as is: scaled by the pixel ratio it would be
+ * 0.07 ms, under the five-run spread of 0.10 ms. The MRT tax it guards (~2 ms at 4K) scales to ~0.9 ms
+ * here (estimated by pixel count, not measured).
  */
-const ZERO_MOTION_REFERENCE_P50_MS = 4.19
+const ZERO_MOTION_REFERENCE_P50_MS = 2.5
 const RECONSTRUCTION_TOLERANCE_MS = 0.15
 
 test.setTimeout(120_000)
@@ -28,7 +27,7 @@ async function frameP50(page: Page): Promise<{ p50: number; n: number }> {
   return { p50: percentile(samples, 0.5), n: samples.length }
 }
 
-test('camera motion stays within the no-MRT 4K budget', async ({ page }) => {
+test('camera motion stays within the no-MRT 1440p budget', async ({ page }) => {
   const errors: string[] = []
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text().slice(0, 400))
@@ -36,13 +35,13 @@ test('camera motion stays within the no-MRT 4K budget', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message))
 
   const view = VIEWS.find((candidate) => candidate.name === 'in-deck-1900')!
-  await page.setViewportSize({ width: 3840, height: 2160 })
+  await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(withParams(view.url, { cloudTier: 'off', oceanTier: 'high' }))
   await waitForTerrain(page)
   await page.waitForTimeout(3000)
 
   const { p50, n } = await frameP50(page)
-  console.log(`MOTION_BUDGET4K clouds-off in-deck-1900 p50=${p50.toFixed(3)} n=${n}`)
+  console.log(`MOTION_BUDGET 1440p clouds-off in-deck-1900 p50=${p50.toFixed(3)} n=${n}`)
   expect(errors, errors.join('\n')).toEqual([])
   expect(n).toBeGreaterThan(30)
   expect(p50).toBeLessThanOrEqual(ZERO_MOTION_REFERENCE_P50_MS + RECONSTRUCTION_TOLERANCE_MS)

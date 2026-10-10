@@ -28,5 +28,5 @@ export const syntheticTwin: AircraftSpec = {
   gear: { ...syntheticTricycle.gear, torqueYawRateDegPerSec: 0, thirdSteering: 'caster', steerYawRateDegPerSec: 0 },
 }
 
-export const realGroundSpecs: readonly AircraftSpec[] = ['f6f-hellcat', 'f4f-wildcat', 'a6m2-zero', 'f4u-corsair', 'b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'ki-84-frank', 'ki-21-sally'].map((id) => loadAircraftSpec(id))
+export const realGroundSpecs: readonly AircraftSpec[] = ['f6f-hellcat', 'f4f-wildcat', 'a6m2-zero', 'f4u-corsair', 'b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'ki-84-frank', 'ki-21-sally', 'tbm-3-avenger', 'b5n2-kate'].map((id) => loadAircraftSpec(id))
 export const allGroundSpecs: readonly AircraftSpec[] = [...realGroundSpecs, syntheticTricycle, syntheticTwin]

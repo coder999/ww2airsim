@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { sectionAtFor, STORE_MESHES } from '../../../tools/models/mounts.js'
 
-const specs = ['b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress', 'ki-21-sally'].map((id) => loadAircraftSpec(id))
+const specs = ['b-17-flying-fortress', 'g4m-betty', 'b-29-superfortress', 'ki-21-sally', 'tbm-3-avenger'].map((id) => loadAircraftSpec(id))
 const sections = new Map(await Promise.all(specs.map(async (s) => [s.id, await sectionAtFor(s.view.model, -20)] as const)))
 const bounds = (store: string) => {
   const m = STORE_MESHES[store]!() as unknown as { positions: ArrayLike<number> }

@@ -33,8 +33,8 @@ describe('createOrdnance (Plan 6b Task 8): pooled bomb/rocket meshes', () => {
     const ordnance = createOrdnance(scene)
     expect(scene.children).toContain(ordnance.object)
     const instancedMeshes = ordnance.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
-    // bomb, rocket
-    expect(instancedMeshes).toHaveLength(2)
+    // bomb, rocket, torpedo (D1)
+    expect(instancedMeshes).toHaveLength(3)
     for (const m of instancedMeshes) {
       expect(m.count).toBe(0)
       expect(m.visible).toBe(false)
@@ -43,7 +43,7 @@ describe('createOrdnance (Plan 6b Task 8): pooled bomb/rocket meshes', () => {
 
   it('draws no motor flame of its own: the fx system does (plan E2 Ruling R8)', () => {
     const o = createOrdnance(new Scene())
-    expect(o.object.children.filter((c) => c instanceof InstancedMesh)).toHaveLength(2)
+    expect(o.object.children.filter((c) => c instanceof InstancedMesh)).toHaveLength(3)
   })
 
   it('update() positions live bombs and rockets', () => {
@@ -57,6 +57,14 @@ describe('createOrdnance (Plan 6b Task 8): pooled bomb/rocket meshes', () => {
     expect(bombMesh!.count).toBe(1)
     expect(bombMesh!.visible).toBe(true)
     expect(rocketMesh!.count).toBe(2)
+  })
+
+  it('update() draws torpedoes, falling and running, in their own pool (D1)', () => {
+    const ordnance = createOrdnance(new Scene())
+    ordnance.update([projectile({ kind: 'torpedo' }), projectile({ kind: 'torpedo', runM: 40 }), projectile({ kind: 'bomb' })])
+    const [, , torpedoMesh] = ordnance.object.children.filter((c) => c instanceof InstancedMesh) as InstancedMesh[]
+    expect(torpedoMesh!.count).toBe(2)
+    expect(torpedoMesh!.visible).toBe(true)
   })
 
   it('bomb pool never exceeds BOMB_CAPACITY, rocket pool never exceeds ROCKET_CAPACITY', () => {

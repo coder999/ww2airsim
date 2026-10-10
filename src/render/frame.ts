@@ -30,6 +30,7 @@ import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { GodMode } from '../sim/godMode.js'
 import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/landing.js'
 import { bayDoorsShut } from '../sim/bayDoors.js'
 
@@ -151,6 +152,9 @@ export type FrameState = {
   /** Real seconds the "BAY DOORS CLOSED" notice has left: set by a release pressed with the
    *  doors not fully open (C2), so the refused press is never silent. */
   readonly bayDoorsNoticeS: number
+  /** Real seconds the "TORPEDO BROKE UP" notice has left (D1): set when one of the player's
+   *  torpedoes broke up this frame, a drop outside its envelope. */
+  readonly torpedoNoticeS: number
   /** The tick of the newest mission `respot` this frame has already
    *  answered by raising the hook lever, or -1 for none (ruling F-C1,
    *  2026-09-27). The respot spot is aft of the trap zone and a trap never
@@ -238,6 +242,8 @@ const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 export const TRIPLE_TIME_SCALE = 3
 /** Real seconds the "BAY DOORS CLOSED" notice shows after a refused release (C2). */
 export const BAY_DOORS_NOTICE_S = 2.5
+/** Real seconds the "TORPEDO BROKE UP" notice shows (D1). */
+export const TORPEDO_NOTICE_S = 2.5
 
 /** Which key toggles which assist. The keys themselves live in
  *  `src/input/bindings.ts` with every other key in the game; this is only the
@@ -320,6 +326,7 @@ export function initialFrameStateFor(
     bayDoorsOpen: false,
     bayDoorsPressed: false,
     bayDoorsNoticeS: 0,
+    torpedoNoticeS: 0,
     respotHandledTick: lastRespotTick(world),
     throttleCutPressed: false,
     dropBombPressed: false,
@@ -511,6 +518,8 @@ export function nextFrameState(
    *  zeroed by `main.ts` while a screen is over the flight. Passed in, not
    *  stored, like `arcadeDamage`; only the `orbit` it produces is state. */
   mouse: MouseDelta = NO_MOUSE,
+  /** God mode (Dev only, `sim/godMode.ts`), handed straight to `advance`; absent is every ordinary flight. */
+  god?: GodMode,
 ): FrameState {
   const player = playerAircraft(prev.world)
   const spec = player.spec
@@ -719,6 +728,7 @@ export function nextFrameState(
     stepper,
     assist,
     arcadeDamage,
+    god,
   )
   const advancedPlayer = playerAircraft(advanced.world)
   const { poses, shipPoses, render } = posesFor(advanced.world, advanced.alpha)
@@ -769,6 +779,9 @@ export function nextFrameState(
     bayDoorsOpen,
     bayDoorsPressed: bayDoorsKeyDown,
     bayDoorsNoticeS,
+    torpedoNoticeS: (advanced.world.combat.aircraft[advanced.world.player]?.torpedoesBrokeUp ?? 0) > (prev.world.combat.aircraft[prev.world.player]?.torpedoesBrokeUp ?? 0)
+      ? TORPEDO_NOTICE_S
+      : Math.max(0, prev.torpedoNoticeS - elapsedSeconds),
     respotHandledTick: respotted ? respotTick : prev.respotHandledTick,
     throttleCutPressed: throttleCutDown,
     dropBombPressed: dropBombKeyDown,

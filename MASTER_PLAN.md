@@ -135,15 +135,17 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 
 ### Track D: Torpedoes (L)
 
-- **Today:** projectile `kind` is round, bomb or rocket (`combat.ts:85`). Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location. No torpedo bomber is in the roster. The G4M historically carried the Type 91, but its spec carries bombs.
+- **Steps 1 and 2 done (D1, 2026-10-09):** the TBM-3 Avenger and the B5N2 Kate are onboarded (Blender-built, carrier-capable, flyable from the picker), and `torpedo` is a store kind: a drop envelope judged at release, a water entry, a straight run at depth, an arming run, and a hull hit for the store's damage (`combat.ts`, `tests/sim/weapons/torpedo.test.ts`). The G4M carries a Type 91. Plan `docs/superpowers/plans/2026-10-09-d1-torpedo-planes.md`; handoff `docs/handoff/2026-10-09-d1-torpedo-planes.md`. Step 3 and the sound done in D3 (below); step 4 stays open.
+- **Step 3 and the sound done (D3, 2026-10-09):** a torpedo hit floods: the blow, then 0.6x the warhead drained over 60 s on the hit side, floods adding up, the ship listing toward the water and slowing (`src/sim/weapons/flooding.ts`, `tests/sim/weapons/flooding.test.ts`); bombs never flood. `torpedo_splash` and `torpedo_hit` play; torpedo airplanes say "Torpedo" in the loadout, legend, HUD and Hangar. Plan `docs/superpowers/plans/2026-10-09-d3-torpedo-flooding.md`; handoff `docs/handoff/2026-10-09-d3-torpedo-flooding.md`.
+- **Before D1:** projectile `kind` was round, bomb or rocket. Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location.
 - **Drawn already (V1, 2026-10-09):** the Mk 13 and Type 91 torpedo models (`content/ordnance/mk13.glb`, `type91.glb`, in the Library), with their suspension point at the origin like every store, so step 2 adds a store type and hangs them. M4's ship torpedoes reuse the same two models (Mark's ruling: simplicity over history). Plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`; handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`.
 - **Proposal, in order:**
-  1. **Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.
-  2. **Weapon:** a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
-  3. **Damage:** a waterline hit that does more than a bomb of equal weight. Whether that becomes flooding or a simple multiplier is a design call.
+  1. ~~**Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.~~ Done (D1), with the B5N2 Kate.
+  2. ~~**Weapon:** a torpedo store~~ Done (D1): a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
+  3. ~~**Damage:** a waterline hit that does more than a bomb of equal weight.~~ Done (D3): flooding, Mark's pick over a multiplier.
   4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
-  5. **Sound (ready, 2026-10-09):** release reuses `bombs_away`; `torpedo_splash` and `torpedo_hit` are in `AUDIO_ASSETS`, unwired (Track I, I3).
-- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G).
+  5. ~~**Sound.**~~ Done (D3): release reuses `bombs_away`; `torpedo_splash` plays at water entry, `torpedo_hit` at a hull hit.
+- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G): it exists since D1.
 
 ### Track E: Better AI (L)
 
@@ -219,6 +221,7 @@ H1-H3: those names already mean the Hangar plans.)
   - **Photoreal Task 14** is H0's last step: tripwires re-derived from H0's final numbers, the probe check in Mark's Chrome, the handoff and its entry here.
   - **How it runs:** in a worktree, unattended. Viewing checkpoints: the re-baseline ruling and the final result, both collected in the handoff.
 - **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
+- **Done 2026-10-10, Mark's rulings applied** (handoff `docs/handoff/2026-10-08-h0-render-budget.md`, "Rulings and the as-merged result"): the cloud-edge re-march skip is the default, so every High view clears 8.33 ms at 1440p; in-deck-1900 has its own 10.0 ms gate (9.51 ms measured); terrainTextures' runway keeps 9.0 ms. Every view but in-deck is inside the 7.5 ms margin (worst: deckquals 7.01 ms).
 
 ### Track K: Clouds (size L)
 
@@ -242,24 +245,31 @@ one plan for the lot.
 3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 
 **L2. Beach and shore (M).**
-- **Today:**
-  - a noise-perturbed sand band over terrain heights 1.3-7.5 ft (`terrain/surface.ts:255`);
-  - bathymetric water color;
-  - a 6.5 ft wave fade at the shore.
-  - There is **no shore foam, surf line or wet-sand band**, and no document designs one.
-  - 13c's DEM reshaping was abandoned because the pyramid's tent filter can't keep a land/sea boundary.
-- **Proposal:** solve it in shading, not in the DEM. Build a baked distance-to-shore field (`tools/landcover/sea.ts`'s sea-connected mask is the starting point: deleted unwired 2026-10-08, restorable from `cc8579f`). It drives a surf foam band and a breaking-wave whitening on the ocean side, and a wet-sand darkening on the land side. This needs its own design document. It shares the water-effects ground E3 never started.
+- **Smooth border complete 2026-10-09:** a deterministic Blender-built render
+  ribbon traces and smooths the committed L1 zero contour, overlaps the square
+  terrain edge, and tapers from vegetation-colored inner sand through dry/wet
+  sand to a submerged, feathered surf edge.  The DEM and all physics remain
+  unchanged.  The 11.4 MB tiled GLB rebuilds byte-identically and uses two
+  shared runtime roles.  [Design](docs/superpowers/specs/2026-10-09-curved-beaches-design.md),
+  [plan](docs/superpowers/plans/2026-10-09-curved-beaches.md),
+  [handoff](docs/handoff/2026-10-09-curved-beaches.md).
+- **Open:** animated/breaking white water and richer shallow-water interaction.
+  The shipped surf edge is static and feathered; those ocean effects are a
+  later water-effects slice, not another DEM rewrite.
 
 ### Track I: Sound (M, two plans)
 
-- **Today:** 16 sounds wired out of about 44 designed.
+- **Today (counted 2026-10-09):** 25 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose), `flak_burst`, `aa_gun`, `torpedo_splash`, `torpedo_hit`, `ship_gun_heavy`.
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals. Done 2026-10-09** (branch `i1-synth-sounds`, plan `docs/superpowers/plans/2026-10-09-i1-synth-sounds.md`, handoff `docs/handoff/2026-10-09-i1-synth-sounds.md`):
-  - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (stall speed at the current flaps), overspeed creak (the spec's dive limit), and radio static under each transmission.
+  - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (angle of attack, below), overspeed creak (the spec's dive limit), and radio static under each transmission.
   - Max gains are tuning values in `mix.ts` `SYNTH_GAIN_MAX`, not yet heard in flight.
-  - **Open:** grass has no rumble preset of its own, because `ContactSurface` has no grass. The stall cues read airspeed at 1 g, so they do not follow angle of attack.
+  - **Decided (Mark, 2026-10-09):**
+    - Grass shares the land rumble, because `ContactSurface` has no grass.
+    - The stall cues read angle of attack, as the share of the wing's maximum lift in use, so a hard pull buffets early. Merged 2026-10-09 (`99b73ece`); at 1 g the onsets are unchanged (1.15 and 1.07 × stall speed).
+    - Wind stays muffled in the cockpit.
 - **I2, voice (§4 Q7):**
-  - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
+  - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 76 lines of `docs/audio/firefly-prompt-sheet.md` (38 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
   - **Wired 2026-10-09** (branch `i2-voice-wiring`, plan `docs/superpowers/plans/2026-10-09-i2-voice-wiring.md`):
     - The HUD radio line and the LSO's cue speak through the radio bus as squelch, voice, squelch.
     - One transmission plays at a time; cut and wave-off cut in.
@@ -267,7 +277,7 @@ one plan for the lot.
     - `src/audio/radio.ts` maps message text to line, and its test enrolls every scenario message.
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
   - **Wired 2026-10-09:** `gear_cycle` and `flaps_cycle`, once as travel starts, both ways.
-  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
+  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2). `rocket_whoosh` is now take 2 (wired). `radio_squelch` (Freesound CC0) is wired: it brackets each radio line (I2).
   - `torpedo_hit` is Mark's own Firefly clip (unwired, the Avenger).
   - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
   - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.
@@ -311,6 +321,33 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
   6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
 
 ---
+
+**L3. Land render quality (size M; measured and prototyped 2026-10-09 to 10, dev-only).**
+Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
+[Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+- **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were
+  already tried and gave no gain ([terrain.md](docs/terrain.md), [drape.md](docs/drape.md)).
+  What OpenSkyFlight has that ours lacks is built-up places, muted varied tone and fine grain
+  ([Phase 0b](docs/handoff/2026-10-09-l3-phase0b.md)).
+- **Prototype, DEV only:** `?drape=synth2` (muted tone, drift, grain) and `?villages=on` (about 54
+  invented villages of 3D nipa-style huts, trees cleared around them). The shipping game is unchanged.
+  [Handoff](docs/handoff/2026-10-10-l3-phase2.md).
+- **Open:** Mark's call on shipping either as a tier. The hut colors read too orange. Tacloban and Basey
+  still use the old Quonset ring. A Blender top-down render of real tree crowns for forest grain is not
+  built. **The 6,000 ft view is over the 8.33 ms gate at p95 with none of this in it** (about 10 ms on
+  shipping terrain, 2026-10-10), so nothing here can be cleared against the budget until H0 finishes that.
+
+### Track N: Dev tools (S). Done 2026-10-10
+
+**N1. God mode and the Range Test.** [Plan](docs/superpowers/plans/2026-10-10-god-mode-range-test.md),
+[handoff](docs/handoff/2026-10-10-range-test-god-mode.md).
+- **God mode** (a checkbox beside Dev, only while Dev is on): the player cannot be damaged, fuel, ammo,
+  bombs, torpedoes and rockets never run out, and a crash bounces the airplane back up.
+- **Range Test (dev):** take off from Tacloban; every enemy airplane circles overhead as a sitting duck
+  and every enemy ship is anchored nearby, plus a cargo ship; the enemy follows the side of the airplane
+  chosen.
+- **Open:** damage, smoke and sinking were proven in the sim but not captured in the browser; a true
+  neutral side (the cargo ship is "always a legal target" instead) is not built.
 
 ## 2. Proposed order
 

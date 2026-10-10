@@ -82,7 +82,7 @@ function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig
   const b = bounds(points)
   const before = centroid(points)
   const after = centroid(points.map((p) => rotateAbout(p, pivot, axis, (g.upAngleDeg * Math.PI) / 180)))
-  const along = g.retracts === 'inboard' ? Math.abs(before[2]) - Math.abs(after[2]) : g.retracts === 'forward' ? after[0] - before[0] : before[0] - after[0]
+  const along = g.retracts === 'inboard' ? Math.abs(before[2]) - Math.abs(after[2]) : g.retracts === 'outboard' ? Math.abs(after[2]) - Math.abs(before[2]) : g.retracts === 'forward' ? after[0] - before[0] : before[0] - after[0]
   return { up: after[1] - before[1], along, height: b.max[1] - b.min[1] }
 }
 
@@ -99,7 +99,7 @@ it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
 it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
   const modeled = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.doors ?? []).length > 0).map(([id]) => id).sort()
   const specced = specIds.filter((s) => loadAircraftSpec(s).bayDoors !== undefined).sort()
-  expect(modeled).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'])
+  expect(modeled).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger'])
   expect(specced).toEqual(modeled)
 })
 
@@ -108,7 +108,7 @@ it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
 // it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
 it('control surfaces: exactly the batch-1 to batch-4 airframes, each driving roll, pitch, yaw and flaps', () => {
   const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
-  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger', 'b5n2-kate'].sort())
   for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 

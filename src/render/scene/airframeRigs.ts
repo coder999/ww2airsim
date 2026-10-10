@@ -8,7 +8,7 @@
  * ventral at one station, each with `Turret<N>Guns`. Every id here is registered in AIRFRAME_MODELS (airframes.ts), and
  * tests/tools/models/aircraftRigs.test.ts proves each rig against its committed glb.
  */
-export type Retracts = 'inboard' | 'forward' | 'aft'
+export type Retracts = 'inboard' | 'outboard' | 'forward' | 'aft'
 
 export interface PropRig {
   readonly node: string
@@ -210,6 +210,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
   },
+  'b5n2-kate': {
+    // An original Blender model (b5n2-kate.py, D1): the kit's propeller is exactly 3-fold symmetric. The mains fold
+    // inboard into the wing (ESTIMATE); the tailwheel is fixed and static. Turret1 is the rear gunner's 7.7 mm on a
+    // ball socket at the greenhouse's aft end; the B5N2 has no fixed guns.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (b5n2-kate.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (b5n2-kate.py header)' },
+    ],
+    turrets: ['Turret1'],
+    turretArcs: { Turret1: flexCone(6.8, [0, 30]) },
+    surfaces: surfaces(1),
+  },
   'ki-21-sally': {
     // An original Blender model (ki-21-sally.py): the kit's propellers are exactly 3-fold symmetric.
     // The mains fold aft into the nacelles; the tailwheel is fixed and static. Every retraction is an ESTIMATE.
@@ -248,6 +261,23 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-84-frank.py header)' },
     ],
     turrets: [],
+    surfaces: surfaces(1),
+  },
+  'tbm-3-avenger': {
+    // An original Blender model (tbm-3-avenger.py, D1): the kit's propeller is exactly 3-fold symmetric. The
+    // mains swing outboard into the wing (the real legs also turn the wheels flat; one hinge swings, ESTIMATE);
+    // the tailwheel is fixed and static. Turret1 is the dorsal ball turret (one .50), Turret2 the ventral .30
+    // on a ball socket at the step aft of the bay.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: 90, retracts: 'outboard', source: 'ESTIMATE (tbm-3-avenger.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'outboard', source: 'ESTIMATE (tbm-3-avenger.py header)' },
+    ],
+    turrets: ['Turret1', 'Turret2'],
+    // Turret1 stops 30 deg short of dead ahead: there its barrel reaches the greenhouse (measured, the barrel sweep).
+    turretArcs: { Turret1: { traverseDeg: 150, elevationDeg: [0, 80], restElevationDeg: 0, source: 'ESTIMATE: the traverse is cut where the barrel meets the canopy (D1, 2026-10-09)' }, Turret2: flexCone(-14, [-45, -12], 25) },
+    // C2: cut by kit.py's fuselage(doors=...) from the belly (the script's BAYS).
+    doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(1),
   },
   'p-38-lightning': {

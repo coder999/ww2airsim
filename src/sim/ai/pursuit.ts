@@ -19,6 +19,10 @@ export type PilotAssignment = {
   /** 7g spec §7: where this pilot recovers, resolved at build. May accompany
    *  `target`, `ingress` or `formation` -- a wingman or a raider has a home. */
   readonly home?: RecoveryHome
+  /** A sitting duck: never picks a target (so it never fires or evades) and
+   *  circles at this radius, to the left of its starting heading. Excludes
+   *  every other order. Absent for every pilot before the Range Test. */
+  readonly passive?: { readonly orbitRadiusM: number }
   readonly skill: PilotSkill
   readonly decision: PilotDecisionState
 }
@@ -73,7 +77,7 @@ export function muzzleLeadDirection<M>(
   target: AircraftEntity<M>,
 ): Vec3 | null {
   const combat = self.spec.combat
-  // No fixed guns (a bomber, damage stages round 2): nothing to lead, as with no combat block.
+  // No fixed guns (a bomber, damage stages round 2; the B5N2, D1): nothing to lead, as with no combat block.
   if (combat === undefined || combat.guns.length === 0) return null
   const relative = sub(target.state.position, self.state.position)
   const range = length(relative)

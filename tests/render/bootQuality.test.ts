@@ -254,7 +254,7 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   })
 
   it('feeds the gated mouse into the frame loop every frame (orbit camera plan ruling P-3)', () => {
-    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\), frameMouse\)/)
+    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\), frameMouse(, godMode)?\)/)
     expect(source).toContain('const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta')
   })
 
