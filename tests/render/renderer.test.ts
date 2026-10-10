@@ -1,17 +1,30 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeGpuError, renderScaleFromQuery, requiredDeviceLimits } from '../../src/render/renderer.js'
+import { normalizeGpuError, pixelRatioFor, renderScaleFromQuery, requiredDeviceLimits } from '../../src/render/renderer.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
 import { finestFetchedLevelFor } from '../../src/render/content.js'
 import { samplesAtLevel } from '../../src/sim/world/schema.js'
 
 describe('renderScaleFromQuery', () => {
-  it('reads 1 when absent or garbage, and clamps to [0.25, 1]', () => {
-    expect(renderScaleFromQuery('')).toBe(1)
-    expect(renderScaleFromQuery('?renderScale=')).toBe(1)
-    expect(renderScaleFromQuery('?renderScale=abc')).toBe(1)
+  // `null` is "no override": the player's Render Scale setting applies (A5).
+  it('reads null when absent or garbage, and clamps to [0.25, 1]', () => {
+    expect(renderScaleFromQuery('')).toBeNull()
+    expect(renderScaleFromQuery('?renderScale=')).toBeNull()
+    expect(renderScaleFromQuery('?renderScale=abc')).toBeNull()
     expect(renderScaleFromQuery('?renderScale=2')).toBe(1)
+    expect(renderScaleFromQuery('?renderScale=1')).toBe(1)
     expect(renderScaleFromQuery('?renderScale=0.1')).toBe(0.25)
     expect(renderScaleFromQuery('?x=1&renderScale=0.667')).toBe(0.667)
+  })
+})
+
+describe('pixelRatioFor (A5)', () => {
+  it('scales the display ratio, after the cap at 2', () => {
+    expect(pixelRatioFor(1, 1)).toBe(1)
+    expect(pixelRatioFor(1, 0.5)).toBe(0.5)
+    expect(pixelRatioFor(2, 0.75)).toBe(1.5)
+    // A 3x phone: capped to 2 first, so 50% draws at 1x, not 1.5x.
+    expect(pixelRatioFor(3, 0.5)).toBe(1)
+    expect(pixelRatioFor(3, 1)).toBe(2)
   })
 })
 

@@ -4,6 +4,7 @@ import {
   loadDamageModel, saveDamageModel, clearDamageModel,
   RENDER_QUALITY_OPTIONS, ADVANCED_SYSTEMS, ASSET_QUALITY_OPTIONS, DAMAGE_MODEL_OPTIONS,
   ASSET_QUALITY_EFFECT_NOTE, DEFAULT_DAMAGE_MODEL,
+  loadRenderScale, saveRenderScale, RENDER_SCALE_OPTIONS,
   type DamageModel,
 } from '../../src/render/settings.js'
 import {
@@ -70,6 +71,43 @@ describe('the asset-quality tier (render-quality-selector spec §10)', () => {
   it('ignores a stored value that is not one of the four tiers', () => {
     window.localStorage.setItem('ww2airsim.assetQuality.v1', 'high-ish')
     expect(loadAssetQualityTier()).toBeNull()
+  })
+})
+
+describe('the render scale (A5, Mark 2026-10-10)', () => {
+  it('offers 50%, 75% and 100%, and round-trips each through storage', () => {
+    expect(RENDER_SCALE_OPTIONS.map((o) => o.label)).toEqual(['50%', '75%', '100%'])
+    expect(loadRenderScale()).toBeNull()
+    for (const { value } of RENDER_SCALE_OPTIONS) {
+      saveRenderScale(value)
+      expect(loadRenderScale()).toBe(value)
+    }
+  })
+
+  it('ignores a stored scale that is not one of the options, and does not throw', () => {
+    for (const junk of ['0.6', '2', 'abc', '']) {
+      window.localStorage.setItem('ww2airsim.renderScale.v1', junk)
+      expect(() => loadRenderScale()).not.toThrow()
+      expect(loadRenderScale()).toBeNull()
+    }
+  })
+
+  it('defaults to 100%, so nothing changes until a player picks', () => {
+    expect(createSettingsModel().snapshot().renderScale).toBe(1)
+  })
+
+  it('a pick persists and fires its callback, but is not a render-quality choice', () => {
+    const seen: number[] = []
+    const model = createSettingsModel({ onRenderScaleChange: (s) => { seen.push(s) } })
+    model.selectRenderScale(0.75)
+    expect(seen).toEqual([0.75])
+    expect(createSettingsModel().snapshot().renderScale).toBe(0.75)
+    // Nothing probes the scale, so it must neither block the probe's verdict
+    // nor arm Reset to auto-detect.
+    expect(model.snapshot().explicitChoiceMade).toBe(false)
+    expect(model.snapshot().canReset).toBe(false)
+    model.resetToAutoDetect()
+    expect(loadRenderScale()).toBe(0.75)
   })
 })
 

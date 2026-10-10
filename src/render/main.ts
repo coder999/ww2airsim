@@ -1,7 +1,7 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
-import { initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
+import { applyRenderScale, initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
@@ -813,8 +813,9 @@ async function boot(): Promise<void> {
   // Production tracked them for the quality probe until A4, which measures
   // frame intervals instead (`adaptQuality`).
   boot.begin('renderer')
-  const renderScale = import.meta.env.DEV ? renderScaleFromQuery(location.search) : 1
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScale)
+  const renderScaleOverride = import.meta.env.DEV ? renderScaleFromQuery(location.search) : null
+  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScaleOverride ?? quality.renderScale())
+  if (renderScaleOverride === null) quality.bindRenderScale((s) => { applyRenderScale(renderer, s) })
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.

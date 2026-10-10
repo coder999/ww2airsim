@@ -158,6 +158,62 @@ test('an explicit Simple-row pick persists across a reload, with no second probe
   await page.screenshot({ path: 'test-results/settings-persisted-no-second-probe.png' })
 })
 
+/** A5 (Mark 2026-10-10): the scene canvas's backing store, and what it should
+ *  be at `scale` (`pixelRatioFor`: the display ratio capped at 2, times the
+ *  scale; three rounds with `Math.floor`, CanvasTarget.setSize). */
+async function sceneCanvas(page: Page, scale: number) {
+  return page.evaluate((s) => {
+    const c = document.querySelector<HTMLCanvasElement>('#app > canvas')!
+    const ratio = Math.min(window.devicePixelRatio, 2) * s
+    return {
+      actual: { w: c.width, h: c.height },
+      expected: { w: Math.floor(window.innerWidth * ratio), h: Math.floor(window.innerHeight * ratio) },
+    }
+  }, scale)
+}
+
+test('Render Scale: 50, 75 and 100% resize the canvas live, persist, and apply at boot and in flight', async ({ page }) => {
+  test.setTimeout(240_000) // two extra boots and two sorties
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto('/')
+  await waitForTerrainOnly(page)
+  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  const dlg = settingsDialog(page)
+  const row = dlg.getByRole('radiogroup', { name: 'Render scale' })
+  // The default is 100%: nothing changes until a player picks (Mark's ruling).
+  await expect(row.getByRole('radio', { name: /(^|\s)100% / })).toHaveAttribute('aria-checked', 'true')
+  const full = await sceneCanvas(page, 1)
+  expect(full.actual).toEqual(full.expected)
+
+  // Each pick resizes the backing store at once, with no reload. 100% last,
+  // so the test sees the canvas grow back, not only shrink.
+  for (const [label, scale] of [['50%', 0.5], ['75%', 0.75], ['100%', 1]] as const) {
+    await row.getByRole('radio', { name: new RegExp(`(^|\\s)${label} `) }).click()
+    await expect(row.getByRole('radio', { name: new RegExp(`(^|\\s)${label} `) })).toHaveAttribute('aria-checked', 'true')
+    const size = await sceneCanvas(page, scale)
+    expect(size.actual, label).toEqual(size.expected)
+    expect(await page.evaluate(() => window.localStorage.getItem('ww2airsim.renderScale.v1'))).toBe(String(scale))
+  }
+  const half = await sceneCanvas(page, 0.5)
+  expect(half.expected.w).toBeLessThan(full.expected.w) // the stimulus is real
+
+  // 50% survives a reload and is in force from the first frame, then in flight.
+  await row.getByRole('radio', { name: /(^|\s)50% / }).click()
+  await page.screenshot({ path: 'test-results/settings-render-scale-row.png' })
+  for (const [scale, shot] of [[0.5, 'flight-50'], [1, 'flight-100']] as const) {
+    await page.evaluate((s) => window.localStorage.setItem('ww2airsim.renderScale.v1', String(s)), scale)
+    await page.reload()
+    await waitForTerrainOnly(page)
+    let size = await sceneCanvas(page, scale)
+    expect(size.actual, `boot at ${scale}`).toEqual(size.expected)
+    await startGame(page)
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 120, undefined, { timeout: 60_000 })
+    size = await sceneCanvas(page, scale)
+    expect(size.actual, `flight at ${scale}`).toEqual(size.expected)
+    await page.screenshot({ path: `test-results/settings-render-scale-${shot}.png` })
+  }
+})
+
 test('DEV ?oceanTier= override wins over a saved low render-quality setting', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   // Written before the app's own scripts run (addInitScript fires on every

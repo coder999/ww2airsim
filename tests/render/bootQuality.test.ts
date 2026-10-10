@@ -6,7 +6,7 @@ import {
   defaultQualitySettings, loadQualitySettings, saveQualitySettings, saveAssetQualityTier,
   type QualityTierName,
 } from '../../src/render/quality.js'
-import { saveDamageModel } from '../../src/render/settings.js'
+import { saveDamageModel, saveRenderScale } from '../../src/render/settings.js'
 import { INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 
 /** The in-memory `Storage` stand-in `quality.test.ts`, `roster.test.ts` and
@@ -202,6 +202,22 @@ describe('the Damage Model flag at boot (visual-realism spec §1)', () => {
   })
 })
 
+describe('the Render Scale at boot (A5)', () => {
+  it('reads the persisted scale, applies it on bind, and follows a live pick', () => {
+    expect(createBootQuality().renderScale()).toBe(1)
+    saveRenderScale(0.5)
+    const quality = createBootQuality()
+    expect(quality.renderScale()).toBe(0.5)
+    // A pick before bind (the title is clickable during boot's awaits) lands on bind.
+    quality.settings.selectRenderScale(0.75)
+    const applied: number[] = []
+    quality.bindRenderScale((s) => { applied.push(s) })
+    expect(applied).toEqual([0.75])
+    quality.settings.selectRenderScale(1)
+    expect(applied).toEqual([0.75, 1])
+  })
+})
+
 /**
  * `main.ts` is unreachable from this suite (Three.js, WebGPU, one 1,700-line
  * async `boot()`), so the last link in the chain -- that `boot()` actually
@@ -239,6 +255,11 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
     expect(source).toContain('setFxTier: applyFxTier')
     expect(source).toContain('quality.applyProbeResult(tier.name)')
     expect(source).toContain('let qualityChecked = quality.probeSuppressed')
+  })
+
+  it('starts the renderer at the Render Scale setting and binds it live, unless DEV overrides (A5)', () => {
+    expect(source).toContain('renderScaleOverride ?? quality.renderScale())')
+    expect(source).toContain('if (renderScaleOverride === null) quality.bindRenderScale(')
   })
 
   it('reads the terrain floor from the persisted asset tier, not a hardcoded one', () => {
