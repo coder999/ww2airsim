@@ -13,6 +13,10 @@ _Avoid_: guide mode, objective arrow
 Any period-incorrect aid, such as the bomb impact marker. Off by default, behind the Assists toggle.
 _Avoid_: guide mode, aid
 
+**Impact marker**:
+The Assist (`U`) that draws a ring where a bomb, or failing that the next rocket pair, released now would land; `predictImpact` computes it from the sim's own projectile step. Render and input only: it never changes the flight.
+_Avoid_: CCIP, bomb sight, pipper (the pipper is the gun sight)
+
 ## Radio
 
 **Radio line**:
