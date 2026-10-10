@@ -310,6 +310,33 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
 
 ---
 
+**L3. Land render quality (size M; measured and prototyped 2026-10-09 to 10, dev-only).**
+Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
+[Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+- **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were
+  already tried and gave no gain ([terrain.md](docs/terrain.md), [drape.md](docs/drape.md)).
+  What OpenSkyFlight has that ours lacks is built-up places, muted varied tone and fine grain
+  ([Phase 0b](docs/handoff/2026-10-09-l3-phase0b.md)).
+- **Prototype, DEV only:** `?drape=synth2` (muted tone, drift, grain) and `?villages=on` (about 54
+  invented villages of 3D nipa-style huts, trees cleared around them). The shipping game is unchanged.
+  [Handoff](docs/handoff/2026-10-10-l3-phase2.md).
+- **Open:** Mark's call on shipping either as a tier. The hut colors read too orange. Tacloban and Basey
+  still use the old Quonset ring. A Blender top-down render of real tree crowns for forest grain is not
+  built. **The 6,000 ft view is over the 8.33 ms gate at p95 with none of this in it** (about 10 ms on
+  shipping terrain, 2026-10-10), so nothing here can be cleared against the budget until H0 finishes that.
+
+### Track N: Dev tools (S). Done 2026-10-10
+
+**N1. God mode and the Range Test.** [Plan](docs/superpowers/plans/2026-10-10-god-mode-range-test.md),
+[handoff](docs/handoff/2026-10-10-range-test-god-mode.md).
+- **God mode** (a checkbox beside Dev, only while Dev is on): the player cannot be damaged, fuel, ammo,
+  bombs, torpedoes and rockets never run out, and a crash bounces the airplane back up.
+- **Range Test (dev):** take off from Tacloban; every enemy airplane circles overhead as a sitting duck
+  and every enemy ship is anchored nearby, plus a cargo ship; the enemy follows the side of the airplane
+  chosen.
+- **Open:** damage, smoke and sinking were proven in the sim but not captured in the browser; a true
+  neutral side (the cargo ship is "always a legal target" instead) is not built.
+
 ## 2. Proposed order
 
 Tracks with no dependency between them run in parallel worktrees, as the

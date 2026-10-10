@@ -32,3 +32,20 @@ horizon curvature live in `src/render/scene/beaches.ts`.  In DEV only,
 Design and measured result:
 [`2026-10-09-curved-beaches-design.md`](superpowers/specs/2026-10-09-curved-beaches-design.md),
 [`handoff/2026-10-09-curved-beaches.md`](handoff/2026-10-09-curved-beaches.md).
+
+## The DEM is not the weak link (measured 2026-10-09)
+
+Mark asked whether Blender or the DEM could lift land render quality. Measured, read only,
+nothing changed ([L3 plan](superpowers/plans/2026-10-09-l3-land-quality.md), Phase 0 results):
+
+- The source files are `Copernicus_DSM_COG_10_*`: a surface model, canopy included.
+- OSM rivers are already valleys in the heights (centerline 25 to 43 ft below the banks at a
+  490 ft offset on the long reaches). Carving them is not needed.
+- Canopy shows as roughness of about 1 to 2 ft per post, confounded with relief. Not worth removing.
+- Bicubic against the shipped bilinear resample differs by 2.5 ft RMS (12 ft max) in hills on 80 ft
+  posts. Not worth regenerating 13 levels.
+- Rivers and roads as ribbons were already tried and gave no gain
+  (`drape.md`; the river mask costs 0.1 ms per frame), so that proposal was withdrawn.
+
+What would move land quality is the ground texture and the objects on it:
+[`drape.md`](drape.md).

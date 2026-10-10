@@ -1,6 +1,6 @@
 # L3: land render quality, with Blender and the DEM both on the table
 
-**Status:** proposed 2026-10-09, not started. **Revised the same day after Mark's correction: Phase 1 (rivers and roads as ribbons) is withdrawn.** Rivers and roads were already explored and gave no quality gain (below). What remains is unvalidated and needs Mark's direction before any work starts.
+**Status (2026-10-10):** Phases 0 and 0b done (the DEM measurements and the three-altitude comparison are in this file and in [`handoff/2026-10-09-l3-phase0b.md`](../../handoff/2026-10-09-l3-phase0b.md)); Phase 1 withdrawn (rivers and roads were already tried and gave no gain); Phase 2 prototyped, DEV only (`?drape=synth2`, `?villages=on`; [`handoff/2026-10-10-l3-phase2.md`](../../handoff/2026-10-10-l3-phase2.md)); Phase 3 closed; Phase 4 (tree and rock assets) not started. What is still open, and the budget caveat, is in `MASTER_PLAN.md` Track L (L3).
 **Viewing checkpoint (Mark, 2026-10-09):** final product only.
 **Run mode (Mark, 2026-10-09):** unattended. Run to completion; collect captures in the handoff.
 **Location (Mark, 2026-10-09):** a worktree, never `main` in place.

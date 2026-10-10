@@ -1,6 +1,6 @@
 # God mode and the Range Test mission
 
-**Status:** proposed 2026-10-10, not started. Branch `range-test-god-mode`, worktree `~/projects/ww2airsim-range`, cut from `main` `3ad67cae` (separate from the land-quality branch so the two merge independently).
+**Status (2026-10-10):** built and merged to `main`; all five phases done, verified on ryzen (`npm run verify` and the browser). Results, how to use it and what is not shown: [`handoff/2026-10-10-range-test-god-mode.md`](../../handoff/2026-10-10-range-test-god-mode.md). Branch `range-test-god-mode` was cut from `main` `3ad67cae`.
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode (Mark, 2026-10-10):** unattended. Run to completion; collect captures in the handoff.
 **Heavy jobs:** tests, typecheck and renders go to ryzen (`remote-run`, the ryzen GPU), not nexus (Mark, 2026-10-10: nexus OOMs).
