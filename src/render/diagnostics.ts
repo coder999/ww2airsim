@@ -28,6 +28,11 @@ export type ImpactMarkerDiagnostics = {
   readonly shown: boolean
   readonly label: string | null
   readonly prediction: ImpactPrediction | null
+  /** The sim tick `prediction` was made from, so an E2E recorder can line it up with a release. */
+  readonly tick: number
+  /** The newest bomb or rocket detonation in the sim's impact ring (any owner), or null. Read only
+   *  while the Assist is on; E2E compares it with the prediction made at the release tick. */
+  readonly lastDetonation: { readonly x: number; readonly y: number; readonly z: number } | null
 }
 
 export type ReplayDiagnostics = {

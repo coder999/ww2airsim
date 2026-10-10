@@ -1578,7 +1578,7 @@ async function boot(): Promise<void> {
   const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)
   scene.add(impactMarker.root)
   const impactPredictor = createImpactPredictor()
-  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null }
+  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, tick: 0, lastDetonation: null }
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -2663,7 +2663,13 @@ async function boot(): Promise<void> {
       )
       const label = impactLabel(on, prediction, me.state.position)
       impactBadge.set(label)
-      impactDiagnostics = { on, shown, label, prediction }
+      const ring = current.world.combat.impacts
+      let lastDetonation: Vec3 | null = null
+      if (on) for (let i = ring.length - 1; i >= 0 && lastDetonation === null; i--) {
+        const hit = ring[i]!
+        if ((hit.cause === 'bomb' || hit.cause === 'rocket') && hit.outcome === 'detonated') lastDetonation = hit.point
+      }
+      impactDiagnostics = { on, shown, label, prediction, tick: current.world.tick, lastDetonation }
     }
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
