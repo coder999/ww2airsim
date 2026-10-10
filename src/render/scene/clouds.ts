@@ -55,9 +55,13 @@ export { cloudDriftM }
  * Low still march every texel. Cloud VDB fidelity (2026-09-26, Codex) moved
  * High to `updatePeriod: 8` (one texel per 4x2 block): at 16 the deferred-
  * edge correction blends a coarser 4x4 grid in. See docs/clouds.md.
+ *
+ * H0 (2026-10-10): `high.fineLightSteps` 2 -> 1 bought 0.14-0.57 ms p95 at 1440p (median of 3, reference GPU) and
+ * is invisible by the frozen-scene test (mean |diff| <= 0.42 grey, burst std not raised):
+ * docs/handoff/2026-10-08-h0-render-budget.md.
  */
 export const CLOUD_TIERS = {
-  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 2, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
+  high: { cumulusSteps: 128, lightSteps: 6, fineLightSteps: 1, lightLodBandM: null, cirrusSteps: 8, resolutionScale: 0.5, updatePeriod: 8 },
   medium: { cumulusSteps: 56, lightSteps: 4, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 6, resolutionScale: 0.3, updatePeriod: 1 },
   low: { cumulusSteps: 32, lightSteps: 2, fineLightSteps: 0, lightLodBandM: [1500, 2500], cirrusSteps: 4, resolutionScale: 0.25, updatePeriod: 1 },
 } as const

@@ -155,6 +155,12 @@ const DEFERRED_EDGE_CORRECTION = 0.55
 /** The golden-ratio increment of the per-frame dither offset (spec §4.1). */
 const GOLDEN = 0.618034
 
+function edgeMarchFromQuery(): number {
+  if (!import.meta.env.DEV) return 1
+  const raw = new URLSearchParams(location.search).get('h0EdgeMarch')
+  return raw === '0' ? 0 : raw === 'half' ? 0.5 : 1
+}
+
 /** The canonical 4x4 Bayer order used by the High-tier amortized march. */
 export function bayer4Index(x: number, y: number): number {
   const bayer2 = (a: number, b: number): number => 2 * a + b * (3 - 4 * a)
@@ -244,6 +250,12 @@ class CloudPassNode extends TempNode<'vec4'> {
   private updateGridY = 1
   /** DEV residual measurements compare two fully marched frames. */
   private readonly forceMarch = uniform(0)
+  /** H0 lever, DEV `?h0EdgeMarch=0|half`: a cloud-edge texel that is otherwise acceptable takes the deferred
+   *  path (bounded history plus the fresh-sample correction) instead of an immediate march: always (0), or on
+   *  alternate frames in a checkerboard of 8x8-texel tiles (half: a per-texel checkerboard bought almost
+   *  nothing, since every GPU wave still held a marching texel). 1, the default, marches every edge texel every frame. */
+  private readonly edgeMarch = uniform(edgeMarchFromQuery())
+  private readonly edgeParity = uniform(0)
   // Texture nodes whose `.value` is swapped every frame (NodeSampledTexture
   // rebinds on a changed value; AfterImageNode relies on the same).
   private readonly marchColor = texture(this.march[0].textures[0]!) as unknown as TextureNode
@@ -411,6 +423,10 @@ class CloudPassNode extends TempNode<'vec4'> {
       const uv = reprojected.uv
       const onScreen = uv.x.greaterThanEqual(0).and(uv.x.lessThanEqual(1)).and(uv.y.greaterThanEqual(0)).and(uv.y.lessThanEqual(1))
       const accept = this.historyValid.greaterThan(0.5).and(reprojected.valid).and(onScreen).and(occluded.not()).and(cloudEdge.not())
+      const edgeTurn = this.edgeMarch.greaterThan(0.75).or(this.edgeMarch.greaterThan(0.25)
+        .and(floor(cell.x.div(8)).add(floor(cell.y.div(8))).add(this.edgeParity).mod(2).lessThan(0.5)))
+      const marchNow = accept.not().and(cloudEdge.not().or(edgeTurn).or(
+        this.historyValid.lessThan(0.5).or(reprojected.valid.not()).or(onScreen.not()).or(occluded)))
       const color = vec4(history).toVar()
       const cloudDepth = float(previousData.x).toVar()
       const marched = float(0).toVar()
@@ -433,7 +449,7 @@ class CloudPassNode extends TempNode<'vec4'> {
         }).Else(() => {
           // A disoccluded/off-screen texel is marched immediately instead of
           // waiting for its Bayer phase, preventing a 16-frame clear trail.
-          If(accept.not(), assignMarch).Else(() => {
+          If(marchNow, assignMarch).Else(() => {
             // Carried history is up to 15 frames old, and re-sampling it
             // every frame under rotation smears it into arcs (in-deck roll,
             // 2026-09-25; gone with every-texel updates). Bound it by this
@@ -594,6 +610,7 @@ class CloudPassNode extends TempNode<'vec4'> {
     this.historyValid.value = reset ? 0 : 1
     this.historyRead.value = this.history[1 - this.current]!.texture
     this.forceMarch.value = this.residualRequests.length > 0 ? 1 : 0
+    this.edgeParity.value = this.frameIndex % 2
 
     // 1. High's compact 1/16-area scheduled update. Every-frame tiers bypass
     // it and march coherently in the full target below.
