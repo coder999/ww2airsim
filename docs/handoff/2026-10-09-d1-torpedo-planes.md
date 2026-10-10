@@ -101,7 +101,7 @@ handbook was not fetchable). Every figure is SECONDARY or an ESTIMATE, labeled i
   five bay bombers and check 7c the Avenger and the Kate; check 6 failed on the Avenger (its stores are inside the bay, invisible
   from the front) until its card went back to the display path, and checks 6, 7b and 7c then passed. An earlier full run hit the
   known nexus timeouts on checks 1 and 7 once.
-- The as-merged result is below.
+- **As merged** (`65fbb2bf`): `npm run verify` on `main` on nexus exits 0: typecheck, lint, depcruise and 376 test files, 5,232 tests passed, 12 skipped.
 
 ## Captures
 
