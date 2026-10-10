@@ -135,8 +135,9 @@ export function runAttack(o: AttackOptions): AttackRun {
     }
     if (rec0.damage.destroyedAt === null && rec.damage.destroyedAt !== null && lostS === null) lostS = t * DT
     if (a.pilot?.decision.mode === 'rtb') break
-    minH = Math.min(minH, a.state.position.y)
-    if (a.impact !== null) { lostS ??= t * DT; break }
+    if (a.impact === null) minH = Math.min(minH, a.state.position.y)
+    // A lost airplane's ordnance still flies: stop when it is spent (a torpedo's run takes half a minute).
+    if (a.impact !== null) { lostS ??= t * DT; if (w.combat.projectiles.length === 0) break }
     if (a.pilot?.decision.attack?.phase === 'done' && (w.combat.projectiles.length === 0)) break
   }
   const hp = w.combat.ships['dd-1']?.hp ?? hp0
