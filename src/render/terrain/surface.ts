@@ -295,7 +295,7 @@ let drapeSingleton: DrapeNodes | null | undefined
 export function drapeNodes(): DrapeNodes | null {
   if (drapeSingleton !== undefined) return drapeSingleton
   const variant = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('drape')
-  if (variant !== '1944' && variant !== 'raw' && variant !== 'synth' && variant !== 'synth1m' && variant !== 'synthsr') return (drapeSingleton = null)
+  if (variant !== '1944' && variant !== 'raw' && variant !== 'synth' && variant !== 'synth2' && variant !== 'synth1m' && variant !== 'synthsr') return (drapeSingleton = null)
   const base = `${import.meta.env?.BASE_URL ?? '/'}content/drape-spike/`
   const tex = new TextureLoader().load(`${base}drape-${variant}.png`, () => { ready.value = 1 })
   tex.colorSpace = SRGBColorSpace

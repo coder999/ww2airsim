@@ -8,7 +8,7 @@ shader can afford, then baked to one PNG on the same world square as bake.py.
 
   gen.py <repo-root> <drape.json> <out.png> [size]
 """
-import gzip, json, math, sys
+import gzip, json, math, os, sys
 import numpy as np
 import rasterio
 from rasterio.merge import merge
@@ -18,6 +18,13 @@ from bake import to_local, to_geodetic
 
 RNG = np.random.default_rng(1944)
 GRADE_SAT, GRADE_GAIN, GRADE_HAZE = 0.62, 1.22, 0.10
+# GEN_V2=1 (L3 Phase 2, docs/superpowers/plans/2026-10-09-l3-land-quality.md):
+# plausible, not accurate -- desaturated tone with large-scale drift, procedural
+# roads and settlements, fine grain. Off by default so the spike's baked
+# variants stay reproducible.
+V2 = os.environ.get("GEN_V2") == "1"
+if V2:
+    GRADE_SAT = 0.46
 
 
 def fbm(shape, scales_px, weights, seed):
@@ -36,6 +43,135 @@ def norm01(a):
 def smooth(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0), 0, 1)
     return t * t * (3 - 2 * t)
+
+
+ROOFS = np.array([[150, 84, 62], [168, 98, 70], [128, 132, 136], [96, 112, 132], [182, 176, 164], [120, 74, 58]], "float32")
+
+
+def settlements_and_roads(root, albedo, gx, gz, h, slope, w_tree, sea, step, cx, cz, half, size):
+    """Roads, yards and houses. Seeds: the real towns (largest), plus invented
+    villages on flat low land near roads. Nothing here claims to be where real
+    houses are."""
+    rng = np.random.default_rng(1945)
+    places = json.load(open(f"{root}/content/scenery/places.json"))
+    ss = 2
+    layer = Image.new("L", (size * ss, size * ss), 0)
+    dr = ImageDraw.Draw(layer)
+    for road in places["roads"]:
+        lt = np.array([c[1] for c in road["coordinates"]]); ln = np.array([c[0] for c in road["coordinates"]])
+        x, z = to_local(lt, ln)
+        pts = list(zip(((x - (cx - half)) / step * ss).tolist(), ((z - (cz - half)) / step * ss).tolist()))
+        dr.line(pts, fill=255, width=int(max(2.4, road["widthM"] / step * 1.1) * ss), joint="curve")
+    road_m = np.asarray(layer.resize((size, size), Image.LANCZOS)).astype("float32") / 255
+    near_road, idx = ndi.distance_transform_edt(road_m < 0.3, return_indices=True)
+    near_road = near_road * step
+
+    seeds = []  # (x, z, radius_m, density)
+    for t in places["towns"]:
+        x, z = to_local(np.array([t["lat"]]), np.array([t["lon"]]))
+        if abs(x[0] - cx) < half and abs(z[0] - cz) < half:
+            seeds.append((float(x[0]), float(z[0]), 1700.0 if t["size"] == "town" else 450.0, 1.0))
+    flat = (slope < 5) & (h > 2.5) & (h < 140) & ~sea & (w_tree < 0.6)
+    for gxs in np.arange(-half + 300, half - 300, 500.0):
+        for gzs in np.arange(-half + 300, half - 300, 500.0):
+            x, z = cx + gxs + rng.uniform(-250, 250), cz + gzs + rng.uniform(-250, 250)
+            i, j = int((z - (cz - half)) / step), int((x - (cx - half)) / step)
+            if not (0 <= i < size and 0 <= j < size) or not flat[i, j]:
+                continue
+            p = 0.7 if near_road[i, j] < 700 else 0.25
+            if rng.random() < p:
+                seeds.append((x, z, float(rng.uniform(220, 480)), float(rng.uniform(0.55, 0.95))))
+    print("settlement seeds", len(seeds))
+
+    # Yards: bare, lighter ground inside each settlement's footprint.
+    yard = np.zeros_like(h)
+    for x, z, rad, dens in seeds:
+        d2 = ((gx - x) ** 2 + (gz - z) ** 2) / (rad * rad)
+        yard = np.maximum(yard, dens * np.exp(-1.6 * d2))
+    yard *= (flat | (slope < 9)) & ~sea
+    albedo = albedo * (1 - 0.28 * yard[..., None]) + np.array([170, 156, 128], "float32") * 0.28 * yard[..., None]
+
+    # Lanes: short wandering tracks leaving each settlement.
+    lanes = Image.new("L", (size * ss, size * ss), 0)
+    dl = ImageDraw.Draw(lanes)
+    for x, z, rad, dens in seeds:
+        for _ in range(int(2 + 4 * dens)):
+            a = rng.uniform(0, 2 * math.pi)
+            px_, pz_ = x, z
+            pts = []
+            for _s in range(int(rad * 2.2 / 40)):
+                a += rng.normal(0, 0.28)
+                px_ += math.cos(a) * 40; pz_ += math.sin(a) * 40
+                pts.append(((px_ - (cx - half)) / step * ss, (pz_ - (cz - half)) / step * ss))
+            if len(pts) > 1:
+                dl.line(pts, fill=255, width=int(1.6 * ss), joint="curve")
+    lane_m = np.asarray(lanes.resize((size, size), Image.LANCZOS)).astype("float32") / 255
+    lane_m *= (slope < 14) & ~sea
+    track = np.array([176, 164, 138], "float32")
+    albedo = albedo * (1 - 0.55 * lane_m[..., None]) + track * 0.55 * lane_m[..., None]
+    road_col = np.array([150, 148, 140], "float32")
+    albedo = albedo * (1 - 0.8 * road_m[..., None]) + road_col * 0.8 * road_m[..., None]
+
+    # Streets and houses: a few parallel streets plus cross streets per
+    # settlement, houses lining both sides. Reads as a village from altitude,
+    # which random scatter does not.
+    hl = Image.new("RGBA", (size * ss, size * ss), (0, 0, 0, 0))
+    dh = ImageDraw.Draw(hl)
+    st = Image.new("L", (size * ss, size * ss), 0)
+    ds = ImageDraw.Draw(st)
+    n_houses = 0
+    def to_px(x, z):
+        return ((x - (cx - half)) / step * ss, (z - (cz - half)) / step * ss)
+    for x, z, rad, dens in seeds:
+        ang = rng.uniform(0, math.pi)
+        ca, sa = math.cos(ang), math.sin(ang)
+        n_main = 2 + int(3 * dens)
+        spacing = rng.uniform(55, 80)
+        streets = []  # (u0, v0, u1, v1) in the settlement frame
+        for k in range(n_main):
+            v = (k - (n_main - 1) / 2) * spacing
+            ln = rad * 1.5 * (1 - 0.18 * abs(k - (n_main - 1) / 2))
+            streets.append((-ln, v, ln, v))
+        for k in range(1 + int(2 * dens)):
+            u = (k - 0.5) * rad * 0.7
+            ln = spacing * (n_main - 1) / 2 + 40
+            streets.append((u, -ln, u, ln))
+        for u0, v0, u1, v1 in streets:
+            p0 = (x + ca * u0 - sa * v0, z + sa * u0 + ca * v0)
+            p1 = (x + ca * u1 - sa * v1, z + sa * u1 + ca * v1)
+            ds.line([to_px(*p0), to_px(*p1)], fill=255, width=int(2.0 * ss))
+            length = math.hypot(u1 - u0, v1 - v0)
+            tu, tv = (u1 - u0) / length, (v1 - v0) / length
+            t = 0.0
+            while t < length:
+                t += rng.uniform(15, 26)
+                for side in (-1, 1):
+                    pu = u0 + tu * t + (-tv) * side * 10.5
+                    pv = v0 + tv * t + tu * side * 10.5
+                    r = math.hypot(pu, pv)
+                    if rng.random() > dens * math.exp(-1.4 * (r / rad) ** 2):
+                        continue
+                    hx, hz = x + ca * pu - sa * pv, z + sa * pu + ca * pv
+                    i, j = int((hz - (cz - half)) / step), int((hx - (cx - half)) / step)
+                    if not (1 <= i < size - 1 and 1 <= j < size - 1):
+                        continue
+                    if sea[i, j] or slope[i, j] > 13 or road_m[i, j] > 0.25 or h[i, j] < 1.5:
+                        continue
+                    hang = ang + (math.atan2(tv, tu)) + rng.normal(0, 0.06)
+                    w, l = rng.uniform(7, 12), rng.uniform(9, 17)
+                    roof = ROOFS[rng.integers(len(ROOFS))] * rng.uniform(0.85, 1.12)
+                    c2, s2 = math.cos(hang), math.sin(hang)
+                    quad = [to_px(hx + c2 * u - s2 * v, hz + s2 * u + c2 * v)
+                            for u, v in ((-l / 2, -w / 2), (l / 2, -w / 2), (l / 2, w / 2), (-l / 2, w / 2))]
+                    dh.polygon(quad, fill=tuple(int(c) for c in roof) + (255,))
+                    n_houses += 1
+    street_m = np.asarray(st.resize((size, size), Image.LANCZOS)).astype("float32") / 255
+    street_m *= (slope < 14) & ~sea
+    albedo = albedo * (1 - 0.6 * street_m[..., None]) + np.array([168, 160, 142], "float32") * 0.6 * street_m[..., None]
+    print("houses", n_houses)
+    hl = np.asarray(hl.resize((size, size), Image.LANCZOS)).astype("float32") / 255
+    albedo = albedo * (1 - hl[..., 3:4]) + hl[..., :3] * 255 * hl[..., 3:4]
+    return albedo
 
 
 def main(root, meta_path, out_png, size=4096, cx=None, cz=None, half=None):
@@ -129,8 +265,8 @@ def main(root, meta_path, out_png, size=4096, cx=None, cz=None, half=None):
     palette = np.array([[112, 150, 62], [138, 162, 70], [168, 152, 86], [124, 100, 66], [96, 140, 64], [182, 170, 104]], "float32")
     pick_i = np.minimum((r1 * len(palette)).astype(int), len(palette) - 1)
     base = palette.mean(0)
-    field = base + (palette[pick_i] - base) * 0.5
-    field = field * (0.94 + 0.12 * r2[..., None])
+    field = base + (palette[pick_i] - base) * (1.0 if V2 else 0.5)
+    field = field * ((0.80 + 0.40 * r2[..., None]) if V2 else (0.94 + 0.12 * r2[..., None]))
     field = field * (0.94 + 0.12 * norm01(fbm(gx.shape, (4, 14, 40), (1, 1, 1), 53))[..., None])
     rows = 0.94 + 0.06 * np.sin((ru + jx) * (2 * math.pi / (2.2 + 2.0 * r2)))
     field = field * rows[..., None]
@@ -156,6 +292,7 @@ def main(root, meta_path, out_png, size=4096, cx=None, cz=None, half=None):
     soil = np.array([124, 96, 70], "float32") * (0.85 + 0.3 * streak[..., None])
     albedo = albedo * (1 - bare[..., None] * 0.85) + soil * bare[..., None] * 0.85
 
+    fill_src = albedo.copy()  # before the beach strip: the coastal fill must not be sand
     # ---- beach and coast ----
     near_sea = ndi.distance_transform_edt(~sea) * step  # metres from water
     beach_w = smooth(45, 12, near_sea + (norm01(fbm(gx.shape, (6, 20), (1, 1), 71)) - 0.5) * 40) * (h < 5)
@@ -183,17 +320,44 @@ def main(root, meta_path, out_png, size=4096, cx=None, cz=None, half=None):
     la = np.asarray(layer).astype("float32") / 255
     albedo = albedo * (1 - la[..., 3:4]) + la[..., :3] * 255 * la[..., 3:4]
 
+    if V2:
+        # Large-scale tone drift (hundreds of metres): warm/dry vs cool/wet, so
+        # forest and fields stop reading as one flat green.
+        drift = fbm(gx.shape, (45, 130, 320), (1, 1, 0.8), 81)
+        warm = np.array([10, 4, -8], "float32")
+        albedo = albedo * (1 + 0.11 * np.clip(drift, -1.5, 1.5)[..., None]) + warm * np.clip(drift, -1, 1)[..., None]
+        # Exposed rock on the steepest ground goes grey, not brown.
+        rock = smooth(34, 48, slope + (fbm(gx.shape, (3, 12), (1, 1), 82) * 5)) * (h > 20)
+        albedo = albedo * (1 - 0.7 * rock[..., None]) + np.array([128, 124, 118], "float32") * 0.7 * rock[..., None]
+        albedo = settlements_and_roads(root, albedo, gx, gz, h, slope, w_tree, sea, step, cx, cz, half, size)
+        # Fine grain, so no region reads as a smooth gradient.
+        albedo = albedo * (1 + 0.07 * fbm(gx.shape, (0.9, 2.0), (1, 1), 83)[..., None])
+
     # Grade to the measured statistics of the real 2013 Tacloban photos
     # (OpenAerialMap, CC-BY 4.0): vegetation median RGB ~(111,131,104),
     # saturation ~0.20, luminance std ~19. Raw palette was far too saturated.
-    lum = (albedo @ np.array([0.2126, 0.7152, 0.0722], "float32"))[..., None]
-    albedo = lum + (albedo - lum) * GRADE_SAT
-    albedo = albedo * GRADE_GAIN
-    albedo = albedo * (1 - GRADE_HAZE) + np.array([150, 158, 150], "float32") * GRADE_HAZE
+    def grade(a):
+        lum = (a @ np.array([0.2126, 0.7152, 0.0722], "float32"))[..., None]
+        a = lum + (a - lum) * GRADE_SAT
+        a = a * GRADE_GAIN
+        return a * (1 - GRADE_HAZE) + np.array([150, 158, 150], "float32") * GRADE_HAZE
+
+    albedo = grade(albedo)
+    fill_src = grade(fill_src)
+    if V2:
+        albedo = (albedo - 128.0) * 1.14 + 124.0  # the grade left it flat and hazy
+        fill_src = (fill_src - 128.0) * 1.14 + 124.0
 
     # Sea: leave a neutral mid-tone; the shader masks it by height.
-    _, (ri, ci_) = ndi.distance_transform_edt(sea, return_indices=True)
-    albedo = np.where(sea[..., None], albedo[ri, ci_], albedo)
+    d_land, (ri, ci_) = ndi.distance_transform_edt(sea, return_indices=True)
+    filled = (fill_src if V2 else albedo)[ri, ci_]
+    if V2:
+        # Nearest-land colour only within ~80 m of the coast (where the sim's
+        # terrain and this DEM disagree); open sea gets a water tone. Otherwise a
+        # whole shallow bay fills with the nearest beach's sand (seen 2026-10-09).
+        wet = smooth(50.0, 110.0, d_land * step)[..., None]
+        filled = filled * (1 - wet) + np.array([62, 98, 104], "float32") * wet
+    albedo = np.where(sea[..., None], filled, albedo)
     Image.fromarray(np.clip(albedo, 0, 255).astype("uint8")).save(out_png, optimize=True)
     print("wrote", out_png, size, "px", round(step, 2), "m/px")
 
