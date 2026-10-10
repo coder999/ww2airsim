@@ -27,6 +27,7 @@ import { respotPlayer } from './mission/respot.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
+import { stepShipCollisions } from './shipCollision.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -985,6 +986,14 @@ export function advance<M>(
     })
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
+    // Air-to-ship collisions (Mark, 2026-10-10): after combat, so the hull points and the airplane's
+    // record are this tick's; before God mode's restore and the kill credit. No collision, the same objects.
+    const collided = stepShipCollisions({
+      tick, start: aircraftAtStart, aircraft, ships, combat, terrain: world.terrain, decks,
+      sides, targetSides, player: world.player, god: god !== undefined,
+    })
+    aircraft = collided.aircraft
+    combat = collided.combat
     // God mode: put the player back to pristine before anything reads the
     // damage (credit for a kill, the mission's own checks), so a hit never lands.
     if (god !== undefined) {
