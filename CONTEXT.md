@@ -98,8 +98,12 @@ The national flag a warship flies at sea: the 48-star flag on US ships, the Risi
 _Avoid_: flag (alone), colors
 
 **Difficulty**:
-The global player setting that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. A scenario's skill values are the baseline it shifts.
-_Avoid_: skill level, challenge
+The global player setting, Recruit, Veteran or Ace (Settings dialog), that scales the aim of the AA and the AI pilots shooting at the player, and the damage the player's aircraft takes. Veteran is the game as tuned and the default. A scenario's pilot skill values are the baseline it shifts; it never changes which skill a pilot has. Set at launch, for the whole sortie. Not a pilot skill: the code's ids are `easy`, `normal` and `hard` (`Difficulty`, `src/sim/difficulty.ts`) so the two are never confused, even though both say "veteran" to the player.
+_Avoid_: skill level, challenge, veteran (alone, for the setting)
+
+**Pilot skill**:
+One AI pilot's ability, green or veteran, set per pilot in the scenario's content (`skill`, `PilotSkill`): how fast he reacts, how well he aims and which maneuvers he flies. Difficulty shifts its aim; it stays the pilot's own.
+_Avoid_: difficulty, level
 
 **Collision** (air-to-ship):
 An airplane's body origin inside a ship's hull or superstructure volume while not supported on that ship's flight deck. The airplane is destroyed like any kill (wreck, debris, KILLED) and the ship loses hull points that rise with the airplane's mass and speed (a Hellcat at 224 mph costs about one 500 lb bomb hit). A God-mode player bounces instead. Own-side ships count as friendly fire. A trap, a take-off roll and a parked airplane are never one.

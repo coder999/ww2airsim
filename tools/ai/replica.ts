@@ -80,6 +80,8 @@ export type PassiveCloseRun = {
   readonly outcome: 'killed' | 'point-blank' | 'timeout'
   readonly tick: number
   readonly pursuerHits: number
+  /** The player's structure when the run ended, 0..1 (M5's difficulty sweep). */
+  readonly playerStructure: number
 }
 
 /** The scripted evasion `ai-pursuit-difficulty.spec.ts` flies: roll left and
@@ -103,5 +105,5 @@ export function passiveClose(world: World<undefined>, pursuerId: string, maxS = 
     if (rangeBetween(fr, fr.world.player, pursuerId) < MIN_ENGAGEMENT_RANGE_M) { m.outcome = 'point-blank'; return true }
     return false
   })
-  return { outcome: m.outcome, tick: f.world.tick, pursuerHits: f.world.combat.aircraft[pursuerId]!.hits }
+  return { outcome: m.outcome, tick: f.world.tick, pursuerHits: f.world.combat.aircraft[pursuerId]!.hits, playerStructure: f.world.combat.aircraft[f.world.player]!.damage.structure }
 }

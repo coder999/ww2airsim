@@ -13,6 +13,7 @@ import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, ty
 import { makeTextTexture } from './scene/text.js'
 import { aircraftUrl, BEACHES_URL, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
+import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
@@ -558,7 +559,9 @@ async function boot(): Promise<void> {
       terrain,
       structures: rebuildStructures(w.structures, w.airfields, terrain),
     }
-    return override
+    // M5: the Settings dialog's Difficulty, baked into the world this sortie starts from (so a pick takes
+    // effect at the next launch or Restart; `sim/difficulty.ts` says why). Veteran returns it unchanged.
+    const built = override
       ? withAircraftState(
           {
             ...withTerrainField,
@@ -568,6 +571,7 @@ async function boot(): Promise<void> {
           initialAircraftState(spawnedAt!, false),
         )
       : withTerrainField
+    return applyDifficulty(built, quality.difficulty())
   }
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and

@@ -7,6 +7,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { controlsForDesiredVelocity } from '../../../src/sim/ai/controller.js'
 import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
 import { flakBlastHp, initialAa } from '../../../src/sim/weapons/aaFire.js'
+import { applyDifficulty, type Difficulty } from '../../../src/sim/difficulty.js'
 
 /**
  * The AA calibration bed (M2 plan task 5): a Hellcat flown by a scripted
@@ -50,7 +51,7 @@ export type AaRun = {
 const base = JSON.parse(readFileSync(new URL('../../../content/scenarios/aa-range.json', import.meta.url), 'utf8')) as Record<string, unknown>
 const SHIP = { x: -27916, z: -48605 }
 
-export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd', shipSide: 'axis' | 'allied' = 'axis'): World<undefined> {
+export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd', shipSide: 'axis' | 'allied' = 'axis', difficulty: Difficulty = 'normal'): World<undefined> {
   const phase = (seed * 0.61803398875) % 1
   const orbit = profile !== 'pass'
   // Orbit: start on the ring, heading counter-clockwise tangent. Pass: start west of the ship, heading east.
@@ -68,7 +69,7 @@ export function worldFor(profile: Profile, seed: number, ship = 'fletcher-dd', s
     ships: [{ id: 'dd-1', spec: ship, side: shipSide, waypoints: [[SHIP.x, SHIP.z]], speedMps: 0 }],
   })
   const w = worldFromScenario(bundleForScenario(scenario), null)
-  return { ...w, combat: { ...w.combat, aa: initialAa(seed + 1) } }
+  return applyDifficulty({ ...w, combat: { ...w.combat, aa: initialAa(seed + 1) } }, difficulty)
 }
 
 /** The velocity the scripted pilot wants this tick. */
@@ -82,8 +83,8 @@ export function wanted(profile: Profile, p: Vec3): Vec3 {
   return v3(tx * speedOf(profile) + (dx / r) * radial, climb, tz * speedOf(profile) + (dz / r) * radial)
 }
 
-export function runAa(profile: Profile, seed: number, ship = 'fletcher-dd', seconds: number = RUN_S[profile]): AaRun {
-  let w = worldFor(profile, seed, ship)
+export function runAa(profile: Profile, seed: number, ship = 'fletcher-dd', seconds: number = RUN_S[profile], difficulty: Difficulty = 'normal'): AaRun {
+  let w = worldFor(profile, seed, ship, 'axis', difficulty)
   const id = w.player
   let lightHits = 0, bursts = 0, burstsInRadius = 0, seen = 0
   const tally = (): void => {
@@ -112,9 +113,9 @@ export function runAa(profile: Profile, seed: number, ship = 'fletcher-dd', seco
 }
 
 export type Sweep = { readonly runs: number; readonly meanLightHits: number; readonly meanBursts: number; readonly meanBurstsInRadius: number; readonly lost: number; readonly lostTimes: readonly number[]; readonly medianLostS: number | null; readonly meanStructure: number }
-export function sweep(profile: Profile, seeds: number, ship = 'fletcher-dd'): Sweep {
+export function sweep(profile: Profile, seeds: number, ship = 'fletcher-dd', difficulty: Difficulty = 'normal'): Sweep {
   const results: AaRun[] = []
-  for (let k = 0; k < seeds; k++) results.push(runAa(profile, k, ship))
+  for (let k = 0; k < seeds; k++) results.push(runAa(profile, k, ship, RUN_S[profile], difficulty))
   const times = results.flatMap((r) => (r.lostS === null ? [] : [r.lostS])).sort((a, b) => a - b)
   return {
     runs: seeds,
