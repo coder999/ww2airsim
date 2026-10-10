@@ -3,6 +3,9 @@ import { mkdirSync } from 'node:fs'
 import { test, expect, type Page } from '@playwright/test'
 import { spawnUrl, waitForTerrain, type DiagWindow } from './harness.js'
 import { SCENARIO_PARAM } from '../../src/render/spawn.js'
+import type { HangarWindow } from '../../src/render/hangar/hooks.js'
+import type { PartPose } from '../../src/render/hangar/models.js'
+import type { CameraPreset } from '../../src/render/hangar/framing.js'
 
 // A capture tool, not a test: a plain E2E run skips it (docs/testing.md, "Philosophy"). D1's viewing
 // checkpoint, a flown torpedo attack on the convoy's lead maru: the release, the fall, the run and the hit.
@@ -75,4 +78,33 @@ test('a Kate slows under its torpedo limit and drops its Type 91 into the maru (
   // The Type 91 breaks up above 178 knots: cut the throttle and glide until slow enough and below 330 ft,
   // then drop 750 m short (it arms after 200 m of water).
   await attack(page, 'b5n2-kate', { x: SHIP.x - 1900, y: 110, z: SHIP.z - 200 }, (f) => f.speed < 88 && f.y < 100 && f.x >= SHIP.x - 750, () => tap(page, 'KeyM'))
+})
+
+// The two airframes in the Hangar, on its own camera presets: three-quarter views, the Avenger's doors open on its
+// Mk 13 and the Kate's torpedo under its belly (from the side, gear up, as check 7b looks), and each one's guns swung.
+const HANGAR: readonly (readonly [string, readonly (readonly [string, CameraPreset, PartPose])[]])[] = [
+  ['tbm-3-avenger', [['three-quarter', 'three-quarter', {}], ['bay-open', 'side', { bayDoorFraction: 1, gearFraction: 0 }], ['turrets', 'three-quarter', { turretBearingDeg: 120, turretElevationDeg: 25 }]]],
+  ['b5n2-kate', [['three-quarter', 'three-quarter', {}], ['torpedo', 'side', { gearFraction: 0 }], ['rear-gun', 'three-quarter', { turretBearingDeg: 20, turretElevationDeg: 20 }]]],
+]
+
+test('D1 Hangar captures: the Avenger and the Kate', async ({ page }) => {
+  test.setTimeout(180_000)
+  mkdirSync(OUT, { recursive: true })
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await page.goto('/hangar.html?bench')
+  await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
+  await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
+  await page.evaluate(() => (window as HangarWindow).__hangar!.freeze())
+  const settle = () => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
+  for (const [id, views] of HANGAR) {
+    await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
+    for (const [view, preset, pose] of views) {
+      await page.evaluate((p) => (window as HangarWindow).__hangar!.pose({ bayDoorFraction: 0, gearFraction: 1, turretBearingDeg: 0, turretElevationDeg: 0, bombs: true, ...p }), pose)
+      // Turrets slew at a cosmetic rate: let them get there.
+      await page.evaluate(() => (window as HangarWindow).__hangar!.tick(4))
+      await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), preset)
+      await settle()
+      await page.locator('#hangar-canvas').screenshot({ path: `${OUT}/${id}-hangar-${view}.png` })
+    }
+  }
 })
