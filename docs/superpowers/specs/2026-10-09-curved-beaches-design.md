@@ -1,6 +1,6 @@
 # Curved beaches and shorelines
 
-**Status:** Approved for implementation by Mark, 2026-10-09.  Worktree
+**Status:** Implemented 2026-10-09 on branch `l2-curved-beaches`.  Worktree
 `l2-curved-beaches`; unattended; visual checkpoints are the Tacloban prototype
 and the completed integration, collected in the handoff.
 
@@ -57,22 +57,27 @@ Each shoreline cross-section has these lanes, all stored internally in metres:
 4. waterline/surf, just above mean sea level;
 5. submerged edge, below the opaque ocean.
 
-Initial widths are estimates and are measured visually at the prototype
-checkpoint: roughly 100 feet landward and 150 feet seaward in total.  The
-inland seam meets sampled terrain; the submerged edge hides below the ocean,
-so neither outer edge needs a transparent terrain blend.  The surf lane carries
-a cross-shore UV for a feathered foam material.
+The measured lanes are 315 feet inland, 79 feet inland for the dry/wet stop,
+210 feet seaward for the waterline, and 394 feet seaward for the submerged
+edge (96, 24, -64 and -120 m).  This is intentionally wider than one diagonal
+of the 160-foot L1 grid on both sides: the first 105-foot/13-foot prototype
+left square terrain triangles visible behind a smooth line.  The inland seam
+meets sampled terrain; the submerged edge hides below the ocean, so neither
+outer edge needs a transparent terrain blend.  Every lane carries a normalized
+cross-shore UV for the vegetation/sand/wet-sand gradient and feathered surf.
 
 The asset is divided into world-space tiles inside one glTF.  Tiles give Three
 real bounding volumes for frustum culling; one world-sized mesh would submit
 the entire coastline from every camera.  Material roles are shared across
 tiles, so visible tiles use dry, wet and surf pipelines rather than unique
-materials per tile.
+materials per tile.  The final asset consolidates dry and wet sand into one
+`ShoreSand` gradient role, beside `ShoreSurf`; this removed one draw per tile
+after the first Ryzen A/B measured a 0.4 ms cost.
 
 ## Runtime integration
 
 `src/render/scene/beaches.ts` loads the glTF, replaces its authoring materials
-with WebGPU node materials and exposes `update(eyeX, eyeZ, timeS)` and
+with WebGPU node materials and exposes `update(eyeX, eyeZ)` and
 `dispose()`.
 
 All lanes use `horizonSinkNode`; duplicating the curvature expression is
@@ -108,6 +113,8 @@ curvature sink as terrain and ocean.
   or uncapped world-edge contours.
 - The committed glTF rebuilds byte-identically with Blender 5.0.1.
 - The normal verification gate passes.
-- The final High 1440p Ryzen budget views remain at or below the existing
-  8.33 ms p95 gate; this feature does not invent a separate budget.
-
+- The shoreline-relevant High 1440p Ryzen views remain at or below the
+  existing 8.33 ms p95 gate; this feature does not invent a separate budget.
+  The branch-wide gate already has unrelated failing views with beaches
+  disabled, so the handoff records the on/off A/B rather than claiming those
+  baseline failures were introduced or fixed here.
