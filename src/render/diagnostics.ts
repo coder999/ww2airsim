@@ -6,6 +6,7 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { LookOffset } from '../input/lookAround.js'
 import type { OrbitOffset } from '../input/orbit.js'
 import type { AssistSettings } from '../assists/index.js'
+import type { ImpactPrediction } from '../sim/weapons/impactPrediction.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
@@ -21,6 +22,19 @@ import type { TakeoffPhase } from '../sim/ai/takeoff.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { MissionDiagnostics } from './mission/hud.js'
 import type { ReplayCameraId } from '../replay/cameras.js'
+
+export type ImpactMarkerDiagnostics = {
+  readonly on: boolean
+  readonly shown: boolean
+  readonly label: string | null
+  readonly prediction: ImpactPrediction | null
+  /** The sim tick `prediction` was made from, so an E2E recorder can line it up with a release. */
+  readonly tick: number
+  /** Every bomb and rocket detonation in the sim's impact ring (any owner), newest first, at most 8.
+   *  Read only while the Assist is on; E2E compares the new ones with the prediction made at the
+   *  release tick. */
+  readonly detonations: readonly { readonly x: number; readonly y: number; readonly z: number }[]
+}
 
 export type ReplayDiagnostics = {
   readonly tS: number
@@ -86,6 +100,12 @@ export type Ww2Diagnostics = {
    * a real pilot uses, so testing it tests something that ships.
    */
   readonly assists: () => AssistSettings
+  /**
+   * The B2 impact marker as the renderer last drew it: `on` is the Assist, `shown` whether a marker
+   * was posed this frame, and `prediction` what `predictImpact` returned (or `null`). Read-only, for
+   * the same reason `assists` is: E2E presses `U` like a pilot and reads this to confirm it landed.
+   */
+  readonly impactMarker: () => ImpactMarkerDiagnostics
   /**
    * Metres of ground under the airplane, or `null` if no terrain field has
    * reached `World.terrain` yet.

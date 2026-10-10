@@ -339,6 +339,15 @@ If the run fails, the airplane is not onboarded, whatever the cards say.
 Finish with a handoff (`docs/handoff/<date>-<id>.md`) that lists what was
 measured, what was accepted, and the D-table.
 
+## The impact marker reads your stores (B2, 2026-10-10)
+
+Nothing to do per airframe: `predictImpact` (`src/sim/weapons/impactPrediction.ts`) reads the `stores` block you already wrote in D8 and D9, so a new airplane with racks or rails gets the **Impact marker** (`U`, an Assist, off by default) with no code. It uses the rack offset and the store's `dragPerM`, `armS` and `lifetimeS` for a bomb, and the rail offset, `railElevationDeg`, `burnS`, `burnDeltaVMps` and `convergenceM` for a rocket, exactly as `stepCombat` does.
+
+- Bombs win when both are aboard; otherwise the next rocket pair. A bay load needs open doors. Torpedoes are not predicted.
+- It follows the sim, not the other way round. `tests/sim/weapons/impactPrediction.test.ts` drops real stores in `advance` over real terrain and the sea and holds the prediction to 1 cm (measured 2026-10-10: 0 m over 36 bombs, 4e-12 m over 9 rocket salvos). If you change how a store is launched or flown in `combat.ts`, that test fails until `impactPrediction.ts` agrees.
+- Not modelled, on purpose: the rocket's random dispersion (0.12 deg on the Hellcat, about 3 m at 1.5 km), hulls, decks, buildings and other airplanes.
+- Cost: 0.4 to 1.3 ms of CPU per sim tick while the Assist is on and a store is aboard (node, ryzen, 2026-10-10); none while it is off.
+
 ## Out of scope for now
 
 Each of these is a deliberate deferral (Mark, 2026-09-28), not an omission.

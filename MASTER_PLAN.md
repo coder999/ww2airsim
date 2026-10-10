@@ -60,11 +60,9 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Redesigned 2026-10-09 (Mark):** the cue moved from a HUD text line into the scene: an arrow ahead of the nose that turns toward the destination, a diamond on the destination once it is on screen, and the name and range beside either. No altitude.
 - Measurements and verification: [`docs/handoff/2026-10-08-b1-steering-cue.md`](docs/handoff/2026-10-08-b1-steering-cue.md).
 
-**B2. Bomb impact predictor (M).**
-- **Today:** bombs are aimed by eye.
-- **What exists:** `flyProjectile` is pure and exported (`sim/weapons/combat.ts:140`). Bomb drag and arming are content (`an-m65`). `groundHit`/`seaHit` (`:181`, `:211`) are module-private.
-- **Proposal:** a pure sim function `predictImpact(state, store)` that iterates `flyProjectile` to terrain or sea, with a ground marker in the renderer. Same pattern as the gun pipper's `gunHarmonization`. Rockets could follow.
-- **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: behind the Assists toggle, off by default (§4 Q2).
+**B2. Bomb and rocket impact predictor (M).** Built 2026-10-10 on branch `b2-impact-predictor` (not merged); plan [`2026-10-10-b2-impact-predictor.md`](docs/superpowers/plans/2026-10-10-b2-impact-predictor.md), handoff [`2026-10-10-b2-impact-predictor.md`](docs/handoff/2026-10-10-b2-impact-predictor.md).
+- **Today:** `predictImpact` (`sim/weapons/impactPrediction.ts`) flies the sim's own bomb or rocket step to terrain or sea; the **Impact marker** (`U`) draws the result. Matches the real sim to 1 cm.
+- **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: off by default (§4 Q2). Torpedoes are not covered.
 
 **B3. Navigation autopilot (M).**
 - **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
