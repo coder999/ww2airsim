@@ -163,10 +163,42 @@ export type ManeuverLatch = {
 export type IngressWaypoint = { readonly x: number; readonly z: number; readonly altitudeM: number; readonly speedMps: number }
 /** Where an ingress ends: a ship, read live every tick, or a fixed point (an
  *  airfield's runway center, resolved when the world is built; ruling W6). */
-export type IngressDestination = { readonly kind: 'ship'; readonly id: string } | { readonly kind: 'point'; readonly x: number; readonly z: number }
+export type IngressDestination =
+  | { readonly kind: 'ship'; readonly id: string }
+  /** `side` (E2): an airfield's side, resolved at build and present only on an attacker's, so a raider never bombs its own strip. */
+  | { readonly kind: 'point'; readonly x: number; readonly z: number; readonly side?: 'allied' | 'axis' }
 /** A raider's orders (7e spec §4.5): fly the route, then the destination,
  *  then orbit it; fight only what attacks or comes close. */
-export type IngressOrders = { readonly route: readonly IngressWaypoint[]; readonly destination: IngressDestination | null }
+export type IngressOrders = {
+  readonly route: readonly IngressWaypoint[]
+  readonly destination: IngressDestination | null
+  /** E2: what to do on arrival. Absent is the orbit above, which is every raider before E2. */
+  readonly attack?: AttackKind
+}
+
+/** E2: the attack runs (`attack.ts`). */
+export type AttackKind = 'dive-bomb' | 'torpedo' | 'level-bomb' | 'kamikaze'
+/** E2: where an attack run is. `dive`, `run` and `pullout` are committed (no fighter pre-empts them, no generic floor). */
+export type AttackPhase = 'approach' | 'dive' | 'run' | 'pullout' | 'egress' | 'done'
+/** E2: an attack pilot's run, written by `attack.ts` only. Plain data. */
+export type AttackState = {
+  readonly phase: AttackPhase
+  /** Sim time the phase began. */
+  readonly sinceS: number
+  /** Runs begun (the first is 1): the salt of the pilot's draws, so a second pass errs differently. */
+  readonly runs: number
+  /** The pilot's sight error this run, radians right of and above the true aim (drawn at the start of the run). */
+  readonly sight: AimError
+  /** Seconds this pilot sits on a solved release before pressing the pickle (drawn at the start of the run). */
+  readonly lateS: number
+  /** Sim time the release condition first held this run, or null. */
+  readonly armedSinceS: number | null
+  /** Egress: the compass-free heading, atan2(v.z, v.x), flown out on. */
+  readonly egressHeadingRad: number
+  /** Dive: the pipper trim, radians added to the line-of-sight dive angle so that the bomb dropped now lands on the aim
+   *  (a steeper dive lands shorter); walked a little every tick toward zero predicted miss. */
+  readonly trimRad: number
+}
 
 /** 7g spec §7: a pilot's home, resolved to plain data by worldFromScenario.
  *  A runway's approach geometry is fixed; a ship is read live from ctx.ships. */
@@ -255,6 +287,8 @@ export type PilotDecisionState = {
    *  first rescore (ruling P10), so the idle clock starts when the pilot
    *  does, not at 0 (a trigger-spawned pilot). */
   readonly lastContactS?: number
+  /** E2: the attack run, present only once an attack pilot reaches its destination. */
+  readonly attack?: AttackState
 }
 
 /** 32-bit FNV-1a of an entity id: the seed of that pilot's noise cursor

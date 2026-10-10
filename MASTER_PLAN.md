@@ -140,7 +140,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   1. ~~**Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.~~ Done (D1), with the B5N2 Kate.
   2. ~~**Weapon:** a torpedo store~~ Done (D1): a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
   3. ~~**Damage:** a waterline hit that does more than a bomb of equal weight.~~ Done (D3): flooding, Mark's pick over a multiplier.
-  4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
+  4. ~~**AI:** torpedo attack, so the enemy can use it too, from Track E.~~ Done (E2, 2026-10-10): `pilot.ingress.attack: "torpedo"` flies a low run inside the drop envelope with the Kate, Betty and Avenger; see Track E item 2.
   5. ~~**Sound.**~~ Done (D3): release reuses `bombs_away`; `torpedo_splash` plays at water entry, `torpedo_hit` at a hull hit.
 - Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G): it exists since D1.
 
@@ -151,10 +151,11 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 1. **Gunnery honesty (M).** Lead on relative velocity, drop compensation and per-skill aim error. **This blocks almost every combat mission:** AI-vs-AI fights don't end in kills, and M4's interceptors can't shoot raiders down.
    - **Done 2026-10-09, merged to `main`** (veterans toned down and green strengthened per Mark's rulings the same day). Plan `docs/superpowers/plans/2026-10-09-e1-gunnery.md`; handoff `docs/handoff/2026-10-09-e1-gunnery.md`. AI duels now end in kills (26 of 72 duels, from 3); a straight-flying player survives a veteran a median 8 s; green rarely kills a maneuvering target.
 2. **Attack behaviors (M):**
-   - **Dive-bombing** first, as the D3A exists and bombs already work.
-   - **Torpedo runs** after Track D.
-   - **Kamikaze**, for the "Kamikaze Watch" mission.
-   - Raiders that actually attack instead of orbiting.
+   - **Done 2026-10-10 (E2, merged to `main`):** `pilot.ingress.attack` is an opt-in order (`dive-bomb`, `torpedo`, `level-bomb`, `kamikaze`); absent, a raider orbits as before. Dive-bombing, torpedo runs and level bombing of a ship or a strip are flown and calibrated (green hits less than veteran). **Kamikaze** is a fast dive that lets its bomb go at point-blank range and ends in the sea beside the hull (the sim has no aircraft-into-ship collision; that rule is open, Kamikaze Watch itself is not built). No shipped mission uses the order yet. Plan `docs/superpowers/plans/2026-10-10-e2-attack-ai.md`; handoff `docs/handoff/2026-10-10-e2-attack-ai.md`; test bed: the Dev scenario `attack-range`.
+   - ~~**Dive-bombing** first, as the D3A exists and bombs already work.~~
+   - ~~**Torpedo runs** after Track D.~~
+   - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ Flown (above); the mission is not built.
+   - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
 4. **Fixes:**
    - escort pursuit (7f §4.2);

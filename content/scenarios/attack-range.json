@@ -1,0 +1,251 @@
+{
+  "id": "attack-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [
+          -36000,
+          1800,
+          -42000
+        ],
+        "headingDeg": 0,
+        "speedMps": 110
+      }
+    },
+    {
+      "id": "val-1",
+      "spec": "d3a-val",
+      "airborneAt": {
+        "position": [
+          -19916,
+          3000,
+          -48605
+        ],
+        "headingDeg": 270,
+        "speedMps": 120
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -23416,
+              "z": -48605,
+              "altitudeM": 3000,
+              "speedMps": 120
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "dive-bomb"
+        }
+      }
+    },
+    {
+      "id": "val-2",
+      "spec": "d3a-val",
+      "airborneAt": {
+        "position": [
+          -23812,
+          3000,
+          -59881
+        ],
+        "headingDeg": 200,
+        "speedMps": 120
+      },
+      "pilot": {
+        "skill": "green",
+        "ingress": {
+          "route": [
+            {
+              "x": -26377,
+              "z": -52834,
+              "altitudeM": 3000,
+              "speedMps": 120
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "dive-bomb"
+        }
+      }
+    },
+    {
+      "id": "kate-1",
+      "spec": "b5n2-kate",
+      "airborneAt": {
+        "position": [
+          -27916,
+          800,
+          -38605
+        ],
+        "headingDeg": 0,
+        "speedMps": 70
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -27916,
+              "z": -41605,
+              "altitudeM": 800,
+              "speedMps": 70
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "torpedo"
+        }
+      }
+    },
+    {
+      "id": "kate-2",
+      "spec": "b5n2-kate",
+      "airborneAt": {
+        "position": [
+          -17309,
+          800,
+          -37998
+        ],
+        "headingDeg": 315,
+        "speedMps": 70
+      },
+      "pilot": {
+        "skill": "green",
+        "ingress": {
+          "route": [
+            {
+              "x": -22966,
+              "z": -43655,
+              "altitudeM": 800,
+              "speedMps": 70
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "torpedo"
+        }
+      }
+    },
+    {
+      "id": "val-3",
+      "spec": "d3a-val",
+      "airborneAt": {
+        "position": [
+          -42011,
+          3000,
+          -43475
+        ],
+        "headingDeg": 70,
+        "speedMps": 120
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -32145,
+              "z": -47066,
+              "altitudeM": 3000,
+              "speedMps": 120
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "dive-bomb"
+        }
+      }
+    },
+    {
+      "id": "kate-3",
+      "spec": "b5n2-kate",
+      "airborneAt": {
+        "position": [
+          -40644,
+          800,
+          -35877
+        ],
+        "headingDeg": 45,
+        "speedMps": 70
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -32866,
+              "z": -43655,
+              "altitudeM": 800,
+              "speedMps": 70
+            }
+          ],
+          "destination": {
+            "ship": "dd-1"
+          },
+          "attack": "torpedo"
+        }
+      }
+    },
+    {
+      "id": "sally-1",
+      "spec": "ki-21-sally",
+      "airborneAt": {
+        "position": [
+          -29666,
+          3000,
+          -60605
+        ],
+        "headingDeg": 180,
+        "speedMps": 100
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -29666,
+              "z": -53605,
+              "altitudeM": 3000,
+              "speedMps": 100
+            }
+          ],
+          "destination": {
+            "airfield": "tacloban"
+          },
+          "attack": "level-bomb"
+        }
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "dd-1",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -27916,
+          -48605
+        ]
+      ],
+      "speedMps": 0
+    }
+  ],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 0,
+    "timeOfDay": 12
+  }
+}
