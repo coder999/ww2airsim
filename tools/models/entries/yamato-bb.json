@@ -1,68 +1,20 @@
 {
   "id": "yamato-bb",
-  "input": "tools/models/cache/musashi-bb.glb",
-  "inputSha256": "94bdff5992bcf3e32bf9a365ac3d3e4e99b60685209c62d7f7a939f416b1c219",
   "output": "content/ships/yamato-bb.glb",
   "source": {
-    "url": "https://sketchfab.com/3d-models/ijn-musashi-model-for-small-scale-printing-698f9b6de9204609ae09aaa98f6f1e30",
-    "uid": "698f9b6de9204609ae09aaa98f6f1e30",
-    "author": "KTKloss",
-    "license": "CC-BY-4.0"
+    "kind": "blender",
+    "script": "tools/models/blender/yamato-bb.py",
+    "dimensions": "263 m overall and 38.9 m beam from content/ships/yamato-bb.json and its cited class particulars; Musashi's Leyte Gulf turrets per Ruling R4; the silhouette from the class general-arrangement drawings, every height an ESTIMATE",
+    "license": "AGPL-3.0-or-later"
   },
-  "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.207], "fit": { "extent": "length", "meters": 263.0 } },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 263.0 } },
+  "skin": true,
   "textures": { "maxSize": 2048, "format": "webp" },
-  "boxSkin": {
-    "atlasPx": 2048,
-    "detail": {
-      "sideZM": 21,
-      "strakesM": 1.8,
-      "grimeM": [-0.5, 0.8],
-      "planks": [{"role": "deck", "widthM": 0.15, "lengthM": 6.0, "contrast": 0.1, "seam": 0.35, "belowM": 8.0}],
-      "portholes": [{"xM": [-110, 110], "yM": 4.5, "everyM": 3}],
-      "butts": {"xM": [-120, 120], "yM": [0.8, 5.2], "everyM": 8},
-      "hatches": [{"xM": [-125, 125], "yM": 9, "everyM": 18, "zM": [-6, 6], "reachM": 4}]
-    }
-  },
   "opaque": false,
   "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
   "ship": {
-    "spec": "yamato-bb",
-    "fit": "hull",
-    "kind": "waterline",
-    "palette": "ijn",
-    "otherMaterials": "classify",
-    "smokeOrigin": [-20, 29.64, 0],
-    "bow": "narrow-end"
-  },
-  "split": [
-    {"name": "Turret1", "select": "components", "boxMin": [-0.62443, 0.49117, -5.27584], "boxMax": [0.62443, 0.82243, -2.96087]},
-    {"name": "Turret2", "select": "components", "boxMin": [-0.62443, 0.75008, -3.57007], "boxMax": [0.62443, 1.08134, -1.25509]},
-    {"name": "Turret3", "select": "components", "boxMin": [-0.34268, 1.00519, -1.43024], "boxMax": [0.34268, 1.32502, -0.35651]},
-    {"name": "Turret4", "select": "components", "boxMin": [-0.34268, 0.96331, 3.56524], "boxMax": [0.34268, 1.28695, 4.63897]},
-    {"name": "Turret5", "select": "components", "boxMin": [-0.62443, 0.59778, 4.43336], "boxMax": [0.62443, 0.92904, 6.74834]},
-    {"name": "HeavyAA1", "select": "components", "boxMin": [0.22464, 0.48051, 0.82001], "boxMax": [0.7379, 0.89705, 1.33327]},
-    {"name": "HeavyAA2", "select": "components", "boxMin": [-0.7379, 0.48051, 0.82001], "boxMax": [-0.22464, 0.89705, 1.33327]},
-    {"name": "HeavyAA3", "select": "components", "boxMin": [0.38685, 0.70972, 1.73763], "boxMax": [0.9001, 1.12627, 2.25088]},
-    {"name": "HeavyAA4", "select": "components", "boxMin": [-0.9001, 0.70972, 1.73763], "boxMax": [-0.38685, 1.12627, 2.25088]},
-    {"name": "HeavyAA5", "select": "components", "boxMin": [0.38685, 0.59093, 2.36206], "boxMax": [0.9001, 1.00747, 2.87532]},
-    {"name": "HeavyAA6", "select": "components", "boxMin": [-0.9001, 0.59093, 2.36206], "boxMax": [-0.38685, 1.00747, 2.87532]},
-    {"name": "LightAA3", "select": "components", "boxMin": [0.10813, 0.93208, -0.05115], "boxMax": [0.46604, 1.18719, 0.30676]},
-    {"name": "LightAA4", "select": "components", "boxMin": [-0.46604, 0.93208, -0.05115], "boxMax": [-0.10813, 1.18719, 0.30676]},
-    {"name": "LightAA5", "select": "components", "boxMin": [1.0128, 0.53838, 0.21385], "boxMax": [1.37071, 0.79349, 0.57176]},
-    {"name": "LightAA6", "select": "components", "boxMin": [-1.37071, 0.53838, 0.21385], "boxMax": [-1.0128, 0.79349, 0.57176]},
-    {"name": "LightAA7", "select": "components", "boxMin": [0.30689, 0.72572, 0.23518], "boxMax": [0.66479, 0.98082, 0.59308]},
-    {"name": "LightAA8", "select": "components", "boxMin": [-0.66479, 0.72572, 0.23518], "boxMax": [-0.30689, 0.98082, 0.59308]},
-    {"name": "LightAA9", "select": "components", "boxMin": [1.27324, 0.53001, 0.53749], "boxMax": [1.63115, 0.78511, 0.8954]},
-    {"name": "LightAA10", "select": "components", "boxMin": [-1.63115, 0.53001, 0.53749], "boxMax": [-1.27324, 0.78511, 0.8954]},
-    {"name": "LightAA11", "select": "components", "boxMin": [1.27324, 0.53001, 2.20519], "boxMax": [1.63115, 0.78511, 2.5631]},
-    {"name": "LightAA12", "select": "components", "boxMin": [-1.63115, 0.53001, 2.20519], "boxMax": [-1.27324, 0.78511, 2.5631]},
-    {"name": "LightAA13", "select": "components", "boxMin": [1.0128, 0.51478, 2.57376], "boxMax": [1.37071, 0.76988, 2.93167]},
-    {"name": "LightAA14", "select": "components", "boxMin": [-1.37071, 0.51478, 2.57376], "boxMax": [-1.0128, 0.76988, 2.93167]},
-    {"name": "LightAA15", "select": "components", "boxMin": [0.74323, 0.52087, 2.81897], "boxMax": [1.10114, 0.77597, 3.17687]},
-    {"name": "LightAA16", "select": "components", "boxMin": [-1.10114, 0.52087, 2.81897], "boxMax": [-0.74323, 0.77597, 3.17687]},
-    {"name": "LightAA17", "select": "components", "boxMin": [0.42035, 0.72572, 2.97203], "boxMax": [0.77826, 0.98082, 3.32994]},
-    {"name": "LightAA18", "select": "components", "boxMin": [-0.77826, 0.72572, 2.97203], "boxMax": [-0.42035, 0.98082, 3.32994]},
-    {"name": "LightAA21", "select": "components", "boxMin": [1.0029, 0.53305, 7.40095], "boxMax": [1.36081, 0.78816, 7.75886]},
-    {"name": "LightAA22", "select": "components", "boxMin": [0.92523, 0.53305, 7.92182], "boxMax": [1.28314, 0.78816, 8.27973]}
-  ]
+    "spec": "yamato-bb", "fit": "hull", "kind": "waterline", "palette": "ijn",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [-26, 33.6, 0], "bow": "narrow-end"
+  }
 }

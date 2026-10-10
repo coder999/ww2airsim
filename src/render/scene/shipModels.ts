@@ -12,6 +12,7 @@ import { createShipMesh, createShipView, type ShipView } from './ship.js'
  * every id here has its entry and its committed glb.
  */
 export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
+  'abukuma-cl': { url: shipModelUrl('abukuma-cl') },
   'casablanca-cve': { url: shipModelUrl('casablanca-cve') },
   'cleveland-cl': { url: shipModelUrl('cleveland-cl') },
   'essex-cv': { url: shipModelUrl('essex-cv') },

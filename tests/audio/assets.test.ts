@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { AUDIO_ASSETS } from '../../src/audio/assets.js'
 import { AMBIENT_GAIN_MAX, CABIN_PRESETS, ENGINE_GAIN_MAX, MASTER_GAIN, worstCaseAmplitude } from '../../src/audio/mix.js'
 import { readWav } from '../../tools/audio/wav.js'
+import { LAYERS } from '../../src/audio/layers.js'
+import { SYNTH_GAIN_MAX } from '../../src/audio/mix.js'
+import { SYNTH_PEAK } from '../../src/audio/synth.js'
 
 const repoPath = (rel: string): string => fileURLToPath(new URL(`../../${rel}`, import.meta.url))
 
@@ -51,6 +54,22 @@ describe('the audio asset table (design §3, §5.1)', () => {
         const worst = MASTER_GAIN * preset.worldGain *
           (clip.cueGain * clip.peakFullScale * preset.sfxTrim + ENGINE_GAIN_MAX * enginePeak * preset.engineTrim)
         expect(worst, `${clip.id} clips in ${view}`).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('leaves the same headroom for every synthesized layer at its loudest, in every cabin preset (I1)', () => {
+    // Enrolled from LAYERS: a layer whose clip is not a file must state a max gain, and its clip a peak.
+    const enginePeak = Math.max(...AUDIO_ASSETS.filter((a) => a.bus === 'engine').map((a) => a.peakFullScale))
+    const files = new Set<string>(AUDIO_ASSETS.map((a) => a.id))
+    const synth = Object.entries(LAYERS).filter(([, def]) => !files.has(def.clip))
+    expect(synth.map(([id]) => id).sort()).toEqual(Object.keys(SYNTH_GAIN_MAX).sort())
+    for (const [id, def] of synth) {
+      const level = SYNTH_GAIN_MAX[id as keyof typeof SYNTH_GAIN_MAX] * SYNTH_PEAK[def.clip as keyof typeof SYNTH_PEAK]
+      expect(MASTER_GAIN * worstCaseAmplitude(1, level, ENGINE_GAIN_MAX * enginePeak), id).toBeLessThanOrEqual(1)
+      for (const [view, preset] of Object.entries(CABIN_PRESETS)) {
+        const worst = MASTER_GAIN * preset.worldGain * (level * preset.sfxTrim + ENGINE_GAIN_MAX * enginePeak * preset.engineTrim)
+        expect(worst, `${id} clips in ${view}`).toBeLessThanOrEqual(1)
       }
     }
   })

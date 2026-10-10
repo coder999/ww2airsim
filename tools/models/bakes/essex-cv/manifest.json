@@ -1,26 +1,25 @@
 {
  "version": 1,
  "model": "essex-cv",
- "rawSha256": "c5d55e5886469b9b9eb4f4e30e370eead5b178d6bc71969d21cc2381bbb9e106",
- "detailSha256": "16c467d1b3df137b4eefd0981aee792551079b7cd934b6d8d729a4afd4e68609",
+ "rawSha256": "0ac0bc0588f183c5884aae8ce7a2588373d03e1289ce314751ff62c77c197437",
+ "detailSha256": "1f6eaf09819b6429d757ad8d923501325e72b0036805070d2a33a30515fb1b71",
  "size": 2048,
  "info": {
   "aoDistanceM": 4,
   "aoSamples": 128,
-  "details": 204,
+  "details": 224,
   "device": "AMD Radeon RX 6700 XT",
   "missed": [],
   "normalSamples": 16,
   "seconds": {
-   "ao": 3.5,
-   "aoBack": 3.3,
-   "normal": 1
+   "ao": 2.9,
+   "normal": 0.9
   },
   "size": 2048,
-  "totalSeconds": 19.4,
-  "twoSided": true,
+  "totalSeconds": 5,
+  "twoSided": false,
   "host": "ryzen",
-  "wallSeconds": 22.6
+  "wallSeconds": 7.5
  },
  "date": "2026-10-09"
 }

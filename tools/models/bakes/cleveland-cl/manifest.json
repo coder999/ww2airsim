@@ -1,29 +1,25 @@
 {
  "version": 1,
  "model": "cleveland-cl",
- "rawSha256": "68dd175d955263995b4accdcb26b67cd2b4f7903b8a7dca8c9d3c2dc4e2ea806",
- "detailSha256": "0e27c57700ca6f6ce90cf3237c83c20f96235f290c2aa04eb1683db5c56abb28",
+ "rawSha256": "59505f8a88dc0a333d58adb1abdabecfc7f9a7ce09cae18663377221a4a51674",
+ "detailSha256": "2fe4a747711d3dd7f2ac50be4dcb1fb7193164b99d2b536437dc161d3bae1249",
  "size": 2048,
  "info": {
   "aoDistanceM": 4,
   "aoSamples": 128,
-  "details": 192,
+  "details": 251,
   "device": "AMD Radeon RX 6700 XT",
-  "missed": [
-   180,
-   193
-  ],
+  "missed": [],
   "normalSamples": 16,
   "seconds": {
-   "ao": 3.7,
-   "aoBack": 3.6,
+   "ao": 3.3,
    "normal": 0.9
   },
   "size": 2048,
-  "totalSeconds": 13.8,
-  "twoSided": true,
+  "totalSeconds": 5.7,
+  "twoSided": false,
   "host": "ryzen",
-  "wallSeconds": 16.8
+  "wallSeconds": 8.4
  },
  "date": "2026-10-09"
 }

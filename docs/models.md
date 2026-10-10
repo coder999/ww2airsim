@@ -397,6 +397,14 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   (Zuikaku's `Drop1..23`). `npx tsx tools/models/islands.ts <id> 20` lists the
   shells, `--box` turns an output-frame box into a split box, and `--probe
   x,z,y` reads the committed model's surface heights for a mount's `y`.
+- **Rebuilt downloads and ensigns (M1f, 2026-10-09).** Mogami, Yamato, Cleveland and Essex are
+  Blender scripts now, built from `naval.py`'s shared pieces (`stander`, `runs`, `oval_funnel`,
+  `window_band`, `tripod`, `platform`, `searchlight`, `boat`, `torpedo_mount`, `catapult`,
+  `director`, `crane`; appended, so no older ship's bake went stale). A script's mount heights are
+  the spec's `y`; read them off a dry run (`NAVAL_DRY_RUN=1`) for drawn mounts and the surface under
+  generated ones. Ensigns are not in the glb: the renderer hangs one from the spec's
+  `view.ensign` (`src/render/scene/ensign.ts`), so a download gets one the same way; a download's
+  own flag is cut out (`remove`), as on Shiratsuyu and the Maru.
 - **Planks (M1c).** The `planks` marking shades boards (or linoleum sheets)
   on sky-facing faces in world (x, z), each its own shade and roughness, with
   dark seams. `railing()` and `rounded_box()` are in `kit.py`.

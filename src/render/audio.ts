@@ -2,9 +2,10 @@ import { DAMAGE_BLAST_NEAR_M, ROUND_HIT_NEAR_M, type AudioInputs } from '../audi
 import type { CombatImpact } from '../sim/weapons/impacts.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
-import { onGround } from '../sim/ground.js'
+import { effectiveStallSpeedMps, onGround } from '../sim/ground.js'
+import { airVelocity } from '../sim/flight/model.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
-import { sub } from '../sim/math/vec3.js'
+import { length, sub } from '../sim/math/vec3.js'
 import { qRotate, type Quat } from '../sim/math/quat.js'
 import type { SpatialInputs } from '../audio/spatial.js'
 import { decksOf } from '../sim/world/deck.js'
@@ -84,6 +85,11 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     bayDoorFraction: aircraft.bayDoorFraction,
     gearFraction: aircraft.gearFraction,
     flapFraction: aircraft.flapFraction,
+    // I1: the wind follows speed through the air, the wheels speed over what is under them.
+    airspeedMps: length(airVelocity(aircraft, frame.world.wind)),
+    stallSpeedMps: effectiveStallSpeedMps(spec, aircraft.flapFraction),
+    diveSpeedMps: spec.limits.diveSpeedMps,
+    groundSpeedMps: ground === null ? 0 : Math.hypot(aircraft.velocity.x - ground.velocity.x, aircraft.velocity.z - ground.velocity.z),
     damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
   }
 }

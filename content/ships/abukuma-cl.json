@@ -1,0 +1,34 @@
+{
+  "id": "abukuma-cl",
+  "name": "Nagara-class light cruiser",
+  "role": "cruiser",
+  "lengthM": 162.1,
+  "beamM": 14.2,
+  "deckWidthM": 14.2,
+  "deckHeightM": 5.5,
+  "maxSpeedMps": 18.52,
+  "turnRateRadPerS": 0.02618,
+  "hullHp": 300,
+  "view": { "model": "abukuma-cl", "ensign": { "flag": "ijn-rising-sun", "at": [-23.4, 20.7, 0], "flyM": 4.5 } },
+  "armament": {
+    "turrets": [
+      {"x": 58.0, "y": 8.195, "z": 0, "bearingDeg": 0, "kit": "turret-140mm-single", "barrels": 1, "aa": null},
+      {"x": 49.0, "y": 9.915, "z": 0, "bearingDeg": 0, "kit": "turret-140mm-single", "barrels": 1, "aa": null},
+      {"x": 36.0, "y": 7.749, "z": 4.8, "bearingDeg": 0, "kit": "turret-140mm-single", "barrels": 1, "aa": null},
+      {"x": 36.0, "y": 7.749, "z": -4.8, "bearingDeg": 0, "kit": "turret-140mm-single", "barrels": 1, "aa": null},
+      {"x": -52.0, "y": 5.042, "z": 0, "bearingDeg": 180, "kit": "turret-140mm-single", "barrels": 1, "aa": null}
+    ],
+    "heavyAA": [
+      {"x": -64.0, "y": 4.991, "z": 0, "bearingDeg": 180, "kit": "mount-127mm-twin-ijn", "barrels": 2}
+    ],
+    "lightAA": [
+      {"x": 26.0, "y": 5.351, "z": 5.0, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": 26.0, "y": 5.351, "z": -5.0, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -24.0, "y": 5.115, "z": 4.4, "bearingDeg": 90, "kit": "mount-25mm-triple", "barrels": 3},
+      {"x": -24.0, "y": 5.115, "z": -4.4, "bearingDeg": -90, "kit": "mount-25mm-triple", "barrels": 3}
+    ]
+  },
+  "reference": {
+    "source": "Abukuma as at Surigao Strait, 25 October 1944, with Vice Admiral Shima's force (Track M, M1f Ruling F3, Mark 2026-10-09). lengthM (162.1 m overall), beamM (14.2 m), maxSpeedMps (36 kn, converted with 1 kn = 0.514444 m/s) and the armament history from the English Wikipedia article 'Japanese cruiser Abukuma', read 2026-10-09: by mid-1944 Nos. 5 and 7 of her seven 14 cm/50 singles were gone, No. 7 replaced by an unshielded twin 12.7 cm Type 89 (Oct-Nov 1943), and she carried two quadruple 61 cm torpedo mounts and Type 21 and Type 22 radars. deckHeightM, turnRateRadPerS (1.5 deg/s) and every position are ESTIMATES; hullHp is a gameplay choice. LIGHT AA, CHOSEN FOR BALANCE (the rule essex-cv and zuikaku-cv set, M1d D3 and M1e E3), NOT HISTORY: four triple 25 mm, two a side. Her real final fit was 4 triple, 2 twin and 24 single 25 mm and ten 13.2 mm machine guns (the article's infobox; its text totals thirty 25 mm)."
+  }
+}
