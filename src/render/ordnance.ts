@@ -30,6 +30,8 @@ import type { StoreVisual } from './scene/stores.js'
  */
 export const BOMB_CAPACITY = 8
 export const ROCKET_CAPACITY = 32
+/** D1: torpedoes falling and running. A strike flight carries one per airplane. */
+export const TORPEDO_CAPACITY = 8
 
 /** The pure half: which live projectiles of `kind` to draw, where, and
  *  facing which way -- `tracerInstances`'s twin for a rigid body rather than
@@ -42,7 +44,7 @@ function directionOf(p: Projectile): Vec3 {
 }
 
 export function ordnanceInstances(
-  projectiles: readonly Projectile[], kind: 'bomb' | 'rocket', capacity: number,
+  projectiles: readonly Projectile[], kind: 'bomb' | 'rocket' | 'torpedo', capacity: number,
 ): OrdnanceInstance[] {
   const out: OrdnanceInstance[] = []
   for (const p of projectiles) {
@@ -66,7 +68,7 @@ function makePool(geometry: BufferGeometry, material: Material, capacity: number
 /** What the in-flight bomb and rocket pools are drawing this frame, for the O1 E2E diagnostic
  *  (`__ww2.ordnanceView`). */
 export interface OrdnanceView {
-  readonly bombs: number; readonly rockets: number
+  readonly bombs: number; readonly rockets: number; readonly torpedoes: number
   readonly bombTriangles: number; readonly rocketTriangles: number
   /** NDC of the first live bomb's bounding-sphere center; null when none is drawn. */
   readonly bombNdc: readonly [number, number] | null
@@ -82,6 +84,8 @@ export type OrdnanceHandle = {
   /** Swaps the bomb and rocket pools onto the generated store models (O1), disposing the
    *  primitive stand-in geometry/material they replace. */
   setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void
+  /** The torpedo pool's model (D1): the player's torpedo store, swapped in once like the others. */
+  setTorpedoModel(torpedo: StoreVisual): void
   /** What the pools are drawing this frame, for the E2E diagnostic (`__ww2.ordnanceView`). */
   view(camera: PerspectiveCamera, heightPx: number): OrdnanceView
 }
@@ -97,7 +101,11 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
   rocketGeometry.rotateZ(Math.PI / 2)
   const rocketMesh = makePool(rocketGeometry, new MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6 }), ROCKET_CAPACITY)
   root.add(rocketMesh)
-  let swapped = false
+  const torpedoGeometry = new CylinderGeometry(0.25, 0.25, 4.5, 10)
+  torpedoGeometry.rotateZ(Math.PI / 2)
+  const torpedoMesh = makePool(torpedoGeometry, new MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.6 }), TORPEDO_CAPACITY)
+  root.add(torpedoMesh)
+  let swapped = false, torpedoSwapped = false
 
   // Hoisted once and reused every instance every frame, exactly as
   // `tracers.ts`'s `createTracers` does.
@@ -125,6 +133,7 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
     update(projectiles: readonly Projectile[]): void {
       apply(bombMesh, ordnanceInstances(projectiles, 'bomb', BOMB_CAPACITY))
       apply(rocketMesh, ordnanceInstances(projectiles, 'rocket', ROCKET_CAPACITY))
+      apply(torpedoMesh, ordnanceInstances(projectiles, 'torpedo', TORPEDO_CAPACITY))
     },
     setStoreModels(bomb: StoreVisual, rocket: StoreVisual): void {
       // The pools' primitive geometry and material are this module's own; the store models'
@@ -139,6 +148,14 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
         mesh.material = v.material
       }
     },
+    setTorpedoModel(torpedo: StoreVisual): void {
+      if (torpedoSwapped) throw new Error('createOrdnance.setTorpedoModel: already set; a second swap would dispose the model cache\'s geometry and material')
+      torpedoSwapped = true
+      torpedoMesh.geometry.dispose()
+      ;(torpedoMesh.material as Material).dispose()
+      torpedoMesh.geometry = torpedo.geometry
+      torpedoMesh.material = torpedo.material
+    },
     view(camera: PerspectiveCamera, heightPx: number): OrdnanceView {
       const tris = (m: InstancedMesh): number => Math.floor((m.geometry.index?.count ?? m.geometry.getAttribute('position').count) / 3)
       let bombNdc: [number, number] | null = null, bombRadiusPx: number | null = null
@@ -152,7 +169,7 @@ export function createOrdnance(scene: Scene): OrdnanceHandle {
         bombNdc = [ndc.x, ndc.y]
         bombRadiusPx = (g.boundingSphere!.radius / (dist * Math.tan((camera.fov * Math.PI) / 360))) * (heightPx / 2)
       }
-      return { bombs: bombMesh.count, rockets: rocketMesh.count, bombTriangles: tris(bombMesh), rocketTriangles: tris(rocketMesh), bombNdc, bombRadiusPx }
+      return { bombs: bombMesh.count, rockets: rocketMesh.count, torpedoes: torpedoMesh.count, bombTriangles: tris(bombMesh), rocketTriangles: tris(rocketMesh), bombNdc, bombRadiusPx }
     },
   }
 }

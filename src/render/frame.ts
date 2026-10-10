@@ -151,6 +151,9 @@ export type FrameState = {
   /** Real seconds the "BAY DOORS CLOSED" notice has left: set by a release pressed with the
    *  doors not fully open (C2), so the refused press is never silent. */
   readonly bayDoorsNoticeS: number
+  /** Real seconds the "TORPEDO BROKE UP" notice has left (D1): set when one of the player's
+   *  torpedoes broke up this frame, a drop outside its envelope. */
+  readonly torpedoNoticeS: number
   /** The tick of the newest mission `respot` this frame has already
    *  answered by raising the hook lever, or -1 for none (ruling F-C1,
    *  2026-09-27). The respot spot is aft of the trap zone and a trap never
@@ -238,6 +241,8 @@ const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 export const TRIPLE_TIME_SCALE = 3
 /** Real seconds the "BAY DOORS CLOSED" notice shows after a refused release (C2). */
 export const BAY_DOORS_NOTICE_S = 2.5
+/** Real seconds the "TORPEDO BROKE UP" notice shows (D1). */
+export const TORPEDO_NOTICE_S = 2.5
 
 /** Which key toggles which assist. The keys themselves live in
  *  `src/input/bindings.ts` with every other key in the game; this is only the
@@ -320,6 +325,7 @@ export function initialFrameStateFor(
     bayDoorsOpen: false,
     bayDoorsPressed: false,
     bayDoorsNoticeS: 0,
+    torpedoNoticeS: 0,
     respotHandledTick: lastRespotTick(world),
     throttleCutPressed: false,
     dropBombPressed: false,
@@ -769,6 +775,9 @@ export function nextFrameState(
     bayDoorsOpen,
     bayDoorsPressed: bayDoorsKeyDown,
     bayDoorsNoticeS,
+    torpedoNoticeS: (advanced.world.combat.aircraft[advanced.world.player]?.torpedoesBrokeUp ?? 0) > (prev.world.combat.aircraft[prev.world.player]?.torpedoesBrokeUp ?? 0)
+      ? TORPEDO_NOTICE_S
+      : Math.max(0, prev.torpedoNoticeS - elapsedSeconds),
     respotHandledTick: respotted ? respotTick : prev.respotHandledTick,
     throttleCutPressed: throttleCutDown,
     dropBombPressed: dropBombKeyDown,
