@@ -991,6 +991,8 @@ async function boot(): Promise<void> {
             headingRad: s.state.headingRad,
             hp: damage?.hp ?? s.spec.hullHp,
             sinkingFraction: damage?.sinkingFraction ?? 0,
+            listRad: damage === undefined ? 0 : floodListRad(damage, s.spec.hullHp),
+            speedMps: s.state.speedMps,
           }
         }),
       // Plan 6b Task 8: the render-side twin of `ships` above, for the same
