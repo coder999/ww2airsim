@@ -64,7 +64,7 @@ describe('ModelEntrySchema', () => {
     expect(() => parseModelEntry({ ...kagero, skin: true, ship: { ...kagero.ship, materials: { hull: 'keep' } } })).toThrow(/keep and mask do not apply/)
   })
   it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified, mapped to a role or masked (DP2, M1d)', () => {
-    const essex: Record<string, unknown> = { ...JSON.parse(readFileSync('tools/models/entries/essex-cv.json', 'utf8')) as Record<string, unknown>, textures: { maxSize: 1024, format: 'webp' } }
+    const essex: Record<string, unknown> = { ...JSON.parse(readFileSync('tools/models/entries/zuikaku-cv.json', 'utf8')) as Record<string, unknown>, textures: { maxSize: 1024, format: 'webp' } } // a download carrier (Essex is a Blender model since M1f)
     expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 } }).boxSkin).toEqual({ atlasPx: 1024 })
     // M1d: a masked lattice keeps its own texture beside the skin; a kept texture still does not.
     expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), materials: { net: 'mask' } } }).boxSkin).toEqual({ atlasPx: 1024 })
@@ -137,8 +137,10 @@ describe('generated entries (O1)', () => {
       const { textures, ...rest } = e
       return (void textures, rest)
     }
+    // M1f (2026-10-09) rebuilt Mogami, Yamato, Cleveland and Essex in Blender: they leave this list.
+    const blender = new Set(loadModelEntries().filter((e) => e.source.kind === 'blender').map((e) => e.id))
     const now = loadModelEntries().filter((e) => e.source.kind === 'sketchfab' && beforeIds.has(e.id)).map(({ boxSkin, inputSha256, ...rest }) => (void boxSkin, void inputSha256, m1d(m1(c1(rest)))))
-    expect(now).toEqual(before.map((e) => m1d(m1(c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))))
+    expect(now).toEqual(before.filter((e) => !blender.has(e.id)).map((e) => m1d(m1(c1({ ...e, source: { kind: 'sketchfab', ...e.source } })))))
   })
 })
 

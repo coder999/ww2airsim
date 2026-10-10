@@ -57,6 +57,10 @@ _Avoid_: main guns, big guns
 An anti-aircraft gun position on a warship or a shore battery. Heavy mounts fire flak bursts at altitude; light mounts fire tracers at close range.
 _Avoid_: flak gun, AA gun, hardpoint
 
+**Ensign**:
+The national flag a warship flies at sea: the 48-star flag on US ships, the Rising Sun naval ensign on IJN warships. A merchant flies none, so it can serve either side.
+_Avoid_: flag (alone), colors
+
 **Difficulty**:
 The global player setting that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. A scenario's skill values are the baseline it shifts.
 _Avoid_: skill level, challenge

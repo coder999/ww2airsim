@@ -102,7 +102,12 @@ const ShipSpecObject = z
     /** Render-only; `sim/` never reads it (ship-models spec §3.1). `model` is a key of
      *  src/render/scene/shipModels.ts's registry. Optional: a spec without it is drawn
      *  as the procedural boxes, a supported state. */
-    view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase model id' }) }).strict().optional(),
+    view: z.object({
+      model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/, { message: 'must be a lowercase model id' }),
+      /** The ensign (Track M, M1f F2): which flag, the hoist's top corner in the ship frame, and the
+       *  fly length; the flag streams aft from there. A merchant flies none. */
+      ensign: z.object({ flag: z.enum(['us48', 'ijn-rising-sun']), at: z.tuple([finite, finite, finite]), flyM: positive }).strict().optional(),
+    }).strict().optional(),
     /** Every warship's guns (Track M); a merchant carries none. */
     armament: ArmamentObject.optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),

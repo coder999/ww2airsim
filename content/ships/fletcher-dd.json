@@ -9,7 +9,7 @@
   "maxSpeedMps": 18.8,
   "turnRateRadPerS": 0.05236,
   "hullHp": 160,
-  "view": { "model": "fletcher-dd" },
+  "view": { "model": "fletcher-dd", "ensign": { "flag": "us48", "at": [13.4, 23.5, 0], "flyM": 3.5 } },
   "armament": {
     "turrets": [
       {"x": 37.36, "y": 5.45, "z": 0, "bearingDeg": 0, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"},

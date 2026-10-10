@@ -1,0 +1,16 @@
+{
+  "id": "abukuma-cl",
+  "name": "Nagara-class light cruiser",
+  "kind": "ship",
+  "side": "japanese",
+  "spec": "abukuma-cl",
+  "blurb": "A destroyer-flotilla leader, planned as a hostile surface target.",
+  "history": "The six Nagara-class cruisers were built in the early 1920s to lead the Imperial Japanese Navy's destroyer flotillas: long, narrow, fast ships with seven 14 cm guns in single mounts and three raked funnels. Abukuma led the destroyers of the Pearl Harbor striking force in 1941.\n\nAt the Battle of Surigao Strait on 25 October 1944 she sailed with Vice Admiral Shima's force behind Nishimura's battleships, and a torpedo from PT-137 hit her near a boiler room. Bombed by Army aircraft the next day off Negros, she sank by the stern.",
+  "sources": [
+    {
+      "title": "Japanese cruiser Abukuma",
+      "url": "https://en.wikipedia.org/wiki/Japanese_cruiser_Abukuma",
+      "read": "2026-10-09"
+    }
+  ]
+}
