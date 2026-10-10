@@ -43,6 +43,8 @@ describe('zero-merge: F6F player against an AI Zero, head-on', () => {
       expect(Number.isFinite(r.opponentShots) && Number.isFinite(r.opponentHits)).toBe(true)
     }
     console.log('zero-merge runs', JSON.stringify(runs))
-    expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(1)
+    // Damage stages round 2 (2026-10-09): a fighter takes about three good bursts to set alight, so one
+    // head-on pass hits (0-11 hits a run, 7 of 8 runs hit, measured) but no longer kills inside 30 s.
+    expect(runs.filter((r) => r.hits > 0).length).toBeGreaterThanOrEqual(6)
   })
 })

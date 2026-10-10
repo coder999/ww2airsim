@@ -69,10 +69,12 @@ function burstOnReticle(rangeM: number): { hits: number; shots: number; killS: n
 }
 
 describe('the gunsight is harmonized with the guns (2026-09-25)', () => {
-  it.each([100, 200, 300, 400])('a target centered on the reticle at %i m is hit and killed by a 1 s burst', (rangeM) => {
+  // Hit, not killed: since damage stages round 2 (2026-10-09) a fighter takes about three good bursts
+  // to set alight (36 .50 hits on a Hellcat), so one 1 s burst at 100-400 m no longer always does.
+  // The claim here is the sight's: on the reticle, the rounds hit.
+  it.each([100, 200, 300, 400])('a target centered on the reticle at %i m is hit by a 1 s burst', (rangeM) => {
     const r = burstOnReticle(rangeM)
     expect(r.hits, `${rangeM} m: hits`).toBeGreaterThanOrEqual(12)
-    expect(r.killS, `${rangeM} m: time to kill`).not.toBeNull()
   })
 
   it('the reticle marks the mean impact of production rounds at convergence, within 0.02 degrees', () => {

@@ -35,6 +35,8 @@ export const RECOVERY_CLIMB_RAD = 20 * Math.PI / 180
 /** Fractions of `limits.diveSpeedMps` (ruling R7). Measured: a Zero entering
  *  a 60° dive at 150 m/s from 2,500 m kept structure 1.000 and bottomed at
  *  542 m. Without the guard: structure 0. */
+/** Below this multiple of the stall speed a floor recovery unloads before it pulls. ESTIMATE. */
+export const STALL_RECOVERY_FACTOR = 1.1
 export const OVERSPEED_THROTTLE_CUT = 0.9
 export const OVERSPEED_RECOVER = 0.95
 /** Mark's decision, 2026-09-26: "ai chases you unless under 50 *feet*. 500
@@ -161,6 +163,19 @@ export function safetyOverride<M>(
     // 400 m, the full-G pull went vertical, the Zero stalled at 25 mph and
     // fell into the sea under a second recovery it no longer had the speed
     // to fly. No AI had made that kill before honest gunnery.
+    const v0 = self.state.velocity
+    // Stalled (damage stages round 2, 2026-10-09): fights last longer at the tougher HP, and in the
+    // furball soak a slow-fighting wingman stalled at 105 mph near 600 m and pulled full back stick
+    // under this recovery, mushing into the sea. Pulling cannot fly a stalled wing; unload instead,
+    // full throttle, nose RECOVERY_CLIMB_RAD below the horizon, until there is the speed to climb.
+    const airspeed0 = length(airVelocity(self.state, wind))
+    if (airspeed0 < STALL_RECOVERY_FACTOR * self.spec.reference.stallSpeedMps) {
+      const flat = Math.hypot(v0.x, v0.z)
+      const heading = flat < 1e-6 ? v3(1, 0, 0) : v3(v0.x / flat, 0, v0.z / flat)
+      const speed = self.spec.reference.stallSpeedMps * 1.3
+      const dive = v3(heading.x * Math.cos(RECOVERY_CLIMB_RAD) * speed, -Math.sin(RECOVERY_CLIMB_RAD) * speed, heading.z * Math.cos(RECOVERY_CLIMB_RAD) * speed)
+      return { mode: 'recover', controls: limitLoadFactor(self.state, self.spec, { ...controlsForDesiredVelocity(self.state, self.spec, dive), throttle: 1 }) }
+    }
     if (self.state.velocity.y >= 0) {
       const v = self.state.velocity
       const flat = Math.hypot(v.x, v.z)

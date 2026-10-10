@@ -79,13 +79,21 @@ describe('the furball soak (7e spec §4.7)', () => {
     }
   })
 
-  it('resolves at least one AI-on-AI kill BY HITS (not just rounds fired), credited to the other side', () => {
+  // Damage stages round 2 (2026-10-09): fighters 4x tougher, and no AI-on-AI kill happens inside the
+  // 120 s soak any more (measured: the wingman's bounce lands 6 hits, structure 0.875, and the only
+  // kill is a bandit's on the hands-off player). What still holds is AI hitting AI across sides;
+  // AI-on-AI kills are pinned in the longer duels, tests/sim/ai/gunnery.test.ts.
+  it('resolves AI-on-AI hits across sides, and any AI-on-AI kill is BY HITS, credited to the other side', () => {
+    const hitAcross = ai.filter((victim) => {
+      const by = world.aircraft.find((a) => a.id === world.combat.aircraft[victim.id]!.lastHitBy)
+      return by?.pilot != null && sides[by.id] !== sides[victim.id] && world.combat.aircraft[victim.id]!.damage.structure < 1
+    })
+    expect(hitAcross.length).toBeGreaterThanOrEqual(1)
     const aiKills = ai.filter((victim) => {
       const d = world.combat.aircraft[victim.id]!.damage
       const killer = world.aircraft.find((a) => a.id === d.attacker)
       return d.destroyedAt !== null && killer?.pilot != null && sides[killer.id] !== sides[victim.id]
     })
-    expect(aiKills.length).toBeGreaterThanOrEqual(1)
     for (const victim of aiKills) {
       const killer = world.combat.aircraft[world.combat.aircraft[victim.id]!.damage.attacker!]!
       expect(killer.hits).toBeGreaterThan(0)
@@ -127,11 +135,12 @@ describe('the furball soak (7e spec §4.7)', () => {
   // ryzen's full parallel suite and 0.774 ms alone on nexus (2026-09-26), so
   // the suite's number is the other workers', not the sim's.
 
-  it.each(LOADOUTS)('the opening bounce kill holds with the player\'s %s loadout', (loadout) => {
+  it.each(LOADOUTS)('the opening bounce hit holds with the player\'s %s loadout', (loadout) => {
     let w = worldFromScenario(bundle, null, loadout)
     for (let i = 0; i < 5 * 60; i++) w = advance(w, DT).world
-    // Set alight in the opening bounce: since damage stages (2026-10-09) the explosion follows within BURN_S.
-    expect(isDoomed(w.combat.aircraft['bandit-2']!.damage)).toBe(true)
-    expect(w.combat.aircraft['bandit-2']!.damage.attacker).toBe('ally-1')
+    // Hit in the opening bounce. Since damage stages round 2 (2026-10-09) the bounce no longer sets it
+    // alight: 6 hits, a quarter of what a Zero takes to the fire line.
+    expect(w.combat.aircraft['bandit-2']!.lastHitBy).toBe('ally-1')
+    expect(w.combat.aircraft['bandit-2']!.damage.structure).toBeLessThan(1)
   })
 })

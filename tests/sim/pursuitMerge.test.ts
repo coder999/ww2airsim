@@ -54,7 +54,8 @@ describe.each([
     // 7/8, veteran 7/8 (kills 9.05-9.52 s). pursuit-range-veteran's motion
     // digest is unchanged from 7c Task 6 through Task 10, so the veteran's
     // drift came at or before Task 6. Asserted as a floor, not tuned to the
-    // count.
-    expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(6)
+    // count. Damage stages round 2 (2026-10-09): fighters 4x tougher, a kill is the fire, and one
+    // merge's burst seldom does it: 4/8 (pursuit-range) and 3/8 (-veteran) inside 30 s, measured.
+    expect(runs.filter((r) => r.killS !== null).length).toBeGreaterThanOrEqual(2)
   })
 })

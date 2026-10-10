@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { duel, type Geometry, type Skill } from '../../../tools/ai/duel.js'
-import { CURSORS_4 } from '../../../tools/ai/replica.js'
 
 /**
  * E1, gunnery honesty: AI-vs-AI fights end in kills. Two F6Fs each target the
@@ -26,12 +25,19 @@ import { CURSORS_4 } from '../../../tools/ai/replica.js'
  * row is unchanged). The sputtering target's pulsing thrust spoils a green's
  * lead, and the row was 2 of 8 to begin with. Mark's call whether it stays so.
  */
+const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
+// Damage stages round 2 (Mark, 2026-10-09): fighters 4x tougher, so about three good bursts set one
+// alight. Re-measured at 8 cursors (tools/ai/duel.ts), kills before -> after, mean time to kill:
+//   head-on  v-g 4 -> 3 (115 -> 127 s), v-v 3 -> 2 (115 -> 139 s), g-g 1 -> 0
+//   tail     v-g 8 -> 5 (51 -> 75 s),   v-v 1 -> 1 (107 -> 108 s), g-g 0 -> 0
+//   crossing v-g 5 -> 5 (49 -> 64 s),   v-v 5 -> 2 (71 -> 97 s),   g-g 0 -> 0
+// 32 of 72 duels resolved before, 23 after. Green against green resolves in none, so it stays out.
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
-  // geometry, a, b, cursors, kills, measured 2026-10-09 after the retune
-  ['head-on', 'veteran', 'green', CURSORS_4, 3],
-  ['tail', 'veteran', 'green', CURSORS_4, 4],
-  ['crossing', 'veteran', 'green', CURSORS_4, 3],
-  ['crossing', 'veteran', 'veteran', CURSORS_4, 3],
+  // geometry, a, b, cursors, kills, measured 2026-10-09 at round 2's HP
+  ['head-on', 'veteran', 'green', CURSORS_8, 3],
+  ['tail', 'veteran', 'green', CURSORS_8, 5],
+  ['crossing', 'veteran', 'green', CURSORS_8, 5],
+  ['crossing', 'veteran', 'veteran', CURSORS_8, 2],
 ]
 
 describe('E1: AI duels resolve by kills', () => {

@@ -26,7 +26,10 @@ describe('a passive player is shot down before point-blank range (7c spec §3.1,
   //   veteran: 834 / 485 / 413 / 436 (6.9-13.9 s, median 8.1 s), 12 hits each.
   //   green:   8 of 16 killed (6.2-19.4 s); the other 8 reached point-blank
   //            with 0-5 hits.
-  it('the veteran kills in every run, at a median near 8 s, and green kills fewer', () => {
+  // Damage stages round 2 (2026-10-09): fighters 4x tougher, a kill is the fire. Re-measured, same
+  // cursors: veteran 1035-1041 / 701-705 / 916-924 / 790-795 (11.7-17.4 s, median 14.4-15.3 s),
+  // 36-40 hits each; green 4 of 16 killed (17.8-18.5 s), the other 12 reached point-blank with 0-32.
+  it('the veteran kills in every run, at a median near 15 s, and green kills fewer', () => {
     const ticks: number[] = []
     let greenKills = 0
     for (const loadout of LOADOUTS) {
@@ -38,8 +41,8 @@ describe('a passive player is shot down before point-blank range (7c spec §3.1,
       }
     }
     const median = [...ticks].sort((a, b) => a - b)[ticks.length / 2]! / 60
-    expect(median).toBeGreaterThanOrEqual(6)
-    expect(median).toBeLessThanOrEqual(12)
+    expect(median).toBeGreaterThanOrEqual(10)
+    expect(median).toBeLessThanOrEqual(20)
     expect(greenKills).toBeLessThan(ticks.length)
   })
 })

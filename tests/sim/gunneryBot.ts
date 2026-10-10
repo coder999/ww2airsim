@@ -5,6 +5,7 @@ import { advance, withControls, type AircraftEntity, type World } from '../../sr
 import { qRotate } from '../../src/sim/math/quat.js'
 import { add, dot, length, normalize, scale, sub, v3, type Vec3 } from '../../src/sim/math/vec3.js'
 import { inBody, tupleVector } from '../../src/sim/weapons/geometry.js'
+import { isDoomed } from '../../src/sim/damage/model.js'
 import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
 
 /**
@@ -92,9 +93,10 @@ export function flyGunneryBot(start: World<undefined>, targetId: string, maxS: n
       if (firstChanceS === null) firstChanceS = t
     }
     const cm = w.combat.aircraft
-    if (cm[targetId]!.damage.destroyedAt !== null) { killS = t; break }
+    // On fire counts (damage stages): it is out of the fight, and explodes up to BURN_S later.
+    if (isDoomed(cm[targetId]!.damage)) { killS = t; break }
     const me2 = w.aircraft.find((a) => a.id === player)!
-    if (cm[player]!.damage.destroyedAt !== null || me2.state.position.y < 0) { playerLostS = t; break }
+    if (isDoomed(cm[player]!.damage) || me2.state.position.y < 0) { playerLostS = t; break }
   }
   const opponent = w.combat.aircraft[targetId]!
   return {
