@@ -29,6 +29,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'd3a-val': 'Object_20',
   // Whole-skin crown: the Ki-84 model is one skin node (ki84_dark) with no separate glazing node.
   'ki-84-frank': 'ki84_dark',
+  'tbm-3-avenger': 'tbm3_dark',
+  'b5n2-kate': 'b5n2_dark',
   // A single-skin airframe: ki21_dark is the whole skin; the glazed crown reads y 1.25 at x 2.6 to 3.4 (measured 2026-09-30), eye at x 3.0.
   'ki-21-sally': 'ki21_dark',
 }

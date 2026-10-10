@@ -23,9 +23,9 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
     expect(hidden).toEqual(['dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'recovery-range', 'takeoff-range'])
     expect(visibleScenarios(ctx(true))).toEqual(SCENARIO_OPTIONS)
   })
-  it('a carrier start offers the Hellcat, Wildcat and Corsair; Dev adds the Zero', () => {
-    expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
-    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
+  it('a carrier start offers the Hellcat, Wildcat, Corsair and Avenger; Dev adds the Zero', () => {
+    expect(ids(aircraftFor(ctx(false), 'deck-quals'))).toEqual(['f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'tbm-3-avenger'])
+    expect(ids(aircraftFor(ctx(true), 'deck-quals'))).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger'])
     // Dev lists every spec, so the land-based B-17, B-29, G4M and P-38 (carrierCapable false) show here and only here.
   })
   it('a mission starts on its own aircraft and recommended loadout', () => {
@@ -64,6 +64,10 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('the Ki-84, with racks and no rails, offers Clean and Bombs (Ki-84-Ia onboarding)', () => {
     expect(loadoutsFor(ctx(true), 'ki-84-frank')).toEqual(['clean', 'bombs'])
+  })
+  it('a torpedo plane, one rack and no rails, offers Clean and Bombs (the rack carries its torpedo; D1)', () => {
+    expect(loadoutsFor(ctx(true), 'tbm-3-avenger')).toEqual(['clean', 'bombs'])
+    expect(loadoutsFor(ctx(true), 'b5n2-kate')).toEqual(['clean', 'bombs'])
   })
   it('a bomber with racks and no rails offers Clean and Bombs, in Dev too', () => {
     expect(loadoutsFor(ctx(true), 'b-17-flying-fortress')).toEqual(['clean', 'bombs'])

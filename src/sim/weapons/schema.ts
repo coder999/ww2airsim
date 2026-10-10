@@ -42,7 +42,9 @@ export const CombatSpecSchema = z.object({
     group: z.enum(['leftGuns', 'rightGuns']),
     /** A key of `gunTypes`; absent means the top-level ballistic. */
     type: z.string().min(1).optional(),
-  }).strict()).min(1).max(16),
+  // Zero is allowed (D1): an airplane whose only gun is a flexible one (the B5N2 Kate) still has hit
+  // zones, so it can be shot down, and fires nothing forward.
+  }).strict()).min(0).max(16),
   zones: z.array(z.object({
     id: z.string().min(1),
     center: point,
@@ -58,7 +60,8 @@ export const CombatSpecSchema = z.object({
   }
   // The AI leads with the top-level muzzle velocity, so at least one mount
   // must actually fire that ballistic, or the AI aims for rounds nobody fires.
-  const primary = c.guns.some((g) => {
+  // An airplane with no fixed guns has nothing to lead with.
+  const primary = c.guns.length === 0 || c.guns.some((g) => {
     if (g.type === undefined) return true
     const t = c.gunTypes?.[g.type]
     return t !== undefined && t.muzzleVelocityMps === c.muzzleVelocityMps && t.dragPerM === c.dragPerM

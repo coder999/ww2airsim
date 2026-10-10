@@ -64,7 +64,7 @@ function run(spec: AircraftSpec, p: Projectile, ships: readonly CombatShip[]): C
   return combat
 }
 
-describe.each(ENROLLED.filter((s) => carriers.has(s)))('%s', (storeId) => {
+describe.each(ENROLLED)('%s', (storeId) => {
   const spec = carriers.get(storeId)!
   const t = spec.stores!.types[storeId]!
 

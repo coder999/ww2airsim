@@ -325,12 +325,14 @@ added here without a library file fails the suite. Design:
 | Boeing B-17 Flying Fortress | Player-flown, friendly AI, escort subject |
 | Boeing B-29 Superfortress | Player-flown, friendly AI, escort subject |
 | Vought F4U Corsair | Player-flown, friendly AI |
+| Grumman TBF/TBM Avenger | Player-flown torpedo bomber |
 | Mitsubishi A6M Zero | Hostile fighter |
 | Aichi D3A Val | Hostile fighter |
 | Nakajima Ki-43 Oscar | Hostile fighter |
 | Nakajima Ki-84 Frank | Hostile fighter, higher performance |
 | Mitsubishi G4M Betty | Hostile bomber, defensive gunners |
 | Mitsubishi Ki-21 Sally | Hostile bomber |
+| Nakajima B5N Kate | Hostile torpedo bomber |
 
 This roster mirrors the original's and should be confirmed against a primary
 source before art work begins; it currently derives from a secondary summary.

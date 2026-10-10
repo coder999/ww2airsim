@@ -35,7 +35,7 @@ const PIPPER_DEG = 1.0
 const RING_INNER_FRACTION = 0.72
 
 export function createGunPipper(spec: AircraftSpec): GunPipper | null {
-  if (spec.combat === undefined) return null
+  if (spec.combat === undefined || spec.combat.guns.length === 0) return null
   const h = gunHarmonization(spec.combat, spec.view.eyePointM)
   const outerRadiusM = h.rangeM * Math.tan((PIPPER_DEG * Math.PI) / 360)
   const material = new MeshBasicMaterial({

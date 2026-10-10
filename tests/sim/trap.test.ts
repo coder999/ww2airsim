@@ -126,5 +126,5 @@ describe.each(carrierCapable.map((spec) => [spec.id, spec] as const))('%s on the
 })
 
 it('the carrier-capable list is the five carrier airframes, so an empty filter cannot pass silently', () => {
-  expect(carrierCapable.map((spec) => spec.id).sort()).toEqual(['a6m2-zero', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat'])
+  expect(carrierCapable.map((spec) => spec.id).sort()).toEqual(['a6m2-zero', 'b5n2-kate', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'tbm-3-avenger'])
 })

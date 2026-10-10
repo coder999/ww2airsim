@@ -45,6 +45,8 @@ PALETTE = {
     'ijaGreen': (0x4B / 255, 0x55 / 255, 0x35 / 255),
     'underside': (0xA3 / 255, 0xA8 / 255, 0x9A / 255),
     'naturalMetal': (0xB4 / 255, 0xB8 / 255, 0xBC / 255),
+    # D1: the US Navy's 1944-45 overall Glossy Sea Blue, weathered (ESTIMATE: no chip read).
+    'seaBlue': (0x2A / 255, 0x34 / 255, 0x4C / 255),
     'glazing': (0x2E / 255, 0x3A / 255, 0x44 / 255),
     # Figures (V1): a US Army soldier's kit, each an ESTIMATE named in the figure script's header.
     'uniform': (0x5E / 255, 0x5B / 255, 0x3F / 255),
