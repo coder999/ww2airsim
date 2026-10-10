@@ -28,6 +28,8 @@ export type AttackOptions = {
   readonly maxS?: number
   /** Which side the ship is on; the raider is axis. */
   readonly shipSide?: 'allied' | 'axis'
+  /** The strip's side (default allied); the raider is axis. */
+  readonly stripSide?: 'allied' | 'axis'
 }
 
 export function attackWorld(o: AttackOptions): World<undefined> {
@@ -44,7 +46,7 @@ export function attackWorld(o: AttackOptions): World<undefined> {
   const strip = o.target === 'strip'
   const raw = {
     id: 'attack-bed', player: 'f6f-1', airfields: ['tacloban'],
-    ...(strip ? { airfieldSides: { tacloban: 'allied' } } : {}),
+    ...(strip ? { airfieldSides: { tacloban: o.stripSide ?? 'allied' } } : {}),
     aircraft: [
       { id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position: [60000, 3000, 60000], headingDeg: 90, speedMps: 120 } },
       {
@@ -76,11 +78,13 @@ export type AttackRun = {
   /** Ordnance that detonated ON the ship (a bomb that struck the hull, a torpedo that exploded on it); `hit` also counts blast. */
   readonly direct: number
   /** Per release: the time, the raider's height above the sea and speed, and (bombs) the impact's distance from the ship. */
-  readonly releases: readonly { readonly s: number; readonly heightM: number; readonly speedMps: number }[]
+  readonly releases: readonly { readonly s: number; readonly heightM: number; readonly speedMps: number; readonly rangeM: number; readonly doors: number }[]
   readonly impactMissM: readonly number[]
   readonly minHeightM: number
   readonly bombsLeft: number
   readonly torpedoesBrokeUp: number
+  /** Torpedoes that entered the water and ran. */
+  readonly torpedoesRan: number
   readonly lostS: number | null
   readonly endPhase: string
   readonly seconds: number
@@ -92,10 +96,11 @@ export function runAttack(o: AttackOptions): AttackRun {
   const id = `atk-${o.seed}`
   const maxTicks = Math.round((o.maxS ?? 260) / DT)
   const hp0 = w.combat.ships['dd-1']?.hp ?? 0
-  const releases: { s: number; heightM: number; speedMps: number }[] = []
+  const releases: { s: number; heightM: number; speedMps: number; rangeM: number; doors: number }[] = []
   const impactMiss: number[] = []
   let minH = Infinity
   let direct = 0
+  let ran = 0
   let dropped = 0
   let lostS: number | null = null
   let t = 0
@@ -107,16 +112,23 @@ export function runAttack(o: AttackOptions): AttackRun {
     const rec = w.combat.aircraft[id]!
     if (rec.bombsDropped > dropped) {
       dropped = rec.bombsDropped
-      releases.push({ s: t * DT, heightM: before.state.position.y, speedMps: Math.hypot(before.state.velocity.x, before.state.velocity.y, before.state.velocity.z) })
+      const ship = w.ships.find((x) => x.id === 'dd-1')
+      const c = ship?.state.position ?? w.airfields[0]!.runway.center
+      releases.push({
+        s: t * DT, heightM: before.state.position.y, speedMps: Math.hypot(before.state.velocity.x, before.state.velocity.y, before.state.velocity.z),
+        rangeM: Math.hypot(c.x - before.state.position.x, c.z - before.state.position.z), doors: before.state.bayDoorFraction,
+      })
     }
     for (const im of w.combat.impacts) {
       if (im.tick === w.tick && (im.cause === 'bomb') && im.outcome === 'detonated') {
         const s = w.ships.find((x) => x.id === 'dd-1')
-        const cx = s?.state.position.x ?? 0, cz = s?.state.position.z ?? 0
+        const c = w.airfields[0]!.runway.center
+        const cx = s?.state.position.x ?? c.x, cz = s?.state.position.z ?? c.z
         impactMiss.push(Math.hypot(im.point.x - cx, im.point.z - cz))
       }
     }
     for (const im of w.combat.impacts) {
+      if (im.tick === w.tick && im.cause === 'torpedo' && im.outcome === 'entered') ran++
       if (im.tick === w.tick && (im.cause === 'bomb' || im.cause === 'torpedo') && im.outcome === 'detonated' && im.surface === 'ship') direct++
     }
     if (rec0.damage.destroyedAt === null && rec.damage.destroyedAt !== null && lostS === null) lostS = t * DT
@@ -129,7 +141,7 @@ export function runAttack(o: AttackOptions): AttackRun {
   const a = aircraftById(w, id)!
   return {
     hpLost: hp0 - hp, hit: hp < hp0, direct, releases, impactMissM: impactMiss, minHeightM: minH,
-    bombsLeft: w.combat.aircraft[id]!.stores.bombs, torpedoesBrokeUp: w.combat.aircraft[id]!.torpedoesBrokeUp, lostS,
+    bombsLeft: w.combat.aircraft[id]!.stores.bombs, torpedoesBrokeUp: w.combat.aircraft[id]!.torpedoesBrokeUp, torpedoesRan: ran, lostS,
     endPhase: a.pilot?.decision.attack?.phase ?? 'none', seconds: t * DT, world: w,
   }
 }

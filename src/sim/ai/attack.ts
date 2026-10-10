@@ -67,8 +67,11 @@ export const RUN_HEIGHT_M = 45
 export const RUN_HEIGHT_PER_NOISE_M = 150
 /** Never lower than this above the ground the run is flying over, whatever the plan. */
 export const RUN_FLOOR_M = 22
-/** The run's descent rate from the approach altitude, m/s, and its look-ahead for high ground, s. */
+/** The run's descent rate from the approach altitude, m/s (it descends faster when the raid arrives close, up to the max),
+ *  the straight level run-in it wants before the drop (m), and its look-ahead for high ground, s. */
 export const RUN_DESCENT_MPS = 15
+export const RUN_DESCENT_MAX_MPS = 30
+export const RUN_LEVEL_RUN_IN_M = 2500
 export const RUN_LOOKAHEAD_S = 3
 /** The run's speed is held under the drop envelope's by this fraction. */
 export const RUN_SPEED_FRACTION = 0.85
@@ -89,8 +92,9 @@ export const LEVEL_RUN_IN_M = 4000
 export const EGRESS_RANGE_M = 4000
 export const EGRESS_MAX_S = 90
 
-/** The sight error and the delay, per second of the pilot's reaction time (E1's skill, reused). */
-export const SIGHT_ERROR_RAD_PER_REACTION_S = 0.02
+/** The sight error and the delay, per second of the pilot's reaction time (E1's skill, reused). A torpedo is launched
+ *  from a mile off at a long target, so its sight is the worse (the same miss in radians counts for less against it). */
+export const SIGHT_ERROR_RAD_PER_REACTION_S: Readonly<Record<AttackKind, number>> = { 'dive-bomb': 0.02, 'level-bomb': 0.02, torpedo: 0.04, kamikaze: 0.02 }
 export const LATE_FRACTION = 0.5
 
 /** What an attack run flies at: a ship (read live, moving) or a ground point. */
@@ -129,10 +133,10 @@ export function attackExemptFromFloor(kind: AttackKind | undefined, s: AttackSta
   return s.phase === 'pullout' || (s.phase === 'dive') || (kind === 'torpedo' && s.phase === 'run')
 }
 
-function newRun(a: Pick<AircraftEntity, 'pilot'>, decision: PilotDecisionState, nowS: number, runs: number): AttackState {
+function newRun(a: Pick<AircraftEntity, 'pilot'>, kind: AttackKind, decision: PilotDecisionState, nowS: number, runs: number): AttackState {
   const skill = a.pilot!.skill
   const cursor = (decision.noiseCursor + Math.imul(runs, 0x9e3779b1)) >>> 0
-  const sight = aimErrorDraw(cursor, SIGHT_ERROR_RAD_PER_REACTION_S * skill.reactionS)
+  const sight = aimErrorDraw(cursor, SIGHT_ERROR_RAD_PER_REACTION_S[kind] * skill.reactionS)
   const late = aimErrorDraw((cursor ^ 0x1b873593) >>> 0, 1)
   return {
     phase: 'approach', sinceS: nowS, runs, sight,
@@ -180,7 +184,7 @@ export function attackFlight<M>(
   let st = decision.attack
   if (st === undefined && rec.stores.bombs <= 0) return null
   const nowS = ctx.nowS
-  st ??= newRun(a, decision, nowS, 1)
+  st ??= newRun(a, kind, decision, nowS, 1)
 
   const p = a.state.position, v = a.state.velocity
   const gs = Math.hypot(v.x, v.z)
@@ -211,7 +215,7 @@ export function attackFlight<M>(
     const away = rangeH >= (kind === 'torpedo' ? EGRESS_RANGE_M * 0.75 : EGRESS_RANGE_M)
     const climbed = kind === 'torpedo' || bombsLeft === 0 || p.y >= appAlt - 300
     if ((away && climbed) || nowS - st.sinceS >= EGRESS_MAX_S) {
-      const next = bombsLeft > 0 ? newRun(a, decision, nowS, st.runs + 1) : enter(st, 'done', nowS)
+      const next = bombsLeft > 0 ? newRun(a, kind, decision, nowS, st.runs + 1) : enter(st, 'done', nowS)
       return { controls: hold(), attack: next }
     }
     const h = st.egressHeadingRad
@@ -255,12 +259,14 @@ export function attackFlight<M>(
   // ---------------------------------------------------------------- dive
   if (st.phase === 'dive') {
     const slant = Math.hypot(rangeH, heightT)
-    const tFall = clamp(slant / Math.max(speed, 60), 0, 20)
     const off = sightOffset(st, slant, los)
-    // The aim: the target led for its motion, and off by the pilot's sight error.
-    const aimX = target.x + target.vx * tFall + off.across.x + off.along.x
-    const aimZ = target.z + target.vz * tFall + off.across.z + off.along.z
+    const releaseH = RELEASE_HEIGHT_M + RELEASE_HEIGHT_GREEN_EXTRA_M * clamp((skill.reactionS - 0.3) / 0.7, 0, 1)
     const impact = predictImpact(a.spec, a.state, rec.stores, ctx.terrain, ctx.wind, ctx.decks)
+    // The aim: where the target will be when the bomb lands (the rest of the dive down to the release height,
+    // then the bomb's fall), and off by the pilot's sight error.
+    const tHit = (impact?.timeS ?? Math.sqrt((2 * Math.max(heightT, 1)) / G)) + Math.max(0, (heightT - releaseH) / Math.max(-v.y, 30))
+    const aimX = target.x + target.vx * tHit + off.across.x + off.along.x
+    const aimZ = target.z + target.vz * tHit + off.across.z + off.along.z
     // The pipper trim: walk the dive angle until the bomb dropped now would land on the aim.
     let trimRad = st.trimRad
     let along = 0
@@ -273,7 +279,6 @@ export function attackFlight<M>(
     const radius = (speed * speed) / (G * Math.max(0.5, pullLoad - 1))
     const lossM = radius * (1 - Math.cos(Math.max(0, gamma)))
     const abort = heightGround <= lossM + PULLOUT_MARGIN_M
-    const releaseH = RELEASE_HEIGHT_M + RELEASE_HEIGHT_GREEN_EXTRA_M * clamp((skill.reactionS - 0.3) / 0.7, 0, 1)
     const sane = closing && gamma > rad(25) && impact !== null
     let armed = st.armedSinceS
     if (armed === null && sane && heightT <= releaseH && Math.abs(along) <= RELEASE_TOLERANCE_M) armed = nowS
@@ -336,7 +341,8 @@ export function attackFlight<M>(
   const maxH = type.maxDropHeightM ?? Infinity
   const runSpeed = Math.min(cruise.speedMps, RUN_SPEED_FRACTION * maxSpeed)
   const climbing = lowAbove < RUN_FLOOR_M * 1.6
-  const desired = levelVelocity(a, aimX - p.x, aimZ - p.z, runSpeed, climbing ? Math.max(runH, p.y - heightGround + RUN_FLOOR_M * 2) : runH, -RUN_DESCENT_MPS, 10)
+  const descent = clamp(((p.y - runH) * Math.max(gs, 30)) / Math.max(rangeH - standoff - RUN_LEVEL_RUN_IN_M, 500), 5, RUN_DESCENT_MAX_MPS)
+  const desired = levelVelocity(a, aimX - p.x, aimZ - p.z, runSpeed, climbing ? Math.max(runH, p.y - heightGround + RUN_FLOOR_M * 2) : runH, -Math.max(descent, RUN_DESCENT_MPS * 0), 10)
   const throttle = goalThrottle(a, runSpeed)
   const rangeA = Math.hypot(aimX - p.x, aimZ - p.z)
   const toEntry = rangeA - entryM

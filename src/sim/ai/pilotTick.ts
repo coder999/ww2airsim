@@ -273,7 +273,9 @@ function flyPilot<M>(
   // E2: an attack pilot at its destination leg flies the attack run where the orbit would be, and
   // its leg index stays put; with the order absent (every raider before E2) none of this runs.
   let attacking: AttackFlight | null = null
+  let attackWas: PilotDecisionState['attack']
   if (target === null && pilot.ingress?.attack !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed' && decision.legIndex >= pilot.ingress.route.length) {
+    attackWas = decision.attack
     attacking = attackFlight(a, pilot.ingress, decision, ctx)
     if (attacking !== null) decision = { ...decision, attack: attacking.attack }
   }
@@ -298,7 +300,7 @@ function flyPilot<M>(
   // (its fix and go-around are below the trigger); overspeed still applies.
   // A -Infinity trigger is one no height or sink rate can reach.
   const flyingRecovery = decision.mode === 'rtb' || decision.mode === 'landed'
-  const floorM = (flyingRecovery && exemptFromFloor(decision.recovery)) || (attacking !== null && attackExemptFromFloor(pilot.ingress?.attack, decision.attack))
+  const floorM = (flyingRecovery && exemptFromFloor(decision.recovery)) || (attacking !== null && (attackExemptFromFloor(pilot.ingress?.attack, attackWas) || attackExemptFromFloor(pilot.ingress?.attack, decision.attack)))
     ? Number.NEGATIVE_INFINITY : floorTriggerM(pursuedHeightM)
   const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind, floorM)
   if (override !== null) {
