@@ -1,5 +1,6 @@
 # B2: the bomb and rocket impact predictor
 
+**Status (2026-10-10):** built on branch `b2-impact-predictor`; results in [`../../handoff/2026-10-10-b2-impact-predictor.md`](../../handoff/2026-10-10-b2-impact-predictor.md).
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode:** unattended.
 **Location:** a worktree (`/home/mark/projects/ww2airsim-b2`, branch `b2-impact-predictor`, cut from `main` `9070c285`).
