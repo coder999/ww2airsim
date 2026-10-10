@@ -120,7 +120,7 @@ import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
-import { buildStructures } from '../sim/weapons/structures.js'
+import { rebuildStructures } from '../sim/weapons/structures.js'
 import { airVelocity, step, DT } from '../sim/flight/model.js'
 import { stepChecked } from '../sim/invariants.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../sim/world/terrain.js'
@@ -553,7 +553,7 @@ async function boot(): Promise<void> {
       ...w,
       aircraft: skilledAircraft,
       terrain,
-      structures: buildStructures(w.airfields, terrain),
+      structures: rebuildStructures(w.structures, w.airfields, terrain),
     }
     return override
       ? withAircraftState(

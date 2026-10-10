@@ -48,6 +48,23 @@ export function buildStructures(
   return out
 }
 
+/**
+ * The same structures with their heights read from `terrain`, KEEPING each one's `side`. The browser has no terrain
+ * at boot, so `withTerrain` (frame.ts) and `buildWorld` (main.ts) rebuild the list when the field arrives; building
+ * it anew dropped the sides `createWorldOf` stamped (friendly-fire spec §2), which read as axis everywhere through
+ * `sideOf`. Found 2026-10-10, when M2 made a battery's side decide who it shoots: Tacloban's own AAA fired at the
+ * Hellcat taking off from it.
+ */
+export function rebuildStructures(
+  previous: readonly StructureEntity[], airfields: readonly Airfield[], terrain: TerrainField | null,
+): readonly StructureEntity[] {
+  const sides = new Map(previous.map((s) => [s.id, s.side]))
+  return buildStructures(airfields, terrain).map((s) => {
+    const side = sides.get(s.id)
+    return side === undefined ? s : { ...s, side }
+  })
+}
+
 export type StructureDamage = {
   readonly hp: number
   readonly destroyedTick: number | null
