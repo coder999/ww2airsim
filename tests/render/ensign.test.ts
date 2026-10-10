@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { Group, Mesh, Object3D } from 'three'
-import { ENSIGN_ASPECT, ensignColor, ensignTexture, ensignWaveZ, createEnsign } from '../../src/render/scene/ensign.js'
+import { ENSIGN_ASPECT, ENSIGN_WAVE, ensignColor, ensignTexture, ensignWaveZ, createEnsign } from '../../src/render/scene/ensign.js'
 import { createShipView } from '../../src/render/scene/ship.js'
 import { createModelCache } from '../../src/render/models/modelCache.js'
 import { loadShipSpec } from '../../tools/content/load.js'
@@ -43,7 +43,7 @@ describe('the ensigns drawn', () => {
     for (const t of [0, 0.4, 3]) expect(ensignWaveZ(0, t)).toBe(0)
     const a = ensignWaveZ(1, 0), b = ensignWaveZ(1, 0.3)
     expect(Math.abs(a - b)).toBeGreaterThan(0.01)
-    expect(Math.max(...Array.from({ length: 50 }, (_, k) => Math.abs(ensignWaveZ(1, k / 10))))).toBeLessThanOrEqual(0.06)
+    expect(Math.max(...Array.from({ length: 50 }, (_, k) => Math.abs(ensignWaveZ(1, k / 10))))).toBeLessThanOrEqual(ENSIGN_WAVE.amplitude)
   })
 })
 

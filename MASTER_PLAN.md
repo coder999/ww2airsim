@@ -258,7 +258,7 @@ one plan for the lot.
 
 Mark's items (2026-10-08): better ship models, turrets that work and fire, and AA on every warship.
 - **Today** (verified 2026-10-08):
-  - 10 ship classes. Pennsylvania, Kagero and Casablanca are our own Blender models (`tools/models/blender/*.py`); the other 7 are Sketchfab downloads (`ASSETS.md`).
+  - 10 ship classes. Pennsylvania, Kagero and Casablanca are our own Blender models (`tools/models/blender/*.py`); the other 7 are Sketchfab downloads (`ASSETS.md`). (Since M1f, 2026-10-09: 12 classes, eight of them Blender models.)
   - Only Pennsylvania (`Turret1..4`) and Kagero (`Turret1..2`) have separate turret nodes. Most downloads are one merged mesh.
   - Nothing fires at the player except enemy aircraft. Ground `aaa` structures are targets only (`sim/weapons/structures.ts`), and ships have no guns.
   - Ships have one `hullHp` pool (Track D).
@@ -272,6 +272,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - **M1c (done 2026-10-09,** merge `83e23729`, handoff `docs/handoff/2026-10-09-m1c-ship-detail.md`): our three Blender ships gain railings, rigging, rounded deckhouses and a committed high-poly bake (AO and detail normals, Cycles on Ryzen's GPU), with deck planks or linoleum and porthole rust. Budgets unchanged.
      - **M1d (done 2026-10-09,** merge `3265b8e7`, handoff `docs/handoff/2026-10-09-m1d-download-detail.md`): five of the six downloaded warships (Yamato, Mogami, Cleveland, Essex, Fletcher) get M1c's baked AO and detail and the same weathering, through a non-overlapping island atlas built in the TS pipeline. Shiratsuyu keeps its author's textures, which read better than the skin did. Essex's light AA is cut to four 40 mm quads, two per side (Mark: balance, not history). Budgets unchanged.
      - **M1e (done 2026-10-09,** merge `74c33b60`, handoff `docs/handoff/2026-10-09-m1e-zuikaku.md`): the first Japanese carrier, Zuikaku as at Leyte, from KTKloss's Shōkaku (CC BY 4.0). She is armed to match Essex (eight twin 12.7 cm and four triple 25 mm; Mark: balance, not history), camouflaged, baked like M1d, and landable: every carrier now runs the arcade trap tests.
+     - **M1f (done 2026-10-09,** handoff `docs/handoff/2026-10-09-m1f-ship-rebuilds.md`): Mogami, Yamato, Cleveland and Essex are rebuilt in Blender to Fletcher's level (stepped bridges with framed windows, real funnels, railings, rigging, baked detail), replacing their downloads; Abukuma (Nagara class, Surigao Strait) is added; every warship flies its waving ensign and the Maru flies none; Shiratsuyu measured right at 107.5 m.
   2. **M2 AA fire (M).** Ships and ground AAA share one system:
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;

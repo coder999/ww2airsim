@@ -1,6 +1,6 @@
 import { DataTexture, DoubleSide, Mesh, PlaneGeometry, SRGBColorSpace, LinearMipmapLinearFilter } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { float, positionLocal, sin, time, vec3 } from 'three/tsl'
+import { float, positionLocal, sin, uniform, vec3 } from 'three/tsl'
 import type { ShipSpec } from '../../sim/world/ships.js'
 
 /**
@@ -87,8 +87,13 @@ export function ensignTexture(flag: EnsignFlag): DataTexture {
 }
 
 /** The wave: a traveling sine across the cloth, zero at the hoist and growing to the fly. ESTIMATES:
- *  1.6 rad/s, 1.5 waves along the fly, an amplitude of 6% of the fly length at the fly. */
-export const ENSIGN_WAVE = { radPerS: 1.6 * Math.PI, waves: 1.5, amplitude: 0.06 } as const
+ *  1.6 rad/s, 1.5 waves along the fly, an amplitude of 8% of the fly length at the fly. */
+export const ENSIGN_WAVE = { radPerS: 1.6 * Math.PI, waves: 1.5, amplitude: 0.08 } as const
+
+/** The waving clock, seconds: one uniform every ensign reads, set by whoever draws them (the game with
+ *  wall time, the Hangar with its own clock, which stops when it freezes, so pixel checks hold still). */
+const ensignClock = uniform(0)
+export function setEnsignTime(seconds: number): void { ensignClock.value = seconds }
 
 /** Sideways (z) displacement at fraction u of the fly (0 hoist, 1 fly) at time t, in fly lengths: the
  *  CPU statement of the material's positionNode below, which tests read against each other. */
@@ -105,7 +110,7 @@ export function createEnsign(spec: ShipSpec): Mesh<PlaneGeometry, MeshStandardNo
   geometry.translate(-fly / 2, -hoist / 2, 0) // the hoist's top corner at the origin, streaming aft
   const material = new MeshStandardNodeMaterial({ map: ensignTexture(e.flag), side: DoubleSide, roughness: 0.9, metalness: 0 })
   const u = positionLocal.x.negate().div(fly)
-  const wave = sin(time.mul(ENSIGN_WAVE.radPerS).sub(u.mul(2 * Math.PI * ENSIGN_WAVE.waves))).mul(u).mul(float(ENSIGN_WAVE.amplitude * fly))
+  const wave = sin(ensignClock.mul(ENSIGN_WAVE.radPerS).sub(u.mul(2 * Math.PI * ENSIGN_WAVE.waves))).mul(u).mul(float(ENSIGN_WAVE.amplitude * fly))
   material.positionNode = vec3(positionLocal.x, positionLocal.y, positionLocal.z.add(wave))
   const flag = new Mesh(geometry, material)
   flag.name = 'ensign'
