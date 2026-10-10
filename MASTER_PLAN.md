@@ -153,11 +153,11 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 1. **Gunnery honesty (M).** Lead on relative velocity, drop compensation and per-skill aim error. **This blocks almost every combat mission:** AI-vs-AI fights don't end in kills, and M4's interceptors can't shoot raiders down.
    - **Done 2026-10-09, merged to `main`** (veterans toned down and green strengthened per Mark's rulings the same day). Plan `docs/superpowers/plans/2026-10-09-e1-gunnery.md`; handoff `docs/handoff/2026-10-09-e1-gunnery.md`. AI duels now end in kills (26 of 72 duels, from 3); a straight-flying player survives a veteran a median 8 s; green rarely kills a maneuvering target.
 2. **Attack behaviors (M):**
-   - **Done 2026-10-10 (E2, merged to `main`):** `pilot.ingress.attack` is an opt-in order (`dive-bomb`, `torpedo`, `level-bomb`, `kamikaze`); absent, a raider orbits as before. Dive-bombing, torpedo runs and level bombing of a ship or a strip are flown and calibrated (green hits less than veteran). **Kamikaze** is a fast dive that lets its bomb go at point-blank range and ends in the sea beside the hull (the sim has no aircraft-into-ship collision; that rule is open, Kamikaze Watch itself is not built). No shipped mission uses the order yet. The AI's kamikaze run is still this bomb-at-point-blank approximation; a real-collision rework is parked on branch `ship-collision-kamikaze-wip`. Plan `docs/superpowers/plans/2026-10-10-e2-attack-ai.md`; handoff `docs/handoff/2026-10-10-e2-attack-ai.md`; test bed: the Dev scenario `attack-range`.
+   - **Done 2026-10-10 (E2, merged to `main`):** `pilot.ingress.attack` is an opt-in order (`dive-bomb`, `torpedo`, `level-bomb`); absent, a raider orbits as before. Dive-bombing, torpedo runs and level bombing of a ship or a strip are flown and calibrated (green hits less than veteran). No shipped mission uses the order yet. There is no kamikaze run: Mark dropped it 2026-10-10 (no AI flies into a ship on purpose; see the struck item below). Plan `docs/superpowers/plans/2026-10-10-e2-attack-ai.md`; handoff `docs/handoff/2026-10-10-e2-attack-ai.md`; test bed: the Dev scenario `attack-range`.
    - ~~**Dive-bombing** first, as the D3A exists and bombs already work.~~
    - ~~**Torpedo runs** after Track D.~~
    - **Air-to-ship collision (2026-10-10):** an airplane that collides with a ship is destroyed and the ship loses hull points (`src/sim/shipCollision.ts`; handoff `docs/handoff/2026-10-10-ship-collision.md`).
-   - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ Flown (above); the mission is not built.
+   - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ **Dropped for now (Mark, 2026-10-10): no AI flies into a ship on purpose.** The first attempt is parked on branch `ship-collision-kamikaze-wip`. An airplane that hits a ship by accident is destroyed and damages it all the same (the collision rule, `src/sim/shipCollision.ts`).
    - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
 4. **Fixes:**
@@ -172,7 +172,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - 6 missions and 6 ranges ship.
   - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
-  - Three more missions are designed in GAMEPLAY.md and not built: Escort, Flattop Hunt, Kamikaze Watch.
+  - Three more missions are designed in GAMEPLAY.md and not built: Escort, Flattop Hunt, Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 
   | Mission | Needs |
@@ -180,7 +180,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | ~~Single Combat~~ | done 2026-10-09 (F2) |
   | ~~Scramble~~ | done 2026-10-09 (F2) |
   | Escort | E1, E3 (bombers to escort) |
-  | Kamikaze Watch | E2 (kamikaze behavior) |
+  | Kamikaze Watch | deferred: needs an intentional kamikaze run, which Mark dropped 2026-10-10 |
   | Flattop Hunt | a Japanese carrier model; D for the full version |
   | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
 
@@ -366,7 +366,7 @@ prerequisites are met.
 | 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire~~ done by 2026-10-10; B3, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation~~ done 2026-10-10 (L1.1), then trees; K in-cloud pacing | |
-| 6 | ~~E2 attack AI; C2 bomb bays~~ done; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
+| 6 | ~~E2 attack AI; C2 bomb bays~~ done; E3 bombers and turrets; F Escort (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |

@@ -211,22 +211,7 @@ describe('who is attacked', () => {
   })
 })
 
-describe('kamikaze run (Zero with its bombs)', () => {
-  const rs = runs({ kind: 'kamikaze', spec: 'a6m2-zero', skill: 'green', altitudeM: 2000, speedMps: 130 }, 6)
-
-  it('dives on the hull, lets its bombs go at point-blank range, and ends in the sea; the ship is hit', () => {
-    for (const r of rs) {
-      expect(r.releases.length).toBe(2)
-      for (const rel of r.releases) expect(rel.rangeM).toBeLessThan(200)
-      expect(r.lostS, 'the airplane is lost').not.toBeNull()
-      expect(r.world.aircraft.find((a) => a.id.startsWith('atk-'))!.impact).not.toBeNull()
-      expect(r.direct).toBeGreaterThanOrEqual(1)
-    }
-  })
-})
-
 const kinds: AttackKind[] = ['dive-bomb', 'torpedo', 'level-bomb']
-// (kamikaze is flown too; its state is checked above)
 describe('the run is written to the pilot\'s state only for an attacker', () => {
   it.each(kinds)('%s', (kind) => {
     const spec = kind === 'torpedo' ? 'b5n2-kate' : kind === 'dive-bomb' ? 'd3a-val' : 'ki-21-sally'

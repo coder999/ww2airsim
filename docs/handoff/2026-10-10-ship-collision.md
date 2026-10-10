@@ -36,9 +36,9 @@ Measured on ryzen (`remote-run`), the Range Test world (8 airplanes, 7 ships; I 
 
 None. E2's attack suite (`tests/sim/ai/attack.test.ts`, 31 tests) and the sweep inputs are untouched and green: dive-bombers and torpedo planes are never near a hull at low level except by the existing bomb and torpedo paths, and AI pilots do not avoid ships (out of scope). The raiders in `attack-range` that fly into a ship now die and hurt it, which the suite already tolerates.
 
-## NOT done: the E2 kamikaze rework
+## The E2 kamikaze run: dropped
 
-Mark ruled it out of scope for now. The kamikaze run is still the bomb-at-point-blank approximation (E2 ruling R5). A rework to a committed dive that ends in the collision is parked on branch `ship-collision-kamikaze-wip` (37def798): it drops the release, needs no rack, and the first sweep hit 24 of 24 anchored for both skills, while against a ship making 13 mph the veteran hit 17 of 24 and the green 22 of 24 (it needs a skill lever). `MASTER_PLAN.md` says so on the E2 bullet. Kamikaze Watch is not built.
+Mark ruled 2026-10-10 that nothing flies into a ship on purpose, so E2's kamikaze run was removed from `attack.ts`, the scenario schema and its tests. The collision rule above still applies to any airplane that hits a ship by accident (a low pass, a bad pull-out, a mis-flown torpedo or bomb run). The unfinished rework toward a committed dive is parked on branch `ship-collision-kamikaze-wip` (37def798) and can be revived if Mark changes the ruling.
 
 ## Tests and verification
 
@@ -66,7 +66,7 @@ Mark ruled it out of scope for now. The kamikaze run is still the bomb-at-point-
 
 ## Open
 
-- The kamikaze rework (above), and its skill lever.
+- The kamikaze run: dropped by ruling (above), not open work.
 - A 13-ship scenario was not found; the Range Test has 7.
 - Frame time under `hwlock ryzen-budget` not measured.
 - The island, bridge and funnel boxes are estimates, not read from the models.

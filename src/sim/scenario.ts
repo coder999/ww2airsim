@@ -68,7 +68,7 @@ const IngressObject = z.object({
   destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id }).strict()]).optional(),
   /** E2: what the raider does on arrival at its destination: a dive-bombing, torpedo or level-bombing
    *  run on it (the airplane is armed with its full racks). Absent: orbit it, as every raider before E2. */
-  attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb', 'kamikaze']).optional(),
+  attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb']).optional(),
 }).strict().refine((i) => i.attack === undefined || i.destination !== undefined, {
   message: 'attack needs a destination: a ship or an airfield to attack', path: ['attack'],
 })

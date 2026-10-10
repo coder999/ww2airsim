@@ -23,9 +23,10 @@ import { heightAboveGround, heightAboveGroundAt, loadFactorBudget } from './safe
  *   dive-bomb   approach -> dive -> pullout -> egress -> (approach again while a bomb is left | done)
  *   torpedo     approach -> run  -> egress -> (approach again while a torpedo is left | done)
  *   level-bomb  approach -> run  -> egress -> (approach again while a bomb is left | done)
- *   kamikaze    approach -> dive, never out of it: a fast shallow dive at the hull, the bomb let go at point-blank
- *               range, and on into the ship. The sim has no aircraft-into-ship collision, so the blow is the airplane's
- *               own bomb and the airplane ends in the sea beside the hull (ruling R5; the collision itself is open).
+ *
+ * There is no kamikaze run (Mark, 2026-10-10): no AI flies into a ship on purpose. An airplane that hits a ship
+ * by accident is destroyed and damages it all the same (`src/sim/shipCollision.ts`). The first attempt at a
+ * kamikaze run is parked on the git branch `ship-collision-kamikaze-wip`.
  *
  * The pilot errs like any gunner (E1): a sight error drawn once per run, an angle that grows with
  * range, and a delay before he presses the pickle. Both come from his reaction time, so a green
@@ -91,25 +92,13 @@ export const TORPEDO_ALIGN_RAD = rad(4)
 /** Level bombing. */
 export const LEVEL_RUN_IN_M = 4000
 
-/** Kamikaze. */
-export const KAMIKAZE_DIVE_MIN_RAD = rad(15)
-export const KAMIKAZE_DIVE_MAX_RAD = rad(50)
-/** The dive starts from at least this height over the target, and rolls in on a 30 degree line. */
-export const KAMIKAZE_MIN_HEIGHT_M = 400
-export const KAMIKAZE_ENTRY_ABOVE_TARGET_M = 1200
-export const KAMIKAZE_DIVE_RAD = rad(30)
-export const KAMIKAZE_ROLL_IN_ALLOWANCE_M = 600
-export const KAMIKAZE_SPEED_FRACTION = 0.9
-/** The bomb is let go inside this horizontal range of the hull, m. */
-export const KAMIKAZE_RELEASE_RANGE_M = 150
-
 /** Every kind: the egress runs this far from the target before the next pass (or the end). */
 export const EGRESS_RANGE_M = 4000
 export const EGRESS_MAX_S = 90
 
 /** The sight error and the delay, per second of the pilot's reaction time (E1's skill, reused). A torpedo is launched
  *  from a mile off at a long target, so its sight is the worse (the same miss in radians counts for less against it). */
-export const SIGHT_ERROR_RAD_PER_REACTION_S: Readonly<Record<AttackKind, number>> = { 'dive-bomb': 0.02, 'level-bomb': 0.02, torpedo: 0.04, kamikaze: 0.02 }
+export const SIGHT_ERROR_RAD_PER_REACTION_S: Readonly<Record<AttackKind, number>> = { 'dive-bomb': 0.02, 'level-bomb': 0.02, torpedo: 0.04 }
 export const LATE_FRACTION = 0.5
 
 /** What an attack run flies at: a ship (read live, moving) or a ground point. */
@@ -197,8 +186,8 @@ export function attackFlight<M>(
   const store = storeTypeOf(a.spec, kind === 'torpedo' ? 'torpedo' : 'bomb')
   if (store === null || (kind === 'torpedo') !== (store.kind === 'torpedo')) return null
   let st = decision.attack
-  // A kamikaze needs no bomb to dive; the other kinds have nothing to do without one (the orbit, as before E2).
-  if (st === undefined && rec.stores.bombs <= 0 && kind !== 'kamikaze') return null
+  // Without a bomb the raider has nothing to do but the orbit, as before E2.
+  if (st === undefined && rec.stores.bombs <= 0) return null
   const nowS = ctx.nowS
   st ??= newRun(a, kind, decision, nowS, 1)
 
@@ -259,14 +248,6 @@ export function attackFlight<M>(
       const goal = { x: target.x, z: target.z, altitudeM: alt, speedMps: cruise.speedMps }
       return { controls: fly(goalDesiredVelocity(a, goal, null), goalThrottle(a, cruise.speedMps)), attack: st }
     }
-    if (kind === 'kamikaze') {
-      const alt = Math.max(cruise.altitudeM, target.y + KAMIKAZE_ENTRY_ABOVE_TARGET_M)
-      if (heightT >= KAMIKAZE_MIN_HEIGHT_M && closing && rangeH <= heightT / Math.tan(KAMIKAZE_DIVE_RAD) + KAMIKAZE_ROLL_IN_ALLOWANCE_M) {
-        return attackFlight(a, orders, { ...decision, attack: enter(st, 'dive', nowS) }, ctx)
-      }
-      const goal = { x: target.x, z: target.z, altitudeM: alt, speedMps: cruise.speedMps }
-      return { controls: fly(goalDesiredVelocity(a, goal, null), goalThrottle(a, cruise.speedMps)), attack: st }
-    }
     if (kind === 'level-bomb') {
       if (rangeH <= LEVEL_RUN_IN_M && closing) return attackFlight(a, orders, { ...decision, attack: enter(st, 'run', nowS) }, ctx)
       const goal = { x: target.x, z: target.z, altitudeM: cruise.altitudeM, speedMps: cruise.speedMps }
@@ -281,19 +262,6 @@ export function attackFlight<M>(
   }
 
   // ---------------------------------------------------------------- dive
-  if (st.phase === 'dive' && kind === 'kamikaze') {
-    // Straight at the hull, led for its motion; no sight error to speak of at this range, no trim, no pull-out.
-    const slant = Math.hypot(rangeH, heightT)
-    const tHit = slant / Math.max(speed, 60)
-    const aimX = target.x + target.vx * tHit, aimZ = target.z + target.vz * tHit
-    const dh = Math.hypot(aimX - p.x, aimZ - p.z) || 1
-    const want = KAMIKAZE_SPEED_FRACTION * diveVne
-    const g = clamp(Math.atan2(p.y - target.y, dh), KAMIKAZE_DIVE_MIN_RAD, KAMIKAZE_DIVE_MAX_RAD)
-    const desired = v3(((aimX - p.x) / dh) * Math.cos(g) * want, -Math.sin(g) * want, ((aimZ - p.z) / dh) * Math.cos(g) * want)
-    const controls = dive(desired, speed > 0.85 * diveVne ? 0 : 1)
-    const release = rangeH <= KAMIKAZE_RELEASE_RANGE_M && bombsLeft > 0 && !bayDoorsShut(a.spec, a.state.bayDoorFraction)
-    return { controls: release ? { ...controls, dropBomb: true } : controls, attack: st }
-  }
   if (st.phase === 'dive') {
     const slant = Math.hypot(rangeH, heightT)
     const off = sightOffset(st, slant, los)

@@ -177,7 +177,7 @@ export type IngressOrders = {
 }
 
 /** E2: the attack runs (`attack.ts`). */
-export type AttackKind = 'dive-bomb' | 'torpedo' | 'level-bomb' | 'kamikaze'
+export type AttackKind = 'dive-bomb' | 'torpedo' | 'level-bomb'
 /** E2: where an attack run is. `dive`, `run` and `pullout` are committed (no fighter pre-empts them, no generic floor). */
 export type AttackPhase = 'approach' | 'dive' | 'run' | 'pullout' | 'egress' | 'done'
 /** E2: an attack pilot's run, written by `attack.ts` only. Plain data. */
