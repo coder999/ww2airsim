@@ -11,15 +11,34 @@ export type Damage = Readonly<Record<DamageSystem, number>> & {
   readonly burningSince: number | null
   readonly destroyedAt: number | null
   readonly attacker: string | null
+  /** Each engine's health, port to starboard, on a multi-engine airplane only
+   *  (damage stages round 2); `engine` is then their mean, what thrust and
+   *  every single-engine reader see. Absent on a single-engine airplane. */
+  readonly engines?: readonly number[]
 }
-export const healthyDamage = (): Damage => ({
+export const healthyDamage = (engineCount = 1): Damage => ({
   structure: 1, engine: 1, roll: 1, pitch: 1, yaw: 1, fuel: 1,
   leftGuns: 1, rightGuns: 1, burningSince: null, destroyedAt: null, attacker: null,
+  ...(engineCount > 1 ? { engines: Array<number>(engineCount).fill(1) } : {}),
 })
 
-/** Structure at or below which the airframe catches fire. ESTIMATE: a Zero
- *  (80 HP, 10 per .50 hit) burns after its sixth hit and explodes on its
- *  eighth, a Hellcat (120 HP) burns after its ninth. */
+/** How many engines `spec`'s hit zones name: the indexed engine zones', or one. */
+export function engineCountOf(spec: AircraftSpec): number {
+  const indices = (spec.combat?.zones ?? []).flatMap((z) => z.system === 'engine' && z.engine !== undefined ? [z.engine] : [])
+  return indices.length === 0 ? 1 : Math.max(...indices) + 1
+}
+
+/** Every engine's health: `engines`, or the one `engine`. */
+export const engineHealths = (d: Damage): readonly number[] => d.engines ?? [d.engine]
+
+const mean = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length
+/** `d` with its engines replaced, and `engine` their mean. */
+const withEngines = (d: Damage, engines: readonly number[]): Damage =>
+  d.engines === undefined ? { ...d, engine: engines[0]! } : { ...d, engines, engine: mean(engines) }
+
+/** Structure at or below which the airframe catches fire. ESTIMATE. With
+ *  round 2's HP (a Zero 320, a Hellcat 480, 10 per .50 hit) a Zero burns on
+ *  its 24th hit and a Hellcat on its 36th. */
 export const FIRE_AT_STRUCTURE = 0.25
 /** Seconds a fire takes to burn FIRE_AT_STRUCTURE down to an explosion. ESTIMATE. */
 export const BURN_S = 15
@@ -42,18 +61,41 @@ export function idSeed(id: string): number {
   return h >>> 0
 }
 
-/**
- * The engine's power fraction this tick: health above the sputter line, cut
- * to zero in a growing share of SPUTTER_WINDOW_S windows below it, nothing
- * once stalled, burning or destroyed. Deterministic in (tick, id), so replay
- * and the audio hear the same cuts the sim flew.
- */
-export function engineOutput(d: Damage, tick: number, id: string, dt: number): number {
-  if (d.burningSince !== null || d.destroyedAt !== null || d.engine < ENGINE_DEAD_BELOW) return 0
-  if (d.engine >= SPUTTER_BELOW) return d.engine
-  const cut = SPUTTER_MAX_CUT * (SPUTTER_BELOW - d.engine) / (SPUTTER_BELOW - ENGINE_DEAD_BELOW)
+/** One engine's power fraction this tick, from its health: as is above the
+ *  sputter line, cut to zero in a growing share of SPUTTER_WINDOW_S windows
+ *  below it, nothing once stalled. Deterministic in (tick, seed). */
+function stageOutput(health: number, tick: number, seed: number, dt: number): number {
+  if (health < ENGINE_DEAD_BELOW) return 0
+  if (health >= SPUTTER_BELOW) return health
+  const cut = SPUTTER_MAX_CUT * (SPUTTER_BELOW - health) / (SPUTTER_BELOW - ENGINE_DEAD_BELOW)
   const window = Math.floor((tick * dt) / SPUTTER_WINDOW_S)
-  return createRng((idSeed(id) ^ Math.imul(window, 0x9e3779b1)) >>> 0)() < cut ? 0 : d.engine
+  return createRng((seed ^ Math.imul(window, 0x9e3779b1)) >>> 0)() < cut ? 0 : health
+}
+
+/**
+ * Each engine's power fraction this tick (`stageOutput`), port to starboard;
+ * all zero burning or destroyed. Deterministic in (tick, id, engine), so
+ * replay and the audio hear the same cuts the sim flew, and two engines of
+ * one bomber do not cut out together.
+ */
+export function engineOutputs(d: Damage, tick: number, id: string, dt: number): readonly number[] {
+  const healths = engineHealths(d)
+  if (d.burningSince !== null || d.destroyedAt !== null) return healths.map(() => 0)
+  return d.engines === undefined
+    ? [stageOutput(d.engine, tick, idSeed(id), dt)]
+    : healths.map((h, i) => stageOutput(h, tick, idSeed(`${id}#${i}`), dt))
+}
+
+/** The airplane's power fraction this tick: its engines' outputs, averaged.
+ *  A bomber that has lost one of four engines flies on at three quarters. */
+export const engineOutput = (d: Damage, tick: number, id: string, dt: number): number => mean(engineOutputs(d, tick, id, dt))
+
+/** How much smoke the airframe trails, 0..1 (damage stages round 2, Mark):
+ *  light, then heavy, then black as structure falls from whole to the fire
+ *  line, or as an engine is shot up, whichever is worse. */
+export function smokeLevel(d: Damage, engineHealth = d.engine): number {
+  const structural = (1 - d.structure) / (1 - FIRE_AT_STRUCTURE)
+  return Math.min(1, Math.max(0, structural, 1 - engineHealth))
 }
 
 /**
@@ -81,21 +123,28 @@ export function withStructure(before: Damage, structure: number, tick: number, a
 /** `hitScale` (A6M spec §5) multiplies the target's `damagePerHit` for one
  *  round: a 20 mm shell is 3, a 7.7 mm bullet 0.4. Default 1 is every hit
  *  before per-gun types, bit for bit (x * 1 === x). */
-export function damageFromHit(spec: AircraftSpec, before: Damage, system: DamageSystem, tick: number, attacker: string, hitScale = 1): Damage {
+export function damageFromHit(spec: AircraftSpec, before: Damage, system: DamageSystem, tick: number, attacker: string, hitScale = 1, engine?: number): Damage {
   const c = spec.combat
   if (c === undefined || before.destroyedAt !== null || before.burningSince !== null) return before
   const amount = c.damagePerHit * hitScale
   const after = withStructure(before, Math.max(0, before.structure - amount / c.structureHp), tick, attacker)
-  return { ...after, [system]: Math.max(0, before[system] - amount / c.subsystemHp) }
+  const loss = amount / c.subsystemHp
+  if (system !== 'engine') return { ...after, [system]: Math.max(0, before[system] - loss) }
+  // An engine hit goes to the engine whose zone it struck (zone `engine`, port to starboard).
+  const healths = engineHealths(before)
+  const hit = engine !== undefined && engine < healths.length ? engine : 0
+  return withEngines(after, healths.map((h, i) => i === hit ? Math.max(0, h - loss) : h))
 }
 
 /** One tick of damage that needs no hit: a hit engine running down
  *  (`engineDecayPerS`), and a fire burning the airframe out over BURN_S. */
 export function ageDamage(spec: AircraftSpec, damage: Damage, dt: number, tick = 0): Damage {
   if (damage.destroyedAt !== null || spec.combat === undefined) return damage
-  const aged = damage.engine === 1 || damage.engine === 0
+  const healths = engineHealths(damage)
+  const decay = spec.combat.engineDecayPerS
+  const aged = healths.every((h) => h === 1 || h === 0)
     ? damage
-    : { ...damage, engine: Math.max(0, damage.engine - (1 - damage.engine) * spec.combat.engineDecayPerS * dt) }
+    : withEngines(damage, healths.map((h) => h === 1 || h === 0 ? h : Math.max(0, h - (1 - h) * decay * dt)))
   if (aged.burningSince === null) return aged
   return withStructure(aged, Math.max(0, aged.structure - (FIRE_AT_STRUCTURE / BURN_S) * dt), tick, null)
 }

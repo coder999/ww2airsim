@@ -17,11 +17,11 @@ export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
-  'kill.air', 'engine.smoke', 'aircraft.fire', 'ship.fire', 'structure.collapse',
+  'kill.air', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
-export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'aircraft.fire', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor']
+export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor']
 
 const range = z.tuple([z.number().nonnegative(), z.number().nonnegative()]).refine(([a, b]) => a <= b, 'range must be [min, max]')
 const emitterSchema = z.object({
@@ -131,7 +131,10 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { ...ejecta(30), direction: 'sphere', spreadDeg: 180, speedMps: [8, 30], lifeS: [3, 5], sizeM: [0.9, 0.6], tint: [0.06, 0.06, 0.07], dragPerS: 0.2, streakS: 0.04 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [4, 7], speedMps: [1, 3], direction: 'sphere', spreadDeg: 180, sizeM: [3.5, 16], alpha: 0.7, tint: SMOKE, dragPerS: 0.6, accelYMps2: 0.8 }], source: ESTIMATE },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
-  'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.4, 6.9], alpha: 0.6, tint: [0.14, 0.15, 0.17], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6)' },
+  // Damage stages round 2: grey, light at low intensity and heavy at high (rate follows intensity);
+  // smoke.black joins it for the last stretch before the fire (events.ts SMOKE_BLACK_FROM).
+  'engine.smoke': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 14, lifeS: [2, 3.5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [1.4, 6.9], alpha: 0.6, tint: [0.3, 0.3, 0.32], dragPerS: 1.5, accelYMps2: 0.5, inheritVelocity: 0.15 }], source: 'smoke.ts smokeAppearance (estimate, Plan 6); grey from damage stages round 2' },
+  'smoke.black': { emitters: [{ mode: 'stream', sheet: 'smoke', ratePerS: 16, lifeS: [3, 5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [2.2, 9], alpha: 0.75, tint: [0.05, 0.05, 0.06], dragPerS: 1.2, accelYMps2: 0.5, inheritVelocity: 0.12 }], source: 'estimate (damage stages round 2): engine.smoke, black and bigger' },
   // Plan E2 Ruling R8: the HVAR's motor, at its nozzle while it burns (events.ts ROCKET_BURN_S).
   // 90% inherited velocity leaves a plume of about 5 m behind a 300 m/s rocket.
   'rocket.motor': { emitters: [

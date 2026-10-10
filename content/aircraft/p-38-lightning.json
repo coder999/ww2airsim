@@ -310,8 +310,8 @@
     "dragPerM": 0.00015,
     "damagePerHit": 10,
     "roundDamage": 4,
-    "structureHp": 120,
-    "subsystemHp": 40,
+    "structureHp": 480,
+    "subsystemHp": 160,
     "fuelLeakKgPerS": 0.5,
     "engineDecayPerS": 0.05,
     "gunTypes": {
@@ -383,6 +383,7 @@
     "zones": [
       {
         "id": "left-engine",
+        "engine": 0,
         "center": [
           1.7,
           -0.05,
@@ -397,6 +398,7 @@
       },
       {
         "id": "right-engine",
+        "engine": 1,
         "center": [
           1.7,
           -0.05,
@@ -522,6 +524,6 @@
         "system": "roll"
       }
     ],
-    "source": "Armament: four .50 in M2 Browning machine guns with 500 rounds each and one 20 mm cannon with 150 rounds, all in the nose: Pilot's Flight Operating Instructions, Army Models P-38H, P-38J, P-38L-1 and L-5 (AN 01-75-1, 1944), Section IX (SOURCED, primary), read 2026-09-29. .50 rate of fire 850 rpm and muzzle velocity 2,900 ft/s (883.92 m/s) from Popular Science, Jan 1944, quoted in English Wikipedia 'Lockheed P-38 Lightning' (SOURCED, secondary), with the M2's 750 to 850 rpm range from 'M2 Browning machine gun'; the fleet's .50 dragPerM 0.00015 is the Hellcat's (ESTIMATE, same weapon). The 20 mm is 650 rpm and 2,850 ft/s (869 m/s) from the same P-38 article and 'Hispano-Suiza HS.404' (SOURCED, secondary); no P-38 cannon type exists in the fleet, so its dragPerM 0.000125 and hitScale 3.0 are the Zero's type-99 20 mm values (ESTIMATE, the nearest existing type: the Zero's type is a slower Japanese round, this one is the faster British-design M2 cannon). Convergence 343 m is the midpoint of the sourced 350 to 400 yd (320 to 366 m) gunsight-manual figure (DERIVED). Gun positions come from the drawn nose (tools/models/blender/p-38-lightning.py: barrels 0.60 m behind the nose tip, four .50 at z +/-0.115 and +/-0.075, the cannon on the centerline), not from an installation drawing (ESTIMATE). The cannon is assigned to the left group only because the schema needs a group. Dispersion, lifetime, per-hit damage, HP (120 structure, 40 subsystem, the Hellcat's values regardless of mass), fuel-leak and engine-decay rates, and every hit zone are gameplay ESTIMATES; the zones approximate the drawn booms, pod and tail, not a sourced structure. No penetration model."
+    "source": "Armament: four .50 in M2 Browning machine guns with 500 rounds each and one 20 mm cannon with 150 rounds, all in the nose: Pilot's Flight Operating Instructions, Army Models P-38H, P-38J, P-38L-1 and L-5 (AN 01-75-1, 1944), Section IX (SOURCED, primary), read 2026-09-29. .50 rate of fire 850 rpm and muzzle velocity 2,900 ft/s (883.92 m/s) from Popular Science, Jan 1944, quoted in English Wikipedia 'Lockheed P-38 Lightning' (SOURCED, secondary), with the M2's 750 to 850 rpm range from 'M2 Browning machine gun'; the fleet's .50 dragPerM 0.00015 is the Hellcat's (ESTIMATE, same weapon). The 20 mm is 650 rpm and 2,850 ft/s (869 m/s) from the same P-38 article and 'Hispano-Suiza HS.404' (SOURCED, secondary); no P-38 cannon type exists in the fleet, so its dragPerM 0.000125 and hitScale 3.0 are the Zero's type-99 20 mm values (ESTIMATE, the nearest existing type: the Zero's type is a slower Japanese round, this one is the faster British-design M2 cannon). Convergence 343 m is the midpoint of the sourced 350 to 400 yd (320 to 366 m) gunsight-manual figure (DERIVED). Gun positions come from the drawn nose (tools/models/blender/p-38-lightning.py: barrels 0.60 m behind the nose tip, four .50 at z +/-0.115 and +/-0.075, the cannon on the centerline), not from an installation drawing (ESTIMATE). The cannon is assigned to the left group only because the schema needs a group. Dispersion, lifetime, per-hit damage, HP (120 structure, 40 subsystem, the Hellcat's values regardless of mass), fuel-leak and engine-decay rates, and every hit zone are gameplay ESTIMATES; the zones approximate the drawn booms, pod and tail, not a sourced structure. No penetration model. Damage stages round 2 (Mark, 2026-10-09): structureHp and subsystemHp are 4x the values above, every fighter alike so the Japanese-fragile ratio holds. Mark asked for about three good bursts from first hit to fire; a 0.25 s burst from the pursuit autopilot lands 11-18 .50 hits on a straight-flying Zero (measured), so at 4x a Zero burns on its 24th hit, about two such bursts. 5x halved the AI duel kills, so 4x it is (docs/handoff/2026-10-09-aircraft-damage-stages.md, Round 2)."
   }
 }

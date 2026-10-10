@@ -64,7 +64,7 @@ export function figuresFor(entry: CatalogEntry): Figure[] {
     out.push(withNote({ label: 'Top speed', value: `${int(a.reference.topSpeedMps * MPH_PER_MPS)} mph at ${int(a.reference.topSpeedAltitudeM * FT_PER_M)} ft` }, flight))
     out.push(withNote({ label: 'Stall speed, clean', value: `${int(a.reference.stallSpeedMps * MPH_PER_MPS)} mph` }, flight))
     out.push(withNote({ label: 'Load limit', value: `${one(a.limits.gLimit)} g` }, flight))
-    if (a.combat) {
+    if (a.combat && a.combat.guns.length > 0) {
       const rounds = a.combat.guns.reduce((sum, g) => sum + g.rounds, 0)
       out.push({ label: 'Guns', value: `${a.combat.guns.length}, ${int(rounds)} rounds` })
     }

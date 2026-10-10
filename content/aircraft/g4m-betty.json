@@ -139,5 +139,151 @@
       "type98-no25": {"kind": "bomb", "massKg": 241, "dragAreaM2": 0.036, "fillerKg": 96, "damage": 48, "blastRadiusM": 22, "armS": 0.5, "lifetimeS": 60, "dragPerM": 1.5e-05}
     },
     "source": "Two bomb racks INSIDE the fuselage hull, in tandem on the centerline (z 0) under the wing center section, lugs at y -0.30 m and x -1.7 and +0.3 m so the type98-no25 mesh (bottom 0.355 m below its lug, 1.80 m long) stays inside the drawn round hull (tests/tools/models/internalBay.test.ts holds every store above the belly and below the crown); no racks are drawn on the outside and the bombs drop with no bay doors (Mark, 2026-09-29, D7; bay doors are a later plan). The positions are ESTIMATES. HISTORIC LOAD: the G4M1's standard load is one 800 kg (1,764 lb) bomb or torpedo, or 4 x 250 kg, or 12 x 60 kg, carried in the internal bay under the wing center section, with no doors when a torpedo is carried (English Wikipedia 'Mitsubishi G4M', Pacific War Online Encyclopedia, read 2026-09-29; the torpedo mass conflicts, 800 vs 858 kg). The racks carry two Type 98 No. 25 250 kg bombs = 482 kg (1,063 lb): two of the historic 4 x 250 kg, and 60 percent of the 800 kg bomb by mass. The store is the Type 98 No. 25 250 kg land bomb, type98-no25 (V2, Mark, 2026-10-09): 241 kg all-up and 96 kg filler, SOURCED (English Wikipedia 'List of Japanese World War II navy bombs', from TM 9-1985-4, read 2026-10-09); its drag, damage and blast figures are DERIVED from the fleet's AN-M65 ESTIMATES (see a6m2-zero.json stores.source). A load count above 8 would be capped at the 8 racks, which does not arise here. The bomb mass and drag are added to emptyKg by storesSpec, so the loaded airplane is above the graded card's testMassKg; the cards are graded clean."
+  },
+  "combat": {
+    "roundsPerMinute": 750,
+    "muzzleVelocityMps": 870,
+    "dragPerM": 0.00015,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 2,
+    "structureHp": 480,
+    "subsystemHp": 100,
+    "fuelLeakKgPerS": 3.0,
+    "engineDecayPerS": 0.05,
+    "guns": [],
+    "zones": [
+      {
+        "id": "engine-1",
+        "center": [
+          1.8,
+          0.04,
+          -4.48
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 0
+      },
+      {
+        "id": "engine-2",
+        "center": [
+          1.8,
+          0.04,
+          4.48
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 1
+      },
+      {
+        "id": "forward-fuselage",
+        "center": [
+          2.9,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          5.5,
+          1.3,
+          1.1
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "wing-tanks",
+        "center": [
+          0.4,
+          0.04,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          0.5,
+          4.48
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "aft-fuselage",
+        "center": [
+          -6.15,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          3.55,
+          1.2,
+          1.1
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "tailplane",
+        "center": [
+          -10.7,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          4.96
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "fin",
+        "center": [
+          -10.7,
+          1.6,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          1.1,
+          0.3
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-wing",
+        "center": [
+          0.4,
+          0.04,
+          -8.44
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          3.96
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-wing",
+        "center": [
+          0.4,
+          0.04,
+          8.44
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          3.96
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 480 is 1.5x the Zero (320) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 100 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 3.0 (no self-sealing tanks). No fixed guns: the gunners are not modeled (turret aim is visual only), so `guns` is empty and the ballistic fields are placeholders nothing fires. Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll."
   }
 }

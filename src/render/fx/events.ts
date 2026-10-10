@@ -7,6 +7,7 @@ import { add, length, scale, v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
 import type { CombatState } from '../../sim/weapons/combat.js'
 import type { CombatImpact } from '../../sim/weapons/impacts.js'
 import type { RecipeId } from './catalog.js'
+import { engineHealths, smokeLevel } from '../../sim/damage/model.js'
 
 /**
  * Sim state -> effect events (ordnance-and-effects design §3.2). Pure. One
@@ -29,7 +30,11 @@ export const NO_FX_MEMORY: FxMemory = { lastTick: 0, lastImpactTick: 0, seenCras
 export type FxWorldView = {
   readonly tick: number
   readonly combat: Pick<CombatState, 'impacts' | 'aircraft' | 'ships' | 'structures' | 'projectiles'>
-  readonly aircraft: readonly { readonly id: string; readonly impact: Impact | null; readonly state: { readonly velocity: Vec3 } }[]
+  readonly aircraft: readonly {
+    readonly id: string; readonly impact: Impact | null; readonly state: { readonly velocity: Vec3 }
+    /** For a multi-engine airplane's engine points; absent reads as single-engine. */
+    readonly spec?: { readonly combat?: { readonly zones: readonly { readonly center: readonly [number, number, number]; readonly system: string; readonly engine?: number | undefined }[] } | undefined }
+  }[]
   /** Parallel to `aircraft`: this frame's interpolated poses (frame.ts `posesFor`). */
   readonly poses: readonly RenderState[]
   /** World metres, per ship id: the view's smoke origin (Ruling R13). */
@@ -42,6 +47,16 @@ export type FxWorldView = {
 export const KILL_TRAIL_S = 20
 /** Strike design §4: "a 60 s fading smoke column". */
 export const COLLAPSE_SMOKE_S = 60
+/** Smoke level above which black smoke joins the grey: the last stretch before the fire. ESTIMATE. */
+export const SMOKE_BLACK_FROM = 0.7
+
+/** Each engine's point, body frame, port to starboard: an indexed engine zone's center (a
+ *  multi-engine airplane, damage stages round 2), or none. */
+function enginePointsBody(a: FxWorldView['aircraft'][number]): Vec3[] {
+  const zones = (a.spec?.combat?.zones ?? []).filter((z) => z.system === 'engine' && z.engine !== undefined)
+  return [...zones].sort((p, q) => p.engine! - q.engine!).map((z) => v3(z.center[0], z.center[1], z.center[2]))
+}
+
 /** Where engine smoke leaves the airframe, body frame (+x nose): smoke.ts's
  *  first puff, `(3.2, 0.7, 0)`, carried over unchanged. */
 export const ENGINE_SMOKE_OFFSET_BODY: Vec3 = v3(3.2, 0.7, 0)
@@ -109,15 +124,30 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
       // The wreck falls burning (damage stages, 2026-10-09), all the way down.
       if (a.impact === null) sustained.push({ key: `fire:${a.id}`, recipe: 'aircraft.fire', intensity: 1, position: pose.position, velocity: a.state.velocity })
     } else if (a.impact === null && rec.damage.burningSince !== null) {
+      // From the worst engine: a bomber burns at a nacelle, a fighter at its nose.
+      const healths = engineHealths(rec.damage)
+      const worst = healths.indexOf(Math.min(...healths))
+      const at = enginePointsBody(a)[worst] ?? ENGINE_SMOKE_OFFSET_BODY
       sustained.push({
         key: `fire:${a.id}`, recipe: 'aircraft.fire', intensity: 1,
-        position: add(pose.position, qRotate(pose.attitude, ENGINE_SMOKE_OFFSET_BODY)), velocity: a.state.velocity,
+        position: add(pose.position, qRotate(pose.attitude, at)), velocity: a.state.velocity,
       })
-    } else if (a.impact === null && rec.damage.engine < 1) {
-      sustained.push({
-        key: `engine:${a.id}`, recipe: 'engine.smoke', intensity: 1 - clamp01(rec.damage.engine),
-        position: add(pose.position, qRotate(pose.attitude, ENGINE_SMOKE_OFFSET_BODY)), velocity: a.state.velocity,
-      })
+    } else if (a.impact === null) {
+      // Damage stages round 2 (Mark): smoke follows overall damage, light, then heavy, then black
+      // just before the fire. A multi-engine airplane smokes from each hit engine, and from the
+      // fuselage for its structure.
+      const points = enginePointsBody(a)
+      const smoke = (key: string, level: number, body: Vec3): void => {
+        if (level <= 0) return
+        const position = add(pose.position, qRotate(pose.attitude, body))
+        sustained.push({ key, recipe: 'engine.smoke', intensity: level, position, velocity: a.state.velocity })
+        if (level > SMOKE_BLACK_FROM) sustained.push({ key: `${key}:black`, recipe: 'smoke.black', intensity: (level - SMOKE_BLACK_FROM) / (1 - SMOKE_BLACK_FROM), position, velocity: a.state.velocity })
+      }
+      if (rec.damage.engines === undefined) smoke(`engine:${a.id}`, smokeLevel(rec.damage), ENGINE_SMOKE_OFFSET_BODY)
+      else {
+        rec.damage.engines.forEach((h, i) => smoke(`engine:${a.id}#${i}`, clamp01(1 - h), points[i] ?? ENGINE_SMOKE_OFFSET_BODY))
+        smoke(`engine:${a.id}`, smokeLevel({ ...rec.damage, engine: 1 }), ZERO)
+      }
     }
   })
 

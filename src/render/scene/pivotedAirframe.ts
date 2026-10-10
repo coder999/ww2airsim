@@ -196,7 +196,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     }
     freeVisuals = visuals.release
   }
-  let propRad = 0
+  const propRad: number[] = []
   const stick = { roll: 0, pitch: 0, yaw: 0 }
   // Damage stages (2026-10-09): what breaks away in a mid-air explosion, and where each sits whole.
   const loose = [...bound.props, ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
@@ -207,8 +207,10 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
     parts: stores === undefined ? rigParts(rig) : [...rigParts(rig), 'stores'],
     setStores: (b, r) => { hung?.setStores(b, r) },
     update(u): void {
-      propRad = propAngle(propRad, u.throttle, u.frameS)
-      for (const p of bound.props) p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad))
+      bound.props.forEach((p, i) => {
+        propRad[i] = propAngle(propRad[i] ?? 0, u.propThrottles?.[i] ?? u.throttle, u.frameS)
+        p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad[i]!))
+      })
       for (const g of bound.gear) g.posed.node.quaternion.copy(turnedAbout(g.posed.rest, g.posed.axis, gearAngleRad(g.rig, u.gearFraction)))
       // Bay doors (C2): the sim's door fraction, about each door's own hinge.
       const doorRad = (Math.min(1, Math.max(0, Number.isFinite(u.bayDoorFraction) ? u.bayDoorFraction : 0)) * BAY_DOOR_OPEN_DEG * Math.PI) / 180

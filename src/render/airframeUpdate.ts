@@ -5,7 +5,7 @@ import type { Controls } from '../sim/flight/state.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { qRotate, type Quat } from '../sim/math/quat.js'
 import { sideOf, type Side } from '../sim/sides.js'
-import { engineOutput, idSeed, type Damage } from '../sim/damage/model.js'
+import { engineOutputs, idSeed, isDoomed, type Damage } from '../sim/damage/model.js'
 import { DT } from '../sim/flight/model.js'
 
 /**
@@ -33,12 +33,15 @@ export function airframeUpdateFor(
 ): AirframeUpdate {
   const controls = playerControls ?? aircraft.controls
   const exploded = damage?.destroyedAt ?? null
-  const running = damage === null || engineOutput(damage, tick, id, DT) > 0
+  const outputs = damage === null ? [1] : engineOutputs(damage, tick, id, DT)
+  const prop = (output: number): number => aircraft.impact !== null || exploded !== null ? 0 : output > 0 ? controls.throttle : WINDMILL_THROTTLE
   return {
     gearFraction: aircraft.state.gearFraction,
     flapFraction: aircraft.state.flapFraction,
     bayDoorFraction: aircraft.state.bayDoorFraction,
-    throttle: aircraft.impact !== null || exploded !== null ? 0 : running ? controls.throttle : WINDMILL_THROTTLE,
+    throttle: prop(Math.max(...outputs)),
+    // A multi-engine airplane's props each follow their own engine (damage stages round 2).
+    propThrottles: outputs.length > 1 ? outputs.map(prop) : null,
     debris: exploded === null ? null : { ageS: (tick - exploded) * DT, seed: idSeed(id) },
     controls: { roll: controls.roll, pitch: controls.pitch, yaw: controls.yaw },
     frameS,
@@ -55,21 +58,27 @@ export const TURRET_TRACK_RANGE_M = 1500
 /**
  * Where aircraft `index`'s turrets point this frame (turret aim plan, 2026-10-09): the nearest
  * hostile aircraft within TURRET_TRACK_RANGE_M, as a unit direction in its own body frame, or null
- * (stowed) when there is none or it is a wreck. Wrecks are never targets. Visual only: no gun fires.
+ * (stowed) when there is none or it is a wreck, burning or exploded. Those are never targets either.
+ * Visual only: no gun fires, so a burning bomber's gunners have nothing to stop.
  */
 export function turretAimFor(
-  world: { readonly player: string; readonly aircraft: readonly (Pick<AircraftEntity, 'id' | 'impact'> & { readonly side?: Side })[] },
+  world: {
+    readonly player: string; readonly aircraft: readonly (Pick<AircraftEntity, 'id' | 'impact'> & { readonly side?: Side })[]
+    /** Combat records: a burning or exploded airplane neither aims nor is aimed at (damage stages round 2). */
+    readonly combat?: { readonly aircraft: Readonly<Record<string, { readonly damage: Damage }>> }
+  },
   poses: readonly { readonly position: Vec3; readonly attitude: Quat }[],
   index: number,
 ): Vec3 | null {
   const me = world.aircraft[index]!
-  if (me.impact !== null) return null
+  const doomed = (id: string): boolean => { const d = world.combat?.aircraft[id]?.damage; return d !== undefined && isDoomed(d) }
+  if (me.impact !== null || doomed(me.id)) return null
   const mine = sideOf(world, me)
   const at = poses[index]!.position
   let best: Vec3 | null = null
   let bestM = TURRET_TRACK_RANGE_M
   world.aircraft.forEach((a, i) => {
-    if (i === index || a.impact !== null || sideOf(world, a) === mine) return
+    if (i === index || a.impact !== null || doomed(a.id) || sideOf(world, a) === mine) return
     const p = poses[i]!.position
     const d = { x: p.x - at.x, y: p.y - at.y, z: p.z - at.z }
     const m = Math.hypot(d.x, d.y, d.z)

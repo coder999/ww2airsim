@@ -114,8 +114,8 @@
     "dragPerM": 0.00015,
     "damagePerHit": 10,
     "roundDamage": 4,
-    "structureHp": 120,
-    "subsystemHp": 40,
+    "structureHp": 480,
+    "subsystemHp": 160,
     "fuelLeakKgPerS": 0.5,
     "engineDecayPerS": 0.05,
     "guns": [
@@ -288,7 +288,7 @@
         "system": "roll"
       }
     ],
-    "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model."
+    "source": "Six .50-cal guns: National Naval Aviation Museum https://www.history.navy.mil/content/history/museums/nnam/explore/collections/aircraft/f/f6f-5-hellcat.html . 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html . 400 rounds/gun: Patriots Point Naval & Maritime Museum https://patriotspoint.org/things-to-do/aircraft/f6f-hellcat . Verified 2026-09-19. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates, mounts and hit zones are gameplay ESTIMATES. Hitboxes approximate the existing procedural mesh, not a sourced installation drawing. No penetration model. Damage stages round 2 (Mark, 2026-10-09): structureHp and subsystemHp are 4x the values above, every fighter alike so the Japanese-fragile ratio holds. Mark asked for about three good bursts from first hit to fire; a 0.25 s burst from the pursuit autopilot lands 11-18 .50 hits on a straight-flying Zero (measured), so at 4x a Zero burns on its 24th hit, about two such bursts. 5x halved the AI duel kills, so 4x it is (docs/handoff/2026-10-09-aircraft-damage-stages.md, Round 2)."
   },
   "stores": {
     "racks": [

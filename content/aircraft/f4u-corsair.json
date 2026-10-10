@@ -140,8 +140,8 @@
     "dragPerM": 0.00015,
     "damagePerHit": 10,
     "roundDamage": 4,
-    "structureHp": 120,
-    "subsystemHp": 40,
+    "structureHp": 480,
+    "subsystemHp": 160,
     "fuelLeakKgPerS": 0.5,
     "engineDecayPerS": 0.05,
     "guns": [
@@ -314,7 +314,7 @@
         "system": "roll"
       }
     ],
-    "source": "Six .50-cal guns, three in each outer wing panel: [DS] 104b ('6-.50 cal., 2400 rds') and English Wikipedia 'Vought F4U Corsair' (six M2 Brownings, three per outer panel; read 2026-09-29). Rounds: 400 per gun from [DS]'s 2,400 total; Wikipedia gives 400 rounds for the inner pair and 375 for the outer, 2,350 in all, and this file follows [DS]. 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html (carried over from the Hellcat card, no F4U-specific figure found). Gun positions are MEASURED, not sourced: stations at |z| 2.87, 3.25, 3.63 m (the shared placeholder stations 3.0, 3.4, 3.8 m scaled by 12.49/13.06) sliced on the drawn wing with tools/models/mounts.ts's sectionAtFor('f4u-corsair'), at 40% chord, mid-thickness (ESTIMATE fractions). Zones are ESTIMATE boxes fitted to sit inside the propeller-excluded drawn airframe (tests/tools/models/combatFit.test.ts): engine forward of the firewall, fuel in the fuselage tank ahead of the cockpit, tail, rudder, gun bays, ailerons on the outer wing. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates are gameplay ESTIMATES. No penetration model."
+    "source": "Six .50-cal guns, three in each outer wing panel: [DS] 104b ('6-.50 cal., 2400 rds') and English Wikipedia 'Vought F4U Corsair' (six M2 Brownings, three per outer panel; read 2026-09-29). Rounds: 400 per gun from [DS]'s 2,400 total; Wikipedia gives 400 rounds for the inner pair and 375 for the outer, 2,350 in all, and this file follows [DS]. 800 rpm is a choice within the 750-850 rpm range and 883.92 m/s converts 2900 ft/s in the US Navy Aircrewman's Gunnery Manual https://www.ibiblio.org/hyperwar/USN/ref/AirGunnery/GUNS.html (carried over from the Hellcat card, no F4U-specific figure found). Gun positions are MEASURED, not sourced: stations at |z| 2.87, 3.25, 3.63 m (the shared placeholder stations 3.0, 3.4, 3.8 m scaled by 12.49/13.06) sliced on the drawn wing with tools/models/mounts.ts's sectionAtFor('f4u-corsair'), at 40% chord, mid-thickness (ESTIMATE fractions). Zones are ESTIMATE boxes fitted to sit inside the propeller-excluded drawn airframe (tests/tools/models/combatFit.test.ts): engine forward of the firewall, fuel in the fuselage tank ahead of the cockpit, tail, rudder, gun bays, ailerons on the outer wing. Convergence, dispersion, lifetime, drag, HP, per-hit damage, leak/decay rates are gameplay ESTIMATES. No penetration model. Damage stages round 2 (Mark, 2026-10-09): structureHp and subsystemHp are 4x the values above, every fighter alike so the Japanese-fragile ratio holds. Mark asked for about three good bursts from first hit to fire; a 0.25 s burst from the pursuit autopilot lands 11-18 .50 hits on a straight-flying Zero (measured), so at 4x a Zero burns on its 24th hit, about two such bursts. 5x halved the AI duel kills, so 4x it is (docs/handoff/2026-10-09-aircraft-damage-stages.md, Round 2)."
   },
   "stores": {
     "racks": [

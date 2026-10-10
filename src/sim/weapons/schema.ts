@@ -42,12 +42,16 @@ export const CombatSpecSchema = z.object({
     group: z.enum(['leftGuns', 'rightGuns']),
     /** A key of `gunTypes`; absent means the top-level ballistic. */
     type: z.string().min(1).optional(),
-  }).strict()).min(1).max(16),
+  }).strict()).max(16),
   zones: z.array(z.object({
     id: z.string().min(1),
     center: point,
     halfSize: z.tuple([positive, positive, positive]),
     system: z.enum(SYSTEMS),
+    /** Which engine an `engine` zone is, 0-based and numbered as the props are, port to starboard
+     *  (damage stages round 2): each engine of a multi-engine airplane is hit, smokes, sputters and
+     *  dies on its own. Absent on a single-engine airplane. */
+    engine: z.number().int().min(0).max(7).optional(),
   }).strict()).min(1).max(32).refine(zones => new Set(zones.map(z => z.id)).size === zones.length, { message: 'duplicate hit zone id' }),
   source: z.string().min(1),
 }).strict().superRefine((c, ctx) => {
@@ -58,13 +62,22 @@ export const CombatSpecSchema = z.object({
   }
   // The AI leads with the top-level muzzle velocity, so at least one mount
   // must actually fire that ballistic, or the AI aims for rounds nobody fires.
-  const primary = c.guns.some((g) => {
+  // A bomber's block has no fixed guns at all (its gunners are not modeled), so nothing to lead with.
+  const primary = c.guns.length === 0 || c.guns.some((g) => {
     if (g.type === undefined) return true
     const t = c.gunTypes?.[g.type]
     return t !== undefined && t.muzzleVelocityMps === c.muzzleVelocityMps && t.dragPerM === c.dragPerM
   })
   if (!primary) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['guns'], message: 'no mount fires the top-level (primary) ballistic' })
+  }
+  // Engine indices, where given, are every engine zone's and run 0..n-1 with none missing.
+  const engines = c.zones.filter((z) => z.system === 'engine')
+  if (engines.some((z) => z.engine !== undefined)) {
+    const ids = new Set(engines.map((z) => z.engine))
+    if (engines.some((z) => z.engine === undefined) || [...Array(ids.size).keys()].some((i) => !ids.has(i))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['zones'], message: 'engine zones must all carry an engine index, 0..n-1' })
+    }
   }
 })
 export type CombatSpec = z.infer<typeof CombatSpecSchema>

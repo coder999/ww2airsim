@@ -252,5 +252,181 @@
       }
     },
     "source": "Stores (Mark, D7 to D9, 2026-09-29): INTERNAL, UNDRAWN racks. The airplane has a forward and an aft bomb bay (PFOI Figure 36 loading chart, PDF p.42, read 2026-09-29) but the drawn model has no bay doors, and none are modeled: the bombs simply fall from inside the hull with no doors and no drag penalty for open doors. No rails. The store is the fleet's existing an-m65 (1,000 lb GP, 453.6 kg, the same store the B-17 carries), no new store. MODELED LOAD: 8 x an-m65 = 3,629 kg = 8,000 lb, four racks in the forward bay (x 2.6 and 4.4 m, z -0.3 and 0.3 m) and four in the aft bay (x -4.6 and -6.4 m). HISTORIC LOAD: Wikipedia (read 2026-09-27) gives a maximum bomb load of 20,000 lb; the PFOI's loading chart axis runs to 60,000 lb of bombs, cargo and equipment and is not a bomb-load limit. The schema allows 8 racks at most and no new store was allowed, so the modeled load is less than half of the historic maximum: ESTIMATE, a game limit, not a claim about the airplane. The rack offsets (y -0.05 m, all inside the drawn hull) are ESTIMATES chosen to sit inside the fuselage volume and are held there by tests/tools/models/internalBay.test.ts; they are not read from the drawing, which has no bay. The an-m65's own figures are the fleet's."
+  },
+  "combat": {
+    "roundsPerMinute": 750,
+    "muzzleVelocityMps": 870,
+    "dragPerM": 0.00015,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 1440,
+    "subsystemHp": 160,
+    "fuelLeakKgPerS": 0.5,
+    "engineDecayPerS": 0.05,
+    "guns": [],
+    "zones": [
+      {
+        "id": "engine-1",
+        "center": [
+          1.47,
+          0.27,
+          -14.2
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 0
+      },
+      {
+        "id": "engine-2",
+        "center": [
+          2.31,
+          -0.27,
+          -7.3
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 1
+      },
+      {
+        "id": "engine-3",
+        "center": [
+          2.31,
+          -0.27,
+          7.3
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 2
+      },
+      {
+        "id": "engine-4",
+        "center": [
+          1.47,
+          0.27,
+          14.2
+        ],
+        "halfSize": [
+          1.6,
+          0.8,
+          0.8
+        ],
+        "system": "engine",
+        "engine": 3
+      },
+      {
+        "id": "forward-fuselage",
+        "center": [
+          5.04,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          7.55,
+          1.3,
+          1.5
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "wing-tanks",
+        "center": [
+          0.49,
+          0.0,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          0.5,
+          14.2
+        ],
+        "system": "fuel"
+      },
+      {
+        "id": "aft-fuselage",
+        "center": [
+          -8.55,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          6.05,
+          1.2,
+          1.5
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "tailplane",
+        "center": [
+          -15.6,
+          0.5,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          8.6
+        ],
+        "system": "pitch"
+      },
+      {
+        "id": "fin",
+        "center": [
+          -15.6,
+          3.35,
+          0
+        ],
+        "halfSize": [
+          2.0,
+          2.85,
+          0.3
+        ],
+        "system": "yaw"
+      },
+      {
+        "id": "left-wing",
+        "center": [
+          0.49,
+          0.0,
+          -17.85
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          3.65
+        ],
+        "system": "roll"
+      },
+      {
+        "id": "right-wing",
+        "center": [
+          0.49,
+          0.0,
+          17.85
+        ],
+        "halfSize": [
+          2.0,
+          0.4,
+          3.65
+        ],
+        "system": "roll"
+      }
+    ],
+    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 1440 is 3x the Hellcat (480) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 160 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 0.5 (self-sealing tanks, the Hellcat's). No fixed guns: the gunners are not modeled (turret aim is visual only), so `guns` is empty and the ballistic fields are placeholders nothing fires. Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll."
   }
 }

@@ -17,6 +17,9 @@ export interface AirframeUpdate {
   readonly bayDoorFraction: number
   /** [0, 1]. Pass 0 for a wreck, so its propeller stops. */
   readonly throttle: number
+  /** Per prop, port to starboard, for a multi-engine airplane whose engines differ (one dead and
+   *  windmilling); null or absent, every prop follows `throttle`. */
+  readonly propThrottles?: readonly number[] | null
   /** The pilot's command, for control surfaces where a model has them. */
   readonly controls: { readonly roll: number; readonly pitch: number; readonly yaw: number }
   /** Seconds since the last rendered frame. */

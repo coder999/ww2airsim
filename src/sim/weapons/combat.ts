@@ -7,7 +7,7 @@ import { SEA_LEVEL_M, type TerrainField } from '../world/terrain.js'
 import { groundUnder } from '../world/ground.js'
 import { insideDeck, type Deck } from '../world/deck.js'
 import { onGround } from '../ground.js'
-import { healthyDamage, damageFromHit, withStructure, type Damage } from '../damage/model.js'
+import { engineCountOf, healthyDamage, damageFromHit, withStructure, type Damage } from '../damage/model.js'
 import {
   damageFromStructuralOverload,
   initialStructuralStress,
@@ -120,7 +120,7 @@ export function createCombat(
   return {
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
-      damage: healthyDamage(), stress: initialStructuralStress(a.state, a.spec.limits),
+      damage: healthyDamage(engineCountOf(a.spec)), stress: initialStructuralStress(a.state, a.spec.limits),
       shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0,
@@ -271,7 +271,7 @@ const hullCenter = (ship: CombatShip): Vec3 => add(ship.state.position, v3(0, sh
  *  kinds in a fixed order (spec §3.4). */
 type Contact =
   | { readonly t: number; readonly kind: 'ground'; readonly sea: boolean }
-  | { readonly t: number; readonly kind: 'aircraft'; readonly aircraft: CombatAircraft; readonly system: DamageSystem }
+  | { readonly t: number; readonly kind: 'aircraft'; readonly aircraft: CombatAircraft; readonly system: DamageSystem; readonly engine?: number }
   | { readonly t: number; readonly kind: 'ship'; readonly ship: CombatShip }
   | { readonly t: number; readonly kind: 'structure'; readonly structure: StructureEntity }
 
@@ -300,7 +300,7 @@ function nearestContact(
     const to = inBody(a.state.attitude, sub(p.position, a.state.position))
     for (const z of a.spec.combat.zones) {
       const t = segmentBox(from, to, tupleVector(z.center), tupleVector(z.halfSize))
-      if (t !== null) candidates.push({ t, kind: 'aircraft', aircraft: a, system: z.system })
+      if (t !== null) candidates.push({ t, kind: 'aircraft', aircraft: a, system: z.system, ...(z.engine === undefined ? {} : { engine: z.engine }) })
     }
   }
   for (const ship of ships) {
@@ -657,12 +657,12 @@ export function stepCombat(
     }
   }
 
-  const damageAircraftAt = (target: CombatAircraft, amount: number, system: DamageSystem | null, owner: string, point: Vec3 | null, hitScale = 1): void => {
+  const damageAircraftAt = (target: CombatAircraft, amount: number, system: DamageSystem | null, owner: string, point: Vec3 | null, hitScale = 1, engine?: number): void => {
     const rec = records[target.id]
     if (rec === undefined || rec.damage.destroyedAt !== null || target.impact !== null) return
     const damage = system === null
       ? blastDamageAircraft(target.spec, rec.damage, amount, tick, owner)
-      : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale)
+      : damageFromHit(target.spec, rec.damage, system, tick, owner, hitScale, engine)
     // A hit by its own side (7e) or by itself is physical -- it still flashes
     // (`lastHit`) -- but does not change who is credited if the aircraft goes
     // down later: a wingman's graze must not steal the player's kill (Mark,
@@ -761,7 +761,7 @@ export function stepCombat(
     const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
     impacts.push({ tick, cause: p.kind, outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point })
     const damage = store === null ? source!.roundDamage : store.damage
-    if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1)
+    if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1, contact.engine)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
     if (store !== null) applyBlast(point, store.damage, store.blastRadiusM, contact, p.owner)

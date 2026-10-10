@@ -679,7 +679,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const reticle = new Group()
   reticle.name = 'reticle'
   const sightDistance = PANEL_AHEAD_M - RETICLE_Z
-  const depressionRad = spec.combat === undefined ? 0 : gunHarmonization(spec.combat, spec.view.eyePointM).depressionRad
+  const depressionRad = spec.combat === undefined || spec.combat.guns.length === 0 ? 0 : gunHarmonization(spec.combat, spec.view.eyePointM).depressionRad
   const armM = sightDistance * Math.tan((RETICLE_SPAN_DEG * Math.PI) / 360)
   const gapM = sightDistance * Math.tan((RETICLE_GAP_DEG * Math.PI) / 360)
   const strokeM = armM * 0.14
