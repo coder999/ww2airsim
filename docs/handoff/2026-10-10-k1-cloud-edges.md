@@ -112,3 +112,48 @@ four-frame/96-step candidate. The candidate is rejected: it adds a scheduler mod
 edge or motion benefit, and its frozen-camera metric is not a universal improvement. Keep the K1 baseline
 (`resolutionScale: 0.5`, `updatePeriod: 8`, `cumulusSteps: 128`). The uncommitted four-frame implementation
 and its tests were removed after recording the measurements above.
+
+## Task 1.3, second pass: the sunset regression and the far sample (Claude, 2026-10-10 14:00-15:00)
+
+The frozen-scene capture pass found what the 10:00 views could not: **the sunset view had lost its dark
+undersides** (mean |diff| against main 10.7 grey levels, noise floor 0.04-0.7). At a 15 deg sun most of a
+base's shadow is its neighbours along a kilometres-long ray, and the cube-frame march sees only the cloud's
+own archetype. The old march's one far "cone" sample of the full field (Schneider 2015) is back: the lit
+Fn also returns where the sun ray leaves the cloud's cube, and the view march takes one full-field density
+sample over the stretch from there to three thicknesses. Unconditionally that cost 0.3-0.8 ms in the daytime
+views (runway cloud cost 4.5 ms, over R3), so it is weighted by sun elevation: full below 15 deg, gone above
+30 deg. The 10:00 views had matched main within 2% without it.
+
+| View | mean \|diff\| vs main, k1 | with the gated far sample |
+| --- | --- | --- |
+| sunset | 10.71 | 6.17 |
+| photo | 2.20 | 2.19 |
+| in-deck-1900 | 3.25 | 3.49 |
+
+The remaining sunset difference is the near cloud's own body reading a little lighter: its self-shadow no
+longer sees the erosion. Stills (1280x720 of the 1440p captures), `img/2026-10-10-k1/`:
+
+| main | K1 before the far sample | K1 as shipped |
+| --- | --- | --- |
+| ![](img/2026-10-10-k1/sunset-main.jpg) | ![](img/2026-10-10-k1/sunset-k1-no-far.jpg) | ![](img/2026-10-10-k1/sunset-k1-shipped.jpg) |
+| ![](img/2026-10-10-k1/photo-main.jpg) | | ![](img/2026-10-10-k1/photo-k1-shipped.jpg) |
+
+Clean budget of the shipped build (1440p High gpu p95, single run, 14:45 MDT, ryzen quiet):
+
+| View | main | K1 as shipped | gate |
+| --- | --- | --- | --- |
+| in-deck-1900 | 9.41 | 6.41 | 10.0 |
+| runway | 6.70 | 5.57 | 8.33 |
+| deckquals | 6.95 | 5.55 | 8.33 |
+| high-6000 | 6.18 | 5.34 | 8.33 |
+| sunset | 6.06 | 5.27 | 8.33 |
+| under-deck-1200 | 5.70 | 5.08 | 8.33 |
+| above-deck-3200 | 5.86 | 5.05 | 8.33 |
+| low-land-600 | 5.55 | 5.05 | 8.33 |
+| photo | 6.29 | 4.92 | 8.33 |
+
+**Measurement trap, new:** from about 14:46 the frame counts in every 6 s window fell from 400-480 to
+110-150 while GPU p95 stayed at 5 ms, and two specs failed only on their `n > 120` floor (`clouds.spec`
+"level under the deck", `cloudShadow.spec` "counted in the GPU timestamp"). A GPU that is idle most of a
+frame at 18 fps is a throttled page, not a slow one: Chrome throttles occluded windows, and the console
+session's Playwright windows sit on Mark's desktop. Check the sample count before reading a p95.

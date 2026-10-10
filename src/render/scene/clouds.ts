@@ -1,6 +1,6 @@
 import type { Node } from 'three/webgpu'
 import {
-  Break, Fn, If, Loop, clamp, dot, exp, float, int, length, max, min, mix, normalize, sqrt, texture3D, uniform, vec3, vec4,
+  Break, Fn, If, Loop, clamp, dot, exp, float, int, length, max, min, mix, normalize, smoothstep, sqrt, texture3D, uniform, vec3, vec4,
 } from 'three/tsl'
 import type { CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
@@ -187,6 +187,11 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
     // The view-sun angle is constant along the ray, so the octaves' phase
     // terms are evaluated once here, not per step.
     const phases = octavePhasesNode(dot(dir, sun)).map((p) => p.toVar())
+    // The far (neighbour) sample below is paid only at a low sun: full below
+    // 15 deg, gone above 30 deg. At 10:00 (about 50 deg) the photo view matched
+    // main within 2% without it, and with it unconditionally the runway's cloud
+    // cost was 4.5 ms against the 4.0 ruling (clean budget, 2026-10-10 14:40).
+    const farWeight = float(1).sub(smoothstep(float(0.26), float(0.5), sun.y)).toVar()
     // `nodepth` debug: march to the fog distance, ignoring the scene.
     const sceneT = debug.equal(int(1)).select(float(FOG_DISTANCE_M), sceneTIn).toVar()
 
@@ -309,9 +314,24 @@ export function createClouds(layers: readonly CloudLayer[], noise: SkyNoise, fie
           const dens = lit2.x.toVar()
           peakDensity.assign(max(peakDensity, dens))
           If(dens.greaterThan(0.001), () => {
+            // Beyond the cloud's own cube, ONE full-field sample stands for the
+            // stretch out to three thicknesses (Schneider 2015's far sample,
+            // kept from the old march): at a low sun a base's shadow is mostly
+            // its neighbours' along a kilometres-long ray. Without it the
+            // sunset deck lost its dark undersides (mean |diff| 10.7 grey
+            // levels against main, K 1.3 capture 2026-10-10).
+            const farPath = float(0).toVar()
+            If(isCirrus.not().and(farWeight.greaterThan(0)), () => {
+              const toTop = top.sub(pc.y).div(max(sun.y, 0.05))
+              const far = min(toTop, thickness.mul(3)).toVar()
+              If(far.greaterThan(lit2.z), () => {
+                const lp = pc.add(sun.mul(lit2.z.add(far).mul(0.5)))
+                farPath.assign(density(lp, base, thickness, coverage, kind).mul(far.sub(lit2.z)).mul(farWeight))
+              })
+            })
             // Cirrus keeps its constant light (0.85 of the sun reaches it)
             // but gets the phase function; cumulus uses the octaves.
-            const tauSun = isCirrus.select(float(-Math.log(0.85)), lit2.y.mul(sigma))
+            const tauSun = isCirrus.select(float(-Math.log(0.85)), lit2.y.add(farPath).mul(sigma))
             const sunLight = multiScatterNode(phases, tauSun).mul(MS_SCALE)
             // Beer-powder's powder half on the LOCAL optical depth over a
             // fixed length (the Beer half is in the octaves): thin wisps

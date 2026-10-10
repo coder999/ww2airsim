@@ -5,7 +5,7 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-09-26 at E1 implementation head `28f50ea`; §3.10 records the effects
+on 2026-10-10 at K Phase 1 (`k1-cloud-edges`); §3.11 records the archetype light march; §3.10 the effects
 dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
@@ -34,17 +34,21 @@ relevant section here in the same commit.
     they need arrives as an argument (`drifted`, `theta`). That took the
     page-load freeze from ~39 s to a cold median of 1.24 s (§3.9, and the
     `setLayout` trap in §4);
+  - the sun's optical path per step from a short march through the cloud's
+    OWN archetype in its cube frame (`cloudField.ts`, `DensityLitFn`), plus
+    one full-field sample beyond the cube for the neighbours (K 1.3, §3.11);
   - lighting from dual-lobe HG, three multi-scatter octaves and powder
     (`cloudLighting.ts`);
   - a movable sun (`sky/sun.ts`, `sky/palette.ts`).
 - **Tiers:** `CLOUD_TIERS` in `src/render/scene/clouds.ts` is authoritative.
-  As of this date (H0 changed high's fine light steps 2 -> 1, 2026-10-10):
+  As of K 1.3 (2026-10-10): light steps are archetype reads in the cloud's
+  cube frame; the fine-step and distance-LOD levers went with the old march.
 
-| Tier | View steps | Light steps (fine) | Resolution | Update | Distance light LOD |
-| --- | --- | --- | --- | --- | --- |
-| high | 128 | 6 (1) | 0.5 | 1 texel in 8 per frame | none |
-| medium | 56 | 4 (0) | 0.3 | every frame | 1.5–2.5 km |
-| low | 32 | 2 (0) | 0.25 | every frame | 1.5–2.5 km |
+| Tier | View steps | Light steps (archetype) | Resolution | Update |
+| --- | --- | --- | --- | --- |
+| high | 128 | 6 | 0.5 | 1 texel in 8 per frame |
+| medium | 56 | 4 | 0.3 | every frame |
+| low | 32 | 2 | 0.25 | every frame |
 
 - **Budget** (`tests/e2e/budget.spec.ts` is the gate): gpu p95 on the
   reference RX 6700 XT, High ≤ 8.33 ms at 1440p in every view, in-cloud
@@ -262,6 +266,37 @@ arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
 currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
 reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
+### 3.11 K Phase 1: the light march moves into the archetype (2026-10-10)
+
+Plan: `docs/superpowers/plans/2026-10-10-k-cloud-edges-impostors-thunderheads.md`.
+Handoff: `docs/handoff/2026-10-10-k1-cloud-edges.md`.
+
+- **Tried and rejected: a per-voxel SH2 bake of sun optical depth** (the
+  plan's R5). Measured over 128 hemisphere directions: the lit/shadow
+  terminator at cloud edges is narrower than l <= 2 can hold (max
+  transmittance error 0.75, 2.6% of voxel-direction pairs over 0.2).
+- **Worked: the light march in the cloud's cube frame.** The laid-out
+  density Fn gets a `lit` variant returning `vec3(density, sunPath, exitM)`:
+  `lightSteps` reads of the cumulus volume along the sun direction
+  transformed into the cloud's stretched, rotated cube, converted to
+  metres per cloud. No weather or noise read per light sample. Then one
+  full-field sample from the cube exit out to three thicknesses for the
+  neighbours: without it the sunset deck lost its dark undersides (mean
+  |diff| 10.7 grey levels against main), because at a low sun most of a
+  base's shadow is other clouds. 1440p High, reference GPU: in-deck-1900
+  9.41 -> 6.52 ms, other views 0.3-0.9 ms cheaper; cloud cost <= 3.7 ms in
+  every view (plan R3: <= 4.0). `photo` against main: mean |diff| 2.8 grey
+  levels, bright-cloud luminance ratio 0.98.
+- **Edge ladder, priced:** `resolutionScale` 0.65 is +0.9-1.5 ms (frame gate
+  holds, over R3 by ~1 ms in the worst views); 0.75 is +1.8-2.5 ms (about
+  0.5 ms under the gate); every-frame marching at 0.5 is 10 ms, out. A
+  four-frame update with 96 steps was built by Codex, measured (runway
+  6.1 ms), and rejected by Mark in flight: "no perceptible difference".
+  K1 ships at 0.5, period 8, 128 steps.
+- **Blender round trip works** through Blender 5.0.1's bundled `openvdb`
+  module (`tools/sky/blender/`, Task 1.1): the archetype in and byte-exact
+  out, Cycles renders it, and a Blender volume comes out as `.bin.gz`.
+
 ## 4. Traps
 
 **TSL and three r186**
@@ -334,7 +369,7 @@ reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 | 2 | **Auto tier picks Low on Mark's desktop** (`docs/incidents/2026-09-20-low-tier-hides-trees.md`) | Open; Mark: "leave it for now" (2026-09-26) |
 | 3 | **Low shimmers at cloud edges** | Open, cosmetic, Low-only |
 | 4 | **High in-cloud frame pacing:** stutter reported, then "no apparent loss of fps" after the fixes | Unmeasured since the fixes |
-| 5 | **`photo` at High has 0.6 ms of margin** | Watch; any cloud cost increase lands here first |
+| 5 | **`photo` at High has 0.6 ms of margin** | Closed by K 1.3 (§3.11): photo 5.4 ms against 8.33 |
 | 6 | **Views from below read cloudier than the old clouds** (sky fraction is correct) | Mark's call: free-flight `coverage` |
 | 7 | **16b/16c look calls:** shadow darkness, `OCEAN_SHADOW_FLOOR` 0.6, sea scaled not tinted at dusk, crimson dusk clouds | Mark's calls, not made |
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |

@@ -1,6 +1,6 @@
 import { Data3DTexture, DataTexture, LinearFilter, NearestFilter, RedFormat, RGBAFormat, RGFormat, RepeatWrapping, UnsignedByteType, Vector2, Vector3, Vector4 } from 'three'
 import type { Node, UniformNode, UniformArrayNode } from 'three/webgpu'
-import { Fn, If, Loop, abs, clamp, float, floor, fract, int, length, max, min, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec2, vec3 } from 'three/tsl'
+import { Fn, If, Loop, abs, clamp, float, floor, fract, int, length, max, min, mix, pow, saturate, select, sin, smoothstep, texture, texture3D, uniform, uniformArray, vec3 } from 'three/tsl'
 import { MAX_CLOUD_LAYERS, type CloudLayer } from '../../sim/scenario.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { SkyNoise } from '../sky/load.js'
@@ -196,12 +196,14 @@ export function cloudDriftM(wind: Vec3 | null, seconds: number): { x: number; z:
  *  layer, 0 outside its slab. */
 export type DensityFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>) => Node<'float'>
 /** `density` plus the optical path toward `sun` (world unit vector) in metres
- *  of density: `vec2(density, sunPath)`. The path is a `lightSteps`-sample march
- *  through the cloud's own archetype in its cube frame (K Task 1.3, 2026-10-10):
- *  it reads only the cumulus volume, never the weather map or the noise, so a
- *  light sample costs one texture read instead of the full field. Cirrus and
- *  empty air return a path of 0. */
-export type DensityLitFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>, sun: Node<'vec3'>, lightSteps: Node<'int'>) => Node<'vec2'>
+ *  of density, and the distance in metres at which that ray leaves the cloud's
+ *  own cube: `vec3(density, sunPath, exitM)`. The path is a `lightSteps`-sample
+ *  march through the cloud's own archetype in its cube frame (K Task 1.3,
+ *  2026-10-10): it reads only the cumulus volume, never the weather map or the
+ *  noise, so a light sample costs one texture read instead of the full field.
+ *  Neighbouring clouds are the caller's business beyond `exitM` (clouds.ts's
+ *  far sample). Cirrus and empty air return 0, 0. */
+export type DensityLitFn = (p: Node<'vec3'>, base: Node<'float'>, thickness: Node<'float'>, coverage: Node<'float'>, kind: Node<'float'>, sun: Node<'vec3'>, lightSteps: Node<'int'>) => Node<'vec3'>
 
 export type CloudField = {
   readonly shape: Data3DTexture
@@ -336,6 +338,8 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
       const d = float(0).toVar()
       /** Optical path toward the sun, metres of density (`lit` only). */
       const sunPath = float(0).toVar()
+      /** Where the sun ray leaves this cloud's cube, metres (`lit` only). */
+      const exitM = float(0).toVar()
       If(inside, () => {
         // The committed volume spans 110..247 of 255 (the Perlin-Worley remap
         // lifts the low end on purpose); stretched back to 0..1 here so
@@ -499,6 +503,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
                     segment.mulAssign(2)
                   })
                   sunPath.assign(path.div(perMetre).mul(alive))
+                  exitM.assign(exit.div(perMetre))
                 }
               })
             })
@@ -506,12 +511,12 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
         })
       })
       // One node out, never an object (clouds.ts, marchNode's note).
-      return lit ? vec2(d, sunPath) : d
+      return lit ? vec3(d, sunPath, exitM) : d
     })
     if (layout) {
       fn.setLayout({
         name: lit ? 'cloudDensityLit' : 'cloudDensity',
-        type: lit ? 'vec2' : 'float',
+        type: lit ? 'vec3' : 'float',
         inputs: [
           { name: 'p', type: 'vec3' },
           { name: 'drifted', type: 'vec3' },
@@ -544,7 +549,7 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const bind = (fn: ReturnType<typeof makeDensity>): DensityFn =>
     (p, base, thickness, coverage, kind) => (fn as unknown as (...a: Node<'float' | 'vec3'>[]) => Node<'float'>)(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage))
   const bindLit = (fn: ReturnType<typeof makeDensity>): DensityLitFn =>
-    (p, base, thickness, coverage, kind, sun, lightSteps) => fn(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage), sun, lightSteps) as unknown as Node<'vec2'>
+    (p, base, thickness, coverage, kind, sun, lightSteps) => fn(p, driftedOf(p), base, thickness, coverage, kind, thetaFor(coverage), sun, lightSteps) as unknown as Node<'vec3'>
   const density = bind(makeDensity(false, false))
 
   const layerVec = (l: CloudLayer | undefined, out: Vector4): Vector4 =>
