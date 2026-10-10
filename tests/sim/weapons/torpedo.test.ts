@@ -100,6 +100,17 @@ describe.each(ENROLLED)('%s', (storeId) => {
     expect(combat.impacts).toHaveLength(0)
   })
 
+  it('released from its carrier inside the envelope, 1,000 m short of a broadside hull, it falls, runs and hits', () => {
+    const state = createState({ position: v3(0, 0.5 * Math.min(t.maxDropHeightM!, 100), 0), velocity: v3(0.8 * Math.min(t.maxDropSpeedMps!, 110), 0, 0), bayDoorFraction: 1 })
+    const a = { id: 'p', spec, state, previous: state, controls, impact: null }
+    const target = ship(1000)
+    let combat = createCombat([a], { p: storesFromLoadout(spec, 'bombs') }, [{ id: 'target', hullHp: 1000 }])
+    const idle = { ...a, controls: { ...controls, dropBomb: false } }
+    for (let tick = 1; tick < 60 * 120 && combat.ships.target!.hp === 1000; tick++) combat = stepCombat(combat, [tick === 1 ? a : idle], [target], [], null, null, [], tick, DT)
+    expect(combat.impacts.map((i) => i.outcome)).toEqual(['entered', 'detonated'])
+    expect(combat.ships.target!.hp).toBeLessThanOrEqual(1000 - t.damage)
+  })
+
   it('past its range it sinks, harmlessly', () => {
     const combat = run(spec, runner(t, v3(0, 0, 0), 0), [ship(t.runRangeM! + 500)])
     expect(combat.ships.target!.hp).toBe(1000)

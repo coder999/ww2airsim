@@ -96,8 +96,9 @@ describe.each(carriers.map((ship) => [ship.id, ship] as const))('the arcade trap
 })
 
 /**
- * Every carrier-capable airframe on the essex-cv arresting gear, enrolled from
- * content so a new one is covered without a new file. Replaces
+ * Every carrier-capable airframe on its own side's fleet carrier's arresting
+ * gear (the Essex, or the Zuikaku for a Japanese airframe; D1, 2026-10-09),
+ * enrolled from content so a new one is covered without a new file. Replaces
  * trapCorsair.test.ts and trapVal.test.ts (2026-10-08), which were copies of
  * this file differing only in the airframe and approach speed. The approach
  * is 1.15 x the landing-configuration stall the graded card holds.
@@ -105,12 +106,14 @@ describe.each(carriers.map((ship) => [ship.id, ship] as const))('the arcade trap
 const carrierCapable = readdirSync('content/aircraft').filter((f) => f.endsWith('.json'))
   .map((f) => loadAircraftSpec(f.replace(/\.json$/, ''))).filter((spec) => spec.carrierCapable)
 
-describe.each(carrierCapable.map((spec) => [spec.id, spec] as const))('%s on the essex-cv arresting gear', (_id, spec) => {
+const homeDeck = (spec: AircraftSpec) => loadShipSpec(spec.side === 'japanese' ? 'zuikaku-cv' : 'essex-cv')
+describe.each(carrierCapable.map((spec) => [spec.id, homeDeck(spec).id, spec] as const))('%s on the %s arresting gear', (_id, _ship, spec) => {
   const approachMps = 1.15 * spec.reference.stallSpeedFlapMps
+  const carrier_ = () => carrier(homeDeck(spec))
 
   it('hook down arrests to rest on the deck at TRAP_DECEL_MPS2', () => {
-    const deck = deckOf(carrier())!
-    const { state, ticks } = run(arriving(deck, 60, approachMps, 1.0, spec), HOOK, 12, spec)
+    const deck = deckOf(carrier_())!
+    const { state, ticks } = run(arriving(deck, 60, approachMps, 1.0, spec), HOOK, 12, spec, deck)
     expect(state.arrested).toBe(true)
     expect(length(sub(state.velocity, deck.velocity))).toBeLessThan(0.05)
     expect(ticks / 60).toBeCloseTo(approachMps / TRAP_DECEL_MPS2, 0)
@@ -118,13 +121,13 @@ describe.each(carrierCapable.map((spec) => [spec.id, spec] as const))('%s on the
   })
 
   it('hook up rolls: no arrest, and full throttle takes it off the bow', () => {
-    const deck = deckOf(carrier())!
-    const { state } = run(arriving(deck, 60, approachMps, 1.0, spec), { ...NO_HOOK, throttle: 1 }, 8, spec)
+    const deck = deckOf(carrier_())!
+    const { state } = run(arriving(deck, 60, approachMps, 1.0, spec), { ...NO_HOOK, throttle: 1 }, 8, spec, deck)
     expect(state.arrested).toBe(false)
     expect(deckLocal(deck, state.position.x, state.position.z).z).toBeGreaterThan(deck.lengthM / 2)
   })
 })
 
-it('the carrier-capable list is the five carrier airframes, so an empty filter cannot pass silently', () => {
+it('the carrier-capable list is the seven carrier airframes, so an empty filter cannot pass silently', () => {
   expect(carrierCapable.map((spec) => spec.id).sort()).toEqual(['a6m2-zero', 'b5n2-kate', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'tbm-3-avenger'])
 })

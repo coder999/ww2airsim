@@ -261,7 +261,7 @@ test.describe('the Hangar', () => {
       expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
     }
     // The Chi-Ha's turret joined V1 (2026-10-09).
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'type97-chi-ha'])
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -283,7 +283,8 @@ test.describe('the Hangar', () => {
       // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
       expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
     }
-    expect(bombers).toBe(4)
+    // The B-17, B-29, G4M and Ki-21, and the TBM-3 Avenger (D1, 2026-10-09).
+    expect(bombers).toBe(5)
   })
 
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
@@ -332,7 +333,7 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
@@ -435,7 +436,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty',
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate',
       'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)

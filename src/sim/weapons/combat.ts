@@ -789,8 +789,11 @@ export function stepCombat(
       applyBlast(point, store.damage, store.blastRadiusM, { t: hit.t, kind: 'ship', ship: hit.ship }, p.owner)
       return
     }
+    // Only land ends a run, not the seabed: the heightfield is not reliable bathymetry near shore (measured
+    // 2026-10-09: with a seabed test, an in-game Mk 13 dropped off Leyte at its 3 m depth ended the tick it
+    // entered the water).
     const floor = groundUnder(terrain, [], p.position.x, p.position.z)
-    if (floor !== null && floor.heightM >= p.position.y) {
+    if (floor !== null && floor.surface !== 'water') {
       impacts.push({ tick, cause: 'torpedo', outcome: 'expired', surface: 'land', point: atWaterline(p.position) })
       return
     }
