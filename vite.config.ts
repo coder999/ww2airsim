@@ -155,7 +155,20 @@ function gaTag(): Plugin {
 const TUNNEL_HOST = 'ww2airsim.windomlane.org'
 const viaTunnel = process.env.WW2AIRSIM_TUNNEL === '1'
 
+/**
+ * One dependency cache per checkout and port, never the default
+ * `node_modules/.vite`. A worktree's `node_modules` is a symlink to main's, so
+ * with the default every dev server shares one `deps/` folder: a second server
+ * starting re-optimizes it and the running one then 504s `three.js` and the
+ * game loads black (hit 2026-10-09 and 2026-10-10). `.vite/` is gitignored.
+ */
+const portArg = process.argv.indexOf('--port')
+const cacheDir = fileURLToPath(
+  new URL(`./.vite/cache-${portArg >= 0 ? process.argv[portArg + 1] : 'default'}`, import.meta.url),
+)
+
 export default defineConfig({
+  cacheDir,
   plugins: [copyContent(), gaTag()],
   server: {
     host: viaTunnel ? '172.17.0.1' : '127.0.0.1',
