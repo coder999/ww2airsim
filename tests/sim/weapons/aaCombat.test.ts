@@ -87,6 +87,28 @@ describe('a hostile destroyer shoots at the Hellcat circling it', () => {
   })
 })
 
+describe('both sides fire: an allied ship shoots a Japanese raider', () => {
+  it('a sitting-duck Zero circling an allied destroyer at 300 ft is hit, and its attacker is the ship', () => {
+    const base = JSON.parse(JSON.stringify(loadScenarioBundle('aa-range').scenario)) as Record<string, unknown>
+    const scenario = parseScenario({
+      ...base, airfieldSides: { tacloban: 'allied' },
+      aircraft: [
+        { id, spec: 'f6f-hellcat', airborneAt: { position: [-20000, 1500, -48605], headingDeg: 90, speedMps: 120 } },
+        { id: 'duck', spec: 'a6m2-zero', side: 'axis', airborneAt: { position: [-27916 + 600, 91, -48605], headingDeg: 0, speedMps: 56, throttle: 0.4 }, pilot: { skill: 'green', passive: { orbitRadiusM: 600 } } },
+      ],
+      ships: [{ id: 'dd-1', spec: 'fletcher-dd', side: 'allied', waypoints: [[-27916, -48605]], speedMps: 0 }],
+    })
+    let w = worldFromScenario(bundleForScenario(scenario), null)
+    for (let i = 0; i < 60 * 60 && w.combat.aircraft['duck']!.damage.structure === 1; i++) w = advance(w, DT).world
+    const duck = w.combat.aircraft['duck']!
+    expect(duck.damage.structure, 'the destroyer shot the raider').toBeLessThan(1)
+    expect(duck.lastHitBy).toBe('dd-1')
+    expect(duck.friendlyFire).toBeNull()
+    // And the player, on the ship's side and far away, was never a target.
+    expect(w.combat.aircraft[id]!.damage.structure).toBe(1)
+  })
+})
+
 describe('a ground battery shoots too', () => {
   it('Tacloban made hostile: tacloban-aaa-1 fires at a Hellcat that circles it', () => {
     const base = JSON.parse(JSON.stringify(loadScenarioBundle('aa-range').scenario)) as Record<string, unknown>
