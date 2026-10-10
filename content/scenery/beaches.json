@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "sourceLevel": 1,
+  "sourceStepM": 48.828125,
+  "sourceBytes": 33570818,
+  "lines": 383,
+  "closedLines": 345,
+  "points": 82696,
+  "perimeterM": 2927002,
+  "glbBytes": 11354016,
+  "lanes": {
+    "inlandM": 96,
+    "dryM": 24,
+    "waterlineM": -64,
+    "submergedM": -120,
+    "waterlineHeightM": 0.08,
+    "submergedHeightM": -0.8
+  }
+}

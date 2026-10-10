@@ -20,6 +20,7 @@
     "bathy:build": "tsx tools/bathy/build.ts",
     "terrain:build": "tsx tools/terrain/build.ts",
     "landcover:build": "tsx tools/landcover/build.ts",
+    "shoreline:build": "tsx tools/shoreline/build.ts",
     "sky:build": "tsx tools/sky/build.ts",
     "textures:build": "tsx tools/textures/build.ts",
     "models:build": "tsx tools/models/build.ts",

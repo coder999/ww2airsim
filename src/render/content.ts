@@ -89,6 +89,9 @@ export { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from './fetchedLeve
 /** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
 export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`
 
+/** Blender-generated, terrain-aligned curved shoreline ribbon (Track L2). */
+export const BEACHES_URL = `${import.meta.env.BASE_URL}content/scenery/beaches.glb`
+
 /** Plan 13b's land-cover raster, gzipped on disk and inflated in the
  *  browser (src/render/landcover/load.ts). No nginx dependency. */
 export const COVER_PATH = 'content/landcover/cover.bin.gz'
