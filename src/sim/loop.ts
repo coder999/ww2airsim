@@ -1021,7 +1021,7 @@ export function advance<M>(
     if (mission !== null) {
       const stepped = stepMission(mission, {
         tick, player: world.player, aircraft, ships, combat,
-        terrain: world.terrain, airfields: world.airfields, decks,
+        terrain: world.terrain, wind: world.wind, airfields: world.airfields, decks,
       })
       // A non-null local: `mission` is reassigned in this loop, so TS cannot
       // carry the `!== null` narrowing into the spawn loop below.

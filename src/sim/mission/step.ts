@@ -1,3 +1,5 @@
+import { airVelocity } from '../flight/model.js'
+import { length } from '../math/vec3.js'
 import { nextLandingTracking, NO_LANDING, type LandingReport, type LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 import type { CombatState } from '../weapons/combat.js'
@@ -8,7 +10,7 @@ import { paddlesWindow } from '../paddles.js'
 import type { Vec3 } from '../math/vec3.js'
 import { RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
 import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
-import type { Station, TriggerWhen } from './schema.js'
+import type { PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
 
 /**
@@ -23,6 +25,8 @@ export type MissionTick<M> = {
   readonly ships: readonly ShipEntity[]
   readonly combat: CombatState
   readonly terrain: TerrainField | null
+  /** The world's wind (`null` is calm): the player's airspeed is air-relative (B4). */
+  readonly wind: Vec3 | null
   readonly airfields: readonly Airfield[]
   readonly decks: readonly Deck[]
 }
@@ -62,6 +66,25 @@ function positionOf<M>(t: MissionTick<M>, id: EntityId): Vec3 | null {
 export function insideStation(s: Pick<Station, 'point' | 'radiusM' | 'altitudeM'>, p: Vec3): boolean {
   if (Math.hypot(p.x - s.point.x, p.z - s.point.z) > s.radiusM) return false
   return s.altitudeM === undefined || (p.y >= s.altitudeM[0] && p.y <= s.altitudeM[1])
+}
+
+const within = (r: readonly [number, number], x: number): boolean => x >= r[0] && x <= r[1]
+
+/**
+ * B4: whether the player's airplane matches every field of `want` this tick.
+ * Reads the same numbers the cockpit shows: the gear, flap and door travel
+ * (`up`/`shut` is fully retracted, `down`/`open` fully extended, so a gear
+ * still in transit is neither), the throttle lever, altitude above sea level
+ * and air-relative speed (`gauges.ts` 'airspeed'). Pure.
+ */
+export function planeStateHolds<M>(want: PlaneState, p: AircraftEntity<M>, wind: Vec3 | null): boolean {
+  const s = p.state
+  if (want.gear !== undefined && !(want.gear === 'down' ? s.gearFraction >= 1 : s.gearFraction <= 0)) return false
+  if (want.flaps !== undefined && !(want.flaps === 'down' ? s.flapFraction >= 1 : s.flapFraction <= 0)) return false
+  if (want.bayDoors !== undefined && !(want.bayDoors === 'open' ? s.bayDoorFraction >= 1 : s.bayDoorFraction <= 0)) return false
+  if (want.altitudeM !== undefined && !within(want.altitudeM, s.position.y)) return false
+  if (want.throttle !== undefined && !within(want.throttle, p.controls.throttle)) return false
+  return want.airspeedMps === undefined || within(want.airspeedMps, length(airVelocity(s, wind)))
 }
 
 type Context<M> = {
@@ -113,6 +136,8 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       const held = p.heldTicks + 1
       return { ...p, heldTicks: held, status: held >= ticksFor(o.seconds) ? 'complete' : 'active' }
     }
+    case 'state':
+      return c.alive && planeStateHolds(o, c.player, c.t.wind) ? { ...p, status: 'complete' } : p
     case 'approaches': {
       if (c.passEvent !== 'missed') return p
       const missed = p.count + 1
@@ -131,6 +156,7 @@ function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly 
     const id = w.failed
     return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'failed'
   }
+  if ('state' in w) return c.alive && planeStateHolds(w.state, c.player, c.t.wind)
   return c.alive && insideStation(w.enters, c.player.state.position)
 }
 

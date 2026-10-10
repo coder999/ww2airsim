@@ -15,7 +15,7 @@ import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, t
 import { airfieldSideOf, sideOf } from './sides.js'
 import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
+import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject, planeStateIsEmpty } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
@@ -468,6 +468,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     }
     if (o.kind === 'deny' && typeof o.around === 'string' && !startAircraft.has(o.around) && !startShips.has(o.around)) {
       issue(`deny.around "${o.around}" is not a starting aircraft or ship`, [...path, 'around'])
+    }
+    if (o.kind === 'state' && planeStateIsEmpty(o)) {
+      issue(`objective "${o.id}": a state objective needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle`, path)
     }
     if (o.kind === 'approaches' && objectives.findIndex((x) => x.kind === 'approaches') !== i) {
       issue('a mission may declare one approaches objective (M3-R11)', [...path, 'kind'])

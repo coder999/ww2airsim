@@ -35,6 +35,29 @@ const stationShape = {
 export const StationObject = z.object(stationShape).strict()
 export type Station = z.infer<typeof StationObject>
 
+/** A closed numeric range `[min, max]`, min below max. */
+const range = z.tuple([finite, finite]).refine(([lo, hi]) => lo < hi, { message: 'must be [min, max] with min < max' })
+
+/** The shape of a test on the player's own airplane (B4). Every field given must
+ *  hold at once. SI like every content key; air-relative speed, altitude above sea level. */
+const planeStateShape = {
+  gear: z.enum(['up', 'down']).optional(),
+  flaps: z.enum(['up', 'down']).optional(),
+  bayDoors: z.enum(['shut', 'open']).optional(),
+  airspeedMps: range.optional(),
+  altitudeM: range.optional(),
+  /** The throttle lever, 0 to 1. */
+  throttle: range.refine(([lo, hi]) => lo >= 0 && hi <= 1, { message: 'throttle must lie within [0, 1]' }).optional(),
+}
+/** The names `planeStateShape` declares, in a fixed order (for the empty check). */
+export const PLANE_STATE_FIELDS = ['gear', 'flaps', 'bayDoors', 'airspeedMps', 'altitudeM', 'throttle'] as const
+const hasField = (o: Partial<Record<(typeof PLANE_STATE_FIELDS)[number], unknown>>): boolean => PLANE_STATE_FIELDS.some((k) => o[k] !== undefined)
+const nonEmptyPlaneState = { message: 'a plane-state test needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle' }
+
+export const PlaneStateObject = z.object(planeStateShape).strict().refine(hasField, nonEmptyPlaneState)
+export type PlaneState = z.infer<typeof PlaneStateObject>
+export const planeStateIsEmpty = (o: Partial<Record<(typeof PLANE_STATE_FIELDS)[number], unknown>>): boolean => !hasField(o)
+
 const base = {
   id,
   /** Short: the HUD objective line and the debrief print it. */
@@ -52,6 +75,9 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional() }).strict(),
   z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
   z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive }).strict(),
+  /** B4: complete the first tick the player's airplane matches every field
+   *  (gear, flaps, speed...). An empty one is rejected by `checkMission`. */
+  z.object({ ...base, kind: z.literal('state'), ...planeStateShape }).strict(),
   /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
    *  once more than `maxMissed` (default 0) do. One per mission, at a ship
    *  with Paddles (M3-R11). */
@@ -64,6 +90,8 @@ export const TriggerWhenObject = z.union([
   z.object({ completed: id }).strict(),
   z.object({ failed: id }).strict(),
   z.object({ enters: StationObject }).strict(),
+  /** B4: the player's airplane matches (see `PlaneStateObject`). */
+  z.object({ state: PlaneStateObject }).strict(),
 ])
 export type TriggerWhen = z.infer<typeof TriggerWhenObject>
 
