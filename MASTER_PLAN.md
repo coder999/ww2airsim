@@ -73,11 +73,9 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
   - fix the pursuit mode's 13 g overshoot with a g-limit.
 - **Decided (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
 
-**B4. Tutorial (M).**
-- **Today:** none. Deck Quals and the ranges are practice, not instruction. The legend is a key list.
-- **What exists:** the mission engine already chains objectives (`after`) and fires `message` triggers.
-- **Proposal:** a **tutorial mission** rather than a separate mode: take off, fly to a point, land, then a gunnery pass and a bomb run, each step a chained objective with radio-line instructions.
-- **Engine gap:** step conditions on control state ("gear down", "flaps 20°", "below 120 mph"), which are a new trigger condition kind. That makes it about one plan, and it reuses B1 for "fly here".
+**B4. Tutorial (M).** Done 2026-10-10 on branch `b4-tutorial`; plan [`2026-10-10-b4-tutorial.md`](docs/superpowers/plans/2026-10-10-b4-tutorial.md), handoff [`2026-10-10-b4-tutorial.md`](docs/handoff/2026-10-10-b4-tutorial.md).
+- **Shipped:** **Basic Flying** (`content/scenarios/tutorial.json`), first mission in the picker: ten chained objectives from full throttle to landing, an instructor's radio line on each step (text only, no recordings).
+- **Engine gap closed:** the `state` objective and trigger (gear, flaps, bay doors, air-relative speed, altitude band, throttle). An Assist toggle cannot be one: the Impact marker is render state (B2 R7), so the tutorial only teaches `U`.
 
 ### Track C: The aircraft come alive
 

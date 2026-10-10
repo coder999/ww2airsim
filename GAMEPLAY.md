@@ -498,3 +498,13 @@ verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
 checks the briefing, objective line, radio, chart and debrief). Open items are in the M3 and M4 handoffs
 (`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`).
+
+**Basic Flying** (B4, 2026-10-10) is the tutorial, and the first mission in the
+picker. It is an ordinary mission with an instructor on the radio: full
+throttle, take off, gear up, climb above 1,500 ft, fly to the marker over the
+bay (the steering arrow), strafe the two parked Hellcats, bomb the cargo ship
+(optional; the Impact marker, **U**, is taught here), join the final, set the
+gear and flaps and slow to under 120 mph, land. A step is done when the
+airplane is in the state it asks for (a *plane-state test*, `CONTEXT.md`); the
+instructor's lines are on-screen text only. Handoff
+`docs/handoff/2026-10-10-b4-tutorial.md`.

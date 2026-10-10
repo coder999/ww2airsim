@@ -90,6 +90,7 @@ Every objective has `id`, `label` (short, for the HUD and debrief),
 | `land` | `at` (airfield or ship id), `count` (default 1) | `count` recoveries at it (a `LandingReport` whose `at` names it) | never |
 | `reach` | `point` `{x, z}`, `radiusM`, optional `altitudeM: [min, max]` | player inside | never |
 | `hold` | a `reach`-shaped station, `seconds` | accumulated time inside ≥ `seconds` | never |
+| `state` (B4, 2026-10-10) | any of `gear` (`up`/`down`), `flaps` (`up`/`down`), `bayDoors` (`shut`/`open`), `airspeedMps`, `altitudeM`, `throttle` (each `[min, max]`); at least one | the first tick the living player's airplane matches every field given (`up`/`shut` fully retracted, `down`/`open` fully extended; speed is air-relative, as the gauge) | never |
 
 Group tags are strings on scenario entities (`"tags": ["convoy"]`) and on
 airfield structures (by base content, e.g. `dulag-hangars`, `dulag-aaa`).
@@ -101,7 +102,7 @@ A tag that matches nothing is a **parse error**, not a silent empty set.
 
 - `when`: `{ at: <seconds> }` (mission time) · `{ completed: <objective id> }` ·
   `{ failed: <objective id> }` · `{ enters: { point, radiusM, altitudeM? } }` (the
-  player).
+  player) · `{ state: { ... } }` (B4: the same test as the `state` objective, true that tick).
 - `then`: a list of `{ spawn: <held group id> }` and/or `{ message: <text> }`.
 
 Triggers are evaluated after objectives in the same tick, in file order, so

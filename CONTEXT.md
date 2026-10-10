@@ -17,6 +17,12 @@ _Avoid_: guide mode, aid
 The Assist (`U`) that draws a ring where a bomb, or failing that the next rocket pair, released now would land; `predictImpact` computes it from the sim's own projectile step. Render and input only: it never changes the flight.
 _Avoid_: CCIP, bomb sight, pipper (the pipper is the gun sight)
 
+## Missions
+
+**Plane-state test**:
+A mission condition on the player's own airplane (gear, flaps, bay doors, air-relative speed, altitude band, throttle): the `state` objective and the `state` trigger. Used by the tutorial; read from the sim, never from an Assist or the render layer.
+_Avoid_: control check, cockpit check
+
 ## Radio
 
 **Radio line**:

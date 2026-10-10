@@ -76,6 +76,7 @@ async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
  *  `m4-cap-<what>.png`, the names its plan and handoff use. */
 function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
   if (id === 'scramble' || id === 'single-combat') return `f2-${id}-${what}.png`
+  if (id === 'tutorial') return `b4-tutorial-${what}.png`
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
@@ -309,3 +310,17 @@ for (const [id, label, voice] of [
     await chartListsObjectives(page, s, id)
   })
 }
+
+/** B4 (2026-10-10): the tutorial reaches the screen with its instructor's first call as text, and nothing is
+ *  voiced for it (its lines are `null` in `RADIO_LINES` on purpose). The whole sortie is flown headless
+ *  (tests/sim/mission/missions/tutorial.test.ts). */
+test('Basic Flying: briefing, the throttle step, the instructor on screen and silent, chart', async ({ page }) => {
+  const title = await orders(page, 'Basic Flying Pilot')
+  const s = await briefingFor(page, title, 'tutorial', 'Basic Flying')
+  await launched(page, title, 'tutorial')
+  await expect(objectiveLine(page)).toContainText(s.objectives![0]!.label.toUpperCase())
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await page.waitForTimeout(3000)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().radioPlayed)).toEqual([])
+  await chartListsObjectives(page, s, 'tutorial')
+})
