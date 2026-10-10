@@ -307,12 +307,12 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - **M1d (done 2026-10-09,** merge `3265b8e7`, handoff `docs/handoff/2026-10-09-m1d-download-detail.md`): five of the six downloaded warships (Yamato, Mogami, Cleveland, Essex, Fletcher) get M1c's baked AO and detail and the same weathering, through a non-overlapping island atlas built in the TS pipeline. Shiratsuyu keeps its author's textures, which read better than the skin did. Essex's light AA is cut to four 40 mm quads, two per side (Mark: balance, not history). Budgets unchanged.
      - **M1e (done 2026-10-09,** merge `74c33b60`, handoff `docs/handoff/2026-10-09-m1e-zuikaku.md`): the first Japanese carrier, Zuikaku as at Leyte, from KTKloss's Shōkaku (CC BY 4.0). She is armed to match Essex (eight twin 12.7 cm and four triple 25 mm; Mark: balance, not history), camouflaged, baked like M1d, and landable: every carrier now runs the arcade trap tests.
      - **M1f (done 2026-10-09,** handoff `docs/handoff/2026-10-09-m1f-ship-rebuilds.md`): Mogami, Yamato, Cleveland and Essex are rebuilt in Blender to Fletcher's level (stepped bridges with framed windows, real funnels, railings, rigging, baked detail), replacing their downloads; Abukuma (Nagara class, Surigao Strait) is added; every warship flies its waving ensign and the Maru flies none; Shiratsuyu measured right at 107.5 m.
-  2. **M2 AA fire (M).** Ships and ground AAA share one system:
+  2. ~~**M2 AA fire (M).**~~ Built 2026-10-10 (branch `m2-aa-fire`, plan `docs/superpowers/plans/2026-10-10-m2-aa-fire.md`, handoff `docs/handoff/2026-10-10-m2-aa-fire.md`; not yet merged). Ships and ground AAA share one system (`src/sim/weapons/aaFire.ts`, every number in `AA_TUNING`):
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;
      - both sides fire, under the friendly-fire rules;
-     - the default is dangerous: lingering low over a destroyer costs you.
-     - Builds on E1's lead and aim error.
+     - the default is Moderate, measured and pinned: lingering at 300 ft over a destroyer costs a Hellcat in about 20 s, a fast straight pass usually survives.
+     - Builds on E1's lead and aim error. `aa_gun` and `flak_burst` (Track I, I3) are wired; the Dev scenario `aa-range` is the test bed. Mounts do not yet train toward their target (M3).
   3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.

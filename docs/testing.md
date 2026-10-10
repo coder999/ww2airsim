@@ -41,7 +41,7 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
 - **Every skip has a reason the code can check.** `skipIf(terrain === null)` or `skipIf(!HAVE_BLENDER)` are fine: the data or tool is absent, and the skip names it. An unconditional skip is either:
   - waiting on a named ruling from Mark (say which, and in which handoff); or
   - a known gap, which belongs in "Known gaps" below, not in the suite as a skipped test.
-- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable. The L3 and Range Test ones: `landGapCapture.spec.ts` (shipping, `synth`, `synthsr` or `synth2` at three altitudes), `landVillageCapture.spec.ts` (GPU frame time and a screenshot over the densest village, `LAND_REPEATS` and `LAND_VIEW` for interleaved repeats; run it under `hwlock ryzen-budget`) and `rangeTestCapture.spec.ts` (both Range Test missions, read through `__ww2.aircraft()` and `__ww2.ships()`, and a god-mode dive). `E2E_CAPTURE_DIR` picks where the pictures go.
+- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable. The L3 and Range Test ones: `landGapCapture.spec.ts` (shipping, `synth`, `synthsr` or `synth2` at three altitudes), `landVillageCapture.spec.ts` (GPU frame time and a screenshot over the densest village, `LAND_REPEATS` and `LAND_VIEW` for interleaved repeats; run it under `hwlock ryzen-budget`) `rangeTestCapture.spec.ts` (both Range Test missions, read through `__ww2.aircraft()` and `__ww2.ships()`, and a god-mode dive) and `aaRangeCapture.spec.ts` (M2: the `aa-range` scenario in God mode at 300 ft and 6,000 ft, and the Range Test with every warship firing, with the AA state read through `__ww2.combat()`). `E2E_CAPTURE_DIR` picks where the pictures go.
 - **Delete a test with its code.** Unwired code and its tests go together, because git remembers.
 - **Grepping source is a last resort.** A few tests assert that `main.ts` contains a call (for example `bootQuality.test.ts`) because the wiring has no seam to call. They break on renames. The fix is to extract that wiring into a function a test can call, not to add more greps.
 - **Keep files cheap.**
@@ -273,6 +273,18 @@ guns about 50 m over the target (plan
 `2026-09-29-gunnery-range-strafing-pass`). The readout at the top of the
 screen counts the rounds down and the hits up; `window.__ww2.combat()` reports
 the same record to E2E (`tests/e2e/gunnery.spec.ts`).
+
+**The AA lethality calibration** (M2, 2026-10-10). How hard the guns hit is a measurement, not a
+guess: `tests/sim/weapons/aaHarness.ts` flies a scripted Hellcat (the AI's own velocity-following
+controller) over an anchored Fletcher in the shipped `aa-range` scenario, three ways, and
+`aaLethality.test.ts` pins the result with tolerances (lingering 1,640 ft out at 300 ft: lost in about
+20 s; a straight 290 kn pass over the ship: usually survives; 6,000 ft: the flak, slower). A run is
+seconds because the AA draws only from hashes of (seed, mount, time), so a "seed" is the guns' luck and
+the start phase. To retune, change `AA_TUNING` (`src/sim/weapons/aaFire.ts`, the one place) and read the
+effect without editing the file: `REMOTE_RUN_OVERFLOW=0 remote-run npx tsx tools/ai/aaSweep.ts 32 fletcher-dd '{"light":{"aimErrorRad":0.014}}' orbit,pass,high`;
+`tools/ai/aaTrace.ts` prints every hit and burst of one run. `aaCombat.test.ts` also steps the Range Test
+with every warship armed and hostile and asserts it runs faster than real time (measured 0.27 ms per
+tick, 60 s of it in under a second).
 
 **The test pilot** (`tests/pilot/`) flies that pass, and every E2E
 landing, by keys. `strafePilot.ts` is a pure control law (the harmonized sight

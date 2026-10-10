@@ -57,6 +57,18 @@ _Avoid_: main guns, big guns
 An anti-aircraft gun position on a warship or a shore battery. Heavy mounts fire flak bursts at altitude; light mounts fire tracers at close range.
 _Avoid_: flak gun, AA gun, hardpoint
 
+**Heavy AA**:
+The flak-throwing guns of a warship or shore battery (the 5-inch and 12.7 cm dual-purpose mounts). They fire fuse-timed shells that go off at altitude, never rounds, out to about three miles, and cannot engage inside a few hundred yards.
+_Avoid_: flak gun, big AA
+
+**Light AA**:
+The 20, 25 and 40 mm mounts. They fire tracer rounds through the ordinary ballistics, at close range (under a mile).
+_Avoid_: small AA, pom-pom
+
+**Flak burst**:
+A heavy AA shell going off in the air. It hurts every hostile airplane inside its radius, less with distance, and leaves a black puff. It is a blast, not a hit: structure damage only, and no tracer flies to it.
+_Avoid_: flak shell, air burst
+
 **Ensign**:
 The national flag a warship flies at sea: the 48-star flag on US ships, the Rising Sun naval ensign on IJN warships. A merchant flies none, so it can serve either side.
 _Avoid_: flag (alone), colors

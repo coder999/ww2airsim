@@ -94,10 +94,11 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // a bit quieter; the level is reasoned, not yet heard in flight.
   { id: 'gear_cycle', path: 'content/audio/gear_cycle.wav', bus: 'sfx', bytes: 789_892, peakFullScale: 0.8026, cueGain: 0.35 },
   // ElevenLabs, 2026-10-09, Mark's picks. flaps_cycle plays for both flaps up
-  // and flaps down, as gear_cycle does. flak_burst (unwired, M2) is the CLOSE
-  // burst (flak_distant is the far one), normalized up from a quiet take, and
-  // its cueGain is the loudest of the one-shots because Mark wants it loud
-  // when it bursts near the airplane (M2 scales it down with distance). 0.80
+  // and flaps down, as gear_cycle does. flak_burst is the CLOSE
+  // burst (flak_distant is the far one; wired to flak bursts by spatial.ts, M2),
+  // normalized up from a quiet take, and its cueGain is the loudest of the
+  // one-shots because Mark wants it loud when it bursts near the airplane
+  // (spatial.ts scales it down with distance). 0.80
   // failed the full-throttle headroom test (tests/audio/assets.test.ts).
   { id: 'flaps_cycle', path: 'content/audio/flaps_cycle.wav', bus: 'sfx', bytes: 812_076, peakFullScale: 0.6313, cueGain: 0.35 },
   { id: 'flak_burst', path: 'content/audio/flak_burst.wav', bus: 'sfx', bytes: 124_392, peakFullScale: 0.9700, cueGain: 0.75 },
@@ -108,7 +109,8 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = [
   // (content/audio/NOTICE.md). Plays at a torpedo's hull hit (D3 T2, spatial.ts).
   { id: 'torpedo_hit', path: 'content/audio/torpedo_hit.wav', bus: 'sfx', bytes: 384_770, peakFullScale: 1.0000, cueGain: 0.60 },
   // aa_gun: ElevenLabs 20 mm take cut to a seamless 0.65 s loop (Mark's pick,
-  // 2026-10-09), for every AA gun, ship and ground; unwired until M2.
+  // 2026-10-09), for every light AA gun, ship and ground; wired in M2 as a
+  // spatial loop per firing ship or battery (spatial.ts, layers.ts).
   // radio_squelch: Freesound, CC0 (content/audio/NOTICE.md); it brackets each
   // radio line once I2 wires the voices.
   { id: 'aa_gun', path: 'content/audio/aa_gun.wav', bus: 'sfx', bytes: 123_884, peakFullScale: 0.9000, cueGain: 0.60 },
