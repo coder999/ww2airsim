@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { loadAircraftSpec, bundleForScenario } from '../../../tools/content/load.js'
+import { loadAircraftSpec, loadScenarioBundle, bundleForScenario } from '../../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { advance, aircraftById } from '../../../src/sim/loop.js'
 import { DT } from '../../../src/sim/flight/model.js'
@@ -236,3 +236,18 @@ describe('the run is written to the pilot\'s state only for an attacker', () => 
   })
 })
 
+
+describe('attack-range, the Dev scenario, with the AA live (M2)', () => {
+  it('seven armed raiders fly into the guns: some are shot down, some still get a weapon away, and the ship is hurt', () => {
+    let w = worldFromScenario(loadScenarioBundle('attack-range'), null)
+    const raiders = w.aircraft.filter((a) => a.id !== 'f6f-1')
+    expect(raiders.map((a) => a.id).sort()).toEqual(['kate-1', 'kate-2', 'kate-3', 'sally-1', 'val-1', 'val-2', 'val-3'])
+    for (const r of raiders) expect(w.combat.aircraft[r.id]!.stores.bombs, r.id).toBeGreaterThan(0)
+    for (let i = 0; i < 240 * 60; i++) w = advance(w, DT).world
+    const dropped = raiders.reduce((n, r) => n + w.combat.aircraft[r.id]!.bombsDropped, 0)
+    const down = raiders.filter((r) => w.combat.aircraft[r.id]!.damage.destroyedAt !== null).length
+    expect(dropped).toBeGreaterThanOrEqual(3)
+    expect(down).toBeGreaterThanOrEqual(1)
+    expect(w.combat.ships['dd-1']!.hp).toBeLessThan(160)
+  })
+})
