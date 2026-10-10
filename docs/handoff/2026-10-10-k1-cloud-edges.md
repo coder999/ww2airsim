@@ -34,3 +34,81 @@ archetype's cube space instead: after the weather decode, a few `texture3D(cumul
 in cube coordinates, converted to meters per cloud. Exact for the archetype, zero new assets, no weather or
 noise reads per light sample. This departs from R5's wording ("baked") but meets its intent (the full-field
 light march goes from 6 steps to 0) and the plan's own risk line. Mark rules on it at the checkpoint.
+
+## Task 1.3: the cube-frame sun march, measured (`33495072`)
+
+Reference RX 6700 XT via the console Playwright server, 1440p High gpu p95, single runs back to back
+(12:32-12:40 MDT; `main` reproduced H0's as-merged table within 0.1 ms, so the session was clean). Cloud cost
+is the view minus the same view at `?cloudTier=off`.
+
+| View | main | k1 | k1, clouds off | k1 cloud cost | Saved vs main |
+| --- | --- | --- | --- | --- | --- |
+| in-deck-1900 | 9.41 | 6.52 | 3.79 | 2.7 | 2.9 |
+| runway | 6.70 | 5.93 | 2.26 | 3.7 | 0.8 |
+| deckquals | 6.95 | 6.27 | 2.84 | 3.4 | 0.7 |
+| photo | 6.29 | 5.39 | 3.88 | 1.5 | 0.9 |
+| high-6000 | 6.18 | 5.79 | 5.02 | 0.8 | 0.4 |
+| sunset | 6.06 | 5.50 | 3.89 | 1.6 | 0.6 |
+| low-land-600 | 5.55 | 5.26 | 4.65 | 0.6 | 0.3 |
+| under-deck-1200 | 5.70 | 5.34 | 4.33 | 1.0 | 0.4 |
+| above-deck-3200 | 5.86 | 5.44 | 4.49 | 1.0 | 0.4 |
+
+**R3 (clouds <= 4.0 ms in every view) holds at the default 0.5 scale**, thinnest at the runway (3.7).
+Correctness: `clouds`, `cloudTemporal`, `cloudShadow` and `boot` specs, 26 passed. Look: the `photo` view
+against main, mean |diff| 2.8 grey levels over the sky, bright-cloud luminance ratio 0.98, shadowed 1.00;
+the residual is soft shading inside cloud bodies (the archetype's self-shadow against the old eroded one).
+
+## Task 1.4: the edge ladder, priced (single runs, 12:41-13:10 MDT)
+
+| Rung | runway | in-deck | photo | deckquals | high-6000 | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| k1 default (0.5, period 8) | 5.93 | 6.52 | 5.39 | 6.27 | 5.79 | R3 holds |
+| `resolutionScale` 0.65 | 6.99 | 7.98 | 6.90 | 6.96 | 6.82 | frame gate holds with >= 1.3 ms margin; clouds ~4.7 at the runway, over R3 |
+| `resolutionScale` 0.75 | 7.75 | 8.94 | 7.83 | 7.66 | 7.75 | frame gate holds with ~0.5 ms margin; clouds ~5.5, over R3 |
+| `updatePeriod` 1 at 0.5 | 10.1 | 10.1 | (not run) | 9.9 | 8.67 | out: over the frame gate |
+| `updatePeriod` 4 | not runnable | | | | | the pass's compact update only knows 1, 8 and 16 blocks |
+
+Every-frame marching is out at any scale. Resolution is the only edge lever left inside the frame gate, and
+it conflicts with R3: 0.65 costs about 1 ms of cloud budget over the 4 ms ruling in the worst views. Mark's
+call at the checkpoint, with the flicker maps and stills below and the live URLs:
+
+- `https://ww2airsim-3.windomlane.org/?cloudTier=high` (k1 at 0.5)
+- `...&cloudTune=high.resolutionScale:0.65` and `:0.75` (the two rungs)
+
+## Task 1.4 continuation: four-frame candidate (Codex, 2026-10-10)
+
+The compact updater now supports an actual four-frame rung with a 2x2 Bayer schedule. Focused unit tests
+(12), typecheck, focused lint, and a live WebGPU console pass all succeed. The candidate keeps the 0.5
+resolution scale and reduces the cumulus ray march from 128 to 96 steps:
+
+`cloudTune=high.updatePeriod:4,high.cumulusSteps:96`
+
+Reference RX 6700 XT, 1440p High gpu p95:
+
+| View | total p95 (ms) |
+| --- | ---: |
+| runway | 6.17 |
+| in-deck-1900 | 6.56 |
+| high-6000 | 5.84 |
+| deckquals | 5.94 |
+| photo | 5.73 |
+
+Three paired runway repetitions put the candidate at a 6.10 ms median and clouds-off at 2.37 ms, for a
+3.73 ms median cloud cost. This satisfies the 4 ms cloud budget and leaves the overall frame-time gate
+comfortably intact.
+
+The frozen-camera diff metric is mixed rather than a universal win: mean error improves in 7/9 views;
+p99.9 improves in 5/9, is unchanged in one, and regresses in three (above-deck, photo, sunset). That metric
+does not measure the motion benefit of halving the temporal cycle, so the plan's attended flight remains
+the deciding visual gate. No default has been changed and nothing from this continuation is committed yet.
+
+- Baseline: `https://ww2airsim-3.windomlane.org/?cloudTier=high`
+- Recommended candidate: `https://ww2airsim-3.windomlane.org/?cloudTier=high&cloudTune=high.updatePeriod:4,high.cumulusSteps:96`
+
+### Mark's attended ruling
+
+Mark flew both High configurations and reported **no perceptible difference** between the baseline and the
+four-frame/96-step candidate. The candidate is rejected: it adds a scheduler mode without an observable
+edge or motion benefit, and its frozen-camera metric is not a universal improvement. Keep the K1 baseline
+(`resolutionScale: 0.5`, `updatePeriod: 8`, `cumulusSteps: 128`). The uncommitted four-frame implementation
+and its tests were removed after recording the measurements above.
