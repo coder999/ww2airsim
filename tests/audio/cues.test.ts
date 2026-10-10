@@ -4,7 +4,7 @@ import {
   GUN_CUE_INTERVAL_TICKS, HIT_CUE_INTERVAL_TICKS, NO_AUDIO_MEMORY, TOUCHDOWN_AIRBORNE_TICKS, nextAudio, type AudioInputs, type AudioMemory,
   MOTOR_GAIN,
 } from '../../src/audio/cues.js'
-import { motorSamples, MOTOR_PEAK, SYNTH_SAMPLE_RATE } from '../../src/audio/synth.js'
+import { SYNTH_CLIPS, SYNTH_PEAK, SYNTH_SAMPLE_RATE } from '../../src/audio/synth.js'
 
 const flying: AudioInputs = {
   throttle: 0.8, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 1.5, tick: 100, shots: 0,
@@ -399,16 +399,26 @@ describe('damage and carrier cues', () => {
     }
   })
 
-  it('the synthesized motor is a seamless loop at its stated peak (C2)', () => {
-    const s = motorSamples(SYNTH_SAMPLE_RATE)
-    expect(s.length).toBe(SYNTH_SAMPLE_RATE)
-    expect(Math.max(...Array.from(s, Math.abs))).toBeCloseTo(MOTOR_PEAK, 6)
-    // Across the wrap the wave curves no more sharply than anywhere inside it: a fractional cycle count
-    // leaves the value continuous but flips the slope there, which this second difference sees.
-    const curve = (a: number, b: number, c: number): number => Math.abs(a - 2 * b + c)
-    let largest = 0
-    for (let i = 1; i < s.length - 1; i++) largest = Math.max(largest, curve(s[i - 1]!, s[i]!, s[i + 1]!))
-    expect(curve(s[s.length - 1]!, s[0]!, s[1]!)).toBeLessThanOrEqual(largest * 1.01)
+  it('every synthesized clip is a seamless loop at its stated peak (C2, I1)', () => {
+    for (const [id, make] of Object.entries(SYNTH_CLIPS)) {
+      const s = make(SYNTH_SAMPLE_RATE)
+      expect(s.length % SYNTH_SAMPLE_RATE, id).toBe(0)
+      expect(Math.max(...Array.from(s, Math.abs)), id).toBeCloseTo(SYNTH_PEAK[id as keyof typeof SYNTH_PEAK], 6)
+      // Across the wrap the wave curves no more sharply than anywhere inside it: a fractional cycle count
+      // leaves the value continuous but flips the slope there, which this second difference sees.
+      const curve = (a: number, b: number, c: number): number => Math.abs(a - 2 * b + c)
+      let largest = 0
+      for (let i = 1; i < s.length - 1; i++) largest = Math.max(largest, curve(s[i - 1]!, s[i]!, s[i + 1]!))
+      expect(curve(s[s.length - 1]!, s[0]!, s[1]!), id).toBeLessThanOrEqual(largest * 1.01)
+      // A noise clip hides a step in loudness from that test, so the 5 ms envelope must also step
+      // no more across the wrap than between any two neighboring windows inside the clip.
+      const rms = (a: Float32Array): number => Math.sqrt(a.reduce((t, v) => t + v * v, 0) / a.length)
+      const w = SYNTH_SAMPLE_RATE / 200
+      const env = Array.from({ length: s.length / w }, (_, k) => rms(s.subarray(k * w, (k + 1) * w)))
+      let step = 0
+      for (let k = 1; k < env.length; k++) step = Math.max(step, Math.abs(env[k]! - env[k - 1]!))
+      expect(Math.abs(env[env.length - 1]! - env[0]!), id).toBeLessThanOrEqual(step * 1.01)
+    }
   })
 
   it('a restart forgets damage, so a new flight starts whole and silent', () => {

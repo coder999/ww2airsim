@@ -56,6 +56,14 @@ export const LAYERS = {
   },
   // C2: the actuator motor (synth.ts), while bay doors travel. Quick glide: it starts and stops with the lever.
   motor: { clip: 'motor', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.05 },
+  // I1 (synth.ts): wind and wheels are the noise clip through their own lowpass; the radio static
+  // is the same noise through the radio chain, under a transmission.
+  wind: { clip: 'noise', bus: 'ambient', loopStartS: null, loopEndS: null, glideTauS: 0.15 },
+  rumble: { clip: 'noise', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.1 },
+  buffet: { clip: 'buffet', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.1 },
+  buzz: { clip: 'buzz', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.03 },
+  creak: { clip: 'creak', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.2 },
+  static: { clip: 'noise', bus: 'radio', loopStartS: null, loopEndS: null, glideTauS: 0.03 },
   deck: {
     clip: 'carrier_deck', bus: 'ambient', loopStartS: seconds(45_409), loopEndS: seconds(679_536), glideTauS: AMBIENT_GLIDE_TAU_S,
   },

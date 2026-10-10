@@ -129,6 +129,59 @@ export function deckGainFor(distanceM: number | null): number {
   return AMBIENT_GAIN_MAX * clamp01(1 - distanceM / DECK_FADE_M)
 }
 
+/**
+ * I1's synthesized layers (plan 2026-10-09-i1-synth-sounds.md): each layer's loudest gain, by
+ * `LAYERS` id. Tuning values for Mark's ear. The headroom test (tests/audio/assets.test.ts) reads
+ * every row against the clip's stated peak (synth.ts `SYNTH_PEAK`), as it does a recording's cue gain.
+ */
+export const SYNTH_GAIN_MAX = { motor: 0.35, wind: 0.5, rumble: 0.5, buffet: 0.6, buzz: 0.12, creak: 0.5, static: 0.15 } as const
+
+/** Wind: silent below 15 m/s (34 mph), full gain and brightest at 200 m/s (447 mph). */
+export const WIND_START_MPS = 15
+export const WIND_FULL_MPS = 200
+/** The wind layer's lowpass: dull at the bottom of the range, open at the top. */
+export const WIND_CUTOFF_LOW_HZ = 400
+export const WIND_CUTOFF_HIGH_HZ = 4_000
+
+export function windFor(airspeedMps: number | undefined): { gain: number; cutoffHz: number } {
+  const f = clamp01(((airspeedMps ?? 0) - WIND_START_MPS) / (WIND_FULL_MPS - WIND_START_MPS))
+  return { gain: SYNTH_GAIN_MAX.wind * f, cutoffHz: WIND_CUTOFF_LOW_HZ + (WIND_CUTOFF_HIGH_HZ - WIND_CUTOFF_LOW_HZ) * f }
+}
+
+/** Wheel rumble: full by 40 m/s (89 mph) of rolling speed. Its lowpass per surface: a deck's planks
+ *  rattle brighter than a strip. `ContactSurface` has no grass, so land is one preset. */
+export const RUMBLE_FULL_MPS = 40
+export const RUMBLE_CUTOFF_HZ = { land: 160, deck: 320 } as const
+
+export function rumbleFor(onGround: boolean | null, surface: string | null, groundSpeedMps: number | undefined): { gain: number; cutoffHz: number } {
+  if (onGround !== true || (surface !== 'land' && surface !== 'deck')) return { gain: 0, cutoffHz: RUMBLE_CUTOFF_HZ.land }
+  const f = clamp01((groundSpeedMps ?? 0) / RUMBLE_FULL_MPS)
+  return { gain: SYNTH_GAIN_MAX.rumble * f, cutoffHz: RUMBLE_CUTOFF_HZ[surface] * (1 + f) }
+}
+
+/** Buffet starts at 1.15 x the stall speed and is full at it; the buzzer cuts in at 1.07 x and is
+ *  full 0.02 below. Both from airspeed at 1 g (ponytail: a hard turn's accelerated stall does not
+ *  buffet early; read angle of attack if Mark wants it). */
+export const BUFFET_ONSET = 1.15
+export const BUZZ_ONSET = 1.07
+
+export function stallFor(airborne: boolean, airspeedMps: number | undefined, stallSpeedMps: number | undefined): { buffet: number; buzz: number } {
+  if (!airborne || !(stallSpeedMps! > 0)) return { buffet: 0, buzz: 0 }
+  const ratio = (airspeedMps ?? Infinity) / stallSpeedMps!
+  return {
+    buffet: SYNTH_GAIN_MAX.buffet * clamp01((BUFFET_ONSET - ratio) / (BUFFET_ONSET - 1)),
+    buzz: SYNTH_GAIN_MAX.buzz * clamp01((BUZZ_ONSET - ratio) / 0.02),
+  }
+}
+
+/** Overspeed creak: from 0.9 x the spec's dive limit (`limits.diveSpeedMps`), full at the limit. */
+export const CREAK_ONSET = 0.9
+
+export function creakFor(airspeedMps: number | undefined, diveSpeedMps: number | undefined): number {
+  if (!(diveSpeedMps! > 0)) return 0
+  return SYNTH_GAIN_MAX.creak * clamp01(((airspeedMps ?? 0) / diveSpeedMps! - CREAK_ONSET) / (1 - CREAK_ONSET))
+}
+
 /** Engine loop gain multiplier for a failing engine. */
 export function engineHealthFactor(health: number): number {
   return clamp01(health / ENGINE_FAILING_HEALTH)

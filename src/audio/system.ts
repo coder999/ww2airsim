@@ -1,11 +1,11 @@
-import { motorSamples, SYNTH_SAMPLE_RATE } from './synth.js'
+import { SYNTH_CLIPS, SYNTH_SAMPLE_RATE, type SynthClip } from './synth.js'
 import { AUDIO_ASSETS, assetFor, audioUrl, voiceUrl, type ClipId } from './assets.js'
 import type { AudioBackend, BackendState, ListenerPose, LoopHandle, Position, SpatialLoopHandle } from './backend.js'
 import { NO_AUDIO_MEMORY, nextAudio, type AudioInputs, type AudioMemory } from './cues.js'
 import { ENGINE_LAYER_FOR, LAYERS, finiteOr, type LayerDrive, type LayerTable } from './layers.js'
 import { NO_SPATIAL_MEMORY, nextSpatial, type SpatialInputs, type SpatialMemory } from './spatial.js'
 import { NO_RADIO_MEMORY, SQUELCH_LEAD_S, VOICE_STEMS, nextRadio, voiceId, type PaddlesCall, type RadioMemory, type VoiceId, type VoiceLanguage } from './radio.js'
-import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, chaseDistanceGain, type View } from './mix.js'
+import { CABIN_GLIDE_TAU_S, CABIN_PRESETS, DISTANCE_GLIDE_TAU_S, FILTER_OPEN_HZ, MASTER_GAIN, SYNTH_GAIN_MAX, chaseDistanceGain, type View } from './mix.js'
 
 /**
  * The wiring: holds the reducer's memory and the loop handle, and applies each
@@ -170,8 +170,10 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
           }
         }),
       )
-      // Synthesized clips (C2): made here, not fetched, so nothing can 404.
-      backend.loadSamples('motor', motorSamples(SYNTH_SAMPLE_RATE), SYNTH_SAMPLE_RATE)
+      // Synthesized clips (C2, I1): made here, not fetched, so nothing can 404.
+      for (const [id, make] of Object.entries(SYNTH_CLIPS) as [SynthClip, (sr: number) => Float32Array][]) {
+        backend.loadSamples(id, make(SYNTH_SAMPLE_RATE), SYNTH_SAMPLE_RATE)
+      }
     },
 
     async resume(): Promise<void> {
@@ -195,6 +197,13 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
       // Ambience starts only when first audible, so a flight that never sees the sea never decodes into a source.
       if (frame.ambient.sea > 0 || handles.has('sea')) driveLayer('sea', { gain: frame.ambient.sea, rate: 1 }, rate)
       if (frame.motor > 0 || handles.has('motor')) driveLayer('motor', { gain: frame.motor, rate: 1 }, rate)
+      // I1: each starts only once first audible, like the sea.
+      for (const [id, d] of Object.entries(frame.synth)) {
+        if (d.gain > 0 || handles.has(id)) driveLayer(id, { gain: d.gain, rate: 1, ...(d.cutoffHz === undefined ? {} : { cutoffHz: d.cutoffHz }) }, rate)
+      }
+      // The radio static bed, while a transmission is on the air (radio.ts's busy window).
+      const onAir = backend.now() < radioMemory.busyUntilS
+      if (onAir || handles.has('static')) driveLayer('static', { gain: onAir ? SYNTH_GAIN_MAX.static : 0, rate: 1 })
 
       // Silent while held: a paused replay renders the same frame repeatedly,
       // and re-evaluating cues against it must not re-fire them.

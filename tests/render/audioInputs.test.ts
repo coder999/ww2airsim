@@ -47,6 +47,15 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(radioLanguageFor(initialFrameState(loadAircraftSpec('a6m2-zero'), at))).toBe('ja')
   })
 
+  it("reads airspeed, the stall speed at the flaps, and the dive limit off the player (I1)", () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), flapFraction: 1 }))
+    const i = audioInputsFrom(frame)
+    expect(i.airspeedMps).toBeCloseTo(120, 6)
+    expect(i.stallSpeedMps).toBe(f6f.reference.stallSpeedFlapMps)
+    expect(i.diveSpeedMps).toBe(f6f.limits.diveSpeedMps)
+    expect(i.groundSpeedMps).toBe(0) // no ground under it yet
+  })
+
   it("reads gear and flap travel off the player's own state (I3)", () => {
     const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), gearFraction: 0.25, flapFraction: 0.75 }))
     expect(audioInputsFrom(frame)).toMatchObject({ gearFraction: 0.25, flapFraction: 0.75 })
