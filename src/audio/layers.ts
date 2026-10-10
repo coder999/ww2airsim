@@ -64,6 +64,9 @@ export const LAYERS = {
   buzz: { clip: 'buzz', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.03 },
   creak: { clip: 'creak', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.2 },
   static: { clip: 'noise', bus: 'radio', loopStartS: null, loopEndS: null, glideTauS: 0.03 },
+  // M2: a firing light AA gun (spatial.ts drives one loop per ship or battery, at the gun). The 0.65 s
+  // take loops whole; a quick glide so a salvo's start and end follow the gun.
+  aa_gun: { clip: 'aa_gun', bus: 'sfx', loopStartS: null, loopEndS: null, glideTauS: 0.12 },
   deck: {
     clip: 'carrier_deck', bus: 'ambient', loopStartS: seconds(45_409), loopEndS: seconds(679_536), glideTauS: AMBIENT_GLIDE_TAU_S,
   },

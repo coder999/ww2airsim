@@ -35,6 +35,14 @@ export const BLAST_REF_M = 200
 /** Detonations farther than this play the distant thump instead of the close blast. */
 export const FLAK_SWITCH_M = 3000
 export const MAX_BLASTS_PER_UPDATE = 4
+
+/** Light AA (M2): a gun firing is the `aa_gun` loop at its position, the nearest few, in earshot. A reasoned guess, never heard. */
+export const MAX_AA_GUN_SOURCES = 3
+export const AA_GUN_AUDIBLE_M = 2500
+export const AA_GUN_REF_M = 150
+export const AA_GUN_GAIN = 0.5
+/** Sum of all AA loop gains; above it every source scales down together. */
+export const AA_GUN_SUM_MAX = 0.7
 export const MAX_PENDING = 64
 
 export type SpatialAircraft = {
@@ -52,7 +60,9 @@ export type SpatialInputs = {
   readonly decks: readonly { readonly id: string; readonly center: Vec; readonly lengthM: number }[]
   /** Detonations, plus a torpedo's water entry (D3 T2): `torpedo` marks a torpedo event, `'splash'`
    *  at entry or a break-up on the water, `'hit'` at a hull. */
-  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec; readonly torpedo?: 'splash' | 'hit' }[]
+  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec; readonly torpedo?: 'splash' | 'hit'; readonly flak?: true }[]
+  /** Ships and batteries whose light guns fired lately (M2), at the gun that fired. Absent reads as none. */
+  readonly aaGuns?: readonly { readonly id: string; readonly position: Vec }[]
 }
 /** `at` is listener-relative in Web Audio axes: x right, y up, -z ahead. */
 export type SpatialLoop = {
@@ -151,6 +161,20 @@ export function nextSpatial(
     }
   })
 
+  // ---- light AA: one gunfire loop per firing ship or battery, the nearest few ----
+  const gunCands = (inputs.aaGuns ?? [])
+    .filter((g) => finiteVec(g.position))
+    .map((g) => ({ g, rel: sub(g.position, listenerAt), d: len(sub(g.position, listenerAt)) }))
+    .filter((c) => c.d <= AA_GUN_AUDIBLE_M)
+    .sort((p, q) => p.d - q.d || (p.g.id < q.g.id ? -1 : 1))
+    .slice(0, MAX_AA_GUN_SOURCES)
+  const gunRaw = gunCands.map(({ d }) => AA_GUN_GAIN * inverseLevel(d, AA_GUN_REF_M))
+  const gunSum = gunRaw.reduce((a, g) => a + g, 0)
+  const gunScale = gunSum > AA_GUN_SUM_MAX ? AA_GUN_SUM_MAX / gunSum : 1
+  gunCands.forEach(({ g, rel, d }, i) => {
+    loops.push({ key: `aa:${g.id}`, layer: 'aa_gun', at: toListener(basis, rel), gain: gunRaw[i]! * gunScale, rate: 1, cutoffHz: airCutoffHz(d) })
+  })
+
   // ---- carrier deck rumble: the nearest deck, at the ship ----
   let bestDeck: { rel: Vec; edgeM: number; half: number } | null = null
   for (const deck of inputs.decks) {
@@ -190,8 +214,9 @@ export function nextSpatial(
   for (const { b } of fresh) blastTick = blastTick === null ? b.tick : Math.max(blastTick, b.tick)
   fresh.filter((f) => f.d <= BLAST_HEARD_M).sort((p, q) => p.d - q.d).slice(0, MAX_BLASTS_PER_UPDATE).forEach(({ b, d }) => {
     // A torpedo has its own takes at any range (D3 T2, Track I's I3); distance still dulls them.
+    // A flak burst (M2) is always flak: the close take within FLAK_SWITCH_M, the far one beyond.
     const clip: ClipId = b.torpedo === 'splash' ? 'torpedo_splash' : b.torpedo === 'hit' ? 'torpedo_hit'
-      : d > FLAK_SWITCH_M ? 'flak_distant' : b.surface === 'water' ? 'water_crash' : 'explosion'
+      : d > FLAK_SWITCH_M ? 'flak_distant' : b.flak === true ? 'flak_burst' : b.surface === 'water' ? 'water_crash' : 'explosion'
     enqueue(clip, b.position, d, BLAST_REF_M)
   })
 

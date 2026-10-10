@@ -169,7 +169,6 @@ export type AaRound = {
   readonly lifeS: number; readonly tracer: boolean; readonly kind: 'round'; readonly ageS: 0; readonly aa: number
 }
 
-type OwnerLike = { readonly id: string; readonly side?: Side | undefined }
 type ShipLike = {
   readonly id: string; readonly spec: { readonly armament?: ShipArmament | undefined }
   readonly state: { readonly position: Vec3; readonly headingRad: number }; readonly previous: { readonly position: Vec3 }

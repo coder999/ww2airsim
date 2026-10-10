@@ -21,8 +21,7 @@ if (process.argv[4] !== undefined) merge(AA_TUNING as unknown as Record<string, 
 const seeds = Number(process.argv[2] ?? 16)
 const ship = process.argv[3] ?? 'fletcher-dd'
 for (const profile of (process.argv[5]?.split(',') ?? ['orbit', 'pass']) as Profile[]) {
-  const t0 = Date.now()
   const s = sweep(profile, seeds, ship)
   const times = s.lostTimes.map((t) => t.toFixed(1)).join(' ')
-  console.log(`${ship} ${profile}: lost ${s.lost}/${s.runs}, median ${s.medianLostS?.toFixed(1) ?? '-'} s, mean structure left ${s.meanStructure.toFixed(2)}, light hits ${s.meanLightHits.toFixed(1)}, bursts ${s.meanBursts.toFixed(1)} (${s.meanBurstsInRadius.toFixed(1)} in radius) [${times}] (${((Date.now() - t0) / 1000).toFixed(0)} s)`)
+  console.log(`${ship} ${profile}: lost ${s.lost}/${s.runs}, median ${s.medianLostS?.toFixed(1) ?? '-'} s, mean structure left ${s.meanStructure.toFixed(2)}, light hits ${s.meanLightHits.toFixed(1)}, bursts ${s.meanBursts.toFixed(1)} (${s.meanBurstsInRadius.toFixed(1)} in radius) [${times}]`)
 }

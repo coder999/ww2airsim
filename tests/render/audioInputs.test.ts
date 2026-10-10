@@ -305,4 +305,20 @@ describe('spatialInputsFrom (spatial audio)', () => {
     const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
     expect(out.blasts.map((b) => [b.tick, b.torpedo])).toEqual([[1, 'splash'], [2, 'splash'], [4, 'hit']])
   })
+
+  // M2: a flak burst is a blast the spatial reducer plays as flak; the light guns that fired lately are the aa_gun loops.
+  it('marks a flak burst as flak, and hands the firing light guns to the reducer', () => {
+    const frame = base()
+    const world = {
+      ...frame.world,
+      combat: {
+        ...frame.world.combat,
+        impacts: [{ tick: 7, cause: 'flak', outcome: 'detonated', surface: 'air', point: v3(4, 5, 6) } as CombatImpact],
+        aa: { ...frame.world.combat.aa, firing: [{ id: 'dd-1', at: v3(10, 11, 12), tick: 9 }] },
+      },
+    }
+    const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
+    expect(out.blasts).toEqual([{ tick: 7, surface: 'air', position: v3(4, 5, 6), flak: true }])
+    expect(out.aaGuns).toEqual([{ id: 'dd-1', position: v3(10, 11, 12) }])
+  })
 })

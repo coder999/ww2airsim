@@ -60,6 +60,7 @@ import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
+import { createAaTracers } from './scene/aaTracers.js'
 import { createOrdnance } from './ordnance.js'
 import { loadStoreVisuals } from './scene/storeModels.js'
 import { combatDiagnosticsFor, createCombatReadout } from './combatReadout.js'
@@ -1534,6 +1535,9 @@ async function boot(): Promise<void> {
   // with no further plumbing here.
   const tracers = createTracers()
   scene.add(tracers.object)
+  // M2: anti-aircraft tracers, a thicker mesh of their own.
+  const aaTracers = createAaTracers()
+  scene.add(aaTracers.object)
   // Ordnance in flight (Plan 6b Task 8, impacts migrated to E1's fx/): pools
   // sized independently of any scenario's entity list -- nothing here is
   // rebuilt on a scenario switch either.
@@ -2645,6 +2649,7 @@ async function boot(): Promise<void> {
     // every effect is E1's (fx/, below).
     combatReadout.setRecord(current.world.combat.aircraft[current.world.player], racksLabel(player.spec))
     tracers.update(view.world.combat.projectiles)
+    aaTracers.update(view.world.combat.projectiles, player.state.position)
     // Plan 6b Task 8: stores on the airframe, ordnance in flight, ship
     // sinking/burning and structure collapse -- all stateless views of
     // `World.combat`.
@@ -2750,7 +2755,7 @@ async function boot(): Promise<void> {
     ) {
       shownDestructionTick = playerDamage.destroyedAt
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank), current.world), current.world)
+      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !current.world.aircraft.some((x) => x.id === playerDamage.attacker)), current.world), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
       segment = EMPTY_SEGMENT

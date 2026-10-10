@@ -42,6 +42,7 @@ import { deckRun, destroyNow, fieldApproach, hold, levelAt, settledAll, terrainO
 const DULAG = { x: -31629, z: -16479 }
 const HANGARS = ['dulag-hangar-1', 'dulag-hangar-2']
 const DEFENDERS = ['defender-1', 'defender-2']
+const AAA = ['dulag-aaa-1', 'dulag-aaa-2']
 const SCRAMBLE = 'Strike lead: bandits scrambling off Dulag!'
 const EGRESS = 'Strike lead: hangars are down. Head home to Tacloban.'
 /** Staged: 7 km north of Dulag, inside the 8 km ring, at 1,500 m, southbound. */
@@ -182,6 +183,10 @@ describe.skipIf(terrain === null)('Airfield Strike, headless (spec §5)', () => 
     w = hold(w, IN_RING, 1)
     w = hold(destroyNow(destroyNow(w, HANGARS), DEFENDERS), IN_RING, 2)
     expect(progressOf(w, 'hangars').status).toBe('complete')
+    // M2 (2026-10-10): the batteries now shoot, and this run lands a Hellcat on their field. The test is about
+    // what a landing at the wrong field counts as, so stage them down as the defenders are; with them up it is
+    // shot down on the approach (measured: impact at tick 10020).
+    w = destroyNow(w, AAA)
     w = fieldApproach(w, 'dulag')
     expect(recoveryOf(w)).toMatchObject({ kind: 'landed', at: { id: 'dulag' } })
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
