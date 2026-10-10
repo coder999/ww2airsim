@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { debriefDialog, percentile, startGame, type DiagWindow, recordFrameTime } from './harness.js'
 import { SCENARIO_PARAM, SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { DIFFICULTY_SCALES } from '../../src/sim/difficulty.js'
 
 /**
  * E2E, Task 9 (2026-09-24-plan-ui-realism): the reference-GPU acceptance
@@ -115,6 +116,24 @@ test('fresh profile: no Recommended tag on the title; the probe measures the fir
   await expect(settingsDialog(page).getByText('Recommended')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
   await page.screenshot({ path: 'test-results/settings-fresh-recommended.png' })
+})
+
+test('Difficulty: a Recruit pick in the dialog reaches the sortie it launches (M5)', async ({ page }) => {
+  // Wiring only, read from `__ww2.combat()`: how much each level changes the game is measured at
+  // Deterministic (tests/sim/difficultyLethality.test.ts). The AA scale is 1 at Veteran by construction.
+  await page.goto(RANGE)
+  await waitForTerrainOnly(page)
+  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  const dlg = settingsDialog(page)
+  const row = dlg.getByRole('radiogroup', { name: 'Difficulty' })
+  await expect(row.getByRole('radio', { name: /Veteran\b/ })).toHaveAttribute('aria-checked', 'true')
+  await row.getByRole('radio', { name: /Recruit\b/ }).click()
+  expect(await page.evaluate(() => window.localStorage.getItem('ww2airsim.difficulty.v1'))).toBe('easy')
+  await dlg.locator('.sheet').screenshot({ path: 'test-results/settings-difficulty-recruit.png' })
+  await dlg.getByRole('button', { name: 'Close' }).click()
+  await startGame(page)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.combat() !== null)
+  expect((await combat(page)).aa.errorScale).toBe(DIFFICULTY_SCALES.easy.aaError)
 })
 
 test('an explicit Simple-row pick persists across a reload, with no second probe run', async ({ page }) => {

@@ -3,6 +3,7 @@ import {
   type AssetQualityTierName, type QualitySettings, type QualityTierName,
 } from './quality.js'
 import { createSettingsModel, type RenderScale, type SettingsModel } from './settings.js'
+import type { Difficulty } from '../sim/difficulty.js'
 
 /**
  * The join between the Settings dialog's model (`settings.ts`, Task 5) and
@@ -77,6 +78,9 @@ export type BootQuality = {
   /** The boolean `stepCombat`'s `arcadeDamage` parameter takes, live: a
    *  Damage Model pick applies to the very next tick, with no reload. */
   readonly arcadeDamage: () => boolean
+  /** M5: the Difficulty the next sortie is built at (`buildWorld`'s `applyDifficulty`). A function, so a
+   *  pick made on the title screen reaches the sortie launched after it. */
+  readonly difficulty: () => Difficulty
   /** A5: the Render Scale in force, for `initRenderer`. */
   readonly renderScale: () => RenderScale
   /** A5: connects the live render-scale setter and applies the current value
@@ -135,6 +139,7 @@ export function createBootQuality(): BootQuality {
     probeSuppressed: savedAtBoot !== null,
     arcadeDamage: () => arcade,
     renderScale: () => settings.snapshot().renderScale,
+    difficulty: () => settings.snapshot().difficulty,
     bindRenderScale: (set): void => {
       setScale = set
       set(settings.snapshot().renderScale)

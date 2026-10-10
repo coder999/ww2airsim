@@ -106,7 +106,9 @@ export type CombatDiagnostics = {
   readonly poolSaturated: number
   /** M2: anti-aircraft fire right now (rounds in the air, flak bursts still to go off, ships and batteries whose light guns fired lately) and
    *  the flak bursts in the impact ring, so an E2E spec can read that the guns are firing instead of comparing pictures. */
-  readonly aa: { readonly rounds: number; readonly pendingBursts: number; readonly firing: number; readonly burstsRecent: number }
+  readonly aa: { readonly rounds: number; readonly pendingBursts: number; readonly firing: number; readonly burstsRecent: number
+    /** M5: the Difficulty's AA error scale on the guns facing the player (`AaState.errorScaleVs`); 1 at Veteran. */
+    readonly errorScale: number }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -142,6 +144,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       pendingBursts: combat.aa.bursts.length,
       firing: combat.aa.firing.length,
       burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
+      errorScale: combat.aa.errorScaleVs?.scale ?? 1,
     },
   }
 }

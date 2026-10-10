@@ -6,7 +6,7 @@ import {
   defaultQualitySettings, loadQualitySettings, saveQualitySettings, saveAssetQualityTier,
   type QualityTierName,
 } from '../../src/render/quality.js'
-import { saveDamageModel, saveRenderScale } from '../../src/render/settings.js'
+import { saveDamageModel, saveDifficulty, saveRenderScale } from '../../src/render/settings.js'
 import { INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 
 /** The in-memory `Storage` stand-in `quality.test.ts`, `roster.test.ts` and
@@ -216,6 +216,17 @@ describe('the Render Scale at boot (A5)', () => {
   })
 })
 
+describe('the Difficulty at launch (M5)', () => {
+  it('reads the persisted difficulty and follows a pick, for the next sortie\'s buildWorld', () => {
+    expect(createBootQuality().difficulty()).toBe('normal')
+    saveDifficulty('hard')
+    const quality = createBootQuality()
+    expect(quality.difficulty()).toBe('hard')
+    quality.settings.selectDifficulty('easy')
+    expect(quality.difficulty()).toBe('easy')
+  })
+})
+
 /**
  * `main.ts` is unreachable from this suite (Three.js, WebGPU, one 1,700-line
  * async `boot()`), so the last link in the chain -- that `boot()` actually
@@ -265,6 +276,12 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
     // One CALL, not one mention: the negative lookbehind skips the `code
     // span` in the comment further down that names the old hardcoded form.
     expect(source.match(/(?<!`)finestFetchedLevelFor\(/g)).toHaveLength(1)
+  })
+
+  it('builds every sortie\'s world at the Difficulty setting (M5)', () => {
+    // `buildWorld` is the one path to a flying world: boot, Launch and Restart all go through it.
+    expect(source).toContain('return applyDifficulty(built, quality.difficulty())')
+    expect(source.match(/applyDifficulty\(/g)).toHaveLength(1)
   })
 
   it('feeds the damage model into the frame loop every frame', () => {

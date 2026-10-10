@@ -64,7 +64,8 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Today:** `predictImpact` (`sim/weapons/impactPrediction.ts`) flies the sim's own bomb or rocket step to terrain or sea; the **Impact marker** (`U`) draws the result. Matches the real sim to 1 cm.
 - **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: off by default (§4 Q2). Torpedoes are not covered.
 
-**B3. Navigation autopilot (M).**
+**B3. Navigation autopilot (M).** Built on branch `worktree-agent-a9f86eab69be97b65` 2026-10-10, not merged; plan [`2026-10-10-b3-pursuit-g-limit.md`](docs/superpowers/plans/2026-10-10-b3-pursuit-g-limit.md), handoff [`2026-10-10-b3-pursuit-g-limit.md`](docs/handoff/2026-10-10-b3-pursuit-g-limit.md).
+- **Built:** Shift pulls at most 0.9 of each airframe's own `gLimit` (rudder included) and stops diving at 0.9 of its dive speed. The 13 g overshoot (13.55 g, F6F broken up) is now 6.78 g, structure intact; Damage Range taps unchanged (11 and 14 hits on the first two).
 - **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
 - **What exists:** the AI already flies the laws: `goalDesiredVelocity` (ingress), `loiterDesiredVelocity`, `approachControls`, formation keeping. The measurement autopilot holds level flight (`sim/autopilot.ts`).
 - **Proposal:** three modes built on the AI laws rather than new control law:
@@ -319,6 +320,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
+     - **Built on branch `m5-difficulty`, not merged** (2026-10-10; plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
   6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
 
 ---

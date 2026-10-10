@@ -5,6 +5,7 @@ import {
   RENDER_QUALITY_OPTIONS, ADVANCED_SYSTEMS, ASSET_QUALITY_OPTIONS, DAMAGE_MODEL_OPTIONS,
   ASSET_QUALITY_EFFECT_NOTE, DEFAULT_DAMAGE_MODEL,
   loadRenderScale, saveRenderScale, RENDER_SCALE_OPTIONS,
+  loadDifficulty, saveDifficulty, DIFFICULTY_OPTIONS,
   type DamageModel,
 } from '../../src/render/settings.js'
 import {
@@ -108,6 +109,40 @@ describe('the render scale (A5, Mark 2026-10-10)', () => {
     expect(model.snapshot().canReset).toBe(false)
     model.resetToAutoDetect()
     expect(loadRenderScale()).toBe(0.75)
+  })
+})
+
+describe('the difficulty (M5, Mark 2026-10-10)', () => {
+  it('offers Recruit, Veteran and Ace over ids that are not pilot-skill words, and round-trips each', () => {
+    expect(DIFFICULTY_OPTIONS.map((o) => o.label)).toEqual(['Recruit', 'Veteran', 'Ace'])
+    // A scenario's pilot `skill` is 'green' | 'veteran'; the setting must never be mistaken for one.
+    for (const { value } of DIFFICULTY_OPTIONS) expect(['green', 'veteran']).not.toContain(value)
+    expect(loadDifficulty()).toBeNull()
+    for (const { value } of DIFFICULTY_OPTIONS) {
+      saveDifficulty(value)
+      expect(loadDifficulty()).toBe(value)
+    }
+  })
+
+  it('ignores a stored value that is not a difficulty (a pilot skill included), and does not throw', () => {
+    for (const junk of ['veteran', 'green', 'Recruit', '']) {
+      window.localStorage.setItem('ww2airsim.difficulty.v1', junk)
+      expect(() => loadDifficulty()).not.toThrow()
+      expect(loadDifficulty()).toBeNull()
+    }
+  })
+
+  it('defaults to Veteran, today\'s tuning, so nothing changes until a player picks', () => {
+    expect(createSettingsModel().snapshot().difficulty).toBe('normal')
+  })
+
+  it('a pick persists, but is not a render-quality choice', () => {
+    const model = createSettingsModel()
+    model.selectDifficulty('easy')
+    expect(model.snapshot().difficulty).toBe('easy')
+    expect(createSettingsModel().snapshot().difficulty).toBe('easy')
+    expect(model.snapshot().explicitChoiceMade).toBe(false)
+    expect(model.snapshot().canReset).toBe(false)
   })
 })
 
