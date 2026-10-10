@@ -74,6 +74,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Decided (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
 
 **B4. Tutorial (M).** Done and merged 2026-10-10; plan [`2026-10-10-b4-tutorial.md`](docs/superpowers/plans/2026-10-10-b4-tutorial.md), handoff [`2026-10-10-b4-tutorial.md`](docs/handoff/2026-10-10-b4-tutorial.md).
+- **Ruled (Mark, 2026-10-10):** Basic Flying is the default mission; the picker opens on it.
 - **Shipped:** **Basic Flying** (`content/scenarios/tutorial.json`), first mission in the picker: ten chained objectives from full throttle to landing, an instructor's radio line on each step (text only, no recordings).
 - **Engine gap closed:** the `state` objective and trigger (gear, flaps, bay doors, air-relative speed, altitude band, throttle). An Assist toggle cannot be one: the Impact marker is render state (B2 R7), so the tutorial only teaches `U`.
 
