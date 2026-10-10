@@ -241,12 +241,10 @@ one plan for the lot.
 
 - **Today:** 16 sounds wired out of about 44 designed.
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
-- **I1, synthesized mechanicals:**
-  - wind;
-  - wheel rumble;
-  - stall buffet and buzz;
-  - overspeed creak;
-  - a radio static bed under the voice (the squelch is recorded, I3; the radio bus carries the lines since I2).
+- **I1, synthesized mechanicals. Done 2026-10-09** (branch `i1-synth-sounds`, plan `docs/superpowers/plans/2026-10-09-i1-synth-sounds.md`, handoff `docs/handoff/2026-10-09-i1-synth-sounds.md`):
+  - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (stall speed at the current flaps), overspeed creak (the spec's dive limit), and radio static under each transmission.
+  - Max gains are tuning values in `mix.ts` `SYNTH_GAIN_MAX`, not yet heard in flight.
+  - **Open:** grass has no rumble preset of its own, because `ContactSurface` has no grass. The stall cues read airspeed at 1 g, so they do not follow angle of attack.
 - **I2, voice (§4 Q7):**
   - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
   - **Wired 2026-10-09** (branch `i2-voice-wiring`, plan `docs/superpowers/plans/2026-10-09-i2-voice-wiring.md`):
