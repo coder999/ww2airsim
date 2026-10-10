@@ -30,5 +30,7 @@ All are tuning values; Mark's ear decides.
 ## Open
 
 - **Grass:** it shares land's rumble preset, because `ContactSurface` has no grass.
-- **Stall cues:** they read airspeed at 1 g, so an accelerated stall in a hard turn does not buffet early. Reading angle of attack would fix that.
+- **Stall cues:** changed 2026-10-09 at Mark's request.
+  - They now read angle of attack, as lift in use over maximum lift, with the same 1.15× and 1.07× onsets at 1 g, so a hard pull buffets early.
+  - Grass keeps the land rumble, and wind stays muffled in the cockpit, both his calls.
 - **Wind** is on the ambient bus, so the cockpit preset's world lowpass dulls it. Whether it should be louder in the cockpit is for Mark's ear.

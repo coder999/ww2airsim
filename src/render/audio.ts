@@ -2,8 +2,12 @@ import { DAMAGE_BLAST_NEAR_M, ROUND_HIT_NEAR_M, type AudioInputs } from '../audi
 import type { CombatImpact } from '../sim/weapons/impacts.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { engineFamilyFor } from '../audio/mix.js'
-import { effectiveStallSpeedMps, onGround } from '../sim/ground.js'
-import { airVelocity } from '../sim/flight/model.js'
+import { onGround } from '../sim/ground.js'
+import { airVelocity, angleOfAttack } from '../sim/flight/model.js'
+import { alphaCritRad, liftCoefficient } from '../sim/aero.js'
+import { flapClIncrement } from '../sim/flaps.js'
+import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { AircraftState } from '../sim/flight/state.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { length, sub } from '../sim/math/vec3.js'
 import { qRotate, type Quat } from '../sim/math/quat.js'
@@ -87,11 +91,22 @@ export function audioInputsFrom(frame: Pick<FrameState, 'world' | 'controls'>): 
     flapFraction: aircraft.flapFraction,
     // I1: the wind follows speed through the air, the wheels speed over what is under them.
     airspeedMps: length(airVelocity(aircraft, frame.world.wind)),
-    stallSpeedMps: effectiveStallSpeedMps(spec, aircraft.flapFraction),
+    liftFraction: liftFraction(spec, { ...aircraft, velocity: airVelocity(aircraft, frame.world.wind) }),
     diveSpeedMps: spec.limits.diveSpeedMps,
     groundSpeedMps: ground === null ? 0 : Math.hypot(aircraft.velocity.x - ground.velocity.x, aircraft.velocity.z - ground.velocity.z),
     damage: damageEventsNear(frame.world.combat.impacts, aircraft.position),
   }
+}
+
+/** The share of the wing's maximum lift in use, from the angle of attack through the air (I1's
+ *  stall warning, `stallFor`). Signed lift over the most it makes at the stalling angle with the
+ *  flaps where they are, so a hard pull reads high at any speed; past the stalling angle it is 1. */
+function liftFraction(spec: AircraftSpec, air: AircraftState): number {
+  const alpha = angleOfAttack(air)
+  const crit = alphaCritRad(spec)
+  if (Math.abs(alpha) >= crit) return 1
+  const flaps = flapClIncrement(spec, air.flapFraction)
+  return Math.abs(liftCoefficient(spec, alpha, flaps)) / liftCoefficient(spec, crit, flaps)
 }
 
 /** The newest event of each `DamageCause` at the player: a round that struck an aircraft within

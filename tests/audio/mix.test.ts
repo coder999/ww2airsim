@@ -62,14 +62,15 @@ describe('the synthesized layers (I1)', () => {
   })
 
   it('buffets from the onset to full at the stall, buzzes nearer it, and only in the air', () => {
-    const stall = 40
-    expect(stallFor(true, stall * BUFFET_ONSET, stall)).toEqual({ buffet: 0, buzz: 0 })
-    const near = stallFor(true, stall * 1.1, stall)
+    // At 1 g, k x the stall speed uses 1/k^2 of the maximum lift: the onsets keep their speed meaning.
+    const atSpeed = (k: number): number => 1 / k ** 2
+    expect(stallFor(true, atSpeed(BUFFET_ONSET))).toEqual({ buffet: 0, buzz: 0 })
+    const near = stallFor(true, atSpeed(1.1))
     expect(near.buffet).toBeGreaterThan(0)
     expect(near.buzz).toBe(0)
-    expect(stallFor(true, stall, stall)).toEqual({ buffet: SYNTH_GAIN_MAX.buffet, buzz: SYNTH_GAIN_MAX.buzz })
-    expect(stallFor(false, stall, stall)).toEqual({ buffet: 0, buzz: 0 })
-    expect(stallFor(true, undefined, stall)).toEqual({ buffet: 0, buzz: 0 })
+    expect(stallFor(true, atSpeed(1))).toEqual({ buffet: SYNTH_GAIN_MAX.buffet, buzz: SYNTH_GAIN_MAX.buzz })
+    expect(stallFor(false, 1)).toEqual({ buffet: 0, buzz: 0 })
+    expect(stallFor(true, undefined)).toEqual({ buffet: 0, buzz: 0 })
   })
 
   it('creaks from the onset to full at the dive limit', () => {
