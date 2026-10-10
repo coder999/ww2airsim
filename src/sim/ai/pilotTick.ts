@@ -2,7 +2,7 @@ import type { AircraftEntity, ShipEntity } from '../loop.js'
 import type { CombatState } from '../weapons/combat.js'
 import { idSeed } from '../damage/model.js'
 import type { Controls } from '../flight/state.js'
-import { isAircraftDoomed } from '../weapons/combat.js'
+import { isAircraftDoomed, storeTypeOf } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
 import { length, sub, v3, type Vec3 } from '../math/vec3.js'
@@ -82,11 +82,19 @@ export function pilotTick<M>(
   ctx: PilotTickContext,
 ): AircraftEntity<M> {
   const flown = flyPilot(a, snapshot, ctx)
+  if (flown === a || a.spec.bayDoors === undefined) return flown
   // C2: a raider with bay doors works them by range to its destination, whatever it is flying.
   const orders = flown.pilot?.ingress
-  if (flown === a || orders === undefined || a.spec.bayDoors === undefined) return flown
-  return { ...flown, controls: { ...flown.controls, bayDoorsOpen: ingressBayDoorsOpen(flown, orders, ctx.ships) } }
+  if (orders !== undefined) return { ...flown, controls: { ...flown.controls, bayDoorsOpen: ingressBayDoorsOpen(flown, orders, ctx.ships) } }
+  // E3: a wingman on station works its doors as its leader does.
+  const wing = flown.pilot?.formation
+  const leader = wing === undefined || flown.pilot!.decision.mode !== 'formation' ? undefined : snapshot.find((c) => c.id === wing.leader)
+  return leader === undefined ? flown : { ...flown, controls: { ...flown.controls, bayDoorsOpen: leader.controls.bayDoorsOpen === true } }
 }
+
+/** E3: an airplane with no fixed guns (a heavy bomber, the Kate) has nothing to attack with: its pilot never
+ *  picks a target and holds its orders, and its gunners (`weapons/gunners.ts`) do the fighting. */
+export const hasFixedGuns = <M>(a: AircraftEntity<M>): boolean => (a.spec.combat?.guns.length ?? 0) > 0
 
 /** The nose-down angle a burning AI airplane is held to, radians (50 deg). ESTIMATE. */
 export const BURNING_DIVE_RAD = (-50 * Math.PI) / 180
@@ -172,7 +180,8 @@ function flyPilot<M>(
   if (lost || ctx.nowS >= decision.nextRescoreS) {
     // A sitting duck (Range Test) never picks a target: it cannot fire or evade.
     // E2: a committed attack run (a dive, a torpedo run) is not pre-empted by a fighter.
-    const scored = pilot.passive !== undefined || attackCommitted(decision.attack) ? null : chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
+    const scored = pilot.passive !== undefined || attackCommitted(decision.attack) || (pilot.target === null && !hasFixedGuns(a))
+      ? null : chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
     // 7g spec §1, §6: the return-to-base decision, for a pilot with a home
     // only (ruling P3: nothing else is written for one without, so every
     // pre-7g world is bit-identical). RTB pre-empts engage unless a threat is
@@ -276,7 +285,7 @@ function flyPilot<M>(
   let attackWas: PilotDecisionState['attack']
   if (target === null && pilot.ingress?.attack !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed' && decision.legIndex >= pilot.ingress.route.length) {
     attackWas = decision.attack
-    attacking = attackFlight(a, pilot.ingress, decision, ctx)
+    attacking = attackFlight(a, pilot.ingress, decision, ctx, snapshot.some((c) => c.pilot?.formation?.leader === a.id))
     if (attacking !== null) decision = { ...decision, attack: attacking.attack }
   }
   if (attacking === null && target === null && pilot.ingress !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed') {
@@ -329,7 +338,10 @@ function flyPilot<M>(
   if (target === null && decision.mode === 'formation' && leader !== null && leaderFlying) {
     const base = formationControls(a, leader, pilot.formation!.slot, (decision.coverUntilS ?? 0) > ctx.nowS)
     const { controls, cursor } = finishControls(a, base, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
-    return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls }
+    // E3: a bomber wingman toggles on its leader: a bomb for each one the leader has dropped and it has not.
+    const dropped = ctx.combat.aircraft[leader.id]?.bombsDropped ?? 0
+    const drop = dropped > record.bombsDropped && record.stores.bombs > 0 && storeTypeOf(a.spec, 'bomb')?.kind === 'bomb'
+    return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls: drop ? { ...controls, dropBomb: true } : controls }
   }
   if (target === null) {
     const orders = pilot.ingress

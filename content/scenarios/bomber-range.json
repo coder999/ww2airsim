@@ -11,28 +11,42 @@
       "airborneAt": { "position": [-27000, 2500, -16479], "headingDeg": 90, "speedMps": 120 }
     },
     {
-      "id": "betty-1",
-      "spec": "g4m-betty",
-      "side": "axis",
-      "airborneAt": { "position": [-26600, 2500, -16479], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
-    },
-    {
-      "id": "sally-1",
-      "spec": "ki-21-sally",
-      "side": "axis",
-      "airborneAt": { "position": [-25900, 2520, -16380], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
-    },
-    {
       "id": "fort-1",
       "spec": "b-17-flying-fortress",
       "side": "axis",
-      "airborneAt": { "position": [-25200, 2480, -16580], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
+      "airborneAt": { "position": [-25200, 2500, -16479], "headingDeg": 90, "speedMps": 90, "throttle": 0.7 },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            { "x": -12000, "z": -16479, "altitudeM": 2500, "speedMps": 90 },
+            { "x": -14000, "z": -32000, "altitudeM": 2500, "speedMps": 90 }
+          ],
+          "destination": { "airfield": "tacloban" },
+          "attack": "level-bomb"
+        }
+      }
     },
     {
       "id": "superfort-1",
       "spec": "b-29-superfortress",
       "side": "axis",
-      "airborneAt": { "position": [-24400, 2540, -16460], "headingDeg": 90, "speedMps": 100, "throttle": 0.7 }
+      "airborneAt": { "position": [-25280, 2500, -16379], "headingDeg": 90, "speedMps": 90, "throttle": 0.7 },
+      "pilot": { "skill": "veteran", "leader": "fort-1", "slot": 1 }
+    },
+    {
+      "id": "betty-1",
+      "spec": "g4m-betty",
+      "side": "axis",
+      "airborneAt": { "position": [-25280, 2500, -16579], "headingDeg": 90, "speedMps": 90, "throttle": 0.7 },
+      "pilot": { "skill": "veteran", "leader": "fort-1", "slot": 2 }
+    },
+    {
+      "id": "sally-1",
+      "spec": "ki-21-sally",
+      "side": "axis",
+      "airborneAt": { "position": [-25360, 2500, -16679], "headingDeg": 90, "speedMps": 90, "throttle": 0.7 },
+      "pilot": { "skill": "veteran", "leader": "fort-1", "slot": 3 }
     }
   ],
   "ships": [],

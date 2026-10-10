@@ -49,8 +49,8 @@ export function quatFromXTo(dir: Vec3): Quat {
 export function tracerInstances(projectiles: readonly Projectile[], capacity = TRACER_CAPACITY): TracerInstance[] {
   const out: TracerInstance[] = []
   for (const p of projectiles) {
-    // An AA round (M2) has its own, thicker mesh (aaTracers.ts).
-    if (!p.tracer || p.aa !== undefined) continue
+    // An AA round (M2) has its own, thicker mesh (aaTracers.ts); a gunner's (E3) is an airplane gun's and draws here.
+    if (!p.tracer || (p.aa !== undefined && p.gunner !== true)) continue
     if (out.length >= capacity) break
     const travel = sub(p.position, p.previous)
     const travelM = length(travel)

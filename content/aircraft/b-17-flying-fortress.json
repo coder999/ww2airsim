@@ -402,6 +402,98 @@
         "system": "roll"
       }
     ],
-    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 1440 is 3x the Hellcat (480) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 160 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 0.5 (self-sealing tanks, the Hellcat's). No fixed guns: the gunners are not modeled (turret aim is visual only), so `guns` is empty and the ballistic fields are placeholders nothing fires. Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll."
+    "gunners": [
+      {
+        "mount": "Turret1",
+        "position": [
+          5.49,
+          -0.77,
+          0.0
+        ],
+        "restHeadingDeg": 0,
+        "traverseDeg": 86,
+        "elevationDeg": [
+          -46,
+          26
+        ],
+        "barrels": 2
+      },
+      {
+        "mount": "Turret2",
+        "position": [
+          4.97,
+          0.34,
+          -1.08
+        ],
+        "restHeadingDeg": -30,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          -20,
+          30
+        ],
+        "barrels": 1
+      },
+      {
+        "mount": "Turret3",
+        "position": [
+          4.97,
+          0.34,
+          1.07
+        ],
+        "restHeadingDeg": 30,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          -20,
+          30
+        ],
+        "barrels": 1
+      },
+      {
+        "mount": "Turret4",
+        "position": [
+          1.42,
+          2.0,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": null,
+        "elevationDeg": [
+          0,
+          85
+        ],
+        "barrels": 2
+      },
+      {
+        "mount": "Turret5",
+        "position": [
+          -4.45,
+          -1.02,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": null,
+        "elevationDeg": [
+          -90,
+          0
+        ],
+        "barrels": 2
+      },
+      {
+        "mount": "Turret6",
+        "position": [
+          -15.99,
+          0.61,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          -20,
+          30
+        ],
+        "barrels": 2
+      }
+    ],
+    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 1440 is 3x the Hellcat (480) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 160 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 0.5 (self-sealing tanks, the Hellcat's). Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll. GUNNERS (E3, 2026-10-10): the chin, both cheek guns, the top and ball turrets and the tail guns fire (`gunners`, src/sim/weapons/gunners.ts); every gun is a .50, the top-level ballistic. Barrels: chin, top, ball and tail twin, each cheek one (B-17G, EN-WP 'Boeing B-17 Flying Fortress'). The waist guns are not drawn aimed and do not fire. Positions are the GLB's turret pivots and the arcs are airframeRigs.ts's (tests/tools/models/gunnerMounts.test.ts). No fixed guns: `guns` is empty."
   }
 }

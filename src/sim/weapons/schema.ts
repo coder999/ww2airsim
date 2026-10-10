@@ -55,12 +55,33 @@ export const CombatSpecSchema = z.object({
      *  dies on its own. Absent on a single-engine airplane. */
     engine: z.number().int().min(0).max(7).optional(),
   }).strict()).min(1).max(32).refine(zones => new Set(zones.map(z => z.id)).size === zones.length, { message: 'duplicate hit zone id' }),
+  /** E3: the defensive gunners, one per aimed turret or flexible gun (`src/sim/weapons/gunners.ts`). `mount` is
+   *  the rig part (`Turret<N>`); `position` is its pivot in the body frame (+x nose, +y up, +z starboard);
+   *  `restHeadingDeg` is where traverse 0 points, degrees right of the nose; `traverseDeg` is the half-arc either
+   *  side of it (null: a full circle); `elevationDeg` is above the airframe's horizontal. The arcs and pivots
+   *  are the renderer's (`airframeRigs.ts`, the GLB), held equal by tests/tools/models/gunnerMounts.test.ts. */
+  gunners: z.array(z.object({
+    mount: z.string().regex(/^Turret\d+$/),
+    position: point,
+    restHeadingDeg: z.number().finite().min(-180).max(180),
+    traverseDeg: z.number().finite().positive().max(180).nullable(),
+    elevationDeg: z.tuple([z.number().finite().min(-90).max(90), z.number().finite().min(-90).max(90)]),
+    barrels: z.number().int().min(1).max(4),
+    /** A key of `gunTypes`; absent means the top-level ballistic. */
+    type: z.string().min(1).optional(),
+  }).strict()).max(8).optional(),
   source: z.string().min(1),
 }).strict().superRefine((c, ctx) => {
   for (const [i, g] of c.guns.entries()) {
     if (g.type !== undefined && c.gunTypes?.[g.type] === undefined) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['guns', i, 'type'], message: `gun type "${g.type}" is not in gunTypes` })
     }
+  }
+  for (const [i, g] of (c.gunners ?? []).entries()) {
+    if (g.type !== undefined && c.gunTypes?.[g.type] === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['gunners', i, 'type'], message: `gun type "${g.type}" is not in gunTypes` })
+    }
+    if (g.elevationDeg[0] > g.elevationDeg[1]) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['gunners', i, 'elevationDeg'], message: 'elevation range is [low, high]' })
   }
   // The AI leads with the top-level muzzle velocity, so at least one mount
   // must actually fire that ballistic, or the AI aims for rounds nobody fires.

@@ -7,6 +7,7 @@ import { type Airfield, localToWorld, parkedAttitude, runwayHeadingRad } from '.
 import { deckOf } from './world/deck.js'
 import { restPitchRad } from './gearContact.js'
 import { deckParkSpots, runwayParkSpots } from './ai/parkSpots.js'
+import { armedForAttack } from './ai/attack.js'
 import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
@@ -800,7 +801,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
   const stores: Record<string, StoresState> = Object.fromEntries(
-    aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : a.pilot?.ingress?.attack !== undefined ? storesFromLoadout(a.spec, 'bombs') : emptyStores]),
+    aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : armedForAttack(a, aircraft) ? storesFromLoadout(a.spec, 'bombs') : emptyStores]),
   )
   // Missions (spec 2026-09-25). Held groups are built NOW, by the same
   // functions as the start entities, so a spawn is exactly what
