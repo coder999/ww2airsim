@@ -21,7 +21,7 @@ const COMBAT_IDS = readdirSync('content/aircraft').filter((f) => f.endsWith('.js
 
 describe('every combat airframe catches fire from a single-caliber stream, and then only the fire finishes it', () => {
   it('enrolls every airframe: since round 2 the bombers have combat blocks too', () => {
-    expect(COMBAT_IDS).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
+    expect(COMBAT_IDS).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger'])
   })
   it.each(COMBAT_IDS)('%s', (id) => {
     const spec = loadAircraftSpec(id)
