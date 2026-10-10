@@ -30,6 +30,7 @@ import { type Vec3, v3, length } from '../sim/math/vec3.js'
 import { type Quat, qFromAxisAngle, qMul, qNormalize } from '../sim/math/quat.js'
 import type { AircraftState, Controls } from '../sim/flight/state.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
+import type { GodMode } from '../sim/godMode.js'
 import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/landing.js'
 import { bayDoorsShut } from '../sim/bayDoors.js'
 
@@ -517,6 +518,8 @@ export function nextFrameState(
    *  zeroed by `main.ts` while a screen is over the flight. Passed in, not
    *  stored, like `arcadeDamage`; only the `orbit` it produces is state. */
   mouse: MouseDelta = NO_MOUSE,
+  /** God mode (Dev only, `sim/godMode.ts`), handed straight to `advance`; absent is every ordinary flight. */
+  god?: GodMode,
 ): FrameState {
   const player = playerAircraft(prev.world)
   const spec = player.spec
@@ -725,6 +728,7 @@ export function nextFrameState(
     stepper,
     assist,
     arcadeDamage,
+    god,
   )
   const advancedPlayer = playerAircraft(advanced.world)
   const { poses, shipPoses, render } = posesFor(advanced.world, advanced.alpha)

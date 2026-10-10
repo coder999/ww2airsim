@@ -47,6 +47,8 @@ export type TitleModel = {
   readonly next: string
   /** Form 1's Dev checkbox (sortie spec): lifts every rule. */
   readonly dev: string
+  /** Form 1's God mode checkbox: enabled only while Dev is checked (godMode.ts). */
+  readonly god: string
   /** Form 2's way back to Form 1. */
   readonly back: string
   readonly about: string
@@ -74,6 +76,7 @@ export function titleModel(): TitleModel {
     launch: 'Launch',
     next: 'Next',
     dev: 'Dev — unlocks everything',
+    god: 'God mode — cannot be hurt, never runs out, crashes bounce',
     back: 'Back',
     about: 'About project',
     hangar: 'Hangar',
@@ -474,6 +477,8 @@ export function createTitleScreen(
   // `settings`, not in `build()` -- it survives return-to-title and resets on
   // a page load. A `?scenario=` naming a Dev-only row checks it (A2).
   let dev = missions.options.find((o) => o.value === currentScenarioId)?.dev === true
+  // God mode: session state like Dev, and only ever true while Dev is.
+  let god = false
 
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
@@ -1142,13 +1147,25 @@ export function createTitleScreen(
     const devBox = document.createElement('input')
     devBox.type = 'checkbox'
     devBox.checked = dev
+    const godLabel = document.createElement('label')
+    godLabel.style.cssText = devLabel.style.cssText.replace('margin-right:auto;', 'margin-right:12px;')
+    const godBox = document.createElement('input')
+    godBox.type = 'checkbox'
+    godBox.checked = god && dev
+    godBox.disabled = !dev
+    godBox.addEventListener('change', () => { god = godBox.checked })
     devBox.addEventListener('change', () => {
       dev = devBox.checked
       sounds.style.display = dev ? '' : 'none'
+      // God mode needs Dev: unchecking Dev clears it and locks the box.
+      godBox.disabled = !dev
+      if (!dev) { god = false; godBox.checked = false }
       if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
     })
     devLabel.append(devBox, m.dev)
+    godLabel.append(godBox, m.god)
     const rosterButtons = buttonRow(newGame)
+    rosterButtons.prepend(godLabel)
     rosterButtons.prepend(devLabel)
     rosterSheet.appendChild(rosterButtons)
 
@@ -1234,7 +1251,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

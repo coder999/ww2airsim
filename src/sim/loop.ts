@@ -24,6 +24,7 @@ import { stepMission } from './mission/step.js'
 import { respotPlayer } from './mission/respot.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
+import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -691,6 +692,8 @@ function stepAircraftEntity<M>(
   assist: Assist<M>,
   damage: Damage,
   stores: StoresState,
+  /** God mode, player only: a contact bounces the airplane instead of ending its flight. */
+  bounce = false,
 ): AircraftEntity<M> {
   if (damage.destroyedAt !== null) return entity
   if (entity.impact !== null) return entity
@@ -788,6 +791,10 @@ function stepAircraftEntity<M>(
       supportedContact(entity.spec, entity.state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass) &&
       current.position.y - wheelDepthOf(entity.spec, current) < ground.heightM - GROUND_CONTACT_TOLERANCE_M
     if ((current.position.y <= ground.heightM && unsupported) || droveIntoTerrain) {
+      if (bounce) {
+        current = bounceState(current, ground.heightM)
+        return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
+      }
       const impact: Impact = {
         tick: current.tick,
         position: current.position,
@@ -838,6 +845,12 @@ export function advance<M>(
    * always had.
    */
   arcadeDamage = false,
+  /**
+   * God mode (Dev only, `godMode.ts`): the player cannot be damaged or run
+   * dry, and a contact bounces it. Absent, nothing changes: every existing
+   * call site is bit-identical.
+   */
+  god?: GodMode,
 ): AdvanceResult<M> {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative or not a number; banking either would poison the
@@ -914,12 +927,21 @@ export function advance<M>(
       const record = combat.aircraft[a.id]!
       return stepAircraftEntity(
         pilotTick(a, aircraftAtStart, pilotContext), tick, world.terrain, world.wind, decks, stepper, assist,
-        record.damage, record.stores,
+        record.damage, record.stores, god !== undefined && a.id === world.player,
       )
     })
     const combatAtStart = combat
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
+    // God mode: put the player back to pristine before anything reads the
+    // damage (credit for a kill, the mission's own checks), so a hit never lands.
+    if (god !== undefined) {
+      const player = aircraft.find((a) => a.id === world.player)
+      if (player !== undefined) {
+        combat = restoreCombat(combat, player.spec, world.player, god)
+        aircraft = aircraft.map((a) => (a.id === world.player ? { ...a, state: refuel(a.state, a.spec) } : a))
+      }
+    }
     // After `stepCombat`, which is where an overload break-up happens, and
     // after every aircraft has stepped, which is where a crash happens: a loss
     // with no killing hit is credited to whoever last hit the airplane.
