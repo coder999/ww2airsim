@@ -152,6 +152,9 @@ export type AaState = {
   readonly bursts: readonly FlakBurst[]
   /** Light guns that fired lately, for the audio (one entry per owner). */
   readonly firing: readonly AaFiring[]
+  /** M5 difficulty (`sim/difficulty.ts`): every mount NOT on `side` (so every gun that can fire at it)
+   *  has its aim and fuse error multiplied by `scale`. Absent, every mount fires as tuned. */
+  readonly errorScaleVs?: { readonly side: Side; readonly scale: number }
 }
 export const initialAa = (seed = 1944): AaState => ({ seed: seed >>> 0, nextFire: {}, engagedSince: {}, bursts: [], firing: [] })
 
@@ -323,7 +326,7 @@ export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonl
           engagedSince[key] = since = tick
         }
         const ranging = 1 + AA_TUNING.settle.extra * Math.max(0, 1 - ((tick - since) * dt) / (heavy ? AA_TUNING.settle.heavyS : AA_TUNING.settle.lightS))
-        const skill = skillOf(aa.seed, mh) * ranging
+        const skill = skillOf(aa.seed, mh) * ranging * (aa.errorScaleVs !== undefined && o.side !== aa.errorScaleVs.side ? aa.errorScaleVs.scale : 1)
         const windowTicks = Math.round((heavy ? H.errorWindowS : L.errorWindowS) / dt)
         const window = Math.floor(tick / windowTicks)
         const sigma = ((heavy ? H.aimErrorRad : L.aimErrorRad) + (heavy ? H.trackLagS : L.trackLagS) * Math.max(0, rate - (heavy ? H.slewFreeRadPerS : L.slewFreeRadPerS))) * skill

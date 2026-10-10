@@ -1,5 +1,6 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { INTERIM_ASSET_QUALITY_TIER } from './content.js'
+import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from '../sim/difficulty.js'
 import {
   clearQualitySettings, defaultQualitySettings, loadAssetQualityTier, loadQualitySettings, loadRecommendedTier,
   saveAssetQualityTier, saveQualitySettings, saveRecommendedTier, uniformTier,
@@ -40,6 +41,8 @@ import {
  *   and would tempt the boot sequence into treating it as probe-related.
  * - Render Scale   -> `ww2airsim.renderScale.v1`, below (A5, 2026-10-10),
  *   here for the same reason: nothing probes it, so it is not a tier.
+ * - Difficulty     -> `ww2airsim.difficulty.v1`, below (M5, 2026-10-10): a
+ *   gameplay setting like Damage Model.
  */
 
 const DAMAGE_MODEL_KEY = 'ww2airsim.damageModel.v1'
@@ -127,6 +130,33 @@ export function saveRenderScale(scale: RenderScale): void {
   }
 }
 
+const DIFFICULTY_KEY = 'ww2airsim.difficulty.v1'
+
+/** `null` on missing or unrecognized data (warns, never throws), like `loadDamageModel`. */
+export function loadDifficulty(): Difficulty | null {
+  try {
+    const raw = window.localStorage.getItem(DIFFICULTY_KEY)
+    if (raw === null) return null
+    const v = DIFFICULTIES.find((d) => d === raw)
+    if (v === undefined) {
+      console.warn('difficulty in localStorage is not a known difficulty; ignoring:', raw)
+      return null
+    }
+    return v
+  } catch (err) {
+    console.warn('difficulty in localStorage is unreadable; ignoring:', err)
+    return null
+  }
+}
+
+export function saveDifficulty(difficulty: Difficulty): void {
+  try {
+    window.localStorage.setItem(DIFFICULTY_KEY, difficulty)
+  } catch (err) {
+    console.warn('difficulty could not be saved to localStorage:', err)
+  }
+}
+
 /** One of the four rendering systems whose tier the Advanced disclosure
  *  lets diverge (spec §4: they default to moving together because that is
  *  what the probe recommends, not because divergence is disallowed). */
@@ -198,6 +228,16 @@ export const DAMAGE_MODEL_OPTIONS: readonly Option<DamageModel>[] = [
   },
 ]
 
+/** Easiest first. The labels are the player's; the ids are not pilot-skill words (`sim/difficulty.ts`). */
+export const DIFFICULTY_OPTIONS: readonly Option<Difficulty>[] = [
+  { value: 'easy', label: 'Recruit', note: 'Enemy guns shoot wider; your airplane takes less damage.' },
+  { value: 'normal', label: 'Veteran', note: 'The standard game. Each pilot flies at the skill the mission gives him.' },
+  { value: 'hard', label: 'Ace', note: 'Enemy guns shoot straighter; your airplane takes more damage.' },
+]
+
+/** Difficulty is built into the sortie at launch (`applyDifficulty`), like Asset Quality. */
+export const DIFFICULTY_EFFECT_NOTE = 'Takes effect next time you start a sortie.'
+
 /** Spec §6: the recommendation is measured, not assumed, and only after the
  *  ~180-frame probe window has elapsed. */
 export const RECOMMENDATION_NOTE =
@@ -218,6 +258,7 @@ export type SettingsSnapshot = {
    *  threaded in as a parameter -- visual-realism spec §1. */
   readonly arcadeDamage: boolean
   readonly renderScale: RenderScale
+  readonly difficulty: Difficulty
   /** The probe's pick once `main.ts` pushes it in; `null` until then, which
    *  is what suppresses the Recommended stamp rather than a "measuring..."
    *  label (spec §6). */
@@ -264,6 +305,7 @@ export type SettingsModel = {
   selectAssetQuality(tier: AssetQualityTierName): void
   selectDamageModel(model: DamageModel): void
   selectRenderScale(scale: RenderScale): void
+  selectDifficulty(difficulty: Difficulty): void
   /** Spec §6: clears the saved render-quality choice so the NEXT page load
    *  probes again. Deliberately does not re-probe or revert live state. */
   resetToAutoDetect(): void
@@ -309,6 +351,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   let assetQuality: AssetQualityTierName = loadAssetQualityTier() ?? INTERIM_ASSET_QUALITY_TIER
   let damageModel: DamageModel = loadDamageModel() ?? DEFAULT_DAMAGE_MODEL
   let renderScale: RenderScale = loadRenderScale() ?? DEFAULT_RENDER_SCALE
+  let difficulty: Difficulty = loadDifficulty() ?? DEFAULT_DIFFICULTY
 
   let isOpen = false
   let advancedExpanded = false
@@ -340,6 +383,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       damageModel,
       arcadeDamage: damageModel === 'arcade',
       renderScale,
+      difficulty,
       recommendedTier,
       // Read from storage rather than tracked as a flag: `main.ts` also saves
       // (spec §5 step 3, the probe's recommendation), so a locally-tracked
@@ -370,6 +414,11 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       renderScale = scale
       saveRenderScale(scale)
       callbacks.onRenderScaleChange?.(scale)
+      changed()
+    },
+    selectDifficulty: (next: Difficulty): void => {
+      difficulty = next
+      saveDifficulty(next)
       changed()
     },
     resetToAutoDetect: (): void => {
@@ -544,6 +593,22 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   }
   sheet.appendChild(damageGroup)
 
+  // ---- Difficulty (M5) ----
+  sheet.appendChild(sectionTitle('Difficulty'))
+  const difficultyGroup = radioGroup('Difficulty')
+  const difficultyOptions = new Map<Difficulty, HTMLDivElement>()
+  for (const option of DIFFICULTY_OPTIONS) {
+    const el = ballotOption(option.label, option.note, () => model.selectDifficulty(option.value))
+    difficultyOptions.set(option.value, el)
+    difficultyGroup.appendChild(el)
+  }
+  sheet.appendChild(difficultyGroup)
+  const difficultyNote = document.createElement('p')
+  difficultyNote.className = 'fine-print'
+  difficultyNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
+  difficultyNote.textContent = DIFFICULTY_EFFECT_NOTE
+  sheet.appendChild(difficultyNote)
+
   // ---- Actions. No Save and no Cancel: every control above has already
   // applied and persisted by the time it is released (spec §6, naval-comms
   // spec §1). "Close" dismisses, it does not confirm. ----
@@ -563,7 +628,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   const finePrint = document.createElement('div')
   finePrint.className = 'fine-print'
   const persistNote = document.createElement('span')
-  persistNote.textContent = 'Settings persist to this machine only, and apply the moment you pick them.'
+  persistNote.textContent = 'Settings persist to this machine only, and apply the moment you pick them unless noted.'
   const escNote = document.createElement('span')
   escNote.textContent = 'Esc to close'
   finePrint.append(persistNote, escNote)
@@ -586,6 +651,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     markGroup(scaleOptions, s.renderScale)
     markGroup(assetOptions, s.assetQuality)
     markGroup(damageOptions, s.damageModel)
+    markGroup(difficultyOptions, s.difficulty)
 
     // The stamp hangs ABOVE its row, so the row it lands on has to make space
     // or the stamp sits on top of the previous row's text (the prototype's
