@@ -1,6 +1,6 @@
 # E3: Bombers and gunners
 
-**Status (2026-10-10):** in progress on branch `e3-bombers-gunners` (worktree `.claude/worktrees/agent-a9bc867f9b5e66ad5`, cut from `main` `91da48f0`). Master plan item: Track E, item 3. Handoff (at the end): `docs/handoff/2026-10-10-e3-bombers-gunners.md`.
+**Status (2026-10-10):** built, not merged, on branch `e3-bombers-gunners` (worktree `.claude/worktrees/agent-a9bc867f9b5e66ad5`, cut from `main` `91da48f0`). Master plan item: Track E, item 3. Handoff (at the end): `docs/handoff/2026-10-10-e3-bombers-gunners.md`.
 **Mark's decisions (2026-10-10):**
 - **Gunner lethality default: "noticeable, not deadly."** A sloppy attack from dead astern takes hits; a good high-side or head-on pass mostly does not. Tuned with measured tables like E1's (hits taken and loss rate per geometry: dead astern, high side, head-on; green and veteran gunners), which go in the handoff.
 - **Gunner aim error goes through E1's skill mechanism** (`PilotSkill`), so M5 (global difficulty, a parallel agent) scales it with the one hook it already has. Difficulty itself is not built here.

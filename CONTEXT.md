@@ -67,6 +67,14 @@ _Avoid_: dive attack, stuka run
 An attack run that descends to a few dozen feet over the sea, holds a speed inside the drop envelope, and drops the torpedo a half mile or so from the ship, aimed at where the ship will be when the torpedo gets there.
 _Avoid_: torpedo attack, fish run
 
+**Bomb train**:
+A formation leader's level-bomb release: its whole load, a bomb every few tenths of a second, started half the train's length short of the aim so the bombs straddle it. Its wingmen drop a bomb for each of the leader's (they "toggle on the leader").
+_Avoid_: salvo, stick
+
+**Gunner**:
+A bomber crewman working one turret or flexible gun. He shoots at the nearest enemy airplane inside his gun's range and arc, never through his own side, and is as good as the bomber's pilot skill. An airplane with no fixed guns leaves the fighting to its gunners: its pilot holds his orders.
+_Avoid_: turret gunner (for flexible guns too), defensive fire (for one gun)
+
 ## Ships
 
 **Warship**:

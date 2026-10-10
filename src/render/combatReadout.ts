@@ -107,6 +107,8 @@ export type CombatDiagnostics = {
   /** M2: anti-aircraft fire right now (rounds in the air, flak bursts still to go off, ships and batteries whose light guns fired lately) and
    *  the flak bursts in the impact ring, so an E2E spec can read that the guns are firing instead of comparing pictures. */
   readonly aa: { readonly rounds: number; readonly pendingBursts: number; readonly firing: number; readonly burstsRecent: number }
+  /** E3: defensive gunners' salvos in the air, and each gunner-armed airplane's salvos so far (its `shots`). */
+  readonly gunners: { readonly rounds: number; readonly salvos: Readonly<Record<string, number>> }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -138,10 +140,14 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
     tracers: combat.projectiles.filter((p) => p.tracer).length,
     poolSaturated: combat.poolSaturated,
     aa: {
-      rounds: combat.projectiles.filter((p) => p.aa !== undefined).length,
+      rounds: combat.projectiles.filter((p) => p.aa !== undefined && p.gunner !== true).length,
       pendingBursts: combat.aa.bursts.length,
       firing: combat.aa.firing.length,
       burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
+    },
+    gunners: {
+      rounds: combat.projectiles.filter((p) => p.gunner === true).length,
+      salvos: Object.fromEntries(frame.world.aircraft.filter((a) => (a.spec.combat?.gunners ?? []).length > 0).map((a) => [a.id, combat.aircraft[a.id]!.shots])),
     },
   }
 }
