@@ -20,6 +20,13 @@
   8.5 GB and OOM'd nexus). Tests, `tsc`, eslint and `npm run verify` run through `remote-run`; GPU
   captures and budget runs use the ryzen GPU (`docs/testing.md`). The ground generator
   (`tools/drape/gen.py`) is the one thing that still runs where its data is: run it with nothing else going.
+  **Concurrency rule (Mark, 2026-10-10): with more than 2 heavy jobs going, put the extra ones on ryzen,
+  not nexus.** Nexus has 22 GB and has OOM'd three times (2026-09-25 twice, 2026-10-10); ryzen has 64 GB.
+  `remote-run` runs up to 3 jobs on ryzen at once and, when all 3 slots are busy, overflows ONE job onto
+  nexus: set `REMOTE_RUN_OVERFLOW=0` for a heavy job so it waits for a ryzen slot instead. **Caveat
+  (read 2026-10-02): WSL sees about 31 GB, half the machine, shared by those 3 slots**, because there is
+  no `.wslconfig`; raising it (`memory=` in `%UserProfile%\.wslconfig`) is Mark's call (it takes RAM from
+  Windows). Never run two full suites on nexus at once.
 - **When Mark reports a place** ("blue patches near a beach"), ask for the DEV overlay's top-left lines:
   latitude, longitude, altitude and a `?spawnX=..&spawnY=..&spawnZ=..` query that respawns there.
   Open that URL on a slot to see what he saw. (He heads east when he respawns, so ask for his heading too.)
