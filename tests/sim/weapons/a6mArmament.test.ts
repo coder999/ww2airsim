@@ -17,7 +17,7 @@ const MG = 'type97-7.7mm', CANNON = 'type99-20mm'
 
 /** Hits until it is out of the fight: on fire, or destroyed outright (damage
  *  stages, 2026-10-09). The spec §5 ratios were to zero structure, 12 : 4 : 30;
- *  to the fire line, FIRE_AT_STRUCTURE, they are 9 : 3 : 23. */
+ *  to the fire line, FIRE_AT_STRUCTURE, at round 2's 4x HP, they are 36 : 12 : 90. */
 const hitsToKill = (target: AircraftSpec, hitScale: number) => {
   let d = healthyDamage(), n = 0
   while (!isDoomed(d) && n < 1000) { d = damageFromHit(target, d, 'fuel', 1, 'x', hitScale); n++ }
@@ -42,10 +42,10 @@ describe('A6M2 armament (AAF memo 23 Oct 1942; Summary 85)', () => {
     expect(gunHarmonization(zc, zero.view.eyePointM).gunCount).toBe(2)
   })
 
-  it('a 20 mm shell sets an F6F alight in 3 hits and a 7.7 mm bullet in 23, against 9 for a .50 (spec §5, to the fire line)', () => {
-    expect(hitsToKill(f6f, gunBallistics(zc, CANNON).hitScale)).toBe(3)
-    expect(hitsToKill(f6f, gunBallistics(zc, MG).hitScale)).toBe(23)
-    expect(hitsToKill(f6f, 1)).toBe(9)
+  it('a 20 mm shell sets an F6F alight in 12 hits and a 7.7 mm bullet in 90, against 36 for a .50 (spec §5 ratios, to the fire line)', () => {
+    expect(hitsToKill(f6f, gunBallistics(zc, CANNON).hitScale)).toBe(12)
+    expect(hitsToKill(f6f, gunBallistics(zc, MG).hitScale)).toBe(90)
+    expect(hitsToKill(f6f, 1)).toBe(36)
   })
 
   it('no armor, no self-sealing tanks: the same .50 fire kills it in fewer hits, and it leaks faster', () => {

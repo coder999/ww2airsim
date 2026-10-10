@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { BURN_S, ENGINE_DEAD_BELOW, FIRE_AT_STRUCTURE, SPUTTER_BELOW, SPUTTER_MAX_CUT, ageDamage, damageFromHit, engineOutput, healthyDamage, isDoomed, type Damage } from '../../../src/sim/damage/model.js'
+import { BURN_S, ENGINE_DEAD_BELOW, FIRE_AT_STRUCTURE, SPUTTER_BELOW, SPUTTER_MAX_CUT, ageDamage, damageFromHit, engineCountOf, engineHealths, engineOutput, engineOutputs, healthyDamage, isDoomed, type Damage } from '../../../src/sim/damage/model.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { advance, WRECK_TERMINAL_MPS, type World } from '../../../src/sim/loop.js'
 import { length } from '../../../src/sim/math/vec3.js'
@@ -20,14 +20,14 @@ const COMBAT_IDS = readdirSync('content/aircraft').filter((f) => f.endsWith('.js
   .filter((id) => loadAircraftSpec(id).combat !== undefined)
 
 describe('every combat airframe catches fire from a single-caliber stream, and then only the fire finishes it', () => {
-  it('enrolls every airframe with a combat block (the four bombers have none, so take no hits)', () => {
-    expect(COMBAT_IDS).toEqual(['a6m2-zero', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
+  it('enrolls every airframe: since round 2 the bombers have combat blocks too', () => {
+    expect(COMBAT_IDS).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
   })
   it.each(COMBAT_IDS)('%s', (id) => {
     const spec = loadAircraftSpec(id)
     let d: Damage = healthyDamage()
     let hits = 0
-    while (d.burningSince === null && hits < 100) d = damageFromHit(spec, d, 'roll', 10 + hits++, 'shooter')
+    while (d.burningSince === null && hits < 1000) d = damageFromHit(spec, d, 'roll', 10 + hits++, 'shooter')
     expect(d.destroyedAt, id).toBeNull()
     expect(d.structure, id).toBeGreaterThan(0)
     expect(d.structure, id).toBeLessThanOrEqual(FIRE_AT_STRUCTURE + 1e-10)
@@ -74,6 +74,31 @@ describe('the engine: health, then sputter, then dead', () => {
     expect(engineOutput(at(ENGINE_DEAD_BELOW - 0.01), 0, 'a', DT)).toBe(0)
     expect(engineOutput(at(1, { burningSince: 3 }), 0, 'a', DT)).toBe(0)
     expect(engineOutput(at(1, { destroyedAt: 3 }), 0, 'a', DT)).toBe(0)
+  })
+})
+
+describe('a multi-engine airplane loses its engines one at a time (round 2)', () => {
+  it.each(['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'p-38-lightning'])('%s', (id) => {
+    const spec = loadAircraftSpec(id)
+    const n = engineCountOf(spec)
+    // One engine per prop, so a dead engine's prop is the one that windmills.
+    expect(n, id).toBe(id === 'b-17-flying-fortress' || id === 'b-29-superfortress' ? 4 : 2)
+    let d: Damage = healthyDamage(n)
+    let hits = 0
+    while (engineHealths(d)[0]! > 0 && hits < 1000) d = damageFromHit(spec, d, 'engine', ++hits, 'shooter', 1, 0)
+    expect(engineHealths(d).slice(1).every((h) => h === 1), id).toBe(true)
+    // Engine 0 dead, the rest whole: (n - 1) / n of the power, and not doomed by that alone.
+    expect(engineOutput(d, 0, id, DT)).toBeCloseTo((n - 1) / n, 12)
+    expect(engineOutputs(d, 0, id, DT)[0]).toBe(0)
+    expect(isDoomed(d)).toBe(false)
+  })
+  it('a bomber hit only in its engines ages each one on its own', () => {
+    const spec = loadAircraftSpec('b-17-flying-fortress')
+    let d = damageFromHit(spec, healthyDamage(4), 'engine', 1, 'x', 1, 3)
+    const hit = engineHealths(d)[3]!
+    for (let t = 0; t < 600; t++) d = ageDamage(spec, d, DT, t)
+    expect(engineHealths(d).slice(0, 3)).toEqual([1, 1, 1])
+    expect(engineHealths(d)[3]!).toBeLessThan(hit)
   })
 })
 

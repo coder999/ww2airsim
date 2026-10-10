@@ -11,7 +11,7 @@ const figure = (id: string, label: string) => figuresFor(byId(id)).find((f) => f
 
 describe('figuresFor (Hangar spec §5), against committed content', () => {
   it("the F6F: structure HP, top speed, guns and rounds, points, all read from f6f-hellcat.json", () => {
-    expect(figure('f6f-hellcat', 'Structure')?.value).toBe('120 HP')
+    expect(figure('f6f-hellcat', 'Structure')?.value).toBe('480 HP')
     expect(figure('f6f-hellcat', 'Top speed')?.value).toBe('391 mph at 23,100 ft')
     expect(figure('f6f-hellcat', 'Top speed')?.note).toBeUndefined()
     expect(figure('f6f-hellcat', 'Guns')?.value).toBe('6, 2,400 rounds')

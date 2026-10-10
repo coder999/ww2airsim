@@ -16,7 +16,7 @@ const origin = v3(0, 0, 0)
 describe('airframeUpdateFor', () => {
   it("an AI aircraft reads its own entity's controls, gear and flaps", () => {
     const u = airframeUpdateFor(alive, null, v3(3, 4, 12), origin, 0.016)
-    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13, debris: null })
+    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13, debris: null, propThrottles: null })
   })
 
   it("the player's aircraft reads the frame's raw controls instead", () => {

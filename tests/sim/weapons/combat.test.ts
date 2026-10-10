@@ -278,9 +278,10 @@ describe('production fixed-step ordnance', () => {
     expect(quiet.combat.aircraft.shooter!.stores).toEqual({ bombs: 1, rockets: 6 })
   })
 
-  it('a bomber with no combat block still drops its bombs, and has no rockets to fire', () => {
+  it('a bomber with no guns still drops its bombs, and has no rockets to fire', () => {
     const b17 = loadAircraftSpec('b-17-flying-fortress')
-    expect(b17.combat).toBeUndefined()
+    // Damage stages round 2: hit zones, so it can be shot down, but no fixed guns.
+    expect(b17.combat?.guns).toEqual([])
     // Doors open (C2): the next test is the one about shut doors.
     const state = createState({ position: v3(0, 1000, 0), bayDoorFraction: 1 })
     const bomber: AircraftEntity = { id: 'b', spec: b17, state, previous: state, controls: { ...controls, fire: false, dropBomb: true, fireRockets: true }, assistMemory: undefined, impact: null, parked: false }

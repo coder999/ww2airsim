@@ -110,7 +110,8 @@ describe('per-gun firing', () => {
 describe('damageFromHit hitScale', () => {
   // Hits until it is out of the fight: on fire, or destroyed outright. Since
   // damage stages (2026-10-09) that is the fire line, FIRE_AT_STRUCTURE, not
-  // zero: 9 .50 hits put a Hellcat on fire where 12 used to destroy it.
+  // zero; and round 2 made fighters 4x tougher: 36 .50 hits put a Hellcat on
+  // fire, where 12 used to destroy it.
   const hitsToKill = (hitScale: number) => {
     let d = healthyDamage(), n = 0
     while (!isDoomed(d) && n < 1000) { d = damageFromHit(f6f, d, 'fuel', 1, 'x', hitScale); n++ }
@@ -119,9 +120,9 @@ describe('damageFromHit hitScale', () => {
   it('defaults to 1, bit for bit', () => {
     expect(damageFromHit(f6f, healthyDamage(), 'engine', 1, 'x')).toEqual(damageFromHit(f6f, healthyDamage(), 'engine', 1, 'x', 1))
   })
-  it('scales the target\'s damagePerHit: 9 hits at 1, 3 at 3, 23 at 0.4', () => {
-    expect(hitsToKill(1)).toBe(9)
-    expect(hitsToKill(3)).toBe(3)
-    expect(hitsToKill(0.4)).toBe(23)
+  it('scales the target\'s damagePerHit: 36 hits at 1, 12 at 3, 90 at 0.4', () => {
+    expect(hitsToKill(1)).toBe(36)
+    expect(hitsToKill(3)).toBe(12)
+    expect(hitsToKill(0.4)).toBe(90)
   })
 })

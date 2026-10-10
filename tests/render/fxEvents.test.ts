@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { createState } from '../../src/sim/flight/state.js'
+import { FIRE_AT_STRUCTURE } from '../../src/sim/damage/model.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { qIdentity } from '../../src/sim/math/quat.js'
 import { v3, ZERO, type Vec3 } from '../../src/sim/math/vec3.js'
@@ -9,7 +10,7 @@ import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import type { Impact } from '../../src/sim/loop.js'
 import {
   COLLAPSE_SMOKE_S, crashRecipe, impactRecipe, KILL_TRAIL_S, NO_FX_MEMORY, nextFxEvents,
-  ROCKET_BURN_S, ROCKET_NOZZLE_AFT_M,
+  ROCKET_BURN_S, ROCKET_NOZZLE_AFT_M, SMOKE_BLACK_FROM,
   type FxMemory, type FxWorldView,
 } from '../../src/render/fx/events.js'
 import { readFileSync } from 'node:fs'
@@ -106,14 +107,41 @@ describe('fx events (effects design §3.2)', () => {
   it('engine smoke follows engine health, from the nose in the body frame', () => {
     const { combat, aircraft } = base()
     const rec = combat.aircraft['a']!
-    const hurt: CombatState = { ...combat, aircraft: { ...combat.aircraft, a: { ...rec, damage: { ...rec.damage, engine: 0.25 } } } }
+    const hurt: CombatState = { ...combat, aircraft: { ...combat.aircraft, a: { ...rec, damage: { ...rec.damage, engine: 0.4 } } } }
     const s = nextFxEvents(NO_FX_MEMORY, view(5, hurt, aircraft)).sustained
     expect(s).toHaveLength(1)
-    expect(s[0]).toMatchObject({ key: 'engine:a', recipe: 'engine.smoke', intensity: 0.75, velocity: v3(100, 0, 0) })
+    expect(s[0]).toMatchObject({ key: 'engine:a', recipe: 'engine.smoke', intensity: 0.6, velocity: v3(100, 0, 0) })
     expect(s[0]!.position.x).toBeCloseTo(3.2, 9)
     expect(s[0]!.position.y).toBeCloseTo(1000.7, 9)
     expect(s[0]!.position.z).toBeCloseTo(0, 9)
     expect(nextFxEvents(NO_FX_MEMORY, view(5, combat, aircraft)).sustained).toEqual([])
+  })
+
+  it('smoke follows overall damage, light, then heavy, then black before the fire (round 2)', () => {
+    const { combat, aircraft } = base()
+    const rec = combat.aircraft['a']!
+    const at = (structure: number) => nextFxEvents(NO_FX_MEMORY, view(5, { ...combat, aircraft: { ...combat.aircraft, a: { ...rec, damage: { ...rec.damage, structure } } } }, aircraft)).sustained
+    // Structure alone smokes, scaled from whole (none) to the fire line (full); black joins past SMOKE_BLACK_FROM.
+    const light = at(1 - 0.25 * (1 - FIRE_AT_STRUCTURE)), heavy = at(1 - 0.9 * (1 - FIRE_AT_STRUCTURE))
+    expect(light.map((x) => x.recipe)).toEqual(['engine.smoke'])
+    expect(light[0]!.intensity).toBeCloseTo(0.25, 9)
+    expect(heavy.map((x) => x.recipe)).toEqual(['engine.smoke', 'smoke.black'])
+    expect(heavy[0]!.intensity).toBeCloseTo(0.9, 9)
+    expect(heavy[1]!.intensity).toBeCloseTo((0.9 - SMOKE_BLACK_FROM) / (1 - SMOKE_BLACK_FROM), 9)
+  })
+
+  it('a multi-engine airplane smokes from each hit engine at its own zone (round 2)', () => {
+    const b17 = loadAircraftSpec('b-17-flying-fortress')
+    const state = createState({ position: v3(0, 1000, 0), velocity: v3(100, 0, 0) })
+    const bomber = { id: 'b', spec: b17, state, previous: state, controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, impact: null as Impact | null }
+    const combat = createCombat([bomber])
+    const d = combat.aircraft['b']!.damage
+    expect(d.engines).toEqual([1, 1, 1, 1])
+    const hit: CombatState = { ...combat, aircraft: { b: { ...combat.aircraft['b']!, damage: { ...d, engines: [1, 1, 0.3, 1], engine: 0.825 } } } }
+    const s = nextFxEvents(NO_FX_MEMORY, view(5, hit, [bomber])).sustained
+    expect(s.map((x) => x.key)).toEqual(['engine:b#2'])
+    const zone = b17.combat!.zones.find((z) => z.engine === 2)!
+    expect(s[0]!.position.z).toBeCloseTo(zone.center[2], 9)
   })
 
   it('a burning airframe trails fire from the engine in place of smoke; the wreck burns down to the surface', () => {

@@ -24,7 +24,7 @@ describe('the combat readout (Plan 6)', () => {
     const rec = armed()
     const spent = { ...rec, guns: rec.guns.map((g, i) => ({ ...g, ammo: i === 0 ? 100 : g.ammo })), hits: 3, kills: 1 }
     const hurt = { ...spent, damage: damageFromHit(f6f, damageFromHit(f6f, healthyDamage(), 'engine', 1, 'x'), 'fuel', 2, 'x') }
-    expect(combatReadoutLabel(hurt)).toBe('AMMO 2100   HITS 3   KILLS 1   HP 83%   DMG ENGINE, FUEL')
+    expect(combatReadoutLabel(hurt)).toBe('AMMO 2100   HITS 3   KILLS 1   HP 96%   DMG ENGINE, FUEL')
     expect(damagedSystems(hurt.damage)).toEqual(['engine', 'fuel'])
   })
 
