@@ -15,7 +15,7 @@
  *   5 km of the runway center at 500.1 s, and the raid then orbits the field
  *   about 1.5 km out (7e's arrival). The pin brackets it: [485, 525] s.
  *   A real player takes off and climbs to 10,000 ft in about four minutes,
- *   which meets the raid some 20 km out.
+ *   which meets the raid some 20 km out (an estimate, not measured).
  */
 import { describe, it, expect } from 'vitest'
 import { loadScenarioBundle } from '../../../../tools/content/load.js'

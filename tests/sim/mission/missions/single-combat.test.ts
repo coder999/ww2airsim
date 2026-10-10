@@ -33,7 +33,8 @@ describe('Single Combat content', () => {
     const { scenario } = loadScenarioBundle('single-combat')
     const [me, frank] = scenario.aircraft
     expect(frank).toMatchObject({ id: 'frank-1', spec: 'ki-84-frank', pilot: { target: 'f6f-1', skill: 'veteran' } })
-    const a = me!.airborneAt!.position, b = frank!.airborneAt!.position
+    if (!('airborneAt' in me!) || !('airborneAt' in frank!)) throw new Error('both start airborne')
+    const a = me.airborneAt.position, b = frank.airborneAt.position
     expect(Math.hypot(a[0] - b[0], a[2] - b[2])).toBeCloseTo(8000, -2)
     expect(a[1]).toBe(b[1])
   })
