@@ -34,7 +34,7 @@ describe('which line voices which message (I2)', () => {
     // Enrolled from content: an edited message (the Dulag line went from kilometers to miles)
     // fails here rather than going quiet in flight. Pinned so a walk that finds nothing fails.
     const messages = scenarioMessages()
-    expect(messages.length).toBeGreaterThanOrEqual(14)
+    expect(messages.length).toBeGreaterThanOrEqual(18)
     for (const m of messages) expect(Object.keys(RADIO_LINES), m).toContain(m)
   })
 
@@ -42,8 +42,8 @@ describe('which line voices which message (I2)', () => {
     for (const m of [WAVE_OFF_MESSAGE, RESPOT_MESSAGE, FRIENDLY_FIRE_RADIO]) expect(RADIO_LINES[m], m).toBeTypeOf('string')
   })
 
-  it('has a recorded file, in both languages, for every line it can play, and plays all 34', () => {
-    expect(VOICE_STEMS).toHaveLength(34)
+  it('has a recorded file, in both languages, for every line it can play, and plays all 38', () => {
+    expect(VOICE_STEMS).toHaveLength(38)
     for (const stem of VOICE_STEMS) {
       for (const lang of ['us', 'ja'] as const) {
         expect(existsSync(repoPath(`content/audio/voice/${voiceId(stem, lang)}.wav`)), `${stem} ${lang}`).toBe(true)
