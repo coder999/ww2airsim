@@ -1,7 +1,7 @@
 # B2 impact predictor handoff
 
 **Date:** 2026-10-10
-**Branch:** `b2-impact-predictor` (cut from `main` `9070c285`), worktree `/home/mark/projects/ww2airsim-b2`. Not merged, not pushed.
+**Branch:** `b2-impact-predictor` (cut from `main` `9070c285`), merged to `main` 2026-10-10 and removed.
 **Plan:** [`../superpowers/plans/2026-10-10-b2-impact-predictor.md`](../superpowers/plans/2026-10-10-b2-impact-predictor.md)
 **Viewing:** final product only; unattended. The captures below are what to look at.
 

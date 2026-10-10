@@ -60,7 +60,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Redesigned 2026-10-09 (Mark):** the cue moved from a HUD text line into the scene: an arrow ahead of the nose that turns toward the destination, a diamond on the destination once it is on screen, and the name and range beside either. No altitude.
 - Measurements and verification: [`docs/handoff/2026-10-08-b1-steering-cue.md`](docs/handoff/2026-10-08-b1-steering-cue.md).
 
-**B2. Bomb and rocket impact predictor (M).** Built 2026-10-10 on branch `b2-impact-predictor` (not merged); plan [`2026-10-10-b2-impact-predictor.md`](docs/superpowers/plans/2026-10-10-b2-impact-predictor.md), handoff [`2026-10-10-b2-impact-predictor.md`](docs/handoff/2026-10-10-b2-impact-predictor.md).
+**B2. Bomb and rocket impact predictor (M).** Done 2026-10-10 (merged to `main`, `npm run verify` green on the merge); plan [`2026-10-10-b2-impact-predictor.md`](docs/superpowers/plans/2026-10-10-b2-impact-predictor.md), handoff [`2026-10-10-b2-impact-predictor.md`](docs/handoff/2026-10-10-b2-impact-predictor.md).
 - **Today:** `predictImpact` (`sim/weapons/impactPrediction.ts`) flies the sim's own bomb or rocket step to terrain or sea; the **Impact marker** (`U`) draws the result. Matches the real sim to 1 cm.
 - **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: off by default (§4 Q2). Torpedoes are not covered.
 
@@ -306,7 +306,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - **M1d (done 2026-10-09,** merge `3265b8e7`, handoff `docs/handoff/2026-10-09-m1d-download-detail.md`): five of the six downloaded warships (Yamato, Mogami, Cleveland, Essex, Fletcher) get M1c's baked AO and detail and the same weathering, through a non-overlapping island atlas built in the TS pipeline. Shiratsuyu keeps its author's textures, which read better than the skin did. Essex's light AA is cut to four 40 mm quads, two per side (Mark: balance, not history). Budgets unchanged.
      - **M1e (done 2026-10-09,** merge `74c33b60`, handoff `docs/handoff/2026-10-09-m1e-zuikaku.md`): the first Japanese carrier, Zuikaku as at Leyte, from KTKloss's Shōkaku (CC BY 4.0). She is armed to match Essex (eight twin 12.7 cm and four triple 25 mm; Mark: balance, not history), camouflaged, baked like M1d, and landable: every carrier now runs the arcade trap tests.
      - **M1f (done 2026-10-09,** handoff `docs/handoff/2026-10-09-m1f-ship-rebuilds.md`): Mogami, Yamato, Cleveland and Essex are rebuilt in Blender to Fletcher's level (stepped bridges with framed windows, real funnels, railings, rigging, baked detail), replacing their downloads; Abukuma (Nagara class, Surigao Strait) is added; every warship flies its waving ensign and the Maru flies none; Shiratsuyu measured right at 107.5 m.
-  2. ~~**M2 AA fire (M).**~~ Built 2026-10-10 (branch `m2-aa-fire`, plan `docs/superpowers/plans/2026-10-10-m2-aa-fire.md`, handoff `docs/handoff/2026-10-10-m2-aa-fire.md`; not yet merged). Ships and ground AAA share one system (`src/sim/weapons/aaFire.ts`, every number in `AA_TUNING`):
+  2. ~~**M2 AA fire (M).**~~ Done 2026-10-10 (merged to `main`; plan `docs/superpowers/plans/2026-10-10-m2-aa-fire.md`, handoff `docs/handoff/2026-10-10-m2-aa-fire.md`). Ships and ground AAA share one system (`src/sim/weapons/aaFire.ts`, every number in `AA_TUNING`):
      - heavy guns throw timed flak bursts at altitude;
      - light guns fire tracer rounds through the existing ballistics at close range;
      - both sides fire, under the friendly-fire rules;

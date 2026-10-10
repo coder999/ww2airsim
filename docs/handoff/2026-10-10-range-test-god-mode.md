@@ -1,6 +1,6 @@
 # God mode and the Range Test (2026-10-10)
 
-Plan: [`superpowers/plans/2026-10-10-god-mode-range-test.md`](../superpowers/plans/2026-10-10-god-mode-range-test.md). Branch `range-test-god-mode` (worktree `~/projects/ww2airsim-range`), cut from `main` `3ad67cae`. Not merged, not pushed.
+Plan: [`superpowers/plans/2026-10-10-god-mode-range-test.md`](../superpowers/plans/2026-10-10-god-mode-range-test.md). Branch `range-test-god-mode`, cut from `main` `3ad67cae`, merged to `main` 2026-10-10 and removed.
 
 ## How to use it
 

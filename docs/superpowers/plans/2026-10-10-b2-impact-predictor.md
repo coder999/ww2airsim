@@ -1,9 +1,9 @@
 # B2: the bomb and rocket impact predictor
 
-**Status (2026-10-10):** built on branch `b2-impact-predictor`; results in [`../../handoff/2026-10-10-b2-impact-predictor.md`](../../handoff/2026-10-10-b2-impact-predictor.md).
+**Status (2026-10-10):** built and merged to `main`; results in [`../../handoff/2026-10-10-b2-impact-predictor.md`](../../handoff/2026-10-10-b2-impact-predictor.md).
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode:** unattended.
-**Location:** a worktree (`/home/mark/projects/ww2airsim-b2`, branch `b2-impact-predictor`, cut from `main` `9070c285`).
+**Location:** a worktree (branch `b2-impact-predictor`, cut from `main` `9070c285`; merged and removed 2026-10-10).
 **Heavy jobs:** tests, `tsc`, eslint and `npm run verify` go to ryzen through `remote-run` (nexus OOMs).
 **Parallel work:** M2 (AA fire) edits `stepCombat` and `Projectile` in `src/sim/weapons/combat.ts` at the same time, so this plan touches that file only to add `export` to three functions.
 
