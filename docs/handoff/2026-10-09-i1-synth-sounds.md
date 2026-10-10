@@ -8,8 +8,8 @@ Done 2026-10-09 on branch `i1-synth-sounds`. Plan: `docs/superpowers/plans/2026-
 |---|---|---|
 | wind | above 34 mph airspeed; full and brightest at 447 mph | 0.5 |
 | rumble | wheels rolling on land or deck; full by 89 mph; the deck is brighter | 0.5 |
-| buffet | under 1.15 × the stall speed at the current flaps, airborne | 0.6 |
-| buzz (240 Hz buzzer) | under 1.07 × the stall speed, airborne | 0.12 |
+| buffet | airborne, over 1/1.15² (76%) of the wing's maximum lift at the current angle of attack and flaps; at 1 g that is under 1.15 × stall speed | 0.6 |
+| buzz (240 Hz buzzer) | airborne, over 1/1.07² (87%) of maximum lift, full at 1/1.05²; past the stalling angle both are full | 0.12 |
 | creak | over 0.9 × the spec's dive limit | 0.5 |
 | static | while a radio transmission is on the air | 0.15 |
 
@@ -22,7 +22,7 @@ All are tuning values; Mark's ear decides.
   - **Seam:** every synthesized clip is a seamless loop at its stated peak (`cues.test.ts`). It now also checks loudness across the wrap, which a noisy clip used to hide.
   - **Headroom:** every synthesized layer's headroom, enrolled from `LAYERS` (`assets.test.ts`).
   - **System:** the system drives wind and buffet, and static under a transmission (`system.test.ts`).
-  - **Adapter:** the adapter reads airspeed, the stall speed at the current flaps and the dive limit (`audioInputs.test.ts`).
+  - **Adapter:** the adapter reads airspeed, the lift fraction from angle of attack, and the dive limit (`audioInputs.test.ts`; a hard pull at 268 mph buffets, and the test fails if alpha is ignored).
   - Each new test was seen failing against its fault.
 - **Checks:** lint, depcruise and typecheck are clean.
 - **E2E:** `tests/e2e/audio.spec.ts`, 6 of 6, against this worktree on nexus's GPU. An ad-hoc probe found the wind layer running at a 0.28 gain right after an airborne spawn.

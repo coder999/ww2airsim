@@ -241,17 +241,17 @@ one plan for the lot.
 
 ### Track I: Sound (M, two plans)
 
-- **Today:** 16 sounds wired out of about 44 designed.
+- **Today (counted 2026-10-09):** 25 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose), `flak_burst`, `aa_gun`, `torpedo_splash`, `torpedo_hit`, `ship_gun_heavy`.
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals. Done 2026-10-09** (branch `i1-synth-sounds`, plan `docs/superpowers/plans/2026-10-09-i1-synth-sounds.md`, handoff `docs/handoff/2026-10-09-i1-synth-sounds.md`):
-  - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (stall speed at the current flaps), overspeed creak (the spec's dive limit), and radio static under each transmission.
+  - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (angle of attack, below), overspeed creak (the spec's dive limit), and radio static under each transmission.
   - Max gains are tuning values in `mix.ts` `SYNTH_GAIN_MAX`, not yet heard in flight.
   - **Decided (Mark, 2026-10-09):**
     - Grass shares the land rumble, because `ContactSurface` has no grass.
-    - The stall cues read angle of attack, as the share of the wing's maximum lift in use, so a hard pull buffets early.
+    - The stall cues read angle of attack, as the share of the wing's maximum lift in use, so a hard pull buffets early. Merged 2026-10-09 (`99b73ece`); at 1 g the onsets are unchanged (1.15 and 1.07 × stall speed).
     - Wind stays muffled in the cockpit.
 - **I2, voice (§4 Q7):**
-  - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 68 lines of `docs/audio/firefly-prompt-sheet.md` (34 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
+  - **Recorded 2026-10-09** with ElevenLabs instead of Firefly: all 76 lines of `docs/audio/firefly-prompt-sheet.md` (38 cues, US voice "Clyde", JA voice "Adam") are in `content/audio/voice/`, with the real `rocket_whoosh.wav`. Provenance is in `content/audio/NOTICE.md`; `tests/audio/voice.test.ts` checks every sheet line is present, mono 48 kHz and unclipped. The takes and the five-voice audition are on `sounds.html` (Dev checkbox), from nexus's gitignored `content/audio/candidates/`.
   - **Wired 2026-10-09** (branch `i2-voice-wiring`, plan `docs/superpowers/plans/2026-10-09-i2-voice-wiring.md`):
     - The HUD radio line and the LSO's cue speak through the radio bus as squelch, voice, squelch.
     - One transmission plays at a time; cut and wave-off cut in.
@@ -259,7 +259,7 @@ one plan for the lot.
     - `src/audio/radio.ts` maps message text to line, and its test enrolls every scenario message.
 - **I3, recorded effects (Mark, 2026-10-09):** prompts in `docs/audio/firefly-prompt-sheet.md`, ElevenLabs takes on `sounds.html`.
   - **Wired 2026-10-09:** `gear_cycle` and `flaps_cycle`, once as travel starts, both ways.
-  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2), `radio_squelch` (Freesound CC0; brackets each radio line, I2). `rocket_whoosh` is now take 2 (wired).
+  - **In `AUDIO_ASSETS`, unwired:** `flak_burst` (the close burst; M2), `torpedo_splash` (the Avenger; its release reuses `bombs_away`), `aa_gun` (a 20 mm loop, every AA gun, ship and ground; M2). `rocket_whoosh` is now take 2 (wired). `radio_squelch` (Freesound CC0) is wired: it brackets each radio line (I2).
   - `torpedo_hit` is Mark's own Firefly clip (unwired, the Avenger).
   - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
   - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.
