@@ -59,6 +59,13 @@ export const SUPERSTRUCTURE: Readonly<Record<ShipSpec['role'], SuperstructureBox
 /** Name of the debrief's cause: `damage.attacker` for an airplane that hit a ship. */
 export const COLLISION_ATTACKER_PREFIX = 'collision:'
 
+/** The name of the ship a collision death hit, or undefined when `attacker` is not a collision. */
+export function collisionShipName(world: { readonly ships: readonly ShipEntity[] }, attacker: string | null): string | undefined {
+  if (attacker === null || !attacker.startsWith(COLLISION_ATTACKER_PREFIX)) return undefined
+  const id = attacker.slice(COLLISION_ATTACKER_PREFIX.length)
+  return world.ships.find((s) => s.id === id)?.spec.name ?? id
+}
+
 type Volume = { readonly cx: number; readonly cz: number; readonly hx: number; readonly hz: number; readonly topM: number }
 
 /** A ship's volumes in its own frame, heights above the sea. Hull first. */

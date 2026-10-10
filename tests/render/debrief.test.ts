@@ -90,6 +90,9 @@ describe('the debrief', () => {
     expect(combat.detail).toContain('combat')
     // M2: a ship's or battery's id is not an airplane's, and the debrief says so.
     expect(destructionModel(state, 'dd-1', zeroKillsByType(), true).detail).toContain('antiaircraft')
+    const rammed = destructionModel(state, 'collision:dd-1', zeroKillsByType(), false, 'USS Fletcher')
+    expect(rammed.detail).toBe('The aircraft collided with USS Fletcher.')
+    expect(rammed.outcome).toBe('killed')
   })
 
   it('shows sink rate as a positive number, not the signed velocity it comes from', () => {
