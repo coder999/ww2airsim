@@ -17,6 +17,7 @@ import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
 import { createLegend } from './legend.js'
 import { racksLabel } from '../sim/weapons/stores.js'
+import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
 import { createWebAudioBackend } from '../audio/webAudio.js'
 import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from './audio.js'
@@ -2632,7 +2633,7 @@ async function boot(): Promise<void> {
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
-      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction)
+      if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction, floodListRad(damage, s.spec.hullHp))
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the
     // CURRENT `World.combat.structures` map unconditionally every frame
