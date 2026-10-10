@@ -11,6 +11,7 @@ import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
 import { friendlyInLineOfFire } from './holdFire.js'
+import { attackCommitted, attackExemptFromFloor, attackFlight, type AttackFlight } from './attack.js'
 import { ingressAccepts, ingressBayDoorsOpen, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
 import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
@@ -170,7 +171,8 @@ function flyPilot<M>(
   }
   if (lost || ctx.nowS >= decision.nextRescoreS) {
     // A sitting duck (Range Test) never picks a target: it cannot fire or evade.
-    const scored = pilot.passive !== undefined ? null : chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
+    // E2: a committed attack run (a dive, a torpedo run) is not pre-empted by a fighter.
+    const scored = pilot.passive !== undefined || attackCommitted(decision.attack) ? null : chooseTarget(a, pilot, lost ? null : decision.targetId, view, ctx.nowS, leader)
     // 7g spec §1, §6: the return-to-base decision, for a pilot with a home
     // only (ruling P3: nothing else is written for one without, so every
     // pre-7g world is bit-identical). RTB pre-empts engage unless a threat is
@@ -209,7 +211,7 @@ function flyPilot<M>(
       }
     } else if (pilot.home !== undefined) {
       // A wingman with a flying leader ignores the idle trigger (it goes home with the leader, or once it is lost, P20); fuel, ammo and damage still send it home alone.
-      const goHome = !recovering && shouldReturn(a, record, decision, ctx.nowS, !(leader !== null && leaderFlying))
+      const goHome = !recovering && !attackCommitted(decision.attack) && shouldReturn(a, record, decision, ctx.nowS, !(leader !== null && leaderFlying))
       // On the wheels, or committed by the cut, a threat no longer pre-empts: gear up on the ground crashes.
       const phase = decision.recovery?.phase
       const committed = recovering && (phase === 'rollout' || (phase === 'final' && decision.recovery!.cut))
@@ -268,7 +270,14 @@ function flyPilot<M>(
   if (decision.mode === 'rtb' || decision.mode === 'landed') target = null
   // 7e spec §4.5: route progress, checked every tick while on the route. An
   // engaged raider keeps its legIndex and resumes there.
-  if (target === null && pilot.ingress !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed') {
+  // E2: an attack pilot at its destination leg flies the attack run where the orbit would be, and
+  // its leg index stays put; with the order absent (every raider before E2) none of this runs.
+  let attacking: AttackFlight | null = null
+  if (target === null && pilot.ingress?.attack !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed' && decision.legIndex >= pilot.ingress.route.length) {
+    attacking = attackFlight(a, pilot.ingress, decision, ctx)
+    if (attacking !== null) decision = { ...decision, attack: attacking.attack }
+  }
+  if (attacking === null && target === null && pilot.ingress !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed') {
     const legIndex = nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships)
     if (legIndex !== decision.legIndex) decision = { ...decision, legIndex }
   }
@@ -289,7 +298,8 @@ function flyPilot<M>(
   // (its fix and go-around are below the trigger); overspeed still applies.
   // A -Infinity trigger is one no height or sink rate can reach.
   const flyingRecovery = decision.mode === 'rtb' || decision.mode === 'landed'
-  const floorM = flyingRecovery && exemptFromFloor(decision.recovery) ? Number.NEGATIVE_INFINITY : floorTriggerM(pursuedHeightM)
+  const floorM = (flyingRecovery && exemptFromFloor(decision.recovery)) || (attacking !== null && attackExemptFromFloor(pilot.ingress?.attack, decision.attack))
+    ? Number.NEGATIVE_INFINITY : floorTriggerM(pursuedHeightM)
   const override = safetyOverride(a, ctx.terrain, ctx.decks, ctx.wind, floorM)
   if (override !== null) {
     const { controls, cursor } = finishControls(a, override.controls, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
@@ -321,7 +331,7 @@ function flyPilot<M>(
   }
   if (target === null) {
     const orders = pilot.ingress
-    const base = orders === undefined
+    const base = attacking !== null ? attacking.controls : orders === undefined
       ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a, decision.loiter ?? loiterReference(a, pilot.passive?.orbitRadiusM)))
       : decision.legIndex > orders.route.length
         ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships)

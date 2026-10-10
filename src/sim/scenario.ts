@@ -12,7 +12,7 @@ import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from '
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders, type RecoveryHome } from './ai/pilot.js'
-import { airfieldSideOf, sideOf } from './sides.js'
+import { airfieldSideOf, sideOf, type Side } from './sides.js'
 import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject } from './mission/schema.js'
@@ -66,7 +66,12 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
 const IngressObject = z.object({
   route: z.array(z.object({ x: finite, z: finite, altitudeM: positive, speedMps: positive }).strict()).min(1),
   destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id }).strict()]).optional(),
-}).strict()
+  /** E2: what the raider does on arrival at its destination: a dive-bombing, torpedo or level-bombing
+   *  run on it (the airplane is armed with its full racks). Absent: orbit it, as every raider before E2. */
+  attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb', 'kamikaze']).optional(),
+}).strict().refine((i) => i.attack === undefined || i.destination !== undefined, {
+  message: 'attack needs a destination: a ship or an airfield to attack', path: ['attack'],
+})
 
 const PilotObject = z.object({
   /** A static target (7a/7b). Absent: the pilot chooses (7e spec §4.2). */
@@ -106,10 +111,10 @@ const SideField = z.enum(['allied', 'axis']).optional()
  *  omits `skill`, so the `'green'` default reproduces its exact behavior. */
 function pilotAssignmentFrom(
   id: string, pilot: z.infer<typeof PilotObject> | undefined, airfields: Readonly<Record<string, Airfield>>,
-  homes: ReadonlyMap<string, RecoveryHome>,
+  homes: ReadonlyMap<string, RecoveryHome>, airfieldSides?: Readonly<Record<string, Side>>,
 ): PilotAssignment | null {
   if (pilot === undefined) return null
-  const ingress = pilot.ingress === undefined ? {} : { ingress: ingressOrdersFrom(pilot.ingress, airfields) }
+  const ingress = pilot.ingress === undefined ? {} : { ingress: ingressOrdersFrom(pilot.ingress, airfields, airfieldSides) }
   const orders = pilot.leader === undefined || pilot.slot === undefined ? undefined : { leader: pilot.leader, slot: pilot.slot }
   const mode = pilot.takeoff === true ? 'takeoff'
     : orders !== undefined ? 'formation' : pilot.ingress === undefined ? 'engage' : 'ingress'
@@ -132,14 +137,18 @@ function pilotAssignmentFrom(
 
 /** An airfield destination is fixed, so it is resolved here to its runway
  *  center; a ship is read live every tick by the pilot (ruling W6). */
-function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly<Record<string, Airfield>>): IngressOrders {
+function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly<Record<string, Airfield>>, airfieldSides?: Readonly<Record<string, Side>>): IngressOrders {
   const d = i.destination
   const destination: IngressDestination | null = d === undefined
     ? null
     : 'ship' in d
       ? { kind: 'ship', id: d.ship }
-      : { kind: 'point', x: lookup(airfields, d.airfield, 'airfield').runway.center.x, z: lookup(airfields, d.airfield, 'airfield').runway.center.z }
-  return { route: i.route, destination }
+      : {
+          kind: 'point', x: lookup(airfields, d.airfield, 'airfield').runway.center.x, z: lookup(airfields, d.airfield, 'airfield').runway.center.z,
+          // E2: an attacker must know whose strip it is, so it never bombs its own. Present only on an attacker's orders.
+          ...(i.attack === undefined ? {} : { side: airfieldSideOf(lookup(airfields, d.airfield, 'airfield'), airfieldSides) }),
+        }
+  return { route: i.route, destination, ...(i.attack === undefined ? {} : { attack: i.attack }) }
 }
 
 const ParkedAtObject = z.union([
@@ -619,7 +628,7 @@ function buildAircraft(
     return {
       id: a.id, spec, state, previous: state,
       controls: { ...NEUTRAL, throttle: a.airborneAt.throttle ?? AIRBORNE_SPAWN_THROTTLE },
-      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes),
+      assistMemory: undefined, impact: null, parked: false, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes, bundle.scenario.airfieldSides),
       ...sideFrom(a),
     }
   }
@@ -635,7 +644,7 @@ function buildAircraft(
     }
     const state = stateOnDeck(spec, deck, parkedAt.spot)
     const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes), ...sideFrom(a) }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes, bundle.scenario.airfieldSides), ...sideFrom(a) }
   }
   const field = lookup(bundle.airfields, parkedAt.airfield, 'airfield')
   const spot = parkedAt.spot === 'runwayCenter' ? { x: 0, z: 0 } : parkedAt.spot
@@ -647,7 +656,7 @@ function buildAircraft(
     gearFraction: 1,
   })
   const controls: Controls = a.chocked ? { ...NEUTRAL, gearDown: true, brake: 1 } : NEUTRAL
-  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes), ...sideFrom(a) }
+  return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes, bundle.scenario.airfieldSides), ...sideFrom(a) }
 }
 
 /** Every start or held aircraft with a `pilot.home`, grouped by target (a
@@ -788,7 +797,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
 
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
   const stores: Record<string, StoresState> = Object.fromEntries(
-    aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : emptyStores]),
+    aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : a.pilot?.ingress?.attack !== undefined ? storesFromLoadout(a.spec, 'bombs') : emptyStores]),
   )
   // Missions (spec 2026-09-25). Held groups are built NOW, by the same
   // functions as the start entities, so a spawn is exactly what

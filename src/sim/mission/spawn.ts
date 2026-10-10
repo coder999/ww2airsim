@@ -2,6 +2,7 @@ import { heightAt, type TerrainField } from '../world/terrain.js'
 import { v3 } from '../math/vec3.js'
 import { wheelDepthOf } from '../gearContact.js'
 import { createCombat, type CombatState } from '../weapons/combat.js'
+import { storesFromLoadout } from '../weapons/stores.js'
 import type { AircraftEntity, ShipEntity, World } from '../loop.js'
 import type { MissionState } from './state.js'
 
@@ -52,7 +53,9 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
     const state = { ...s.state, tick: parts.tick }
     return { ...s, state, previous: state }
   })
-  const fresh = createCombat(aircraft, {}, ships.map((s) => ({ id: s.id, hullHp: s.spec.hullHp })), [])
+  // E2: a spawned attacker is armed, like one the scenario starts with (scenario.ts).
+  const armed = Object.fromEntries(aircraft.filter((a) => a.pilot?.ingress?.attack !== undefined).map((a) => [a.id, storesFromLoadout(a.spec, 'bombs')]))
+  const fresh = createCombat(aircraft, armed, ships.map((s) => ({ id: s.id, hullHp: s.spec.hullHp })), [])
   return {
     tick: parts.tick,
     aircraft: [...parts.aircraft, ...aircraft],
