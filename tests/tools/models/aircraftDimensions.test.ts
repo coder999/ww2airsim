@@ -29,6 +29,8 @@ const CITED: Readonly<Record<string, Cited>> = {
   'ki-21-sally': { spanM: 22.5, lengthM: 16.0, tolerance: 0.01, source: "English Wikipedia 'Mitsubishi Ki-21', Specifications (Ki-21-IIb), read 2026-09-27" },
   'ki-43-oscar': { spanM: 10.84, lengthM: 8.92, tolerance: 0.04, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-09-27" },
   'ki-84-frank': { spanM: 11.238, lengthM: 9.92, tolerance: 0.01, source: "English Wikipedia 'Nakajima Ki-84 Hayate', Specifications (Ki-84-Ia), read 2026-09-27" },
+  'tbm-3-avenger': { spanM: 16.51, lengthM: 12.48, tolerance: 0.01, source: "span: English Wikipedia 'Grumman TBF Avenger', Specifications; length: J. Rickard, 'Eastern TBM-3E Avenger', historyofwar.org; both read 2026-10-09" },
+  'b5n2-kate': { spanM: 15.518, lengthM: 10.3, tolerance: 0.01, source: "English Wikipedia 'Nakajima B5N', Specifications (B5N2), citing Francillon 1970, read 2026-10-09" },
   'p-38-lightning': { spanM: 15.85, lengthM: 11.53, tolerance: 0.01, source: "English Wikipedia 'Lockheed P-38 Lightning', Specifications (P-38L): span 52 ft 0 in, length 37 ft 10 in, read 2026-09-27. An original Blender model: the Sketchfab pick measured +5.2% long at this span (R3 ledger, Task 8)" },
 }
 

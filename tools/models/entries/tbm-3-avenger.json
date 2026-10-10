@@ -1,0 +1,33 @@
+{
+  "id": "tbm-3-avenger",
+  "output": "content/aircraft/tbm-3-avenger.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/tbm-3-avenger.py",
+    "dimensions": "span 16.51 m, wing area 45.52 m2, NACA 23015/23009 airfoil, a 3-bladed propeller, the armament and the internal bay: English Wikipedia 'Grumman TBF Avenger', Specifications, read 2026-10-09; length 12.48 m: J. Rickard, 'Eastern TBM-3E Avenger', historyofwar.org, read 2026-10-09; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 16.51 } },
+  "keep": [
+    { "node": "Prop", "pivot": { "point": [3.276, 0, 0], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.2496, -0.362377, -2.8067], "axis": "+x" } },
+    { "node": "GearR", "pivot": { "point": [0.2496, -0.362377, 2.8067], "axis": "+x" } },
+    { "node": "Turret1", "pivot": { "point": [-3.4008, 0.8736, 0], "axis": "+y" } },
+    { "node": "Turret1Guns" },
+    { "node": "Turret2" },
+    { "node": "Turret2Guns" },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder" },
+    { "node": "BayDoor1L" },
+    { "node": "BayDoor1R" }
+  ],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "skin": true,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 },
+  "noseNode": "Prop"
+}

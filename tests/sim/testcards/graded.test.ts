@@ -303,6 +303,19 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // the model rolls 579 ft clean and 592 ft with flaps at the ESTIMATED 42.47 m/s three-point speed, 60% short of it): the card runs the
   // flap-direction check only. A green card here is not validation. Tolerances are about 1.4x to 2x each measurement.
   'ki-84-frank': { topSpeed: 0.005, topSpeedTable: 0.018, climb: 0.21, climbTable: 0.22, stall: 0.045, flapStall: 0.047, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 42.47, flapFraction: 1 } },
+  // TBM-3 onboarding (D1), measured 2026-10-09 at testMassKg 6,423 kg (14,160 lb, the TBM-3E's normal loaded weight) against
+  // SECONDARY figures for the TBM-3E (historyofwar.org; no flown report or handbook chart was read): top speed 123.18 vs 123.4 m/s
+  // (-0.18%) at 16,500 ft and climb 10.51 vs 10.47 m/s (+0.38%) at sea level, both FITTED (cd0 0.019 and propEfficiency 0.70, two
+  // unknowns to two figures through an ESTIMATED power curve, so the card proves nothing about either); stalls -0.32% clean and -0.52%
+  // flaps against ESTIMATES derived from the shared clMax 1.4 and flap.clIncrement 0.5 (circular); roll 45.0 vs its own ESTIMATE. No
+  // take-off distance was read: the take-off row runs the flap-direction check only, at 48 m/s, 1.2 x the clean stall estimate.
+  'tbm-3-avenger': { topSpeed: 0.005, climb: 0.01, stall: 0.01, flapStall: 0.01, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 48, flapFraction: 1 } },
+  // B5N2 onboarding (D1), measured 2026-10-09 at testMassKg 3,800 kg (8,378 lb, Francillon's gross) against SECONDARY figures
+  // (English Wikipedia, citing Francillon): top speed 105.06 vs 105.0 m/s (+0.06%) at 11,800 ft, FITTED (cd0 0.0195, propEfficiency 0.60,
+  // fitted to that one figure); climb 8.26 vs 6.52 m/s (+26.6%), REPORTED not tuned: the reference is an average over the climb to
+  // 3,000 m, below the initial rate graded here, on top of the fleet's climb bias; stalls -0.35% clean and -0.65% flaps against ESTIMATES
+  // (circular, as the TBM's); roll 55.0 vs its own ESTIMATE. The take-off row runs the flap-direction check only, at 41 m/s.
+  'b5n2-kate': { topSpeed: 0.005, climb: 0.3, stall: 0.01, flapStall: 0.01, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 41, flapFraction: 1 } },
 }
 
 const within = (actual: number, expected: number, tol: number) => {

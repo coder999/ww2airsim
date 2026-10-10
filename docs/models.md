@@ -251,9 +251,9 @@ models:build -- <id>` runs it. The paint texture is pinned by MD5 in `paint.ts`,
 `tools/textures/sources.ts` pins terrain textures, and the output must rebuild
 byte-identically (`tests/tools/models/generatedModels.test.ts`). Verified 2026-09-26.
 The two torpedoes share one builder, `torpedo.ts`, each in its own file so the registry
-keys stay one generator per entry (V1, 2026-10-09). A store no spec carries yet (the
-torpedoes, until Track D) names its own model in its Library entry, `model: { kind:
-"ordnance", id }`.
+keys stay one generator per entry (V1, 2026-10-09). A store no spec carries yet names its
+own model in its Library entry, `model: { kind: "ordnance", id }`; the torpedoes did until
+D1 hung them on the Avenger, the Kate and the G4M.
 
 ## Vehicle rigs (V1)
 

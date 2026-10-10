@@ -3,11 +3,8 @@
   "name": "Mk 13 aircraft torpedo",
   "kind": "ordnance",
   "side": "allied",
-  "model": {
-    "kind": "ordnance",
-    "id": "mk13"
-  },
-  "blurb": "The U.S. Navy's aerial torpedo, drawn ahead of the torpedo attack the game does not fly yet.",
+  "spec": "mk13",
+  "blurb": "The U.S. Navy's aerial torpedo, carried in the Avenger's bomb bay. By 1944 its shroud and drag rings let it be dropped high and fast.",
   "history": "The Mark 13 was the U.S. Navy's standard aircraft torpedo of the Second World War, carried by the TBD Devastator and then the TBF and TBM Avenger. Early in the war it was notorious for running erratically, diving to the bottom or failing to explode when dropped at the speeds and heights pilots needed to survive.\n\nBy 1944 a series of fixes had made it one of the most reliable aerial torpedoes of the war. A shroud ring around the tail vanes steadied it on water entry, and plywood drag rings and breakaway tails let it be dropped faster and higher.",
   "sources": [
     {

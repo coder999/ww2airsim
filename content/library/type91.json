@@ -3,11 +3,8 @@
   "name": "Type 91 aerial torpedo",
   "kind": "ordnance",
   "side": "japanese",
-  "model": {
-    "kind": "ordnance",
-    "id": "type91"
-  },
-  "blurb": "The Imperial Japanese Navy's aerial torpedo, drawn ahead of the torpedo attack the game does not fly yet.",
+  "spec": "type91",
+  "blurb": "The Japanese Navy's aerial torpedo, carried by the B5N Kate and the G4M Betty. Drop it low and slow, or it breaks up on the water.",
   "history": "The Type 91 was the Imperial Japanese Navy's aircraft torpedo, carried by the B5N Kate, the G3M Nell and the G4M Betty. It was the weapon of the Pearl Harbor attack and of the sinking of HMS Prince of Wales and HMS Repulse in December 1941.\n\nWooden plates on its tail fins, the kyoban, steadied it in the air and sheared off when it struck the water, and an anti-roll controller kept it upright. Together they let it run true after a drop into the shallow water of Pearl Harbor.",
   "sources": [
     {

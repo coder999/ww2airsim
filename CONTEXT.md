@@ -64,3 +64,13 @@ _Avoid_: flag (alone), colors
 **Difficulty**:
 The global player setting that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. A scenario's skill values are the baseline it shifts.
 _Avoid_: skill level, challenge
+
+## Weapons
+
+**Torpedo**:
+An aerial torpedo: dropped from a rack like a bomb, it enters the sea and runs straight at a set depth and speed until it meets a hull, runs ashore or runs out of range. It damages only a ship.
+_Avoid_: fish, tin fish
+
+**Drop envelope**:
+The fastest airspeed and the greatest height above the sea at which a torpedo can be released and still run. Outside it, the torpedo breaks up on the water.
+_Avoid_: release limits, launch window

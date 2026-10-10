@@ -40,7 +40,10 @@ describe('buildCatalog', () => {
     // V2 (Mark, 2026-10-09): every Japanese bomber carries the Type 98 No. 25 instead.
     const type98 = catalog.find((e) => e.library.id === 'type98-no25')!
     expect((type98.subject as { carriers: readonly { id: string }[] }).carriers.map((a) => a.id).sort())
-      .toEqual(['a6m2-zero', 'd3a-val', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank'])
+      .toEqual(['a6m2-zero', 'd3a-val', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank'])
+    // D1 (Mark, 2026-10-09): the Betty carries the Type 91 torpedo instead.
+    const type91 = catalog.find((e) => e.library.id === 'type91')!
+    expect(type91.subject).toMatchObject({ kind: 'ordnance', storeId: 'type91', store: { kind: 'torpedo' } })
     expect(catalog.at(-1)!.library.kind).toBe('ordnance')
   })
 

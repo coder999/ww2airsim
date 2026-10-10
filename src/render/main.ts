@@ -1515,6 +1515,12 @@ async function boot(): Promise<void> {
       .then((v) => { ordnance.setStoreModels(v.byStore.get(bombStore)!, v.byStore.get(rocketStore)!) })
       .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
   }
+  // D1: a torpedo rack's store draws the torpedo pool.
+  if (bombStore !== undefined && spec.stores?.types[bombStore]?.kind === 'torpedo') {
+    loadStoreVisuals([bombStore], 0)
+      .then((v) => { ordnance.setTorpedoModel(v.byStore.get(bombStore)!) })
+      .catch((e: unknown) => { validationErrors.push(`store models: ${e instanceof Error ? e.message : String(e)}`) })
+  }
 
   // The panel is 3D geometry, not a screen-space HUD, so it gets parallax and
   // occlusion during look-around for free (spec rationale, this task). It
@@ -2584,7 +2590,7 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS)
+    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS)
     pauseBadge.setPaused(current.paused)
     const paddles = paddlesFor(current)
     paddlesBadge.setCue(paddles)

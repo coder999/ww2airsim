@@ -1,0 +1,31 @@
+{
+  "id": "tbm-3-avenger",
+  "name": "General Motors TBM-3 Avenger",
+  "rosterName": "Grumman TBF/TBM Avenger",
+  "kind": "aircraft",
+  "side": "allied",
+  "model": {
+    "kind": "aircraft",
+    "id": "tbm-3-avenger"
+  },
+  "blurb": "The Navy's torpedo bomber, with a Mark 13 in its bomb bay behind doors you open before the drop, two wing guns, and a ball turret and tail gun that track but do not fire. Its speed and climb come from secondary sources, and its stall speeds are estimates.",
+  "history": "The Avenger was designed by Grumman and built in its greatest numbers by General Motors' Eastern Aircraft Division as the TBM. It replaced the TBD Devastator, entered combat at Midway in June 1942, and became the U.S. Navy's standard torpedo bomber for the rest of the war, flying from fleet and escort carriers alike.\n\nThe TBM-3 of 1944 had a more powerful Wright R-2600-20 engine. A crew of three sat in a long greenhouse canopy: the pilot forward, then a radioman, and a gunner in the electrically powered ball turret. A fourth gun fired aft from a window under the tail. Avengers sank or helped sink the battleships Yamato and Musashi.",
+  "sources": [
+    {
+      "title": "Grumman TBF Avenger",
+      "url": "https://en.wikipedia.org/wiki/Grumman_TBF_Avenger",
+      "read": "2026-10-09"
+    },
+    {
+      "title": "Eastern TBM-3E Avenger (History of War)",
+      "url": "https://www.historyofwar.org/articles/weapons_eastern_TBM-3E_Avenger.html",
+      "read": "2026-10-09"
+    },
+    {
+      "title": "United States of America Torpedoes of World War II (NavWeaps)",
+      "url": "https://www.navweaps.com/Weapons/WTUS_WWII.php",
+      "read": "2026-10-09"
+    }
+  ],
+  "spec": "tbm-3-avenger"
+}

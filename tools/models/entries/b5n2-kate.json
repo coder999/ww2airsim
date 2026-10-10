@@ -1,0 +1,29 @@
+{
+  "id": "b5n2-kate",
+  "output": "content/aircraft/b5n2-kate.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/b5n2-kate.py",
+    "dimensions": "span 15.518 m, length 10.3 m, wing area 37.7 m2, NN-5 mod airfoil 16% root / 8% tip, a 3-blade propeller and one rear 7.7 mm gun: English Wikipedia 'Nakajima B5N', Specifications (B5N2), citing Francillon 1970, read 2026-10-09; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 15.518 } },
+  "keep": [
+    { "node": "Prop", "pivot": { "point": [2.9355, 0, 0], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.206, -0.463814, -2.01734], "axis": "+x" } },
+    { "node": "GearR", "pivot": { "point": [0.206, -0.463814, 2.01734], "axis": "+x" } },
+    { "node": "Turret1" },
+    { "node": "Turret1Guns" },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder" }
+  ],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "skin": true,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 },
+  "noseNode": "Prop"
+}

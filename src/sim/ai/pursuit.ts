@@ -73,7 +73,8 @@ export function muzzleLeadDirection<M>(
   target: AircraftEntity<M>,
 ): Vec3 | null {
   const combat = self.spec.combat
-  if (combat === undefined) return null
+  // No fixed guns (the B5N2, D1): nothing to lead.
+  if (combat === undefined || combat.guns.length === 0) return null
   const relative = sub(target.state.position, self.state.position)
   const range = length(relative)
   if (range < 1e-6 || range > AI_GUN_RANGE_M) return null

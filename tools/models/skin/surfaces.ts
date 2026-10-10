@@ -29,6 +29,8 @@ export interface Surface {
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
   underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.005, rivets: true, scanNormal: 0.6 },
+  // D1: Glossy Sea Blue is a gloss enamel, so smoother than the matte camouflage paints (ESTIMATE).
+  seaBlue: { scan: 'painted-metal', roughness: 0.45, metallic: 0, fade: 0.10, chip: 0.008, rivets: true, scanNormal: 0.6 },
   // Ruling (DP1, 2026-09-28): metallic 1 renders near-black in the Hangar (no environment to reflect; check 15
   // measured 0.089x flat on the P-38). Aluminum here is a satin bare-metal paint chip, so metallic 0.25.
   naturalMetal: { scan: 'painted-metal', roughness: 0.4, metallic: 0.25, fade: 0, chip: 0, rivets: true, scanNormal: 0.4 },

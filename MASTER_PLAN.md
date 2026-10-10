@@ -123,15 +123,16 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 
 ### Track D: Torpedoes (L)
 
-- **Today:** projectile `kind` is round, bomb or rocket (`combat.ts:85`). Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location. No torpedo bomber is in the roster. The G4M historically carried the Type 91, but its spec carries bombs.
+- **Steps 1 and 2 done (D1, 2026-10-09):** the TBM-3 Avenger and the B5N2 Kate are onboarded (Blender-built, carrier-capable, flyable from the picker), and `torpedo` is a store kind: a drop envelope judged at release, a water entry, a straight run at depth, an arming run, and a hull hit for the store's damage (`combat.ts`, `tests/sim/weapons/torpedo.test.ts`). The G4M carries a Type 91. Plan `docs/superpowers/plans/2026-10-09-d1-torpedo-planes.md`; handoff `docs/handoff/2026-10-09-d1-torpedo-planes.md`. Steps 3 to 5 stay open.
+- **Before D1:** projectile `kind` was round, bomb or rocket. Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location.
 - **Drawn already (V1, 2026-10-09):** the Mk 13 and Type 91 torpedo models (`content/ordnance/mk13.glb`, `type91.glb`, in the Library), with their suspension point at the origin like every store, so step 2 adds a store type and hangs them. M4's ship torpedoes reuse the same two models (Mark's ruling: simplicity over history). Plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`; handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`.
 - **Proposal, in order:**
-  1. **Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.
-  2. **Weapon:** a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
+  1. ~~**Airframe:** TBF/TBM Avenger (US, player-facing) via the onboarding process.~~ Done (D1), with the B5N2 Kate.
+  2. ~~**Weapon:** a torpedo store~~ Done (D1): a torpedo store with drop envelope limits (speed and height at release, or it breaks or dives), a water entry, then a surface run at set speed and depth.
   3. **Damage:** a waterline hit that does more than a bomb of equal weight. Whether that becomes flooding or a simple multiplier is a design call.
   4. **AI:** torpedo attack, so the enemy can use it too, from Track E.
   5. **Sound (ready, 2026-10-09):** release reuses `bombs_away`; `torpedo_splash` and `torpedo_hit` are in `AUDIO_ASSETS`, unwired (Track I, I3).
-- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G).
+- Midway and Pearl Harbor both want the B5N Kate on the Japanese side (§1 Track G): it exists since D1.
 
 ### Track E: Better AI (L)
 
