@@ -72,6 +72,9 @@ test.describe('terrain textures (visual realism §2.1)', () => {
 
   // Textures cost 4.1 ms at the runway view (on 8.31-8.35 ms, off 4.2 ms, measured 2026-09-29),
   // which straddles the 8.33 ms tripwire with GPU load. Mark set 9.0 ms for this view that day.
+  // H0 (2026-10-10, three runs on the reference GPU): on 8.65 ms, off 8.55, a 0.10 ms delta. The runway
+  // view's cost is now its clouds (6.65 of 8.96 ms by H0's ablation). Kept at Mark's 9.0 although H0's rule caps a tripwire
+  // at the 8.33 gate: 8.33 would make it red, and R6 leaves that ruling to him (the H0 handoff).
   const RUNWAY_TEXTURES_P95_MS = 9.0
 
   // terrain.spec.ts's sampling sequence (SETTLE 1.5 s, reset, 5 s window,
