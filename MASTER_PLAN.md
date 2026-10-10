@@ -192,7 +192,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - Terrain, land-cover, ocean, river and places headers are static JSON imports.
   - The sun's date is the constant `SCENARIO_DAY_OF_YEAR` (`sky/sun.ts:11`).
   - Bases and routes are local coordinates.
-  - Leyte's data is about 171 MB (L0 134 MB in LFS).
+  - Leyte's data is about 171 MB (L0 134 MB in LFS; 37 MB gzipped since L1.1a).
 - **G1, the world abstraction (M):** a world id on scenarios, runtime-loaded headers, a per-world data directory and build, a per-world center and date, and a theater picker on Form 2. Leyte keeps working unchanged, verified by the existing suite.
 - **G2, the first new theater (M-L):** **Midway is the recommendation** over Pearl Harbor:
   - Its terrain is two atolls, so the data is tiny.

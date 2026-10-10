@@ -159,8 +159,8 @@ describe('Asset Quality at boot (render-quality-selector spec §10)', () => {
   it('defaults a first-time visitor to the INTERIM tier', () => {
     // Medium since L1.1 (2026-10-10), Mark's 2026-09-27 ruling, once L0 stopped
     // costing 358 MB of mesh textures. The second assertion pins the ruling:
-    // moving the default changes what every first visit downloads (134 MB
-    // more at Medium), which is a ruling, not a refactor.
+    // moving the default changes what every first visit downloads (37 MB
+    // more at Medium, gzipped), which is a ruling, not a refactor.
     expect(createBootQuality().assetQuality).toBe(INTERIM_ASSET_QUALITY_TIER)
     expect(INTERIM_ASSET_QUALITY_TIER).toBe('medium')
   })

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { existsSync, readFileSync } from 'node:fs'
+import { gunzipSync } from 'node:zlib'
 import {
   InstancedBufferGeometry,
   Mesh,
@@ -54,7 +55,7 @@ function edgeSamples(level: number): number {
   return 2 ** (13 - level) + 1
 }
 
-/** A `fetch` that answers any `L<n>.bin` with a correctly-sized buffer of
+/** A `fetch` that answers any `L<n>.bin.gz` with a correctly-sized buffer of
  *  zeros, recording the URLs it was asked for. */
 function mockLevelFetch(): { fetchImpl: typeof fetch; urls: string[] } {
   const urls: string[] = []
@@ -102,7 +103,7 @@ describe('terrain decoding', () => {
 
     expect(urls).toEqual(seen.map(terrainLevelUrl))
     for (const level of seen) {
-      expect(existsSync(`${TERRAIN_DIR}L${level}.bin`)).toBe(true)
+      expect(existsSync(`${TERRAIN_DIR}L${level}.bin.gz`)).toBe(true)
     }
     // The assumption this test used to check has flipped (2026-09-24):
     // previously L2 was committed and L1 was not, so "one level finer than
@@ -110,8 +111,8 @@ describe('terrain decoding', () => {
     // committed and nothing finer than L0 exists in the pyramid at all, so
     // there is no absent neighbour to check for any tier -- this asserts the
     // real boundary instead: L0.bin exists, and there is no L-1 to fetch.
-    expect(existsSync(`${TERRAIN_DIR}L0.bin`)).toBe(true)
-    expect(existsSync(`${TERRAIN_DIR}L-1.bin`)).toBe(false)
+    expect(existsSync(`${TERRAIN_DIR}L0.bin.gz`)).toBe(true)
+    expect(existsSync(`${TERRAIN_DIR}L-1.bin.gz`)).toBe(false)
 
     // ...and exactly the levels something draws: every level some ring
     // samples, and no level no ring can reach. Until 2026-09-14 the loop ran
@@ -162,7 +163,7 @@ describe('finestFetchedLevelFor', () => {
     // runtime and look exactly like the game working (spec §9).
     for (const tier of ['low', 'medium', 'high', 'ultra'] as const) {
       const level = finestFetchedLevelFor(tier)
-      expect(existsSync(`${TERRAIN_DIR}L${level}.bin`), `L${level}.bin for tier '${tier}'`).toBe(true)
+      expect(existsSync(`${TERRAIN_DIR}L${level}.bin.gz`), `L${level}.bin.gz for tier '${tier}'`).toBe(true)
     }
   })
 })
@@ -546,7 +547,9 @@ describe('terrain under the airplane', () => {
     // flew through the mountains it could see (review, promoted to I4).
     const level = FINEST_FETCHED_LEVEL
     const n = samplesAtLevel(TERRAIN_HEADER, level)
-    const bytes = readFileSync(`${TERRAIN_DIR}L${level}.bin`)
+    // Gzipped on disk since L1.1a (2026-10-10); gunzip.test.ts covers the
+    // browser's inflate against both kinds of server.
+    const bytes = gunzipSync(readFileSync(`${TERRAIN_DIR}L${level}.bin.gz`))
     const decoded = decodeLevel(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), n)
 
     const field = physicsFieldFor(level, decoded, FINEST_FETCHED_LEVEL)

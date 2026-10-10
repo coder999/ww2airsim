@@ -1,6 +1,7 @@
 import type { CoverField } from '../../sim/world/cover.js'
 import terrainHeader from '../../../content/terrain/header.json' with { type: 'json' }
 import { terrainLevelUrl } from '../content.js'
+import { inflateIfGzipped } from '../gunzip.js'
 import { parseTerrainHeader, samplesAtLevel } from '../../sim/world/schema.js'
 import { createTerrainField, type TerrainField } from '../../sim/world/terrain.js'
 import { withTerrain, type FrameState } from '../frame.js'
@@ -182,6 +183,9 @@ export async function loadTerrainProgressively(
     if (!res.ok) {
       throw new Error(`Failed to fetch terrain level ${level} (${url}): ${res.status} ${res.statusText}`)
     }
-    onLevel(level, decodeLevel(await res.arrayBuffer(), samplesAtLevel(TERRAIN_HEADER, level)))
+    // Gzipped on disk since L1.1a (2026-10-10). The dev server has already
+    // inflated it by the time it arrives, production has not (gunzip.ts).
+    const bytes = await inflateIfGzipped(await res.arrayBuffer())
+    onLevel(level, decodeLevel(bytes.buffer as ArrayBuffer, samplesAtLevel(TERRAIN_HEADER, level)))
   }
 }

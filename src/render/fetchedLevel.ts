@@ -9,9 +9,10 @@ import type { AssetQualityTierName } from './quality.js'
  * The finest pyramid level a page load fetches, as a function of the
  * persisted Asset Quality tier (design spec
  * `docs/superpowers/specs/2026-09-24-render-quality-selector-design.md`
- * §10): `low` stops at L1 (49 m spacing, 33.6 MB) to hold that tier's
- * budget ceiling; `medium`/`high`/`ultra` all go to L0 (24 m spacing,
- * 134 MB) -- the whole committed pyramid, since nothing finer exists.
+ * §10): `low` stops at L1 (49 m spacing, 33.6 MB inflated, 9.5 MB gzipped) to
+ * hold that tier's budget ceiling; `medium`/`high`/`ultra` all go to L0 (24 m
+ * spacing, 134 MB inflated, 37 MB gzipped since L1.1a, 2026-10-10) -- the
+ * whole committed pyramid, since nothing finer exists.
  *
  * Until 2026-09-24 (Task 2 of the same plan) this was a fixed constant, `2`:
  * L0-L1 were gitignored into `content/terrain/tiles/` and fetching them
@@ -41,7 +42,7 @@ export function finestFetchedLevelFor(tier: AssetQualityTierName): number {
  * `'low'` until then because the terrain mesh allocated every level whole, an
  * L0 floor costing 358 MB of height textures; L0 is now held as a window
  * around the camera (`terrain/mesh.ts`, `WINDOW_SAMPLES`). The cost a first
- * visit still pays is the 134 MB `L0.bin` download, before the game can fly
+ * visit still pays is the 37 MB `L0.bin.gz` download, before the game can fly
  * (handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`).
  *
  * Tests that measure "ground truth" do NOT follow this any more; they read

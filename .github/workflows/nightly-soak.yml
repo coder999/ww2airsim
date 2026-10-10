@@ -16,7 +16,7 @@ jobs:
       # bandwidth reasoning as `ci.yml`'s own comment. This job only runs
       # `tests/sim/soak.test.ts`, which reads `finestFetchedLevelFor('low')`'s
       # L1 -- a plain git blob, always real, LFS or not -- and never touches
-      # L0.bin, so this workflow does not need `lfs: true` even setting
+      # L0.bin.gz, so this workflow does not need `lfs: true` even setting
       # bandwidth aside.
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

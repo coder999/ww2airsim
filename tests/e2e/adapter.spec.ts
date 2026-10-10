@@ -64,7 +64,7 @@ test('Asset Quality Medium boots with zero WebGPU validation errors', async ({ p
   test.setTimeout(240_000)
   await page.addInitScript(() => window.localStorage.setItem('ww2airsim.assetQuality.v1', 'medium'))
   await page.goto('/')
-  // L0 is a 134 MB fetch; through the E2E tunnel it outlasts
+  // L0 is the largest fetch (37 MB gzipped); through the E2E tunnel it can outlast
   // waitForTerrain's 30 s, which is sized for the default Low tier.
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 150_000,

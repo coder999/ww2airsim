@@ -54,8 +54,8 @@ One home per kind of fact. Point at it from elsewhere; never copy it.
 
 ## Getting started
 
-Node, npm, and **Git LFS** (`git-lfs`). `content/terrain/L0.bin` is large, over GitHub's 100 MB
-per-file limit, so it is committed via Git LFS rather than as a plain blob. A
+Node, npm, and **Git LFS** (`git-lfs`). `content/terrain/L0.bin.gz` (37 MB) is committed via
+Git LFS rather than as a plain blob, so that each rebuild of it does not grow the history. A
 checkout without git-lfs installed (or without `git lfs pull` run) gets a
 ~130-byte pointer file in its place, and `npm run verify` fails with an
 exact-byte-count mismatch that reads exactly like data corruption, not like a
@@ -64,7 +64,7 @@ this:
 
 ```sh
 git lfs install        # once per machine, not per clone
-git lfs pull            # if `content/terrain/L0.bin` is ~130 bytes, not ~134 MB (estimate, may grow as game grows)
+git lfs pull            # if `content/terrain/L0.bin.gz` is ~130 bytes, not ~37 MB
 npm ci
 npm run verify   # typecheck -> lint -> depcruise -> tests
 ```
@@ -107,9 +107,9 @@ apex is confirmed reachable from work.
 
 Deploys are **manual**: `gh workflow run deploy.yml --repo coder999/ww2airsim`.
 Pushing `main` releases nothing. The workflow checks out with `lfs: true`
-(needed since Task 2, 2026-09-24: `content/terrain/L0.bin` is committed via
+(needed since Task 2, 2026-09-24: `content/terrain/L0.bin.gz` is committed via
 Git LFS), runs `npm run verify`, builds, rsyncs `dist/`, and then asserts the
-live site — including that `content/terrain/L0.bin` IS public (200, by
+live site — including that `content/terrain/L0.bin.gz` IS public (200, by
 design: it is committed content a real page load fetches) and that
 the gitignored terrain scratch directory never became public
 (`content/terrain/tiles/L6-preview.png` is a sentinel path that must 404 —

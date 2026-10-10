@@ -5,6 +5,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } 
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
+import { gunzipSync } from 'node:zlib'
 import { AIRCRAFT_CONTENT_PATH, CURL_NOISE_PATH, finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER, terrainLevelPath, TITLE_ART_BYTES, TITLE_ART_PATH, SHAPE_NOISE_PATH, DETAIL_NOISE_PATH, WEATHER_MAP_PATH, WILDCAT_MODEL_PATH } from '../../src/render/content.js'
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
@@ -72,7 +73,7 @@ const TERRAIN_TILES_PATH = 'content/terrain/tiles'
 const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH}`, import.meta.url))
 
 /**
- * Whether the repo's own `content/terrain/L0.bin` (the SOURCE `vite build`
+ * Whether the repo's own `content/terrain/L0.bin.gz` (the SOURCE `vite build`
  * copies from, not the built copy) is real content, not an unsmudged Git LFS
  * pointer. `ci.yml` deliberately checks out WITHOUT `lfs: true` (bandwidth
  * cost against GitHub LFS's free 1 GB/month quota on every push/PR -- see
@@ -85,7 +86,7 @@ const REPO_TERRAIN_TILES_DIR = fileURLToPath(new URL(`../../${TERRAIN_TILES_PATH
 const haveRealL0 = hasRealLevelFile(0)
 if (!haveRealL0) {
   console.warn(
-    '[dist.test.ts] content/terrain/L0.bin is absent or an unsmudged Git LFS pointer -- its exact-byte' +
+    '[dist.test.ts] content/terrain/L0.bin.gz is absent or an unsmudged Git LFS pointer -- its exact-byte' +
     '-count assertion is SKIPPED. Expected in CI (ci.yml does not fetch LFS content, by design); run ' +
     '`git lfs pull` to enable it locally.',
   )
@@ -277,15 +278,16 @@ describe('the built artifact', () => {
         // point of deriving it from that constant is that it is allowed to.
         if (level === 0 && !haveRealL0) continue
         const samples = samplesAtLevel(TERRAIN_HEADER, level)
-        const bytes = readFileSync(join(outDir, terrainLevelPath(level)))
-        expect(bytes.byteLength, `${terrainLevelPath(level)} is the wrong size`).toBe(samples ** 2 * 2)
+        // Gzipped since L1.1a (2026-10-10): the INFLATED length is the grid.
+        const bytes = gunzipSync(readFileSync(join(outDir, terrainLevelPath(level))))
+        expect(bytes.byteLength, `${terrainLevelPath(level)} inflates to the wrong size`).toBe(samples ** 2 * 2)
       }
       // Task 2 (2026-09-24): L0 and L1 ship as committed content regardless
       // of which tier a page load ends up fetching (L0 via Git LFS, over
       // GitHub's 100 MB per-file limit) -- pinned as EXACT literals, the same
       // pattern `cover.bin.gz` below uses, independently of `samplesAtLevel`
       // and the loop above: an LFS pointer file left un-smudged by the build
-      // tooling is a few hundred bytes of text, not 134 MB, and a bug in
+      // tooling is a few hundred bytes of text, not 37 MB, and a bug in
       // `samplesAtLevel`/`header.json` itself would not be caught by a check
       // that derives its own expectation from the same source.
       //
@@ -295,8 +297,12 @@ describe('the built artifact', () => {
       // may be a pointer that `vite build` copies through byte-for-byte,
       // same as it would the real file, making this a real skip, not a
       // no-op assertion that happens to pass.
-      if (haveRealL0) expect(readFileSync(join(outDir, 'content/terrain/L0.bin')).length).toBe(134_250_498)
-      expect(readFileSync(join(outDir, 'content/terrain/L1.bin')).length).toBe(33_570_818)
+      //
+      // These are the gzipped sizes (L1.1a, 2026-10-10; raw 134,250,498 and
+      // 33,570,818). They are what a first visit downloads, so a build that
+      // stopped compressing fails here.
+      if (haveRealL0) expect(readFileSync(join(outDir, 'content/terrain/L0.bin.gz')).length).toBe(36_794_066)
+      expect(readFileSync(join(outDir, 'content/terrain/L1.bin.gz')).length).toBe(9_477_073)
 
       // Copernicus Article 6(b)/6(c): the attribution and the no-liability
       // sentence have to accompany the derived data. They do so via

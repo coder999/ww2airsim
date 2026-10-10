@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
+import { gunzipSync } from 'node:zlib'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { fromFile } from 'geotiff'
@@ -31,16 +32,16 @@ const COMMITTED_LEVELS = Array.from(
 )
 
 /**
- * Whether L0.bin's ACTUAL bytes are on this checkout, not an unsmudged Git
+ * Whether L0.bin.gz's ACTUAL bytes are on this checkout, not an unsmudged Git
  * LFS pointer. `ci.yml` and `nightly-soak.yml` deliberately check out
  * WITHOUT `lfs: true` (a real bandwidth-cost decision -- see their own
  * comments, and `deploy.yml`'s, which DOES `lfs: true` and is where L0's
- * real bytes are actually gated before a release ships), so L0.bin exists as
- * a file there but is ~130 bytes of pointer text. `L1.bin` and every level
+ * real bytes are actually gated before a release ships), so L0.bin.gz exists as
+ * a file there but is ~130 bytes of pointer text. `L1.bin.gz` and every level
  * coarser are plain git blobs and are always real, on any checkout, with or
  * without LFS -- only L0-specific checks below need this gate.
  */
-const haveRealL0 = hasRealLevelFile(0, header)
+const haveRealL0 = hasRealLevelFile(0)
 if (!haveRealL0) {
   console.warn(
     `[terrainBuild.test.ts] ${terrainLevelPath(0)} is absent or an unsmudged Git LFS pointer -- the ` +
@@ -148,6 +149,12 @@ describe('the committed terrain fallback', () => {
  * 2026-09-24 (Task 2) by running `sha256sum` directly against the committed
  * files, per this comment's own rule -- not pasted from a failing assertion.
  *
+ * Since L1.1a (2026-10-10) each level is committed as `L<n>.bin.gz`, and the
+ * `L<n>.bin` digests below are of its INFLATED bytes, unchanged by that move
+ * (which is the proof the gzip changed no sample). The `.gz` bytes themselves
+ * are not pinned: they move with the zlib version (`skyNoise.test.ts`'s
+ * cumulus says the same); `dist.test.ts` pins L0's and L1's sizes.
+ *
  * Changing the resampler, the mip filter, the projection, the world centre or
  * the source tiles changes these; that is the point. Regenerate them
  * deliberately (`npm run terrain:build`, then `sha256sum`), never by pasting
@@ -184,7 +191,7 @@ describe('the committed terrain is byte-for-byte the pinned build', () => {
     if (!haveRealL0) delete expected['L0.bin']
     for (const level of COMMITTED_LEVELS) {
       if (level === 0 && !haveRealL0) continue
-      actual[`L${level}.bin`] = sha256(terrainLevelPath(level))
+      actual[`L${level}.bin`] = createHash('sha256').update(gunzipSync(readFileSync(terrainLevelPath(level)))).digest('hex')
     }
     expect(actual).toEqual(expected)
   })
@@ -206,13 +213,13 @@ describe('the committed terrain is byte-for-byte the pinned build', () => {
 // deliberately omits -- see `haveRealL0` above) has a file at that path that
 // is only a ~130-byte pointer. `tests/render/terrainLod.test.ts`'s
 // `haveFinestMip` is the same check for the same reason.
-const haveSource = existsSync(CACHE_DIR) && hasRealLevelFile(0, header)
+const haveSource = existsSync(CACHE_DIR) && hasRealLevelFile(0)
 if (!haveSource) {
   console.warn(
     `[terrainBuild.test.ts] ${CACHE_DIR} is absent, or ${terrainLevelPath(0)} is absent/an unsmudged ` +
     'Git LFS pointer -- the source cross-check and the source-tile digests are SKIPPED. Run ' +
     '`npx tsx tools/terrain/fetch.ts && npm run terrain:build` to populate the cache, and/or ' +
-    '`git lfs pull` to fetch L0.bin\'s real bytes, to enable them.',
+    '`git lfs pull` to fetch L0.bin.gz\'s real bytes, to enable them.',
   )
 }
 

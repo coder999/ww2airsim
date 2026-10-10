@@ -306,14 +306,14 @@ describe('CDLOD node selection', () => {
 // and unchanged; only the word was stale.
 
 // Mip 0 (the finest, 8193-sample level) used to live in the gitignored
-// `content/terrain/tiles/`, so a fresh clone (and CI) had no L0.bin -- see
+// `content/terrain/tiles/`, so a fresh clone (and CI) had no L0 -- see
 // `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL`. Task 2 (2026-09-24)
 // committed it, via Git LFS (over GitHub's 100 MB per-file limit) -- and
 // `hasRealLevelFile` (not bare `existsSync`) is the gate for a NEW reason
 // that replaces the old one: `ci.yml` and `nightly-soak.yml` deliberately
 // check out WITHOUT `lfs: true` (bandwidth cost -- see their own comments,
-// and `deploy.yml`'s, on the decision), so L0.bin exists as a file on every
-// CI runner but is a ~130-byte pointer, not the real 134 MB. Only
+// and `deploy.yml`'s, on the decision), so L0.bin.gz exists as a file on every
+// CI runner but is a ~130-byte pointer, not the real 37 MB. Only
 // `deploy.yml` (which does `lfs: true`) and a real developer machine that
 // ran `git lfs pull` have the actual bytes this describe block needs.
 // Skipped-not-thrown for the same reason `tests/tools/terrainBuild.test.ts`'s

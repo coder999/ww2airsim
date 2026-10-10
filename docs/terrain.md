@@ -21,6 +21,11 @@ How and why, with the measured reach: `src/render/terrain/mesh.ts` (`FINEST_WHOL
 `WINDOW_SAMPLES`, `WINDOW_REACH_SAMPLES`). Memory, download and time to ready, before and after:
 [`handoff/2026-10-10-l1-1-terrain-on-demand.md`](handoff/2026-10-10-l1-1-terrain-on-demand.md).
 
+Every level ships gzipped (`L<n>.bin.gz`, since L1.1a, 2026-10-10), the `cover.bin.gz` pattern:
+`tools/terrain/build.ts` writes it, `src/render/gunzip.ts` inflates it in the browser and says
+why it decides by the bytes and not the response header. Sizes and timings:
+[`handoff/2026-10-10-l1-1a-compress-terrain.md`](handoff/2026-10-10-l1-1a-compress-terrain.md).
+
 ## Curved shoreline render surface
 
 The simulation DEM and `heightAt` still define land, contact and physics.  The

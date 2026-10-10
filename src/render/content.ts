@@ -75,9 +75,13 @@ export const AIRCRAFT_CONTENT_PATH = contentPath('aircraft', 'f6f-hellcat')
  * `src/render/terrain/load.ts`'s fetch loop). L9-L12 are 808 bytes in total
  * and no code path reads them; they are committed because they are the
  * pyramid, not because anything loads them.
+ *
+ * Every level is gzipped on disk since L1.1a (2026-10-10), the
+ * `cover.bin.gz` pattern: `src/render/terrain/load.ts` inflates it with
+ * `inflateIfGzipped` (gunzip.ts says why that and not the response header).
  */
 export function terrainLevelPath(level: number): string {
-  return `content/terrain/L${level}.bin`
+  return `content/terrain/L${level}.bin.gz`
 }
 
 export function terrainLevelUrl(level: number): string {

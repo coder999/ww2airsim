@@ -33,12 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Deliberately NO `lfs: true` here (Task 2 review, 2026-09-25).
-      # `content/terrain/L0.bin` (134 MB, committed via Git LFS since
-      # 2026-09-24) would need it to arrive as real bytes instead of a
+      # `content/terrain/L0.bin.gz` (37 MB gzipped since 2026-10-10, committed
+      # via Git LFS since 2026-09-24) would need it to arrive as real bytes instead of a
       # ~130-byte pointer -- but this workflow runs on every push to every
       # branch AND every PR, and GitHub LFS's free tier is 1 GB/month
-      # bandwidth: one `lfs: true` checkout here is roughly 13% of that
-      # quota, so a handful of pushes in a single day would exhaust it.
+      # bandwidth: one `lfs: true` checkout here is roughly 4% of that
+      # quota, so a few dozen pushes a month would exhaust it.
       # `deploy.yml` (manual, low-frequency, gates an actual release) pays
       # that cost instead -- it DOES `lfs: true`, and is where L0's real
       # bytes are actually verified before anything ships.
@@ -51,7 +51,7 @@ jobs:
       # pointer file in place of the real one and re-running all three
       # (2026-09-25): 5 named skips, 14 passes, no failures. Every OTHER
       # test (all ~14 files reading `finestFetchedLevelFor('low')`'s L1, and
-      # everything not terrain-related) is unaffected: `L1.bin` and coarser
+      # everything not terrain-related) is unaffected: `L1.bin.gz` and coarser
       # are plain git blobs, always real on any checkout, LFS or not.
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

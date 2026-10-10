@@ -6,7 +6,7 @@ import { parseTerrainHeader } from '../../sim/world/schema.js'
  * should be drawn from, and a blend factor toward the next coarser mip.
  *
  * `ring` is deliberately the same number as the terrain mip level (`ring: 0`
- * samples `content/terrain/L0.bin`, `ring: 1` samples `L1.bin`, and so on) --
+ * samples `content/terrain/L0.bin.gz`, `ring: 1` samples `L1.bin.gz`, and so on) --
  * `src/sim/world/schema.ts`'s pyramid and this quadtree are two different
  * subdivisions of the same world, and giving their levels the same number is
  * what lets Task 10's mesh builder pick a texture without a lookup table.

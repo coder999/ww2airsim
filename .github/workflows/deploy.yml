@@ -12,7 +12,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # `lfs: true` fetches `content/terrain/L0.bin`'s real 134 MB (Task 2,
+      # `lfs: true` fetches `content/terrain/L0.bin.gz`'s real 37 MB (Task 2,
       # 2026-09-24) instead of leaving it as a ~130-byte Git LFS pointer.
       # Deliberately set HERE and not on `ci.yml`/`nightly-soak.yml` (see
       # their own comments): this workflow is manual (`workflow_dispatch`)
@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s dist/index.html
-          test -s dist/content/terrain/L4.bin
+          test -s dist/content/terrain/L4.bin.gz
           test ! -e dist/content/terrain/tiles
           echo "dist size: $(du -sh dist | cut -f1)"
 
@@ -168,9 +168,9 @@ jobs:
           curl -sS "$base/robots.txt?cb=$cb-robots" | tr -d '\r' | grep -qx 'Disallow: /' \
             || { echo "::error::robots.txt does not disallow everything"; exit 1; }
 
-          tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin?cb=$cb-l4")
+          tcode=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L4.bin.gz?cb=$cb-l4")
           test "$tcode" = "200" || { echo "::error::terrain L4 returned $tcode"; exit 1; }
-          # L0.bin is INTENTIONALLY public since Task 2 (2026-09-24) -- it is
+          # L0.bin.gz is INTENTIONALLY public since Task 2 (2026-09-24) -- it is
           # committed content (via Git LFS), fetched by `medium`/`high`/
           # `ultra` Asset Quality tiers -- unlike before that task, when it
           # lived gitignored in `tiles/` and this line asserted the opposite
@@ -179,8 +179,8 @@ jobs:
           # which `npm run verify` above would already have caught via its
           # own exact-byte-count assertion -- this is the same fact,
           # confirmed on the actual live site rather than only in CI.
-          l0code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L0.bin?cb=$cb-l0")
-          test "$l0code" = "200" || { echo "::error::content/terrain/L0.bin returned $l0code, not 200"; exit 1; }
+          l0code=$(curl -sS -o /dev/null -w '%{http_code}' "$base/content/terrain/L0.bin.gz?cb=$cb-l0")
+          test "$l0code" = "200" || { echo "::error::content/terrain/L0.bin.gz returned $l0code, not 200"; exit 1; }
           # The gitignored terrain scratch directory must never be public.
           # The build test proves the whole directory is excluded on a
           # checkout where it exists; this live 404 is defense in depth for

@@ -34,7 +34,7 @@ const LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 export function terrainOrSkip(): TerrainField | null {
   if (!existsSync(terrainHeaderPath())) return null
   const header = loadTerrainHeader()
-  if (!hasRealLevelFile(LEVEL, header)) return null
+  if (!hasRealLevelFile(LEVEL)) return null
   return createTerrainField(header, LEVEL, loadTerrainLevel(LEVEL, header))
 }
 

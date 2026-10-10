@@ -64,9 +64,9 @@ export function spawnUrl(position: { x: number; y: number; z: number }): string 
 
 /**
  * (`waitForTerrain`, below.) Waits until the terrain heightfield has reached
- * the simulation, which is the LAST level fetch to land: the finest, L0's
- * 134 MB at the default Medium tier (src/render/terrain/load.ts; 7.0 to 7.7 s
- * from navigation on ryzen over the LAN, 2026-10-10, L1.1 handoff). So this
+ * the simulation, which is the LAST level fetch to land: the finest, L0 at
+ * the default Medium tier (src/render/terrain/load.ts; 37 MB gzipped since
+ * L1.1a; seconds from navigation on ryzen over the LAN: L1.1a handoff). So this
  * is also the signal that every level the mesh can draw has been uploaded,
  * and it is the only such signal the app exposes: `tick()` advances from the
  * first frame, seconds earlier.

@@ -8,10 +8,11 @@
 //
 // Output layout is derived from `FIRST_COMMITTED_LEVEL` in load.ts. Since
 // Task 2 of the 2026-09-24 UI-realism plan it is 0, so header.json and every
-// L0..L12 binary are written under content/terrain/ (L0 is tracked by Git
-// LFS). content/terrain/tiles/ is still created as a gitignored scratch
+// L0..L12 binary are written gzipped under content/terrain/ (L0 is tracked
+// by Git LFS). content/terrain/tiles/ is still created as a gitignored scratch
 // directory, but the current build writes no pyramid level into it.
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { gzipSync } from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 import { fromFile } from 'geotiff'
 import { ensureAllTiles } from './fetch.js'
@@ -146,8 +147,13 @@ function writeLevel(level: number, data: Int16Array): number {
     data.byteOffset,
     data.byteLength,
   )
-  writeFileSync(terrainLevelPath(level), bytes)
-  return bytes.byteLength
+  // Gzipped since L1.1a (2026-10-10), at the level `cover.bin.gz` uses: L0
+  // goes from 134 MB to 37 MB. Node's gzip header carries no timestamp, so a
+  // rebuild is byte-identical on one zlib; `terrainBuild.test.ts` pins the
+  // INFLATED bytes, which do not depend on the zlib version.
+  const gz = gzipSync(bytes, { level: 9 })
+  writeFileSync(terrainLevelPath(level), gz)
+  return gz.byteLength
 }
 
 /** Elapsed seconds since an `process.hrtime.bigint()` mark, to one decimal.
