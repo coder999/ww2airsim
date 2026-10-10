@@ -57,22 +57,47 @@ Mark remembered correctly; this was explored and did not help:
 
 So the mask is cheap per frame, and ribbons would add draw calls and geometry to a High tier at 8.11 of 8.33 ms for no visible gain. The only argument left for ribbons is reclaiming that memory, which is not a quality fix and is not worth the risk on its own. The earlier version of this plan said otherwise because I read `rivers.ts` and did not read `docs/drape.md` or the 13a/13d handoffs first.
 
-## Phase 2: land cover at the resolution it was sourced at (not Blender)
+## Direction (Mark, 2026-10-09)
 
-Re-bake WorldCover at 4x the current density (for example 4097 samples, about 160 ft) in the existing cover format, and measure the download and GPU cost. This is the cheapest fix for blobby biome boundaries and is independent of Blender. If the cost is too high, bake only a coastal and river-corridor band at high density. Blender is not the right tool here; plain resampling in `tools/` is.
+**Accuracy is not a goal.** A plausible synthetic ground is acceptable if it looks as good as OpenSkyFlight. The bar is therefore a visual one, judged by Mark's eye at the final checkpoint, plus a hard GPU budget gate. Nothing below needs to match real Leyte.
 
-## Phase 3: the DEM, decided by Phase 0 numbers
+What OpenSkyFlight's look is made of, read from its own screenshot at about 13,000 ft AGL: irregular mid-scale mottling, field and parcel patterns, inhabited clusters with roads, forest grain, and tonal drift with elevation and aspect. At that altitude 1 m detail does not resolve, so the target is **mid-scale variety first, close-range grain second**. That is also what a generator can fake convincingly.
 
-Mark's question: leave the DEM on the table if it works better. These are the options, in the order I would try them. All run **offline in `tools/terrain/`** (numpy/TypeScript); Blender adds nothing for a regular grid.
+## Phase 0b: define the gap against the best we already have
 
-| Option | What it fixes | Cost / risk |
+Before building, put three things side by side at three altitudes (about 1,000, 4,000 and 13,000 ft), same view, legend hidden, clouds off, Low/L1:
+
+1. shipping terrain, 2. the best existing drape (`?drape=synthsr`, `docs/drape.md`), 3. an OpenSkyFlight frame at a comparable altitude and sun.
+
+Write down the specific deficits of (2) against (3) per altitude band (for example "no parcel structure", "forests are flat color", "no settlements"). `drape.md` already says synthsr was "pretty good", so the work is the remaining gap, not a restart. This is a capture and a table, not code.
+
+## Phase 2: plausible synthetic ground
+
+Generate ground color from what we already have (DEM, slope, aspect, land-cover fractions, `places.json` towns and roads), making up everything below the data's resolution.
+
+| Layer | Source of plausibility | Where Blender helps |
 | --- | --- | --- |
-| **3a. Bicubic or Lanczos resample** | Faceting from bilinear on a 98 ft to 80 ft up-sample | Regenerate all levels. Changes `heightAt` by feet, so physics and crash heights move. Only worth it if Phase 0's difference is real. |
-| **3b. De-canopy** | Forests as bumps. Blend heights toward a bare-earth estimate where WorldCover says tree/built | Invented, but physically closer to ground truth. Needs the cover raster at Phase 2 density. Changes physics. |
-| **3c. River incision** | Rivers that are not valleys in the data | Carve a channel and banks along the OSM paths, with a conservative depth. Invented. Changes physics only along the rivers. |
-| **3d. Sub-posting detail** | Smoothness at close range | **Render-only first**: a tileable detail normal or height map, masked by slope and cover. Baking invented detail into `L0` would move physics for no gain, so it is the last resort. |
+| Parcels and paddies | Warped Voronoi or noise-driven field shapes, tinted per land-cover class; denser near towns and roads | Not needed; numpy is enough (the drape pipeline already does this) |
+| Settlements | Procedural clusters grown from the existing town points along the existing roads: roofs, lots, tracks | Optional |
+| Forest and canopy grain | A **top-down orthographic render of real 3D tree crowns, rocks and shadows**, scattered by cover fraction under the scene's sun | **Yes. This is where Blender beats noise**: crown shape and baked shadow give believable grain. Render tileable sets per class. |
+| Mid-scale tone | Elevation, slope and aspect drive tone drift; low-frequency warped noise breaks repetition | Not needed |
+| Close-range grain | A small tileable detail set per class, blended by cover | Yes, same render path as the canopy sets |
 
-Rule for 3a to 3c: they are **offline, deterministic, committed as a build step with a test**, and every one moves `heightAt`. Each gets a measured before/after of max and RMS height change, and the existing terrain and ground-contact tests must still pass. If a change moves crash heights by more than the physics tolerance, it needs a decision from Mark before merging, not after.
+Delivery is the hard part, in this order of preference:
+
+1. **Whole-map low-frequency base** (parcels, tone, settlements at coarse resolution, about the existing `synth` variant) **plus a fixed, small number of tileable detail taps** blended by cover. Scales to the whole 200 km with no patch edges. Mark: patches look bad, so this avoids them.
+2. **Streamed tiles around the aircraft** only if (1) cannot reach the bar.
+
+The GPU rule from this repo's own history applies: Plan 13a lost 3.15 to 11.3 ms to anisotropic sampling of one detail texture, 8.98 ms of it. Budget for **at most a handful of taps per fragment, no anisotropy**, and measure each added tap on the ryzen reference GPU before keeping it.
+
+Pass:
+- High at altitude stays under **8.33 ms p95** (currently 8.114 ms, so about 0.2 ms of headroom; anything added must be paid for).
+- Mark's final-product viewing at the three altitudes, against the Phase 0b deficit list.
+- Deterministic rebuild: same inputs, same bytes, with a test.
+
+## Phase 3: the DEM. Closed.
+
+Nothing to do. The measurements above show rivers are already valleys, canopy and kernel effects are a few feet on 80 ft posts, and the earlier L2 work removed the one DEM fault that was visible (the coast).
 
 ## Phase 4: tree and rock assets (separate track)
 
@@ -80,7 +105,7 @@ Authored in Blender, ingested per `docs/models.md` and vetted per `ASSETS.md`. N
 
 ## Order and budget
 
-0, then 2, then 3 informed by 0 and 2, then final A/B. Every phase ends at the same gate: `npm run verify` through `remote-run`, and the budget specs under `hwlock ryzen-budget`, on the ryzen reference GPU. The suite is not allowed to become the only verification; the Phase 0 measurements are rerun at the end and must show the faults gone.
+0 and 0b first (measurement only), then 2, then final A/B at the three altitudes. Phase 4 stays a separate track. Every phase ends at the same gate: `npm run verify` through `remote-run`, and the budget specs under `hwlock ryzen-budget`, on the ryzen reference GPU. The suite is not allowed to become the only verification; the Phase 0 measurements are rerun at the end and must show the faults gone.
 
 ## Not doing
 
@@ -89,5 +114,6 @@ Authored in Blender, ingested per `docs/models.md` and vetted per `ASSETS.md`. N
 
 ## Open questions
 
-- Is the resample kernel worth a full regeneration of 13 levels? (Phase 0.)
-- Acceptable `heightAt` movement for Phase 3? Needs a number from Mark before 3a to 3c merge.
+- What exactly is missing from `?drape=synthsr` against OpenSkyFlight? (Phase 0b.)
+- Can the whole-map base plus a few detail taps reach the bar within 0.2 ms of headroom, or does High need to give something up?
+- Does a canopy render from real 3D crowns read better than the existing noise canopy? A 4 km patch A/B answers it before any whole-map work.
