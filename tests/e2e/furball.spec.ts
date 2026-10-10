@@ -5,9 +5,11 @@ import { SCENARIO_PARAM } from '../../src/render/spawn.js'
 /**
  * E2E, Plan 7e (AI 7c spec §4.7): `furball-range` in the shipped app on the
  * reference GPU. What only this tier proves: six airframes on two sides flown
- * by five choosing pilots through the real frame loop, an AI shooting another
- * AI down (not merely firing), with every airframe in the world. Deterministic's soak (`tests/sim/ai/furball.test.ts`) proves the same kill
- * headless; the wingman bounces pair A's green at tick 24 in every loadout.
+ * by five choosing pilots through the real frame loop, an AI hitting an AI on the
+ * other side (not merely firing), with every airframe in the world. Since damage
+ * stages round 2 (fighters 4x tougher, 2026-10-09) no AI-on-AI kill happens this
+ * early, as in Deterministic's soak (`tests/sim/ai/furball.test.ts`); AI-on-AI
+ * kills are pinned in the longer duels, `tests/sim/ai/gunnery.test.ts`.
  */
 const FURBALL = `/?${SCENARIO_PARAM}=furball-range`
 
@@ -16,19 +18,19 @@ test.setTimeout(300_000)
 const aircraft = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft())
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
-/** Destroyed AI aircraft whose killer is an AI on the other side. */
-async function aiOnAiKills(page: Page): Promise<{ victim: string; killer: string }[]> {
+/** Damaged AI aircraft whose last hit (`lastHitBy`) came from an AI on the other side. */
+async function aiOnAiHits(page: Page): Promise<{ victim: string; by: string; structure: number }[]> {
   const [rows, c] = await Promise.all([aircraft(page), combat(page)])
   const byId = new Map(rows.map((r) => [r.id, r]))
   return c.aircraft.flatMap((r) => {
     const victim = byId.get(r.id)
-    const killer = r.attacker === null ? undefined : byId.get(r.attacker)
-    return r.destroyed && victim?.mode != null && killer?.mode != null && killer.side !== victim.side
-      ? [{ victim: r.id, killer: killer.id }] : []
+    const by = r.lastHitBy === null ? undefined : byId.get(r.lastHitBy)
+    return r.structure < 1 && victim?.mode != null && by?.mode != null && by.side !== victim.side
+      ? [{ victim: r.id, by: by.id, structure: r.structure }] : []
   })
 }
 
-test('furball-range: an AI shoots an AI down by hits, sides respected, zero validation errors', async ({ page }) => {
+test('furball-range: an AI hits an AI on the other side, sides respected, zero validation errors', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(FURBALL)
   await waitForTerrain(page)
@@ -41,11 +43,10 @@ test('furball-range: an AI shoots an AI down by hits, sides respected, zero vali
   })
 
   await expect
-    .poll(() => aiOnAiKills(page).then((k) => k.length), { timeout: 60_000, message: 'no AI shot another AI down' })
+    .poll(() => aiOnAiHits(page).then((h) => h.length), { timeout: 60_000, message: 'no AI hit an AI on the other side' })
     .toBeGreaterThan(0)
-  const kills = await aiOnAiKills(page)
-  console.log(`furball: AI-on-AI kills ${JSON.stringify(kills)}`)
-  await page.screenshot({ path: 'test-results/furball-kill.png' })
+  console.log(`furball: AI-on-AI hits ${JSON.stringify(await aiOnAiHits(page))}`)
+  await page.screenshot({ path: 'test-results/furball-hit.png' })
 
   // Keep flying for the frame-time sample, and read every pilot's choice: no AI ever
   // targets its own side.
@@ -59,8 +60,6 @@ test('furball-range: an AI shoots an AI down by hits, sides respected, zero vali
   }
   const c = await combat(page)
   for (const r of c.aircraft) expect(r.friendlyKills, `${r.id} teamkilled`).toBe(0)
-  const aiKills = c.aircraft.filter((r) => r.kills > 0)
-  expect(aiKills.length).toBeGreaterThan(0)
   await page.screenshot({ path: 'test-results/furball-late.png' })
 
   const live = await page.evaluate(() => {

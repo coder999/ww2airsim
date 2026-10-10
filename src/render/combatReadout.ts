@@ -98,6 +98,8 @@ export type CombatDiagnostics = {
     readonly kills: number
     readonly friendlyKills: number
     readonly attacker: string | null
+    /** The last aircraft to land a hit (`lastHitBy`); `attacker` is set only once it burns. */
+    readonly lastHitBy: string | null
   }[]
   readonly projectiles: number
   readonly tracers: number
@@ -126,7 +128,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       const rec = combat.aircraft[a.id]!
       return {
         id: a.id, structure: rec.damage.structure, destroyed: rec.damage.destroyedAt !== null, burning: rec.damage.burningSince !== null, damaged: damagedSystems(rec.damage),
-        kills: rec.kills, friendlyKills: rec.friendlyKills, attacker: rec.damage.attacker,
+        kills: rec.kills, friendlyKills: rec.friendlyKills, attacker: rec.damage.attacker, lastHitBy: rec.lastHitBy,
       }
     }),
     projectiles: combat.projectiles.length,
