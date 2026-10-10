@@ -22,9 +22,9 @@ const ships = loadModelEntries().filter((e) => e.ship !== undefined)
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
 
 describe('the committed ship models', () => {
-  it('are S1\'s three, R2\'s seven and M1e\'s Zuikaku: the complete Library roster', () => {
+  it('are S1\'s three, R2\'s seven, M1e\'s Zuikaku and M1f\'s Abukuma: the complete Library roster', () => {
     expect(ships.map((e) => e.id)).toEqual([
-      'casablanca-cve', 'cleveland-cl', 'essex-cv', 'fletcher-dd', 'kagero-dd',
+      'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'essex-cv', 'fletcher-dd', 'kagero-dd',
       'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv',
     ])
   })

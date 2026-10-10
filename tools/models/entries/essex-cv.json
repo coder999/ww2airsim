@@ -1,46 +1,21 @@
 {
   "id": "essex-cv",
-  "input": "tools/models/cache/enterprise-cv6.glb",
-  "inputSha256": "74a85f09b7fb3d79af14efe38924284ad3dd23fce9f1846c839a36d72edfb515",
   "output": "content/ships/essex-cv.glb",
   "source": {
-    "url": "https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98",
-    "uid": "bf79e093d4c94b0eb02097c178dd6e98",
-    "author": "KTKloss",
-    "license": "CC-BY-4.0"
+    "kind": "blender",
+    "script": "tools/models/blender/essex-cv.py",
+    "dimensions": "265.8 m overall, 28.3 m waterline beam and the 262.7 x 32.9 m flight deck at 17 m from content/ships/essex-cv.json and its cited class particulars; the island and stack from the class general-arrangement drawings, every height an ESTIMATE",
+    "license": "AGPL-3.0-or-later"
   },
-  "normalize": { "forward": "-z", "up": "+y", "origin": [0, 0, 0.6621], "fit": { "extent": "length", "meters": 265.8 } },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 265.8 } },
+  "skin": true,
+  "keep": [{ "node": "FlightDeck" }],
   "textures": { "maxSize": 2048, "format": "webp" },
-  "boxSkin": {
-    "atlasPx": 2048,
-    "detail": {
-      "sideZM": 23,
-      "strakesM": 1.8,
-      "grimeM": [-0.5, 0.8],
-      "planks": [{"role": "flightDeck", "widthM": 0.15, "lengthM": 6.0, "contrast": 0.08, "seam": 0.35}, {"role": "deck", "widthM": 0.15, "lengthM": 6.0, "contrast": 0.08, "seam": 0.35, "belowM": 15}],
-      "portholes": [{"xM": [-105, 105], "yM": 6.0, "everyM": 3}],
-      "butts": {"xM": [-120, 120], "yM": [0.6, 8.0], "everyM": 8}
-    }
-  },
   "opaque": false,
   "budget": { "maxBytes": 1500000, "maxTriangles": 60000, "maxDrawCalls": 8 },
   "ship": {
-    "spec": "essex-cv",
-    "fit": "deck",
-    "kind": "waterline",
-    "palette": "usn-1944",
-    "otherMaterials": "classify",
-    "smokeOrigin": [6, 32.5, 15],
-    "bow": "island-starboard"
-  },
-  "split": [
-    {"name": "Turret1", "select": "components", "boxMin": [1.89191, 2.00779, -13.02944], "boxMax": [2.14323, 2.51044, -12.02414]},
-    {"name": "Turret2", "select": "components", "boxMin": [-2.14323, 2.00779, -13.02944], "boxMax": [-1.89191, 2.51044, -12.02414]},
-    {"name": "Turret3", "select": "components", "boxMin": [1.89191, 2.00779, -11.79376], "boxMax": [2.14323, 2.51044, -10.78847]},
-    {"name": "Turret4", "select": "components", "boxMin": [-2.14323, 2.00779, -11.79376], "boxMax": [-1.89191, 2.51044, -10.78847]},
-    {"name": "Turret5", "select": "components", "boxMin": [1.77602, 1.92123, 14.14001], "boxMax": [2.02734, 2.42387, 15.1453]},
-    {"name": "Turret6", "select": "components", "boxMin": [-2.02734, 1.92123, 14.14001], "boxMax": [-1.77602, 2.42387, 15.1453]},
-    {"name": "Turret7", "select": "components", "boxMin": [1.77602, 1.92123, 15.39384], "boxMax": [2.02734, 2.42387, 16.39913]},
-    {"name": "Turret8", "select": "components", "boxMin": [-2.02734, 1.92123, 15.39384], "boxMax": [-1.77602, 2.42387, 16.39913]}
-  ]
+    "spec": "essex-cv", "fit": "deck", "kind": "waterline", "palette": "usn-1944",
+    "materials": { "hull": "hull", "deck": "deck", "flightDeck": "flightDeck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [4.4, 34.0, 18.6], "bow": "island-starboard"
+  }
 }

@@ -42,8 +42,12 @@ export type ClipId =
   | 'aa_gun'
   | 'ship_gun_heavy'
   | 'radio_squelch'
-  /** Synthesized at load (synth.ts), not a file: it is in no `AUDIO_ASSETS` row. */
+  /** Synthesized at load (synth.ts `SYNTH_CLIPS`), not files: they are in no `AUDIO_ASSETS` row. */
   | 'motor'
+  | 'buzz'
+  | 'noise'
+  | 'buffet'
+  | 'creak'
 
 export type AudioAsset = {
   readonly id: ClipId

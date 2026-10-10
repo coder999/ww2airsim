@@ -5,7 +5,7 @@ import { VOICE_GAIN, createAudioSystem } from '../../src/audio/system.js'
 import { SQUELCH_LEAD_S, VOICE_STEMS, voiceId } from '../../src/audio/radio.js'
 import { createFakeBackend } from './fakeBackend.js'
 import type { AudioInputs } from '../../src/audio/cues.js'
-import { ENGINE_GAIN_MAX, MASTER_GAIN, loopEndSeconds, loopStartSeconds } from '../../src/audio/mix.js'
+import { ENGINE_GAIN_MAX, MASTER_GAIN, SYNTH_GAIN_MAX, loopEndSeconds, loopStartSeconds, windFor } from '../../src/audio/mix.js'
 
 const flying: AudioInputs = {
   throttle: 1, engineRunning: true, impact: null, onGround: false, groundSurface: 'land', heightM: 50, sinkMps: 0, tick: 10, shots: 0,
@@ -310,7 +310,7 @@ describe('the radio (I2)', () => {
     await audio.load()
     audio.updateRadio({ message: null, paddles: null, language: 'ja' })
     await settle()
-    expect(fake.voicesRequested).toHaveLength(34)
+    expect(fake.voicesRequested).toHaveLength(VOICE_STEMS.length)
     expect(fake.voicesRequested.every((id) => id.endsWith('_ja'))).toBe(true)
     fake.clockS = 10
     audio.updateRadio({ message: CAP, paddles: null, language: 'ja' })
@@ -323,7 +323,7 @@ describe('the radio (I2)', () => {
     expect(audio.snapshot().radioPlayed).toEqual(['radio_tower_cap_station_ja'])
     // A second language is its own load, on first use.
     audio.updateRadio({ message: null, paddles: null, language: 'us' })
-    expect(fake.voicesRequested.filter((id) => id.endsWith('_us'))).toHaveLength(34)
+    expect(fake.voicesRequested.filter((id) => id.endsWith('_us'))).toHaveLength(VOICE_STEMS.length)
   })
 
   it('stops the transmission on the air before a cut-in', async () => {
@@ -338,5 +338,35 @@ describe('the radio (I2)', () => {
     audio.updateRadio({ message: CAP, paddles: 'wave-off', language: 'us' })
     expect(fake.radioStops).toEqual([0.5])
     expect(fake.radio.map((r) => r.parts[1]!.id)).toEqual(['radio_tower_cap_station_us', 'radio_paddles_waveoff_1_us'])
+  })
+})
+
+describe('the synthesized layers (I1)', () => {
+  it('starts wind and buffet from the frame, on their buses, with the wind lowpass', async () => {
+    const fake = createFakeBackend()
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.update(flying)
+    expect(fake.layers.filter((l) => l.clip === 'noise' || l.clip === 'buffet')).toEqual([])
+    audio.update({ ...flying, airspeedMps: 41, liftFraction: 0.95, diveSpeedMps: 200 })
+    const wind = fake.layers.find((l) => l.clip === 'noise' && l.bus === 'ambient')!
+    expect(wind.gains.at(-1)).toBeCloseTo(windFor(41).gain, 12)
+    expect(wind.cutoffs.at(-1)).toBeCloseTo(windFor(41).cutoffHz, 12)
+    expect(fake.layers.find((l) => l.clip === 'buffet')!.gains.at(-1)).toBeGreaterThan(0)
+  })
+
+  it('lays radio static under a transmission and takes it away after', async () => {
+    const fake = createFakeBackend({ voiceSeconds: Object.fromEntries(VOICE_STEMS.map((s) => [voiceId(s, 'us'), 2])) })
+    const audio = createAudioSystem(fake)
+    await audio.load()
+    audio.updateRadio({ message: null, paddles: null, language: 'us' })
+    await new Promise((r) => setTimeout(r, 0))
+    audio.updateRadio({ message: 'Essex CIC: All raiders splashed. Bring it aboard.', paddles: null, language: 'us' })
+    audio.update(flying)
+    const radioStatic = fake.layers.find((l) => l.clip === 'noise' && l.bus === 'radio')!
+    expect(radioStatic.gains.at(-1)).toBe(SYNTH_GAIN_MAX.static)
+    fake.clockS = 5
+    audio.update(flying)
+    expect(radioStatic.gains.at(-1)).toBe(0)
   })
 })

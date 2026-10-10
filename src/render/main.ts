@@ -1,4 +1,5 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
+import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
 import { initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
@@ -2518,6 +2519,7 @@ async function boot(): Promise<void> {
     // a heading, and `createShipMesh` puts its bow along local +x -- so the
     // yaw is the same `pi/2 - headingRad` about +y that `parkedAttitude` gives
     // a parked airplane, from the same compass convention.
+    setEnsignTime(performance.now() / 1000)
     view.shipPoses.forEach((pose, i) => {
       const m = shipHandles[i]!.root
       m.position.set(pose.position.x, pose.position.y, pose.position.z)

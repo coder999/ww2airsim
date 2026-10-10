@@ -203,6 +203,9 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
   { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  // F2 (2026-10-09). Neither label is a substring of another row's.
+  { value: 'scramble', label: 'Scramble', kind: 'mission', badge: { id: 'scramble', name: 'Scramble' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'single-combat', label: 'Single Combat', kind: 'mission', badge: { id: 'single-combat', name: 'Single Combat' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // M2's two fixture missions, Dev-only like every test bed (A1).
   { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },

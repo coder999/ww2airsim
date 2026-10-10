@@ -66,7 +66,7 @@ before generating. The same US Copyright Office caveat as above applies.
 - `ship_gun_heavy.wav`: the same way, from the 5-inch gun prompt (take 5 of 6,
   chosen for its depth after Mark left the pick open), trimmed. It is for
   ship main batteries.
-- `voice/*_us.wav` (34): text-to-speech, library voice "Clyde"
+- `voice/*_us.wav` (38): text-to-speech, library voice "Clyde"
   (`QMJTqaMXmGnG8TCm8WQG`), model `eleven_v3`, stability 0.5. Calm lines are
   untagged; urgent ones carry one v3 direction tag (`[firm]`, `[shouting]`,
   `[tense, urgent]` ...). Mark picked Clyde from a five-voice audition.
@@ -76,7 +76,10 @@ before generating. The same US Copyright Office caveat as above applies.
   message changed to "nineteen miles"), and
   `radio_tower_raid_clear_us` is library voice `ZthjuvLPty3kTMaNKVKb` with
   `eleven_multilingual_v2` at default settings.
-- `voice/*_ja.wav` (34): text-to-speech, premade voice "Adam"
+- Four Tower lines for the F2 missions (`radio_tower_single_bandit`,
+  `_splash_frank`, `_scramble`, `_scramble_clear`), added 2026-10-09: US in
+  Clyde with the `[American accent]` tag, Japanese in Adam, as above.
+- `voice/*_ja.wav` (38): text-to-speech, premade voice "Adam"
   (`pNInz6obpgDQGcFmaJgB`) speaking Japanese, model `eleven_multilingual_v2`,
   `language_code: "ja"`, default settings.
 

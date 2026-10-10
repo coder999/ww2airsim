@@ -1,6 +1,7 @@
 import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import { describe, it, expect } from 'vitest'
 import { audioInputsFrom, radioLanguageFor, spatialInputsFrom } from '../../src/render/audio.js'
+import { SYNTH_GAIN_MAX, stallFor } from '../../src/audio/mix.js'
 import { initialFrameState, initialFrameStateFor } from '../../src/render/frame.js'
 import { createWorldOf, playerAircraft, type ShipEntity } from '../../src/sim/loop.js'
 import { loadAircraftSpec, loadShipSpec } from '../../tools/content/load.js'
@@ -45,6 +46,28 @@ describe('audioInputsFrom (design §6.1)', () => {
     expect(radioLanguageFor(initialFrameState(f6f, at))).toBe('us')
     // A player-flown Zero stays on the player's (allied) side for combat, but its radio is Japanese.
     expect(radioLanguageFor(initialFrameState(loadAircraftSpec('a6m2-zero'), at))).toBe('ja')
+  })
+
+  it("reads airspeed, the lift in use, and the dive limit off the player (I1)", () => {
+    const frame = initialFrameState(f6f, createState({ position: v3(0, 1000, 0), velocity: v3(120, 0, 0), flapFraction: 1 }))
+    const i = audioInputsFrom(frame)
+    expect(i.airspeedMps).toBeCloseTo(120, 6)
+    expect(i.liftFraction).toBeGreaterThan(0)
+    expect(i.liftFraction).toBeLessThan(1)
+    expect(i.diveSpeedMps).toBe(f6f.limits.diveSpeedMps)
+    expect(i.groundSpeedMps).toBe(0) // no ground under it yet
+  })
+
+  it('warns of a stall from the angle of attack, so a hard pull buffets at any speed (I1, Mark 2026-10-09)', () => {
+    // Same 268 mph, three attitudes: level, nose 12 degrees up into the flow, and past the stalling angle.
+    const at = (pitchDeg: number) => audioInputsFrom(initialFrameState(f6f, createState({
+      position: v3(0, 1000, 0), velocity: v3(120, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), (pitchDeg * Math.PI) / 180),
+    }))).liftFraction!
+    expect(at(12)).toBeGreaterThan(at(0))
+    expect(at(f6f.aero.alphaCritDeg + 2)).toBe(1)
+    // 120 m/s is far above a Hellcat's stall speed, so only the angle can put it into the buffet.
+    expect(stallFor(true, at(f6f.aero.alphaCritDeg + 2)).buffet).toBe(SYNTH_GAIN_MAX.buffet)
+    expect(stallFor(true, at(0)).buffet).toBe(0)
   })
 
   it("reads gear and flap travel off the player's own state (I3)", () => {

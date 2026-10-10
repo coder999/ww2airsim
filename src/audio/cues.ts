@@ -1,7 +1,8 @@
 import type { ContactKind, ContactSurface } from '../sim/contact.js'
 import type { ClipId } from './assets.js'
 import {
-  ENGINE_FAILING_HEALTH, engineGainFor, engineHealthFactor, enginePlaybackRateFor, seaGainFor, type EngineFamily,
+  ENGINE_FAILING_HEALTH, SYNTH_GAIN_MAX, creakFor, engineGainFor, engineHealthFactor, enginePlaybackRateFor, rumbleFor, seaGainFor,
+  stallFor, windFor, type EngineFamily,
 } from './mix.js'
 
 /**
@@ -92,6 +93,13 @@ export type AudioInputs = {
    *  cycle clip once when it starts to travel. Optional so a hand-built input reads as never moving. */
   readonly gearFraction?: number
   readonly flapFraction?: number
+  /** I1, all optional so a hand-built input is quiet: airspeed through the air (m/s), the share of
+   *  the wing's maximum lift in use (`stallFor`), the spec's dive limit, and rolling speed over the
+   *  surface. */
+  readonly airspeedMps?: number
+  readonly liftFraction?: number
+  readonly diveSpeedMps?: number
+  readonly groundSpeedMps?: number
   /** Horizontal distance to the nearest carrier deck edge, metres (0 on it);
    *  `null` when there is no carrier. */
   /** For each cause in `DAMAGE_CUES`, the tick of the newest event of that kind at the player
@@ -165,7 +173,7 @@ export const NO_AUDIO_MEMORY: AudioMemory = {
 export const MOTOR_HOLD_TICKS = 2
 
 /** The actuator motor's gain while doors travel (C2). A tuning value for Mark's ear. */
-export const MOTOR_GAIN = 0.35
+export const MOTOR_GAIN = SYNTH_GAIN_MAX.motor
 
 /**
  * The touchdown squeak is for a real touchdown only (Mark, 2026-09-28: it
@@ -229,6 +237,8 @@ export type AudioFrame = {
   readonly ambient: { readonly sea: number }
   /** The actuator motor layer's gain (C2): MOTOR_GAIN while doors travel, else 0. */
   readonly motor: number
+  /** I1's synthesized layers, by `LAYERS` id: gain, and a lowpass where the layer has one. */
+  readonly synth: Readonly<Record<'wind' | 'rumble' | 'buffet' | 'buzz' | 'creak', { readonly gain: number; readonly cutoffHz?: number }>>
 }
 
 export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
@@ -357,5 +367,19 @@ export function nextAudio(prev: AudioMemory, inputs: AudioInputs): AudioFrame {
     },
     engineFamily: inputs.engineFamily,
     ambient: { sea: seaGainFor(inputs.groundSurface, inputs.heightM) },
+    synth: synthLayers(inputs),
+  }
+}
+
+/** I1: state, not edges, so no memory. A wreck is silent: no wind or wheels under its fireball. */
+function synthLayers(inputs: AudioInputs): AudioFrame['synth'] {
+  const alive = inputs.impact === null
+  const wind = windFor(alive ? inputs.airspeedMps : 0)
+  const rumble = rumbleFor(alive ? inputs.onGround : null, inputs.groundSurface, inputs.groundSpeedMps)
+  const stall = stallFor(alive && inputs.onGround === false, inputs.liftFraction)
+  return {
+    wind, rumble,
+    buffet: { gain: stall.buffet }, buzz: { gain: stall.buzz },
+    creak: { gain: alive ? creakFor(inputs.airspeedMps, inputs.diveSpeedMps) : 0 },
   }
 }

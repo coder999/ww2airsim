@@ -20,7 +20,7 @@
     "cutRangeM": 120,
     "waveOffRangeM": 250
   },
-  "view": { "model": "casablanca-cve" },
+  "view": { "model": "casablanca-cve", "ensign": { "flag": "us48", "at": [21.3, 26.0, 10.4], "flyM": 5.2 } },
   "armament": {
     "turrets": [
       {"x": -72, "y": 7.05, "z": 0, "bearingDeg": 180, "kit": "mount-5in38-single", "barrels": 1, "aa": "heavy"}
