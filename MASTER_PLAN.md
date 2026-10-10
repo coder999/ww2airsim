@@ -233,13 +233,17 @@ one plan for the lot.
 3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 
 **L2. Beach and shore (M).**
-- **Today:**
-  - a noise-perturbed sand band over terrain heights 1.3-7.5 ft (`terrain/surface.ts:255`);
-  - bathymetric water color;
-  - a 6.5 ft wave fade at the shore.
-  - There is **no shore foam, surf line or wet-sand band**, and no document designs one.
-  - 13c's DEM reshaping was abandoned because the pyramid's tent filter can't keep a land/sea boundary.
-- **Proposal:** solve it in shading, not in the DEM. Build a baked distance-to-shore field (`tools/landcover/sea.ts`'s sea-connected mask is the starting point: deleted unwired 2026-10-08, restorable from `cc8579f`). It drives a surf foam band and a breaking-wave whitening on the ocean side, and a wet-sand darkening on the land side. This needs its own design document. It shares the water-effects ground E3 never started.
+- **Smooth border complete 2026-10-09:** a deterministic Blender-built render
+  ribbon traces and smooths the committed L1 zero contour, overlaps the square
+  terrain edge, and tapers from vegetation-colored inner sand through dry/wet
+  sand to a submerged, feathered surf edge.  The DEM and all physics remain
+  unchanged.  The 11.4 MB tiled GLB rebuilds byte-identically and uses two
+  shared runtime roles.  [Design](docs/superpowers/specs/2026-10-09-curved-beaches-design.md),
+  [plan](docs/superpowers/plans/2026-10-09-curved-beaches.md),
+  [handoff](docs/handoff/2026-10-09-curved-beaches.md).
+- **Open:** animated/breaking white water and richer shallow-water interaction.
+  The shipped surf edge is static and feathered; those ocean effects are a
+  later water-effects slice, not another DEM rewrite.
 
 ### Track I: Sound (M, two plans)
 

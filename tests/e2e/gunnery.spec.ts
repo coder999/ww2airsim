@@ -26,11 +26,14 @@ test.setTimeout(180_000)
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 const cuesFired = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.audio().cuesFired)
 
+// Contains, not equals: I1's synthesized clips (2c22d70e) load beside the files, as in audio.spec.ts.
+const CLIP_IDS = AUDIO_ASSETS.map((a) => a.id)
+
 /** The range's own start (a run-in since 2026-09-29) with every clip decoded. */
 async function onTheRange(page: Page, query = ''): Promise<void> {
   await page.goto(`${RANGE}${query}`)
   await waitForTerrain(page)
-  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(AUDIO_ASSETS.length)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded), { timeout: 30_000 }).toEqual(expect.arrayContaining(CLIP_IDS))
 }
 
 /** High over open water (the restart test's spawn, higher): the guns with no aim to get right. */
@@ -155,7 +158,7 @@ test('a restart rebuilds the guns: full load, empty sky, no replayed gunfire', a
   // debrief's Restart button reached. Restart is only offered from a debrief.
   await page.goto(`${RANGE}&${xName}=0&${yName}=120&${zName}=0`)
   await waitForTerrain(page)
-  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded.length), { timeout: 30_000 }).toBe(AUDIO_ASSETS.length)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().loaded), { timeout: 30_000 }).toEqual(expect.arrayContaining(CLIP_IDS))
   await page.keyboard.down('Space')
   await expect.poll(() => combat(page).then((c) => c.player.shots), { timeout: 5_000 }).toBeGreaterThan(0)
   await page.waitForTimeout(500)

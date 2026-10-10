@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { seaStateFor } from '../../src/render/ocean/weather.js'
+import { TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours } from '../../src/render/sky/sun.js'
 import { debriefDialog, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
@@ -224,12 +225,16 @@ for (const s of SWITCHES) {
 
     await startGame(page, { scenario: s.label })
     await waitForScenario(page, s.to)
+    // A title launch flies the takeoff time A3 preselects (94866345): the Morning,
+    // Midday or Dusk nearest the scenario's own hour, so airfield-strike's 0730 flies at 0740.
+    const takeoff = takeoffHours(TACLOBAN_LAT_DEG)
+    const hour = takeoff[nearestTakeoffTime(to.timeOfDay, takeoff)]
     // scenarioId can lead the switch's last step; wait for the hour, which is applied with the rest of the weather.
-    await page.waitForFunction((h) => { const t = (window as DiagWindow).__ww2!.sun().timeOfDay; return t >= h && t < h + 0.1 }, to.timeOfDay, { timeout: 30_000 }).catch(() => undefined)
+    await page.waitForFunction((h) => { const t = (window as DiagWindow).__ww2!.sun().timeOfDay; return t >= h && t < h + 0.1 }, hour, { timeout: 30_000 }).catch(() => undefined)
     const after = await diag()
     // The sun creeps with the sim clock: a few seconds of flight is well under 0.1 h.
-    expect(after.hour).toBeGreaterThanOrEqual(to.timeOfDay)
-    expect(after.hour).toBeLessThan(to.timeOfDay + 0.1)
+    expect(after.hour).toBeGreaterThanOrEqual(hour)
+    expect(after.hour).toBeLessThan(hour + 0.1)
     expect(after.layers).toBe((to.clouds ?? []).length)
     expect(after.composited).toBe(after.layers > 0)
     expect(after.sea).toBe(seaStateFor(to.windMps, undefined))
