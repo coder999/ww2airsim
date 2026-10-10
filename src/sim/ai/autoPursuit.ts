@@ -5,6 +5,11 @@ import { decksOf } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import { airborne } from './airborne.js'
 import { controlsForDesiredVelocity } from './controller.js'
+import { limitLoadFactor, loadFactorBudget } from './safety.js'
+import { airVelocity, commandedBodyRates } from '../flight/model.js'
+import type { AircraftSpec } from '../flight/schema.js'
+import type { AircraftState, Controls } from '../flight/state.js'
+import { STANDARD_GRAVITY_MPS2 } from '../damage/overload.js'
 import { pursuitDesiredVelocity } from './pursuit.js'
 import { sideOf } from '../sides.js'
 import { isAircraftDoomed } from '../weapons/combat.js'
@@ -32,6 +37,55 @@ const MIN_ENGAGE_AGL_M = 30
 /** Descent allowed toward the floor is the remaining margin over this many
  *  seconds, so the dive shallows progressively rather than bottoming out. */
 const FLOOR_LOOKAHEAD_S = 6
+
+/** B3 (Mark, 2026-10-10): the autopilot pulls at most this fraction of the
+ *  airframe's own `limits.gLimit` (and pushes no further than the AI's
+ *  negative floor), so Shift never overstresses the airplane under Realistic
+ *  damage. The limit clamps the STEADY pitch rate, and the airframe overshoots
+ *  it while the rate builds, so the margin is measured, not guessed
+ *  (tools/autopilot/pursuitProbe.ts, 2026-10-10, B3 handoff): the worst
+ *  peak ran 0.4-0.7% over the commanded budget at 0.9, 0.95 and 1.0. At 1.0
+ *  the F6F reached 7.55 g on a green Zero and lost structure in 4 of 4
+ *  runs; 0.95 peaked at 0.957 of the limit; 0.9 at 0.904. Seconds in gun
+ *  solution did not rise with the fraction (12.8 s at 0.9, 12.4 at 0.95,
+ *  12.1 at 1.0, summed over 24 duels), so 0.9 keeps a 10% margin, the AI's
+ *  `G_BUDGET`, for nothing. */
+export const AUTO_PURSUIT_G_FRACTION = 0.9
+
+/** B3: at or above this fraction of `limits.diveSpeedMps` the autopilot
+ *  keeps chasing in heading but climbs (`RECOVERY_CLIMB_SIN`) instead of
+ *  diving, because the throttle is the player's and overspeed breaks the
+ *  airframe as surely as g does (`damageFromStructuralOverload`). Not a
+ *  descent-only trigger: the P-38's content top speed is above its dive
+ *  speed, and with one it held level at 0.95 of dive speed and never turned
+ *  (pursuitProbe, 2026-10-10). Measured the same day: at 0.95 the F6F
+ *  still overran its dive speed in the pull-out on a green Zero (structure
+ *  0.990-0.996 in 3 of 4 runs); 0.85 and 0.9 kept 1.000. The AI cuts its
+ *  throttle at the same 0.9 (`OVERSPEED_THROTTLE_CUT`). */
+export const AUTO_PURSUIT_DIVE_FRACTION = 0.9
+
+/**
+ * `limitLoadFactor` on the pitch, with the autopilot's own fraction, then the
+ * rudder held to the lateral load the pitch leaves inside the same budget.
+ * The load the overload model reads is the magnitude of the whole proper
+ * acceleration, and at 230 m/s full rudder alone is about 5 g of sideslip:
+ * measured 2026-10-10 (pursuitProbe crossing/green) with the pitch limited
+ * to 0.9 x 7.5 g, the yaw at 1.00 took the F6F to 8.27 g. Both rates are
+ * linear in the stick (`commandedBodyRates`), so a unit command converts.
+ * The lateral term ignores gravity along the wing, as `pitchCommandForLoadFactor`
+ * does not: the measured peaks are what say it is enough.
+ */
+export function limitPursuitLoad(state: AircraftState, spec: AircraftSpec, controls: Controls, fraction: number): Controls {
+  const c = limitLoadFactor(state, spec, controls, fraction)
+  const speed = length(state.velocity)
+  const unit = commandedBodyRates(spec, state, { roll: 0, pitch: 1, yaw: 1, throttle: 0 })
+  if (speed < 1 || Math.abs(unit.z) < 1e-6 || Math.abs(unit.y) < 1e-6) return c
+  const budget = loadFactorBudget(spec, fraction)
+  const normal = speed * unit.z * c.pitch / STANDARD_GRAVITY_MPS2 + qRotate(state.attitude, v3(0, 1, 0)).y
+  const lateral = Math.sqrt(Math.max(0, budget * budget - normal * normal))
+  const yawMax = lateral * STANDARD_GRAVITY_MPS2 / (speed * Math.abs(unit.y))
+  return { ...c, yaw: Math.min(yawMax, Math.max(-yawMax, c.yaw)) }
+}
 
 /** Below the floor, climb out at this sine of flight-path angle (~15 deg). */
 const RECOVERY_CLIMB_SIN = 0.25
@@ -120,10 +174,12 @@ export function autoPursuit<M>(world: World<M>): AutoPursuitCommand | null {
   // rate would carry it through the floor within the lookahead, stop chasing
   // and fly wings-level along the nose until it would not.
   const sinking = margin + self.state.velocity.y * FLOOR_LOOKAHEAD_S < 0
+  const overspeed = length(airVelocity(self.state, world.wind)) >= AUTO_PURSUIT_DIVE_FRACTION * self.spec.limits.diveSpeedMps
   const wanted = target === null || sinking
     ? scale(v3(forward.x, 0, forward.z), Math.max(60, length(self.state.velocity)))
     : pursuitDesiredVelocity(self, target)
-  const desired = floorLimitedVelocity(wanted, forward, margin)
-  const { roll, pitch, yaw } = controlsForDesiredVelocity(self.state, self.spec, desired)
+  // A margin of 0 is "at the floor": the same climb-out, on the chase's heading.
+  const desired = floorLimitedVelocity(wanted, forward, overspeed ? Math.min(0, margin) : margin)
+  const { roll, pitch, yaw } = limitPursuitLoad(self.state, self.spec, controlsForDesiredVelocity(self.state, self.spec, desired), AUTO_PURSUIT_G_FRACTION)
   return { target: target?.id ?? null, roll, pitch, yaw }
 }

@@ -13,6 +13,7 @@ import {
 } from '../../../src/sim/loop.js'
 import { loadAircraftSpec, bundleForScenario } from '../../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
+import { GUN_AIRFRAMES, SPEED_FRACTIONS, runDamageRange, runEvader, runOverload } from '../../../tools/autopilot/pursuitProbe.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const entity = (
@@ -190,5 +191,52 @@ describe('autoPursuit', () => {
     expect(minAltitude).toBeGreaterThan(AUTO_PURSUIT_FLOOR_AGL_M)
     // It never chose the target while the target was under the floor.
     expect(chasedBelow).toBeGreaterThanOrEqual(AUTO_PURSUIT_FLOOR_AGL_M - 5)
+  })
+})
+
+// B3 (2026-10-10): the pursuit autopilot is g-limited to each airframe's own
+// `limits.gLimit` less a margin (`AUTO_PURSUIT_G_FRACTION`), so Shift never
+// overstresses the player's airplane under Realistic damage. Measured at
+// 91da48f0, before the limit (tools/autopilot/pursuitProbe.ts): Shift on a
+// green Zero in the crossing geometry pulled 13.55 g and broke the F6F up in
+// 4 of 4 cursors; with an enemy 800 m behind at 0.95 of dive speed the F6F,
+// F4U, F4F and Ki-84 broke up at 10.9-11.5 g. Both were red before the fix.
+describe('the pursuit autopilot stays inside the airframe limit (B3)', () => {
+  it('enrolls every airframe with fixed guns', () => {
+    expect(GUN_AIRFRAMES).toEqual([
+      'a6m2-zero', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat',
+      'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger',
+    ])
+  })
+
+  for (const spec of GUN_AIRFRAMES) {
+    it(`${spec}: a reversal onto an enemy behind, from 0.6-0.95 of dive speed`, () => {
+      const limit = loadAircraftSpec(spec).limits.gLimit
+      for (const f of SPEED_FRACTIONS) {
+        const r = runOverload(spec, f)
+        expect(r.peakG, `${spec} at ${f} Vd`).toBeLessThanOrEqual(limit)
+        expect(r.structure, `${spec} at ${f} Vd`).toBe(1)
+      }
+    })
+  }
+
+  it('Shift on a green Zero in the crossing geometry (the 13 g case) keeps the F6F whole', () => {
+    for (const cursor of [0, 7919, 15838, 23757]) {
+      const r = runEvader('crossing', 'green', cursor)
+      expect(r.peakG, `cursor ${cursor}`).toBeLessThanOrEqual(f6f.limits.gLimit)
+      expect(r.structure, `cursor ${cursor}`).toBe(1)
+    }
+  })
+
+  // The limit must not cost the gun solution. Measured 2026-10-10, identical
+  // before and after the limit: the Damage Range's first two 0.25 s taps land
+  // 11 and 14 hits (the damage stages round 2 handoff's 11-18), the three
+  // Zeros burn on taps 2, 12 and 12; head-on, Shift first holds the solution
+  // on a veteran Zero at 9.8 s.
+  it('keeps the gun solution: Damage Range taps, and the head-on pass', () => {
+    const range = runDamageRange()
+    expect(range.taps[0]).toBeGreaterThanOrEqual(11)
+    expect(Object.values(range.tapsToBurn).every((n) => n !== null && n <= 12)).toBe(true)
+    expect(runEvader('head-on', 'veteran', 0).firstSolutionS).toBeLessThanOrEqual(10)
   })
 })

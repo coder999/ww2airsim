@@ -7,6 +7,9 @@ import { createState } from '../../src/sim/flight/state.js'
 import { NEUTRAL } from '../../src/input/keyboard.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { AUTO_PURSUIT_G_FRACTION } from '../../src/sim/ai/autoPursuit.js'
+import { controlsForDesiredVelocity } from '../../src/sim/ai/controller.js'
+import { pitchCommandForLoadFactor } from '../../src/sim/ai/liftVector.js'
 
 /**
  * The production frame path for the pursuit autopilot. The Plan 3 defect
@@ -66,5 +69,19 @@ describe('Shift flies the pursuit autopilot through nextFrameState', () => {
     const released = playerAircraft(f.world).controls.roll
     expect(released).toBeLessThan(held)
     expect(released).toBeGreaterThan(0)
+  })
+
+  // B3: the g-limit reaches the stick through the frame, not just the module.
+  // At 210 m/s with the bandit high behind, the unlimited controller asks for
+  // full back stick: about 12 g in an F6F, whose limit is 7.5 g.
+  it('holds the stick to the g-limited pull', () => {
+    const fast = createState({ position: v3(0, 1500, 0), velocity: v3(210, 0, 0) })
+    const player = { ...plane('f6f-1'), state: fast, previous: fast }
+    let f = initialFrameStateFor(createWorldOf({ aircraft: [player, plane('bandit', v3(-300, 1800, 0))], player: 'f6f-1' }))
+    expect(controlsForDesiredVelocity(fast, f6f, v3(-300, 300, 0)).pitch).toBe(1)
+    f = nextFrameState(f, DT, keys('ShiftLeft'), still)
+    const limit = pitchCommandForLoadFactor(fast, f6f, AUTO_PURSUIT_G_FRACTION * f6f.limits.gLimit)!
+    expect(limit).toBeLessThan(0.6)
+    expect(playerAircraft(f.world).controls.pitch).toBeCloseTo(limit, 9)
   })
 })

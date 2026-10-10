@@ -60,7 +60,9 @@ export const PURSUIT_FLOOR_BELOW_TARGET_M = 25
 
 const UP = v3(0, 1, 0)
 
-export const loadFactorBudget = (spec: AircraftSpec): number => G_BUDGET * spec.limits.gLimit
+/** `fraction` of the airframe's `gLimit`: the AI's `G_BUDGET` unless a caller
+ *  (the player's pursuit autopilot, B3) brings its own margin. */
+export const loadFactorBudget = (spec: AircraftSpec, fraction = G_BUDGET): number => fraction * spec.limits.gLimit
 
 /** Symmetric because the overload model is symmetric
  *  (`damageFromStructuralOverload` reads the load's magnitude). Zero g for a
@@ -68,18 +70,19 @@ export const loadFactorBudget = (spec: AircraftSpec): number => G_BUDGET * spec.
  *  `engine.negativeGCutout`), so an AI never cuts its own engine: 176 ticks
  *  at HEAD in the first 12 s of zero-merge, 0 in 120 s with this floor
  *  (ruling R5). */
-export const negativeLoadFloor = (spec: AircraftSpec): number =>
-  spec.engine.negativeGCutout === true ? 0 : -loadFactorBudget(spec)
+export const negativeLoadFloor = (spec: AircraftSpec, fraction = G_BUDGET): number =>
+  spec.engine.negativeGCutout === true ? 0 : -loadFactorBudget(spec, fraction)
 
 /**
  * Clamp the pitch command so its steady pitch rate stays between the floor
  * and the budget. It runs on every AI output, before control noise, so a
  * green pilot's jitter can still nick the limit, which is human (spec §3.2).
- * Measured: green's soak peak was 7.32 g, within 7.5.
+ * Measured: green's soak peak was 7.32 g, within 7.5. The player's pursuit
+ * autopilot runs it too, with its own `fraction` (B3, `autoPursuit.ts`).
  */
-export function limitLoadFactor(state: AircraftState, spec: AircraftSpec, controls: Controls): Controls {
-  const hi = pitchCommandForLoadFactor(state, spec, loadFactorBudget(spec))
-  const lo = pitchCommandForLoadFactor(state, spec, negativeLoadFloor(spec))
+export function limitLoadFactor(state: AircraftState, spec: AircraftSpec, controls: Controls, fraction = G_BUDGET): Controls {
+  const hi = pitchCommandForLoadFactor(state, spec, loadFactorBudget(spec, fraction))
+  const lo = pitchCommandForLoadFactor(state, spec, negativeLoadFloor(spec, fraction))
   if (hi === null || lo === null) return controls
   return { ...controls, pitch: Math.min(Math.max(controls.pitch, lo), hi) }
 }

@@ -64,7 +64,8 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Today:** `predictImpact` (`sim/weapons/impactPrediction.ts`) flies the sim's own bomb or rocket step to terrain or sea; the **Impact marker** (`U`) draws the result. Matches the real sim to 1 cm.
 - **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: off by default (§4 Q2). Torpedoes are not covered.
 
-**B3. Navigation autopilot (M).**
+**B3. Navigation autopilot (M).** Built on branch `worktree-agent-a9f86eab69be97b65` 2026-10-10, not merged; plan [`2026-10-10-b3-pursuit-g-limit.md`](docs/superpowers/plans/2026-10-10-b3-pursuit-g-limit.md), handoff [`2026-10-10-b3-pursuit-g-limit.md`](docs/handoff/2026-10-10-b3-pursuit-g-limit.md).
+- **Built:** Shift pulls at most 0.9 of each airframe's own `gLimit` (rudder included) and stops diving at 0.9 of its dive speed. The 13 g overshoot (13.55 g, F6F broken up) is now 6.78 g, structure intact; Damage Range taps unchanged (11 and 14 hits on the first two).
 - **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
 - **What exists:** the AI already flies the laws: `goalDesiredVelocity` (ingress), `loiterDesiredVelocity`, `approachControls`, formation keeping. The measurement autopilot holds level flight (`sim/autopilot.ts`).
 - **Proposal:** three modes built on the AI laws rather than new control law:
