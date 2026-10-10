@@ -303,13 +303,9 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   // replace it via `setCurrentQuality` a few seconds later.
   let quality: QualitySettings = loadQualitySettings() ?? defaultQualitySettings('high')
 
-  // Nothing persisted -> show what this boot is ACTUALLY loading, which is
-  // `content.ts`'s interim constant, not the spec §10 addendum's eventual
-  // `medium` first-visit default. Those differ today for a measured reason
-  // (an L0 floor allocates ~358 MB of mesh textures; see that constant's own
-  // comment) and a dialog that preselected `medium` while the loader fetched
-  // L1 would be stating something false. When Task 6's memory work lets that
-  // constant move, this default follows it with no edit here.
+  // Nothing persisted -> show what this boot is ACTUALLY loading: the same
+  // constant the loader reads, so the dialog cannot preselect one tier while
+  // the loader fetches another.
   let assetQuality: AssetQualityTierName = loadAssetQualityTier() ?? INTERIM_ASSET_QUALITY_TIER
   let damageModel: DamageModel = loadDamageModel() ?? DEFAULT_DAMAGE_MODEL
   let renderScale: RenderScale = loadRenderScale() ?? DEFAULT_RENDER_SCALE

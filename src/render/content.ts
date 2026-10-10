@@ -84,7 +84,7 @@ export function terrainLevelUrl(level: number): string {
   return `${import.meta.env.BASE_URL}${terrainLevelPath(level)}`
 }
 
-export { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from './fetchedLevel.js'
+export { finestFetchedLevelFor, GROUND_TRUTH_TIER, INTERIM_ASSET_QUALITY_TIER } from './fetchedLevel.js'
 
 /** Same-origin bathymetry, in int16 metres; header is bundled with the code. */
 export const OCEAN_DEPTH_URL = `${import.meta.env.BASE_URL}content/ocean/depth.bin`

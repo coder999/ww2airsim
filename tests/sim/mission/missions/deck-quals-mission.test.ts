@@ -21,7 +21,7 @@
  *   anything from 100 m (about 330 ft, well clear of the water) to 450 m
  *   (about 1,500 ft). The staged run holds 300 m.
  * - **Nothing else needed tuning.** The success run, measured 2026-09-27 at
- *   terrain level `finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)`:
+ *   terrain level `finestFetchedLevelFor(GROUND_TRUTH_TIER)`:
  *   Launch complete at tick 555 (the 10 m airborne latch), the deck run
  *   150 m up at tick 1556, Downwind at 1558 (staged), traps logged at ticks
  *   8592, 17365 and 26138, respots at 8772 and 17545 (the landing plus

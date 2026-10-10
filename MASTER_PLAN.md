@@ -239,7 +239,7 @@ one plan for the lot.
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**
-1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player.
+1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player. **Built 2026-10-10, on branch `worktree-agent-ad00fe23fe9031a4f` (not yet merged):** L0 is held as a window around the camera, and the first-visit default is Medium. At Medium the GPU process now uses what it does at Low (1.04 GB, down from 1.32), and every 1440p High budget view passes. The first visit downloads 134 MB more, so deploying is Mark's call. Four rulings are open, including the headless suite staying on L1. Handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`.
 2. Real tree crowns (visual-realism §3.1). Trees are three flat icosahedra today (`scene/vegetation.ts:144-167`).
 3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 

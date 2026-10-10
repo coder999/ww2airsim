@@ -12,7 +12,7 @@
  */
 import { existsSync } from 'node:fs'
 import { hasRealLevelFile, loadTerrainHeader, loadTerrainLevel, terrainHeaderPath } from '../../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../../src/render/content.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../../src/sim/world/terrain.js'
 import { advance, playerAircraft, withAircraftState, withControls, type World } from '../../../src/sim/loop.js'
 import { createState, DT, type AircraftState, type Controls } from '../../../src/sim/flight/model.js'
@@ -25,8 +25,8 @@ import { attitudeAngles } from '../../../src/sim/flight/attitude.js'
 import { qFromAxisAngle, qMul, type Quat } from '../../../src/sim/math/quat.js'
 import { v3, sub, length } from '../../../src/sim/math/vec3.js'
 
-/** `carrierLanding.test.ts`'s level: the one a real page load flies over. */
-const LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+/** `carrierLanding.test.ts`'s level: `GROUND_TRUTH_TIER`'s. */
+const LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 
 /** The committed terrain field at the level `carrierLanding.test.ts` uses, or
  *  `null` when its data is absent (an LFS pointer, or a checkout without

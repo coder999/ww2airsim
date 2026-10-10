@@ -62,12 +62,9 @@ export type BootQuality = {
    * terrain pyramid's floor is chosen once, before any mesh exists.
    *
    * With nothing persisted this is `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`
-   * -- `'low'`/L1 -- NOT the spec §10 addendum's eventual `'medium'`. That
-   * constant's own comment holds the measured reason (an L0 floor allocates
-   * ~358 MB of mesh textures per `createTerrainMesh` and fetches a 134 MB
-   * level); a first-time visitor must not pay it unasked. A player who picks
-   * Medium or better in the dialog gets exactly what they asked for on their
-   * next load, which is the point of the picker.
+   * (`'medium'` since L1.1, 2026-10-10; that constant says what it costs). A
+   * player who picks another tier in the dialog gets it on their next load,
+   * which is the point of the picker.
    */
   readonly assetQuality: AssetQualityTierName
   /**

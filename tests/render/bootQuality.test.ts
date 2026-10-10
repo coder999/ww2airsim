@@ -156,15 +156,13 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
 })
 
 describe('Asset Quality at boot (render-quality-selector spec §10)', () => {
-  it('defaults a first-time visitor to the INTERIM tier, never a hardcoded medium', () => {
-    // The memory constraint, pinned: an L0 floor allocates ~358 MB of mesh
-    // textures per `createTerrainMesh` and fetches a 134 MB level, and nothing
-    // has made that allocation lazy yet (see `INTERIM_ASSET_QUALITY_TIER`'s
-    // own comment). A first visit must not pay it unasked. The second
-    // assertion is deliberately redundant TODAY and is the one that fails if
-    // somebody moves the constant without doing that memory work.
+  it('defaults a first-time visitor to the INTERIM tier', () => {
+    // Medium since L1.1 (2026-10-10), Mark's 2026-09-27 ruling, once L0 stopped
+    // costing 358 MB of mesh textures. The second assertion pins the ruling:
+    // moving the default changes what every first visit downloads (134 MB
+    // more at Medium), which is a ruling, not a refactor.
     expect(createBootQuality().assetQuality).toBe(INTERIM_ASSET_QUALITY_TIER)
-    expect(INTERIM_ASSET_QUALITY_TIER).toBe('low')
+    expect(INTERIM_ASSET_QUALITY_TIER).toBe('medium')
   })
 
   it('honors an explicit pick from a previous visit', () => {
