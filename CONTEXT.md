@@ -101,6 +101,10 @@ _Avoid_: flag (alone), colors
 The global player setting that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. A scenario's skill values are the baseline it shifts.
 _Avoid_: skill level, challenge
 
+**Collision** (air-to-ship):
+An airplane's body origin inside a ship's hull or superstructure volume while not supported on that ship's flight deck. The airplane is destroyed like any kill (wreck, debris, KILLED) and the ship loses hull points that rise with the airplane's mass and speed (a Hellcat at 224 mph costs about one 500 lb bomb hit). A God-mode player bounces instead. Own-side ships count as friendly fire. A trap, a take-off roll and a parked airplane are never one.
+_Avoid_: ramming, crash (a crash is the ground, the sea or a deck)
+
 ## Weapons
 
 **Torpedo**:

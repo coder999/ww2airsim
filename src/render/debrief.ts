@@ -280,10 +280,14 @@ export function destructionModel(
   killsSinceLastBank: Readonly<Record<TargetType, number>>,
   /** M2: the attacker is a ship or a battery, not an airplane. */
   byAntiaircraft = false,
+  /** The ship's name when the attacker is a collision (`COLLISION_ATTACKER_PREFIX`). */
+  collidedWith?: string,
 ): DebriefModel {
   return {
     headline: 'KILLED',
-    detail: attacker === null
+    detail: collidedWith !== undefined
+      ? `The aircraft collided with ${collidedWith}.`
+      : attacker === null
       ? 'The airframe failed under structural overload.'
       : byAntiaircraft ? 'The aircraft was shot down by antiaircraft fire.' : 'The aircraft was destroyed in combat.',
     figures: [

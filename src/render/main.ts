@@ -29,6 +29,7 @@ import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
+import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
@@ -2786,7 +2787,7 @@ async function boot(): Promise<void> {
     ) {
       shownDestructionTick = playerDamage.destroyedAt
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !current.world.aircraft.some((x) => x.id === playerDamage.attacker)), current.world), current.world)
+      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !playerDamage.attacker.startsWith(COLLISION_ATTACKER_PREFIX) && !current.world.aircraft.some((x) => x.id === playerDamage.attacker), collisionShipName(current.world, playerDamage.attacker)), current.world), current.world)
       scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
       const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
       segment = EMPTY_SEGMENT
