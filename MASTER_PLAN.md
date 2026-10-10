@@ -121,7 +121,12 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 - **Now:** a hit engine smokes, sputters below half health, and stalls dead below 15%. At 25% structure the airframe catches fire and is doomed. AI pilots spiral down, and the fire burns it out in 15 s. At zero it explodes, its props and control surfaces break away, and the wreck falls to the surface.
 - **Credit** waits for the explosion or the impact (Mark's ruling).
 - Branch `worktree-agent-ae648b20d14101ecc`; plan `docs/superpowers/plans/2026-10-09-aircraft-damage-stages.md`; handoff `docs/handoff/2026-10-09-aircraft-damage-stages.md`. Dev range: `?scenario=damage-range&launch`.
-- **Open:** the handoff's five unattended rulings. The two that matter most: lethality is up about 25% (9 .50 hits on a Hellcat, not 12), and hits on a burning airplane take nothing.
+- **Round 2 (after Mark's flight, 2026-10-09):**
+  - Fighters are 4x tougher: a Zero burns on its 24th .50 hit, 2–4 short bursts.
+  - Smoke follows overall damage, grey to black before the fire.
+  - The B-17 and B-29 (1,440 HP) and the G4M and Ki-21 (480) take hits, with each engine damaged on its own. Bomber range: `?scenario=bomber-range&launch`.
+  - AI duels resolve 18 of 72, down from 27 (handoff table). A stalled AI now unloads before its floor pull.
+- **Open:** asymmetric yaw on an engine loss; bomber gunners never fire; whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
 
 ### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
 

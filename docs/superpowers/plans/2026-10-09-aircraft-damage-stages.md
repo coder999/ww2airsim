@@ -33,6 +33,8 @@ All thresholds are ESTIMATES, named constants in `src/sim/damage/model.ts`, so t
 
 ### The arithmetic, against the repo
 
+**Superseded by Round 2** (handoff, "Round 2"): fighters are 4x tougher, so a Zero burns on its 24th .50 hit and a Hellcat on its 36th; bombers take hits too. The figures below are Round 1's.
+
 - **Zero** (`structureHp` 80, `damagePerHit` 10): each .50 hit is 0.125 of structure. Six hits leave 0.25, so it catches fire on the sixth hit, then burns out in 15 s. Before this plan, eight hits destroyed it.
 - **Hellcat** (120 HP): each .50 hit is 0.0833. Nine hits leave 0.25, so it catches fire on the ninth. Twelve used to destroy it.
 - **Lethality rises about 25%:** it takes 9 hits instead of 12 to put a Hellcat out of the fight, and the same ratio holds for every airframe (the 75% of structure above the fire line). The Zero's 20 mm (hit scale 3) sets a Hellcat alight in 3 hits, and its 7.7 mm (0.4) in 23. The spec §5 ratios to zero structure were 12 : 4 : 30. The fire line is the knob if this needs walking back.

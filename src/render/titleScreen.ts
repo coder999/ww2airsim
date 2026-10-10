@@ -190,6 +190,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // Friendly-fire ruling FF-10: the discharge test bed, Dev-only like the furball.
   { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
   { value: 'damage-range', label: 'Damage Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages plan): 8,200 ft up behind three Zeros flying straight and level. Shoot the engine for smoke, sputter and stall; keep firing for fire, then the explosion and debris.' },
+  { value: 'bomber-range', label: 'Bomber Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages round 2): 8,200 ft up behind a G4M, a Ki-21, a B-17 and a B-29, all flying straight and level as targets. Each engine smokes, sputters and dies on its own; the airframe burns at its fire line.' },
   // The survivable half: a Gunnery Range run-in onto a parked allied Hellcat,
   // so a strafing pass and the landing after it end in the discharge (FF-7 as
   // amended; the parked start became a run-in when T1's tail-down attitude

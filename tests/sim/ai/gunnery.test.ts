@@ -31,7 +31,7 @@ const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
 //   head-on  v-g 4 -> 3 (115 -> 127 s), v-v 3 -> 2 (115 -> 139 s), g-g 1 -> 0
 //   tail     v-g 8 -> 5 (51 -> 75 s),   v-v 1 -> 1 (107 -> 108 s), g-g 0 -> 0
 //   crossing v-g 5 -> 5 (49 -> 64 s),   v-v 5 -> 2 (71 -> 97 s),   g-g 0 -> 0
-// 32 of 72 duels resolved before, 23 after. Green against green resolves in none, so it stays out.
+// 27 of 72 duels resolved before, 18 after. Green against green resolves in none, so it stays out.
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
   // geometry, a, b, cursors, kills, measured 2026-10-09 at round 2's HP
   ['head-on', 'veteran', 'green', CURSORS_8, 3],

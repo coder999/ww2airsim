@@ -1,0 +1,40 @@
+{
+  "id": "bomber-range",
+  "player": "f6f-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": { "position": [-27000, 2500, -16479], "headingDeg": 90, "speedMps": 120 }
+    },
+    {
+      "id": "betty-1",
+      "spec": "g4m-betty",
+      "side": "axis",
+      "airborneAt": { "position": [-26600, 2500, -16479], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
+    },
+    {
+      "id": "sally-1",
+      "spec": "ki-21-sally",
+      "side": "axis",
+      "airborneAt": { "position": [-25900, 2520, -16380], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
+    },
+    {
+      "id": "fort-1",
+      "spec": "b-17-flying-fortress",
+      "side": "axis",
+      "airborneAt": { "position": [-25200, 2480, -16580], "headingDeg": 90, "speedMps": 95, "throttle": 0.7 }
+    },
+    {
+      "id": "superfort-1",
+      "spec": "b-29-superfortress",
+      "side": "axis",
+      "airborneAt": { "position": [-24400, 2540, -16460], "headingDeg": 90, "speedMps": 100, "throttle": 0.7 }
+    }
+  ],
+  "ships": [],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 12 }
+}
