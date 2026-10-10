@@ -19,6 +19,8 @@ import { VIEWS, withParams } from './views.js'
  */
 const extra = Object.fromEntries(new URLSearchParams(process.env.BUDGET_PARAMS ?? ''))
 const GATE_1440P_HIGH_P95_MS = 8.33
+/** Inside the cloud deck the gate is 10.0 ms (Mark, 2026-10-10): 9.68 with the cloud-edge skip, the H0 handoff. */
+const IN_CLOUD_1440P_HIGH_P95_MS: Record<string, number> = { 'in-deck-1900': 10.0 }
 const SIZES = {
   '1440p': { width: 2560, height: 1440 },
   '4K': { width: 3840, height: 2160 },
@@ -52,7 +54,7 @@ for (const size of ['1440p', '4K'] as const) {
         console.log(`BUDGET ${size} ${tier} ${view.name} p95=${p95.toFixed(3)} n=${n}`)
         expect(n).toBeGreaterThan(30)
         recordFrameTime(p95, `at ${size} ${tier}`)
-        if (gated) expect(p95).toBeLessThanOrEqual(GATE_1440P_HIGH_P95_MS)
+        if (gated) expect(p95).toBeLessThanOrEqual(IN_CLOUD_1440P_HIGH_P95_MS[view.name] ?? GATE_1440P_HIGH_P95_MS)
       })
     }
   }

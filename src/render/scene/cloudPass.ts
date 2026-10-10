@@ -156,9 +156,9 @@ const DEFERRED_EDGE_CORRECTION = 0.55
 const GOLDEN = 0.618034
 
 function edgeMarchFromQuery(): number {
-  if (!import.meta.env.DEV) return 1
+  if (!import.meta.env.DEV) return 0
   const raw = new URLSearchParams(location.search).get('h0EdgeMarch')
-  return raw === '0' ? 0 : raw === 'half' ? 0.5 : 1
+  return raw === '1' ? 1 : raw === 'half' ? 0.5 : 0
 }
 
 /** The canonical 4x4 Bayer order used by the High-tier amortized march. */
@@ -250,10 +250,12 @@ class CloudPassNode extends TempNode<'vec4'> {
   private updateGridY = 1
   /** DEV residual measurements compare two fully marched frames. */
   private readonly forceMarch = uniform(0)
-  /** H0 lever, DEV `?h0EdgeMarch=0|half`: a cloud-edge texel that is otherwise acceptable takes the deferred
+  /** H0 lever, DEV `?h0EdgeMarch=1|half` to compare: a cloud-edge texel that is otherwise acceptable takes the deferred
    *  path (bounded history plus the fresh-sample correction) instead of an immediate march: always (0), or on
    *  alternate frames in a checkerboard of 8x8-texel tiles (half: a per-texel checkerboard bought almost
-   *  nothing, since every GPU wave still held a marching texel). 1, the default, marches every edge texel every frame. */
+   *  nothing, since every GPU wave still held a marching texel). 1 marches every edge texel every frame. 0 is the
+   *  default since Mark's ruling (2026-10-10): it buys 1.3-3.2 ms at 1440p High for more edge shimmer with the
+   *  scene paused (docs/handoff/2026-10-08-h0-render-budget.md). */
   private readonly edgeMarch = uniform(edgeMarchFromQuery())
   private readonly edgeParity = uniform(0)
   // Texture nodes whose `.value` is swapped every frame (NodeSampledTexture
