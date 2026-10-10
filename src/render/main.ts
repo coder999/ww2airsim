@@ -2980,6 +2980,7 @@ async function boot(): Promise<void> {
       droppedSteps: current.droppedSteps,
       tick: current.world.tick,
       adapter: adapterVerdict.summary,
+      position: playerAircraft(current.world).state.position,
     })
     // The first frame built every material; the title can unlock.
     if (!boot.ready) {
