@@ -45,8 +45,6 @@ def smooth(e0, e1, x):
     return t * t * (3 - 2 * t)
 
 
-ROOFS = np.array([[150, 84, 62], [168, 98, 70], [128, 132, 136], [96, 112, 132], [182, 176, 164], [120, 74, 58]], "float32")
-
 
 def settlements_and_roads(root, albedo, gx, gz, h, slope, w_tree, sea, step, cx, cz, half, size):
     """Roads, yards and houses. Seeds: the real towns (largest), plus invented
@@ -89,88 +87,19 @@ def settlements_and_roads(root, albedo, gx, gz, h, slope, w_tree, sea, step, cx,
         d2 = ((gx - x) ** 2 + (gz - z) ** 2) / (rad * rad)
         yard = np.maximum(yard, dens * np.exp(-1.6 * d2))
     yard *= (flat | (slope < 9)) & ~sea
-    albedo = albedo * (1 - 0.28 * yard[..., None]) + np.array([170, 156, 128], "float32") * 0.28 * yard[..., None]
+    albedo = albedo * (1 - 0.2 * yard[..., None]) + np.array([170, 156, 128], "float32") * 0.2 * yard[..., None]
 
-    # Lanes: short wandering tracks leaving each settlement.
-    lanes = Image.new("L", (size * ss, size * ss), 0)
-    dl = ImageDraw.Draw(lanes)
-    for x, z, rad, dens in seeds:
-        for _ in range(int(2 + 4 * dens)):
-            a = rng.uniform(0, 2 * math.pi)
-            px_, pz_ = x, z
-            pts = []
-            for _s in range(int(rad * 2.2 / 40)):
-                a += rng.normal(0, 0.28)
-                px_ += math.cos(a) * 40; pz_ += math.sin(a) * 40
-                pts.append(((px_ - (cx - half)) / step * ss, (pz_ - (cz - half)) / step * ss))
-            if len(pts) > 1:
-                dl.line(pts, fill=255, width=int(1.6 * ss), joint="curve")
-    lane_m = np.asarray(lanes.resize((size, size), Image.LANCZOS)).astype("float32") / 255
-    lane_m *= (slope < 14) & ~sea
-    track = np.array([176, 164, 138], "float32")
-    albedo = albedo * (1 - 0.55 * lane_m[..., None]) + track * 0.55 * lane_m[..., None]
+    # Roads: the real OSM alignment only, muted. Houses and streets are NOT
+    # painted: a flat texture stain reads as a decal from low altitude, so the
+    # villages are real 3D huts placed at runtime from content/scenery/villages.json
+    # (src/render/scene/villages.ts). The texture only carries the bare-earth
+    # yard tone above.
     road_col = np.array([150, 148, 140], "float32")
-    albedo = albedo * (1 - 0.8 * road_m[..., None]) + road_col * 0.8 * road_m[..., None]
-
-    # Streets and houses: a few parallel streets plus cross streets per
-    # settlement, houses lining both sides. Reads as a village from altitude,
-    # which random scatter does not.
-    hl = Image.new("RGBA", (size * ss, size * ss), (0, 0, 0, 0))
-    dh = ImageDraw.Draw(hl)
-    st = Image.new("L", (size * ss, size * ss), 0)
-    ds = ImageDraw.Draw(st)
-    n_houses = 0
-    def to_px(x, z):
-        return ((x - (cx - half)) / step * ss, (z - (cz - half)) / step * ss)
-    for x, z, rad, dens in seeds:
-        ang = rng.uniform(0, math.pi)
-        ca, sa = math.cos(ang), math.sin(ang)
-        n_main = 2 + int(3 * dens)
-        spacing = rng.uniform(55, 80)
-        streets = []  # (u0, v0, u1, v1) in the settlement frame
-        for k in range(n_main):
-            v = (k - (n_main - 1) / 2) * spacing
-            ln = rad * 1.5 * (1 - 0.18 * abs(k - (n_main - 1) / 2))
-            streets.append((-ln, v, ln, v))
-        for k in range(1 + int(2 * dens)):
-            u = (k - 0.5) * rad * 0.7
-            ln = spacing * (n_main - 1) / 2 + 40
-            streets.append((u, -ln, u, ln))
-        for u0, v0, u1, v1 in streets:
-            p0 = (x + ca * u0 - sa * v0, z + sa * u0 + ca * v0)
-            p1 = (x + ca * u1 - sa * v1, z + sa * u1 + ca * v1)
-            ds.line([to_px(*p0), to_px(*p1)], fill=255, width=int(2.0 * ss))
-            length = math.hypot(u1 - u0, v1 - v0)
-            tu, tv = (u1 - u0) / length, (v1 - v0) / length
-            t = 0.0
-            while t < length:
-                t += rng.uniform(15, 26)
-                for side in (-1, 1):
-                    pu = u0 + tu * t + (-tv) * side * 10.5
-                    pv = v0 + tv * t + tu * side * 10.5
-                    r = math.hypot(pu, pv)
-                    if rng.random() > dens * math.exp(-1.4 * (r / rad) ** 2):
-                        continue
-                    hx, hz = x + ca * pu - sa * pv, z + sa * pu + ca * pv
-                    i, j = int((hz - (cz - half)) / step), int((hx - (cx - half)) / step)
-                    if not (1 <= i < size - 1 and 1 <= j < size - 1):
-                        continue
-                    if sea[i, j] or slope[i, j] > 13 or road_m[i, j] > 0.25 or h[i, j] < 1.5:
-                        continue
-                    hang = ang + (math.atan2(tv, tu)) + rng.normal(0, 0.06)
-                    w, l = rng.uniform(7, 12), rng.uniform(9, 17)
-                    roof = ROOFS[rng.integers(len(ROOFS))] * rng.uniform(0.85, 1.12)
-                    c2, s2 = math.cos(hang), math.sin(hang)
-                    quad = [to_px(hx + c2 * u - s2 * v, hz + s2 * u + c2 * v)
-                            for u, v in ((-l / 2, -w / 2), (l / 2, -w / 2), (l / 2, w / 2), (-l / 2, w / 2))]
-                    dh.polygon(quad, fill=tuple(int(c) for c in roof) + (255,))
-                    n_houses += 1
-    street_m = np.asarray(st.resize((size, size), Image.LANCZOS)).astype("float32") / 255
-    street_m *= (slope < 14) & ~sea
-    albedo = albedo * (1 - 0.6 * street_m[..., None]) + np.array([168, 160, 142], "float32") * 0.6 * street_m[..., None]
-    print("houses", n_houses)
-    hl = np.asarray(hl.resize((size, size), Image.LANCZOS)).astype("float32") / 255
-    albedo = albedo * (1 - hl[..., 3:4]) + hl[..., :3] * 255 * hl[..., 3:4]
+    albedo = albedo * (1 - 0.55 * road_m[..., None]) + road_col * 0.55 * road_m[..., None]
+    invented = [sd for sd in seeds if sd[3] < 1.0]
+    out = [{"x": round(x), "z": round(z), "radius": round(r), "density": round(d, 2)} for x, z, r, d in invented]
+    json.dump(out, open(f"{root}/content/scenery/villages.json", "w"), indent=0)
+    print("wrote villages.json:", len(out), "invented villages")
     return albedo
 
 

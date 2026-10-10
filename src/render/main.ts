@@ -98,9 +98,11 @@ import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
+import { createVillages, type Village } from './scene/villages.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import { loadBeaches } from './scene/beaches.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
+import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
@@ -3065,7 +3067,13 @@ async function boot(): Promise<void> {
       // keeps them off `AIRFIELD_HUTS`.
       const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields)
       scene.add(towns.object)
-      vegetation = createVegetation(arrived, next.world.airfields, towns.hutFootprints)
+      // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
+      // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+      const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
+        ? createVillages(arrived, villagesData as readonly Village[], next.world.airfields)
+        : null
+      if (villages) scene.add(villages.object)
+      vegetation = createVegetation(arrived, next.world.airfields, [...towns.hutFootprints, ...(villages?.footprints ?? [])])
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --
