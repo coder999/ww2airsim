@@ -59,8 +59,10 @@ export function engineOutput(d: Damage, tick: number, id: string, dt: number): n
 /**
  * Structure after a loss, and what that loss sets alight or destroys. The
  * hit that sets an airframe alight names its `attacker`, as a killing blow
- * on an unburnt one does; later hits on a burning one change nothing but
- * how soon it explodes. A blow that destroys outright never sets it alight.
+ * on an unburnt one does. A burning airframe takes no more from hits (they
+ * still flash): the fire alone burns it out, over BURN_S, as Mark ruled
+ * (2026-10-09), so a long burst cannot skip the fire. A blow that destroys
+ * outright, a cannon shell across the fire line, never sets it alight.
  * Credit follows: `stepCombat` credits a direct kill on the spot, and
  * `creditDownedAircraft` a burning one's when it explodes or hits the ground.
  */
@@ -81,7 +83,7 @@ export function withStructure(before: Damage, structure: number, tick: number, a
  *  before per-gun types, bit for bit (x * 1 === x). */
 export function damageFromHit(spec: AircraftSpec, before: Damage, system: DamageSystem, tick: number, attacker: string, hitScale = 1): Damage {
   const c = spec.combat
-  if (c === undefined || before.destroyedAt !== null) return before
+  if (c === undefined || before.destroyedAt !== null || before.burningSince !== null) return before
   const amount = c.damagePerHit * hitScale
   const after = withStructure(before, Math.max(0, before.structure - amount / c.structureHp), tick, attacker)
   return { ...after, [system]: Math.max(0, before[system] - amount / c.subsystemHp) }

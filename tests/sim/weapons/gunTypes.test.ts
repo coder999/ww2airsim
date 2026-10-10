@@ -6,7 +6,7 @@ import { advance, createWorldOf, type AircraftEntity, type Stepper } from '../..
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3, length, sub } from '../../../src/sim/math/vec3.js'
 import { gunBallistics, isPrimaryGun } from '../../../src/sim/weapons/gunTypes.js'
-import { damageFromHit, healthyDamage } from '../../../src/sim/damage/model.js'
+import { damageFromHit, healthyDamage, isDoomed } from '../../../src/sim/damage/model.js'
 import type { AircraftSpec } from '../../../src/sim/flight/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -97,25 +97,31 @@ describe('per-gun firing', () => {
     for (const p of slow) expect(length(sub(p.position, p.previous)) / DT).toBeLessThan(620)
   })
 
-  it('a round carries its hitScale to the target: three times the damage kills an F6F in 4 hits, not 12', () => {
-    const w = run(typedLike(3), f6f, 180).combat
-    expect(w.aircraft.target!.damage.destroyedAt).not.toBeNull()
-    expect(w.aircraft.shooter!.hits).toBe(4)
+  it('a round carries its hitScale to the target: three times the damage sets an F6F alight in 3 hits, not 9', () => {
+    let w = createWorldOf({ aircraft: [plane(typedLike(3), 'shooter', 0, true), plane(f6f, 'target', 300, false)], player: 'shooter' })
+    for (let i = 0; i < 180 && !isDoomed(w.combat.aircraft.target!.damage); i++) w = advance(w, DT, still).world
+    expect(w.combat.aircraft.target!.damage.burningSince).not.toBeNull()
+    // Three hits' worth of structure gone; a round landing in the same tick after the fire is a hit that takes nothing.
+    expect(w.combat.aircraft.target!.damage.structure).toBeCloseTo(0.25, 12)
+    expect(w.combat.aircraft.shooter!.hits).toBeGreaterThanOrEqual(3)
   })
 })
 
 describe('damageFromHit hitScale', () => {
+  // Hits until it is out of the fight: on fire, or destroyed outright. Since
+  // damage stages (2026-10-09) that is the fire line, FIRE_AT_STRUCTURE, not
+  // zero: 9 .50 hits put a Hellcat on fire where 12 used to destroy it.
   const hitsToKill = (hitScale: number) => {
     let d = healthyDamage(), n = 0
-    while (d.destroyedAt === null && n < 1000) { d = damageFromHit(f6f, d, 'fuel', 1, 'x', hitScale); n++ }
+    while (!isDoomed(d) && n < 1000) { d = damageFromHit(f6f, d, 'fuel', 1, 'x', hitScale); n++ }
     return n
   }
   it('defaults to 1, bit for bit', () => {
     expect(damageFromHit(f6f, healthyDamage(), 'engine', 1, 'x')).toEqual(damageFromHit(f6f, healthyDamage(), 'engine', 1, 'x', 1))
   })
-  it('scales the target\'s damagePerHit: 12 hits at 1, 4 at 3, 30 at 0.4', () => {
-    expect(hitsToKill(1)).toBe(12)
-    expect(hitsToKill(3)).toBe(4)
-    expect(hitsToKill(0.4)).toBe(30)
+  it('scales the target\'s damagePerHit: 9 hits at 1, 3 at 3, 23 at 0.4', () => {
+    expect(hitsToKill(1)).toBe(9)
+    expect(hitsToKill(3)).toBe(3)
+    expect(hitsToKill(0.4)).toBe(23)
   })
 })

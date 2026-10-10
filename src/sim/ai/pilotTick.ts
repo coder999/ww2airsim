@@ -110,9 +110,9 @@ function flyPilot<M>(
   if (pilot == null || a.impact !== null) return a
   const record = ctx.combat.aircraft[a.id]!
   if (record.damage.destroyedAt !== null) return a
-  // Burning (damage stages, Mark 2026-10-09): the pilot stops flying. A dead
-  // stick rolling one way and nosing down sends it in a falling spiral.
-  if (record.damage.burningSince !== null) return { ...a, controls: burningControls(a.id, a.state.attitude) }
+  // Burning (damage stages, Mark 2026-10-09): the pilot stops flying; `advance`
+  // flies `burningControls` for every burning airplane but the player's.
+  if (record.damage.burningSince !== null) return a
   // 7g spec §3: `landed` is terminal and short-circuits before the rescore:
   // no target choice, no safety override, no noise. The recovery holds it on
   // the brakes and, once, respots it (`state`, and `previous` with it, so the

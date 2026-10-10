@@ -357,7 +357,7 @@ export function damageShip(before: ShipDamage, hullHp: number, amount: number, t
  *  `damageFromHit`'s structure line alone, in HP rather than in hits. */
 function blastDamageAircraft(spec: AircraftSpec, before: Damage, amount: number, tick: number, attacker: string): Damage {
   const c = spec.combat
-  if (c === undefined || before.destroyedAt !== null) return before
+  if (c === undefined || before.destroyedAt !== null || before.burningSince !== null) return before
   return withStructure(before, Math.max(0, before.structure - amount / c.structureHp), tick, attacker)
 }
 

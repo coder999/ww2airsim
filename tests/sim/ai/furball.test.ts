@@ -130,7 +130,8 @@ describe('the furball soak (7e spec §4.7)', () => {
   it.each(LOADOUTS)('the opening bounce kill holds with the player\'s %s loadout', (loadout) => {
     let w = worldFromScenario(bundle, null, loadout)
     for (let i = 0; i < 5 * 60; i++) w = advance(w, DT).world
-    expect(w.combat.aircraft['bandit-2']!.damage.destroyedAt).not.toBeNull()
+    // Set alight in the opening bounce: since damage stages (2026-10-09) the explosion follows within BURN_S.
+    expect(isDoomed(w.combat.aircraft['bandit-2']!.damage)).toBe(true)
     expect(w.combat.aircraft['bandit-2']!.damage.attacker).toBe('ally-1')
   })
 })

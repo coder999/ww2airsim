@@ -103,11 +103,12 @@ describe('production fixed-step gunnery', () => {
     let after = createWorldOf({ aircraft: [plane('shooter', 0, true), plane('far', 500), plane('near', 300)], player: 'shooter' })
     // Up to the explosion: from then the wreck falls out of the line (damage
     // stages, 2026-10-09) and the stream goes on to `far`, as it should.
-    for (let i = 0; i < 180 && after.combat.aircraft.near!.damage.destroyedAt === null; i++) after = run(after, 1)
+    // On fire at 9 hits, it burns out over BURN_S while the stream keeps hitting it.
+    for (let i = 0; i < 1200 && after.combat.aircraft.near!.damage.destroyedAt === null; i++) after = run(after, 1)
     expect(after.combat.aircraft.near!.damage.destroyedAt).not.toBeNull()
     expect(after.combat.aircraft.far!.damage.structure).toBe(1)
     expect(after.combat.aircraft.shooter!.kills).toBe(1)
-    expect(after.combat.aircraft.shooter!.hits).toBe(12)
+    expect(after.combat.aircraft.shooter!.hits).toBeGreaterThanOrEqual(9)
     expect(after.combat.aircraft.near!.damage.attacker).toBe('shooter')
   })
   it('empties finite ammo, stops after release and expires all rounds', () => {
@@ -147,7 +148,7 @@ describe('production fixed-step gunnery', () => {
     // Mirrors "stops on the nearest target and never awards duplicate kills"
     // above -- a lone f6f-hellcat target, whose spec role is 'fighter'.
     const w = createWorldOf({ aircraft: [plane('shooter', 0, true), plane('near', 300)], player: 'shooter' })
-    const after = run(w, 180)
+    const after = run(w, 1200) // the fire's BURN_S, and then some
     expect(after.combat.aircraft.near!.damage.destroyedAt).not.toBeNull()
     expect(after.combat.aircraft.shooter!.kills).toBe(1)
     expect(after.combat.aircraft.shooter!.killsByType.fighter).toBe(1)

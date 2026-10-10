@@ -10,6 +10,7 @@ import { qFromAxisAngle, qRotate } from '../../src/sim/math/quat.js'
 import { cruise, entity, FIRE, HOLD, LEVEL_EAST, levelStateAt, meanProductionImpact, SPEED_MPS, START } from './productionImpact.js'
 import { inBody } from '../../src/sim/weapons/geometry.js'
 import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
+import { isDoomed } from '../../src/sim/damage/model.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 /**
@@ -60,7 +61,8 @@ function burstOnReticle(rangeM: number): { hits: number; shots: number; killS: n
   let killS: number | null = null
   for (let i = 0; i < 150; i++) {
     world = advance(withControls(world, 'f6f-1', i < 60 ? FIRE : HOLD), DT, cruise).world
-    if (killS === null && world.combat.aircraft['target']!.damage.destroyedAt !== null) killS = (i + 1) * DT
+    // Out of the fight: on fire or destroyed (damage stages, 2026-10-09).
+    if (killS === null && isDoomed(world.combat.aircraft['target']!.damage)) killS = (i + 1) * DT
   }
   const me = world.combat.aircraft['f6f-1']!
   return { hits: me.hits, shots: me.shots, killS }

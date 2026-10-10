@@ -19,7 +19,7 @@ import { decksOf } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
 import { buildStructures, type StructureEntity } from './weapons/structures.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { pilotTick, type PilotTickContext } from './ai/pilotTick.js'
+import { burningControls, pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
 import { stepMission } from './mission/step.js'
 import { respotPlayer } from './mission/respot.js'
@@ -957,9 +957,13 @@ export function advance<M>(
     const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
+      const flown = pilotTick(a, aircraftAtStart, pilotContext)
+      // On fire, every airplane but the player's goes down in a falling spiral,
+      // piloted or not (damage stages, Mark 2026-10-09). The player keeps the stick.
+      const doomed = a.id !== world.player && record.damage.burningSince !== null && record.damage.destroyedAt === null
       return stepAircraftEntity(
-        pilotTick(a, aircraftAtStart, pilotContext), tick, world.terrain, world.wind, decks, stepper, assist,
-        record.damage, record.stores,
+        doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
+        tick, world.terrain, world.wind, decks, stepper, assist, record.damage, record.stores,
       )
     })
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides }

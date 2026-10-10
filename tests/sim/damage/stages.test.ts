@@ -19,7 +19,7 @@ import { flatField } from '../mission/fixture.js'
 const COMBAT_IDS = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
   .filter((id) => loadAircraftSpec(id).combat !== undefined)
 
-describe('every combat airframe catches fire before a single-caliber stream destroys it', () => {
+describe('every combat airframe catches fire from a single-caliber stream, and then only the fire finishes it', () => {
   it('enrolls every airframe with a combat block (the four bombers have none, so take no hits)', () => {
     expect(COMBAT_IDS).toEqual(['a6m2-zero', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning'])
   })
@@ -27,14 +27,16 @@ describe('every combat airframe catches fire before a single-caliber stream dest
     const spec = loadAircraftSpec(id)
     let d: Damage = healthyDamage()
     let hits = 0
-    while (d.destroyedAt === null) {
-      d = damageFromHit(spec, d, 'roll', 10 + hits, 'shooter')
-      hits++
-      if (d.burningSince === null) expect(d.structure, `${id} hit ${hits}`).toBeGreaterThan(FIRE_AT_STRUCTURE)
-    }
-    // It burned on some hit before the last, and that hit named the shooter.
-    expect(d.burningSince, id).not.toBeNull()
-    expect(d.burningSince!, id).toBeLessThan(d.destroyedAt)
+    while (d.burningSince === null && hits < 100) d = damageFromHit(spec, d, 'roll', 10 + hits++, 'shooter')
+    expect(d.destroyedAt, id).toBeNull()
+    expect(d.structure, id).toBeGreaterThan(0)
+    expect(d.structure, id).toBeLessThanOrEqual(FIRE_AT_STRUCTURE + 1e-10)
+    expect(d.attacker).toBe('shooter')
+    // More hits change nothing: the fire burns it out (Mark: "fire drains its remaining structure").
+    expect(damageFromHit(spec, d, 'engine', 999, 'someone-else')).toBe(d)
+    let tick = 1000
+    while (d.destroyedAt === null) d = ageDamage(spec, d, DT, ++tick)
+    expect((tick - 1000) * DT).toBeLessThanOrEqual(BURN_S + DT)
     expect(d.attacker).toBe('shooter')
   })
 })

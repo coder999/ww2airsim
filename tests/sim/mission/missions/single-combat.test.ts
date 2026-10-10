@@ -18,6 +18,7 @@ import type { World } from '../../../../src/sim/loop.js'
 import { ticksFor, radioMessages } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
 import { progressOf } from '../fixture.js'
+import { isDoomed } from '../../../../src/sim/damage/model.js'
 import { destroyNow, fieldApproach, hold, levelAt, stepsWithControls, terrainOrSkip } from '../fly.js'
 
 const KILLED_S: readonly [number, number] = [115, 145]
@@ -43,11 +44,12 @@ describe('Single Combat content', () => {
 describe.skipIf(terrain === null)('Single Combat, headless', () => {
   it(`the veteran is dangerous: a player who just flies on is shot down in [${KILLED_S}] s`, () => {
     let w = duel()
-    while (w.tick < ticksFor(KILLED_S[1]) && w.combat.aircraft[w.player]!.damage.destroyedAt === null) w = stepsWithControls(w, 1, { throttle: 0.8 })
+    // Shot down: on fire or destroyed outright (damage stages, 2026-10-09).
+    while (w.tick < ticksFor(KILLED_S[1]) && !isDoomed(w.combat.aircraft[w.player]!.damage)) w = stepsWithControls(w, 1, { throttle: 0.8 })
     expect(radioMessages(w.mission!)[0]).toMatchObject({ text: TALLY, tick: ticksFor(1) })
     const killed = w.combat.aircraft[w.player]!.damage
     expect(killed.attacker).toBe('frank-1')
-    expect(killed.destroyedAt! / 60).toBeGreaterThanOrEqual(KILLED_S[0])
+    expect((killed.burningSince ?? killed.destroyedAt)! / 60).toBeGreaterThanOrEqual(KILLED_S[0])
   })
 
   it('success: the Frank goes down, the tower call, recover at Tacloban, badge', () => {
