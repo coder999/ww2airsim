@@ -21,6 +21,19 @@ Five looks in all. No mid-phase checkpoints.
 checkpoint and waits for his ruling on the Task 1.4 rung. Phases 2-4 decide
 attended or unattended when each starts, by asking him then.
 
+**Who runs what (Mark, 2026-10-10):** the planning session's model
+orchestrates and reviews every diff and measurement table before it is
+committed. Bounded tasks with a mechanical pass condition go to a
+**Sonnet** subagent briefed with that task's section: 1.1, 1.2, 2.1, 3.1 and
+all of Phase 4. Tasks that touch the march, the laid-out TSL `Fn`s, the
+composite, or that interpret budget numbers stay on the **strong** model:
+1.3, 1.4, 2.2, 3.2, 3.3 and every ruling. Each task below is tagged. A
+Sonnet brief carries these hard stops, on which it reports instead of
+continuing: a black or unchanged frame, any WGSL validation error, boot over
+1.5 s, or a budget number that moved the wrong way. The reason is
+`clouds.md` §4: a broken graph renders black with no error and makes timings
+look like a win.
+
 **Status:** plan only. Written from the 2026-10-10 grilling; no code.
 
 ## Rulings (Mark, 2026-10-10 grilling)
@@ -89,7 +102,7 @@ when they share the GPU with a measurement.
 **Outcome:** High and Medium edges are crisp and stable; clouds ≤ 4 ms in
 every view; light steps 0 on every tier.
 
-### Task 1.1 (parallel spike): get the archetype into Blender and back
+### Task 1.1 (parallel spike, Sonnet): get the archetype into Blender and back
 
 The one real unknown in the toolchain. Three routes, try in order, stop at
 the first that round-trips `cumulus.bin.gz` byte-exactly (same voxel values
@@ -104,20 +117,20 @@ equality. If none of the three works in one session, the phase continues
 with the bake in numpy (`cumulus.py`), and Blender enters at Phase 2 for
 atlases only. Mark is told which happened.
 
-### Task 1.2: bake sun transmittance and calibrate multi-scatter
+### Task 1.2 (Sonnet): bake sun transmittance and calibrate multi-scatter
 
 - **Format (recommended):** per voxel, 9 coefficients of order-2 spherical harmonics of **log-transmittance** toward the light, 8-bit, at the shipped half-res archetype (125×85×154 = 1.6 M voxels). 9 bytes/voxel = 14.7 MB raw, expected 4-6 MB gz. Log-transmittance keeps the SH from ringing into negative transmittance; clamp on decode.
 - **Fallback format:** 4 elevations × 8 azimuths = 32 directions, 1 byte each = 52 MB raw (too large for R8 unless quarter-res); only if SH visibly blurs the lit/shadow boundary against the Cycles truth.
 - **Truth:** Cycles renders of the archetype at sun elevations 15°, 45°, 75° are the reference the runtime is compared to (same view, same sun). `MS_SCALE`, albedo and the powder constant are re-fit to minimize the difference. This replaces the three multi-scatter octaves with a baked term plus one fitted constant. The CPU work of the bake itself (line integrals through the voxel grid) is numpy; Cycles is used only as the reference renderer, which is what it is good at.
 - Gate: a fixed-view comparison image (runtime vs Cycles) with the mean difference in the handoff. No threshold yet; Mark looks.
 
-### Task 1.3: runtime lookup replaces the light march
+### Task 1.3 (strong): runtime lookup replaces the light march
 
 - `cloudLighting.ts`: the light march becomes one 3D texture fetch per view step (SH evaluated for the sun direction in cloud-local coordinates; the cell's rotation is already decoded in `cloudField.ts`). `lightSteps` and `fineLightSteps` go to 0 in every tier; the uniforms stay so `?cloudTune` can A/B.
 - Trap: the fetch goes inside the laid-out density `Fn` pattern (`CloudField.laidOut()`), textures captured, direction passed as an argument. Re-check the boot gate (< 1.5 s, `tests/e2e/boot.spec.ts`) in the same commit.
 - Measure: the per-view cloud cost table. Expected saving: the Task 11 ladder said view steps cost more than the light march, so expect 1-2 ms, not 4. The rest comes from Task 1.4 trading steps for resolution and from Phase 2 removing far texels.
 
-### Task 1.4: spend it on edges
+### Task 1.4 (strong): spend it on edges
 
 A ladder, each rung measured back-to-back, stop when R3 fails:
 
@@ -144,21 +157,21 @@ impostor of the archetype at full resolution; Low draws only impostors.
 Distant edges become pixel-sharp by construction and the march stops at the
 split distance, which is the remaining budget lever for the far views.
 
-### Task 2.1: Blender renders the atlas
+### Task 2.1 (Sonnet): Blender renders the atlas
 
 - Views: an octahedral set over the **full sphere** (the pilot is above the deck at 3,200 m and below it at 600 m), 8×8 = 64 views.
 - Per view texel: alpha, mean depth along the ray, and the same SH2 log-transmittance basis as Phase 1 projected along the view ray (9 channels). 12 channels in three RGBA8 textures.
 - Sizing, which is the first thing to measure: at 256² per view, 64 × 65,536 × 12 B = 50 MB raw, 12-20 MB gz expected; at 128², a quarter of that. A 1.8 km cloud spans about 300 px at 10 km and 1,000 px at 3 km on a 90° 1440p view, so **256² implies a split near 8-10 km, 128² is only enough beyond ~20 km.** The handoff states atlas size against split distance and Mark picks, inside R8.
 - Rendered with Cycles from the Task 1.1 volume, so the alpha and depth come from real volumetrics.
 
-### Task 2.2: runtime impostor pass
+### Task 2.2 (strong): runtime impostor pass
 
 - One instanced draw of camera-facing quads, one per weather cell beyond the split, at full resolution, depth-tested against the scene, written into the cloud composite with the march's own lighting applied per pixel (R4). The march's slab interval is clamped to the split distance.
 - A blend band (split ± 1 km) where the march's alpha fades out and the impostor's fades in.
 - **Seam test** (new spec): a fixed view with the split at two distances; the pixel difference inside the band must be below a grey-level threshold set from the first measurement, and the sun is swept across three elevations in the same test.
 - Shadows: unchanged. The sun-view map reads the density field, which does not know about the split.
 
-### Task 2.3: Low = impostors only
+### Task 2.3 (strong): Low = impostors only
 
 - Low: no cloud march; every cell is an impostor; `cumulusSteps` unused. Fly-through: the impostor fades as the camera enters the cell's radius, and a full-screen whiteout scales with the CPU coverage twin's local density (`skyCoverageTable`), so Low still reads "in cloud".
 - Budget: Low clouds ≤ 1 ms in every view (recorded, then asserted once stable).
@@ -177,17 +190,17 @@ split distance, which is the remaining budget lever for the far views.
 base ~1 km, top 10-12 km, 8-15 km wide, with anvils; volumetric when near,
 impostor when far; they shade the sea.
 
-### Task 3.1 (parallel spike, can start during Phase 2): scripted archetype in Blender
+### Task 3.1 (parallel spike, can start during Phase 2, Sonnet): scripted archetype in Blender
 
 - `tools/sky/blender/cumulonimbus.py`: a headless geometry-nodes recipe (seed, base height, tower height, anvil spread, lobe scale, erosion) that builds the volume and exports it through the Task 1.1 path. The `.blend` it produces is checked in for viewing, never hand-edited (the script is the source).
 - **Gate before anything else:** Cycles renders at three sun elevations plus a dusk render, mailed beside Mark's sunset-deck photos for the lighting match (he has no thunderhead photo; shape references are read, never copied, per `clouds.md` §7). Mark approves or sends it back. Iterations are minutes each on HIP.
 
-### Task 3.2: assets and sizing
+### Task 3.2 (strong): assets and sizing
 
 - Voxel size: a 12 km × 15 km × 15 km box at 80 m is 150 × 188 × 188 = 5.3 M voxels; with the SH transmittance that is ~50 MB raw, ~12 MB gz. 100 m voxels if the cap bites. The anvil's thin edge is what sets the floor; the Cycles gate shows whether 80 m holds it.
 - Atlas as Phase 2, probably 128² views (the tower is seen from 20-60 km far more than from 5).
 
-### Task 3.3: scenario and placement
+### Task 3.3 (strong): scenario and placement
 
 - A new layer kind in `src/sim/scenario.ts`: `{kind: 'cumulonimbus', baseM, topM, density}`; `density` is the expected count per 80 km map (0 to ~3). Placement: seeded by the scenario id, rejection-sampled against the deck's weather map so a tower sits in a deck cell, not in a gap. Free-flight gets `density: 0.5`.
 - Runtime: a second, tall slab for this kind; a per-layer march cap (the 6 km cap would truncate a near tower); the same split-distance rule as the deck. The shadow map adds the tower's column.
@@ -200,7 +213,7 @@ impostor when far; they shade the sea.
 - `content/sky/` ≤ 50 MB.
 - Mailed captures; Mark flies free-flight with a tower on the horizon and then around it.
 
-## Phase 4: auto-tier (branch `k4-auto-tier`)
+## Phase 4 (Sonnet): auto-tier (branch `k4-auto-tier`)
 
 The incident's root cause is a vsync'd title-screen measurement reading
 11 ms (`docs/incidents/2026-09-20-low-tier-hides-trees.md`).
