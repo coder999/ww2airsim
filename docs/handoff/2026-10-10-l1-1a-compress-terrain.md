@@ -1,6 +1,6 @@
 # L1.1a handoff: the terrain pyramid ships gzipped
 
-**Date:** 2026-10-10. **Plan:** [`2026-10-10-l1-1a-compress-terrain.md`](../superpowers/plans/2026-10-10-l1-1a-compress-terrain.md). **Built on branch `worktree-agent-a68ca0498b75ba211`, not merged, not deployed.** **Run:** unattended; viewing checkpoint: the final product only.
+**Date:** 2026-10-10. **Plan:** [`2026-10-10-l1-1a-compress-terrain.md`](../superpowers/plans/2026-10-10-l1-1a-compress-terrain.md). **Merged into `main` 2026-10-10; not deployed.** **Run:** unattended; viewing checkpoint: the final product only.
 
 ## What changed
 
@@ -67,7 +67,7 @@ Captures from the same spawn: the before and after terrain is the same ([shots](
 
 ## How Mark sees it
 
-After a merge, the primary slot `ww2airsim.windomlane.org` (`npm run dev:lan` on `main`) shows the same terrain as before. Nothing visible changes; the difference is the download. Production changes only when it is deployed, which is Mark's call. Deploying this together with L1.1 means a Medium first visit fetches 49.5 MB of terrain rather than 179 MB.
+The primary slot `ww2airsim.windomlane.org` (`npm run dev:lan` on `main`) shows the same terrain as before. Nothing visible changes; the difference is the download. Production changes only when it is deployed, which is Mark's call. Deploying this together with L1.1 means a Medium first visit fetches 49.5 MB of terrain rather than 179 MB.
 
 ## Rulings for Mark
 
@@ -77,6 +77,24 @@ Each was taken conservatively so the run could continue.
 
 ## Open items
 
-- **Merging needs the LFS object pushed.** `git push` of the branch, or of `main` after the merge, uploads `L0.bin.gz`'s 37 MB LFS object. Until that happens, `deploy.yml`'s `lfs: true` checkout cannot fetch it. The old `L0.bin` object stays in LFS history.
+- **LFS upload complete (integration, 2026-10-10):** `L0.bin.gz`'s 37 MB object was uploaded to the existing repository. Its inflated SHA-256 matches the original L0 object exactly. The old object stays in LFS history.
 - **Resolved during integration:** ryzen's data mirror retains the old `content/terrain/L0.bin`. The build now excludes obsolete `terrain/L<n>.bin` files, so retained cache data cannot inflate the release artifact. The content-filter cases cover raw levels, compressed levels and unrelated binary content; the real-build assertion requires no raw terrain levels in `dist/`.
 - **Not measured: time to ready on a slow link.** The 25 Mbit/s row is computed, not measured.
+
+## Integration verification (2026-10-10)
+
+Resumed Claude's completed branch, merged current main into it (`52e51d88`),
+and added the obsolete-file build filter (`c1e43c9d`). Main was fast-forwarded
+to the result; unrelated uncommitted changes in the main checkout were preserved.
+
+- `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify`: typecheck, lint and dependency
+  checks passed. Vitest completed all 399 files: 5,561 tests passed, 12 skipped,
+  one timeout in `tests/render/aiLethality.test.ts` (30-second limit under concurrent
+  Ryzen load). Exit status 1; this was not a completely green full-suite run.
+- Isolated rerun of that unchanged AI test file: all 9 passed, exit 0; the timed-out
+  case took 13.9 seconds. No timeout or gameplay tolerance was changed.
+- Final build-filter change: typecheck, affected-file lint, and the content-filter
+  and real production-build tests all passed (15 tests, exit 0).
+- After integration, `adapter.spec.ts` and `terrain.spec.ts` (budget cases excluded)
+  passed all 10 tests on Ryzen's reference GPU against the main development server
+  (96 seconds, exit 0), including Medium boot and all three altitude sweeps.

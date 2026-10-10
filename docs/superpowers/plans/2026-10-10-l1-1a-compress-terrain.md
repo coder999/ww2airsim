@@ -1,9 +1,9 @@
 # L1.1a: ship the terrain pyramid gzipped
 
-**Status (2026-10-10):** built on branch, not merged; see the handoff `docs/handoff/2026-10-10-l1-1a-compress-terrain.md`. Deviation: the time-to-ready runs used `NODE_ENV=development` builds on a static server, since `__ww2` exists only in DEV builds.
+**Status (2026-10-10):** merged to `main`, not deployed; see the handoff `docs/handoff/2026-10-10-l1-1a-compress-terrain.md`. Deviation: the time-to-ready runs used `NODE_ENV=development` builds on a static server, since `__ww2` exists only in DEV builds.
 **Viewing checkpoint (Mark, 2026-10-10):** final product only.
 **Run mode:** unattended, to completion.
-**Location:** a worktree, branch `worktree-agent-a68ca0498b75ba211`. Not merged to `main` by this run.
+**Location:** a worktree, branch `worktree-agent-a68ca0498b75ba211`. Integrated into `main` after resuming Claude's work.
 **Heavy jobs:** tsc, eslint, vitest and `npm run verify` on ryzen (`REMOTE_RUN_OVERFLOW=0 remote-run ...`). GPU runs on the ryzen Playwright server against a dev slot, held only while running.
 **Deploying** is Mark's call. Production would need the new `deploy.yml` smoke check (below) to pass.
 
