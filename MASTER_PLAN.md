@@ -73,7 +73,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
   - fix the pursuit mode's 13 g overshoot with a g-limit.
 - **Decided (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
 
-**B4. Tutorial (M).** Done 2026-10-10 on branch `b4-tutorial`; plan [`2026-10-10-b4-tutorial.md`](docs/superpowers/plans/2026-10-10-b4-tutorial.md), handoff [`2026-10-10-b4-tutorial.md`](docs/handoff/2026-10-10-b4-tutorial.md).
+**B4. Tutorial (M).** Done and merged 2026-10-10; plan [`2026-10-10-b4-tutorial.md`](docs/superpowers/plans/2026-10-10-b4-tutorial.md), handoff [`2026-10-10-b4-tutorial.md`](docs/handoff/2026-10-10-b4-tutorial.md).
 - **Shipped:** **Basic Flying** (`content/scenarios/tutorial.json`), first mission in the picker: ten chained objectives from full throttle to landing, an instructor's radio line on each step (text only, no recordings).
 - **Engine gap closed:** the `state` objective and trigger (gear, flaps, bay doors, air-relative speed, altitude band, throttle). An Assist toggle cannot be one: the Impact marker is render state (B2 R7), so the tutorial only teaches `U`.
 
