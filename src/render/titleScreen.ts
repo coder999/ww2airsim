@@ -1,7 +1,7 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
-import type { Loadout } from '../sim/weapons/stores.js'
+import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
 import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
@@ -871,8 +871,11 @@ export function createTitleScreen(
       const allowed = flowReady ? loadoutsFor(ctx(), draft.aircraftSpec) : [draft.loadout]
       // The briefing is two forms back, so its recommendation is marked here (A3).
       const recommended = optionOf(draft.scenarioId)?.recommendedLoadout
+      const racks = racksLabel(missions.flyable.find((x) => x.spec.id === draft.aircraftSpec)?.spec)
       for (const option of LOADOUT_OPTIONS.filter((o) => allowed.includes(o.value))) {
-        const el = ballotOption(option.value === recommended ? `${option.label} (recommended)` : option.label, '', () => {
+        // A torpedo airplane's racks say "Torpedo" (D3 T1); every other label is the option's own.
+        const label = option.value === 'bombs' ? racks : option.label
+        const el = ballotOption(option.value === recommended ? `${label} (recommended)` : label, '', () => {
           draft = { ...draft, loadout: option.value }
           renderOrdnance()
         })

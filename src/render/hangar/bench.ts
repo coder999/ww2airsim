@@ -50,6 +50,8 @@ export function mountBench(
   cycleable: boolean,
   debug: Readonly<Record<DebugToggle, boolean>>,
   h: BenchHandlers,
+  /** The rack box's name, `racksLabel` of the airframe: "Torpedo" on a torpedo airplane (D3 T1). */
+  racks: 'Bombs' | 'Torpedo' = 'Bombs',
 ): BenchHandle {
   slot.replaceChildren()
   const title = document.createElement('div')
@@ -107,7 +109,7 @@ export function mountBench(
       }
     } else if (part.id === 'stores') {
       for (const which of ['bombs', 'rockets'] as const) {
-        const { row: box, input } = checkbox(which === 'bombs' ? 'Bombs' : 'Rockets', true, (on) => h.onPose(which === 'bombs' ? { bombs: on } : { rockets: on }))
+        const { row: box, input } = checkbox(which === 'bombs' ? racks : 'Rockets', true, (on) => h.onPose(which === 'bombs' ? { bombs: on } : { rockets: on }))
         stores.set(which, input)
         row.appendChild(box)
       }

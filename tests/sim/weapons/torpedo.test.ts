@@ -9,7 +9,7 @@ import { createState, type Controls } from '../../../src/sim/flight/state.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
 import { createCombat, stepCombat, type CombatShip, type CombatState, type Projectile } from '../../../src/sim/weapons/combat.js'
-import { storesFromLoadout } from '../../../src/sim/weapons/stores.js'
+import { racksLabel, storesFromLoadout } from '../../../src/sim/weapons/stores.js'
 import type { AircraftSpec, StoreType } from '../../../src/sim/flight/schema.js'
 
 const ids = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
@@ -19,6 +19,15 @@ for (const id of ids) {
   for (const [storeId, t] of Object.entries(spec.stores?.types ?? {})) if (t.kind === 'torpedo' && !carriers.has(storeId)) carriers.set(storeId, spec)
 }
 const ENROLLED = ['mk13', 'type91']
+
+// D3 T1 (Mark, 2026-10-09): the loadout picker, the controls legend and the Hangar bench say
+// "Torpedo", not "Bombs", for every airplane whose racks carry a torpedo, and only for those.
+it('names the racks "Torpedo" on exactly the torpedo airplanes in content', () => {
+  const torpedoPlanes = ids.filter((id) => racksLabel(loadAircraftSpec(id)) === 'Torpedo').sort()
+  expect(torpedoPlanes).toEqual(['b5n2-kate', 'g4m-betty', 'tbm-3-avenger'])
+  expect(racksLabel(loadAircraftSpec('f6f-hellcat'))).toBe('Bombs')
+  expect(racksLabel(undefined)).toBe('Bombs')
+})
 
 it('enrolls every torpedo store in content', () => {
   expect(ids.length).toBeGreaterThan(10)

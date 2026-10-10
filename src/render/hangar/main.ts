@@ -12,6 +12,7 @@ import { figuresFor } from './stats.js'
 import { createStage } from './stage.js'
 import { createPanel } from './panel.js'
 import { mountBench, type BenchHandle, type DebugToggle } from './bench.js'
+import { racksLabel } from '../../sim/weapons/stores.js'
 import { benchEnabled } from './benchFlag.js'
 import { installHangarHooks, type HangarWindow } from './hooks.js'
 import { loadRegisteredAirframe } from '../scenarioEntities.js'
@@ -123,7 +124,7 @@ async function boot(): Promise<void> {
         onPose: pose,
         onCycle: (part) => controller.startCycle(part),
         onDebug,
-      })
+      }, racksLabel(entry.subject?.kind === 'aircraft' ? entry.subject.spec : undefined))
       refreshCounts()
     }
   }
