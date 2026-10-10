@@ -18,14 +18,14 @@ const metadata = JSON.parse(readFileSync('content/scenery/beaches.json', 'utf8')
 }
 
 describe('curved beach asset', () => {
-  it('is the measured tiled Blender ribbon, with only the three shared roles', async () => {
+  it('is the measured tiled Blender ribbon, with only the two shared roles', async () => {
     expect(metadata.lines).toBeGreaterThan(100)
     expect(metadata.points).toBeGreaterThan(10_000)
     expect(metadata.glbBytes).toBe(committed.length)
     const doc = await modelIO().readBinary(new Uint8Array(committed))
     const root = doc.getRoot()
     expect(root.listScenes()).toHaveLength(1)
-    expect(root.listMaterials().map((m) => m.getName()).sort()).toEqual(['ShoreDry', 'ShoreSurf', 'ShoreWet'])
+    expect(root.listMaterials().map((m) => m.getName()).sort()).toEqual(['ShoreSand', 'ShoreSurf'])
     const primitives = root.listMeshes().flatMap((m) => m.listPrimitives())
     expect(primitives.length).toBeGreaterThan(3)
     let triangles = 0, vertices = 0

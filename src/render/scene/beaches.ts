@@ -6,7 +6,7 @@ import { horizonSinkNode } from '../horizon.js'
 import { parseGltf, type ParseModel } from '../models/modelCache.js'
 import { cloudSkylightNode, skyIrradianceUpNode, sunColorNode, sunDirectionNode } from './lighting.js'
 
-export const BEACH_ROLE_NAMES = ['ShoreDry', 'ShoreWet', 'ShoreSurf'] as const
+export const BEACH_ROLE_NAMES = ['ShoreSand', 'ShoreSurf'] as const
 export type BeachRoleName = typeof BEACH_ROLE_NAMES[number]
 
 export type BeachStats = {
@@ -43,11 +43,11 @@ function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>): Readonly<Record<Be
     return material
   }
   const c = (rgb: number): Node<'vec3'> => color(rgb) as unknown as Node<'vec3'>
-  const across = smoothstep(0, 1, uv().y)
   // The broad overlap is what hides the source DEM's staircase.  These
   // gradients keep that necessary width from reading as a single-color halo.
-  const dry = make('ShoreDry', mix(c(0x747855), c(0xb7a57e), across))
-  const wet = make('ShoreWet', mix(c(0xb7a57e), c(0x5f5b4c), across))
+  const across = uv().y
+  const dry = mix(c(0x747855), c(0xb7a57e), smoothstep(0, 0.45, across))
+  const sand = make('ShoreSand', mix(dry, c(0x5f5b4c), smoothstep(0.45, 1, across)))
   const surf = make('ShoreSurf', c(0xe4eff0))
   surf.transparent = true
   surf.depthWrite = false
@@ -55,13 +55,13 @@ function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>): Readonly<Record<Be
   // hides the geometry below mean sea level; this fade leaves a soft breaker
   // line instead of a white forty-eight-metre slab.
   surf.opacityNode = float(0.72).mul(float(1).sub(smoothstep(0.05, 0.92, uv().y)))
-  return { ShoreDry: dry, ShoreWet: wet, ShoreSurf: surf }
+  return { ShoreSand: sand, ShoreSurf: surf }
 }
 
 export function createBeaches(root: Object3D): Beaches {
   const eyeXZ = uniform(new Vector2()) as UniformNode<'vec2', Vector2>
   const runtime = beachMaterials(eyeXZ)
-  const roles: Record<BeachRoleName, number> = { ShoreDry: 0, ShoreWet: 0, ShoreSurf: 0 }
+  const roles: Record<BeachRoleName, number> = { ShoreSand: 0, ShoreSurf: 0 }
   const sourceMaterials = new Set<Material>()
   let meshes = 0, triangles = 0
   root.traverse((child) => {

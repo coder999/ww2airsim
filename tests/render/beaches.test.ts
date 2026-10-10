@@ -4,7 +4,7 @@ import { createBeaches, loadBeaches } from '../../src/render/scene/beaches.js'
 
 function fixture(): Group {
   const root = new Group()
-  for (const role of ['ShoreDry', 'ShoreDry', 'ShoreWet', 'ShoreSurf']) {
+  for (const role of ['ShoreSand', 'ShoreSand', 'ShoreSurf']) {
     const material = new MeshBasicMaterial()
     material.name = role
     const mesh = new Mesh(new BoxGeometry(1, 1, 1), material)
@@ -21,12 +21,12 @@ describe('curved beaches', () => {
     const meshes = source.children as Mesh[]
     expect(meshes[0]!.material).toBe(meshes[1]!.material)
     expect(meshes[0]!.material).not.toBe(meshes[2]!.material)
-    expect(meshes[2]!.material).not.toBe(meshes[3]!.material)
+    expect(meshes[0]!.material).not.toBe(meshes[2]!.material)
     beaches.update(123, -456)
     expect(beaches.stats()).toEqual({
-      meshes: 4,
-      triangles: 48,
-      roles: { ShoreDry: 2, ShoreWet: 1, ShoreSurf: 1 },
+      meshes: 3,
+      triangles: 36,
+      roles: { ShoreSand: 2, ShoreSurf: 1 },
       eyeX: 123,
       eyeZ: -456,
     })
@@ -38,7 +38,7 @@ describe('curved beaches', () => {
     const parse = vi.fn(async () => fixture())
     const beaches = await loadBeaches('/beaches.glb', parse)
     expect(parse).toHaveBeenCalledWith('/beaches.glb')
-    expect(beaches.stats().meshes).toBe(4)
+    expect(beaches.stats().meshes).toBe(3)
   })
 
   it('fails loudly when Blender and runtime disagree about a role', () => {
@@ -47,4 +47,3 @@ describe('curved beaches', () => {
     expect(() => createBeaches(root)).toThrow(/unknown material role "SandMaybe"/)
   })
 })
-

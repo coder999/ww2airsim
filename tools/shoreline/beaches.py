@@ -15,8 +15,7 @@ import bpy
 
 TILE_M = 20_000
 ROLES = {
-    'ShoreDry': (0.62, 0.51, 0.34, 1.0),
-    'ShoreWet': (0.36, 0.29, 0.21, 1.0),
+    'ShoreSand': (0.62, 0.51, 0.34, 1.0),
     'ShoreSurf': (0.84, 0.91, 0.91, 0.7),
 }
 
@@ -97,19 +96,23 @@ def main():
     if shore.get('version') != 1:
         raise ValueError(f"unsupported shoreline version {shore.get('version')!r}")
     lanes = shore['lanes']
-    role_lanes = {
-        'ShoreDry': (
-            ('inland', lambda p: lane(p, lanes['inlandM'], p['inlandY']), 0.0),
-            ('dry', lambda p: lane(p, lanes['dryM'], p['dryY']), 1.0),
+    role_segments = {
+        # One opaque material spans both quads.  Its UV.y keeps the vegetation,
+        # dry-sand and wet-sand stops while removing one draw per shoreline tile.
+        'ShoreSand': (
+            (
+                ('inland', lambda p: lane(p, lanes['inlandM'], p['inlandY']), 0.0),
+                ('dry', lambda p: lane(p, lanes['dryM'], p['dryY']), 0.45),
+            ),
+            (
+                ('dry', lambda p: lane(p, lanes['dryM'], p['dryY']), 0.45),
+                ('waterline', lambda p: lane(p, lanes['waterlineM'], lanes['waterlineHeightM']), 1.0),
+            ),
         ),
-        'ShoreWet': (
-            ('dry', lambda p: lane(p, lanes['dryM'], p['dryY']), 0.0),
-            ('waterline', lambda p: lane(p, lanes['waterlineM'], lanes['waterlineHeightM']), 1.0),
-        ),
-        'ShoreSurf': (
+        'ShoreSurf': ((
             ('waterline', lambda p: lane(p, lanes['waterlineM'], lanes['waterlineHeightM'] + 0.03), 0.0),
             ('submerged', lambda p: lane(p, lanes['submergedM'], lanes['submergedHeightM']), 1.0),
-        ),
+        ),),
     }
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -123,9 +126,10 @@ def main():
             j = (i + 1) % len(points)
             a, b = points[i], points[j]
             tile = tile_key(a, b)
-            for role, (lane_a, lane_b) in role_lanes.items():
+            for role, segments in role_segments.items():
                 bucket = buckets.setdefault((tile, role), ([], [], [], {}))
-                add_quad(bucket, line_i, i, j, lane_a, lane_b, a, b)
+                for lane_a, lane_b in segments:
+                    add_quad(bucket, line_i, i, j, lane_a, lane_b, a, b)
             segment_count += 1
 
     for (tile, role), (vertices, faces, uvs, _lookup) in sorted(buckets.items()):
