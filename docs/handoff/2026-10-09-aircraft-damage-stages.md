@@ -1,6 +1,6 @@
 # Handoff: aircraft damage stages (2026-10-09)
 
-**Branch:** `worktree-agent-ae648b20d14101ecc`, not merged. **Plan:** `docs/superpowers/plans/2026-10-09-aircraft-damage-stages.md`. **Run:** unattended; final look only.
+**Merged to `main` 2026-10-10** (f703cbbc; see "Merged" at the end). **Plan:** `docs/superpowers/plans/2026-10-09-aircraft-damage-stages.md`. **Run:** unattended; final look only.
 
 ## What you asked for, and what is there now
 
@@ -19,7 +19,7 @@ All the thresholds are estimates, named constants in `src/sim/damage/model.ts`; 
 
 ## How to see it
 
-**Host:** `https://ww2airsim-2.windomlane.org/` (dev slot 2, served from this worktree; curl returned 200 on 2026-10-09).
+**Host:** `https://ww2airsim.windomlane.org/`, the primary dev server, now that this is on `main`. The slot-2 links below were for the branch and no longer serve it.
 
 - **Straight in:** `https://ww2airsim-2.windomlane.org/?scenario=damage-range&launch`.
 - **Through the title screen:** tick Dev, then pick **Damage Range (dev)**.
@@ -154,3 +154,13 @@ In the furball soak, an undamaged wingman chasing a crippled bandit low stalled 
 - **No asymmetric yaw** when a bomber loses an engine.
 - **Bomber gunners do not shoot** (they never have). Turret fire would be its own plan.
 - **The B-29's 1,440 HP is the B-17's.** Your 3x covers both; a source could separate them.
+
+## Merged (2026-10-10)
+
+Merged into `main` after Mark's go-ahead, 31 commits behind it.
+
+- **Conflicts (10 files), both sides kept.** From `main`: the Betty's Type 91 torpedo bay (C2/D3), I1's stall warning, the torpedo wake, god mode and the Range Test mission. From this branch: the Betty's combat block, engine cut-outs, aircraft fire, and the Damage and Bomber ranges.
+- **D1's B5N2 Kate and TBM Avenger** arrived on `main` with combat blocks at the old scale (70 and 140 structure HP). Mark took the round-2 4x for them too: Kate 280/100, Avenger 560/180 (structure/subsystem). `stages.test.ts` now enrolls 14 airframes.
+- **E2E `furball.spec.ts`** still required an AI-on-AI kill inside its first minute, which round 2 rules out (the wingman's bounce leaves bandit-2 at 0.875). It now asserts a cross-side AI hit, as the Deterministic soak does. The combat diagnostics gained `lastHitBy` for it, because `damage.attacker` is set only once an airplane burns.
+- **Gates:** `npm run verify` on ryzen, 387 files, 5,339 passed, 12 skipped. The combat E2E specs (`ai-*`, `flyableAll`, `furball`, `gunnery`, `strike`, `rangeTestCapture`) on the reference GPU: 26 passed, 5 skipped, furball included after its change.
+

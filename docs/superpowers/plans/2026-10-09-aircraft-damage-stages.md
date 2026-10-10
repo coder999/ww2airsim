@@ -1,7 +1,7 @@
 # Aircraft damage stages: plan
 
 **Run:** unattended. **Mark's viewing checkpoint:** the final product only, flown on a dev slot before any merge.
-**Branch:** `worktree-agent-ae648b20d14101ecc`. **Date:** 2026-10-09.
+**Branch:** `worktree-agent-ae648b20d14101ecc`, merged to `main` 2026-10-10 and deleted. **Date:** 2026-10-09.
 
 Mark's report (2026-10-09): "I shot an enemy zero and it froze in space in mid air. Needs to crash. At a certain level of damage (smoke could be increasingly coming out too) the engine should start to sputter and stall and eventually go dead. At certain hit point the plane catches fire and goes down. If no more hp left at all it should explode in a fireball and pieces of the plane should go down as debris."
 
