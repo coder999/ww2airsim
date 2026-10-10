@@ -4,6 +4,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { bundleForScenario } from '../../../tools/content/load.js'
 import type { AttackKind } from '../../../src/sim/ai/pilot.js'
 import { initialAa } from '../../../src/sim/weapons/aaFire.js'
+import { flatField } from '../mission/fixture.js'
 
 /**
  * The attack calibration bed (E2): one raider flies a route to an anchored ship (or a strip) and
@@ -68,7 +69,8 @@ export function attackWorld(o: AttackOptions): World<undefined> {
   const specs = o.aa === true ? bundle.shipSpecs : Object.fromEntries(Object.entries(bundle.shipSpecs).map(([k, s]) => [k, { ...s, armament: undefined }]))
   // The airfield's own AA battery is off too (unless `aa`): it is the strip's, and it shoots at a raider.
   const airfields = o.aa === true ? bundle.airfields : Object.fromEntries(Object.entries(bundle.airfields).map(([k, f]) => [k, { ...f, buildings: f.buildings.filter((b) => b.kind !== 'aaa') }]))
-  const w = worldFromScenario({ ...bundle, shipSpecs: specs, airfields }, null)
+  // A sea-level terrain field, not null: only a field makes the sea something an airplane can crash into.
+  const w = worldFromScenario({ ...bundle, shipSpecs: specs, airfields }, flatField(0))
   return { ...w, combat: { ...w.combat, aa: initialAa(o.seed + 1) } }
 }
 

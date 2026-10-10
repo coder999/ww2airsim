@@ -176,7 +176,7 @@ export type IngressOrders = {
   readonly attack?: AttackKind
 }
 
-/** E2: the attack runs (`attack.ts`). `kamikaze` is declared for the schema and is not flown yet. */
+/** E2: the attack runs (`attack.ts`). */
 export type AttackKind = 'dive-bomb' | 'torpedo' | 'level-bomb' | 'kamikaze'
 /** E2: where an attack run is. `dive`, `run` and `pullout` are committed (no fighter pre-empts them, no generic floor). */
 export type AttackPhase = 'approach' | 'dive' | 'run' | 'pullout' | 'egress' | 'done'

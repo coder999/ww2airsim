@@ -47,6 +47,20 @@ _Avoid_: perf budget, frame time (alone)
 The fraction of the window's pixel size the scene is drawn at, independent of quality tier.
 _Avoid_: resolution, DPR
 
+## Attack AI
+
+**Attack run**:
+What a raider does on arrival when its ingress orders say `attack`, in place of the orbit: it works up to its weapon's release, presses the pickle, then pulls away. A dive-bomb, a torpedo or a level-bomb run; absent the order a raider orbits its destination as it always has. A green pilot sights worse and presses late, so he misses more than a veteran.
+_Avoid_: bombing run (alone), strike
+
+**Dive-bombing run**:
+An attack run that rolls in from altitude on a steep line at the target, releases the bomb at a few hundred yards of height and pulls out over it. The Val's.
+_Avoid_: dive attack, stuka run
+
+**Torpedo run**:
+An attack run that descends to a few dozen feet over the sea, holds a speed inside the drop envelope, and drops the torpedo a half mile or so from the ship, aimed at where the ship will be when the torpedo gets there.
+_Avoid_: torpedo attack, fish run
+
 ## Ships
 
 **Warship**:
