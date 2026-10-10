@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { loadScenario, bundleForScenario } from '../../../tools/content/load.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../../src/render/content.js'
 import { createTerrainField } from '../../../src/sim/world/terrain.js'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { advance, playerAircraft, withAircraftState, withControls, type World } from '../../../src/sim/loop.js'
@@ -80,7 +80,7 @@ describe('nextPass (Mark, 2026-09-26; M3-R4)', () => {
 // Integration: carrierLanding.test.ts's approach, flown through `advance` so
 // the mission's own pass tracker sees it.
 
-const LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 const header = loadTerrainHeader()
 const terrain = createTerrainField(header, LEVEL, loadTerrainLevel(LEVEL, header))
 

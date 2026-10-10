@@ -38,6 +38,8 @@ import {
  *   gameplay consequence toggle that happens to share this dialog. Folding
  *   it into a module called `quality` would make the module's name a lie
  *   and would tempt the boot sequence into treating it as probe-related.
+ * - Render Scale   -> `ww2airsim.renderScale.v1`, below (A5, 2026-10-10),
+ *   here for the same reason: nothing probes it, so it is not a tier.
  */
 
 const DAMAGE_MODEL_KEY = 'ww2airsim.damageModel.v1'
@@ -85,6 +87,43 @@ export function clearDamageModel(): void {
     window.localStorage.removeItem(DAMAGE_MODEL_KEY)
   } catch (err) {
     console.warn('damage model could not be cleared from localStorage:', err)
+  }
+}
+
+const RENDER_SCALE_KEY = 'ww2airsim.renderScale.v1'
+
+/** A5 (Mark, 2026-10-10): the fraction of native resolution the scene is
+ *  drawn at, on top of `devicePixelRatio` (still capped at 2,
+ *  `renderer.ts`'s `pixelRatioFor`). 1 is the default, so nothing changes
+ *  until a player picks a lower one. */
+export type RenderScale = 0.5 | 0.75 | 1
+export const DEFAULT_RENDER_SCALE: RenderScale = 1
+
+const RENDER_SCALES: readonly RenderScale[] = [0.5, 0.75, 1]
+
+/** `null` on missing or unrecognized data (warns, never throws), like
+ *  `loadDamageModel`. Stored as its decimal string, e.g. `"0.75"`. */
+export function loadRenderScale(): RenderScale | null {
+  try {
+    const raw = window.localStorage.getItem(RENDER_SCALE_KEY)
+    if (raw === null) return null
+    const v = RENDER_SCALES.find((s) => String(s) === raw)
+    if (v === undefined) {
+      console.warn('render scale in localStorage is not a known scale; ignoring:', raw)
+      return null
+    }
+    return v
+  } catch (err) {
+    console.warn('render scale in localStorage is unreadable; ignoring:', err)
+    return null
+  }
+}
+
+export function saveRenderScale(scale: RenderScale): void {
+  try {
+    window.localStorage.setItem(RENDER_SCALE_KEY, String(scale))
+  } catch (err) {
+    console.warn('render scale could not be saved to localStorage:', err)
   }
 }
 
@@ -140,6 +179,14 @@ export const ASSET_QUALITY_OPTIONS: readonly Option<AssetQualityTierName>[] = [
  *  which live-apply. The dialog must say so rather than imply otherwise. */
 export const ASSET_QUALITY_EFFECT_NOTE = 'Takes effect next time you start a sortie.'
 
+/** Worst to best, like the Render Quality row. The notes give the pixel
+ *  cost, which is what the GPU pays: area goes as the square of the scale. */
+export const RENDER_SCALE_OPTIONS: readonly Option<RenderScale>[] = [
+  { value: 0.5, label: '50%', note: 'A quarter of the pixels. Fastest; the picture is visibly soft.' },
+  { value: 0.75, label: '75%', note: 'About half the pixels. A little softer, noticeably faster.' },
+  { value: 1, label: '100%', note: 'Native resolution. Sharpest.' },
+]
+
 export const DAMAGE_MODEL_OPTIONS: readonly Option<DamageModel>[] = [
   {
     value: 'realistic', label: 'Realistic',
@@ -170,6 +217,7 @@ export type SettingsSnapshot = {
    *  takes. `src/sim/` may not read `localStorage` itself, so this value is
    *  threaded in as a parameter -- visual-realism spec §1. */
   readonly arcadeDamage: boolean
+  readonly renderScale: RenderScale
   /** The probe's pick once `main.ts` pushes it in; `null` until then, which
    *  is what suppresses the Recommended stamp rather than a "measuring..."
    *  label (spec §6). */
@@ -200,6 +248,8 @@ export type SettingsCallbacks = {
   /** Fired on a Damage Model pick. `main.ts` keeps the boolean it passes
    *  into `stepCombat` in sync from here. */
   readonly onDamageModelChange?: (model: DamageModel) => void
+  /** Fired on a Render Scale pick; `bootQuality.ts` applies it live. */
+  readonly onRenderScaleChange?: (scale: RenderScale) => void
 }
 
 export type SettingsModel = {
@@ -213,6 +263,7 @@ export type SettingsModel = {
   selectSystemTier(system: QualitySystem, tier: QualityTierName): void
   selectAssetQuality(tier: AssetQualityTierName): void
   selectDamageModel(model: DamageModel): void
+  selectRenderScale(scale: RenderScale): void
   /** Spec §6: clears the saved render-quality choice so the NEXT page load
    *  probes again. Deliberately does not re-probe or revert live state. */
   resetToAutoDetect(): void
@@ -252,15 +303,12 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   // replace it via `setCurrentQuality` a few seconds later.
   let quality: QualitySettings = loadQualitySettings() ?? defaultQualitySettings('high')
 
-  // Nothing persisted -> show what this boot is ACTUALLY loading, which is
-  // `content.ts`'s interim constant, not the spec §10 addendum's eventual
-  // `medium` first-visit default. Those differ today for a measured reason
-  // (an L0 floor allocates ~358 MB of mesh textures; see that constant's own
-  // comment) and a dialog that preselected `medium` while the loader fetched
-  // L1 would be stating something false. When Task 6's memory work lets that
-  // constant move, this default follows it with no edit here.
+  // Nothing persisted -> show what this boot is ACTUALLY loading: the same
+  // constant the loader reads, so the dialog cannot preselect one tier while
+  // the loader fetches another.
   let assetQuality: AssetQualityTierName = loadAssetQualityTier() ?? INTERIM_ASSET_QUALITY_TIER
   let damageModel: DamageModel = loadDamageModel() ?? DEFAULT_DAMAGE_MODEL
+  let renderScale: RenderScale = loadRenderScale() ?? DEFAULT_RENDER_SCALE
 
   let isOpen = false
   let advancedExpanded = false
@@ -291,6 +339,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       assetQuality,
       damageModel,
       arcadeDamage: damageModel === 'arcade',
+      renderScale,
       recommendedTier,
       // Read from storage rather than tracked as a flag: `main.ts` also saves
       // (spec §5 step 3, the probe's recommendation), so a locally-tracked
@@ -315,6 +364,12 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       damageModel = model
       saveDamageModel(model)
       callbacks.onDamageModelChange?.(model)
+      changed()
+    },
+    selectRenderScale: (scale: RenderScale): void => {
+      renderScale = scale
+      saveRenderScale(scale)
+      callbacks.onRenderScaleChange?.(scale)
       changed()
     },
     resetToAutoDetect: (): void => {
@@ -451,6 +506,17 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   }
   sheet.appendChild(advancedPanel)
 
+  // ---- Render Scale (A5): applies live, like the rows above ----
+  sheet.appendChild(sectionTitle('Render Scale'))
+  const scaleGroup = radioGroup('Render scale')
+  const scaleOptions = new Map<RenderScale, HTMLDivElement>()
+  for (const option of RENDER_SCALE_OPTIONS) {
+    const el = ballotOption(option.label, option.note, () => model.selectRenderScale(option.value))
+    scaleOptions.set(option.value, el)
+    scaleGroup.appendChild(el)
+  }
+  sheet.appendChild(scaleGroup)
+
   // ---- Asset Quality ----
   sheet.appendChild(sectionTitle('Asset Quality'))
   const assetGroup = radioGroup('Asset quality')
@@ -517,6 +583,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     for (const system of ADVANCED_SYSTEMS) {
       markGroup(systemOptions.get(system.value) ?? new Map(), s.quality[system.value])
     }
+    markGroup(scaleOptions, s.renderScale)
     markGroup(assetOptions, s.assetQuality)
     markGroup(damageOptions, s.damageModel)
 

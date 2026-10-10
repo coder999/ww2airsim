@@ -116,11 +116,11 @@ const FINEST_NODE_SIZE_M = (2 * HEADER.halfExtentM) / 2 ** (RINGS - 1)
  * "if L0-L1 ever ship, the 'buys no detail' half of the argument stops
  * holding and this wants re-measuring." Task 2 (2026-09-24) is that event --
  * L0 and L1 are now committed, `finestFetchedLevelFor` maps `medium`/`high`/
- * `ultra` to L0, and once Task 6 wires a real Asset Quality choice into the
- * boot sequence some sessions WILL render with L0 as their finest ring. So
- * the "buys no detail" half is now open again and unverified for those
- * sessions; the frame-time half (+0.85 ms, 40% of the frame) does not depend
- * on which level is finest and would not change. Re-measuring is real GPU
+ * `ultra` to L0, and since L1.1 (2026-10-10) Medium is the first-visit
+ * default, so most sessions render with L0 as their finest ring. So the
+ * "buys no detail" half is open again and unverified; the frame-time half
+ * (+0.85 ms, 40% of the frame) does not depend on which level is finest and
+ * would not change. Re-measuring is real GPU
  * work (E2E), outside what this task touches.
  */
 const FINEST_RANGE_M = 2 * FINEST_NODE_SIZE_M

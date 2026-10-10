@@ -3,11 +3,11 @@ import { selectNodes, LOD, type LodNode } from '../../src/render/terrain/lod.js'
 import { hasRealLevelFile, loadTerrainHeader, loadTerrainLevel, terrainLevelPath } from '../../tools/terrain/load.js'
 import { createTerrainField, heightAt, type TerrainField } from '../../src/sim/world/terrain.js'
 import { samplesAtLevel, type TerrainHeader } from '../../src/sim/world/schema.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 
 /**
  * The level a real page load actually fetches today -- `main.ts`'s own
- * placeholder, `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` (see its own
+ * placeholder, `content.ts`'s `GROUND_TRUTH_TIER` (see its own
  * comment for what it is and why). Before Task 2 (2026-09-24) the tests
  * below used `tools/terrain/load.ts`'s `FIRST_COMMITTED_LEVEL` for this
  * purpose, because it was numerically the same thing (2); that task
@@ -15,7 +15,7 @@ import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/ren
  * "what a page load fetches" (tier-dependent), so a test measuring what the
  * app actually flies over has to name the second concept, not the first.
  */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 
 const area = (n: { sizeM: number }) => n.sizeM * n.sizeM
 

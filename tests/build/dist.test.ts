@@ -263,9 +263,9 @@ describe('the built artifact', () => {
       expect(GA4_HOSTS.length).toBeGreaterThan(0)
       const coarsest = coarsestFetchedLevel(TERRAIN_HEADER.levels)
       // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- since Task 6
-      // (2026-09-24) the FIRST-VISIT default rather than a placeholder, and
-      // still `'low'`/L1 for the memory reason that constant documents. This
-      // loop asserts every level a default page load actually fetches.
+      // (2026-09-24) the FIRST-VISIT default rather than a placeholder;
+      // `'medium'`/L0 since L1.1 (2026-10-10). This loop asserts every level
+      // a default page load actually fetches.
       for (let level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER); level <= coarsest; level++) {
         // L0 is the one level this environment may not have (`ci.yml` checks
         // out without `lfs: true`), so it is skipped here exactly as it is in

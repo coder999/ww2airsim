@@ -28,10 +28,37 @@ export function normalizeGpuError(info: string | { message?: string }): string {
   return (typeof info === 'string' ? info : info.message) || 'Unknown GPU error'
 }
 
+/** H0 (Mark 2026-10-08): `?renderScale=` renders at a fraction of the window
+ *  size, so 4K and 1440p can be compared live on one monitor. Clamped to
+ *  [0.25, 1]. Absent or not a number reads `null`, meaning no override, so
+ *  the player's Render Scale setting (A5, `settings.ts`) applies instead. */
+export function renderScaleFromQuery(search: string): number | null {
+  const raw = new URLSearchParams(search).get('renderScale')
+  const v = raw === null || raw.trim() === '' ? NaN : Number(raw)
+  return Number.isFinite(v) ? Math.min(1, Math.max(0.25, v)) : null
+}
+
+/** The renderer's pixel ratio: the display's, capped at 2 as it always was,
+ *  times the render scale. The cap comes first, so 50% on a 3x phone is 1. */
+export function pixelRatioFor(devicePixelRatio: number, renderScale: number): number {
+  return Math.min(devicePixelRatio, 2) * renderScale
+}
+
+/** A5: applies a render scale live. three 0.186.0's `setPixelRatio` resizes
+ *  the canvas backing store itself (`CanvasTarget.setPixelRatio`), and the
+ *  post chain follows on its next frame (`pipeline.ts` header), so a pick
+ *  needs no reload. */
+export function applyRenderScale(renderer: WebGPURenderer, renderScale: number): void {
+  renderer.setPixelRatio(pixelRatioFor(window.devicePixelRatio, renderScale))
+}
+
 /**
  * The device limits to request beyond WebGPU's defaults.
  *
- * Terrain level L0 is an 8193x8193 height texture (Asset Quality Medium and
+ * Raised for a whole-world terrain L0 texture. Since L1.1 (2026-10-10) L0 is a
+ * 1025-square window (`terrain/mesh.ts`) and nothing needs these limits that
+ * is known of; the request stays because it cannot fail. The history: L0 was
+ * an 8193x8193 height texture (Asset Quality Medium and
  * above), one texel past the default `maxTextureDimension2D` of 8192. Without
  * this request every GPU rejected it, the terrain bind group went invalid, and
  * the whole scene pass drew nothing but the clouds -- found on Mark's work
@@ -42,16 +69,6 @@ export function normalizeGpuError(info: string | { message?: string }): string {
  * 256 MiB, so that limit is raised too. Asking for the adapter's own maximum
  * can never fail the device request.
  */
-/** H0 (Mark 2026-10-08): `?renderScale=` renders at a fraction of the window
- *  size, so 4K and 1440p can be compared live on one monitor. Clamped to
- *  [0.25, 1]; absent or not a number reads 1. The player-facing setting is
- *  MASTER_PLAN A5. */
-export function renderScaleFromQuery(search: string): number {
-  const raw = new URLSearchParams(search).get('renderScale')
-  const v = raw === null || raw.trim() === '' ? NaN : Number(raw)
-  return Number.isFinite(v) ? Math.min(1, Math.max(0.25, v)) : 1
-}
-
 export function requiredDeviceLimits(adapterLimits: {
   readonly maxTextureDimension2D: number
   readonly maxBufferSize: number
@@ -89,8 +106,8 @@ export async function initRenderer(
   // the cadence to a display that turned out to run at 120 Hz (design spec
   // section 10.2). See `diagnostics.ts`'s `gpuFrameTimesMs`.
   trackTimestamp = false,
-  // The fraction of the window's pixel size the scene is drawn at, from
-  // `renderScaleFromQuery` (DEV only). 1 = native, capped at 2x DPR as before.
+  // The fraction of the window's pixel size the scene is drawn at: the
+  // player's Render Scale setting, or DEV's `?renderScale=`. 1 = native.
   renderScale = 1,
 ): Promise<RendererBundle> {
   if (!('gpu' in navigator)) throw new Error('no-webgpu')
@@ -124,7 +141,7 @@ export async function initRenderer(
     requiredLimits: requiredDeviceLimits(adapter.limits),
   })
   await renderer.init()
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2) * renderScale)
+  applyRenderScale(renderer, renderScale)
   renderer.setSize(window.innerWidth, window.innerHeight)
 
   return { renderer, adapterVerdict }

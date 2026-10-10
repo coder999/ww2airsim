@@ -3,16 +3,16 @@ import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.j
 import { runEntitySoak, runSoak, runTerrainSoak } from '../../tools/soak/run.js'
 import { type AssistSettings } from '../../src/assists/index.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 import { createTerrainField } from '../../src/sim/world/terrain.js'
 
-/** The level a real page load actually flies over today -- see
- *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+/** The level the headless suite measures the world on (L1 since L1.1) -- see
+ *  `content.ts`'s `GROUND_TRUTH_TIER` for what it is and why.
  *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
  *  numerically the same thing (2) at the time; the two concepts have since
  *  diverged ("what's committed on disk", now 0, vs "what a page load
  *  fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 
 /**
  * Every assist on, stated here rather than read from

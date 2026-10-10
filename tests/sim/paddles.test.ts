@@ -9,7 +9,7 @@ import { effectiveStallSpeedMps } from '../../src/sim/ground.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { advance, playerAircraft, withAircraftState, withControls, type ShipEntity, type World } from '../../src/sim/loop.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import type { AircraftState } from '../../src/sim/flight/state.js'
 import { approachControls, VREF_STALL_MULTIPLE } from '../../tools/autopilot/approach.js'
@@ -128,7 +128,7 @@ describe('paddlesWindow (M3-R4): exactly the gate of paddlesCue', () => {
 
   it('agrees with paddlesCue !== null every 60th tick of the carrierLanding approach', () => {
     // The Step 1 probe's approach (M3 Task 3, 2026-09-26): carrierLanding.test.ts's setup and loop.
-    const level = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+    const level = finestFetchedLevelFor(GROUND_TRUTH_TIER)
     const header = loadTerrainHeader()
     const terrain = createTerrainField(header, level, loadTerrainLevel(level, header))
     let world: World<undefined> = worldFromScenario(loadScenarioBundle('deck-quals'), terrain)

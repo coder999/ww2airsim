@@ -40,7 +40,7 @@ render quality with auto-detect.
   - Show the recommendation on a quality step in the launch flow, with an override.
 - This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
 
-**A5. Render scale in Settings (S, after H0 and A4).**
+**A5. Render scale in Settings (S, after H0 and A4). Done 2026-10-10** (branch `a5-render-scale`): Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
@@ -237,7 +237,8 @@ one plan for the lot.
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**
-1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player.
+1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player. **Merged 2026-10-10, not deployed:** L0 is held as a window around the camera, and the first-visit default is Medium. At Medium the GPU process now uses what it does at Low (1.04 GB, down from 1.32), and every 1440p High budget view passes. The first visit downloads 134 MB more, so deploying is Mark's call. Mark kept the headless suite on L1 (handoff, rulings). Handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`.
+1a. **Compress L0 and L1 (S-M; Mark queued it 2026-10-10, ideally before L1.1 deploys).** `gzip -6` takes the Medium first-visit download's L0 from 134 MB to 37 MB and L1 from 33.6 to 9.6 MB, following `cover.bin.gz`. Touches the LFS file, the build, `dist.test.ts`'s byte pins and the loader (L1.1 handoff, ruling 4).
 2. Real tree crowns (visual-realism §3.1). Trees are three flat icosahedra today (`scene/vegetation.ts:144-167`).
 3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
 

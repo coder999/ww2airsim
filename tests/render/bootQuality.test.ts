@@ -6,7 +6,7 @@ import {
   defaultQualitySettings, loadQualitySettings, saveQualitySettings, saveAssetQualityTier,
   type QualityTierName,
 } from '../../src/render/quality.js'
-import { saveDamageModel } from '../../src/render/settings.js'
+import { saveDamageModel, saveRenderScale } from '../../src/render/settings.js'
 import { INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
 
 /** The in-memory `Storage` stand-in `quality.test.ts`, `roster.test.ts` and
@@ -156,15 +156,13 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
 })
 
 describe('Asset Quality at boot (render-quality-selector spec §10)', () => {
-  it('defaults a first-time visitor to the INTERIM tier, never a hardcoded medium', () => {
-    // The memory constraint, pinned: an L0 floor allocates ~358 MB of mesh
-    // textures per `createTerrainMesh` and fetches a 134 MB level, and nothing
-    // has made that allocation lazy yet (see `INTERIM_ASSET_QUALITY_TIER`'s
-    // own comment). A first visit must not pay it unasked. The second
-    // assertion is deliberately redundant TODAY and is the one that fails if
-    // somebody moves the constant without doing that memory work.
+  it('defaults a first-time visitor to the INTERIM tier', () => {
+    // Medium since L1.1 (2026-10-10), Mark's 2026-09-27 ruling, once L0 stopped
+    // costing 358 MB of mesh textures. The second assertion pins the ruling:
+    // moving the default changes what every first visit downloads (134 MB
+    // more at Medium), which is a ruling, not a refactor.
     expect(createBootQuality().assetQuality).toBe(INTERIM_ASSET_QUALITY_TIER)
-    expect(INTERIM_ASSET_QUALITY_TIER).toBe('low')
+    expect(INTERIM_ASSET_QUALITY_TIER).toBe('medium')
   })
 
   it('honors an explicit pick from a previous visit', () => {
@@ -199,6 +197,22 @@ describe('the Damage Model flag at boot (visual-realism spec §1)', () => {
     quality.bind(recordingTargets())
     quality.applyProbeResult('low')
     expect(quality.current()).toEqual(defaultQualitySettings('low'))
+  })
+})
+
+describe('the Render Scale at boot (A5)', () => {
+  it('reads the persisted scale, applies it on bind, and follows a live pick', () => {
+    expect(createBootQuality().renderScale()).toBe(1)
+    saveRenderScale(0.5)
+    const quality = createBootQuality()
+    expect(quality.renderScale()).toBe(0.5)
+    // A pick before bind (the title is clickable during boot's awaits) lands on bind.
+    quality.settings.selectRenderScale(0.75)
+    const applied: number[] = []
+    quality.bindRenderScale((s) => { applied.push(s) })
+    expect(applied).toEqual([0.75])
+    quality.settings.selectRenderScale(1)
+    expect(applied).toEqual([0.75, 1])
   })
 })
 
@@ -239,6 +253,11 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
     expect(source).toContain('setFxTier: applyFxTier')
     expect(source).toContain('quality.applyProbeResult(tier.name)')
     expect(source).toContain('let qualityChecked = quality.probeSuppressed')
+  })
+
+  it('starts the renderer at the Render Scale setting and binds it live, unless DEV overrides (A5)', () => {
+    expect(source).toContain('renderScaleOverride ?? quality.renderScale())')
+    expect(source).toContain('if (renderScaleOverride === null) quality.bindRenderScale(')
   })
 
   it('reads the terrain floor from the persisted asset tier, not a hardcoded one', () => {

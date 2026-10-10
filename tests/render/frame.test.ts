@@ -23,19 +23,19 @@ import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createTerrainField, heightAt, SEA_LEVEL_M, type TerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { loadTerrainHeader, loadTerrainLevel } from '../../tools/terrain/load.js'
-import { finestFetchedLevelFor, INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import { finestFetchedLevelFor, GROUND_TRUTH_TIER } from '../../src/render/content.js'
 import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
 import { decksOf, deckLocal } from '../../src/sim/world/deck.js'
 import { initialAircraftState } from '../../src/render/spawn.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
-/** The level a real page load actually flies over today -- see
- *  `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` for what it is and why.
+/** The level the headless suite measures the world on (L1 since L1.1) -- see
+ *  `content.ts`'s `GROUND_TRUTH_TIER` for what it is and why.
  *  Before Task 2 (2026-09-24) this used `FIRST_COMMITTED_LEVEL`,
  *  numerically the same thing (2) at the time; the two concepts have since
  *  diverged ("what's committed on disk", now 0, vs "what a page load
  *  fetches", tier-dependent). */
-const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(INTERIM_ASSET_QUALITY_TIER)
+const GROUND_TRUTH_LEVEL = finestFetchedLevelFor(GROUND_TRUTH_TIER)
 const f6f = loadAircraftSpec('f6f-hellcat')
 const tacloban = loadAirfield('tacloban')
 const keys = (...k: string[]) => new Set(k)

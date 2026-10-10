@@ -1,7 +1,7 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
-import { initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
+import { applyRenderScale, initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
@@ -645,8 +645,8 @@ async function boot(): Promise<void> {
   // Captured once per page load, before any object depends on it: the terrain
   // pyramid's floor cannot change mid-flight, which is what the dialog's
   // `ASSET_QUALITY_EFFECT_NOTE` tells the player. Nothing persisted means
-  // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` (L1), not the spec's eventual
-  // `'medium'` (L0) -- see that constant, and `BootQuality.assetQuality`.
+  // `content.ts`'s `INTERIM_ASSET_QUALITY_TIER` -- see that constant, and
+  // `BootQuality.assetQuality`.
   const finestFetchedLevel = finestFetchedLevelFor(quality.assetQuality)
 
   // The title screen (2026-09-19), created before anything that can take
@@ -813,8 +813,9 @@ async function boot(): Promise<void> {
   // Production tracked them for the quality probe until A4, which measures
   // frame intervals instead (`adaptQuality`).
   boot.begin('renderer')
-  const renderScale = import.meta.env.DEV ? renderScaleFromQuery(location.search) : 1
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScale)
+  const renderScaleOverride = import.meta.env.DEV ? renderScaleFromQuery(location.search) : null
+  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScaleOverride ?? quality.renderScale())
+  if (renderScaleOverride === null) quality.bindRenderScale((s) => { applyRenderScale(renderer, s) })
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
@@ -947,7 +948,7 @@ async function boot(): Promise<void> {
       qualityProbeChecked: () => qualityChecked,
       oceanLandWeight: (x, z) => {
         if (!oceanDepth) return null
-        return landWeightAt(terrain.levelTexture(finestFetchedLevel), oceanDepth.header.halfExtentM, x, z)
+        return landWeightAt(terrain.levelTexture(terrain.wholeLevel), oceanDepth.header.halfExtentM, x, z)
       },
       oceanComputeTimesMs: () => cascades.map(c => c.computeTimesMs()),
       oceanDisplacementSample: async (index) => {
@@ -1316,9 +1317,9 @@ async function boot(): Promise<void> {
   // `finestFetchedLevel` is computed ONCE, at the top of `boot()` from the
   // persisted Asset Quality tier -- the only call site in `src/` -- and
   // threaded into every place that needs it (`createTerrainMesh`'s
-  // `finestLevel` param, `terrain.levelTexture()` below,
-  // `loadTerrainProgressively`'s and `applyTerrainLevel`'s `finestLevel`
-  // params further down) rather than resolved independently in each: until
+  // `finestLevel` param, `loadTerrainProgressively`'s and
+  // `applyTerrainLevel`'s `finestLevel` params further down; the ocean reads
+  // `terrain.wholeLevel` instead) rather than resolved independently in each: until
   // 2026-09-25 (Task 2 review) `createTerrainMesh` called
   // `finestFetchedLevelFor('low')` itself, a second source of truth that
   // happened to agree with this one only because both were the same
@@ -1384,7 +1385,7 @@ async function boot(): Promise<void> {
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
-  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(finestFetchedLevel), shadow)
+  let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(terrain.wholeLevel), shadow)
   scene.add(water)
   /**
    * Swap the ocean onto `name`'s cascades, live. Extracted from the probe
@@ -1429,7 +1430,7 @@ async function boot(): Promise<void> {
     if (request !== oceanTierRequest) { ready.forEach(c=>c.dispose()); return }
     requestedOceanTier = null
     if (ready.length !== next.cascades) { ready.forEach(c=>c.dispose()); return }
-    const replacement = createOcean(oceanDepth!,force,ready,terrain.levelTexture(finestFetchedLevel),shadow)
+    const replacement = createOcean(oceanDepth!,force,ready,terrain.levelTexture(terrain.wholeLevel),shadow)
     scene.remove(water)
     water.userData.disposeOcean()
     cascades.forEach(c=>c.dispose())

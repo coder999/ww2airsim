@@ -2,7 +2,7 @@ import {
   defaultQualitySettings, loadQualitySettings, saveQualitySettings,
   type AssetQualityTierName, type QualitySettings, type QualityTierName,
 } from './quality.js'
-import { createSettingsModel, type SettingsModel } from './settings.js'
+import { createSettingsModel, type RenderScale, type SettingsModel } from './settings.js'
 
 /**
  * The join between the Settings dialog's model (`settings.ts`, Task 5) and
@@ -62,12 +62,9 @@ export type BootQuality = {
    * terrain pyramid's floor is chosen once, before any mesh exists.
    *
    * With nothing persisted this is `content.ts`'s `INTERIM_ASSET_QUALITY_TIER`
-   * -- `'low'`/L1 -- NOT the spec §10 addendum's eventual `'medium'`. That
-   * constant's own comment holds the measured reason (an L0 floor allocates
-   * ~358 MB of mesh textures per `createTerrainMesh` and fetches a 134 MB
-   * level); a first-time visitor must not pay it unasked. A player who picks
-   * Medium or better in the dialog gets exactly what they asked for on their
-   * next load, which is the point of the picker.
+   * (`'medium'` since L1.1, 2026-10-10; that constant says what it costs). A
+   * player who picks another tier in the dialog gets it on their next load,
+   * which is the point of the picker.
    */
   readonly assetQuality: AssetQualityTierName
   /**
@@ -80,6 +77,12 @@ export type BootQuality = {
   /** The boolean `stepCombat`'s `arcadeDamage` parameter takes, live: a
    *  Damage Model pick applies to the very next tick, with no reload. */
   readonly arcadeDamage: () => boolean
+  /** A5: the Render Scale in force, for `initRenderer`. */
+  readonly renderScale: () => RenderScale
+  /** A5: connects the live render-scale setter and applies the current value
+   *  at once, as `bind` does, so a pick made during boot still lands.
+   *  `main.ts` skips it under DEV's `?renderScale=`, which then wins. */
+  bindRenderScale(set: (scale: RenderScale) => void): void
   /**
    * Connects the live tier setters, once `main.ts` has objects to move, and
    * immediately applies whatever the model currently holds -- which is what
@@ -113,9 +116,11 @@ export function createBootQuality(): BootQuality {
   }
 
   let arcade = false
+  let setScale: ((scale: RenderScale) => void) | null = null
   const settings = createSettingsModel({
     onQualityChange: (q) => { apply(q) },
     onDamageModelChange: (model) => { arcade = model === 'arcade' },
+    onRenderScaleChange: (scale) => { setScale?.(scale) },
   })
   // The model loaded the persisted damage model at construction; this is that
   // value. Read through the snapshot rather than `loadDamageModel()` again so
@@ -129,6 +134,11 @@ export function createBootQuality(): BootQuality {
     assetQuality,
     probeSuppressed: savedAtBoot !== null,
     arcadeDamage: () => arcade,
+    renderScale: () => settings.snapshot().renderScale,
+    bindRenderScale: (set): void => {
+      setScale = set
+      set(settings.snapshot().renderScale)
+    },
     bind: (next: QualityTargets): void => {
       targets = next
       apply(settings.snapshot().quality)

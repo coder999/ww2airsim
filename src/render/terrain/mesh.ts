@@ -67,7 +67,13 @@ export type TerrainMesh = {
   readonly object: Object3D
   setLevel(level: number, data: Int16Array): void
   update(cameraX: number, cameraZ: number): void
+  /** A WHOLE-world level's texture; throws for a windowed level (below). */
   levelTexture(level: number): DataTexture
+  /** The finest level held whole: what the ocean's shoreline reads. */
+  readonly wholeLevel: number
+  /** A windowed level's texture and the live origin uniform (in that level's
+   *  samples, column then row) the shader subtracts; throws for a whole level. */
+  levelWindow(level: number): { readonly texture: DataTexture; readonly origin: Vector2 }
   shaderCameraXZ(): Vector2
   /** Plan 13b: the land-cover raster, once fetched. */
   setCover(data: Uint8Array): void
@@ -130,6 +136,34 @@ export function sampleLevelsForRing(
 const INITIAL_RING_CAPACITY = 64
 
 /**
+ * L1.1 (2026-10-10): levels finer than this one are held as a camera-centred
+ * window instead of a whole-world texture. L1 stays whole because it is the
+ * Low tier's floor and the grid the ocean's shoreline fade reads across the
+ * whole world (`wholeLevel`); windowing it too would save 67 MB and coarsen
+ * that fade to L2 (handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`,
+ * "Rulings for Mark").
+ */
+export const FINEST_WHOLE_LEVEL = 1
+
+/** Edge of a windowed level's texture, in samples: 1025 x 1025 r32float is
+ *  4,202,500 bytes, against L0's whole 268,500,996. Twice the rings' reach
+ *  (below) plus room to move: the camera travels about 252 samples (3.8 mi
+ *  at L0) between refills. */
+export const WINDOW_SAMPLES = 1025
+
+/**
+ * How far from the camera, in a level's own samples, a patch that reads that
+ * level can reach. Ring k reads levels k and k+1, and a ring's reach doubles
+ * with its node size, as a level's sample spacing does -- so the reach is the
+ * same number of samples at every level (the clipmap property). Measured
+ * 2026-10-10 with `selectNodes` over the whole world at a 1,250 m camera
+ * grid: 256 for L0 to L5 (6,250 m, 3.9 mi, at L0). Plus one for the
+ * bilinear tap's far sample, plus slack. `tests/render/terrainLoad.test.ts` sweeps cameras and asserts every
+ * patch stays inside its windows, so a reach too small fails there.
+ */
+export const WINDOW_REACH_SAMPLES = 260
+
+/**
  * Bilinear height and horizontal gradient at a world (x, z), read from one
  * pyramid level's texture. Returns `vec3(heightM, dh/dx, dh/dz)`.
  *
@@ -189,6 +223,9 @@ function sampleField(
   samples: number,
   halfExtentM: number,
   worldXZ: Node<'vec2'>,
+  // A windowed level's origin, in its samples (`createTerrainMesh`): the
+  // texel index is the whole-grid index minus this, clamped into the window.
+  windowOrigin: UniformNode<'vec2', Vector2> | null = null,
 ): Node<'vec3'> {
   // Sample-aligned grid (mips.ts): (samples-1) cells span the full width.
   const stepM = (2 * halfExtentM) / (samples - 1)
@@ -207,8 +244,11 @@ function sampleField(
   const fx = colF.sub(col0)
   const fz = rowF.sub(row0)
 
+  const windowLast = WINDOW_SAMPLES - 1
   const texel = (col: Node<'float'>, row: Node<'float'>): Node<'float'> =>
-    textureLoad(tex, ivec2(int(col), int(row))).r
+    windowOrigin
+      ? textureLoad(tex, ivec2(int(clamp(col.sub(windowOrigin.x), 0, windowLast)), int(clamp(row.sub(windowOrigin.y), 0, windowLast)))).r
+      : textureLoad(tex, ivec2(int(col), int(row))).r
 
   const h00 = texel(col0, row0)
   const h10 = texel(col1, row0)
@@ -244,8 +284,10 @@ function sampleField(
 function createRingMaterial(
   fineTex: DataTexture,
   fineSamples: number,
+  fineOrigin: UniformNode<'vec2', Vector2> | null,
   coarseTex: DataTexture,
   coarseSamples: number,
+  coarseOrigin: UniformNode<'vec2', Vector2> | null,
   halfExtentM: number,
   cameraXZ: UniformNode<'vec2', Vector2>,
   cover: CoverNodes,
@@ -259,8 +301,8 @@ function createRingMaterial(
   const spec = attribute('nodeSpec', 'vec4')
   const worldXZ = vec2(positionLocal.x, positionLocal.z).mul(spec.z).add(spec.xy)
 
-  const fine = sampleField(fineTex, fineSamples, halfExtentM, worldXZ)
-  const coarse = sampleField(coarseTex, coarseSamples, halfExtentM, worldXZ)
+  const fine = sampleField(fineTex, fineSamples, halfExtentM, worldXZ, fineOrigin)
+  const coarse = sampleField(coarseTex, coarseSamples, halfExtentM, worldXZ, coarseOrigin)
   // Height AND gradient blend by the same morph, which is what keeps the
   // shading consistent with the surface: the derivative of a blend is the
   // blend of the derivatives.
@@ -425,9 +467,7 @@ function createGridAttributes(): { position: BufferAttribute; index: BufferAttri
  * `object.children[k]` is ring k, in order, and says so in its name -- the
  * mesh's own bookkeeping depends on it and so does the Node test.
  *
- * `finestLevel` bounds the texture map from below (see its own comment,
- * further down, for the memory reason it matters which level the caller
- * passes) and has to be the SAME value the caller passes to
+ * `finestLevel` bounds the texture map from below and has to be the SAME value the caller passes to
  * `loadTerrainProgressively`'s `finestLevel` argument (`terrain/load.ts`) --
  * this function does not resolve it independently, on purpose (Task 2
  * review, 2026-09-25: it used to, and `main.ts` computed a second, separate
@@ -477,25 +517,19 @@ export function createTerrainMesh(
   // once and threading it through both places it is needed is what makes
   // that agreement structural instead of coincidental.
   //
-  // The memory reason the CALLER should pass `'low'`'s level rather than the
-  // spec's eventual `'medium'` default, until Task 6 adds lazy/on-demand
-  // level-texture allocation: this loop allocates one `Float32Array(n^2)`
-  // PER LEVEL from `finestLevel` upward, all at once, for the life of the
-  // mesh. At L0 that is 8193x8193 (268 MB) + L1's 4097x4097 (67 MB) + L2's
-  // 2049x2049 (17 MB) + ... -- roughly 358 MB per mesh instance -- against
-  // 90 MB starting from L1. Measured 2026-09-24: a `'medium'` floor OOM'd a
-  // single vitest worker (`tests/render/terrainLoad.test.ts`, ~15
-  // `createTerrainMesh` calls in one file, "JavaScript heap out of memory"
-  // at ~4.1 GB), and the same allocation runs in a real browser tab the
-  // moment Task 6 flips the default -- this is a real memory ceiling, not a
-  // test-only inconvenience.
+  // Memory (L1.1, 2026-10-10): a whole-world `Float32Array(n^2)` per level
+  // from L0 up was 358,043,428 bytes of height texture, held on the CPU and
+  // again on the GPU; L0 alone is 268,500,996 and needed a 270.6 MB upload
+  // staging buffer. That is why the first-visit default stayed Low until
+  // this change. Levels finer than `FINEST_WHOLE_LEVEL` are now a
+  // `WINDOW_SAMPLES`-square window around the camera, refilled from the
+  // decoded level (the same `Int16Array` the physics keeps) when the camera
+  // nears its edge; from an L0 floor that is 93,744,932 bytes in all.
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
   const cover = createCoverNodes(COVER_HEADER)
 
-  const textures = new Map<number, DataTexture>()
-  for (let level = finestLevel; level <= coarsestLevel; level++) {
-    const n = samplesAtLevel(header, level)
+  const newHeightTexture = (n: number): DataTexture => {
     // Zero-filled until `setLevel` lands: zero is sea level, and the sea is
     // discarded, so nothing is drawn at all until real heights arrive rather
     // than a flat plate that flashes and vanishes.
@@ -506,18 +540,69 @@ export function createTerrainMesh(
     tex.magFilter = NearestFilter
     tex.generateMipmaps = false
     tex.needsUpdate = true
-    textures.set(level, tex)
+    return tex
   }
 
+  type LevelWindow = {
+    readonly texture: DataTexture
+    readonly origin: UniformNode<'vec2', Vector2>
+    readonly samples: number
+    source: Int16Array | null
+  }
+  const textures = new Map<number, DataTexture>()
+  const windows = new Map<number, LevelWindow>()
+  for (let level = finestLevel; level <= coarsestLevel; level++) {
+    const n = samplesAtLevel(header, level)
+    if (level < FINEST_WHOLE_LEVEL && n > WINDOW_SAMPLES) {
+      windows.set(level, { texture: newHeightTexture(WINDOW_SAMPLES), origin: uniform(new Vector2(NaN, NaN)), samples: n, source: null })
+    } else {
+      textures.set(level, newHeightTexture(n))
+    }
+  }
+  const wholeLevel = Math.min(Math.max(finestLevel, FINEST_WHOLE_LEVEL), coarsestLevel)
+
+  /**
+   * Keep a window over the samples the rings can read around the camera,
+   * `WINDOW_REACH_SAMPLES` each way (clipped to the grid). When they would
+   * leave it, re-centre on the camera (clamped inside the grid) and refill
+   * from the decoded level: decimetres on disk, metres in the shader. The
+   * origin uniform and the texture change together, before the next draw.
+   */
+  const placeWindow = (w: LevelWindow, cameraX: number, cameraZ: number, refill: boolean): void => {
+    const n = w.samples
+    const stepM = (2 * header.halfExtentM) / (n - 1)
+    const col = (cameraX + header.halfExtentM) / stepM
+    const row = (cameraZ + header.halfExtentM) / stepM
+    const o = w.origin.value
+    const covers = (c: number, origin: number): boolean =>
+      Math.max(0, Math.floor(c) - WINDOW_REACH_SAMPLES) >= origin &&
+      Math.min(n - 1, Math.ceil(c) + WINDOW_REACH_SAMPLES) <= origin + WINDOW_SAMPLES - 1
+    if (covers(col, o.x) && covers(row, o.y) && !refill) return
+    const originFor = (c: number): number => Math.min(Math.max(Math.round(c) - (WINDOW_SAMPLES - 1) / 2, 0), n - WINDOW_SAMPLES)
+    o.set(originFor(col), originFor(row))
+    if (w.source === null) return
+    const out = w.texture.image.data as Float32Array
+    for (let r = 0; r < WINDOW_SAMPLES; r++) {
+      const from = (o.y + r) * n + o.x
+      for (let c = 0; c < WINDOW_SAMPLES; c++) out[r * WINDOW_SAMPLES + c] = w.source[from + c]! / 10
+    }
+    w.texture.needsUpdate = true
+  }
+
+  const holdsLevel = (level: number): boolean => textures.has(level) || windows.has(level)
+  const missing = (level: number): Error =>
+    new Error(`terrain level ${level} has no texture: this build holds levels ${finestLevel}..${coarsestLevel}`)
   const levelTexture = (level: number): DataTexture => {
     const tex = textures.get(level)
-    if (!tex) {
-      throw new Error(
-        `terrain level ${level} has no texture: this build holds levels ` +
-          `${finestLevel}..${coarsestLevel}`,
-      )
+    if (tex) return tex
+    if (windows.has(level)) {
+      throw new Error(`terrain level ${level} is held as a camera window, not a whole-world texture; use level ${wholeLevel}`)
     }
-    return tex
+    throw missing(level)
+  }
+  const ringTexture = (level: number): { tex: DataTexture; origin: UniformNode<'vec2', Vector2> | null } => {
+    const w = windows.get(level)
+    return w ? { tex: w.texture, origin: w.origin } : { tex: levelTexture(level), origin: null }
   }
 
   const object = new Group()
@@ -532,11 +617,15 @@ export function createTerrainMesh(
     geometry.setIndex(index)
     geometry.setAttribute('nodeSpec', newSpecAttribute(INITIAL_RING_CAPACITY))
     geometry.instanceCount = 0
+    const fineTex = ringTexture(fine)
+    const coarseTex = ringTexture(coarse)
     const ringMaterial = createRingMaterial(
-      levelTexture(fine),
+      fineTex.tex,
       samplesAtLevel(header, fine),
-      levelTexture(coarse),
+      fineTex.origin,
+      coarseTex.tex,
       samplesAtLevel(header, coarse),
+      coarseTex.origin,
       header.halfExtentM,
       cameraXZ,
       cover,
@@ -567,6 +656,12 @@ export function createTerrainMesh(
     object,
 
     levelTexture,
+    wholeLevel,
+    levelWindow(level: number) {
+      const w = windows.get(level)
+      if (!w) throw holdsLevel(level) ? new Error(`terrain level ${level} is held whole; use levelTexture`) : missing(level)
+      return { texture: w.texture, origin: w.origin.value }
+    },
 
     shaderCameraXZ: () => cameraXZ.value,
 
@@ -588,11 +683,20 @@ export function createTerrainMesh(
     },
 
     setLevel(level: number, data: Int16Array): void {
-      const tex = levelTexture(level)
+      if (!holdsLevel(level)) throw missing(level)
       const n = samplesAtLevel(header, level)
       if (data.length !== n * n) {
         throw new Error(`terrain level ${level} expects ${n}x${n} = ${n * n} samples, got ${data.length}`)
       }
+      const w = windows.get(level)
+      if (w) {
+        // Kept by reference, not copied: it is the array the physics holds
+        // (`load.ts`'s `applyTerrainLevel`), and the window only reads it.
+        w.source = data
+        placeWindow(w, cameraXZ.value.x, cameraXZ.value.y, true)
+        return
+      }
+      const tex = levelTexture(level)
       // Decimetres on disk (header.encoding), metres in the shader: the one
       // place that conversion happens, so no TSL node has to remember it.
       const out = tex.image.data as Float32Array
@@ -602,6 +706,7 @@ export function createTerrainMesh(
 
     update(cameraX: number, cameraZ: number): void {
       cameraXZ.value.set(cameraX, cameraZ)
+      for (const w of windows.values()) placeWindow(w, cameraX, cameraZ, false)
       const nodes = selectNodes(cameraX, cameraZ)
 
       counts.fill(0)
