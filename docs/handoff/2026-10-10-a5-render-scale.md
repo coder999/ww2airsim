@@ -1,6 +1,6 @@
 # A5 handoff: Render Scale in Settings (2026-10-10)
 
-Plan: `docs/superpowers/plans/2026-10-10-a5-render-scale.md`. Branch `a5-render-scale`, not merged. Unattended run; final-product checkpoint only.
+Plan: `docs/superpowers/plans/2026-10-10-a5-render-scale.md`. Branch `a5-render-scale`, merged to `main` 2026-10-10 (751c1c5b; fast-forward, verify green). Unattended run; final-product checkpoint only.
 
 ## What changed
 

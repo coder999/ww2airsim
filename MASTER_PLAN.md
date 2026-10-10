@@ -40,7 +40,7 @@ render quality with auto-detect.
   - Show the recommendation on a quality step in the launch flow, with an override.
 - This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
 
-**A5. Render scale in Settings (S, after H0 and A4). Done 2026-10-10** (branch `a5-render-scale`): Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
+**A5. Render scale in Settings (S, after H0 and A4). Done and merged 2026-10-10:** Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
@@ -232,7 +232,7 @@ step list and its order; this track does not restate it.** In outline:
 - multi-layer clouds and cirrus shadows (`clouds.md` #8);
 - one look-pass sitting with Mark on #6 and #7.
 
-No new cloud feature lands before H0's margin. Expect a plan per step, not
+H0's margin was met 2026-10-10 (every High view inside 7.5 ms but in-deck-1900, which has its own 10.0 ms gate), so cloud features can land; each still answers to `budget.spec.ts`. Expect a plan per step, not
 one plan for the lot.
 
 ### Track L: Terrain (size L)
@@ -333,8 +333,9 @@ Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is 
   [Handoff](docs/handoff/2026-10-10-l3-phase2.md).
 - **Open:** Mark's call on shipping either as a tier. The hut colors read too orange. Tacloban and Basey
   still use the old Quonset ring. A Blender top-down render of real tree crowns for forest grain is not
-  built. **The 6,000 ft view is over the 8.33 ms gate at p95 with none of this in it** (about 10 ms on
-  shipping terrain, 2026-10-10), so nothing here can be cleared against the budget until H0 finishes that.
+  built. On 2026-10-10 L3 read its own 6,000 ft view at about 10 ms p95 on shipping terrain, before H0's
+  rulings landed; H0's `high-6000` budget view now reads 6.20 ms (H0 handoff), and L3's view has not been
+  re-measured since. Re-measure it before clearing either prototype against the budget.
 
 ### Track N: Dev tools (S). Done 2026-10-10
 
@@ -358,10 +359,10 @@ prerequisites are met.
 | --- | --- | --- |
 | 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
-| 3 | E1 gunnery honesty; H0 budget | E1 unblocks most missions; H0 unblocks Tracks K and L |
-| 4 | A5 render scale; B2, B3, B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
-| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); L1 terrain allocation then trees; K in-cloud pacing | |
-| 6 | E2 attack AI; C2 bomb bays; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
+| 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
+| 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire~~ done by 2026-10-10; B3, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
+| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation~~ done 2026-10-10 (L1.1), then trees; K in-cloud pacing | |
+| 6 | ~~E2 attack AI; C2 bomb bays~~ done; E3 bombers and turrets; F Escort and Kamikaze Watch | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
