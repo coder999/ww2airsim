@@ -11,7 +11,7 @@ import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { makeTextTexture } from './scene/text.js'
-import { aircraftUrl, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
+import { aircraftUrl, BEACHES_URL, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
@@ -97,6 +97,7 @@ import { createRunway } from './scene/runway.js'
 import { createAirfield } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
+import { loadBeaches } from './scene/beaches.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
@@ -1246,6 +1247,13 @@ async function boot(): Promise<void> {
   const surfaceTexturesLoading: Promise<SurfaceTextures | null> = forcedTerrainTextures === 'off'
     ? Promise.resolve(null)
     : loadSurfaceTextures(renderer).catch((err: unknown) => { console.warn('terrain textures unavailable; drawing the procedural surface:', err); return null })
+  const beachesDisabled = import.meta.env.DEV && new URLSearchParams(location.search).get('beaches') === 'off'
+  const beachesLoading = beachesDisabled
+    ? Promise.resolve(null)
+    : loadBeaches(BEACHES_URL).catch((err: unknown) => {
+        console.warn('curved beaches unavailable; drawing the terrain shoreline:', err)
+        return null
+      })
   // Photoreal Task 9 fix 2: build the sky-irradiance table (sky/palette.ts,
   // ~0.3 s of CPU) HERE, during the async load phase, rather than lazily on
   // the first `atmospherePalette` call -- which is inside the frame loop, so
@@ -1290,6 +1298,7 @@ async function boot(): Promise<void> {
   // hardcoded literal.
   const surfaceTextures = await surfaceTexturesLoading
   const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow, surfaceTextures)
+  const beaches = await beachesLoading
   // Scenery `low` draws the procedural surface (plan Ruling 3). `?terrainTextures=on`
   // holds the textures on whatever the tier.
   terrain.setSurfaceDetail(forcedTerrainTextures === 'on' || sceneryTier !== 'low')
@@ -1546,6 +1555,7 @@ async function boot(): Promise<void> {
   // terrain mesh that missed it would jitter at 100 km exactly as master
   // spec §4 describes, and would be the only thing in the scene that did.
   scene.add(terrain.object)
+  if (beaches) scene.add(beaches.object)
   // `vegetation` itself is declared above, beside `cover`, not here -- see
   // that comment for why.
 
@@ -2489,6 +2499,7 @@ async function boot(): Promise<void> {
     // arithmetic now lives in frame.ts instead.
     const worldOffset = worldOffsetFor(view.eye.position)
     scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
+    beaches?.update(view.eye.position.x, view.eye.position.z)
     camera.position.set(0, 0, 0)
     const cameraOrientation = toThreeOrientation(view.eye.attitude)
     camera.quaternion.set(

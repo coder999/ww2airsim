@@ -135,16 +135,18 @@ def main():
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(vertices, [], faces)
         mesh.materials.append(mats[role])
-        uv_layer = mesh.uv_layers.new(name='UVMap') if role == 'ShoreSurf' else None
+        # Every role carries its normalized cross-shore coordinate.  Runtime
+        # uses it to blend vegetation into dry sand, dry into wet sand, and
+        # surf into open water without adding more geometry lanes.
+        uv_layer = mesh.uv_layers.new(name='UVMap')
         for polygon in mesh.polygons:
             if polygon.normal.z < 0:
                 polygon.flip()
-            if uv_layer:
-                for loop_index in polygon.loop_indices:
-                    vertex_index = mesh.loops[loop_index].vertex_index
-                    # Only the cross-shore coordinate is semantic.  Keeping U
-                    # constant lets adjacent quads share vertices in glTF.
-                    uv_layer.data[loop_index].uv = (0.0, uvs[vertex_index][1])
+            for loop_index in polygon.loop_indices:
+                vertex_index = mesh.loops[loop_index].vertex_index
+                # Only the cross-shore coordinate is semantic.  Keeping U
+                # constant lets adjacent quads share vertices in glTF.
+                uv_layer.data[loop_index].uv = (0.0, uvs[vertex_index][1])
         mesh.update()
         obj = bpy.data.objects.new(name, mesh)
         bpy.context.collection.objects.link(obj)

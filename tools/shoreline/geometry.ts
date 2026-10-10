@@ -8,10 +8,13 @@ export const SHORE_POINT_SPACING_M = 35
 export const MIN_SHORE_PERIMETER_M = 250
 
 export const SHORE_LANES = {
-  inlandM: 32,
-  dryM: 10,
-  waterlineM: -4,
-  submergedM: -48,
+  // The source L1 cells are 48.8 m wide.  The opaque ribbon must overlap
+  // more than a cell diagonal on both sides of the zero contour; otherwise
+  // the old terrain triangles can still poke through as a square silhouette.
+  inlandM: 96,
+  dryM: 24,
+  waterlineM: -64,
+  submergedM: -120,
   waterlineHeightM: 0.08,
   submergedHeightM: -0.8,
 } as const
@@ -172,4 +175,3 @@ export function buildShoreGeometry(g: TerrainGrid, bounds?: { minX: number; maxX
     lines,
   }
 }
-
