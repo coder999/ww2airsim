@@ -48,5 +48,8 @@ test('the Blender duplicates beside their downloads', async ({ page }) => {
   await page.evaluate(() => (window as HangarWindow).__hangar!.aim([-1.1, 3.7, 9], [-1.1, 3.7, 0]))
   await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
   writeFileSync(`${OUT}/f6f-hellcat-blender-canopy-side.png`, await page.locator('#hangar-canvas').screenshot())
+  await page.evaluate(() => (window as HangarWindow).__hangar!.aim([3.4, 3.7, 6.5], [-1.1, 3.7, 0]))
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
+  writeFileSync(`${OUT}/f6f-hellcat-blender-canopy-three-quarter.png`, await page.locator('#hangar-canvas').screenshot())
   expect(true).toBe(true)
 })

@@ -79,8 +79,10 @@ FUSELAGE = [
 # Side silhouette corrected from Mark's 2026-10-11 photograph: a steep,
 # almost triangular windscreen rises to a high forward bow, then the straight
 # roof descends aft into the turtledeck. The earlier download-derived crown
-# was a low symmetric bubble. Stations are (x, half-width, crown y), tail to
-# nose, in meters; `base` sinks into the deck.
+# was a low symmetric bubble. Stations are (x, lower-edge half-width, crown
+# y), tail to nose, in meters. Each lower edge is placed on the fuselage skin
+# at that width so the glass continues the hull side instead of pinching into
+# it like a closed oval.
 CANOPY = [
     (-2.12, 0.10, 1.12),
     (-1.84, 0.24, 1.24),
@@ -90,7 +92,6 @@ CANOPY = [
     (-0.62, 0.36, 1.55),
     (-0.29, 0.18, 1.01),
 ]
-CANOPY_BASE = 0.95
 CANOPY_FRAMES = (-1.48, -1.18, -0.88, -0.60)
 TAILPLANE = dict(span=0.45, le=0.8105, root=0.166, taper=0.56, y=0.011, sweep=13.6)  # span of SPAN; the rest of LENGTH
 FIN = dict(root=0.195, taper=0.4, height=0.137, y=0.049)                           # trailing edge at the tail
@@ -172,8 +173,15 @@ with m.tagged('fuselage'):
                            (X(FILLET['le']), 0.004 * L, 0.004 * L, WING_Y * L)],
                    segments=24, center_z=side * fz, subdivide=4)
 with m.tagged('canopy'), m.shared_chart():
-    m.canopy('glazing', UPPER, [(x, w, (t - CANOPY_BASE) / 2, (t + CANOPY_BASE) / 2) for x, w, t in CANOPY], list(CANOPY_FRAMES),
-             bar=0.022, segments=48, subdivide=1)
+    canopy_stations = []
+    for x, width, crown in CANOPY:
+        f = NOSE_X - x / L
+        # Sink the seam by DP0's standard 0.02 m. At the narrow end caps the
+        # fuselage can already stand above the crown, so retain a thin hidden
+        # wedge rather than inverting the section.
+        base = min(crown - EMBED_M, fus_top_y(f, width) - EMBED_M)
+        canopy_stations.append((x, width, base, crown))
+    m.faired_canopy('glazing', UPPER, canopy_stations, list(CANOPY_FRAMES), bar=0.022)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
 gear_z = GEAR['z'] * S
 breaks = [0.0, gear_z, S / 2]

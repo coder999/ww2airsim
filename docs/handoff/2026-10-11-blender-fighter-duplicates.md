@@ -68,6 +68,10 @@ stations for that wedge and leaves them unsubdivided so Catmull-Rom refinement c
 stations moved with the new silhouette. The close side capture is now part of the gated capture tool because the normal whole-airframe
 view makes the roughly 0.5 m-high glass too small to judge.
 
+Mark's follow-up review found the side panes still behaved like the exposed upper half of a bubble. They now use a faired cross-section:
+the lower edge of every transverse station is calculated on the fuselage skin, the side panes rise almost vertically, and a flatter roof
+joins them. A new close three-quarter capture makes this hull-to-glass transition reviewable rather than relying on the side silhouette.
+
 Review captures are in [`2026-10-11-hellcat-canopy-shots/`](2026-10-11-hellcat-canopy-shots/). The focused model suite passes all
 525 tests, including byte-identical headless rebuild of the committed Hellcat GLB, dimensions, rigs and duplicate-model checks; the
 gated Playwright capture passes 1/1.
