@@ -1,8 +1,8 @@
 {
  "version": 1,
- "model": "shiratsuyu-dd",
- "rawSha256": "58b1891eca5bd96045814a0713a6006081776d6c7ed57bfa1c8ca02e1372955c",
- "detailSha256": "017f2cdf363fb35c76d6ad5f71c1254cc142b8863d05d936cdd4efc2754b9925",
+ "model": "shiratsuyu-dd-blender",
+ "rawSha256": "63e47fc3c7dd82caa383ed904a105a319928c647b4be4975db96ccc0eb1af524",
+ "detailSha256": "158e10f37e8c5c94d883fd3a3ce0972d7a8d112aa413727317c64dab5ebdae24",
  "size": 2048,
  "info": {
   "aoDistanceM": 4,

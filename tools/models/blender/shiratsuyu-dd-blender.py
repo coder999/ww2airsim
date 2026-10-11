@@ -21,7 +21,7 @@ CITED / MEASURED (Wikimedia Commons "Fig of IJN DD Samidare in 1944.gif",
   The station table, deck sheer, half-beams, superstructure footprints and all
   x positions below are traced from that side/plan figure, then normalized to
   the existing 107.5 m gameplay length.
-FITTED (existing content/ships/shiratsuyu-dd.json, kept unchanged except prose):
+FITTED (existing content/ships/shiratsuyu-dd.json, kept byte-for-byte unchanged):
   The render hull is 107.5 m long rather than Wikipedia's 109.6 m overall because
   the existing simulation hit box and every scenario use 107.5 m. Main-turret
   and late-war AA feet are the existing gameplay locators. Surfaces are fitted
@@ -81,7 +81,7 @@ def stand_fn(model):
 
 
 out, opts = kit.cli_args()
-m = kit.Model('shiratsuyu-dd', skin=2048)
+m = kit.Model('shiratsuyu-dd-blender', skin=2048)
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, SECTION, node='Hull', deck_role='deck', deck_node='MainDeck',
                  below_role='antifouling', below_node='Bottom', subdivide=42)
@@ -91,6 +91,8 @@ edge = lambda x: m.hull_at(x)[3]  # noqa: E731
 # Both surviving low-angle Type 3 gunhouses are real moving kits. The spec points
 # remain authoritative; their feet differ from the traced deck by under 0.1 m.
 with m.tagged('turrets'), m.shared_chart():
+    # The duplicate is Hangar-only and is fitted to the authoritative flying
+    # ship spec, not a second simulation spec.
     for name, g in naval.armament('shiratsuyu-dd'):
         if not name.startswith('Turret'):
             continue

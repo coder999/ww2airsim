@@ -58,9 +58,14 @@ describe("every Library entry's own model resolves (spec §4.3)", () => {
     expect(refProblem({ kind: 'aircraft', id: 'constructor' }, entries)).toBe('aircraft model "constructor" is not registered')
   })
 
-  it('every ship Library entry resolves through its authoritative ShipSpec', () => {
+  it('every ship Library entry resolves through an authoritative ShipSpec, including fitted model comparisons', () => {
     for (const e of content.library.filter((entry) => entry.kind === 'ship')) {
-      expect(e.spec, e.id).toBe(e.id)
+      if (e.model === undefined) expect(e.spec, e.id).toBe(e.id)
+      else {
+        expect(e.spec, e.id).toBeDefined()
+        expect(e.model.kind, e.id).toBe('ship')
+        expect(e.displayOnly, e.id).toBe(true)
+      }
       expect(drawable(catalog.find((entry) => entry.library.id === e.id)!)).toBe(true)
     }
   })

@@ -1,0 +1,31 @@
+{
+  "id": "shiratsuyu-dd-blender",
+  "name": "Shiratsuyu-class destroyer (Blender model)",
+  "kind": "ship",
+  "side": "japanese",
+  "spec": "shiratsuyu-dd",
+  "model": {
+    "kind": "ship",
+    "id": "shiratsuyu-dd-blender"
+  },
+  "displayOnly": true,
+  "blurb": "A Hangar-only original Blender duplicate beside the external Samidare model, fitted to the same ship spec so its turrets and antiaircraft mounts remain movable.",
+  "history": "The Shiratsuyu class was ten first-class destroyers of the Imperial Japanese Navy, in service before and during World War II. Members of the class escorted carriers at the Coral Sea, and all ten served as escorts at Midway.\n\nThis comparison model represents Samidare in July 1944. Its proportions were traced from a contemporary-style side and plan drawing, while its surviving twin main turrets and wartime light antiaircraft fit follow the cited class history and Samidare's service record.",
+  "sources": [
+    {
+      "title": "Shiratsuyu-class destroyer",
+      "url": "https://en.wikipedia.org/wiki/Shiratsuyu-class_destroyer",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "Fig of IJN DD Samidare in 1944",
+      "url": "https://commons.wikimedia.org/wiki/File:Fig_of_IJN_DD_Samidare_in_1944.gif",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "IJN Samidare: Tabular Record of Movement",
+      "url": "https://www.combinedfleet.com/samida_t.htm",
+      "read": "2026-10-11"
+    }
+  ]
+}

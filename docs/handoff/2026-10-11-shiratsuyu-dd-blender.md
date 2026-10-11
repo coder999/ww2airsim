@@ -2,23 +2,23 @@
 
 ## Result
 
-`shiratsuyu-dd` now ships an original, deterministic Blender model in place of the Samidare
-Sketchfab download. The gameplay ID and every numeric ship/spec field are unchanged. The only edit
-to `content/ships/shiratsuyu-dd.json` is the source note: it corrects the old description of 107.5 m
-as overall length (it is the preserved gameplay/waterline length; Wikipedia gives 109.6 m overall)
-and records which positions are fitted.
+`shiratsuyu-dd-blender` is an original, deterministic, Hangar-only comparison model beside the
+existing external Samidare model. The gameplay ship remains `shiratsuyu-dd`: its model entry,
+committed GLB, Library entry and complete ship spec are restored byte-for-byte to the main-branch
+versions. The duplicate Library card reuses that authoritative spec for dimensions and armament,
+but overrides its Hangar model, so both cards are visible and the Blender card retains moving guns.
 
 - Worktree: `/home/mark/projects/ww2airsim-shiratsuyu-blender`
 - Branch: `blender-shiratsuyu-dd`
-- Script: `tools/models/blender/shiratsuyu-dd.py`
-- Output: `content/ships/shiratsuyu-dd.glb`
-- Output SHA-256: `c0eff505cddc94687bed11fd429d20a725fa356e49942b0f847bf5623df66b2b`
+- Script: `tools/models/blender/shiratsuyu-dd-blender.py`
+- Output: `content/ships/shiratsuyu-dd-blender.glb`
+- Output SHA-256: `46bf3e989674dac867b604b83e992bc996c304a32eb1453a068cfb093ba2ca2b`
 - Output inspection: 1,189,004 bytes, 22,464 triangles, 5 draw calls, 20 nodes, 5 meshes,
   3 materials and 3 WebP textures; bounds `[-53.750,-3.500,-4.950]` to
   `[53.750,20.121,5.310]` m.
-- Retired external output: 2,644,164 bytes, 50,758 triangles and 15 draw calls. Its author/license
-  credit remains in `ASSETS.md` as a retired, reference-only row; none of that geometry or texture
-  is incorporated in the new GLB.
+- Preserved external output: `content/ships/shiratsuyu-dd.glb`, 2,644,164 bytes, 50,758 triangles
+  and 15 draw calls. Its Sketchfab author/license credit remains the shipped-asset row in
+  `ASSETS.md`; none of that geometry or texture is incorporated in the new GLB.
 
 ## Sources and measurement
 
@@ -113,14 +113,23 @@ boats, directors, vents, davits, rails, depth-charge gear, radars and fittings a
   hull, role palette, pinned Blender roster, and byte-identical rebuild of the committed GLB.
 - Post-restore external runs:
   `tests/tools/models/shipEntries.test.ts` — **3/3 passed**;
-  `tests/tools/models/sketchfabEntries.test.ts` — after pinning the correct new external count of
-  12, **25/25 passed**. Fletcher's raw SHA and byte-identical rebuild both passed.
+  `tests/tools/models/sketchfabEntries.test.ts` — **the original 13-download pin is preserved**;
+  the external Shiratsuyu remains covered by its recorded raw SHA and byte-identical rebuild.
 - Final direct build in the worktree after the remote validation produced the SHA and inspection
   recorded above. `blenderEntries.test.ts` independently reproduced those committed bytes.
+- Duplicate-integration remote run covered the Blender geometry/rebuild, external entries, ship
+  entries, ship registry, all Hangar unit suites and renderer/sim gun laying: **18/19 files and
+  283/284 tests passed**. The sole failure was a newly relaxed Library-test assertion that
+  incorrectly assumed every older aircraft card's id equals its spec id; no production test
+  failed. After changing the invariant to exactly one non-display-only card per spec, plus exactly
+  one `id === spec` canonical ship card, the four affected Hangar suites passed **84/84**.
+- `npm run typecheck` and `npm run lint`, both through `remote-run`, passed.
+- The external original was verified byte-for-byte against main with
+  `git diff --exit-code 863c290e --` over its GLB, spec, model entry and Sketchfab pin.
 
 ### Browser and capture checks
 
-Local Vite ran at `http://127.0.0.1:5196`.
+The initial model phase used local Vite at `http://127.0.0.1:5196`:
 
 - `tests/e2e/ships.spec.ts --workers=1`: 4/6 passed on the first run. The deck-quals 1440p case
   failed only at `Page.captureScreenshot` and passed alone on its required retry (GPU p95 16.133 ms,
@@ -137,10 +146,21 @@ Local Vite ran at `http://127.0.0.1:5196`.
   target. That capture targets `aa-range`'s **Fletcher**, not Shiratsuyu; the pure renderer and sim
   gun-laying suites above both passed.
 
+The final side-by-side integration used local Vite at `http://localhost:4197`:
+
+- Hangar check 10 passed and reported the duplicate at **22,464 model triangles / 5 draw calls**
+  (**22,560 / 6** with generated mounts), inside its 45,000 / 12 budget.
+- Hangar check 16 passed for every listed skinned model; the duplicate's checker changed 98.1% of
+  measured pixels and restored the original frame exactly.
+- Checks 14 and 17 initially exposed two test-expectation mistakes (the external credit string and
+  a stale hard-coded ship count). After correcting those expectations, the isolated rerun passed
+  **2/2**: the two Shiratsuyu cards report distinct provenance, the duplicate is labeled
+  **Hangar only**, and all base-spec mounts on the duplicate train/elevate and restore.
+
 ## Review images
 
 - `docs/handoff/2026-10-11-shiratsuyu-dd-blender-shots/shiratsuyu-dd-before-after.jpg`
-  — retired external vs new original model, side and top, identical orthographic cameras.
+  — preserved external vs new original duplicate, side and top, identical orthographic cameras.
 - `docs/handoff/2026-10-11-shiratsuyu-dd-blender-shots/shiratsuyu-dd-drawing-overlay.jpg`
   — side and plan silhouette outlines over the July 1944 drawing.
 
@@ -149,9 +169,10 @@ MIME attachments, not inline images.
 
 ## Documentation and follow-up
 
-`docs/models.md` no longer says Shiratsuyu remains on the downloaded author's textures and now
-lists it with the original Blender rebuilds. No aircraft-process edit was made: the model revealed
-no missing aircraft step, and ship-specific measurement/provenance lives here.
+`docs/models.md` records the side-by-side external/original arrangement and the ship-specific
+Hangar rule: a fitted Library model override goes through the normal ship view so its mounts still
+train and elevate. No aircraft-process edit was made; ship-specific measurement/provenance lives
+here.
 
 Known limitations are intentional and labeled rather than hidden: low-resolution source drawing,
 normalized gameplay length instead of 109.6 m overall, estimated underwater sections and small

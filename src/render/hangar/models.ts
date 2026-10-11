@@ -311,6 +311,14 @@ function ordnanceStand(instance: ModelInstance): HangarModel {
  * spec (R1). null = neither: "Not yet in service".
  */
 export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAirframe = loadRegisteredAirframe, loadShip: LoadShipView = loadRegisteredShipView, loadStore: LoadStore = loadRegisteredStore, loadDisplay: LoadDisplay = loadRegisteredDisplay, loadRider: LoadRider = loadRegisteredRider): Promise<HangarModel | null> {
+  // A ship comparison can keep the authoritative spec for dimensions and gun
+  // mounts while overriding only its Hangar model. Send that fitted spec
+  // through the normal ship view so its turrets still train and elevate.
+  if (entry.library.model?.kind === 'ship' && entry.subject?.kind === 'ship') {
+    const spec = { ...entry.subject.spec, view: { ...(entry.subject.spec.view ?? {}), model: entry.library.model.id } }
+    const view = await loadShip(spec)
+    return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
+  }
   if (entry.library.model !== undefined) return displayModel(entry.library.model, loadAirframe, loadDisplay, loadRider)
   const s = entry.subject
   if (s === null) return null
