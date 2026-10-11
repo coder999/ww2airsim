@@ -33,11 +33,13 @@ ship class, weapon, model or global tuning.
   south. The player therefore has a real pursuit rather than waiting for an
   AI fleet to complete the mission.
 - **Aircraft and stores.** The player is airborne in the project's flagship
-  F6F Hellcat with `both`: two 1,000 lb bombs and six HVARs. The existing
-  stores total 480 damage against *Mogami*'s 420 hull points, so a solo kill
-  is possible but requires a committed strike. This is the same shipped F6F
-  anti-shipping loadout used by Convoy Strike and is more suitable than the
-  bomb-only loadout, whose two bombs cannot sink the cruiser.
+  F6F Hellcat with `both`: two 1,000 lb bombs, six HVARs and six .50-cal guns
+  carrying 2,400 rounds. This is the same shipped F6F anti-shipping loadout
+  used by Convoy Strike and is more suitable than the bomb-only loadout, whose
+  two bombs cannot sink the cruiser. The production damage regression does not
+  assume every store hits: after one bomb and one rocket miss, the remaining
+  bomb and five rockets leave 100 hull points, and 30 direct gun hits finish
+  *Mogami* with 20 points of margin. That is 1.25% of the carried ammunition.
 - **Recovery.** An Essex is staged north in Leyte Gulf for carrier recovery,
   as Flattop Hunt already does for an airborne naval strike. The historical
   note says plainly that the carrier and compressed fleet geometry are game
@@ -54,14 +56,14 @@ ship class, weapon, model or global tuning.
 | Surigao Strait at 10.167 N, 125.383 E is a committed terrain orientation check, about 5.6 miles east and 43.7 miles south of the world center. | `tests/tools/terrainBuild.test.ts`; `src/sim/world/projection.ts` | Use the real strait rather than stage it elsewhere. |
 | Scenario ships support sides, tags, closed waypoint loops, speeds and ordered surface targets; `mainBatteries` opts real shells in. | `src/sim/scenario.ts`; M4 handoff | The naval action is scenario content. |
 | Main batteries select the first live `fireAt` target, then fall back to the nearest hostile ship, with a 15.5-mile fire-control cap. | `src/sim/weapons/aaFire.ts`; `src/sim/weapons/mainBattery.ts` | Geometry and a deterministic test must keep *Mogami* outside fallback reach. |
-| The F6F's two bombs and six rockets total 480 damage; *Mogami* has 420 hull points. | `content/aircraft/f6f-hellcat.json`; `content/ships/mogami-ca.json` | `both` is the minimum existing F6F loadout that can sink her alone. |
+| The F6F carries two bombs, six rockets and 2,400 gun rounds; all three direct-hit kinds damage ships in `stepCombat`. | F6F and Mogami content; `src/sim/weapons/combat.ts` | A production-path test must prove a useful miss-and-gunnery margin, not just add nominal store damage. |
 | A shipped mission needs a scenario, one picker row and one unique ribbon; content, product-flow and radio tests enroll additions. | Track F in `MASTER_PLAN.md`; `docs/testing.md` | Prefer enrollment and one mission-specific behavior test. |
 
 ## Tasks
 
 1. **Write the failing contract first.** Add a focused Surigao mission test
-   that expects the roster, sides, explicit fire orders, player loadout
-   arithmetic, real-strait geometry, water-valid loops, a main-battery fight
+   that expects the roster, sides, explicit fire orders, player loadout and
+   production damage margin, real-strait geometry, water-valid loops, a main-battery fight
    that leaves *Mogami* untouched for the measured pursuit window, and badge
    success/failure paths.
 2. **Scenario content.** Add `content/scenarios/surigao-strait.json` with the
@@ -98,8 +100,8 @@ ship class, weapon, model or global tuning.
 - The naval battle produces real main-battery salvos against the explicitly
   ordered survivors, while *Mogami* takes no main-battery damage during the
   measured pursuit window.
-- The player begins in an F6F, pointed toward *Mogami*, with a recommended
-  `both` loadout whose carried damage can sink her.
+- The player begins in an F6F, pointed toward *Mogami*, and the recommended
+  `both` loadout has a production-tested miss-and-gunnery margin sufficient to sink her.
 - Destroying *Mogami* and trapping aboard Essex awards the badge; trapping
   while she survives awards none.
 - The picker, ribbon, radio mapping, briefing, chart, objective line and

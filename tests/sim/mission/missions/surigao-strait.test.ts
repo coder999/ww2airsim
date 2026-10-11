@@ -12,8 +12,11 @@ import { worldFromScenario } from '../../../../src/sim/scenario.js'
 import { advance, playerAircraft } from '../../../../src/sim/loop.js'
 import { sideOf } from '../../../../src/sim/sides.js'
 import { DT } from '../../../../src/sim/flight/model.js'
+import { createCombat, stepCombat, type Projectile } from '../../../../src/sim/weapons/combat.js'
 import { MAIN_BATTERY } from '../../../../src/sim/weapons/mainBattery.js'
+import { storesFromLoadout } from '../../../../src/sim/weapons/stores.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
+import { v3 } from '../../../../src/sim/math/vec3.js'
 import { progressOf } from '../fixture.js'
 import { carrierApproach, destroyNow, terrainOrSkip } from '../fly.js'
 
@@ -55,16 +58,55 @@ describe('Surigao Strait content', () => {
     }
   })
 
-  it('the recommended F6F loadout can sink Mogami, while bombs alone cannot', () => {
+  it('the recommended F6F can finish Mogami after one bomb and one rocket miss', () => {
     const f6f = loadAircraftSpec('f6f-hellcat')
     const mogami = loadShipSpec('mogami-ca')
     const types = f6f.stores!.types
     const bomb = Object.values(types).find((t) => t.kind === 'bomb')!
     const rocket = Object.values(types).find((t) => t.kind === 'rocket')!
     const bombs = f6f.stores!.racks.length
-    const rockets = f6f.stores!.rails.length
+    const loaded = storesFromLoadout(f6f, 'both')
     expect(bombs * bomb.damage).toBeLessThan(mogami.hullHp)
-    expect(bombs * bomb.damage + rockets * rocket.damage).toBeGreaterThanOrEqual(mogami.hullHp)
+    expect(loaded).toEqual({ bombs: 2, rockets: 6 })
+
+    const bundle = loadScenarioBundle('surigao-strait')
+    const world = worldFromScenario(bundle, null, 'both')
+    const shooter = playerAircraft(world)
+    const target = world.ships.find((s) => s.id === MOGAMI)!
+    const gunHits = 30
+    const gunAmmo = f6f.combat!.guns.reduce((sum, gun) => sum + gun.rounds, 0)
+    expect(gunAmmo).toBe(2400)
+    expect(gunHits / gunAmmo).toBeLessThan(0.02)
+    // One bomb and one rocket are deliberately omitted. The remaining stores
+    // leave 100 HP; thirty direct .50-cal hits use production roundDamage to
+    // finish with 20 HP of margin, while consuming only 1.25% of the ammunition.
+    expect(bomb.damage + 5 * rocket.damage + gunHits * f6f.combat!.roundDamage - mogami.hullHp).toBe(20)
+
+    const hit = (kind: Projectile['kind'], id: number): Projectile => {
+      const position = v3(target.state.position.x, mogami.deckHeightM + 20, target.state.position.z)
+      return {
+        owner: shooter.id,
+        id,
+        position,
+        previous: position,
+        velocity: v3(0, -3000, 0),
+        lifeS: kind === 'round' ? f6f.combat!.lifetimeS : kind === 'bomb' ? bomb.lifetimeS : rocket.lifetimeS,
+        tracer: false,
+        kind,
+        ageS: kind === 'bomb' ? bomb.armS! : 0,
+      }
+    }
+    const strike = (rounds: number) => {
+      const projectiles = [
+        hit('bomb', 1),
+        ...Array.from({ length: 5 }, (_, i) => hit('rocket', i + 2)),
+        ...Array.from({ length: rounds }, (_, i) => hit('round', i + 7)),
+      ]
+      const combat = createCombat([shooter], { [shooter.id]: loaded }, [{ id: MOGAMI, hullHp: mogami.hullHp }])
+      return stepCombat({ ...combat, projectiles, nextId: projectiles.length + 1 }, [shooter], [target], [], null, null, [], 1, DT)
+    }
+    expect(strike(0).ships[MOGAMI]!.hp).toBe(100)
+    expect(strike(gunHits).ships[MOGAMI]).toMatchObject({ hp: 0, destroyedTick: 1, attacker: shooter.id })
   })
 
   it('starts the player 7-12 miles from Mogami, pointed within five degrees of the pursuit', () => {

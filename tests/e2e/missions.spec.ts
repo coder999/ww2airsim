@@ -58,7 +58,13 @@ const figureRows = (root: Locator) =>
 async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
   const s = loadScenario(id)
   const choices = title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio')
-  await choices.filter({ has: title.getByText(label, { exact: true }) }).click()
+  // `has` evaluates its locator relative to each candidate radio. A locator
+  // rooted at `title` can therefore never match from inside a radio, even when
+  // the title contains the requested text. Match the candidate's own text and
+  // require one row before clicking so duplicate/ambiguous labels fail here.
+  const choice = choices.filter({ hasText: label })
+  await expect(choice).toHaveCount(1)
+  await choice.click()
   const briefing = title.getByRole('region', { name: 'Briefing' })
   const firstSentence = s.briefing!.situation.split(/(?<=\.) /)[0]!
   await expect(briefing).toContainText(firstSentence)
