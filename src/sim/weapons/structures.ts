@@ -9,10 +9,8 @@ import type { Side } from '../sides.js'
  *  on the scenario) decides what is worth bombing, not this list. */
 export type StructureEntity = {
   readonly id: string
-  /** Present for airfield-derived buildings; absent for scenario-authored ground targets. */
-  readonly airfield?: string
-  readonly kind: 'hangar' | 'tower' | 'aaa' | 'tank'
-  readonly model?: 'type97-chi-ha'
+  readonly airfield: string
+  readonly kind: 'hangar' | 'tower' | 'aaa'
   readonly position: Vec3
   readonly headingRad: number
   readonly halfSize: { readonly x: number; readonly y: number; readonly z: number }
@@ -65,11 +63,7 @@ export function rebuildStructures(
     const side = sides.get(s.id)
     return side === undefined ? s : { ...s, side }
   })
-  const authored = previous.filter((s) => s.airfield === undefined).map((s) => {
-    const groundHeightM = terrain === null ? 0 : heightAt(terrain, s.position.x, s.position.z)
-    return { ...s, position: v3(s.position.x, groundHeightM + s.halfSize.y, s.position.z) }
-  })
-  return [...buildings, ...authored]
+  return buildings
 }
 
 export type StructureDamage = {

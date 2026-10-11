@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { parseAircraftSpec } from '../../src/sim/content.js'
 import type { AircraftSpec } from '../../src/sim/flight/schema.js'
-import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, type Scenario, type ScenarioBundle } from '../../src/sim/scenario.js'
+import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, scenarioVehicleSpecIds, type Scenario, type ScenarioBundle } from '../../src/sim/scenario.js'
 import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
+import { parseVehicleSpec, type VehicleSpec } from '../../src/sim/world/vehicles.js'
 
 /**
  * Node-only content loader, used by tests and tools. The browser build loads
@@ -45,6 +46,10 @@ export function loadShipSpec(id: string): ShipSpec {
   return parseShipSpec(readContentJson('ship', 'ships', id))
 }
 
+export function loadVehicleSpec(id: string): VehicleSpec {
+  return parseVehicleSpec(readContentJson('vehicle', 'vehicles', id))
+}
+
 export function loadAirfield(id: string): Airfield {
   return parseAirfield(readContentJson('airfield', 'bases', id))
 }
@@ -69,6 +74,7 @@ export function bundleForScenario(scenario: Scenario): ScenarioBundle {
     scenario,
     aircraftSpecs: table(scenarioAircraftSpecIds(scenario), loadAircraftSpec),
     shipSpecs: table(scenarioShipSpecIds(scenario), loadShipSpec),
+    vehicleSpecs: table(scenarioVehicleSpecIds(scenario), loadVehicleSpec),
     airfields: table([
       ...scenario.airfields,
       ...scenario.aircraft.flatMap((a) =>

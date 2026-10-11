@@ -19,7 +19,7 @@ export function friendlyFireOf<M>(world: World<M>): FriendlyFire | null {
   return world.combat.aircraft[world.player]?.friendlyFire ?? null
 }
 
-const STRUCTURE_WORDS = { hangar: 'Hangar', tower: 'Control tower', aaa: 'AAA battery', tank: 'Tank' } as const
+const STRUCTURE_WORDS = { hangar: 'Hangar', tower: 'Control tower', aaa: 'AAA battery' } as const
 
 /** A name for what was hit, in the debrief's own style: class name then id
  *  for a ship or airplane ("Essex-class fleet carrier cv-1"), and kind then
@@ -33,6 +33,10 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
   if (ff.kind === 'aircraft') {
     const a = world.aircraft.find((x) => x.id === ff.target)
     return a === undefined ? ff.target : `${a.spec.name} ${a.id}`
+  }
+  if (ff.kind === 'vehicle') {
+    const vehicle = world.vehicles.find((x) => x.id === ff.target)
+    return vehicle === undefined ? ff.target : `${vehicle.spec.name} ${vehicle.id}`
   }
   const s = world.structures.find((x) => x.id === ff.target)
   if (s === undefined) return ff.target

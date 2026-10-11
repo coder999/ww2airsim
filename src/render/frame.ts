@@ -20,7 +20,8 @@ import {
   DEFAULT_ASSIST_SETTINGS,
   type AssistSettings,
 } from '../assists/index.js'
-import { interpolateAircraft, interpolateShip, type RenderState, type ShipPose } from '../sim/interpolate.js'
+import { interpolateAircraft, interpolateShip, interpolateVehicle, type RenderState, type ShipPose, type VehiclePose } from '../sim/interpolate.js'
+import { vehicleOnTerrain } from '../sim/world/vehicles.js'
 import { controlsFromKeys, NEUTRAL, type PressedKeys } from '../input/keyboard.js'
 import { lookOffsetFromKeys, LOOK_CENTRE, type LookOffset } from '../input/lookAround.js'
 import { orbitFromMouse, NO_MOUSE, ORBIT_ZERO, type MouseDelta, type OrbitOffset } from '../input/orbit.js'
@@ -75,6 +76,7 @@ export type FrameState = {
    *  attitude in this plan (`interpolateShip`'s own comment), so this is a
    *  position and a heading rather than a `RenderState`. */
   readonly shipPoses: readonly ShipPose[]
+  readonly vehiclePoses: readonly VehiclePose[]
   readonly stepsRun: number
   readonly droppedSteps: number
   /** Whether the camera-cycle key was down last frame, for edge detection. */
@@ -296,11 +298,12 @@ const NO_TOGGLES_DOWN: AssistTogglesDown = {
 function posesFor(
   world: World<undefined>,
   alpha: number,
-): { poses: RenderState[]; shipPoses: ShipPose[]; render: RenderState } {
+): { poses: RenderState[]; shipPoses: ShipPose[]; vehiclePoses: VehiclePose[]; render: RenderState } {
   const poses = world.aircraft.map((a) => interpolateAircraft(a.previous, a.state, alpha))
   const shipPoses = world.ships.map((s) => interpolateShip(s.previous, s.state, alpha))
+  const vehiclePoses = world.vehicles.map((v) => interpolateVehicle(v.previous, v.state, alpha))
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
-  return { poses, shipPoses, render: poses[playerIndex]! }
+  return { poses, shipPoses, vehiclePoses, render: poses[playerIndex]! }
 }
 
 /** The tick of the newest `respot` in the world's mission log, or -1. */
@@ -326,7 +329,7 @@ export function initialFrameStateFor(
   impactMarker = false,
 ): FrameState {
   const player = playerAircraft(world)
-  const { poses, shipPoses, render } = posesFor(world, 0)
+  const { poses, shipPoses, vehiclePoses, render } = posesFor(world, 0)
   return {
     world,
     controls: player.controls,
@@ -337,6 +340,7 @@ export function initialFrameStateFor(
     render,
     poses,
     shipPoses,
+    vehiclePoses,
     stepsRun: 0,
     droppedSteps: 0,
     cyclePressed: false,
@@ -368,7 +372,7 @@ export function initialFrameStateFor(
     paused: false,
     pausePressed: false,
     landing: NO_LANDING,
-    groundSpawn: world.aircraft.some((a) => a.parked),
+    groundSpawn: world.aircraft.some((a) => a.parked) || (world.vehicles.length > 0 && world.terrain === null),
   }
 }
 
@@ -449,14 +453,32 @@ export function withPaused(frame: FrameState, paused: boolean): FrameState {
  * renderer got its last two silent bugs. Everything except `world.terrain` and
  * the terrain-derived structure positions is preserved.
  */
+function vehiclesOnTerrain(world: World<undefined>, terrain: TerrainField): World<undefined> {
+  const mission = world.mission === null ? null : {
+    ...world.mission,
+    held: world.mission.held.map((group) => group.vehicles === undefined ? group : {
+      ...group,
+      vehicles: group.vehicles.map((vehicle) => vehicleOnTerrain(vehicle, terrain)),
+    }),
+  }
+  return {
+    ...world,
+    vehicles: world.vehicles.map((vehicle) => vehicleOnTerrain(vehicle, terrain)),
+    mission,
+  }
+}
+
 export function withTerrain(frame: FrameState, terrain: TerrainField | null): FrameState {
+  const rebuilt = {
+    ...frame.world,
+    terrain,
+    structures: rebuildStructures(frame.world.structures, frame.world.airfields, terrain),
+  }
+  const world = terrain === null ? rebuilt : vehiclesOnTerrain(rebuilt, terrain)
   return {
     ...frame,
-    world: {
-      ...frame.world,
-      terrain,
-      structures: rebuildStructures(frame.world.structures, frame.world.airfields, terrain),
-    },
+    world,
+    vehiclePoses: world.vehicles.map((vehicle) => interpolateVehicle(vehicle.previous, vehicle.state, 1)),
   }
 }
 
@@ -509,12 +531,14 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)
   }
-  const { poses, shipPoses, render } = posesFor(world, 0)
+  world = vehiclesOnTerrain(world, terrain)
+  const { poses, shipPoses, vehiclePoses, render } = posesFor(world, 0)
   return {
     ...frame,
     world,
     poses,
     shipPoses,
+    vehiclePoses,
     render,
     eye: { ...frame.eye, position: v3(frame.eye.position.x, frame.eye.position.y + playerDeltaY, frame.eye.position.z) },
   }
@@ -775,7 +799,7 @@ export function nextFrameState(
     god,
   )
   const advancedPlayer = playerAircraft(advanced.world)
-  const { poses, shipPoses, render } = posesFor(advanced.world, advanced.alpha)
+  const { poses, shipPoses, vehiclePoses, render } = posesFor(advanced.world, advanced.alpha)
   const before = advancedPlayer.previous.velocity
   const after = advancedPlayer.state.velocity
   const a = advanced.alpha
@@ -807,6 +831,7 @@ export function nextFrameState(
     render,
     poses,
     shipPoses,
+    vehiclePoses,
     stepsRun: advanced.stepsRun,
     droppedSteps: advanced.droppedSteps,
     cyclePressed: cycleDown,

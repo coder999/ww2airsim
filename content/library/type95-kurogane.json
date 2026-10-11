@@ -1,0 +1,13 @@
+{
+  "id": "type95-kurogane",
+  "name": "Type 95 Kurogane scout car",
+  "kind": "vehicle",
+  "side": "japanese",
+  "model": { "kind": "vehicle", "id": "type95-kurogane" },
+  "blurb": "Japan's compact four-wheel-drive command and reconnaissance car, now a moving target on the Gunnery Range.",
+  "history": "The Type 95 was a compact four-wheel-drive scout and command car built by Tokyu Kurogane Industries for the Imperial Japanese Army. Introduced in the mid-1930s, it carried three people and used an air-cooled V-twin engine. Its light liaison and reconnaissance role makes it the Japanese counterpart to the American Willys jeep in this game's vehicle roster.",
+  "sources": [
+    { "title": "Type 95 Kurogane 4x4 scout car", "url": "https://www.awm.gov.au/collection/C110415", "read": "2026-10-11" },
+    { "title": "Typ 95 Aufklarungswagen", "url": "https://de.wikipedia.org/wiki/Typ_95_Aufkl%C3%A4rungswagen", "read": "2026-10-11" }
+  ]
+}

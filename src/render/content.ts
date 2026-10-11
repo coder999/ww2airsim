@@ -32,6 +32,7 @@ export const SCENARIO_ID = 'free-flight'
 export const scenarioUrl = (id: string): string => contentUrl('scenarios', id)
 export const aircraftUrl = (id: string): string => contentUrl('aircraft', id)
 export const shipUrl = (id: string): string => contentUrl('ships', id)
+export const vehicleUrl = (id: string): string => contentUrl('vehicles', id)
 export const airfieldUrl = (id: string): string => contentUrl('bases', id)
 
 /** The Hellcat's record on disk, for `tests/build/dist.test.ts` alone -- the

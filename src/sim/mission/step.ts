@@ -2,6 +2,7 @@ import { airVelocity } from '../flight/model.js'
 import { length } from '../math/vec3.js'
 import { nextLandingTracking, NO_LANDING, type LandingReport, type LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
+import type { VehicleEntity } from '../world/vehicles.js'
 import type { CombatState } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Airfield } from '../world/airfields.js'
@@ -23,6 +24,7 @@ export type MissionTick<M> = {
   readonly player: EntityId
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
+  readonly vehicles: readonly VehicleEntity[]
   readonly combat: CombatState
   readonly terrain: TerrainField | null
   /** The world's wind (`null` is calm): the player's airspeed is air-relative (B4). */
@@ -51,15 +53,17 @@ export function isDestroyed<M>(t: Pick<MissionTick<M>, 'combat' | 'aircraft'>, i
   }
   const ship = t.combat.ships[id]
   if (ship !== undefined) return ship.destroyedTick !== null
+  const vehicle = t.combat.vehicles[id]
+  if (vehicle !== undefined) return vehicle.destroyedTick !== null
   const structure = t.combat.structures[id]
   return structure !== undefined && structure.destroyedTick !== null
 }
 
 const isPresent = <M>(t: MissionTick<M>, id: EntityId): boolean =>
-  t.combat.aircraft[id] !== undefined || t.combat.ships[id] !== undefined || t.combat.structures[id] !== undefined
+  t.combat.aircraft[id] !== undefined || t.combat.ships[id] !== undefined || t.combat.vehicles[id] !== undefined || t.combat.structures[id] !== undefined
 
 function positionOf<M>(t: MissionTick<M>, id: EntityId): Vec3 | null {
-  return t.aircraft.find((a) => a.id === id)?.state.position ?? t.ships.find((s) => s.id === id)?.state.position ?? null
+  return t.aircraft.find((a) => a.id === id)?.state.position ?? t.ships.find((s) => s.id === id)?.state.position ?? t.vehicles.find((v) => v.id === id)?.state.position ?? null
 }
 
 /** Horizontal circle, optional altitude band on world y (ruling R9). */

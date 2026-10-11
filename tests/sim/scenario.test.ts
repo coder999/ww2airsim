@@ -35,6 +35,20 @@ const withScenario = (patch: Partial<typeof bundle.scenario>, base: ScenarioBund
   scenario: { ...base.scenario, ...patch },
 })
 
+describe('scenario ground vehicles (V2)', () => {
+  it('loads the Kurogane route into the world, terrain-seats it, and steps it', () => {
+    const content = loadScenarioBundle('gunnery-range')
+    const start = worldFromScenario(content, terrain)
+    expect(start.vehicles.map((v) => v.id)).toEqual(['kurogane-1'])
+    expect(start.combat.vehicles['kurogane-1']!.hp).toBe(28)
+    const before = start.vehicles[0]!
+    expect(before.state.position.y).toBeGreaterThan(0)
+    const after = advance(start, DT).world.vehicles[0]!
+    expect(after.state.distanceM).toBeGreaterThan(0)
+    expect(after.state.tick).toBe(1)
+  })
+})
+
 describe('the free-flight scenario', () => {
   it('parses, and names two aircraft, three ships and two airfields', () => {
     const w = worldFromScenario(bundle, null)
@@ -113,12 +127,13 @@ describe('the free-flight scenario', () => {
 describe('the Tank Buster mission', () => {
   const tankBundle = loadScenarioBundle('tank-buster')
   const world = worldFromScenario(tankBundle, terrain, 'both')
-  const tanks = world.structures.filter((s) => s.kind === 'tank')
+  const tanks = world.vehicles
 
   it('places six hostile 48 HP Chi-Ha stand-ins on Leyte terrain', () => {
     expect(tanks).toHaveLength(6)
-    expect(tanks.every((tank) => tank.model === 'type97-chi-ha' && tank.hp === 48 && tank.side === 'axis')).toBe(true)
-    expect(tanks.every((tank) => Math.abs(tank.position.y - tank.halfSize.y - heightAt(terrain, tank.position.x, tank.position.z)) < 1e-6)).toBe(true)
+    expect(tanks.every((tank) => tank.spec.id === 'type97-chi-ha' && tank.spec.hp === 48 && tank.side === 'axis')).toBe(true)
+    expect(tanks.every((tank) => Math.abs(tank.state.position.y - heightAt(terrain, tank.state.position.x, tank.state.position.z)) < 1e-6)).toBe(true)
+    expect(tanks.map((tank) => Math.round(tank.state.headingRad * 180 / Math.PI))).toEqual([222, 222, 224, 224, 226, 226])
   })
 
   it('starts six miles north of the column and pointed south down the attack run', () => {
@@ -127,7 +142,7 @@ describe('the Tank Buster mission', () => {
     if (!('airborneAt' in aircraft)) throw new Error('Tank Buster player must start airborne')
     const spawn = aircraft.airborneAt
     const [x, , z] = spawn.position
-    const [targetX, targetZ] = tankBundle.scenario.vehicles![0]!.position
+    const [targetX, targetZ] = tankBundle.scenario.vehicles![0]!.waypoints[0]!
     expect(Math.hypot(x - targetX, z - targetZ) / 1609.344).toBeCloseTo(6, 1)
     expect(z).toBeLessThan(targetZ)
     expect(spawn.headingDeg).toBe(180)
@@ -137,7 +152,7 @@ describe('the Tank Buster mission', () => {
   })
 
   it('groups targets into three bombable pairs without bunching the whole column', () => {
-    const distance = (a: typeof tanks[number], b: typeof tanks[number]): number => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)
+    const distance = (a: typeof tanks[number], b: typeof tanks[number]): number => Math.hypot(a.state.position.x - b.state.position.x, a.state.position.z - b.state.position.z)
     expect([distance(tanks[0]!, tanks[1]!), distance(tanks[2]!, tanks[3]!), distance(tanks[4]!, tanks[5]!)]
       .every((meters) => meters < 18)).toBe(true)
     expect(distance(tanks[1]!, tanks[2]!)).toBeGreaterThan(100)

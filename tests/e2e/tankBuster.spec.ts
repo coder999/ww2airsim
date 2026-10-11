@@ -12,7 +12,7 @@ test('Tank Buster renders its armor column and exposes its live objectives', asy
   const state = await page.evaluate(() => {
     const diagnostics = (window as DiagWindow).__ww2!
     return {
-      tanks: diagnostics.structures().filter((structure) => structure.id.startsWith('tank-')),
+      tanks: diagnostics.vehicles().filter((vehicle) => vehicle.id.startsWith('tank-')),
       vehicleModelCount: diagnostics.vehicleModelCount(),
       stores: diagnostics.combat()!.player.stores,
       errors: diagnostics.validationErrors,

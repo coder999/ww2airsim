@@ -297,5 +297,6 @@ function rigJeep(root: Object3D): VehicleRig {
 /** Each animated vehicle's rig, by its model id (STATIC_MODELS.vehicle). */
 export const VEHICLE_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
   'type97-chi-ha': rigChiHa,
+  'type95-kurogane': rigJeep,
   'willys-mb-jeep': rigJeep,
 }

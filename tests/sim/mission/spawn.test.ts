@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { spawnHeldGroup } from '../../../src/sim/mission/spawn.js'
 import { aircraftById } from '../../../src/sim/loop.js'
-import { BASE, REACH_FAR, missionWorld, steps } from './fixture.js'
+import { initialFrameStateFor, withTerrain } from '../../../src/render/frame.js'
+import { BASE, REACH_FAR, flatField, missionWorld, steps } from './fixture.js'
 
 const RAID_2 = { id: 'raid-2', spec: 'f6f-hellcat', tags: ['raid'], airborneAt: { position: [-20000, 3000, -16479], headingDeg: 90, speedMps: 130 }, pilot: { target: 'f6f-1' } }
 const DD_9 = { id: 'dd-9', spec: 'fletcher-dd', waypoints: [[-24000, -9000], [-23000, -9000]], speedMps: 7 }
@@ -10,6 +11,17 @@ const HELD = {
   // Far in the future, so a direct spawn below never collides with it.
   triggers: [{ id: 'launch', when: { at: 100000 }, then: [{ spawn: 'wave-1' }] }],
   heldGroups: [{ id: 'wave-1', aircraft: [RAID_2], ships: [DD_9] }],
+}
+const HELD_VEHICLES = {
+  objectives: [REACH_FAR],
+  triggers: [{ id: 'launch-vehicles', when: { at: 100000 }, then: [{ spawn: 'vehicles' }] }],
+  heldGroups: [{
+    id: 'vehicles',
+    vehicles: [
+      { id: 'parked-scout', spec: 'type95-kurogane', waypoints: [[100, 100]], speedMps: 0 },
+      { id: 'moving-scout', spec: 'type95-kurogane', waypoints: [[200, 100], [220, 100]], speedMps: 5 },
+    ],
+  }],
 }
 
 describe('spawnHeldGroup (spec 2026-09-25 §1)', () => {
@@ -41,6 +53,26 @@ describe('spawnHeldGroup (spec 2026-09-25 §1)', () => {
     const w = steps(spawnHeldGroup(steps(missionWorld(HELD), 600), 'wave-1'), 1)
     for (const e of [...w.aircraft, ...w.ships]) expect(e.state.tick, e.id).toBe(601)
     expect(aircraftById(w, 'raid-2')!.state.position).not.toEqual(aircraftById(w, 'raid-2')!.previous.position)
+  })
+
+  it('settles stationary and moving held vehicles when async terrain arrives and does not pop after spawn', () => {
+    const terrain = flatField(100)
+    const before = missionWorld(HELD_VEHICLES, null)
+    expect(before.mission!.held[0]!.vehicles!.map((vehicle) => vehicle.state.position.y)).toEqual([0, 0])
+
+    const ready = withTerrain(initialFrameStateFor(before), terrain).world
+    const held = ready.mission!.held[0]!.vehicles!
+    expect(held.map((vehicle) => vehicle.state.position.y)).toEqual([100, 100])
+    expect(held.every((vehicle) => vehicle.previous === vehicle.state)).toBe(true)
+
+    const spawned = spawnHeldGroup(ready, 'vehicles')
+    expect(spawned.vehicles.map((vehicle) => vehicle.state.position.y)).toEqual([100, 100])
+    expect(spawned.vehicles.every((vehicle) => vehicle.previous === vehicle.state)).toBe(true)
+    const moved = steps(spawned, 1)
+    expect(moved.vehicles.map((vehicle) => vehicle.state.position.y)).toEqual([100, 100])
+    expect(moved.vehicles[0]!.state.position).toEqual(moved.vehicles[0]!.previous.position)
+    expect(moved.vehicles[1]!.state.position.x).toBeGreaterThan(moved.vehicles[1]!.previous.position.x)
+    expect(moved.vehicles[1]!.previous.position.y).toBe(100)
   })
 
   it('refuses an unknown group, a second spawn, and a world with no mission', () => {

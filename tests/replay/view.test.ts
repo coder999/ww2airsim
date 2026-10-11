@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { initialFrameState, nextFrameState, surfaceHeightFor } from '../../src/render/frame.js'
 import { createRecorder, recordingEndS, recordingStartS } from '../../src/replay/recorder.js'
 import { replayPosesAt } from '../../src/replay/view.js'
-import { playerAircraft } from '../../src/sim/loop.js'
+import { advance, playerAircraft } from '../../src/sim/loop.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { loadAircraftSpec } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
+import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3, length } from '../../src/sim/math/vec3.js'
 import { SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
@@ -51,6 +52,17 @@ describe('replayPosesAt (spec §3, plan R-1)', () => {
       expect(x).toBeGreaterThanOrEqual(prevX - 1e-9) // flying east: never jumps back
       prevX = x
     }
+  })
+  it('interpolates a vehicle across sparse triple-time worlds instead of jumping to the later pose', () => {
+    const a = worldFromScenario(loadScenarioBundle('gunnery-range'), null)
+    const b = advance(a, 3 * DT).world
+    expect(b.tick - a.tick).toBe(3)
+    const mid = replayPosesAt({ worlds: [a, b] }, 1.5 * DT)
+    const av = a.vehicles[0]!.state.position
+    const bv = b.vehicles[0]!.state.position
+    expect(mid.vehiclePoses[0]!.position.x).toBeCloseTo((av.x + bv.x) / 2, 12)
+    expect(mid.vehiclePoses[0]!.position.z).toBeCloseTo((av.z + bv.z) / 2, 12)
+    expect(mid.vehiclePoses[0]!.position).not.toEqual(bv)
   })
   it('past the last tick the world is held at the last state; before the first, the first', () => {
     const { rec } = fly(60)

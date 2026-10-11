@@ -459,15 +459,27 @@ crates and a windsock. They block trees and are visual only.
 
 ## Vehicle roster
 
-Scenario-authored vehicles are stationary ground targets in the existing
-structure damage pipeline. They take gun, rocket and bomb damage, appear on
-mission maps and objective lists, and score in their own **Tank** row. Moving
-vehicles, vehicle weapons and ground AI remain open.
+Scenario-authored vehicles follow a fixed list of local `[x, z]` waypoints at
+the requested speed, conforming to the terrain as they go. They stop at the
+last waypoint unless `loop` is true. Vehicles can be hit by guns, rockets and
+bombs; a destroyed vehicle stops and remains as a darkened, slumped wreck.
+Each vehicle spec selects its scoring category: armor such as the Type 97
+Chi-Ha scores in the existing **Tank** row, while unarmored scout cars use the
+existing **Building** row. Tank Buster's six 48-HP Chi-Ha targets use the same
+vehicle simulation with stationary one-point routes. There is no player
+driving, pathfinding, suspension, collision avoidance, vehicle weapons or
+ground AI.
 
 | Vehicle | Role |
 | --- | --- |
 | Type 97 Chi-Ha medium tank | Hostile 48-HP ground target in Tank Buster; temporary visual stand-in for the Type 89 and Type 95 tanks better documented on Leyte |
 | Willys MB jeep | Friendly airfield scenery |
+| Type 95 Kurogane scout car | Japanese command/reconnaissance counterpart to the Willys; moving hostile target in Gunnery Range |
+
+In scenario JSON, `vehicles` entries name a vehicle spec, side, start pose,
+speed and `waypoints`; `loop` is optional and defaults to false. The same form
+is accepted in a held group's `vehicles` array, so a mission can spawn the
+column later.
 
 ## Ordnance roster
 

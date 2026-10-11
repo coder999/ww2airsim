@@ -190,11 +190,12 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   `content/ships/models.json` for this, but that file was never created; S1
   registered ships in `SHIP_MODELS` instead.
 - **Vehicles:** add the id to `STATIC_MODELS.vehicle` in
-  [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts)
-  and name it in the Library entry's `model`. A vehicle stands on y = 0,
-  centered on its footprint, nose to +x;
-  `tests/tools/models/vehicleModels.test.ts` measures it against its cited
-  length, width and height (R5).
+  [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts), add
+  a GLB and same-id simulation spec under `content/vehicles/`, and name it in
+  the Library entry's `model`. A vehicle stands on y = 0, centered on its
+  footprint, nose to +x; `tests/tools/models/vehicleModels.test.ts` measures it
+  against its cited length, width and height (R5). The spec supplies its
+  collision dimensions, speed, turn rate, hit points and model id.
 - **Buildings:** add the id to `STATIC_MODELS.building` in
   [`src/render/scene/staticModels.ts`](../src/render/scene/staticModels.ts).
   They have no sim spec and no `view.model`; the Hangar draws one in place
@@ -257,8 +258,11 @@ D1 hung them on the Avenger, the Kate and the G4M.
 
 ## Vehicle rigs (V1)
 
-The ground vehicles move in the Hangar through `src/render/scene/vehicleRig.ts`, keyed by model
-id (`VEHICLE_RIGS`); no vehicle is in the sim, so the bench drives them with a speed and a steer.
+Ground vehicles move through `src/render/scene/vehicleRig.ts`, keyed by model id
+(`VEHICLE_RIGS`). The Hangar bench supplies synthetic distance and steer; in a
+scenario, deterministic route distance and steering from `VehiclePose` drive
+the same rig. A destroyed vehicle stops and its render wrapper supplies the
+small wreck lean/squash without mutating shared model materials.
 
 - **Parts to split:** a turret (`Turret1`, pivot on the ring) with its gun (`Gun1`, pivot on the
   trunnion; it splits after the turret and takes the barrel back out of it); a wheeled vehicle's
@@ -274,6 +278,11 @@ id (`VEHICLE_RIGS`); no vehicle is in the sim, so the bench drives them with a s
   the rim by swinging each arm about its shoulder (`ArmL`, `ArmR`, kept nodes) for the first 30
   degrees of wheel; past that the wheel turns under them. The Hangar's budget readout adds a rider's
   budget to its vehicle's.
+
+The Type 95 Kurogane (`tools/models/blender/type95-kurogane.py`) is an original,
+deterministic Blender model. It deliberately reuses the jeep wheel/steering rig
+seam and has no rider; that keeps the scenario target light and avoids creating
+a second seated figure solely for decoration.
 
 ## Authoring in Blender
 

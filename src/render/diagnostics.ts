@@ -212,6 +212,11 @@ export type Ww2Diagnostics = {
    * zero and its mesh swaps to rubble (or reverts to intact on Restart).
    */
   readonly structures: () => readonly { readonly id: string; readonly hp: number }[]
+  /** Every simulated ground vehicle, including scenario durability overrides. */
+  readonly vehicles: () => readonly {
+    readonly id: string; readonly x: number; readonly y: number; readonly z: number
+    readonly headingRad: number; readonly hp: number; readonly destroyed: boolean
+  }[]
   /**
    * Every aircraft in the world, by id, with its simulated position and
    * compass heading.

@@ -54,6 +54,15 @@ export type CombatShip = {
   /** A scenario-local range target which records contacts but takes no damage. */
   readonly practiceTarget?: boolean
 }
+export type CombatVehicle = {
+  readonly id: string
+  readonly spec: {
+    readonly lengthM: number; readonly widthM: number; readonly heightM: number
+    readonly targetType: 'building' | 'tank'
+  }
+  readonly state: { readonly position: Vec3; readonly headingRad: number }
+  readonly previous: { readonly position: Vec3; readonly headingRad: number }
+}
 export type AircraftCombat = {
   readonly guns: readonly GunState[]
   readonly damage: Damage
@@ -137,6 +146,7 @@ export type CombatState = {
   readonly poolSaturated: number
   readonly ships: Readonly<Record<string, ShipDamage>>
   readonly structures: Readonly<Record<string, StructureDamage>>
+  readonly vehicles: Readonly<Record<string, StructureDamage>>
   /** Every detonation, and every bomb/rocket `lifeS` expiry, oldest first,
    *  bounded (`IMPACT_RING_CAPACITY`). Written here, read only by the
    *  renderer's effects (ordnance-and-effects design §3.1). */
@@ -155,6 +165,7 @@ export function createCombat(
   ships: readonly { readonly id: string; readonly hullHp: number }[] = [],
   structures: readonly { readonly id: string; readonly hp: number }[] = [],
   seed = 1944,
+  vehicles: readonly { readonly id: string; readonly hp: number }[] = [],
 ): CombatState {
   return {
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
@@ -167,6 +178,7 @@ export function createCombat(
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
     structures: Object.fromEntries(structures.map(s => [s.id, healthyStructureDamage(s.hp)])),
+    vehicles: Object.fromEntries(vehicles.map(v => [v.id, healthyStructureDamage(v.hp)])),
     impacts: [],
     aa: initialAa(seed),
   }
@@ -302,6 +314,19 @@ function hullHit(from: Vec3, to: Vec3, ship: CombatShip, start: number): number 
     v3(0, ship.spec.deckHeightM / 2, 0), v3(ship.spec.lengthM / 2, ship.spec.deckHeightM / 2, ship.spec.beamM / 2))
 }
 
+function vehicleHit(from: Vec3, to: Vec3, vehicle: CombatVehicle, start: number): number | null {
+  const heading = vehicle.state.headingRad
+  const local = (p: Vec3, center: Vec3): Vec3 => {
+    const d = sub(p, center)
+    return v3(d.x * Math.sin(heading) - d.z * Math.cos(heading), d.y, d.x * Math.cos(heading) + d.z * Math.sin(heading))
+  }
+  const began = add(vehicle.previous.position, scale(sub(vehicle.state.position, vehicle.previous.position), start))
+  return segmentBox(local(from, began), local(to, vehicle.state.position),
+    v3(0, vehicle.spec.heightM / 2, 0), v3(vehicle.spec.lengthM / 2, vehicle.spec.heightM / 2, vehicle.spec.widthM / 2))
+}
+
+const vehicleCenter = (vehicle: CombatVehicle): Vec3 => add(vehicle.state.position, v3(0, vehicle.spec.heightM / 2, 0))
+
 /** A hull box's center in world metres -- what blast measures its distance to. */
 const hullCenter = (ship: CombatShip): Vec3 => add(ship.state.position, v3(0, ship.spec.deckHeightM / 2, 0))
 
@@ -314,10 +339,12 @@ type Contact =
   | { readonly t: number; readonly kind: 'aircraft'; readonly aircraft: CombatAircraft; readonly system: DamageSystem; readonly engine?: number }
   | { readonly t: number; readonly kind: 'ship'; readonly ship: CombatShip }
   | { readonly t: number; readonly kind: 'structure'; readonly structure: StructureEntity }
+  | { readonly t: number; readonly kind: 'vehicle'; readonly vehicle: CombatVehicle }
 
 function nearestContact(
   p: Projectile, start: number, aircraft: readonly CombatAircraft[], ships: readonly CombatShip[],
   structures: readonly StructureEntity[], terrain: TerrainField | null, decks: readonly Deck[],
+  vehicles: readonly CombatVehicle[] = [],
 ): Contact | null {
   const candidates: Contact[] = []
   const ground = groundHit(p.previous, p.position, terrain)
@@ -351,6 +378,10 @@ function nearestContact(
     const t = structureHit(p.previous, p.position, structure)
     if (t !== null) candidates.push({ t, kind: 'structure', structure })
   }
+  for (const vehicle of vehicles) {
+    const t = vehicleHit(p.previous, p.position, vehicle, start)
+    if (t !== null) candidates.push({ t, kind: 'vehicle', vehicle })
+  }
   let nearest: Contact | null = null
   for (const c of candidates) if (nearest === null || c.t < nearest.t) nearest = c
   return nearest
@@ -365,6 +396,7 @@ function contactSurface(c: Contact, point: Vec3, terrain: TerrainField | null, d
     case 'aircraft': return 'aircraft'
     case 'ship': return 'ship'
     case 'structure': return 'structure'
+    case 'vehicle': return 'structure'
     case 'ground': return c.sea ? 'water' : groundUnder(terrain, decks, point.x, point.z)?.surface ?? 'land'
   }
 }
@@ -565,10 +597,12 @@ export function stepCombat(
    * no friendly fire against either and credits them as before.
    */
   targetSides: TargetSides | null = null,
+  vehicles: readonly CombatVehicle[] = [],
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
   const structureDamage: Record<string, StructureDamage> = { ...before.structures }
+  const vehicleDamage: Record<string, StructureDamage> = { ...before.vehicles }
   // For the shipsSunk credit loop below, which only has `ShipDamage` (no
   // role) per id -- the sunk hull's own role at credit time.
   const shipRoleById = new Map(ships.map((s) => [s.id, s.spec.role]))
@@ -739,11 +773,10 @@ export function stepCombat(
       return
     }
     if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
-    const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : s.kind === 'tank' ? 'tank' : 'building'
+    const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : 'building'
     records[owner] = {
       ...shooter,
-      // The legacy RAZED counter means buildings/AAA; armor has its own tally row.
-      structuresDestroyed: shooter.structuresDestroyed + (s.kind === 'tank' ? 0 : 1),
+      structuresDestroyed: shooter.structuresDestroyed + 1,
       killsByType: { ...shooter.killsByType, [targetType]: shooter.killsByType[targetType] + 1 },
     }
   }
@@ -756,6 +789,30 @@ export function stepCombat(
     // bottom 90 s later, off the attacker this blow fixed (spec §3.6).
     shipDamage[ship.id] = damageShip(was, ship.spec.hullHp, amount, tick, owner)
     if (was.destroyedTick === null && ownSideTarget(sides, targetSides?.ships, owner, ship.id)) noteFriendlyFire(owner, 'ship', ship.id)
+  }
+
+  const damageVehicleAt = (vehicle: CombatVehicle, amount: number, owner: string): void => {
+    const was = vehicleDamage[vehicle.id]
+    if (was === undefined) return
+    const now = damageStructure(was, amount, tick, owner)
+    vehicleDamage[vehicle.id] = now
+    const friendly = ownSideTarget(sides, targetSides?.vehicles, owner, vehicle.id)
+    if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'vehicle', vehicle.id)
+    if (was.destroyedTick !== null || now.destroyedTick === null) return
+    const shooter = records[owner]
+    if (shooter === undefined) return
+    if (friendly) {
+      records[owner] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      return
+    }
+    records[owner] = {
+      ...shooter,
+      structuresDestroyed: shooter.structuresDestroyed + (vehicle.spec.targetType === 'building' ? 1 : 0),
+      killsByType: {
+        ...shooter.killsByType,
+        [vehicle.spec.targetType]: shooter.killsByType[vehicle.spec.targetType] + 1,
+      },
+    }
   }
 
   /** Spec §3.4: every structure, hull and airplane whose BOX CENTER is within
@@ -780,6 +837,11 @@ export function stepCombat(
       if (direct.kind === 'aircraft' && direct.aircraft.id === a.id) continue
       const amount = falloff(a.state.position)
       if (amount !== null) damageAircraftAt(a, amount, null, owner, null)
+    }
+    for (const v of vehicles) {
+      if (direct.kind === 'vehicle' && direct.vehicle.id === v.id) continue
+      const amount = falloff(vehicleCenter(v))
+      if (amount !== null) damageVehicleAt(v, amount, owner)
     }
   }
 
@@ -964,7 +1026,7 @@ export function stepCombat(
     if (spec === undefined || shot.dt <= 0) return
     const flown = flyProjectile(shot.p, shot.dt, wind, shellDragPerM(kit, dt))
     const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
-    const contact = nearestContact(p, shot.start, [], afloat.filter((s) => s.id !== p.owner), structures, terrain, decks)
+    const contact = nearestContact(p, shot.start, [], afloat.filter((s) => s.id !== p.owner), structures, terrain, decks, vehicles)
     if (contact === null) {
       if (p.lifeS > 1e-12) alive.push(p)
       return
@@ -974,6 +1036,7 @@ export function stepCombat(
     impacts.push({ tick, cause: 'shell', outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point, shellKg: spec.shellKg })
     if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
+    else if (contact.kind === 'vehicle') damageVehicleAt(contact.vehicle, damage, p.owner)
     applyBlast(point, damage, spec.knockOutM * MAIN_BATTERY.blastRadiusFactor, contact, p.owner)
     for (const ship of afloat) {
       const d = shipDamage[ship.id]
@@ -1007,7 +1070,7 @@ export function stepCombat(
       : shot.p
     const flown = flyProjectile(burned, shot.dt, wind, store !== null ? store.dragPerM : ballistic!.dragPerM)
     const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
-    const contact = nearestContact(p, shot.start, aircraft, afloat, structures, terrain, decks)
+    const contact = nearestContact(p, shot.start, aircraft, afloat, structures, terrain, decks, vehicles)
     if (contact === null) {
       if (p.lifeS > 1e-12) alive.push(p)
       // Ruling R3: only ordnance expiries are recorded.
@@ -1027,6 +1090,7 @@ export function stepCombat(
     if (contact.kind === 'aircraft') damageAircraftAt(contact.aircraft, damage, store === null ? contact.system : null, p.owner, point, ballistic?.hitScale ?? 1, contact.engine)
     else if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
     else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
+    else if (contact.kind === 'vehicle') damageVehicleAt(contact.vehicle, damage, p.owner)
     if (store !== null) applyBlast(point, store.damage, store.blastRadiusM, contact, p.owner)
   }
 
@@ -1074,7 +1138,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState, ...(gunnerState === undefined ? {} : { gunners: gunnerState }), ...(mainBattery === undefined ? {} : { mainBattery }) }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, vehicles: vehicleDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState, ...(gunnerState === undefined ? {} : { gunners: gunnerState }), ...(mainBattery === undefined ? {} : { mainBattery }) }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same

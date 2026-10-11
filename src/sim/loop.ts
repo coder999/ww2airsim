@@ -28,6 +28,7 @@ import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
+import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -398,6 +399,7 @@ export interface World<M = undefined> {
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
+  readonly vehicles: readonly VehicleEntity[]
   /** Strike targets derived once from `airfields` at world creation (spec
    *  §3.5): never stepped, so `advance` never reassigns this -- it stays
    *  the same reference for the whole flight. See `structures.ts`'s own
@@ -546,6 +548,7 @@ export function createWorld<M>(
 export function createWorldOf<M>(parts: {
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships?: readonly ShipEntity[]
+  readonly vehicles?: readonly VehicleEntity[]
   readonly player: EntityId
   readonly airfields?: readonly Airfield[]
   readonly terrain?: TerrainField | null
@@ -572,8 +575,9 @@ export function createWorldOf<M>(parts: {
   readonly mission?: MissionState<M> | null
 }): World<M> {
   const ships = parts.ships ?? []
+  const vehicles = parts.vehicles ?? []
   const seen = new Set<EntityId>()
-  for (const e of [...parts.aircraft, ...ships]) {
+  for (const e of [...parts.aircraft, ...ships, ...vehicles]) {
     if (seen.has(e.id)) throw new Error(`createWorldOf: duplicate entity id "${e.id}"`)
     seen.add(e.id)
     // A new world's clock is 0 (below), and `advance` steps every entity from
@@ -638,9 +642,12 @@ export function createWorldOf<M>(parts: {
       Object.fromEntries(parts.aircraft.map(a => [a.id, parts.stores?.[a.id] ?? emptyStores])),
       ships.map(s => ({ id: s.id, hullHp: s.spec.hullHp })),
       structures.map(s => ({ id: s.id, hp: s.hp })),
+      1944,
+      vehicles.map(v => ({ id: v.id, hp: v.spec.hp })),
     ),
     aircraft: parts.aircraft,
     ships,
+    vehicles,
     structures,
     enemyStructureIds,
     player: parts.player,
@@ -941,6 +948,7 @@ export function advance<M>(
   let tick = world.tick
   let aircraft = world.aircraft
   let ships = world.ships
+  let vehicles = world.vehicles
   const structures = world.structures
   // Friendly fire (spec 2026-09-26 §4): structures never change side, so
   // their table is built once per call; ships are rebuilt per tick below,
@@ -965,6 +973,11 @@ export function advance<M>(
         : s.orders
       return { ...s, previous: s.state, state: stepShip(s.spec, s.state, orders, { dt: DT, tick }) }
     })
+    vehicles = vehicles.map((v) => ({
+      ...v,
+      previous: v.state,
+      state: stepVehicle(v.spec, v.state, v.orders, { dt: DT, tick, terrain: world.terrain }, (combat.vehicles[v.id]?.destroyedTick ?? null) !== null),
+    }))
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
@@ -996,8 +1009,8 @@ export function advance<M>(
         record.damage, record.stores, god !== undefined && a.id === world.player,
       )
     })
-    const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides)
+    const targetSides = { ships: sidesOf(world, ships), structures: structureSides, vehicles: sidesOf(world, vehicles) }
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles)
     // Air-to-ship collisions (Mark, 2026-10-10): after combat, so the hull points and the airplane's
     // record are this tick's; before God mode's restore and the kill credit. No collision, the same objects.
     const collided = stepShipCollisions({
@@ -1041,16 +1054,17 @@ export function advance<M>(
     // and step from the next iteration, like every other entity.
     if (mission !== null) {
       const stepped = stepMission(mission, {
-        tick, player: world.player, aircraft, ships, combat,
+        tick, player: world.player, aircraft, ships, vehicles, combat,
         terrain: world.terrain, wind: world.wind, airfields: world.airfields, decks,
       })
       // A non-null local: `mission` is reassigned in this loop, so TS cannot
       // carry the `!== null` narrowing into the spawn loop below.
       let m: MissionState<M> = stepped.mission
       for (const groupId of stepped.spawns) {
-        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, combat, mission: m, terrain: world.terrain }, groupId)
+        const spawned: SpawnParts<M> = spawnInto({ tick, aircraft, ships, vehicles, combat, mission: m, terrain: world.terrain }, groupId)
         aircraft = spawned.aircraft
         ships = spawned.ships
+        vehicles = spawned.vehicles
         combat = spawned.combat
         m = spawned.mission
       }
@@ -1068,7 +1082,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, structures, combat, mission, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, accumulatorSeconds: banked },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

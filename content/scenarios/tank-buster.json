@@ -16,12 +16,12 @@
   ],
   "ships": [],
   "vehicles": [
-    { "id": "tank-1", "model": "type97-chi-ha", "position": [-33500, -18500], "headingDeg": 222, "hp": 48, "tags": ["tank-column"] },
-    { "id": "tank-2", "model": "type97-chi-ha", "position": [-33510, -18514], "headingDeg": 222, "hp": 48, "tags": ["tank-column"] },
-    { "id": "tank-3", "model": "type97-chi-ha", "position": [-33620, -18640], "headingDeg": 224, "hp": 48, "tags": ["tank-column"] },
-    { "id": "tank-4", "model": "type97-chi-ha", "position": [-33631, -18653], "headingDeg": 224, "hp": 48, "tags": ["tank-column"] },
-    { "id": "tank-5", "model": "type97-chi-ha", "position": [-33740, -18780], "headingDeg": 226, "hp": 48, "tags": ["tank-column"] },
-    { "id": "tank-6", "model": "type97-chi-ha", "position": [-33750, -18794], "headingDeg": 226, "hp": 48, "tags": ["tank-column"] }
+    { "id": "tank-1", "spec": "type97-chi-ha", "waypoints": [[-33500, -18500]], "speedMps": 0, "headingDeg": 222, "hp": 48, "tags": ["tank-column"], "side": "axis" },
+    { "id": "tank-2", "spec": "type97-chi-ha", "waypoints": [[-33510, -18514]], "speedMps": 0, "headingDeg": 222, "hp": 48, "tags": ["tank-column"], "side": "axis" },
+    { "id": "tank-3", "spec": "type97-chi-ha", "waypoints": [[-33620, -18640]], "speedMps": 0, "headingDeg": 224, "hp": 48, "tags": ["tank-column"], "side": "axis" },
+    { "id": "tank-4", "spec": "type97-chi-ha", "waypoints": [[-33631, -18653]], "speedMps": 0, "headingDeg": 224, "hp": 48, "tags": ["tank-column"], "side": "axis" },
+    { "id": "tank-5", "spec": "type97-chi-ha", "waypoints": [[-33740, -18780]], "speedMps": 0, "headingDeg": 226, "hp": 48, "tags": ["tank-column"], "side": "axis" },
+    { "id": "tank-6", "spec": "type97-chi-ha", "waypoints": [[-33750, -18794]], "speedMps": 0, "headingDeg": 226, "hp": 48, "tags": ["tank-column"], "side": "axis" }
   ],
   "weather": {
     "windFromDeg": 0,

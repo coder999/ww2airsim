@@ -2,6 +2,7 @@ import { type Vec3, v3 } from './math/vec3.js'
 import { type Quat } from './math/quat.js'
 import type { AircraftState } from './flight/state.js'
 import { wrapPi, type ShipState } from './world/ships.js'
+import type { VehicleState } from './world/vehicles.js'
 
 /** What the renderer needs to place an airplane. Not a simulation state: it
  *  belongs to no tick, because it is between two of them. */
@@ -115,5 +116,27 @@ export function interpolateShip(prev: ShipState, curr: ShipState, alpha: number)
       prev.position.z + (curr.position.z - prev.position.z) * t,
     ),
     headingRad: wrapPi(prev.headingRad + wrapPi(curr.headingRad - prev.headingRad) * t),
+  }
+}
+
+export type VehiclePose = {
+  readonly position: Vec3
+  readonly headingRad: number
+  readonly pitchRad: number
+  readonly rollRad: number
+  readonly distanceM: number
+  readonly steer: number
+}
+
+export function interpolateVehicle(prev: VehicleState, curr: VehicleState, alpha: number): VehiclePose {
+  const t = alpha <= 0 ? 0 : alpha >= 1 ? 1 : alpha
+  const mix = (a: number, b: number): number => a + (b - a) * t
+  return {
+    position: t === 0 ? prev.position : t === 1 ? curr.position : v3(mix(prev.position.x, curr.position.x), mix(prev.position.y, curr.position.y), mix(prev.position.z, curr.position.z)),
+    headingRad: wrapPi(prev.headingRad + wrapPi(curr.headingRad - prev.headingRad) * t),
+    pitchRad: mix(prev.pitchRad, curr.pitchRad),
+    rollRad: mix(prev.rollRad, curr.rollRad),
+    distanceM: mix(prev.distanceM, curr.distanceM),
+    steer: mix(prev.steer, curr.steer),
   }
 }
