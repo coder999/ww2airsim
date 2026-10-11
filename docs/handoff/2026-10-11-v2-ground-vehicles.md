@@ -16,7 +16,15 @@ pathfinding, avoidance, suspension forces or road-network assumptions.
 Vehicles participate in gun, rocket and blast collision/damage. Their hit
 points live in combat state; destruction permanently stops the simulation
 entity, resolves vehicle mission targets, and leaves a modest leaned/squashed
-wreck. Vehicle kills reuse the established Building score/category.
+wreck. Each spec selects an established scoring category: armored vehicles use
+Tank (300 points) while light scout cars use Building. Same-side damage uses
+the friendly-fire/discharge path and cannot award either score.
+
+The current Tank Buster mission's six stationary 48-HP Chi-Ha targets were
+migrated from the temporary structure representation onto this vehicle system,
+preserving positions, headings, tags, objectives, model and Tank score. Live
+vehicle positions also drive replay interpolation, held-spawn terrain seating,
+render diagnostics and objective chart markers.
 
 The Gunnery Range includes a Type 95 Kurogane route near Tacloban. The Type 95
 is a new original deterministic Blender model and reuses the V1 jeep rig seam.
@@ -39,13 +47,19 @@ is a new original deterministic Blender model and reuses the V1 jeep rig seam.
 Recorded after implementation:
 
 - `npm run typecheck`: pass.
-- Focused Vitest for vehicle sim, scenario integration, combat, vehicle rig and
-  vehicle-model conformance: five files, 103 tests passed.
-- Localized regression rerun after the first full-suite findings: three files,
-  86 tests passed.
-- `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify`: 414 test files passed;
+- Post-merge focused Vitest for vehicle sim/spawn/combat/friendly fire, replay,
+  scenario/render/chart integration, Tank Buster, Surigao Strait, C4 asymmetric
+  thrust and Blender duplicates: 13 files, 227 tests passed.
+- Pre-review `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify`: 414 test files passed;
   5,716 tests passed, 11 skipped (5,727 total), with typecheck, lint and
   dependency checks green.
+- Post-merge full verify: typecheck, lint and dependency checks passed; Vitest
+  passed 417 files / 5,913 tests with 11 skipped, but retained two current-main
+  AI failures. `aiLethality.test.ts` exceeded its 30-second wall-clock limit
+  under full-suite load and passed 10/10 in isolation. Escort's easy unescorted
+  case lost one bomber rather than its asserted more-than-one both in-suite and
+  isolated; normal/hard and the other seven Escort cases passed. No vehicle,
+  Tank Buster, Surigao Strait, C4 or chart regression failed.
 - Bounded nexus local-GPU E2E (isolated loopback Vite port; no shared
   HTTPS slot): Gunnery Range strafing-pass mission plus the vehicle Hangar
   capture tool, two tests passed in 1.4 minutes. The mission recorded 144 shots,
@@ -61,7 +75,8 @@ Recorded after implementation:
 
 - Routes are authored coordinates, not pathfinding: content authors must keep
   them on usable land and clear of obstacles.
-- Vehicles reuse Building scoring rather than adding UI and progression rows.
+- Vehicles reuse the existing Building or Tank scoring rows rather than adding
+  a separate vehicle row.
 - Vehicle wrecks have a restrained geometric treatment; they do not yet emit a
   dedicated persistent smoke effect.
 - The Kurogane has no rider. Add one only if a close-view scenario justifies

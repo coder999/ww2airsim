@@ -7,5 +7,6 @@
   "maxSpeedMps": 29.1,
   "turnRateRadPerS": 0.7,
   "hp": 30,
+  "targetType": "building",
   "view": { "model": "willys-mb-jeep" }
 }

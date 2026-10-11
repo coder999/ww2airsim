@@ -1,5 +1,5 @@
 import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
-import { ageDamage, damagedSpec, engineOutput, idSeed, type Damage } from './damage/model.js'
+import { ageDamage, damagedSpec, engineOutputs, idSeed, type Damage } from './damage/model.js'
 import { createRng } from './rng.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
@@ -550,6 +550,8 @@ export function createWorldOf<M>(parts: {
   readonly airfields?: readonly Airfield[]
   readonly terrain?: TerrainField | null
   readonly wind?: Vec3 | null
+  /** Scenario-authored stationary ground targets, already in world coordinates. */
+  readonly structures?: readonly StructureEntity[]
   /** Per-aircraft starting stores, by id (Task 7). An aircraft with no entry
    *  here gets `emptyStores`, matching every call site's behavior before
    *  this parameter existed -- `worldFromScenario` is the only caller that
@@ -609,8 +611,11 @@ export function createWorldOf<M>(parts: {
   // and an enemy airfield on the player's own side is a content error --
   // its structures would count toward RAZED and discharge the pilot at once.
   const airfieldSide = new Map((parts.airfields ?? []).map((a) => [a.id, airfieldSideOf(a, parts.airfieldSides)]))
-  const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
-    .map((s) => ({ ...s, side: airfieldSide.get(s.airfield) ?? 'axis' }))
+  const structures = [
+    ...buildStructures(parts.airfields ?? [], parts.terrain ?? null)
+      .map((s) => ({ ...s, side: airfieldSide.get(s.airfield!) ?? 'axis' })),
+    ...(parts.structures ?? []),
+  ]
   const enemyAirfields = parts.enemyAirfields ?? []
   const playerSide = sideOf(parts, parts.aircraft.find((a) => a.id === parts.player)!)
   for (const e of enemyAirfields) {
@@ -618,7 +623,10 @@ export function createWorldOf<M>(parts: {
       throw new Error(`createWorldOf: enemy airfield "${e}" is on the player's own side (${playerSide})`)
     }
   }
-  const enemyStructureIds = new Set(structures.filter(s => enemyAirfields.includes(s.airfield)).map(s => s.id))
+  const authoredIds = new Set((parts.structures ?? []).map((s) => s.id))
+  const enemyStructureIds = new Set(structures
+    .filter((s) => authoredIds.has(s.id) || (s.airfield !== undefined && enemyAirfields.includes(s.airfield)))
+    .map((s) => s.id))
   return {
     tick: 0,
     combat: createCombat(
@@ -738,7 +746,8 @@ function stepAircraftEntity<M>(
       && supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity),
   }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
-  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, engineOutput(damage, tick, entity.id, DT)), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  const outputs = engineOutputs(damage, tick, entity.id, DT)
+  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, outputs), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
   }
@@ -997,7 +1006,7 @@ export function advance<M>(
         record.damage, record.stores, god !== undefined && a.id === world.player,
       )
     })
-    const targetSides = { ships: sidesOf(world, ships), structures: structureSides }
+    const targetSides = { ships: sidesOf(world, ships), structures: structureSides, vehicles: sidesOf(world, vehicles) }
     combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles)
     // Air-to-ship collisions (Mark, 2026-10-10): after combat, so the hull points and the airplane's
     // record are this tick's; before God mode's restore and the kill credit. No collision, the same objects.

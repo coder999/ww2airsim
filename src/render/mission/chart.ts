@@ -40,13 +40,16 @@ export function objectiveRows<M>(
  *  `step.ts`'s own, unexported, `isPresent`). An unspawned held entity has
  *  no record at all. */
 function isPresent<M>(world: World<M>, id: EntityId): boolean {
-  return world.combat.aircraft[id] !== undefined || world.combat.ships[id] !== undefined || world.combat.structures[id] !== undefined
+  return world.combat.aircraft[id] !== undefined || world.combat.ships[id] !== undefined ||
+    world.combat.structures[id] !== undefined || world.combat.vehicles[id] !== undefined
 }
 
-/** The live position of an aircraft or ship, or `null` if it is not in the
+/** The live position of an aircraft, ship or vehicle, or `null` if it is not in the
  *  world (mirrors `step.ts`'s own, unexported, `positionOf`). */
 function positionOf<M>(world: World<M>, id: EntityId): Vec3 | null {
-  return world.aircraft.find((a) => a.id === id)?.state.position ?? world.ships.find((s) => s.id === id)?.state.position ?? null
+  return world.aircraft.find((a) => a.id === id)?.state.position ??
+    world.ships.find((s) => s.id === id)?.state.position ??
+    world.vehicles.find((v) => v.id === id)?.state.position ?? null
 }
 
 export type ObjectiveMarks = {
@@ -58,8 +61,8 @@ export type ObjectiveMarks = {
   /** `reach`/`hold` waypoints and `deny` rings, as chart points in their own
    *  right (nothing else in `mapPoints` already draws one). */
   readonly stations: readonly MapPoint[]
-  /** Structure targets: `mapPoints` never lists `world.structures`, so a
-   *  structure named by `destroy`/`protect`/`deny` needs its own point. */
+  /** Ground targets: `mapPoints` never lists `world.structures` or vehicles,
+   *  so one named by `destroy`/`protect`/`deny` needs its own point. */
   readonly structures: readonly MapPoint[]
 }
 
@@ -72,19 +75,22 @@ export function objectiveMarks<M>(world: World<M>): ObjectiveMarks {
   const structures: MapPoint[] = []
   const seenStructures = new Set<string>()
   const structureById = new Map(world.structures.map((s) => [s.id, s]))
+  const vehicleById = new Map(world.vehicles.map((v) => [v.id, v]))
 
   const mark = (id: EntityId, kind: 'destroy' | 'protect'): void => {
     if (!isPresent(world, id) || isDestroyed({ combat: world.combat, aircraft: world.aircraft }, id)) return
     const structure = structureById.get(id)
-    if (structure !== undefined) {
+    const vehicle = vehicleById.get(id)
+    if (structure !== undefined || vehicle !== undefined) {
       if (seenStructures.has(id)) return
       seenStructures.add(id)
+      const position = structure?.position ?? vehicle!.state.position
       structures.push({
         id: `structure:${id}`,
         kind: 'structure',
         label: id,
-        x: structure.position.x,
-        z: structure.position.z,
+        x: position.x,
+        z: position.z,
         targetable: true,
         objective: kind,
       })

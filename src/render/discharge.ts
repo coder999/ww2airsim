@@ -34,8 +34,13 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
     const a = world.aircraft.find((x) => x.id === ff.target)
     return a === undefined ? ff.target : `${a.spec.name} ${a.id}`
   }
+  if (ff.kind === 'vehicle') {
+    const vehicle = world.vehicles.find((x) => x.id === ff.target)
+    return vehicle === undefined ? ff.target : `${vehicle.spec.name} ${vehicle.id}`
+  }
   const s = world.structures.find((x) => x.id === ff.target)
   if (s === undefined) return ff.target
+  if (s.airfield === undefined) return `${STRUCTURE_WORDS[s.kind]} ${s.id}`
   const base = world.airfields.find((a) => a.id === s.airfield)?.name ?? s.airfield
   return `${STRUCTURE_WORDS[s.kind]}, ${base}`
 }

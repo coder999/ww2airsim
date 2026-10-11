@@ -6,7 +6,7 @@ import type { Side } from '../sides.js'
  * nothing but `sides.ts`.
  */
 
-export type FriendlyFireKind = 'aircraft' | 'ship' | 'structure'
+export type FriendlyFireKind = 'aircraft' | 'ship' | 'structure' | 'vehicle'
 
 /** The FIRST damage an aircraft did to its own side: when, to what kind of
  *  entity, and which one. Set once, never overwritten, so its `tick` is the
@@ -22,6 +22,7 @@ export type FriendlyFire = {
 export type TargetSides = {
   readonly ships: Readonly<Record<string, Side>>
   readonly structures: Readonly<Record<string, Side>>
+  readonly vehicles: Readonly<Record<string, Side>>
 }
 
 /** Whether `owner`, an aircraft, shares a side with target `id` in `table`.

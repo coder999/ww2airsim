@@ -1,0 +1,107 @@
+{
+  "id": "f4u-corsair-blender",
+  "output": "content/aircraft/f4u-corsair-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/f4u-corsair-blender.py",
+    "dimensions": "span 12.50 m, length 10.26 m, wing area 29.17 m2, a 3-bladed 4.06 m propeller, the inverted gull wing and six .50 in wing guns: English Wikipedia 'Vought F4U Corsair', Specifications (F4U-4) and Design, read 2026-10-11; stance fitted to content/aircraft/f4u-corsair.json; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": {
+    "forward": "+x",
+    "up": "+y",
+    "origin": [
+      0,
+      0,
+      0
+    ],
+    "fit": {
+      "extent": "span",
+      "meters": 12.5
+    }
+  },
+  "keep": [
+    {
+      "node": "Prop",
+      "pivot": {
+        "point": [
+          2.5622,
+          0,
+          0
+        ],
+        "axis": "+x"
+      }
+    },
+    {
+      "node": "GearL",
+      "pivot": {
+        "point": [
+          0.418,
+          -0.8251,
+          -1.8
+        ],
+        "axis": "+x"
+      }
+    },
+    {
+      "node": "GearR",
+      "pivot": {
+        "point": [
+          0.418,
+          -0.8251,
+          1.8
+        ],
+        "axis": "+x"
+      }
+    },
+    {
+      "node": "Tailwheel",
+      "pivot": {
+        "point": [
+          -5.722,
+          0.2,
+          0
+        ],
+        "axis": "+z"
+      }
+    },
+    {
+      "node": "AileronL"
+    },
+    {
+      "node": "AileronR"
+    },
+    {
+      "node": "Flap1L"
+    },
+    {
+      "node": "Flap1R"
+    },
+    {
+      "node": "Flap2L"
+    },
+    {
+      "node": "Flap2R"
+    },
+    {
+      "node": "ElevatorL"
+    },
+    {
+      "node": "ElevatorR"
+    },
+    {
+      "node": "Rudder"
+    }
+  ],
+  "textures": {
+    "maxSize": 1024,
+    "format": "webp"
+  },
+  "skin": true,
+  "budget": {
+    "maxBytes": 3000000,
+    "maxTriangles": 60000,
+    "maxDrawCalls": 47
+  },
+  "noseNode": "Prop"
+}

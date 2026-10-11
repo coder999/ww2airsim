@@ -3,6 +3,8 @@ import { v3 } from '../../../src/sim/math/vec3.js'
 import { isDestroyed } from '../../../src/sim/mission/step.js'
 import type { MissionState, ObjectiveState, ResolvedObjective } from '../../../src/sim/mission/state.js'
 import { objectiveMarks, objectiveRows } from '../../../src/render/mission/chart.js'
+import { loadScenarioBundle } from '../../../tools/content/load.js'
+import { worldFromScenario } from '../../../src/sim/scenario.js'
 import {
   destroyAircraft, destroyShip, destroyStructure, missionWorld, moveAircraft, steps,
 } from '../../sim/mission/fixture.js'
@@ -131,6 +133,29 @@ describe('objectiveMarks', () => {
       },
     ])
     expect(objectiveMarks(w).targets).toEqual(new Map())
+  })
+
+  it('Tank Buster vehicle targets appear at their live vehicle positions', () => {
+    const initial = worldFromScenario(loadScenarioBundle('tank-buster'), null, 'both')
+    const tank = initial.vehicles[0]!
+    const movedPosition = v3(tank.state.position.x + 125, tank.state.position.y, tank.state.position.z - 80)
+    const world = {
+      ...initial,
+      vehicles: initial.vehicles.map((vehicle) => vehicle.id === tank.id
+        ? { ...vehicle, state: { ...vehicle.state, position: movedPosition } }
+        : vehicle),
+    }
+
+    const marks = objectiveMarks(world)
+    expect(marks.structures).toHaveLength(6)
+    expect(marks.structures.find((point) => point.label === tank.id)).toMatchObject({
+      id: `structure:${tank.id}`,
+      kind: 'structure',
+      x: movedPosition.x,
+      z: movedPosition.z,
+      targetable: true,
+      objective: 'destroy',
+    })
   })
 
   it('complete, failed and inactive objectives mark nothing', () => {

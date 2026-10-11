@@ -54,7 +54,10 @@ export type CombatShip = {
 }
 export type CombatVehicle = {
   readonly id: string
-  readonly spec: { readonly lengthM: number; readonly widthM: number; readonly heightM: number }
+  readonly spec: {
+    readonly lengthM: number; readonly widthM: number; readonly heightM: number
+    readonly targetType: 'building' | 'tank'
+  }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
 }
@@ -786,12 +789,22 @@ export function stepCombat(
     if (was === undefined) return
     const now = damageStructure(was, amount, tick, owner)
     vehicleDamage[vehicle.id] = now
+    const friendly = ownSideTarget(sides, targetSides?.vehicles, owner, vehicle.id)
+    if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'vehicle', vehicle.id)
     if (was.destroyedTick !== null || now.destroyedTick === null) return
     const shooter = records[owner]
-    if (shooter !== undefined) records[owner] = {
+    if (shooter === undefined) return
+    if (friendly) {
+      records[owner] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
+      return
+    }
+    records[owner] = {
       ...shooter,
-      structuresDestroyed: shooter.structuresDestroyed + 1,
-      killsByType: { ...shooter.killsByType, building: shooter.killsByType.building + 1 },
+      structuresDestroyed: shooter.structuresDestroyed + (vehicle.spec.targetType === 'building' ? 1 : 0),
+      killsByType: {
+        ...shooter.killsByType,
+        [vehicle.spec.targetType]: shooter.killsByType[vehicle.spec.targetType] + 1,
+      },
     }
   }
 

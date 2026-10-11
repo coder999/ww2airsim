@@ -23,6 +23,7 @@ import type { VehicleView } from '../../src/render/scene/vehicle.js'
 const deckQuals: World<undefined> = worldFromScenario(loadScenarioBundle('deck-quals'), null, 'clean')
 const strikeRange: World<undefined> = worldFromScenario(loadScenarioBundle('strike-range'), null, 'clean')
 const gunneryRange: World<undefined> = worldFromScenario(loadScenarioBundle('gunnery-range'), null, 'clean')
+const tankBuster: World<undefined> = worldFromScenario(loadScenarioBundle('tank-buster'), null, 'both')
 
 /** The stand-in `loadAirframe` every call in this file passes: real,
  *  synchronous, no network or texture decode, so this suite exercises
@@ -64,6 +65,26 @@ function allMeshes(entities: ScenarioEntities): Mesh[] {
  * mechanism a leak could hide behind.
  */
 describe('buildScenarioEntities', () => {
+  it('loads one vehicle view per authored tank and disposes them on a scenario switch', async () => {
+    const scene = new Scene()
+    const disposed: string[] = []
+    const asked: string[] = []
+    const loadVehicle = async (modelId: string) => {
+      asked.push(modelId)
+      const root = new Group()
+      root.name = modelId
+      return { root, drive: () => {}, setDamage: () => {}, dispose: () => disposed.push(modelId) }
+    }
+    const before = await buildScenarioEntities(scene, tankBuster, null, stubAirframe, stubShips, loadVehicle)
+    expect(asked).toEqual(Array(6).fill('type97-chi-ha'))
+    expect(before.vehicleHandles).toHaveLength(6)
+    for (const handle of before.vehicleHandles ?? []) expect(scene.children).toContain(handle.root)
+
+    await buildScenarioEntities(scene, strikeRange, before, stubAirframe, stubShips, loadVehicle)
+    expect(disposed).toEqual(asked)
+    for (const handle of before.vehicleHandles ?? []) expect(scene.children).not.toContain(handle.root)
+  })
+
   it('sizes the mesh arrays to the world passed in: one airframe per aircraft, one hull per ship', async () => {
     const scene = new Scene()
     const entities = await buildScenarioEntities(scene, deckQuals, null, stubAirframe, stubShips)

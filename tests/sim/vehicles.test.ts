@@ -36,6 +36,25 @@ describe('ground vehicle kinematics', () => {
     expect(wreck.stopped).toBe(true)
   })
 
+  it('honors the turn-rate bound at a non-collinear route corner instead of snapping', () => {
+    const corner = { waypoints: [{ x: 0, z: 0 }, { x: 0, z: -1 }, { x: 1, z: -1 }], speedMps: 2, loop: false }
+    const turned = stepVehicle(spec, createVehicleState(spec, corner, null), corner, ctx(1))
+    expect(turned.position).toEqual({ x: 0, y: 0, z: -1 })
+    expect(turned.waypoint).toBe(2)
+    expect(turned.headingRad).toBeCloseTo(0.25, 12)
+    expect(Math.abs(turned.headingRad)).toBeLessThanOrEqual(spec.turnRateRadPerS + 1e-12)
+  })
+
+  it('uses the time left after reaching and turning through a corner', () => {
+    const fastTurn = parseVehicleSpec({ ...spec, id: 'fast-turn', turnRateRadPerS: Math.PI * 2 })
+    const corner = { waypoints: [{ x: 0, z: 0 }, { x: 0, z: -1 }, { x: 2, z: -1 }], speedMps: 2, loop: false }
+    const turned = stepVehicle(fastTurn, createVehicleState(fastTurn, corner, null), corner, ctx(1))
+    expect(turned.headingRad).toBeCloseTo(Math.PI / 2, 12)
+    expect(turned.position.x).toBeCloseTo(0.5, 12)
+    expect(turned.position.z).toBeCloseTo(-1, 12)
+    expect(turned.distanceM).toBeCloseTo(1.5, 12)
+  })
+
   it('follows terrain height and derives pitch from the sampled slope', () => {
     const terrain = createTerrainField({ centreLatDeg: 0, centreLonDeg: 0, halfExtentM: 10, finestSamples: 3, levels: 1, encoding: 'int16-decimetres' }, 0,
       new Int16Array([100, 100, 100, 50, 50, 50, 0, 0, 0]))

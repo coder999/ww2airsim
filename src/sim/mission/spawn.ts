@@ -6,7 +6,7 @@ import { storesFromLoadout } from '../weapons/stores.js'
 import { armedForAttack } from '../ai/attack.js'
 import type { AircraftEntity, ShipEntity, World } from '../loop.js'
 import type { MissionState } from './state.js'
-import type { VehicleEntity } from '../world/vehicles.js'
+import { vehicleOnTerrain, type VehicleEntity } from '../world/vehicles.js'
 
 /** The slice of a world a spawn changes. `advance` holds these as loop
  *  locals between steps, which is why the spawn works on them rather than on
@@ -58,7 +58,8 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
   })
   const vehicles = (group.vehicles ?? []).map((v) => {
     const state = { ...v.state, tick: parts.tick }
-    return { ...v, state, previous: state }
+    const stamped = { ...v, state, previous: state }
+    return parts.terrain === null || parts.terrain === undefined ? stamped : vehicleOnTerrain(stamped, parts.terrain)
   })
   // E2: a spawned attacker is armed, like one the scenario starts with (scenario.ts); E3: and its wingmen.
   const everyone = [...parts.aircraft, ...aircraft]

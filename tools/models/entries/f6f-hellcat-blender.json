@@ -1,0 +1,101 @@
+{
+  "id": "f6f-hellcat-blender",
+  "output": "content/aircraft/f6f-hellcat-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/f6f-hellcat-blender.py",
+    "dimensions": "span 13.06 m, length 10.24 m, wing area 31.0 m2, NACA 23015.6 / 23009 airfoil, a 3-bladed 3.99 m propeller and six .50 in wing guns: English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5), read 2026-10-11; stance fitted to content/aircraft/f6f-hellcat.json; every other figure is an ESTIMATE labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": {
+    "forward": "+x",
+    "up": "+y",
+    "origin": [
+      0,
+      0,
+      0
+    ],
+    "fit": {
+      "extent": "span",
+      "meters": 13.06
+    }
+  },
+  "keep": [
+    {
+      "node": "Prop",
+      "pivot": {
+        "point": [
+          2.7228,
+          0,
+          0
+        ],
+        "axis": "+x"
+      }
+    },
+    {
+      "node": "GearL",
+      "pivot": {
+        "point": [
+          0.62,
+          -0.6537,
+          -1.5411
+        ],
+        "axis": "+z"
+      }
+    },
+    {
+      "node": "GearR",
+      "pivot": {
+        "point": [
+          0.62,
+          -0.6537,
+          1.5411
+        ],
+        "axis": "+z"
+      }
+    },
+    {
+      "node": "Tailwheel",
+      "pivot": {
+        "point": [
+          -6.0,
+          -0.55,
+          0
+        ],
+        "axis": "+z"
+      }
+    },
+    {
+      "node": "AileronL"
+    },
+    {
+      "node": "AileronR"
+    },
+    {
+      "node": "Flap1L"
+    },
+    {
+      "node": "Flap1R"
+    },
+    {
+      "node": "ElevatorL"
+    },
+    {
+      "node": "ElevatorR"
+    },
+    {
+      "node": "Rudder"
+    }
+  ],
+  "textures": {
+    "maxSize": 1024,
+    "format": "webp"
+  },
+  "skin": true,
+  "budget": {
+    "maxBytes": 3000000,
+    "maxTriangles": 60000,
+    "maxDrawCalls": 47
+  },
+  "noseNode": "Prop"
+}

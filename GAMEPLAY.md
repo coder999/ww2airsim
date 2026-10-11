@@ -36,6 +36,7 @@ sortie, 0 points, however it ends.
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
 | Destroyer | 750 | Transport | 400 |
+| Tank | 300 | | |
 
 Recovery multiplier applied to the mission total:
 
@@ -461,13 +462,16 @@ Scenario-authored vehicles follow a fixed list of local `[x, z]` waypoints at
 the requested speed, conforming to the terrain as they go. They stop at the
 last waypoint unless `loop` is true. Vehicles can be hit by guns, rockets and
 bombs; a destroyed vehicle stops and remains as a darkened, slumped wreck.
-They use the existing Building score and kill category rather than adding a
-separate vehicle row. There is no player driving, pathfinding, suspension or
-collision avoidance.
+Each vehicle spec selects its scoring category: armor such as the Type 97
+Chi-Ha scores in the existing **Tank** row, while unarmored scout cars use the
+existing **Building** row. Tank Buster's six 48-HP Chi-Ha targets use the same
+vehicle simulation with stationary one-point routes. There is no player
+driving, pathfinding, suspension, collision avoidance, vehicle weapons or
+ground AI.
 
 | Vehicle | Role |
 | --- | --- |
-| Type 97 Chi-Ha medium tank | Hostile ground target |
+| Type 97 Chi-Ha medium tank | Hostile 48-HP ground target in Tank Buster; temporary visual stand-in for the Type 89 and Type 95 tanks better documented on Leyte |
 | Willys MB jeep | Friendly airfield scenery |
 | Type 95 Kurogane scout car | Japanese command/reconnaissance counterpart to the Willys; moving hostile target in Gunnery Range |
 
@@ -508,20 +512,39 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped today** (`content/scenarios/`, checked 2026-10-10) are the
-sandbox and test-range scenarios the engineering plans needed —
-`free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus nine real missions: **Basic Flying**, **Deck Quals**
-("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
-Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt** and **Escort**. Each declares real objectives,
+**Shipped on this branch** (`content/scenarios/`, checked 2026-10-11) are the
+sandbox and test-range scenarios the engineering plans needed — `free-flight`,
+`gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus eleven
+real missions: **Basic Flying**, **Deck Quals** ("Carrier Qualification"),
+**Airfield Strike**, **Convoy Strike**, **Tank Buster**, **Combat Air Patrol**,
+**Single Combat**, **Scramble**, **Flattop Hunt**, **Escort** and **Surigao
+Strait**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
 checks the briefing, objective line, radio, chart and debrief). Open items are in the M3 and M4 handoffs
 (`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`),
 the F2 handoff (`docs/handoff/2026-10-09-f2-single-combat-scramble.md`) and
-the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`) and
-the Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`).
+the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`), the
+Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`), the Tank Buster
+handoff (`docs/handoff/2026-10-11-tank-buster-mission.md`) and the Surigao
+handoff (`docs/handoff/2026-10-11-surigao-strait-mission.md`).
+
+**Surigao Strait** (Track F, 2026-10-11) is a dawn-aftermath mission. *Fuso*
+and *Yamashiro* are already sunk. The player's F6F carries both bombs and
+rockets, pursues *Mogami* south while an American battle line exchanges real
+main-battery fire with a representative rear guard, then recovers aboard a
+staged Essex. Explicit surface-fire orders and separation keep the battle
+line from completing the player's *Mogami* objective. The roster and carrier
+compress several real formations and hours of the 25 October pursuit; the
+briefing and cited history call out that abstraction.
+
+**Tank Buster** (2026-10-11) starts a Hellcat airborne south of Dulag with
+rockets and bombs. Six Japanese tanks form three close pairs along the
+Dulag-Burauen approach; destroy four and recover at Tacloban for the badge,
+or destroy all six for the secondary objective. The mission is a historical
+composite. Its Chi-Ha is authentic to the Philippines theater but explicitly
+stands in for Type 89 and Type 95 tanks better documented on Leyte.
 
 **Escort** (Track F, 2026-10-10) is item 4 above, as Mark decided it: the
 player's Hellcat escorts four B-17s to Dulag's hangars while four Zeros

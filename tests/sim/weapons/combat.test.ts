@@ -7,7 +7,7 @@ import { advance, createWorldOf, withControls, type AircraftEntity, type Stepper
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import { STANDARD_GRAVITY_MPS2 } from '../../../src/sim/damage/overload.js'
-import { createCombat, flyProjectile, stepCombat, type Projectile } from '../../../src/sim/weapons/combat.js'
+import { createCombat, flyProjectile, stepCombat, type CombatVehicle, type Projectile } from '../../../src/sim/weapons/combat.js'
 import { segmentBox } from '../../../src/sim/weapons/geometry.js'
 import { storesFromLoadout } from '../../../src/sim/weapons/stores.js'
 import { ageDamage, damagedSpec, damageFromHit, healthyDamage } from '../../../src/sim/damage/model.js'
@@ -87,7 +87,7 @@ describe('ballistics and swept contacts', () => {
   it('sweeps rounds against a moving ground vehicle and records its destruction', () => {
     const shooter = plane('shooter', -100)
     const state = { position: v3(0, 0, 0), headingRad: Math.PI / 2 }
-    const vehicle = { id: 'truck', spec: { lengthM: 3.6, widthM: 1.52, heightM: 1.68 }, state, previous: state }
+    const vehicle = { id: 'truck', spec: { lengthM: 3.6, widthM: 1.52, heightM: 1.68, targetType: 'building' as const }, state, previous: state }
     const c = {
       ...createCombat([shooter], {}, [], [], 1944, [{ id: vehicle.id, hp: 0.01 }]),
       projectiles: [{ ...projectile, position: v3(-10, 1, 0), previous: v3(-10, 1, 0), velocity: v3(1200, 0, 0) }],
@@ -452,7 +452,7 @@ describe('production fixed-step ordnance', () => {
     expect(enemy.combat.aircraft['shooter']!.structuresDestroyed).toBe(1)
   })
 
-  it('credits a structure kill to killsByType.aaa for an aaa-kind structure, and .building for hangar/tower (Plan 9 Task 2)', () => {
+  it('credits AAA, buildings and tanks separately without counting a tank as RAZED', () => {
     const shooter = plane('shooter', -100)
     // Far apart so neither structure falls inside the other's blast radius.
     const aaa: StructureEntity = {
@@ -463,21 +463,55 @@ describe('production fixed-step ordnance', () => {
       id: 'hangar-1', airfield: 'test', kind: 'hangar', position: v3(2000, 5, 0), headingRad: 0,
       halfSize: { x: 5, y: 5, z: 5 }, hp: 50,
     }
+    const tank: CombatVehicle = {
+      id: 'tank-1', spec: { lengthM: 5.5, widthM: 2.33, heightM: 2.21, targetType: 'tank' },
+      state: { position: v3(4000, 0, 0), headingRad: 0 },
+      previous: { position: v3(4000, 0, 0), headingRad: 0 },
+    }
     // Bomb already armed, sitting exactly at the target's box center -- the
     // same trick "threads enemyAirfields..." above uses so contact is
     // deterministic without simulating a real release and fall.
-    const bombAt = (s: StructureEntity): Projectile => ({
-      owner: 'shooter', id: 1, position: s.position, previous: s.position,
+    const bombAt = (position: ReturnType<typeof v3>): Projectile => ({
+      owner: 'shooter', id: 1, position, previous: position,
       velocity: v3(0, -50, 0), lifeS: 60, tracer: false, kind: 'bomb', ageS: 1,
     })
-    const c0 = createCombat([shooter], {}, [], [{ id: 'aaa-1', hp: 50 }, { id: 'hangar-1', hp: 50 }])
-    const c1 = stepCombat({ ...c0, projectiles: [bombAt(aaa)] }, [shooter], [], [aaa, hangar], null, null, [], 1, DT)
+    const structures = [aaa, hangar]
+    const c0 = createCombat([shooter], {}, [], structures.map((s) => ({ id: s.id, hp: s.hp })), 1944, [{ id: tank.id, hp: 48 }])
+    const c1 = stepCombat({ ...c0, projectiles: [bombAt(aaa.position)] }, [shooter], [], structures, null, null, [], 1, DT, null, false, null, null, [tank])
     expect(c1.structures['aaa-1']!.destroyedTick).not.toBeNull()
-    const c2 = stepCombat({ ...c1, projectiles: [bombAt(hangar)] }, [shooter], [], [aaa, hangar], null, null, [], 2, DT)
+    const c2 = stepCombat({ ...c1, projectiles: [bombAt(hangar.position)] }, [shooter], [], structures, null, null, [], 2, DT, null, false, null, null, [tank])
     expect(c2.structures['hangar-1']!.destroyedTick).not.toBeNull()
-    expect(c2.aircraft.shooter!.structuresDestroyed).toBe(2)
-    expect(c2.aircraft.shooter!.killsByType.aaa).toBe(1)
-    expect(c2.aircraft.shooter!.killsByType.building).toBe(1)
+    const center = v3(tank.state.position.x, tank.spec.heightM / 2, tank.state.position.z)
+    const c3 = stepCombat({ ...c2, projectiles: [bombAt(center)] }, [shooter], [], structures, null, null, [], 3, DT, null, false, null, null, [tank])
+    expect(c3.vehicles['tank-1']!.destroyedTick).not.toBeNull()
+    expect(c3.aircraft.shooter!.structuresDestroyed).toBe(2)
+    expect(c3.aircraft.shooter!.killsByType.aaa).toBe(1)
+    expect(c3.aircraft.shooter!.killsByType.building).toBe(1)
+    expect(c3.aircraft.shooter!.killsByType.tank).toBe(1)
+  })
+
+  it('damages a same-side vehicle as friendly fire without awarding Building or RAZED credit', () => {
+    const shooter = plane('shooter', -100)
+    const jeep: CombatVehicle = {
+      id: 'jeep-1', spec: { lengthM: 3.36, widthM: 1.58, heightM: 1.82, targetType: 'building' },
+      state: { position: v3(0, 0, 0), headingRad: 0 },
+      previous: { position: v3(0, 0, 0), headingRad: 0 },
+    }
+    const center = v3(0, jeep.spec.heightM / 2, 0)
+    const bomb: Projectile = {
+      owner: 'shooter', id: 1, position: center, previous: center,
+      velocity: v3(0, -50, 0), lifeS: 60, tracer: false, kind: 'bomb', ageS: 1,
+    }
+    const before = createCombat([shooter], {}, [], [], 1944, [{ id: jeep.id, hp: 25 }])
+    const after = stepCombat(
+      { ...before, projectiles: [bomb] }, [shooter], [], [], null, null, [], 1, DT,
+      null, false, { shooter: 'allied' }, { ships: {}, structures: {}, vehicles: { 'jeep-1': 'allied' } }, [jeep],
+    )
+    expect(after.vehicles['jeep-1']!.destroyedTick).not.toBeNull()
+    expect(after.aircraft.shooter!.friendlyFire).toMatchObject({ kind: 'vehicle', target: 'jeep-1' })
+    expect(after.aircraft.shooter!.friendlyKills).toBe(1)
+    expect(after.aircraft.shooter!.structuresDestroyed).toBe(0)
+    expect(after.aircraft.shooter!.killsByType.building).toBe(0)
   })
 
   it('credits every sunk hull to killsByType by role: escort scores as destroyer, merchant as transport', () => {

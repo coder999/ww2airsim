@@ -19,11 +19,13 @@ export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'carrier-qualified': [[NAVY, 6], [GOLD, 2], [NAVY, 10], [WHITE, 2], [GOLD, 4]],
   'airfield-strike': [[GREEN, 3], [BROWN, 14], [SCARLET, 3], [WHITE, 4]],
   'convoy-strike': [[NAVY, 3], [GREEN, 14], [WHITE, 2], [NAVY, 2], [SCARLET, 2]],
+  'tank-buster': [[OLIVE, 4], [BROWN, 6], [GOLD, 2], [GREEN, 8], [SCARLET, 4]],
   'combat-air-patrol': [[NAVY, 4], [SKY, 6], [WHITE, 2], [SKY, 8], [NAVY, 4]],
   'single-combat': [[SCARLET, 16], [WHITE, 2], [NAVY, 2], [GOLD, 4]],
   'scramble': [[GOLD, 4], [ORANGE, 12], [NAVY, 2], [ORANGE, 2], [WHITE, 4]],
   'flattop-hunt': [[NAVY, 12], [WHITE, 2], [SCARLET, 2], [WHITE, 2], [NAVY, 2], [SCARLET, 4]],
   'escort': [[OLIVE, 4], [SKY, 2], [OLIVE, 12], [GOLD, 2], [BLUE, 4]],
+  'surigao-strait': [[NAVY, 4], [WHITE, 2], [SCARLET, 3], [GOLD, 2], [SKY, 10], [GOLD, 2]],
 }
 /** A badge with no design of its own (dev fixtures, a retired mission). */
 const PLAIN_RIBBON: readonly Stripe[] = [[NAVY, 20], [GOLD, 4]]

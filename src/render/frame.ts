@@ -453,14 +453,32 @@ export function withPaused(frame: FrameState, paused: boolean): FrameState {
  * renderer got its last two silent bugs. Everything except `world.terrain` and
  * the terrain-derived structure positions is preserved.
  */
+function vehiclesOnTerrain(world: World<undefined>, terrain: TerrainField): World<undefined> {
+  const mission = world.mission === null ? null : {
+    ...world.mission,
+    held: world.mission.held.map((group) => group.vehicles === undefined ? group : {
+      ...group,
+      vehicles: group.vehicles.map((vehicle) => vehicleOnTerrain(vehicle, terrain)),
+    }),
+  }
+  return {
+    ...world,
+    vehicles: world.vehicles.map((vehicle) => vehicleOnTerrain(vehicle, terrain)),
+    mission,
+  }
+}
+
 export function withTerrain(frame: FrameState, terrain: TerrainField | null): FrameState {
+  const rebuilt = {
+    ...frame.world,
+    terrain,
+    structures: rebuildStructures(frame.world.structures, frame.world.airfields, terrain),
+  }
+  const world = terrain === null ? rebuilt : vehiclesOnTerrain(rebuilt, terrain)
   return {
     ...frame,
-    world: {
-      ...frame.world,
-      terrain,
-      structures: rebuildStructures(frame.world.structures, frame.world.airfields, terrain),
-    },
+    world,
+    vehiclePoses: world.vehicles.map((vehicle) => interpolateVehicle(vehicle.previous, vehicle.state, 1)),
   }
 }
 
@@ -513,7 +531,7 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)
   }
-  world = { ...world, vehicles: world.vehicles.map((v) => vehicleOnTerrain(v, terrain)) }
+  world = vehiclesOnTerrain(world, terrain)
   const { poses, shipPoses, vehiclePoses, render } = posesFor(world, 0)
   return {
     ...frame,

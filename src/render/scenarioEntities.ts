@@ -58,7 +58,7 @@ export const loadRegisteredAirframe: LoadAirframe = (modelId, stores) => airfram
  */
 export async function buildScenarioEntities(
   scene: Scene,
-  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player' | 'mission'> & { readonly vehicles?: World<undefined>['vehicles'] },
+  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'vehicles' | 'player' | 'mission'>,
   previous: ScenarioEntities | null,
   // Defaulted for production; tests substitute a cheap synchronous stand-in
   // (createHellcat) so they never run a real GLTFLoader parse in Node. It receives
@@ -75,7 +75,7 @@ export async function buildScenarioEntities(
   const [settled, shipSettled, vehicleSettled, heldSettled, heldShipSettled, heldVehicleSettled] = await Promise.all([
     Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
-    Promise.allSettled((world.vehicles ?? []).map((v) => loadVehicle(v.spec.view.model))),
+    Promise.allSettled(world.vehicles.map((v) => loadVehicle(v.spec.view.model))),
     Promise.allSettled(heldAircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(heldShips.map((s) => loadShip(s.spec))),
     Promise.allSettled(heldVehicles.map((v) => loadVehicle(v.spec.view.model))),

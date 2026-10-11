@@ -12,13 +12,14 @@
  * it loads after the render loop starts and a ground spawn is held until it
  * lands (plan ruling, spec §A.2).
  */
-export type BootStage = 'renderer' | 'sky' | 'surface' | 'shaders'
+export type BootStage = 'renderer' | 'sky' | 'surface' | 'shaders' | 'graphics'
 
 export const BOOT_STAGES: readonly { readonly stage: BootStage; readonly weight: number; readonly label: string }[] = [
   { stage: 'renderer', weight: 2, label: 'Starting the graphics device...' },
   { stage: 'sky', weight: 3, label: 'Loading the sky...' },
   { stage: 'surface', weight: 3, label: 'Loading the ocean and land...' },
   { stage: 'shaders', weight: 8, label: 'Compiling shaders...' },
+  { stage: 'graphics', weight: 4, label: 'Checking graphics performance...' },
 ]
 
 const IDLE_LABEL = 'Preparing aircraft...'

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { TARGET_TYPES, zeroKillsByType, type TargetType } from '../../../src/sim/weapons/targetType.js'
 
 describe('TargetType', () => {
-  it("has master spec §8's eight rows plus destroyer and transport (Mark, 2026-09-28)", () => {
+  it('has every scored target row, including tanks', () => {
     const expected: readonly TargetType[] = [
-      'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'carrier',
+      'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'tank', 'carrier',
     ]
     expect([...TARGET_TYPES].sort()).toEqual([...expected].sort())
   })

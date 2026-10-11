@@ -1,5 +1,5 @@
 import { playerAircraft, type World } from '../sim/loop.js'
-import { interpolateAircraft, interpolateShip, type RenderState, type ShipPose } from '../sim/interpolate.js'
+import { interpolateAircraft, interpolateShip, interpolateVehicle, type RenderState, type ShipPose, type VehiclePose } from '../sim/interpolate.js'
 import { DT } from '../sim/flight/model.js'
 import { length, v3 } from '../sim/math/vec3.js'
 import type { Recording } from './recorder.js'
@@ -9,6 +9,7 @@ export type ReplayPoses = {
   readonly world: World<undefined>
   readonly poses: readonly RenderState[]
   readonly shipPoses: readonly ShipPose[]
+  readonly vehiclePoses: readonly VehiclePose[]
   readonly render: RenderState
   readonly speedMps: number
   /** `world.tick * DT`. */
@@ -37,6 +38,7 @@ export function replayPosesAt(rec: Recording, tS: number): ReplayPoses {
   const alpha = heldOrFirst ? 1 : (tS - a.tick * DT) / ((b.tick - a.tick) * DT)
   const aAircraft = new Map(a.aircraft.map((e) => [e.id, e.state] as const))
   const aShips = new Map(a.ships.map((s) => [s.id, s.state] as const))
+  const aVehicles = new Map(a.vehicles.map((v) => [v.id, v.state] as const))
   const poses = b.aircraft.map((e) => {
     const from = heldOrFirst ? undefined : aAircraft.get(e.id)
     return from === undefined ? interpolateAircraft(e.state, e.state, 1) : interpolateAircraft(from, e.state, alpha)
@@ -45,9 +47,13 @@ export function replayPosesAt(rec: Recording, tS: number): ReplayPoses {
     const from = heldOrFirst ? undefined : aShips.get(s.id)
     return from === undefined ? interpolateShip(s.state, s.state, 1) : interpolateShip(from, s.state, alpha)
   })
+  const vehiclePoses = b.vehicles.map((v) => {
+    const from = heldOrFirst ? undefined : aVehicles.get(v.id)
+    return from === undefined ? interpolateVehicle(v.state, v.state, 1) : interpolateVehicle(from, v.state, alpha)
+  })
   const playerIndex = b.aircraft.findIndex((e) => e.id === b.player)
   const pb = playerAircraft(b).state.velocity
   const pa = heldOrFirst ? pb : (aAircraft.get(b.player)?.velocity ?? pb)
   const speedMps = length(v3(pa.x + (pb.x - pa.x) * alpha, pa.y + (pb.y - pa.y) * alpha, pa.z + (pb.z - pa.z) * alpha))
-  return { world: b, poses, shipPoses, render: poses[playerIndex]!, speedMps, tickTimeS: b.tick * DT }
+  return { world: b, poses, shipPoses, vehiclePoses, render: poses[playerIndex]!, speedMps, tickTimeS: b.tick * DT }
 }

@@ -7,5 +7,6 @@
   "maxSpeedMps": 10.6,
   "turnRateRadPerS": 0.35,
   "hp": 120,
+  "targetType": "tank",
   "view": { "model": "type97-chi-ha" }
 }

@@ -321,7 +321,7 @@ export function fieldApproach(w: World<undefined>, airfieldId: string, opts: { r
 
 /**
  * Spec §5's "injected hits": each id's combat record in its destroyed form
- * at `w.tick`, attributed to `by` (default the player). Structures and ships
+ * at `w.tick`, attributed to `by` (default the player). Structures, vehicles and ships
  * go to 0 HP; an aircraft gets `damage.destroyedAt`. Throws on an id with no
  * combat record.
  */
@@ -329,9 +329,12 @@ export function destroyNow<M>(w: World<M>, ids: readonly string[], by: string = 
   let combat = w.combat
   for (const id of ids) {
     const structure = combat.structures[id]
+    const vehicle = combat.vehicles[id]
     const ship = combat.ships[id]
     const aircraft = combat.aircraft[id]
-    if (structure !== undefined) {
+    if (vehicle !== undefined) {
+      combat = { ...combat, vehicles: { ...combat.vehicles, [id]: { ...vehicle, hp: 0, destroyedTick: w.tick, attacker: by } } }
+    } else if (structure !== undefined) {
       combat = { ...combat, structures: { ...combat.structures, [id]: { ...structure, hp: 0, destroyedTick: w.tick, attacker: by } } }
     } else if (ship !== undefined) {
       combat = { ...combat, ships: { ...combat.ships, [id]: { ...ship, hp: 0, destroyedTick: w.tick, attacker: by } } }

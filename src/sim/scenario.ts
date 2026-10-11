@@ -220,6 +220,10 @@ const ScenarioVehicleObject = z.object({
   waypoints: z.array(z.tuple([finite, finite])).min(1),
   speedMps: finite.refine((n) => n >= 0, { message: 'speedMps must not be negative' }),
   loop: z.boolean().default(false),
+  /** Optional authored heading, chiefly for a one-point stationary route. */
+  headingDeg: finite.optional(),
+  /** Optional scenario durability override; the vehicle spec remains the default. */
+  hp: positive.optional(),
   tags: tagList,
   side: SideField,
 }).strict().refine((v) => v.speedMps === 0 || v.waypoints.length >= 2, {
@@ -363,6 +367,12 @@ const ScenarioObject = ScenarioShape
     message: 'every airfieldSides key must be one of airfields', path: ['airfieldSides'],
   })
   .superRefine((s, ctx) => {
+    const ids = [...s.aircraft, ...s.ships, ...(s.vehicles ?? [])].map((e) => e.id)
+    ids.forEach((entityId, index) => {
+      if (ids.indexOf(entityId) !== index) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `entity id "${entityId}" is already used; ids are unique across the whole scenario`, path: [] })
+      }
+    })
     const byId = new Map(s.aircraft.map((a) => [a.id, a]))
     for (const [index, aircraft] of s.aircraft.entries()) {
       const target = aircraft.pilot?.target
@@ -649,8 +659,12 @@ function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainFie
 }
 
 function buildVehicle(bundle: ScenarioBundle, v: ScenarioVehicle, terrain: TerrainField | null): VehicleEntity {
-  const spec = lookup(bundle.vehicleSpecs ?? {}, v.spec, 'vehicle spec')
-  const orders = { waypoints: v.waypoints.map(([x, z]) => ({ x, z })), speedMps: v.speedMps, loop: v.loop }
+  const loaded = lookup(bundle.vehicleSpecs ?? {}, v.spec, 'vehicle spec')
+  const spec = v.hp === undefined ? loaded : { ...loaded, hp: v.hp }
+  const orders = {
+    waypoints: v.waypoints.map(([x, z]) => ({ x, z })), speedMps: v.speedMps, loop: v.loop,
+    ...(v.headingDeg === undefined ? {} : { headingRad: (v.headingDeg * Math.PI) / 180 }),
+  }
   const state = createVehicleState(spec, orders, terrain)
   return { id: v.id, spec, state, previous: state, orders, ...(v.side === undefined ? {} : { side: v.side }) }
 }
@@ -817,14 +831,14 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
   const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
   const heldVehicles = (s.heldGroups ?? []).flatMap((g) => g.vehicles ?? [])
-  const vehicles = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...s.vehicles, ...heldVehicles]
+  const mobile = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...s.vehicles, ...heldVehicles]
     .map((e) => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e) }))
   const buildings = s.airfields.flatMap((a) => {
     const field = lookup(bundle.airfields, a, 'airfield')
     const side = airfieldSideOf(field, s.airfieldSides)
     return field.buildings.map((b) => ({ id: b.id, tags: b.tags ?? [], side }))
   })
-  return [...vehicles, ...buildings]
+  return [...mobile, ...buildings]
 }
 
 /**
@@ -852,7 +866,6 @@ export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
-
   const ships: ShipEntity[] = s.ships.map((sh) => buildShip(bundle, sh, terrain))
   const vehicles: VehicleEntity[] = s.vehicles.map((v) => buildVehicle(bundle, v, terrain))
 

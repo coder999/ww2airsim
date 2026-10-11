@@ -59,10 +59,11 @@ export function rebuildStructures(
   previous: readonly StructureEntity[], airfields: readonly Airfield[], terrain: TerrainField | null,
 ): readonly StructureEntity[] {
   const sides = new Map(previous.map((s) => [s.id, s.side]))
-  return buildStructures(airfields, terrain).map((s) => {
+  const buildings = buildStructures(airfields, terrain).map((s) => {
     const side = sides.get(s.id)
     return side === undefined ? s : { ...s, side }
   })
+  return buildings
 }
 
 export type StructureDamage = {

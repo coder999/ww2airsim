@@ -43,7 +43,7 @@ const bomb = (owner: string, at: Vec3): Projectile => ({
 // p (the player) and ai are allied, e is axis. cv and hangar are allied;
 // maru and bunker axis. Far apart, so no blast reaches a second target.
 const SIDES: Readonly<Record<string, Side>> = { p: 'allied', ai: 'allied', e: 'axis' }
-const TARGETS: TargetSides = { ships: { cv: 'allied', maru: 'axis' }, structures: { hangar: 'allied', bunker: 'axis' } }
+const TARGETS: TargetSides = { ships: { cv: 'allied', maru: 'axis' }, structures: { hangar: 'allied', bunker: 'axis' }, vehicles: {} }
 const AIRCRAFT = [plane('p', v3(0, 3000, 0)), plane('ai', v3(0, 3000, 4000)), plane('e', v3(0, 3000, 8000))]
 const SHIPS = [hull('cv', 0), hull('maru', 4000, 'battleship')]
 const STRUCTURES = [building('hangar', 8000), building('bunker', 12000)]

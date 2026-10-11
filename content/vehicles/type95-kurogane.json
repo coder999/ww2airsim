@@ -7,5 +7,6 @@
   "maxSpeedMps": 20.8,
   "turnRateRadPerS": 0.7,
   "hp": 28,
+  "targetType": "building",
   "view": { "model": "type95-kurogane" }
 }

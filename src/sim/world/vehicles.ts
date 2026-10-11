@@ -17,6 +17,7 @@ const VehicleSpecObject = z.object({
   maxSpeedMps: positive,
   turnRateRadPerS: positive,
   hp: positive,
+  targetType: z.enum(['building', 'tank']).default('building'),
   view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict(),
 }).strict()
 
@@ -27,6 +28,8 @@ export type VehicleOrders = {
   readonly waypoints: readonly { readonly x: number; readonly z: number }[]
   readonly speedMps: number
   readonly loop: boolean
+  /** Optional authored start heading, used by a stationary vehicle. */
+  readonly headingRad?: number
 }
 
 export type VehicleState = {
@@ -75,7 +78,7 @@ export function createVehicleState(spec: VehicleSpec, orders: VehicleOrders, ter
   if (orders.speedMps < 0 || orders.speedMps > spec.maxSpeedMps) throw new Error(`vehicle speed must be in [0, ${spec.maxSpeedMps}]`)
   const first = orders.waypoints[0]!
   const second = orders.waypoints[1] ?? first
-  const headingRad = second === first ? 0 : bearingTo(first, second)
+  const headingRad = orders.headingRad ?? (second === first ? 0 : bearingTo(first, second))
   const posed = terrainPose(v3(first.x, 0, first.z), headingRad, spec, terrain)
   return {
     ...posed, headingRad, speedMps: orders.speedMps, waypoint: orders.waypoints.length > 1 ? 1 : 0,
@@ -88,41 +91,66 @@ export function stepVehicle(
   spec: VehicleSpec, state: VehicleState, orders: VehicleOrders, ctx: Pick<SimContext, 'dt' | 'tick' | 'terrain'>,
   destroyed = false,
 ): VehicleState {
-  if (destroyed || state.stopped || orders.speedMps === 0) return { ...state, speedMps: 0, steer: 0, stopped: true, tick: ctx.tick }
-  const target = orders.waypoints[state.waypoint]
-  if (target === undefined) return { ...state, speedMps: 0, steer: 0, stopped: true, tick: ctx.tick }
-  const dx = target.x - state.position.x
-  const dz = target.z - state.position.z
-  const remaining = Math.hypot(dx, dz)
-  const travel = Math.min(orders.speedMps, spec.maxSpeedMps) * ctx.dt
+  if (destroyed || state.stopped || orders.speedMps === 0) {
+    const posed = terrainPose(state.position, state.headingRad, spec, ctx.terrain ?? null)
+    return { ...state, ...posed, speedMps: 0, steer: 0, stopped: true, tick: ctx.tick }
+  }
+  const speedMps = Math.min(orders.speedMps, spec.maxSpeedMps)
   let waypoint = state.waypoint
   let stopped = false
   let x = state.position.x
   let z = state.position.z
   let headingRad = state.headingRad
   let steer = 0
-  if (remaining <= travel + 1e-9) {
-    x = target.x
-    z = target.z
-    if (waypoint + 1 < orders.waypoints.length) waypoint++
-    else if (orders.loop) waypoint = 0
-    else stopped = true
-    const next = orders.waypoints[waypoint]
-    if (!stopped && next !== undefined) headingRad = bearingTo({ x, z }, next)
-  } else {
-    const desired = bearingTo({ x: state.position.x, z: state.position.z }, target)
-    const error = wrapPi(desired - state.headingRad)
-    const maxTurn = spec.turnRateRadPerS * ctx.dt
-    const turn = Math.max(-maxTurn, Math.min(maxTurn, error))
-    headingRad = wrapPi(state.headingRad + turn)
-    steer = maxTurn <= 0 ? 0 : turn / maxTurn
-    x += Math.sin(headingRad) * travel
-    z -= Math.cos(headingRad) * travel
+  let distanceM = state.distanceM
+  let timeLeftS = ctx.dt
+  // At a corner, time left in this tick first pays for the bounded heading
+  // change, then continues down the next leg. This avoids both the old
+  // instantaneous heading snap and throwing away the rest of a long tick.
+  for (let transitions = 0; timeLeftS > 1e-12 && !stopped && transitions <= orders.waypoints.length; transitions++) {
+    const target = orders.waypoints[waypoint]
+    if (target === undefined) { stopped = true; break }
+    const dx = target.x - x
+    const dz = target.z - z
+    const remainingM = Math.hypot(dx, dz)
+    if (remainingM <= 1e-9) {
+      if (waypoint + 1 < orders.waypoints.length) waypoint++
+      else if (orders.loop) waypoint = 0
+      else stopped = true
+      continue
+    }
+
+    const desired = bearingTo({ x, z }, target)
+    const error = wrapPi(desired - headingRad)
+    if (Math.abs(error) > 1e-12) {
+      const maxTurn = spec.turnRateRadPerS * timeLeftS
+      const turn = Math.max(-maxTurn, Math.min(maxTurn, error))
+      headingRad = wrapPi(headingRad + turn)
+      steer = Math.max(-1, Math.min(1, turn / (spec.turnRateRadPerS * ctx.dt)))
+      timeLeftS -= Math.abs(turn) / spec.turnRateRadPerS
+      if (Math.abs(turn) + 1e-12 < Math.abs(error)) break
+    }
+
+    const travelM = speedMps * timeLeftS
+    if (remainingM <= travelM + 1e-9) {
+      x = target.x
+      z = target.z
+      distanceM += remainingM
+      timeLeftS = Math.max(0, timeLeftS - remainingM / speedMps)
+      if (waypoint + 1 < orders.waypoints.length) waypoint++
+      else if (orders.loop) waypoint = 0
+      else stopped = true
+    } else {
+      x += Math.sin(headingRad) * travelM
+      z -= Math.cos(headingRad) * travelM
+      distanceM += travelM
+      timeLeftS = 0
+    }
   }
   const posed = terrainPose(v3(x, state.position.y, z), headingRad, spec, ctx.terrain ?? null)
   return {
-    ...posed, headingRad, speedMps: stopped ? 0 : Math.min(orders.speedMps, spec.maxSpeedMps), waypoint,
-    distanceM: state.distanceM + Math.hypot(x - state.position.x, z - state.position.z), steer, stopped, tick: ctx.tick,
+    ...posed, headingRad, speedMps: stopped ? 0 : speedMps, waypoint,
+    distanceM, steer, stopped, tick: ctx.tick,
   }
 }
 
