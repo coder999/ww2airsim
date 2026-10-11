@@ -1,8 +1,9 @@
 # Handoff: Blender duplicates of the Hellcat, Corsair and Wildcat (2026-10-11)
 
-Worktree `ww2airsim-blender-fighters`, branch `blender-fighters` (Mark chose a worktree and a final-product-only viewing
-checkpoint, 2026-10-11; the run was unattended). Nothing is pushed or merged. The process is written down in
-[`docs/blender-aircraft.md`](../blender-aircraft.md); this page records what was measured and what is open.
+Built in worktree `ww2airsim-blender-fighters`, branch `blender-fighters` (Mark chose a worktree and a final-product-only viewing
+checkpoint, 2026-10-11; the run was unattended), then merged to `main` in `f2bf528d`. The photo-guided Hellcat canopy follow-up
+landed in `4ca765ed`. The process is written down in [`docs/blender-aircraft.md`](../blender-aircraft.md); this page records what was
+measured and what remains open.
 
 ## What ships
 
@@ -79,7 +80,8 @@ gated Playwright capture passes 1/1.
 ## Review (2026-10-11)
 
 Mark reviewed contact sheets of each duplicate beside its download (flat Blender previews, same camera) and judged them "great".
-Still his to decide: the eye points above, and whether to push and to promote a duplicate. To send him snapshots again: one JPEG
+The duplicates and the later Hellcat canopy corrections are merged. Still his to decide: the eye points above and whether to promote a
+duplicate. To send him snapshots again: one JPEG
 contact sheet per aircraft as plain attachments, under 0.5 MB in total. An HTML email with 18 inline `cid:` images (0.8 MB) was
 accepted by Cloudflare (msmtp exit 0) and never arrived, and was not in spam, while a one-line API email arrived; the attachment
 route arrived (2026-10-11). Cloudflare's usage counter read 0 sent all day, so it cannot confirm a send either.
@@ -93,6 +95,5 @@ route arrived (2026-10-11). Cloudflare's usage counter read 0 sent all day, so i
   inboard. The real struts turn the wheel 90 degrees as they swing.
 - **Promotion is untested.** `docs/blender-aircraft.md`, "Promoting a duplicate", is derived from the files the tests read; the
   first real promotion should correct it. The Wildcat's is the awkward one (`wildcat.ts` and its frame constants).
-- **Not served on windomlane.** Ports 5173 to 5175 are taken by other sessions' servers. To see the duplicates in Mark's Hangar,
-  merge the branch, or point a free slot at this worktree (`AGENTS.md`, "Division of labor").
+- **Available in the main Hangar.** The duplicates are merged beside their downloads; promotion remains a separate decision.
 - **No cost record.** Mark's request was for the process; an earlier reading ("prices") was answered "process" (2026-10-11).

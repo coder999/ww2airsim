@@ -1,6 +1,7 @@
 # Handoff: Hellcat canopy photo correction (2026-10-11)
 
-Worktree `/home/mark/projects/ww2airsim-hellcat-canopy`, branch `hellcat-canopy`, based on `main` at `f2bf528d`.
+Built in worktree `/home/mark/projects/ww2airsim-hellcat-canopy`, branch `hellcat-canopy`, based on `main` at `f2bf528d`, and merged
+to `main` in `4ca765ed` after both rounds of Mark's canopy review.
 
 ## Result
 
