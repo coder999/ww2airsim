@@ -164,10 +164,10 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - **Formation turns (E3 open item 1): done, merged 2026-10-10.** A bomber formation leader turns at no more than 20 degrees of bank, so inside wingmen keep flying speed through a waypoint turn (before: 83 degrees, a Ki-21 wingman at 33 m/s). Handoff `docs/handoff/2026-10-10-escort-mission.md`.
 4. **Fixes:**
    - ~~escort pursuit (7f §4.2)~~ done, merged 2026-10-10: a wingman pursues a hostile attacking its leader whatever the energy, and `formationCover.test.ts` asserts it fires within gun solution (decision 11). Handoff `docs/handoff/2026-10-10-escort-mission.md`;
-   - ~~wingman commands (7f §4.5)~~ **Built on branch, not merged (E4, 2026-10-10):** `1` Attack, `2` Cover me, `3` Form up, with text-only radio answers.
-   - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Built on branch, not merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran against a turning target, a 40 s attack-run latch. The E1 duels resolve 36 of 72, from 18; the Escort mission's unescorted Zeros still down 2-4 B-17s.
+   - ~~wingman commands (7f §4.5)~~ **Done, merged 2026-10-10 (E4):** `1` Attack, `2` Cover me, `3` Form up, with text-only radio answers.
+   - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Done, merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran against a turning target, a 40 s attack-run latch. The E1 duels resolve 36 of 72, from 18; the Escort mission's unescorted Zeros still down 2-4 B-17s.
    - ~~`disengageThreshold` unread (7b)~~ **Deleted (E4):** `energyDiscipline` already is the energy disengage.
-   - E4: plan `docs/superpowers/plans/2026-10-10-e4-ai-fixes.md`; handoff `docs/handoff/2026-10-10-e4-ai-fixes.md`; branch `worktree-agent-a35670f0d4dd2f8bc`.
+   - E4: plan `docs/superpowers/plans/2026-10-10-e4-ai-fixes.md`; handoff `docs/handoff/2026-10-10-e4-ai-fixes.md`.
 
 ### Track F: Missions and a campaign (M then L)
 
