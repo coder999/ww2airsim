@@ -100,12 +100,16 @@ test('pause dossier exposes live mission records, the navigation chart, and conf
   await expect(pause).toBeHidden()
   await page.waitForFunction((tick) => (window as DiagWindow).__ww2!.tick() < tick, beforeCancel)
 
-  // P outside the dossier still opens the modal form of the same chart.
+  // P from live flight deep-links into the dossier's Map tab; P again keeps
+  // its historical toggle behavior and returns straight to the flight.
   await page.keyboard.press('KeyP')
-  const standaloneMap = page.getByRole('dialog', { name: 'Navigation chart' })
-  await expect(standaloneMap.getByRole('img', { name: 'Navigation chart, north at the top' })).toBeVisible()
-  await expect(standaloneMap.getByText(/Scroll to zoom, drag to pan/)).toBeVisible()
-  await standaloneMap.getByRole('button', { name: 'Close navigation chart' }).click()
+  await expect(pause).toBeVisible()
+  await expect(pause.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true')
+  const deepLinkedMap = pause.getByRole('region', { name: 'Mission map' })
+  await expect(deepLinkedMap.getByRole('img', { name: 'Navigation chart, north at the top' })).toBeVisible()
+  await expect(deepLinkedMap.getByText(/Scroll to zoom, drag to pan/)).toBeVisible()
+  await page.keyboard.press('KeyP')
+  await expect(pause).toBeHidden()
 
   // Confirming Abort discards the unbanked sortie and returns to the title,
   // without producing a debrief.

@@ -26,13 +26,15 @@ export type PauseScreenOptions<M> = {
 }
 
 export type PauseScreenHandle = {
-  show(): void
+  /** Open the dossier on a specific tab. Keyboard shortcuts use this as a
+   *  deep link; ordinary Escape pause opens on the Tally. */
+  show(tab?: PauseScreenTab): void
   hide(): void
   readonly isOpen: () => boolean
   readonly settingsOpen: () => boolean
 }
 
-type TabId = 'tally' | 'map' | 'mission' | 'controls' | 'quality'
+export type PauseScreenTab = 'tally' | 'map' | 'mission' | 'controls' | 'quality'
 type Confirmation = 'restart' | 'abort'
 
 const TARGET_LABELS: Readonly<Record<TargetType, string>> = {
@@ -111,15 +113,15 @@ export function createPauseScreen<M>(
   contents.style.cssText = 'min-height:360px'
   sheet.appendChild(contents)
 
-  const definitions: readonly { readonly id: TabId; readonly label: string }[] = [
+  const definitions: readonly { readonly id: PauseScreenTab; readonly label: string }[] = [
     { id: 'tally', label: 'Tally' },
     { id: 'map', label: 'Map' },
     { id: 'mission', label: 'Mission Description' },
     { id: 'controls', label: 'Controls' },
     { id: 'quality', label: 'Visual Quality' },
   ]
-  const tabButtons = new Map<TabId, HTMLButtonElement>()
-  const tabPanels = new Map<TabId, HTMLElement>()
+  const tabButtons = new Map<PauseScreenTab, HTMLButtonElement>()
+  const tabPanels = new Map<PauseScreenTab, HTMLElement>()
   let shownSnapshot: PauseScreenSnapshot<M> | null = null
 
   for (const definition of definitions) {
@@ -376,7 +378,7 @@ export function createPauseScreen<M>(
     renderBriefing(missionPanel, snapshot.briefing)
   }
 
-  function activateTab(id: TabId, focus: boolean): void {
+  function activateTab(id: PauseScreenTab, focus: boolean): void {
     for (const definition of definitions) {
       const selected = definition.id === id
       const tab = tabButtons.get(definition.id)!
@@ -429,14 +431,15 @@ export function createPauseScreen<M>(
 
   activateTab('tally', false)
   return {
-    show(): void {
+    show(tab: PauseScreenTab = 'tally'): void {
       settingsDialog.close()
       confirmationPanel.style.display = 'none'
       folder.style.display = 'block'
       renderSnapshot(options.snapshot())
-      activateTab('tally', false)
+      activateTab(tab, false)
       backdrop.style.display = 'flex'
-      resume.focus()
+      if (tab === 'tally') resume.focus()
+      else tabButtons.get(tab)!.focus()
     },
     hide(): void {
       settingsDialog.close()

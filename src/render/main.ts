@@ -35,7 +35,7 @@ import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
-import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
+import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -2066,19 +2066,13 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
   }
-  const navigationMap = createMissionMap(root, {
-    onClose: () => closeNavigationChart(),
-    onSelect: (id) => {
-      navigationMapState = selectNavigationDestination(navigationMapState, id)
-    },
-  })
   const closeNavigationChart = (): void => {
     if (!navigationMapState.open) return
     const closed = closeNavigationMap(navigationMapState)
     navigationMapState = closed.state
     frame = withPaused(frame!, closed.restorePaused)
     clearMapInput()
-    navigationMap.hide()
+    pauseScreen?.hide()
     if (closed.restorePaused) pauseScreen?.show()
   }
   const openNavigationChart = (): void => {
@@ -2090,11 +2084,10 @@ async function boot(): Promise<void> {
       navigationMapState.open || player.impact !== null
       || frame!.world.combat.aircraft[player.id]!.damage.destroyedAt !== null || landingShown
     ) return
-    pauseScreen?.hide()
     navigationMapState = openNavigationMap(navigationMapState, frame!.paused)
     frame = withPaused(frame!, true)
     clearMapInput()
-    navigationMap.show(frame!.world, navigationMapState.selectedId)
+    pauseScreen?.show('map')
   }
   pauseScreen = createPauseScreen(root, quality.settings, {
     snapshot: () => {
@@ -2110,14 +2103,19 @@ async function boot(): Promise<void> {
       }
     },
     onResume: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
       frame = withPaused(frame!, false)
       clearMapInput()
     },
-    onRestart: restartMission,
+    onRestart: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
+      restartMission()
+    },
     onSelectNavigation: (id) => {
       navigationMapState = selectNavigationDestination(navigationMapState, id)
     },
     onAbort: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
       // Unlike a debrief return, aborting an active sortie banks nothing. Drop
       // every flight-only surface and recording before showing the roster;
       // the next New game rebuild supplies a fresh world.
@@ -2249,8 +2247,8 @@ async function boot(): Promise<void> {
     // toggle (L, R, Q, P, Tab, I, /, T) -- sees a key while one is up.
     if (replay !== null) { e.preventDefault(); onReplayKey(e); return }
     // Preserve the two existing paused-flight shortcuts before the pause
-    // sheet's general keyboard gate. Both replace the sheet with their own
-    // full-screen surface and return to it when appropriate.
+    // sheet's general keyboard gate. Replay replaces the sheet; P deep-links
+    // into its Map tab and owns the resume toggle only when opened from flight.
     if (
       BINDINGS.replay.includes(e.code as never) && !e.repeat && frame!.paused && !navigationMapState.open
       && !debriefOrHoldUp() && manualReplayAvailable(recorder.snapshot())
@@ -2263,6 +2261,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       if (navigationMapState.open) closeNavigationChart()
+      else if (pauseScreen?.isOpen() === true) pauseScreen.show('map')
       else openNavigationChart()
       return
     }
@@ -2274,9 +2273,12 @@ async function boot(): Promise<void> {
     if (pauseScreen?.isOpen() === true) {
       if (BINDINGS.pause.includes(e.code as never) && !e.repeat) {
         e.preventDefault()
-        pauseScreen.hide()
-        frame = withPaused(frame!, false)
-        clearMapInput()
+        if (navigationMapState.open) closeNavigationChart()
+        else {
+          pauseScreen.hide()
+          frame = withPaused(frame!, false)
+          clearMapInput()
+        }
       }
       return
     }
@@ -2413,15 +2415,15 @@ async function boot(): Promise<void> {
     // every read.
     // A latched tap is injected as a held key for one frame, with that key's
     // "was down last frame" flag cleared so the edge actually fires.
-    // While the navigation chart is open no key reaches the frame at all:
+    // While the P-key Map deep link is open no key reaches the frame at all:
     // the hold zeroes the sim clock so axes cannot ramp, but the edge-triggered
     // toggles (gear, flaps, throttle cut, camera, pause) fire on a keypress
     // regardless of the clock, and a G pressed while reading the chart must
     // not drop the gear (Plan 14 Task 4). `clearMapInput` drains the latches
     // and `pressed` at both transitions; this keeps the frames in between
     // deaf too.
-    // The open chart and the title screen hold the world the same way: no
-    // keys reach the frame and the frame is paused (the chart's comment
+    // The Map deep link and the title screen hold the world the same way: no
+    // keys reach the frame and the frame is paused (the comment
     // above). The title's release path is its New game handler in `boot`.
     // A replay holds the live world the same way (R-9): no key and no mouse
     // reaches the flight while one is up; the replay reads its own.
@@ -2478,10 +2480,9 @@ async function boot(): Promise<void> {
     if (replay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
-      navigationMap.show(current.world, navigationMapState.selectedId)
     }
-    // Only the manual Esc edge raises the pause sheet. Other held states
-    // (title, navigation chart, replay, landing/debrief) keep their own UI.
+    // Only the manual Esc edge raises the pause sheet. The P-key path raises
+    // it synchronously on the Map tab; the other held states keep their UI.
     if (pendingPause && current.paused) pauseScreen?.show()
     else if (!current.paused) pauseScreen?.hide()
     pendingCameraCycle = false
