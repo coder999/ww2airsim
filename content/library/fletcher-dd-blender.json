@@ -1,0 +1,26 @@
+{
+  "id": "fletcher-dd-blender",
+  "name": "Fletcher-class destroyer (Blender model)",
+  "kind": "ship",
+  "side": "allied",
+  "displayOnly": true,
+  "spec": "fletcher-dd",
+  "model": {
+    "kind": "ship",
+    "id": "fletcher-dd-blender"
+  },
+  "blurb": "An original measured Blender Fletcher kept beside the downloaded Fletcher for Hangar comparison. It duplicates the same dimensions, stance and moving armament contract and is not used by scenarios.",
+  "history": "The Fletcher class was the U.S. Navy's most numerous destroyer design of the war: 175 ships were commissioned between 1942 and 1944. Each carried five 5-inch guns in single mounts and ten 21-inch torpedo tubes in two quintuple mounts.\n\nWhat this entry models: an original late-war Fletcher measured from the U.S. Navy Bureau of Ships Measure 32 Design 13D class drawing. Every source measurement and estimate is labeled in its Blender script. The original downloaded Fletcher remains the gameplay asset; this duplicate exists for direct Hangar comparison.",
+  "sources": [
+    {
+      "title": "Fletcher-class destroyer",
+      "url": "https://en.wikipedia.org/wiki/Fletcher-class_destroyer",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "Pattern sheet, MS-32 13D for Fletcher class",
+      "url": "https://commons.wikimedia.org/wiki/File:Pattern_sheet,_MS-32_13D_for_Fletcher_class.jpg",
+      "read": "2026-10-11"
+    }
+  ]
+}

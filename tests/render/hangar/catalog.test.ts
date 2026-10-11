@@ -68,7 +68,7 @@ describe('origin: internal (ours) or external (a download), for the list filter'
     // Downloads: a spec's view.model (Wildcat, Essex), or an entry's own model (Corsair, B-17).
     for (const id of ['f4f-wildcat', 'fletcher-dd', 'f4u-corsair', 'b-17-flying-fortress', 'a6m-zero']) expect(get(id).origin, id).toBe('external')
     // Ours: Blender (Ki-84, Kagero, the hangar, the tower since R4), generated ordnance (HVAR).
-    for (const id of ['ki-84-frank', 'p-38-lightning', 'kagero-dd', 'essex-cv', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
+    for (const id of ['ki-84-frank', 'p-38-lightning', 'fletcher-dd-blender', 'kagero-dd', 'essex-cv', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
   })
 
   it('leaves an undrawn entry with no origin, and every drawn one with one', () => {

@@ -463,12 +463,11 @@ test.describe('the Hangar', () => {
   })
 
   test('17. every warship and fitted comparison model uses its spec\'s armament, and each mount trains and elevates (M1, M1b)', async ({ page }) => {
-    const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
+    const cards = readdirSync('content/library').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/library/${f}`, 'utf8')) as { id: string; kind: string; spec?: string }).filter((e) => e.kind === 'ship')
+    const ships = cards.map((card) => ({ ...JSON.parse(readFileSync(`content/ships/${card.spec}.json`, 'utf8')) as { role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> }, id: card.id }))
     const ids = await entries(page)
     expect(ships.filter((s) => ids.includes(s.id))).toHaveLength(ships.length)
-    const shiratsuyu = ships.find((s) => s.id === 'shiratsuyu-dd')!
-    const displayed = [...ships, { ...shiratsuyu, id: 'shiratsuyu-dd-blender' }]
-    for (const ship of displayed) {
+    for (const ship of ships) {
       const a = ship.armament
       // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
       const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : m.run === undefined ? [`${p}${i + 1}`] : Array.from({ length: m.barrels }, (_, g) => `${p}${i + 1}_${g + 1}`)))) : []

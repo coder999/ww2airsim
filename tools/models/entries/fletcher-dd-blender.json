@@ -1,0 +1,34 @@
+{
+  "id": "fletcher-dd-blender",
+  "output": "content/ships/fletcher-dd-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/fletcher-dd-blender.py",
+    "dimensions": "114.8 m overall, 12.0 m beam and 3.96 m draft from the English Wikipedia Fletcher-class specifications and NHHC DANFS; hull, deck, superstructure and armament stations measured from the 1944 U.S. Navy Bureau of Ships Measure 32 Design 13D class drawing; every estimate labeled in the script",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 114.8 } },
+  "skin": true,
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "fletcher-dd",
+    "fit": "hull",
+    "kind": "full-hull",
+    "palette": "usn-1944",
+    "materials": {
+      "hull": "hull",
+      "deck": "deck",
+      "superstructure": "superstructure",
+      "fitting": "fitting",
+      "glazing": "fitting",
+      "dark": "fitting",
+      "antifouling": "antifouling"
+    },
+    "otherMaterials": "classify",
+    "smokeOrigin": [8.5, 15, 0],
+    "bow": "narrow-end",
+    "keelM": -3.96
+  }
+}
