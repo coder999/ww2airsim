@@ -165,7 +165,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 4. **Fixes:**
    - ~~escort pursuit (7f §4.2)~~ done, merged 2026-10-10: a wingman pursues a hostile attacking its leader whatever the energy, and `formationCover.test.ts` asserts it fires within gun solution (decision 11). Handoff `docs/handoff/2026-10-10-escort-mission.md`;
    - ~~wingman commands (7f §4.5)~~ **Built on branch, not merged (E4, 2026-10-10):** `1` Attack, `2` Cover me, `3` Form up, with text-only radio answers.
-   - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Built on branch, not merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran, a 40 s attack-run latch. The E1 duels resolve 33 of 72, from 18.
+   - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Built on branch, not merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran against a turning target, a 40 s attack-run latch. The E1 duels resolve 36 of 72, from 18; the Escort mission's unescorted Zeros still down 2-4 B-17s.
    - ~~`disengageThreshold` unread (7b)~~ **Deleted (E4):** `energyDiscipline` already is the energy disengage.
    - E4: plan `docs/superpowers/plans/2026-10-10-e4-ai-fixes.md`; handoff `docs/handoff/2026-10-10-e4-ai-fixes.md`; branch `worktree-agent-a35670f0d4dd2f8bc`.
 
