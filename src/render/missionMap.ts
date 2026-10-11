@@ -205,6 +205,10 @@ export type MissionMapHandle = {
 export type MissionMapOptions = {
   readonly onClose: () => void
   readonly onSelect: (id: string) => void
+  /** Mount the chart as page content instead of as its own modal. The pause
+   *  dossier uses this so its Map tab keeps the common tab strip and action
+   *  footer on screen. */
+  readonly embedded?: boolean
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -219,6 +223,7 @@ const MARGIN_L = 52
 const MARGIN_T = 14
 const MARGIN_R = 14
 const MARGIN_B = 30
+let chartInstance = 0
 
 export type LabelPlacement = { readonly x: number; readonly y: number }
 
@@ -287,17 +292,20 @@ const svgElement = (name: string): SVGElement => document.createElementNS(SVG_NS
  */
 export function createMissionMap(root: HTMLElement, options: MissionMapOptions): MissionMapHandle {
   ensurePatternDefs()
+  const embedded = options.embedded === true
+  const clipId = `chart-clip-${++chartInstance}`
   const backdrop = document.createElement('div')
-  backdrop.style.cssText =
-    'position:fixed;inset:0;display:none;overflow-y:auto;background:rgba(8,10,14,.58);z-index:11'
+  backdrop.style.cssText = embedded
+    ? 'display:none'
+    : 'position:fixed;inset:0;display:none;overflow-y:auto;background:rgba(8,10,14,.58);z-index:11'
   const frame = document.createElement('div')
-  frame.className = 'naval-comms'
-  frame.style.cssText = 'padding:24px 16px 40px'
+  frame.className = embedded ? '' : 'naval-comms'
+  frame.style.cssText = embedded ? '' : 'padding:24px 16px 40px'
   const panel = document.createElement('section')
-  panel.className = 'sheet'
-  panel.setAttribute('role', 'dialog')
-  panel.setAttribute('aria-modal', 'true')
-  panel.setAttribute('aria-label', 'Navigation chart')
+  panel.className = embedded ? '' : 'sheet'
+  panel.setAttribute('role', embedded ? 'region' : 'dialog')
+  if (!embedded) panel.setAttribute('aria-modal', 'true')
+  panel.setAttribute('aria-label', embedded ? 'Mission map' : 'Navigation chart')
   frame.appendChild(panel)
   backdrop.appendChild(frame)
   root.appendChild(backdrop)
@@ -323,7 +331,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   close.setAttribute('aria-label', 'Close navigation chart')
   close.addEventListener('click', () => options.onClose())
   letterhead.append(letterheadText, formNumber, close)
-  panel.appendChild(letterhead)
+  if (!embedded) panel.appendChild(letterhead)
 
   const detail = document.createElement('div')
   detail.setAttribute('aria-live', 'polite')
@@ -335,7 +343,8 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   svg.setAttribute('role', 'img')
   svg.setAttribute('aria-label', 'Navigation chart, north at the top')
   svg.setAttribute('width', '100%')
-  svg.style.cssText = 'display:block;background:var(--paper-deep);border:1px solid var(--paper-edge);max-height:66vh'
+  svg.style.cssText =
+    `display:block;background:var(--paper-deep);border:1px solid var(--paper-edge);max-height:${embedded ? '48vh' : '66vh'}`
   panel.appendChild(svg)
 
   const legend = document.createElement('div')
@@ -475,7 +484,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     const layers = layerCache.layers
 
     const clip = svgElement('clipPath')
-    clip.id = 'chart-clip'
+    clip.id = clipId
     const clipRect = svgElement('rect')
     clipRect.setAttribute('width', String(CHART_WIDTH))
     clipRect.setAttribute('height', String(CHART_HEIGHT))
@@ -491,7 +500,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     water.setAttribute('fill', CHART.water)
     sheet.appendChild(water)
     const content = svgElement('g')
-    content.setAttribute('clip-path', 'url(#chart-clip)')
+    content.setAttribute('clip-path', `url(#${clipId})`)
     sheet.appendChild(content)
 
     const addPath = (lines: ChartLayers['land'], css: Record<string, string>): void => {
@@ -693,7 +702,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
         shown = next
       }
       backdrop.style.display = 'block'
-      if (wasHidden) close.focus()
+      if (wasHidden && !embedded) close.focus()
     },
     hide(): void {
       backdrop.style.display = 'none'
