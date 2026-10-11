@@ -28,6 +28,18 @@ Everything the download it may replace has, because the game draws a flyable air
    read date in the script header. Each figure is **CITED** with its source or **ESTIMATE**; the header is
    the audit trail (`f6f-hellcat-blender.py` is the model). A figure no source gives is an estimate, never silently
    a guess. Where a download is being duplicated, take the stance from the spec (step 3), not from the download.
+   **Measure the real airplane, not the download.** The downloads this project started from put their canopies
+   0.1 to 1.0 m aft of the real ones and 0.2 to 0.6 m low (the Wildcat's glass was 1.3 m aft and its crown 0.6 m low), and the
+   specs' eye points were fitted to them (Mark noticed, 2026-10-11). Wikimedia Commons carries a 3-view line drawing
+   of each type (`File:Grumman F6F Hellcat 3-view line drawing.svg`, `File:Vought F4U-1 Corsair 3-view.svg`,
+   `File:Grumman F4F Wildcat 3-view line drawing.svg`; find others from the article's image list with
+   `api.php?action=query&prop=images&titles=<article>`), fetched as a PNG with
+   `https://commons.wikimedia.org/wiki/Special:FilePath/<name>?width=1600` and read with the Read tool. From the side view,
+   take the nose-relative top and bottom lines, the windscreen front, the crown and the canopy rear; from the top view, the
+   half-widths and the wing chord at 30 percent semispan (its quarter chord is where the origin sits, 3.03 m, 2.87 m and
+   2.58 m aft of the spinner tip for the Hellcat, Corsair and Wildcat). Scale each drawing by its own spinner-tip-to-tail pixels over the cited length. Put
+   the tables in the script as meters aft of the nose, with the drawing named in the header. Check by overlaying the
+   model's centerline silhouette on the drawing: the three fighters' tops, canopies and bellies sit within a few cm of it.
 2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
    - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
    - bent (gull) wing: `f4u-corsair-blender.py`
@@ -95,12 +107,12 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 
 ## Traps found on the three fighters (2026-10-11)
 
-- **Read the canopy off the download, in numbers, not off a picture.** The first pass put each canopy 0.7 to 1 m too
+- **Read the canopy off the real airplane, in numbers.** The first pass put each canopy 0.7 to 1 m too
   far aft and built it as a long pointed lens, which met the deck as a triangle instead of reading as a bubble (Mark,
-  2026-10-11). Measure the download's glass node (x range, crown, half-width) with `worldPositions` from
-  `tools/models/rig.js`, as `eyePoints.test.ts` does, then build the glass as stations of (x, half-width, crown y) with a
+  2026-10-11). The second pass copied the downloads' glass and was still aft: the downloads are wrong (step 1, "Measure the real
+  airplane"). Build the glass as stations of (x, half-width, crown y) with a
   raked, blunt windscreen, the crown over the eye, and a long taper aft, its base sunk below the deck. The deck
-  forward of the windscreen must sit at the download's height (the Hellcat's cowl top is about 0.85 m, so its
+  forward of the windscreen must sit at the drawing's height (the Hellcat's cowl top is about 0.85 m, so its
   canopy stands 0.4 m proud), or the glass looks sunk.
 - **Canopy and fuselage station lists run tail to nose** (x increasing). A reversed list fails with
   "station x values must be strictly increasing", and only the canopy's order is easy to flip when copying from a

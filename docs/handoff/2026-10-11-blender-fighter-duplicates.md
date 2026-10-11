@@ -47,11 +47,22 @@ Rebuilt each canopy from those numbers (see the first trap in `docs/blender-airc
 to match. `tests/tools/models`, `tests/render/hangar` and `airframes` pass (64 files, 1,483 tests); Hangar Tier 2 passes, but checks 7b, 10
 and 16 timed out once under another session's load and passed alone (16 at 45 s of its 60 s limit, so it is close). Captures are redone.
 
+## Third pass: the real airplane (2026-10-11, Mark: "pay attention to how far forward the real canopies are")
+
+Mark was right, and the downloads were the error: found the 3-view line drawings on Wikimedia Commons and rebuilt the fuselage top and
+bottom lines, half-widths, canopy, fin and tailplane from them (`docs/blender-aircraft.md`, "Measure the real airplane"). Real canopy
+fronts are 3.3 m (Hellcat), 3.95 m (Corsair) and 2.7 m (Wildcat) aft of the spinner tip; the Wildcat's crown is 1.25 m above the thrust
+line, not 0.6 (it is now a barrel-chested airplane with a high hood). An overlay of each model's centerline silhouette on its drawing
+agrees to a few cm along the top, canopy and belly.
+
+**Decision for Mark: the specs' eye points.** They were fitted to the downloads and sit behind and below the real cockpits. Proposed
+real eye points, now asserted by `blenderDuplicates.test.ts`: Hellcat (-0.87, 1.17) against the spec's (-0.75, 0.95); Corsair (-1.63, 1.02)
+against (-1.85, 0.78); Wildcat (-0.82, 0.95) against (-1.713, 0.315). Promotion moves the spec to them; the Wildcat's is a 0.9 m forward and 0.6 m
+up change of the cockpit view.
+
 ## Open
 
-- **The likeness is a first pass.** The profiles were matched by eye to the downloads' silhouettes; no three-view drawing was read.
-  The Wildcat in particular is more slender than the real barrel-chested fuselage, and the Corsair's canopy is low because the
-  spec's eye point (0.78 m up) caps the crown at 1.23 m. Mark's eye is the review.
+- **The likeness is still a measured first pass**: silhouettes from the Commons 3-view drawings, no photographs or cross sections read. The wing planform, nose cowl detail and the tail fillets were not refit to the drawings. Mark's eye is the review.
 - **The folds are one-hinge estimates**: the Hellcat swings its legs aft with the wheel upright, the Corsair and Wildcat fold flat
   inboard. The real struts turn the wheel 90 degrees as they swing.
 - **Promotion is untested.** `docs/blender-aircraft.md`, "Promoting a duplicate", is derived from the files the tests read; the

@@ -12,15 +12,16 @@ import { fitStores, sectionAtFor, MIN_CLEARANCE_M } from '../../../tools/models/
 import { MODEL_STANCE } from '../../../src/render/scene/stance.js'
 import { drawnPoints } from './_drawnPoints.js'
 
-/** `skin`: the duplicate's whole-airframe node (the build merges the glass into it, as the Ki-84's and the TBM's are; kit.py names it <NAME>_dark). */
-const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number }[] = [
-  { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark' },
-  { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4 },
-  { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray' },
+/** `eye`: where the pilot's eye sits in the real cockpit, read off the three-view drawing on Wikimedia Commons (docs/blender-aircraft.md, "Measure the real airplane"). The specs' eye points were fitted to the downloads, whose canopies sit 0.1 to 1.0 m aft of and 0.2 to 0.6 m lower than the real ones; promoting a duplicate moves the spec's `view.eyePointM` here (Mark, 2026-10-11).
+ *  `skin`: the duplicate's whole-airframe node (the build merges the glass into it, as the Ki-84's and the TBM's are; kit.py names it <NAME>_dark). */
+const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number; eye: readonly [number, number] }[] = [
+  { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17] },
+  { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
+  { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.82, 0.95] },
 ]
 const TOLERANCE_M = 0.05
 
-describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3 }) => {
+describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye }) => {
   const spec = loadAircraftSpec(specId)
 
   it('mains on gear.heightM at the stance x, tail on the ground at the stance pitch', async () => {
@@ -51,11 +52,11 @@ describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, mode
     })
   })
 
-  it('the eye is 0.15 to 0.45 m below the crown over it', async () => {
+  it('the proposed eye is 0.15 to 0.45 m below the crown over it', async () => {
     const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/aircraft/${model}.glb`)))
     const pts = doc.getRoot().listNodes().filter((n) => n.getName() === skin).flatMap((n) => worldPositions(n))
     expect(pts.length, `no node ${skin}`).toBeGreaterThan(0)
-    const [ex, ey] = spec.view.eyePointM
+    const [ex, ey] = eye
     expect(ex).toBeGreaterThanOrEqual(Math.min(...pts.map((p) => p[0]!)))
     expect(ex).toBeLessThanOrEqual(Math.max(...pts.map((p) => p[0]!)))
         const top = Math.max(...pts.filter((p) => Math.abs(p[0]! - ex) <= 0.2).map((p) => p[1]!))
