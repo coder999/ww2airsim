@@ -25,7 +25,7 @@ describe('the committed ship models', () => {
   it('are the complete Library roster', () => {
     expect(ships.map((e) => e.id)).toEqual([
       'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'crow-amc-20', 'essex-cv', 'fletcher-dd-blender', 'fletcher-dd', 'kagero-dd',
-      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv',
+      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd-blender', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv-blender', 'zuikaku-cv',
     ])
   })
 })
@@ -121,9 +121,13 @@ describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s carries i
   })
 })
 
-describe('essex-cv specifically', () => {
-  const entry = ships.find((e) => e.id === 'essex-cv')!
-  const cv = loadShipSpec('essex-cv')
+describe.each([
+  ['essex-cv', 'essex-cv'],
+  ['zuikaku-cv', 'zuikaku-cv'],
+  ['zuikaku-cv-blender', 'zuikaku-cv'],
+] as const)('%s carrier deck specifically', (modelId, specId) => {
+  const entry = ships.find((e) => e.id === modelId)!
+  const cv = loadShipSpec(specId)
 
   it('carries TrapBand at the trap zone\'s center on the deck, as wide as its own island leaves clear', async () => {
     const doc = await read(entry.output)
@@ -134,10 +138,12 @@ describe('essex-cv specifically', () => {
     expect(band.getExtras()['halfWidthM']).toBeCloseTo(trapLaneHalfWidth(documentSoup(doc), cv), 9)
   })
 
-  it('fails, naming the deck, if Plan 8 raises the deck to 18 m (the check bites)', async () => {
-    const raised = { ...cv, deckHeightM: 18, flightDeck: { ...cv.flightDeck!, heightM: 18 } }
+  it('fails, naming the deck, if the live spec raises it by 1 m (the check bites)', async () => {
+    const heightM = cv.flightDeck!.heightM + 1
+    const raised = { ...cv, deckHeightM: heightM, flightDeck: { ...cv.flightDeck!, heightM } }
     const { problems } = fitProblems(documentSoup(await read(entry.output)), raised, entry.ship!)
-    expect(problems.join('; ')).toMatch(/deck plane at 17\.0\d\d m vs flightDeck\.heightM 18/)
+    expect(problems.join('; ')).toContain('deck plane')
+    expect(problems.join('; ')).toContain(`flightDeck.heightM ${heightM}`)
   })
 })
 

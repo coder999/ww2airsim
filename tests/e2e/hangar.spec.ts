@@ -340,7 +340,7 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'ki-43-oscar-blender', 'd3a-val', 'd3a-val-blender', 'g4m-betty', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'ki-43-oscar-blender', 'd3a-val', 'd3a-val-blender', 'g4m-betty', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'zuikaku-cv-blender', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
@@ -448,7 +448,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'shiratsuyu-dd-blender', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'zuikaku-cv-blender', 'shiratsuyu-dd-blender', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
       'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)

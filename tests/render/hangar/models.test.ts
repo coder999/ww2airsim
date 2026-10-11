@@ -273,6 +273,7 @@ describe("an entry's own model (R1)", () => {
 
   it('displayModelUrl resolves ships and static models through their registries, and refuses an aircraft', () => {
     expect(displayModelUrl({ kind: 'ship', id: 'essex-cv' })).toBe(shipModelUrl('essex-cv'))
+    expect(displayModelUrl({ kind: 'ship', id: 'zuikaku-cv-blender' })).toBe(shipModelUrl('zuikaku-cv-blender'))
     expect(displayModelUrl({ kind: 'building', id: 'hangar' })).toBe(staticModelUrl('building', 'hangar'))
     expect(() => displayModelUrl({ kind: 'building', id: 'nope' })).toThrow(/no building model "nope"/)
     expect(() => displayModelUrl({ kind: 'aircraft', id: 'wildcat' })).toThrow(/airframe registry/)

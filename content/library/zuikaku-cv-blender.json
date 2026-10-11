@@ -1,0 +1,26 @@
+{
+  "id": "zuikaku-cv-blender",
+  "name": "Shōkaku-class fleet carrier (Blender model)",
+  "kind": "ship",
+  "side": "japanese",
+  "displayOnly": true,
+  "spec": "zuikaku-cv",
+  "model": {
+    "kind": "ship",
+    "id": "zuikaku-cv-blender"
+  },
+  "blurb": "An original measured Zuikaku model kept beside the downloaded Shōkaku stand-in for Hangar comparison. It is not used by the simulation yet.",
+  "history": "The Shōkaku class comprised the fleet carriers Shōkaku and Zuikaku, completed in 1941. They fought together from Pearl Harbor through the Coral Sea and the Solomons, and were among the Imperial Japanese Navy's most capable prewar carrier designs.\n\nThis Hangar-only model depicts Zuikaku in late October 1944, with the long enclosed hangars, starboard island and false-merchant camouflage measured from the cited contemporary-style profile and plan. The flying and target ship continues to use the existing downloaded model so the two can be compared directly.",
+  "sources": [
+    {
+      "title": "Shōkaku-class aircraft carrier",
+      "url": "https://en.wikipedia.org/wiki/Sh%C5%8Dkaku-class_aircraft_carrier",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "Fig of japanese aircraft carrier Zuikaku in 1944",
+      "url": "https://commons.wikimedia.org/wiki/File:Fig_of_japanese_aircraft_carrier_Zuikaku_in_1944.gif",
+      "read": "2026-10-11"
+    }
+  ]
+}
