@@ -78,6 +78,9 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   /** B4: complete the first tick the player's airplane matches every field
    *  (gear, flaps, speed...). An empty one is rejected by `checkMission`. */
   z.object({ ...base, kind: z.literal('state'), ...planeStateShape }).strict(),
+  /** Complete when the player releases the named store. A target supplies
+   *  guidance only: practice hits and misses both count. */
+  z.object({ ...base, kind: z.literal('release'), store: z.enum(['bomb', 'rocket', 'torpedo']), target: id.optional(), count: z.number().int().positive().optional() }).strict(),
   /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
    *  once more than `maxMissed` (default 0) do. One per mission, at a ship
    *  with Paddles (M3-R11). */

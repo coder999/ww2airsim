@@ -367,6 +367,7 @@ before art/hull-geometry work begins. `role` matches
 | Fletcher-class destroyer | Escort, friendly (shipped: `fletcher-dd.json`) |
 | Cleveland-class light cruiser | Cruiser, friendly |
 | Pennsylvania-class battleship | Battleship, friendly — one of the pre-war "Old Battleships" that fought at Surigao Strait |
+| USS Crow (AMc-20) | Merchant, friendly, unarmed torpedo-recovery and training-target vessel |
 | Type B "Maru" transport | Merchant, hostile (shipped: `type-b-maru.json`) |
 | Kagero-class destroyer | Escort, hostile |
 | Shiratsuyu-class destroyer | Escort, hostile — *Shigure* was the only survivor of Nishimura's force at Surigao Strait |
@@ -374,10 +375,10 @@ before art/hull-geometry work begins. `role` matches
 | Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
 | Shōkaku-class fleet carrier | Carrier, hostile: *Zuikaku*, Ozawa's flagship in the Northern Force decoy at Leyte Gulf (added 2026-10-09, Track M, M1e) |
 
-All eleven ship classes ship with models (verified 2026-10-09). Since Track M's M1
+All thirteen ship classes ship with models (verified 2026-10-11). Since Track M's M1
 (2026-10-08), every warship carries its gun mounts: main turrets, heavy AA and
 light AA at the positions its `content/ships/<id>.json` `armament` lists, each
-mount drawn separately and able to turn; the Maru carries none. **Anti-aircraft
+mount drawn separately and able to turn; Crow and the Maru carry none. **Anti-aircraft
 fire (M2, 2026-10-10):** every armed ship and every AAA battery shoots at any
 airplane of the other side in range, never its own. Heavy guns (the 5-inch and
 12.7 cm mounts) throw **flak bursts** that go off near you and hurt in a radius;
@@ -502,11 +503,11 @@ eight.
 
 **Shipped on this branch** (`content/scenarios/`, checked 2026-10-11) are the
 sandbox and test-range scenarios the engineering plans needed — `free-flight`,
-`gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus eleven
-real missions: **Basic Flying**, **Deck Quals** ("Carrier Qualification"),
-**Airfield Strike**, **Convoy Strike**, **Tank Buster**, **Combat Air Patrol**,
-**Single Combat**, **Scramble**, **Flattop Hunt**, **Escort** and **Surigao
-Strait**. Each declares real objectives,
+`gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus twelve
+real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
+("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Tank
+Buster**, **Combat Air Patrol**, **Single Combat**, **Scramble**, **Flattop
+Hunt**, **Escort** and **Surigao Strait**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
@@ -549,3 +550,10 @@ gear and flaps and slow to under 120 mph, land. A step is done when the
 airplane is in the state it asks for (a *plane-state test*, `CONTEXT.md`); the
 instructor's lines are on-screen text only. Handoff
 `docs/handoff/2026-10-10-b4-tutorial.md`.
+
+**Torpedo Qualification** (2026-10-11) is the Avenger's production training
+mission. The instructor leads a runway takeoff, a marked low-level run toward
+USS Crow, opening the internal bay, releasing one Mk 13, securing the bay and
+recovering at Tacloban. The release itself completes the attack step, so a hit
+or miss is acceptable. Crow's scenario-only `practiceTarget` flag preserves the
+normal torpedo run, splash and detonation while preventing hull damage, flooding,

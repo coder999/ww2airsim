@@ -118,7 +118,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
+      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
       'flattop-hunt', 'escort', 'surigao-strait', 'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
@@ -144,6 +144,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['tank-buster']).toBe('Tank Buster')
     expect(labels['combat-air-patrol']).toBe('Combat Air Patrol')
     expect(labels.tutorial).toBe('Basic Flying')
+    expect(labels['torpedo-qualification']).toBe('Torpedo Qualification')
     expect(labels.scramble).toBe('Scramble')
     expect(labels['single-combat']).toBe('Single Combat')
     expect(labels['flattop-hunt']).toBe('Flattop Hunt')
@@ -159,6 +160,7 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
       .toEqual([
         ['tutorial', { id: 'basic-flying', name: 'Basic Flying' }],
+        ['torpedo-qualification', { id: 'torpedo-qualified', name: 'Torpedo Qualified' }],
         ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],
         ['airfield-strike', { id: 'airfield-strike', name: 'Airfield Strike' }],
         ['convoy-strike', { id: 'convoy-strike', name: 'Convoy Strike' }],

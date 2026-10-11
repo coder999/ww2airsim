@@ -79,6 +79,17 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   "Cease fire! Cease fire! You're hitting friendlies!": 'radio_wingman_friendly_fire',
   // Lands with the missed pass's own wave-off call; a second voice on top would sound wrong.
   'No wave-offs: failed': null,
+  // Torpedo Qualification is an instructor-led text lesson; no recordings yet.
+  'Instructor: Torpedo qualification. Hold = for full throttle and take the Avenger off Tacloban.': null,
+  'Instructor: Hold her straight with Z and X, then ease back with S at 85 miles an hour.': null,
+  'Instructor: Airborne. Raise the gear with G.': null,
+  'Instructor: Turn east for the marker. Crow is anchored two thousand yards beyond it. Be below two thousand feet for the run.': null,
+  'Instructor: On the run. Open the bomb bay with B and steady the sight on Crow.': null,
+  'Instructor: Bay open. Press V to launch the torpedo. A hit or a miss both complete this practice run.': null,
+  'Instructor: Fish away. Crow is an unmanned range hulk and takes no damage. Close the bay with B, then return to Tacloban.': null,
+  'Instructor: Bay secure. Follow the arrow to the final.': null,
+  'Instructor: On the final. Gear down with G, flaps down with F, and slow below 120 miles an hour.': null,
+  'Instructor: Configuration checks. Put her down on the strip.': null,
   // The tutorial's instructor (B4) is text-only, deliberately: no recordings, so an edit to a line costs nothing.
   "Instructor: Welcome to Tacloban. Hold = to bring the throttle to full, and keep your brakes off.": null,
   "Instructor: Rolling. Hold her straight with Z and X, ease back on the stick (S) at 85 miles an hour, and let her fly off.": null,

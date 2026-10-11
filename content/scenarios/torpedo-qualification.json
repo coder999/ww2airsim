@@ -1,0 +1,271 @@
+{
+  "id": "torpedo-qualification",
+  "player": "avenger-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "avenger-1",
+      "spec": "tbm-3-avenger",
+      "parkedAt": {
+        "airfield": "tacloban",
+        "spot": "runwayCenter"
+      },
+      "chocked": false
+    }
+  ],
+  "ships": [
+    {
+      "id": "crow-1",
+      "spec": "crow-amc-20",
+      "side": "allied",
+      "practiceTarget": true,
+      "waypoints": [
+        [
+          -23666,
+          -47605
+        ]
+      ],
+      "speedMps": 0
+    }
+  ],
+  "weather": {
+    "windFromDeg": 30,
+    "windMps": 3,
+    "timeOfDay": 10
+  },
+  "objectives": [
+    {
+      "id": "throttle",
+      "label": "Full throttle",
+      "priority": "primary",
+      "kind": "state",
+      "throttle": [
+        0.9,
+        1
+      ]
+    },
+    {
+      "id": "up",
+      "label": "Take off",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "tacloban",
+      "after": "throttle"
+    },
+    {
+      "id": "gear-up",
+      "label": "Gear up",
+      "priority": "primary",
+      "kind": "state",
+      "gear": "up",
+      "after": "up"
+    },
+    {
+      "id": "range-entry",
+      "label": "Join the torpedo run",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -25666,
+        "z": -47605
+      },
+      "radiusM": 800,
+      "altitudeM": [
+        30,
+        600
+      ],
+      "after": "gear-up"
+    },
+    {
+      "id": "doors-open",
+      "label": "Open bomb bay",
+      "priority": "primary",
+      "kind": "state",
+      "bayDoors": "open",
+      "after": "range-entry"
+    },
+    {
+      "id": "fish-away",
+      "label": "Launch torpedo at Crow",
+      "priority": "primary",
+      "kind": "release",
+      "store": "torpedo",
+      "target": "crow-1",
+      "after": "doors-open"
+    },
+    {
+      "id": "doors-shut",
+      "label": "Close bomb bay",
+      "priority": "primary",
+      "kind": "state",
+      "bayDoors": "shut",
+      "after": "fish-away"
+    },
+    {
+      "id": "final",
+      "label": "Join the final",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -29666,
+        "z": -42805
+      },
+      "radiusM": 1500,
+      "altitudeM": [
+        100,
+        700
+      ],
+      "after": "doors-shut"
+    },
+    {
+      "id": "config",
+      "label": "Gear and flaps down, under 120 mph",
+      "priority": "primary",
+      "kind": "state",
+      "gear": "down",
+      "flaps": "down",
+      "airspeedMps": [
+        0,
+        53.6
+      ],
+      "after": "final"
+    },
+    {
+      "id": "land",
+      "label": "Land",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "config"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "welcome",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Instructor: Torpedo qualification. Hold = for full throttle and take the Avenger off Tacloban."
+        }
+      ]
+    },
+    {
+      "id": "rolling",
+      "when": {
+        "completed": "throttle"
+      },
+      "then": [
+        {
+          "message": "Instructor: Hold her straight with Z and X, then ease back with S at 85 miles an hour."
+        }
+      ]
+    },
+    {
+      "id": "airborne",
+      "when": {
+        "completed": "up"
+      },
+      "then": [
+        {
+          "message": "Instructor: Airborne. Raise the gear with G."
+        }
+      ]
+    },
+    {
+      "id": "range-vector",
+      "when": {
+        "completed": "gear-up"
+      },
+      "then": [
+        {
+          "message": "Instructor: Turn east for the marker. Crow is anchored two thousand yards beyond it. Be below two thousand feet for the run."
+        }
+      ]
+    },
+    {
+      "id": "open-doors",
+      "when": {
+        "completed": "range-entry"
+      },
+      "then": [
+        {
+          "message": "Instructor: On the run. Open the bomb bay with B and steady the sight on Crow."
+        }
+      ]
+    },
+    {
+      "id": "release-call",
+      "when": {
+        "completed": "doors-open"
+      },
+      "then": [
+        {
+          "message": "Instructor: Bay open. Press V to launch the torpedo. A hit or a miss both complete this practice run."
+        }
+      ]
+    },
+    {
+      "id": "fish-running",
+      "when": {
+        "completed": "fish-away"
+      },
+      "then": [
+        {
+          "message": "Instructor: Fish away. Crow is an unmanned range hulk and takes no damage. Close the bay with B, then return to Tacloban."
+        }
+      ]
+    },
+    {
+      "id": "return-home",
+      "when": {
+        "completed": "doors-shut"
+      },
+      "then": [
+        {
+          "message": "Instructor: Bay secure. Follow the arrow to the final."
+        }
+      ]
+    },
+    {
+      "id": "configure",
+      "when": {
+        "completed": "final"
+      },
+      "then": [
+        {
+          "message": "Instructor: On the final. Gear down with G, flaps down with F, and slow below 120 miles an hour."
+        }
+      ]
+    },
+    {
+      "id": "landing",
+      "when": {
+        "completed": "config"
+      },
+      "then": [
+        {
+          "message": "Instructor: Configuration checks. Put her down on the strip."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "torpedo-qualified",
+    "name": "Torpedo Qualified"
+  },
+  "briefing": {
+    "situation": "Torpedo Qualification. Take a TBM-3 Avenger from Tacloban to the practice range in San Pedro Bay. Fly the marked run toward the unmanned USS Crow, open the bomb bay and launch one Mk 13 torpedo. A hit or a miss satisfies the exercise, and Crow cannot take damage in this mission. Close the bay, return to the final and land. Torpedo is the recommended loadout.",
+    "loadout": "bombs"
+  },
+  "history": {
+    "text": "This mission is inspired by USS Crow's wartime service rather than a reconstruction of a particular exercise. The coastal minesweeper supported torpedo-plane training in Puget Sound as a target and torpedo-recovery vessel before an accidental practice torpedo sank her on 23 August 1943. The game's Crow is staged as an unmanned, already-damaged range hulk so pilots can practice safely.",
+    "sources": [
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, ‘Crow II (AMc-20)’ (2015): https://www.history.navy.mil/research/histories/ship-histories/danfs/c/crow-ii.html",
+      "Naval History and Heritage Command photograph 80-G-277691, USS Crow conducting torpedo-recovery operations, 4 June 1943: https://www.history.navy.mil/our-collections/photography/numerical-list-of-images/nara-series/80-g/80-G-270000/80-G-277691.html"
+    ]
+  }
+}

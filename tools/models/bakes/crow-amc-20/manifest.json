@@ -1,0 +1,25 @@
+{
+ "version": 1,
+ "model": "crow-amc-20",
+ "rawSha256": "d4deb37c216e79da0b5d148cbdacb08091f7c211384d5be883c91a64f79a0b03",
+ "detailSha256": "628c4a37e297d68a7cbc3c6edf5692bb6fe1ff79fd591533503d2c4798474811",
+ "size": 2048,
+ "info": {
+  "aoDistanceM": 4,
+  "aoSamples": 128,
+  "details": 15,
+  "device": "AMD Radeon RX 6700 XT",
+  "missed": [],
+  "normalSamples": 16,
+  "seconds": {
+   "ao": 7.4,
+   "normal": 2.2
+  },
+  "size": 2048,
+  "totalSeconds": 11.1,
+  "twoSided": false,
+  "host": "ryzen",
+  "wallSeconds": 24.5
+ },
+ "date": "2026-10-11"
+}

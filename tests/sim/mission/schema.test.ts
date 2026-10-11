@@ -14,6 +14,7 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
       objectives: [
         { id: 'up', label: 'Launch', priority: 'primary', kind: 'takeoff', from: 'cv-1' },
         { id: 'gate', label: 'Gate', priority: 'primary', kind: 'reach', point: { x: 1000, z: 0 }, radiusM: 500, altitudeM: [100, 600], after: 'up' },
+        { id: 'fish', label: 'Fish away', priority: 'primary', kind: 'release', store: 'torpedo', target: 'maru-1', after: 'gate' },
         { id: 'cap', label: 'CAP', priority: 'primary', kind: 'hold', point: { x: 0, z: 0 }, radiusM: 3000, seconds: 180, after: 'gate' },
         { id: 'convoy', label: 'Convoy', priority: 'primary', kind: 'destroy', targets: ['convoy'], count: 2 },
         { id: 'hangars', label: 'Hangars', priority: 'secondary', kind: 'destroy', targets: ['dulag-hangar-1'] },
@@ -31,7 +32,7 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
       badge: { id: 'carrier-qualified', name: 'Carrier Qualified' },
       aircraft: [{ id: 'f6f-1', spec: 'f6f-hellcat', parkedAt: { ship: 'cv-1', spot: { x: 0, z: -110 } }, chocked: false }, BASE.aircraft[1]],
     })
-    expect(s.objectives).toHaveLength(8)
+    expect(s.objectives).toHaveLength(9)
     expect(s.heldGroups![0]!.aircraft![0]!.tags).toEqual(['raid'])
     expect(s.ships.find((sh) => sh.id === 'maru-1')!.tags).toEqual(['convoy'])
   })
@@ -51,6 +52,7 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
     ['takeoff from where the player is not', { objectives: [{ id: 'up', label: 'Up', priority: 'primary', kind: 'takeoff', from: 'cv-1' }] }, /takeoff\.from must be where the player starts \(airborne\)/],
     ['land at an unknown base', { objectives: [{ id: 'home', label: 'Home', priority: 'primary', kind: 'land', at: 'henderson' }] }, /land\.at "henderson" is neither one of airfields nor a starting ship/],
     ['deny around an unknown entity', { objectives: [{ id: 'd', label: 'D', priority: 'primary', kind: 'deny', hostiles: ['raid'], around: 'cv-9', radiusM: 5000 }] }, /deny\.around "cv-9" is not a starting aircraft or ship/],
+    ['release at an unknown target', { objectives: [{ id: 'r', label: 'Release', priority: 'primary', kind: 'release', store: 'torpedo', target: 'hulk-9' }] }, /release\.target "hulk-9" is not a starting aircraft or ship/],
     ['an inverted altitude band', { objectives: [{ ...REACH_FAR, altitudeM: [3000, 2000] }] }, /altitudeM must be \[min, max\] with min < max/],
     ['an unknown objective key', { objectives: [{ ...REACH_FAR, radius: 5 }] }, /Unrecognized key/],
     ['an unknown objective kind', { objectives: [{ ...REACH_FAR, kind: 'escort' }] }, /kind/],

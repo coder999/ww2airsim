@@ -182,7 +182,7 @@ describe('air-to-ship collision', () => {
 
   it('every ship in content has a hull volume at least its own size and a superstructure above the deck', () => {
     const ids = readdirSync(new URL('../../content/ships/', import.meta.url)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
-    expect(ids.length).toBe(12)
+    expect(ids.length).toBe(13)
     for (const id of ids) {
       const spec = loadShipSpec(id)
       const [hull, house] = shipVolumes(spec)

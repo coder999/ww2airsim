@@ -14,8 +14,8 @@ import {
 const SHIPS = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
 
 describe('every shipped ship, flattened to AA mounts (enrolled from content/ships)', () => {
-  it('covers all twelve classes (a filter matching nothing must fail, not pass empty)', () => {
-    expect(SHIPS).toHaveLength(12)
+  it('covers all thirteen classes (a filter matching nothing must fail, not pass empty)', () => {
+    expect(SHIPS).toHaveLength(13)
   })
   it.each(SHIPS)('%s: a merchant has no armament, a warship has heavy or light mounts that match its armament', (id) => {
     const spec = loadShipSpec(id)
