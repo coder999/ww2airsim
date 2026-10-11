@@ -10,7 +10,8 @@ import { deckParkSpots, runwayParkSpots } from './ai/parkSpots.js'
 import { armedForAttack } from './ai/attack.js'
 import { qFromAxisAngle } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
-import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
+import { heightAt, SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
+import type { StructureEntity } from './weapons/structures.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
 import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, type IngressOrders, type RecoveryHome } from './ai/pilot.js'
 import { airfieldSideOf, sideOf, type Side } from './sides.js'
@@ -213,6 +214,18 @@ const ScenarioShipObject = z.object({
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
 
+/** A stationary, scenario-authored ground vehicle. It participates in the existing structure
+ * damage/objective pipeline; movement and weapons are deliberately outside this contract. */
+const ScenarioVehicleObject = z.object({
+  id,
+  model: z.literal('type97-chi-ha'),
+  position: z.tuple([finite, finite]),
+  headingDeg: finite,
+  hp: positive,
+  tags: tagList,
+  side: SideField,
+}).strict()
+
 /** Entities not placed at start (spec §2.3); a trigger's `spawn` brings the
  *  group in mid-flight through `spawnHeldGroup`. Same entity schema as the
  *  scenario's own lists; `checkMission` requires held aircraft to start
@@ -239,6 +252,7 @@ const ScenarioShape = z.object({
   airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
+  vehicles: z.array(ScenarioVehicleObject).optional(),
   /** M4: warships' main batteries fire at hostile ships and batteries in reach. Absent: they lay
    *  (M3) but hold fire, as every scenario before M4 (ruling R1 of the M4 plan). */
   mainBatteries: z.boolean().optional(),
@@ -348,6 +362,12 @@ const ScenarioObject = ScenarioShape
     message: 'every airfieldSides key must be one of airfields', path: ['airfieldSides'],
   })
   .superRefine((s, ctx) => {
+    const ids = [...s.aircraft, ...s.ships, ...(s.vehicles ?? [])].map((e) => e.id)
+    ids.forEach((entityId, index) => {
+      if (ids.indexOf(entityId) !== index) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `entity id "${entityId}" is already used; ids are unique across the whole scenario`, path: [] })
+      }
+    })
     const byId = new Map(s.aircraft.map((a) => [a.id, a]))
     for (const [index, aircraft] of s.aircraft.entries()) {
       const target = aircraft.pilot?.target
@@ -410,6 +430,7 @@ export const isShipParked = (p: ParkedScenarioAircraft['parkedAt']): p is { ship
 
 export type ScenarioShip = z.infer<typeof ScenarioShipObject>
 export type ScenarioHeldGroup = z.infer<typeof HeldGroupObject>
+export type ScenarioVehicle = z.infer<typeof ScenarioVehicleObject>
 
 /**
  * Every mission reference checkable from the file alone (spec 2026-09-25
@@ -441,7 +462,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
 
   const startAircraft = new Set(s.aircraft.map((a) => a.id))
   const startShips = new Set(s.ships.map((sh) => sh.id))
-  const used = new Set([...startAircraft, ...startShips])
+  const used = new Set([...startAircraft, ...startShips, ...(s.vehicles ?? []).map((v) => v.id)])
   for (const [gi, g] of held.entries()) {
     const groupAircraft = new Set((g.aircraft ?? []).map((a) => a.id))
     const visible = new Map([...s.aircraft, ...(g.aircraft ?? [])].map((a) => [a.id, a]))
@@ -785,14 +806,15 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const s = bundle.scenario
   const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
   const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
-  const vehicles = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips]
+  const mobile = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips]
     .map((e) => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e) }))
+  const vehicles = (s.vehicles ?? []).map((v) => ({ id: v.id, tags: v.tags ?? [], side: sideOf(s, v) }))
   const buildings = s.airfields.flatMap((a) => {
     const field = lookup(bundle.airfields, a, 'airfield')
     const side = airfieldSideOf(field, s.airfieldSides)
     return field.buildings.map((b) => ({ id: b.id, tags: b.tags ?? [], side }))
   })
-  return [...vehicles, ...buildings]
+  return [...mobile, ...vehicles, ...buildings]
 }
 
 /**
@@ -820,6 +842,20 @@ export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
+  const structures: StructureEntity[] = (s.vehicles ?? []).map((vehicle) => {
+    const [x, z] = vehicle.position
+    const halfHeightM = 2.21 / 2
+    return {
+      id: vehicle.id,
+      kind: 'tank',
+      model: vehicle.model,
+      position: v3(x, (terrain === null ? 0 : heightAt(terrain, x, z)) + halfHeightM, z),
+      headingRad: (vehicle.headingDeg * Math.PI) / 180,
+      halfSize: { x: 2.33 / 2, y: halfHeightM, z: 5.5 / 2 },
+      hp: vehicle.hp,
+      side: sideOf(s, vehicle),
+    }
+  })
 
   const ships: ShipEntity[] = s.ships.map((sh) => buildShip(bundle, sh, terrain))
 
@@ -874,6 +910,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     })
   }
   checkSides(s, airfields)
-  const world = createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  const world = createWorldOf({ aircraft, ships, structures, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
   return s.mainBatteries === true ? withMainBatteries(world) : world
 }

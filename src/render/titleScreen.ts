@@ -215,6 +215,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'tank-buster', label: 'Tank Buster', kind: 'mission', badge: { id: 'tank-buster', name: 'Tank Buster' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
   { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },

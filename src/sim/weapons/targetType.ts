@@ -7,10 +7,10 @@
  */
 export type TargetType =
   | 'fighter' | 'bomber' | 'cruiser' | 'battleship' | 'destroyer' | 'transport'
-  | 'aaa' | 'runway' | 'building' | 'carrier'
+  | 'aaa' | 'runway' | 'building' | 'tank' | 'carrier'
 
 export const TARGET_TYPES: readonly TargetType[] = [
-  'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'carrier',
+  'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'tank', 'carrier',
 ]
 
 /** The score row a sunk hull of this role lands in: every role scores. */

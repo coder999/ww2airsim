@@ -52,6 +52,7 @@ const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = {
   aaa: 250,
   runway: 500,
   building: 150,
+  tank: 300,
   carrier: 5000,
 }
 
@@ -71,6 +72,7 @@ const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
   aaa: 'AAA Battery',
   runway: 'Runway',
   building: 'Building',
+  tank: 'Tank',
   carrier: 'Carrier',
 }
 

@@ -123,10 +123,11 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - On the merge (2026-10-10), D1's Kate and Avenger took the same 4x (Mark): 280 and 560 HP.
 - **Open:** asymmetric yaw on an engine loss; bomber gunners fire since E3 (Track E item 3, on its branch); whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
 
-### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
+### Track V: Ground vehicles and ordnance models (S). Static targets extended 2026-10-11
 
-- **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Render and Hangar only, in `src/render/scene/vehicleRig.ts`: no vehicle is in the sim yet, so neither moves in a scenario. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
-- **Open:** vehicles as sim entities (ground targets that drive) would be their own plan; the rigs take a distance and a steer, so a sim pose drives them unchanged.
+- **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
+- **Static ground targets done 2026-10-11:** scenarios can place stationary, destructible tank entities. Tank Buster uses six 48-HP Chi-Ha stand-ins near Dulag; they share structure damage/objectives, render the V1 model, keep a wreck pose and score 300 points as Tanks.
+- **Open:** vehicles that drive, fire or use ground AI. The rigs already take a distance and a steer, so a future sim pose can drive them unchanged.
 
 ### Track D: Torpedoes (L)
 
@@ -168,12 +169,13 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 9 missions and 6 ranges ship (counted in `SCENARIO_OPTIONS` 2026-10-10).
+  - 10 missions and 6 ranges ship (counted in `SCENARIO_OPTIONS` 2026-10-11).
   - A new mission is a JSON file, one `SCENARIO_OPTIONS` row and one `RIBBONS` design (`src/render/insignia.ts`; `tests/render/insignia.test.ts` fails without it), unless it needs a new objective kind, AI behavior or model.
   - **Ribbons and rank insignia done 2026-10-10:** an invented ribbon per mission badge and the 1944 USN collar device per rank, in the Dossier, debrief, roster and mission picker (GAMEPLAY.md, "Badges").
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
   - **Escort done 2026-10-10 (merged):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
+  - **Tank Buster done 2026-10-11:** a Hellcat attacks six stationary Japanese tanks southwest of Dulag; four kills plus recovery earn the badge, all six the secondary objective. The Chi-Ha is an explicit stand-in for the Type 89/Type 95 tanks better documented on Leyte.
   - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 

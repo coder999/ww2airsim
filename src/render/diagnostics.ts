@@ -393,6 +393,8 @@ export type Ww2Diagnostics = {
   readonly deck: () => { readonly shipId: string; readonly heightM: number; readonly velocity: Vec3 } | null
   /** Each ship's drawn model id, in world order, or null where the procedural boxes are drawn (ship-models spec §9). */
   readonly shipModels: () => readonly (string | null)[]
+  /** Number of scenario-authored ground-vehicle models owned by the live scene. */
+  readonly vehicleModelCount: () => number
   /**
    * The world height of the topmost rendered surface of ship `shipId` straight
    * below each point, read from the loaded, posed view (`probeShipSurface`,
