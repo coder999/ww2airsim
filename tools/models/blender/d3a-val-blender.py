@@ -40,12 +40,25 @@ its quarter chord is 2.55 m aft of the spinner tip: that is the model origin. Th
 canopy and fuselage stations follow those lines; a rendered centerline silhouette was overlaid on the
 drawing after the first build (docs/handoff/2026-10-11-d3a-val-blender.md).
 
-Side fuselage top/bottom (m aft nose: top, bottom), MEASURED: 0.54:+0.88/-0.88,
-0.86:+0.82/-0.91, 1.39:+0.85/-0.98, 1.92:+0.85/-1.00, 2.18:+0.88/-0.75,
-2.45:+0.92/-0.45, 2.98:+1.00/-0.44, 3.51:+1.04/-0.43, 4.05:+0.71/-0.41,
-5.11:+0.70/-0.38, 6.17:+0.70/-0.36, 6.70:+0.82/-0.34, 7.76:+0.72/-0.32,
-8.82:+0.55/-0.28, 9.88:+0.30/-0.18,
-10.19:+0.02/-0.02. Top-view half-widths (m aft nose: half-width), MEASURED:
+GEOMETRY RECHECK (2026-10-11): the side drawing's wing hides the true belly between 2.18 and
+3.74 m aft of the nose. The first model accidentally treated the visible wing/fuselage seam there
+as the belly and also treated the windscreen outline at 3.51 m as fuselage deck. Those ordinates are
+corrected below: visible drawing outline owns the cowl/deck and both ends of the hidden run; a smooth
+belly through the hidden run is ESTIMATE, checked against the exact-variant D3A2 survivor, c/n 3179,
+in Alan Wilson's Wikimedia Commons photograph "Aichi D3A2 model 22 'Val' (3179 - N3131G)", and three
+period SDASM archive photographs (Commons "Aichi D3A Type 99", "... 2" and "... 3"). The survivor
+also shows the greenhouse rails buried in the broad upper fuselage. The period photographs show a
+short exposed fixed-leg/root fairing between each spat and wing; widths and brace diameters remain
+ESTIMATE because no dimensioned D3A2 gear installation drawing was found.
+
+Side fuselage top/bottom (m aft nose: top, bottom), DRAWING-MEASURED except the explicitly hidden
+belly run: 0.18:+0.20/-0.20, 0.54:+0.88/-0.84, 0.86:+0.82/-0.88,
+1.39:+0.85/-0.92, 1.92:+0.85/-0.94, 2.18:+0.88/-0.82, 2.45:+0.84/-0.72,
+2.96:+0.78/-0.58, 3.51:+0.74/-0.50, 3.74:+0.72/-0.48
+(2.18-3.74 bottoms ESTIMATE: wing-occluded), 4.52:+0.70/-0.40, 5.29:+0.70/-0.38,
+6.17:+0.70/-0.36, 6.84:+0.78/-0.34, 7.62:+0.72/-0.32, 8.39:+0.61/-0.30,
+8.82:+0.55/-0.28, 9.17:+0.50/-0.25, 9.88:+0.30/-0.18, 10.19:+0.02/-0.02.
+Top-view half-widths (m aft nose: half-width), MEASURED:
 0.63:0.58, 1.41:0.58, 2.18:0.56, 2.96:0.44, 3.74:0.43, 4.52:0.42,
 5.29:0.42, 6.07:0.41, 6.84:0.38, 7.62:0.34, 8.39:0.28, 9.17:0.20,
 9.94:0.08, 10.19:0.01. Canopy: windscreen front 3.51 m, crown 4.05-5.11 m at 1.31-1.25 m,
@@ -79,23 +92,31 @@ NOSE_M = 2.55                    # MEASURED: spinner tip to the wing quarter cho
 NOSE_X = NOSE_M / LENGTH
 WING_Y = -0.018                  # ESTIMATE: puts the low-wing section through the drawing
 # (distance aft nose, half-width, top, bottom, exponent), tail to nose after conversion below; meters.
+# The 2.18-3.74 m bottoms are the photo-constrained estimate documented above, not drawing lines.
 FUSELAGE_M = [
-    (10.19, 0.01, 0.02, -0.02, 2.0), (9.88, 0.08, 0.30, -0.35, 2.0),
+    (10.19, 0.01, 0.02, -0.02, 2.0), (9.88, 0.08, 0.30, -0.18, 2.0),
     (9.17, 0.20, 0.50, -0.25, 2.1), (8.82, 0.24, 0.55, -0.28, 2.1),
     (8.39, 0.28, 0.61, -0.30, 2.2), (7.62, 0.34, 0.72, -0.32, 2.2),
-    (6.84, 0.38, 0.82, -0.34, 2.2), (6.17, 0.41, 0.70, -0.36, 2.2),
-    (5.29, 0.42, 0.70, -0.38, 2.2), (4.52, 0.42, 0.70, -0.40, 2.2),
-    (3.74, 0.43, 0.75, -0.42, 2.2), (3.51, 0.44, 1.04, -0.43, 2.2),
-    (2.96, 0.44, 1.00, -0.44, 2.1), (2.45, 0.56, 0.92, -0.45, 2.1),
-    (2.18, 0.56, 0.88, -0.75, 2.0), (1.92, 0.58, 0.85, -1.00, 2.0),
-    (1.39, 0.58, 0.85, -0.98, 2.0), (0.86, 0.58, 0.82, -0.91, 2.0),
-    (0.54, 0.50, 0.88, -0.88, 2.0), (0.18, 0.08, 0.20, -0.20, 2.0),
+    (6.84, 0.38, 0.78, -0.34, 2.4), (6.17, 0.41, 0.70, -0.36, 2.6),
+    (5.29, 0.42, 0.70, -0.38, 2.8), (4.52, 0.42, 0.70, -0.40, 2.8),
+    (3.74, 0.43, 0.72, -0.48, 2.8), (3.51, 0.44, 0.74, -0.50, 2.8),
+    (2.96, 0.44, 0.78, -0.58, 2.6), (2.45, 0.56, 0.84, -0.72, 2.4),
+    (2.18, 0.56, 0.88, -0.82, 2.2), (1.92, 0.58, 0.85, -0.94, 2.1),
+    (1.39, 0.58, 0.85, -0.92, 2.0), (0.86, 0.58, 0.82, -0.88, 2.0),
+    (0.54, 0.50, 0.88, -0.84, 2.0), (0.18, 0.08, 0.20, -0.20, 2.0),
 ]
-# (x, width, base, crown), tail to nose, meters. The seam is sunk into the deck by the authored base.
+# Explicit fitted greenhouse sections, tail to nose, meters:
+# (x, rail half-width, rail y, shoulder half-width, shoulder y, roof half-width, roof y, crown y).
+# The rail ordinates sit 0.03-0.12 m inside the local shape-preserved fuselage skin; unlike the first
+# four-value canopy, its underside cannot expose a daylight wedge along either side.
 CANOPY = [
-    (-4.15, 0.08, 0.72, 0.86), (-3.75, 0.35, 0.72, 1.02), (-3.10, 0.39, 0.70, 1.18),
-    (-2.56, 0.40, 0.70, 1.25), (-1.95, 0.39, 0.72, 1.31), (-1.35, 0.20, 0.83, 1.18),
-    (-0.96, 0.08, 0.95, 1.02),
+    (-4.15, 0.08, 0.69, 0.07, 0.75, 0.05, 0.82, 0.86),
+    (-3.75, 0.30, 0.50, 0.27, 0.69, 0.18, 0.94, 1.02),
+    (-3.10, 0.36, 0.43, 0.32, 0.67, 0.22, 1.09, 1.18),
+    (-2.56, 0.38, 0.40, 0.34, 0.68, 0.23, 1.15, 1.25),
+    (-1.95, 0.37, 0.42, 0.33, 0.72, 0.22, 1.20, 1.31),
+    (-1.35, 0.31, 0.51, 0.28, 0.72, 0.19, 1.09, 1.18),
+    (-0.96, 0.16, 0.66, 0.14, 0.78, 0.09, 0.97, 1.02),
 ]
 CANOPY_FRAMES = (-3.72, -3.30, -2.86, -2.42, -1.98, -1.55, -1.20)
 TAILPLANE = dict(span=0.37, le=8.30, root=1.72, tip=0.28, y=0.13, sweep=8.0)
@@ -133,7 +154,7 @@ def XD(d):
 
 FUSELAGE = [(d / L, w / L, (top - bottom) / (2 * L), (top + bottom) / (2 * L), n)
             for d, w, top, bottom, n in FUSELAGE_M]
-_FUS, _ = kit._refine([(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], SUBDIVIDE)
+_FUS, _ = kit._refine_shape([(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], SUBDIVIDE)
 
 
 def fus_section(f):
@@ -182,7 +203,8 @@ def wing_y(z):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS,
+               subdivide=SUBDIVIDE, lower_role=LOWER, refinement='shape')
 with m.tagged('canopy'), m.shared_chart():
     m.faired_canopy('glazing', UPPER, CANOPY, list(CANOPY_FRAMES), bar=0.020)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP1, 'Flap1'), (FLAP2, 'Flap2'), (AILERON, 'Aileron'))]
@@ -215,11 +237,19 @@ g = GEAR
 tw = TAILWHEEL
 with m.tagged('gear'), m.shared_chart():
     # Fixed gear: no GearL/GearR nodes. The full spats are skin; the tire bottoms are fitted to the spec.
+    # The central spat section reaches into the wing skin; the short root and two braces below overlap both
+    # supporting surfaces. The earlier spat stopped 0.08 m below the wing and visibly floated.
     for side in (-1, 1):
         z = side * g['z']
-        m.fuselage(UPPER, [(-0.72, 0.05, 0.10, -0.74), (-0.32, 0.17, 0.52, -1.10),
-                           (g['x'], 0.24, 0.75, -1.10), (0.68, 0.18, 0.58, -1.02), (1.02, 0.05, 0.12, -0.64)],
-                   segments=48, center_z=z, lower_role=LOWER, subdivide=4)
+        m.fuselage(UPPER, [(-0.82, 0.04, 0.10, -0.72), (-0.50, 0.13, 0.42, -1.10),
+                           (-0.18, 0.20, 0.68, -1.08), (g['x'], 0.24, 0.78, -1.07),
+                           (0.48, 0.20, 0.68, -1.08), (0.78, 0.12, 0.40, -1.02),
+                           (1.02, 0.04, 0.10, -0.64)], segments=48, center_z=z,
+                   lower_role=LOWER, subdivide=4, refinement='shape')
+        root_y = wing_y(z) - 0.06
+        m.strut(UPPER, (g['x'], -0.34, z), (g['x'], root_y, z), 0.11, 0.08, sides=12)
+        m.strut('dark', (g['x'] - 0.30, -0.40, z), (g['x'] - 0.18, root_y, z), 0.035, sides=8)
+        m.strut('dark', (g['x'] + 0.30, -0.40, z), (g['x'] + 0.18, root_y, z), 0.035, sides=8)
         m.revolve('dark', (g['x'], -g['bottom'] + g['wheel_r'], z), (0.0, 0.0, float(side)),
                   [(-g['wheel_w'] / 2, 0.85 * g['wheel_r']), (-0.45 * g['wheel_w'], g['wheel_r']),
                    (0.45 * g['wheel_w'], g['wheel_r']), (g['wheel_w'] / 2, 0.85 * g['wheel_r'])], 24)
