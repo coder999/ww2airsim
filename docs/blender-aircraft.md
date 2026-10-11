@@ -2,8 +2,8 @@
 
 The process for building an airframe model as a Blender script that fits this game's flight model, rig and Hangar,
 whether it replaces a download or models a new type. It was worked out on the B-29, Ki-84 and TBM-3, then repeated
-on three Blender duplicates of downloaded fighters (2026-10-11): `f6f-hellcat-blender`, `f4u-corsair-blender`
-and `f4f-wildcat-blender`. Those three are the worked examples. This page points at the files that own each fact;
+on Blender duplicates of downloaded fighters (2026-10-11): `f6f-hellcat-blender`, `f4u-corsair-blender`,
+`f4f-wildcat-blender` and the drawing-measured `a6m2-zero-blender`. They are the worked examples. This page points at the files that own each fact;
 it does not restate them. Onboarding an airframe as *flyable* (spec, card, flight fit) is
 [`aircraft.md`](aircraft.md); getting a model into the pipeline is [`models.md`](models.md), "Authoring in Blender".
 
@@ -62,6 +62,15 @@ Everything the download it may replace has, because the game draws a flyable air
    the station fractions with a short script rather than by hand.
 5. **Build and iterate.** `npx tsx tools/models/blender/cli.ts <id>` writes a candidate glb and prints its
    inspection in about two seconds; render the views. Only after the shape is right write the manifest entry.
+   For an exact download/new-model comparison, render each through `preview.py` with the other as
+   `--frame-glb`: that hidden second model contributes only to the union camera bounds, so reversing the two
+   paths gives both renders the same camera. Without it, `preview.py` frames each model independently and the
+   pictures are not a scale comparison. A three-view's side and top drawings may use different scales; derive
+   each view's meters per pixel from that view's own spinner-tip-to-tail length.
+   `silhouette-overlay.ts` plots the built model's side-projected vertices over that calibrated drawing;
+   pass the drawing's nose, tail and thrust-line pixels, the model origin's nose-relative station, the cited
+   length and the side-view crop bottom. Keep the overlay with the handoff evidence; it is a review artifact,
+   not a screenshot-golden test.
 6. **Write the manifest entry** `tools/models/entries/<id>.json` (`source.kind: "blender"`, `normalize`, `keep`,
    `budget`; copy a sibling). Each `keep` row's `pivot.point` is the hinge the script placed: propeller hub
    `(NOSE_X - PROP.hub) * LENGTH`, gear hinge `(x, hinge_y, ±z)`, tail wheel hinge. The axis is `+x` for a leg that folds
@@ -132,17 +141,22 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
   says so in the rig row's `source`. The download Hellcat is on `THROUGH_SKIN` for the same reason.
 - **Preview renders are flat.** `preview.py` is Cycles with no skin; judge shape there and finish in the Hangar, whose
   lighting and skin are the game's.
+- **A specifications table can leave a requested figure blank.** Record the blank explicitly rather than making
+  the citation imply the value exists; derive it from the measured drawing or another named source and tag it
+  `ESTIMATE`. The A6M2 table gives three propeller blades and the maker but no diameter (2026-10-11).
 
-## What the three duplicates are (2026-10-11)
+## What the duplicates are (2026-10-11)
 
 | Duplicate | Copies | Cited | Stance fitted to the spec | Glb (bytes / triangles / draws) |
 | --- | --- | --- | --- | --- |
 | `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 820,488 / 25,932 / 12 |
 | `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 823,032 / 25,400 / 14 |
 | `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 806,508 / 25,468 / 17 |
+| `a6m2-zero-blender` | `a6m2-zero` (A6M2 Model 21) | span 12.0 m, length 9.06 m, area 22.44 m2, 3 blades; prop diameter 2.90 m measured because the table is blank | 2.025 m at x 0.182, tail wheel x -6.532 | 717,844 / 21,464 / 18 |
 
-Every other figure is an ESTIMATE labeled in each script's header. No three-view drawing was read: the profiles were
-matched by eye against the downloads' silhouettes and are a first pass, not a likeness study.
+For the first three, every other figure is an ESTIMATE labeled in each script's header; their profiles were matched by
+eye against the downloads and are a first pass. The A6M2 instead records nose-relative stations measured from its Commons
+three-view and keeps a built-model/drawing overlay with its handoff; its script separately labels remaining estimates.
 
 ## Showing the result
 

@@ -107,6 +107,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'a6m2-zero-blender': {
+    // Original Blender duplicate (a6m2-zero-blender.py): the kit propeller is exactly 3-fold symmetric.
+    // Summary 85 says the mains retract 90 degrees inward; this one-hinge model swings each leg inward
+    // about +x and leaves the wheel upright. The tailwheel swing is an ESTIMATE.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'Summary 85, through a6m2-zero-blender.py; one-hinge motion ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'Summary 85, through a6m2-zero-blender.py; one-hinge motion ESTIMATE' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (a6m2-zero-blender.py header)' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
   'b-17-flying-fortress': {
     // Each prop is its three blade islands (exactly 3-fold symmetric); the spinners stay static in
     // the body, as the F6F's. Turrets are the three that are clean islands: chin, top, ball. The tail
