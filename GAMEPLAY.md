@@ -457,15 +457,24 @@ crates and a windsock. They block trees and are visual only.
 
 ## Vehicle roster
 
-New 2026-09-25, candidate only. No vehicle exists in the sim, and the
-[scoring table](#scoring) has no vehicle row, so none of these can be shot or
-scored yet. Listed so the candidate models in `ASSETS.md` have a role to be
-checked against.
+Scenario-authored vehicles follow a fixed list of local `[x, z]` waypoints at
+the requested speed, conforming to the terrain as they go. They stop at the
+last waypoint unless `loop` is true. Vehicles can be hit by guns, rockets and
+bombs; a destroyed vehicle stops and remains as a darkened, slumped wreck.
+They use the existing Building score and kill category rather than adding a
+separate vehicle row. There is no player driving, pathfinding, suspension or
+collision avoidance.
 
 | Vehicle | Role |
 | --- | --- |
 | Type 97 Chi-Ha medium tank | Hostile ground target |
 | Willys MB jeep | Friendly airfield scenery |
+| Type 95 Kurogane scout car | Japanese command/reconnaissance counterpart to the Willys; moving hostile target in Gunnery Range |
+
+In scenario JSON, `vehicles` entries name a vehicle spec, side, start pose,
+speed and `waypoints`; `loop` is optional and defaults to false. The same form
+is accepted in a held group's `vehicles` array, so a mission can spawn the
+column later.
 
 ## Ordnance roster
 

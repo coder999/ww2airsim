@@ -127,10 +127,10 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - On the merge (2026-10-10), D1's Kate and Avenger took the same 4x (Mark): 280 and 560 HP.
 - **Open:** asymmetric yaw on an engine loss; bomber gunners fire since E3 (Track E item 3, on its branch); whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
 
-### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
+### Track V: Ground vehicles and ordnance models (S). Done 2026-10-11
 
 - **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Render and Hangar only, in `src/render/scene/vehicleRig.ts`: no vehicle is in the sim yet, so neither moves in a scenario. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
-- **Open:** vehicles as sim entities (ground targets that drive) would be their own plan; the rigs take a distance and a steer, so a sim pose drives them unchanged.
+- **V2** (plan `docs/superpowers/plans/2026-10-11-v2-ground-vehicles.md`, handoff `docs/handoff/2026-10-11-v2-ground-vehicles.md`): scenario and held-group vehicles are deterministic sim entities that follow authored waypoint routes, stop at the end by default or loop, conform to terrain, take direct and blast damage, and remain as stopped wrecks. The Gunnery Range now includes an Axis Type 95 Kurogane scout car, an original Blender-built Japanese counterpart to the Willys MB. Player driving, pathfinding, suspension and avoidance remain out of scope.
 
 ### Track D: Torpedoes (L)
 

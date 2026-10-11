@@ -21,6 +21,7 @@ import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
 import { initialMainBattery } from './weapons/mainBattery.js'
+import { createVehicleState, type VehicleEntity, type VehicleSpec } from './world/vehicles.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
  *  must name the same four values; a mismatch here is a compile error. */
@@ -213,6 +214,18 @@ const ScenarioShipObject = z.object({
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
 
+const ScenarioVehicleObject = z.object({
+  id,
+  spec: id,
+  waypoints: z.array(z.tuple([finite, finite])).min(1),
+  speedMps: finite.refine((n) => n >= 0, { message: 'speedMps must not be negative' }),
+  loop: z.boolean().default(false),
+  tags: tagList,
+  side: SideField,
+}).strict().refine((v) => v.speedMps === 0 || v.waypoints.length >= 2, {
+  message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
+})
+
 /** Entities not placed at start (spec §2.3); a trigger's `spawn` brings the
  *  group in mid-flight through `spawnHeldGroup`. Same entity schema as the
  *  scenario's own lists; `checkMission` requires held aircraft to start
@@ -221,8 +234,9 @@ const HeldGroupObject = z.object({
   id,
   aircraft: z.array(ScenarioAircraftObject).optional(),
   ships: z.array(ScenarioShipObject).optional(),
-}).strict().refine((g) => (g.aircraft?.length ?? 0) + (g.ships?.length ?? 0) > 0, {
-  message: 'a held group must hold at least one aircraft or ship',
+  vehicles: z.array(ScenarioVehicleObject).optional(),
+}).strict().refine((g) => (g.aircraft?.length ?? 0) + (g.ships?.length ?? 0) + (g.vehicles?.length ?? 0) > 0, {
+  message: 'a held group must hold at least one aircraft, ship or vehicle',
 })
 
 const ScenarioShape = z.object({
@@ -239,6 +253,7 @@ const ScenarioShape = z.object({
   airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
+  vehicles: z.array(ScenarioVehicleObject).default([]),
   /** M4: warships' main batteries fire at hostile ships and batteries in reach. Absent: they lay
    *  (M3) but hold fire, as every scenario before M4 (ruling R1 of the M4 plan). */
   mainBatteries: z.boolean().optional(),
@@ -409,6 +424,7 @@ export const isParkedAircraft = (a: ScenarioAircraft): a is ParkedScenarioAircra
 export const isShipParked = (p: ParkedScenarioAircraft['parkedAt']): p is { ship: string; spot: { x: number; z: number } } => 'ship' in p
 
 export type ScenarioShip = z.infer<typeof ScenarioShipObject>
+export type ScenarioVehicle = z.infer<typeof ScenarioVehicleObject>
 export type ScenarioHeldGroup = z.infer<typeof HeldGroupObject>
 
 /**
@@ -441,7 +457,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
 
   const startAircraft = new Set(s.aircraft.map((a) => a.id))
   const startShips = new Set(s.ships.map((sh) => sh.id))
-  const used = new Set([...startAircraft, ...startShips])
+  const used = new Set([...startAircraft, ...startShips, ...s.vehicles.map((v) => v.id)])
   for (const [gi, g] of held.entries()) {
     const groupAircraft = new Set((g.aircraft ?? []).map((a) => a.id))
     const visible = new Map([...s.aircraft, ...(g.aircraft ?? [])].map((a) => [a.id, a]))
@@ -462,6 +478,10 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     for (const [si, sh] of (g.ships ?? []).entries()) {
       if (used.has(sh.id)) issue(`entity id "${sh.id}" is already used; ids are unique across the whole scenario`, ['heldGroups', gi, 'ships', si, 'id'])
       used.add(sh.id)
+    }
+    for (const [vi, v] of (g.vehicles ?? []).entries()) {
+      if (used.has(v.id)) issue(`entity id "${v.id}" is already used; ids are unique across the whole scenario`, ['heldGroups', gi, 'vehicles', vi, 'id'])
+      used.add(v.id)
     }
   }
 
@@ -530,6 +550,9 @@ export const scenarioAircraftSpecIds = (s: Scenario): string[] =>
 export const scenarioShipSpecIds = (s: Scenario): string[] =>
   [...s.ships, ...(s.heldGroups ?? []).flatMap((g) => g.ships ?? [])].map((sh) => sh.spec)
 
+export const scenarioVehicleSpecIds = (s: Scenario): string[] =>
+  [...s.vehicles, ...(s.heldGroups ?? []).flatMap((g) => g.vehicles ?? [])].map((v) => v.spec)
+
 export function parseScenario(raw: unknown): Scenario {
   const result = ScenarioObject.safeParse(raw)
   if (!result.success) {
@@ -543,6 +566,7 @@ export type ScenarioBundle = {
   readonly scenario: Scenario
   readonly aircraftSpecs: Readonly<Record<string, AircraftSpec>>
   readonly shipSpecs: Readonly<Record<string, ShipSpec>>
+  readonly vehicleSpecs?: Readonly<Record<string, VehicleSpec>>
   readonly airfields: Readonly<Record<string, Airfield>>
 }
 
@@ -622,6 +646,13 @@ function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainFie
     waypoint: 1,
   })
   return { id: sh.id, spec, state, previous: state, orders, ...(sh.side === undefined ? {} : { side: sh.side }) }
+}
+
+function buildVehicle(bundle: ScenarioBundle, v: ScenarioVehicle, terrain: TerrainField | null): VehicleEntity {
+  const spec = lookup(bundle.vehicleSpecs ?? {}, v.spec, 'vehicle spec')
+  const orders = { waypoints: v.waypoints.map(([x, z]) => ({ x, z })), speedMps: v.speedMps, loop: v.loop }
+  const state = createVehicleState(spec, orders, terrain)
+  return { id: v.id, spec, state, previous: state, orders, ...(v.side === undefined ? {} : { side: v.side }) }
 }
 
 /** The entity's `side`, only when the content says one, so a scenario
@@ -785,7 +816,8 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const s = bundle.scenario
   const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
   const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
-  const vehicles = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips]
+  const heldVehicles = (s.heldGroups ?? []).flatMap((g) => g.vehicles ?? [])
+  const vehicles = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...s.vehicles, ...heldVehicles]
     .map((e) => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e) }))
   const buildings = s.airfields.flatMap((a) => {
     const field = lookup(bundle.airfields, a, 'airfield')
@@ -822,6 +854,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
 
   const ships: ShipEntity[] = s.ships.map((sh) => buildShip(bundle, sh, terrain))
+  const vehicles: VehicleEntity[] = s.vehicles.map((v) => buildVehicle(bundle, v, terrain))
 
   checkHomes(s, bundle, ships)
   const homes = homesFrom(s, bundle, ships)
@@ -854,6 +887,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       id: g.id,
       aircraft: (g.aircraft ?? []).map((a) => buildAircraft(bundle, a, ships, homes)),
       ships: (g.ships ?? []).map((sh) => buildShip(bundle, sh, terrain)),
+      vehicles: (g.vehicles ?? []).map((v) => buildVehicle(bundle, v, terrain)),
     }))
     // M3-R1: the respot order is the player's own start spot, computed only
     // when a `land` objective asked for one and the player starts parked on
@@ -874,6 +908,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     })
   }
   checkSides(s, airfields)
-  const world = createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  const world = createWorldOf({ aircraft, ships, vehicles, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
   return s.mainBatteries === true ? withMainBatteries(world) : world
 }

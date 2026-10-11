@@ -1,6 +1,7 @@
 import { DT } from '../flight/model.js'
 import type { LandingAt, LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
+import type { VehicleEntity } from '../world/vehicles.js'
 import type { RespotOrder } from './respot.js'
 import type { PassTracking } from './passes.js'
 import type { Badge, Objective, Trigger } from './schema.js'
@@ -49,6 +50,7 @@ export type HeldGroup<M> = {
   readonly id: string
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
+  readonly vehicles?: readonly VehicleEntity[]
 }
 
 /** One line of the mission's history, tick-stamped. The log is what M2's

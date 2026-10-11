@@ -12,6 +12,7 @@ import { WILDCAT_MODEL_URL } from '../../src/render/content.js'
 import { createShipMesh, createShipView } from '../../src/render/scene/ship.js'
 import { makeShipViewLoader, SHIP_MODELS } from '../../src/render/scene/shipModels.js'
 import type { ShipSpec } from '../../src/sim/world/ships.js'
+import type { VehicleView } from '../../src/render/scene/vehicle.js'
 
 // Real shipped content, not fixtures: `content/scenarios/deck-quals.json` and
 // `free-flight.json` both carry 2 aircraft + 3 ships (the largest ship count
@@ -33,6 +34,14 @@ const stubAirframe = async () => createHellcat()
 
 /** The ship twin of `stubAirframe`: the procedural boxes, so no GLTFLoader runs. */
 const stubShips = async (spec: ShipSpec) => createShipMesh(spec)
+
+/** The vehicle twin of the other stand-ins: no GLTFLoader in Node. */
+const stubVehicles = async (): Promise<VehicleView> => ({
+  root: new Group(),
+  drive() {},
+  setDamage() {},
+  dispose() {},
+})
 
 function allMeshes(entities: ScenarioEntities): Mesh[] {
   const meshes: Mesh[] = []
@@ -135,7 +144,7 @@ describe('buildScenarioEntities', () => {
   it('a scenario with no ships at all (gunnery-range) produces an empty shipHandles array, not a leftover from the previous scenario', async () => {
     const scene = new Scene()
     const before = await buildScenarioEntities(scene, deckQuals, null, stubAirframe, stubShips) // 3 ships
-    const after = await buildScenarioEntities(scene, gunneryRange, before, stubAirframe, stubShips) // 0 ships
+    const after = await buildScenarioEntities(scene, gunneryRange, before, stubAirframe, stubShips, stubVehicles) // 0 ships
     expect(after.airframes).toHaveLength(3)
     expect(after.shipHandles).toHaveLength(0)
     for (const handle of before.shipHandles) expect(scene.children).not.toContain(handle.root)
@@ -355,7 +364,7 @@ describe('ships through the model cache (ship-models spec §3.3)', () => {
     const other = createShipView(strikeRange.ships[0]!.spec, 'type-b-maru', await cache.acquire(SHIP_MODELS['type-b-maru']!.url))
     const mesh = other.root.getObjectByName('hull group')!.children[0]!.children[0] as Mesh
     const spy = vi.spyOn(mesh.material as MeshStandardMaterial, 'dispose')
-    await buildScenarioEntities(scene, gunneryRange, a, stubAirframe, load)
+    await buildScenarioEntities(scene, gunneryRange, a, stubAirframe, load, stubVehicles)
     expect(spy).not.toHaveBeenCalled()
     expect(cache.refCount(SHIP_MODELS['type-b-maru']!.url)).toBe(1)
   })

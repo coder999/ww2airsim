@@ -1,0 +1,11 @@
+{
+  "id": "type97-chi-ha",
+  "name": "Type 97 Chi-Ha",
+  "lengthM": 5.5,
+  "widthM": 2.33,
+  "heightM": 2.21,
+  "maxSpeedMps": 10.6,
+  "turnRateRadPerS": 0.35,
+  "hp": 120,
+  "view": { "model": "type97-chi-ha" }
+}

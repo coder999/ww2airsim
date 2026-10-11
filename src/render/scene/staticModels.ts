@@ -22,6 +22,7 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     tower: { url: staticModelUrl('building', 'tower') },
   },
   vehicle: {
+    'type95-kurogane': { url: staticModelUrl('vehicle', 'type95-kurogane') },
     'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
   },

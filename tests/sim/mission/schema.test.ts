@@ -63,7 +63,7 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
     ['a parked held aircraft', { objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [{ id: 'wave-1', aircraft: [{ id: 'raid-2', spec: 'f6f-hellcat', parkedAt: { airfield: 'dulag', spot: 'runwayCenter' }, chocked: false }] }] }, /a held aircraft must start airborne/],
     ['a held pilot targeting an unknown aircraft', { objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [{ id: 'wave-1', aircraft: [{ ...WAVE.aircraft[0], pilot: { target: 'nobody' } }] }] }, /a held pilot must target a starting aircraft or one in its own group/],
     ['a starting pilot targeting a held aircraft', { objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [WAVE], aircraft: [BASE.aircraft[0], { ...BASE.aircraft[1], pilot: { target: 'raid-2' } }] }, /pilot target must name an aircraft in this scenario/],
-    ['an empty held group', { objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [{ id: 'wave-1' }] }, /a held group must hold at least one aircraft or ship/],
+    ['an empty held group', { objectives: [REACH_FAR], triggers: [SPAWN_WAVE], heldGroups: [{ id: 'wave-1' }] }, /a held group must hold at least one aircraft, ship or vehicle/],
   ])('rejects %s', (_name, patch, message) => {
     expect(() => parse(patch)).toThrow(message)
   })

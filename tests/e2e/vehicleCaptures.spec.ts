@@ -4,10 +4,10 @@ import { test } from '@playwright/test'
 import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 
 /**
- * Capture tool, not a test (docs/testing.md): the V1 handoff's frames. The two torpedoes and the
+ * Capture tool, not a test (docs/testing.md): the V1/V2 handoff frames. The two torpedoes and the
  * Type 98 bomb, the Type 98 on the Zero's racks, the Chi-Ha mid-traverse with its tracks run on
- * between two frames, and the jeep steered left and right. Skipped unless E2E_CAPTURE=1; writes to
- * E2E_CAPTURE_DIR (default test-results/vehicle-captures).
+ * between two frames, and both scout cars steered left and right. Skipped unless E2E_CAPTURE=1;
+ * writes to E2E_CAPTURE_DIR (default test-results/vehicle-captures).
  */
 test.skip(process.env['E2E_CAPTURE'] !== '1', 'capture tool: set E2E_CAPTURE=1')
 
@@ -22,9 +22,11 @@ const SHOTS: readonly (readonly [string, readonly View[], (h: NonNullable<Hangar
     (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 12, speedMph: 6 })],
   ['willys-mb-jeep', [['left', [3.6, 2.0, -3.6], [0, 0.7, 0]], ['right', [3.6, 2.0, 3.6], [0, 0.7, 0]], ['driver', [1.6, 1.7, -1.9], [-0.2, 1.0, -0.3]]],
     (h) => h.pose({ steer: -1 })],
+  ['type95-kurogane', [['left', [3.8, 2.0, -3.8], [0, 0.7, 0]], ['right', [3.8, 2.0, 3.8], [0, 0.7, 0]], ['front', [4.4, 1.7, 0], [0, 0.7, 0]]],
+    (h) => h.pose({ steer: -1 })],
 ]
 
-test('V1 captures: ordnance, the Zero\'s Type 98s, the Chi-Ha and the jeep', async ({ page }) => {
+test('vehicle captures: ordnance, the Zero\'s Type 98s, the Chi-Ha, the jeep and the Kurogane', async ({ page }) => {
   test.setTimeout(300_000)
   const out = process.env['E2E_CAPTURE_DIR'] ?? 'test-results/vehicle-captures'
   mkdirSync(out, { recursive: true })
@@ -38,7 +40,9 @@ test('V1 captures: ordnance, the Zero\'s Type 98s, the Chi-Ha and the jeep', asy
     await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
     await page.evaluate(`(${pose.toString()})(window.__hangar)`)
     for (const [view, eye, target] of views) {
-      if (id === 'willys-mb-jeep') await page.evaluate((s) => (window as HangarWindow).__hangar!.pose({ steer: s }), view === 'right' ? 1 : -0.6)
+      if (id === 'willys-mb-jeep' || id === 'type95-kurogane') {
+        await page.evaluate((s) => (window as HangarWindow).__hangar!.pose({ steer: s }), view === 'right' ? 1 : -0.6)
+      }
       await page.evaluate(([e, t]) => (window as HangarWindow).__hangar!.aim(e, t), [eye, target] as const)
       await settle()
       await page.locator('#hangar-canvas').screenshot({ path: `${out}/${id}-${view}.png` })

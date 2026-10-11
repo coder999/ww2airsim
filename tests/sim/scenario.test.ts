@@ -35,6 +35,20 @@ const withScenario = (patch: Partial<typeof bundle.scenario>, base: ScenarioBund
   scenario: { ...base.scenario, ...patch },
 })
 
+describe('scenario ground vehicles (V2)', () => {
+  it('loads the Kurogane route into the world, terrain-seats it, and steps it', () => {
+    const content = loadScenarioBundle('gunnery-range')
+    const start = worldFromScenario(content, terrain)
+    expect(start.vehicles.map((v) => v.id)).toEqual(['kurogane-1'])
+    expect(start.combat.vehicles['kurogane-1']!.hp).toBe(28)
+    const before = start.vehicles[0]!
+    expect(before.state.position.y).toBeGreaterThan(0)
+    const after = advance(start, DT).world.vehicles[0]!
+    expect(after.state.distanceM).toBeGreaterThan(0)
+    expect(after.state.tick).toBe(1)
+  })
+})
+
 describe('the free-flight scenario', () => {
   it('parses, and names two aircraft, three ships and two airfields', () => {
     const w = worldFromScenario(bundle, null)

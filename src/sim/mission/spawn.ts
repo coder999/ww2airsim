@@ -6,6 +6,7 @@ import { storesFromLoadout } from '../weapons/stores.js'
 import { armedForAttack } from '../ai/attack.js'
 import type { AircraftEntity, ShipEntity, World } from '../loop.js'
 import type { MissionState } from './state.js'
+import type { VehicleEntity } from '../world/vehicles.js'
 
 /** The slice of a world a spawn changes. `advance` holds these as loop
  *  locals between steps, which is why the spawn works on them rather than on
@@ -14,6 +15,7 @@ export type SpawnParts<M> = {
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
   readonly ships: readonly ShipEntity[]
+  readonly vehicles: readonly VehicleEntity[]
   readonly combat: CombatState
   readonly mission: MissionState<M>
   /** Rests a parked aircraft on the ground, as `settleOnTerrain` does at load. */
@@ -54,18 +56,25 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
     const state = { ...s.state, tick: parts.tick }
     return { ...s, state, previous: state }
   })
+  const vehicles = (group.vehicles ?? []).map((v) => {
+    const state = { ...v.state, tick: parts.tick }
+    return { ...v, state, previous: state }
+  })
   // E2: a spawned attacker is armed, like one the scenario starts with (scenario.ts); E3: and its wingmen.
   const everyone = [...parts.aircraft, ...aircraft]
   const armed = Object.fromEntries(aircraft.filter((a) => armedForAttack(a, everyone)).map((a) => [a.id, storesFromLoadout(a.spec, 'bombs')]))
-  const fresh = createCombat(aircraft, armed, ships.map((s) => ({ id: s.id, hullHp: s.spec.hullHp })), [])
+  const fresh = createCombat(aircraft, armed, ships.map((s) => ({ id: s.id, hullHp: s.spec.hullHp })), [], 1944,
+    vehicles.map((v) => ({ id: v.id, hp: v.spec.hp })))
   return {
     tick: parts.tick,
     aircraft: [...parts.aircraft, ...aircraft],
     ships: [...parts.ships, ...ships],
+    vehicles: [...parts.vehicles, ...vehicles],
     combat: {
       ...parts.combat,
       aircraft: { ...parts.combat.aircraft, ...fresh.aircraft },
       ships: { ...parts.combat.ships, ...fresh.ships },
+      vehicles: { ...parts.combat.vehicles, ...fresh.vehicles },
     },
     mission: { ...m, spawned: [...m.spawned, groupId] },
   }
@@ -75,6 +84,6 @@ export function spawnInto<M>(parts: SpawnParts<M>, groupId: string): SpawnParts<
  *  use. Inside `advance`, triggers call `spawnInto` on the loop's locals. */
 export function spawnHeldGroup<M>(world: World<M>, groupId: string): World<M> {
   if (world.mission === null) throw new Error('spawnHeldGroup: this world has no mission')
-  const r = spawnInto({ tick: world.tick, aircraft: world.aircraft, ships: world.ships, combat: world.combat, mission: world.mission, terrain: world.terrain }, groupId)
-  return { ...world, aircraft: r.aircraft, ships: r.ships, combat: r.combat, mission: r.mission }
+  const r = spawnInto({ tick: world.tick, aircraft: world.aircraft, ships: world.ships, vehicles: world.vehicles, combat: world.combat, mission: world.mission, terrain: world.terrain }, groupId)
+  return { ...world, aircraft: r.aircraft, ships: r.ships, vehicles: r.vehicles, combat: r.combat, mission: r.mission }
 }

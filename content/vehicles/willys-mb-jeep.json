@@ -1,0 +1,11 @@
+{
+  "id": "willys-mb-jeep",
+  "name": "Willys MB Jeep",
+  "lengthM": 3.35,
+  "widthM": 1.57,
+  "heightM": 1.32,
+  "maxSpeedMps": 29.1,
+  "turnRateRadPerS": 0.7,
+  "hp": 30,
+  "view": { "model": "willys-mb-jeep" }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "type95-kurogane",
+  "name": "Type 95 Kurogane Scout Car",
+  "lengthM": 3.6,
+  "widthM": 1.52,
+  "heightM": 1.68,
+  "maxSpeedMps": 20.8,
+  "turnRateRadPerS": 0.7,
+  "hp": 28,
+  "view": { "model": "type95-kurogane" }
+}

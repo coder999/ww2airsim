@@ -23,7 +23,18 @@ describe('vehicle rigs (V1)', () => {
   it('every rigged vehicle is a committed vehicle model, and both are rigged', () => {
     const models = readdirSync('content/vehicles').filter((f) => f.endsWith('.glb')).map((f) => f.slice(0, -4)).sort()
     expect(Object.keys(VEHICLE_RIGS).sort()).toEqual(models)
-    expect(models).toEqual(['type97-chi-ha', 'willys-mb-jeep'])
+    expect(models).toEqual(['type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
+  })
+})
+
+describe('Type 95 Kurogane', () => {
+  it('drives the original model through the four-wheel steering rig without a rider', async () => {
+    const root = await glbScene('content/vehicles/type95-kurogane.glb')
+    const rig = VEHICLE_RIGS['type95-kurogane']!(root)
+    rig.drive(2, 0.5)
+    expect(rig.state()['wheelSpinRad']).toBeLessThan(-5)
+    expect(rig.state()['frontSteerRad']).toBeCloseTo(-JEEP_STEERING.lockRad * 0.5, 9)
+    expect(rig.state()['handOffRimM']).toBe(-1)
   })
 })
 

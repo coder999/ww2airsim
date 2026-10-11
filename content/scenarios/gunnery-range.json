@@ -45,6 +45,15 @@
     }
   ],
   "ships": [],
+  "vehicles": [
+    {
+      "id": "kurogane-1",
+      "spec": "type95-kurogane",
+      "side": "axis",
+      "waypoints": [[-29800, -48100], [-29800, -47450]],
+      "speedMps": 8
+    }
+  ],
   "weather": {
     "windFromDeg": 0,
     "windMps": 0,

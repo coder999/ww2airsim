@@ -84,6 +84,18 @@ describe('ballistics and swept contacts', () => {
     expect(after.projectiles).toHaveLength(0)
     expect(after.aircraft.target!.damage.structure).toBe(1)
   })
+  it('sweeps rounds against a moving ground vehicle and records its destruction', () => {
+    const shooter = plane('shooter', -100)
+    const state = { position: v3(0, 0, 0), headingRad: Math.PI / 2 }
+    const vehicle = { id: 'truck', spec: { lengthM: 3.6, widthM: 1.52, heightM: 1.68 }, state, previous: state }
+    const c = {
+      ...createCombat([shooter], {}, [], [], 1944, [{ id: vehicle.id, hp: 0.01 }]),
+      projectiles: [{ ...projectile, position: v3(-10, 1, 0), previous: v3(-10, 1, 0), velocity: v3(1200, 0, 0) }],
+    }
+    const after = stepCombat(c, [shooter], [], [], null, null, [], 1, DT, null, false, null, null, [vehicle])
+    expect(after.vehicles.truck!.destroyedTick).toBe(1)
+    expect(after.projectiles).toHaveLength(0)
+  })
 })
 
 describe('production fixed-step gunnery', () => {

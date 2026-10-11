@@ -156,7 +156,7 @@ import {
 } from './spawn.js'
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { length, v3, type Vec3 } from '../sim/math/vec3.js'
-import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
+import { qFromAxisAngle, qMul, qRotate } from '../sim/math/quat.js'
 import { FRAME_TIME_CAPACITY, type CpuFrameSample, type ImpactMarkerDiagnostics, type Ww2Diagnostics } from './diagnostics.js'
 import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
@@ -168,7 +168,7 @@ const root = document.getElementById('app')!
 
 /** What one frame draws: the live `FrameState`, or a recorded moment during
  *  an instant replay (plan Task 7). Only the fields the drawing reads. */
-type RenderView = Pick<FrameState, 'world' | 'eye' | 'poses' | 'shipPoses' | 'render' | 'controls' | 'cameraMode' | 'paused' | 'timeScale'>
+type RenderView = Pick<FrameState, 'world' | 'eye' | 'poses' | 'shipPoses' | 'vehiclePoses' | 'render' | 'controls' | 'cameraMode' | 'paused' | 'timeScale'>
 
 // Accumulated by the `renderer.onError` handler wired below. Exposed (DEV
 // builds only) on `window.__ww2.validationErrors` near the top of `boot`,
@@ -2660,7 +2660,11 @@ async function boot(): Promise<void> {
         const eye = replayEye(session.camera, pose, floor)
         const drawn = effectiveCamera(session.camera)
         view = {
-          world: pose.world, eye, poses: pose.poses, shipPoses: pose.shipPoses, render: pose.render,
+          world: pose.world, eye, poses: pose.poses, shipPoses: pose.shipPoses,
+          vehiclePoses: pose.world.vehicles.map((v) => ({
+            position: v.state.position, headingRad: v.state.headingRad, pitchRad: v.state.pitchRad,
+            rollRad: v.state.rollRad, distanceM: v.state.distanceM, steer: v.state.steer,
+          })), render: pose.render,
           controls: playerAircraft(pose.world).controls,
           cameraMode: drawn === 'cockpit' ? 'cockpit' : 'chase',
           paused: !session.player.playing, timeScale: session.player.speed,
@@ -2684,7 +2688,7 @@ async function boot(): Promise<void> {
     // own `player: Airframe` would be a duplicate `const player` in one
     // scope, not a shadow (both are declared in this same function body).
     // M2 R1: world-ordered, including spawned held entities (entityViews.ts).
-    const { airframes, shipHandles, player: playerAirframe } = entityViews(scenarioEntities!, view.world)
+    const { airframes, shipHandles, vehicleHandles, player: playerAirframe } = entityViews(scenarioEntities!, view.world)
     // `player` is the LIVE airplane (the debrief banking and the post-impact
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
@@ -2739,6 +2743,18 @@ async function boot(): Promise<void> {
       m.position.set(pose.position.x, pose.position.y, pose.position.z)
       const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
       m.quaternion.set(q.x, q.y, q.z, q.w)
+    })
+    view.vehiclePoses.forEach((pose, i) => {
+      const handle = vehicleHandles[i]!
+      handle.root.position.set(pose.position.x, pose.position.y, pose.position.z)
+      const q = qMul(
+        qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad),
+        qMul(qFromAxisAngle(v3(0, 0, 1), pose.pitchRad), qFromAxisAngle(v3(1, 0, 0), pose.rollRad)),
+      )
+      handle.root.quaternion.set(q.x, q.y, q.z, q.w)
+      handle.drive(pose.distanceM, pose.steer)
+      const damage = view.world.combat.vehicles[view.world.vehicles[i]!.id]
+      if (damage !== undefined) handle.setDamage(damage)
     })
 
     // The cockpit group (the panel) shares the PLAYER's exact pose: panel.ts

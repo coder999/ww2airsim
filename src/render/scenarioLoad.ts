@@ -1,8 +1,9 @@
 import { parseAircraftSpec } from '../sim/content.js'
-import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
+import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds, scenarioShipSpecIds, scenarioVehicleSpecIds, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
-import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl } from './content.js'
+import { parseVehicleSpec } from '../sim/world/vehicles.js'
+import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl, vehicleUrl } from './content.js'
 import { withPlayerSpec } from '../sim/sortie.js'
 
 /**
@@ -57,14 +58,15 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
     const values = await Promise.all(unique.map(async (i) => [i, parse(await json(url(i)))] as const))
     return Object.fromEntries(values)
   }
-  const [aircraftSpecs, shipSpecs, airfields] = await Promise.all([
+  const [aircraftSpecs, shipSpecs, vehicleSpecs, airfields] = await Promise.all([
     table(scenarioAircraftSpecIds(scenario), aircraftUrl, parseAircraftSpec),
     table(scenarioShipSpecIds(scenario), shipUrl, parseShipSpec),
+    table(scenarioVehicleSpecIds(scenario), vehicleUrl, parseVehicleSpec),
     table([
       ...scenario.airfields,
       ...scenario.aircraft.flatMap((a) =>
         isParkedAircraft(a) && !isShipParked(a.parkedAt) ? [a.parkedAt.airfield] : []),
     ], airfieldUrl, parseAirfield),
   ])
-  return { scenario, aircraftSpecs, shipSpecs, airfields }
+  return { scenario, aircraftSpecs, shipSpecs, vehicleSpecs, airfields }
 }

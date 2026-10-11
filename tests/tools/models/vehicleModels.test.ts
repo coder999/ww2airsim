@@ -19,6 +19,7 @@ const VEHICLE_BUDGET = { maxBytes: 1_000_000, maxTriangles: 20_000, maxDrawCalls
 interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly widthTol: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
 /** Rulings V2, V4 and V6: tolerances are per cited row and preserve the authoritative fit axis. */
 const CITED: Readonly<Record<string, Cited>> = {
+  'type95-kurogane': { lengthM: 3.6, lengthTol: 0.01, widthM: 1.52, widthTol: 0.02, heightM: 1.68, heightTol: 0.02, source: "German Wikipedia article 'Typ 95 Aufklarungswagen': length 3.60 m, width 1.52 m, height 1.68 m, read 2026-10-11" },
   'type97-chi-ha': { lengthM: 5.5, lengthTol: 0.01, widthM: 2.33, widthTol: 0.06, heightM: 2.21, heightTol: 0.08, source: "English Wikipedia 'Type 97 Chi-Ha medium tank', infobox (Tomczyk 2007, p. 19): length 5.50 m, width 2.33 m, height 2.21 m, read 2026-09-27. The download measures +7.5% tall at the cited length, all of it in the turret node's top (R5 plan, V2)" },
   'willys-mb-jeep': { lengthM: 3.35, lengthTol: 0.04, widthM: 1.57, widthTol: 0.07, heightM: 1.32, heightTol: 0.08, source: "English Wikipedia 'Willys MB', infobox: length 132 in (3.35 m), width 62 in (1.57 m), height reducible to 52 in (1.32 m, top down); the article's 80 in (2.032 m) wheelbase is the fit (R5 plan, V4), read 2026-09-27. At that exact wheelbase fit the source model measures 1.670 m wide (+6.4%), so its measured row uses 7% (V6)" },
 }
@@ -28,6 +29,10 @@ const TURRETS: Readonly<Record<string, readonly string[]>> = { 'type97-chi-ha': 
 
 /** Each vehicle's own proof that its nose is at +x; a model turned 180° fails it. */
 const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail: string }>> = {
+  'type95-kurogane': (doc) => {
+    const b = getBounds(findNode(doc, 'KuroganeNose'))
+    return { ok: b.min[0] > 1.3, detail: `nose x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
+  },
   // The 57 mm gun (Gun1 since V1 split it from Turret1) reaches forward of the turret ring, near the bow.
   // A centroid-distance heuristic is invalid here: the offset turret makes its rear corner a few
   // centimeters farther from the vertex centroid than the muzzle even while the gun faces +x.
