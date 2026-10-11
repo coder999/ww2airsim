@@ -26,7 +26,7 @@ export const PURSUIT_FULL_POWER_BEYOND_M = AI_GUN_RANGE_M
  *  vector for a pilot whose skill flies it (E4), else `steerToward` (ruling
  *  R3), which within 60° of the nose is `pursuitControls` exactly. */
 export function leadPursuitControls<M>(self: AircraftEntity<M>, perceived: AircraftEntity<M>): Controls {
-  const steered = gunTrackingControls(self, perceived) ?? pursuitSteering(self, pursuitDesiredVelocity(self, perceived))
+  const steered = gunTrackingControls(self, perceived) ?? pursuitSteering(self, perceived, pursuitDesiredVelocity(self, perceived))
   const rangeM = length(sub(perceived.state.position, self.state.position))
   const powered = rangeM > PURSUIT_FULL_POWER_BEYOND_M ? { ...steered, throttle: 1 } : steered
   return hasGunSolution(self, perceived) ? { ...powered, fire: true } : powered

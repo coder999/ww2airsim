@@ -33,20 +33,20 @@ const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
 //   crossing v-g 5 -> 5 (49 -> 64 s),   v-v 5 -> 2 (71 -> 97 s),   g-g 0 -> 0
 // 27 of 72 duels resolved before, 18 after. Green against green resolves in none, so it stays out.
 // E4 (2026-10-10; handoff docs/handoff/2026-10-10-e4-ai-fixes.md): the stall guard, lift-vector lead
-// pursuit for the veteran, the rudder limit and the attack run's longer latch. Re-measured at 8 cursors,
-// kills round 2 -> E4 (mean time to kill after):
-//   head-on  v-g 3 -> 4 (119 s), v-v 2 -> 4 (117 s)
-//   tail     v-g 5 -> 7 (112 s), v-v 1 -> 8 (103 s)
-//   crossing v-g 5 -> 8 (81 s),  v-v 2 -> 2 (125 s)
-// 18 of 72 resolved before, 33 after. Green against green still resolves in none.
+// pursuit for the veteran against a turning target, the rudder limit and the attack run's longer latch.
+// Re-measured at 8 cursors after the merge with the Escort mission, kills round 2 -> E4 (mean time to kill after):
+//   head-on  v-g 3 -> 8 (100 s), v-v 2 -> 4 (116 s)
+//   tail     v-g 5 -> 6 (117 s), v-v 1 -> 7 (99 s)
+//   crossing v-g 5 -> 8 (80 s),  v-v 2 -> 3 (150 s)
+// 18 of 72 resolved before, 36 after. Green against green still resolves in none.
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
   // geometry, a, b, cursors, kills, measured 2026-10-10 (E4)
-  ['head-on', 'veteran', 'green', CURSORS_8, 4],
+  ['head-on', 'veteran', 'green', CURSORS_8, 8],
   ['head-on', 'veteran', 'veteran', CURSORS_8, 4],
-  ['tail', 'veteran', 'green', CURSORS_8, 7],
-  ['tail', 'veteran', 'veteran', CURSORS_8, 8],
+  ['tail', 'veteran', 'green', CURSORS_8, 6],
+  ['tail', 'veteran', 'veteran', CURSORS_8, 7],
   ['crossing', 'veteran', 'green', CURSORS_8, 8],
-  ['crossing', 'veteran', 'veteran', CURSORS_8, 2],
+  ['crossing', 'veteran', 'veteran', CURSORS_8, 3],
 ]
 
 describe('E1: AI duels resolve by kills', () => {

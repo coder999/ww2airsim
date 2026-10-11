@@ -152,10 +152,25 @@ export function pursuitDesiredVelocity<M>(
   return aim === null ? maneuver : scale(aim, length(maneuver))
 }
 
-/** Lead pursuit's steering toward `desired`: the lift vector for a pilot whose
- *  skill flies it (E4), else 7c's `steerToward`. A shooter with no pilot keeps 7c's. */
-export function pursuitSteering<M>(self: AircraftEntity<M>, desired: Vec3): Controls {
-  return self.pilot?.skill.liftVectorPursuit === true
+/** E4: a target turning faster than this (|body pitch and yaw rate|, rad/s) is
+ *  chased with the lift vector. The same reading and value as the 7c
+ *  selector's TARGET_TURNING_RAD_PER_S (maneuvers.ts, which imports this file):
+ *  0.000 straight and level, 0.22-0.30 in a 3 g turn. */
+export const LIFT_PURSUIT_TURN_RATE_RAD_PER_S = 0.05
+
+/**
+ * Lead pursuit's steering toward `desired`: the lift vector for a pilot whose
+ * skill flies it (E4) while the target is turning, else 7c's `steerToward`. A
+ * shooter with no pilot keeps 7c's. Only a turning target: against a level
+ * bomber formation the lift-vector law dove the veteran Zero of the Escort
+ * mission under its bombers at 70 m/s with no hits, and unescorted Zeros downed
+ * no B-17 in 600 s against 2-3 with 7c's steering (measured 2026-10-10,
+ * `tests/sim/ai/bomberAttack.test.ts`). The velocity controller's 70° bank is
+ * a limit only against a target that turns.
+ */
+export function pursuitSteering<M>(self: AircraftEntity<M>, target: AircraftEntity<M>, desired: Vec3): Controls {
+  const turning = Math.hypot(target.state.bodyRates.y, target.state.bodyRates.z) >= LIFT_PURSUIT_TURN_RATE_RAD_PER_S
+  return self.pilot?.skill.liftVectorPursuit === true && turning
     ? liftPursuitControls(self.state, self.spec, desired, loadFactorBudget(self.spec))
     : steerToward(self.state, self.spec, desired, loadFactorBudget(self.spec))
 }
@@ -199,7 +214,7 @@ export function gunTrackingControls<M>(self: AircraftEntity<M>, target: Aircraft
   const wantYaw = dot(swing, up) - lead * TRACKING_GAIN_PER_S * yawError
   const unit = commandedBodyRates(self.spec, self.state, { roll: 0, pitch: 1, yaw: 1, throttle: 0, gearDown: false, flapDown: false, brake: 0 })
   // Roll (E4): for a pilot who flies it, the lift vector onto the solution, as lead pursuit does.
-  const base = pursuitSteering(self, pursuitDesiredVelocity(self, target))
+  const base = pursuitSteering(self, target, pursuitDesiredVelocity(self, target))
   const clamp1 = (n: number): number => Math.min(1, Math.max(-1, n))
   return {
     ...base,
