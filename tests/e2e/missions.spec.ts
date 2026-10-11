@@ -100,10 +100,10 @@ function openingCall(s: ReturnType<typeof loadScenario>): string {
   return (m as { message: string }).message
 }
 
-/** The chart (P) lists every objective; captured, then closed. */
+/** The chart (P, the pause dossier's Map tab since 2026-10-10) lists every objective; captured, then closed. */
 async function chartListsObjectives(page: Page, s: ReturnType<typeof loadScenario>, id: Id) {
   await page.keyboard.press(BINDINGS.toggleMissionMap[0])
-  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const chart = page.getByRole('dialog', { name: 'Pause menu' }).getByRole('region', { name: 'Mission map' })
   const list = chart.getByLabel('Objectives')
   for (const o of s.objectives!) await expect(list).toContainText(o.label)
   await page.screenshot({ path: `test-results/${shot(id, 'chart')}` })
@@ -322,7 +322,7 @@ test('Combat Air Patrol: briefing, CAP STATION n/180 S, CIC call, wave 1 spawns 
   // (a `destroy`/`deny` mark makes an aircraft a clickable destination,
   // missionMap.ts), wave 2's not on it at all yet.
   await page.keyboard.press(BINDINGS.toggleMissionMap[0])
-  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const chart = page.getByRole('dialog', { name: 'Pause menu' }).getByRole('region', { name: 'Mission map' })
   const list = chart.getByLabel('Objectives')
   for (const o of s.objectives!) await expect(list).toContainText(o.label)
   for (const raider of ['raid-1', 'raid-2']) {
