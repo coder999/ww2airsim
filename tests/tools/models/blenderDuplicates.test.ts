@@ -33,7 +33,7 @@ const DUPLICATES: readonly {
   },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.82, 0.95] },
-  { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [4.65, 1.66] },
+  { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [2.40, 1.44] },
 ]
 const TOLERANCE_M = 0.05
 
@@ -117,7 +117,7 @@ describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, mode
   })
 })
 
-it('B-17G uses the drawing-sized main fin and seats its forward dorsal turret in the fuselage crown', async () => {
+it('B-17G follows the Commons three-view: fillet-and-fin tail, rudder, body width and the top turret seat', async () => {
   const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/b-17-flying-fortress-blender.glb')))
   const one = (name: string) => {
     const nodes = doc.getRoot().listNodes().filter((node) => node.getName() === name)
@@ -126,20 +126,34 @@ it('B-17G uses the drawing-sized main fin and seats its forward dorsal turret in
   }
   const extent = (points: readonly (readonly number[])[], axis: number) =>
     Math.max(...points.map((point) => point[axis]!)) - Math.min(...points.map((point) => point[axis]!))
+  const skin = worldPositions(one('b17b_dark'))
+  // Kaboldy's B-17G three-view, re-read 2026-10-11 (b-17-flying-fortress-blender.py): the nose is 6.40 m
+  // ahead of the wing quarter-chord origin and drawing heights sit 0.60 m below model heights.
+  const X = (station: number) => 6.40 - station
+  const near = (station: number, dx = 0.06) => skin.filter((p) => Math.abs(p[0]! - X(station)) <= dx)
 
-  // Commons' B-17G side view measures a 3.90 m structural fin. The rudder
-  // occupies 88% of that authored height; the old 5.20 m all-in fillet/fin
-  // made this 4.58 m and therefore fails this outside-truth check.
-  expect(extent(worldPositions(one('Rudder')), 1)).toBeCloseTo(3.43, 1)
+  // The fin crown is 4.31 m (drawing) at station 19.27 m. The former trapezoid fin's crown stood 0.4 m
+  // forward of that, and the triangle before it had no crown at all, its top at the trailing edge.
+  const crown = skin.reduce((a, p) => (p[1]! > a[1]! ? p : a))
+  expect(crown[1]!).toBeCloseTo(4.31 + 0.60, 1)
+  expect(Math.abs(crown[0]! - X(19.27))).toBeLessThanOrEqual(0.30)
+  // A curved leading edge, not a straight sweep: half-way up the fin (2.15 m) it is at station 17.43 m,
+  // 1.3 m aft of the straight line from the fillet start (11.18 m, 0.62 m) to the crown.
+  const at = (y: number) => skin.filter((p) => Math.abs(p[1]! - (y + 0.60)) <= 0.03 && p[0]! < X(11))
+  expect(Math.abs(Math.max(...at(2.15).map((p) => p[0]!)) - X(17.43))).toBeLessThanOrEqual(0.12)
+  // The rudder runs from the tail-gunner housing (0.52 m) to 3.90 m on a straight raked hinge.
+  expect(extent(worldPositions(one('Rudder')), 1)).toBeCloseTo(3.90 - 0.52, 1)
+  // The tail shell is blunt: 0.56 m tall at station 22.5 m (the former loft pinched to 0.10 m there).
+  expect(extent(near(22.5), 1)).toBeGreaterThanOrEqual(0.55)
+  // The body is 2.16 m wide just aft of the wing root (top view, station 11.6 m), not the former 2.9 m.
+  expect(extent(near(11.6, 0.2), 2)).toBeCloseTo(2 * 1.08, 1)
 
-  // The lowest fuselage crown beneath the 0.50 m-radius turret footprint is
-  // 1.26 m in the drawing-derived loft. Its 1.22 m base deliberately sinks
-  // 0.04 m into that skin; the former 1.90 m pivot floated in clear air.
+  // The lowest fuselage crown beneath the 0.50 m-radius top-turret footprint, 0.04 m sunk.
   const turret = worldPositions(one('Turret4'))
   const base = Math.min(...turret.map((point) => point[1]!))
-  expect(base).toBeGreaterThanOrEqual(1.18)
-  expect(base).toBeLessThanOrEqual(1.22)
-  expect(extent(turret, 1)).toBeCloseTo(0.82, 2)
+  expect(base).toBeGreaterThanOrEqual(1.55)
+  expect(base).toBeLessThanOrEqual(1.62)
+  expect(extent(turret, 1)).toBeCloseTo(0.52, 2)
 })
 
 it('ki-43-oscar-blender keeps its 2026-10-11 Wikimedia upper-silhouette stations', async () => {

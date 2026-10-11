@@ -18,58 +18,66 @@ Specifications (B-17G), unless stated otherwise):
     Wikipedia specification gives blade count but leaves diameter blank;
     diameter measured from the Commons drawing below
 
-Real-airplane measurement (read 2026-10-11): Wikimedia Commons
+Real-airplane measurement (re-read 2026-10-11, second pass): Wikimedia Commons
 "Boeing B-17G Flying Fortress 3-view line drawing.svg", Kaboldy, CC BY-SA
-3.0, fetched through Special:FilePath at width 1600. The English article's
-prop=images list was checked first; it exposes the raster three-view rather
-than this corrected SVG, so Commons search located the SVG counterpart.
-Each table is in meters aft of the nose tip; vertical values are meters above
-the model's wing-quarter-chord horizontal datum. The original profile tables
-were read from the 1,600 px raster. The tail was re-read on 2026-10-11 from a
-1,920 px raster: the side-view airframe runs from nose x=33 to tail shell
-x=1,385 (59.7 px/m over the cited 22.66 m); the main-fin leading root is at
-station 17.7 m and its top is 3.90 m above the embedded root. The drawing has
-no fuselage cross-sections, so half-widths are read from its top view and
-remain ESTIMATE between the shown outlines.
+3.0, rasterized through Special:FilePath at 3,840 px. Side and top views share
+one scale: nose x=66 to tail shell x=2,770, 119.33 px/m over the cited 22.66 m.
+The drawing's span is 5% short of the cited span at that scale (3,596 px), so
+spanwise tail and wingtip figures use the span calibration (113.7 px/m) and
+everything else the length calibration. Tables are stations in meters aft of
+the nose and heights in meters in the DRAWING frame, which is the model frame
+lowered DY = 0.60 m (see below). The first pass (same date) read the body 50%
+too wide, placed the nose 2.50 m too far forward of the wing, and stood the
+rear fuselage and fin about 0.9 m too high; every table here replaces it.
 
-  side silhouette, station: top / bottom (DRAWING-MEASURED, +/-0.08 m):
-    0.00: +0.12/-0.10; 1.10: +0.78/-0.82; 2.10: +1.05/-1.05;
-    3.20: +1.20/-1.31; 4.40: +1.28/-1.49; 6.00: +1.30/-1.66;
-    8.00: +1.27/-1.69; 10.00: +1.22/-1.67; 12.00: +1.13/-1.61;
-    14.00: +1.18/-1.46; 16.00: +1.11/-1.30; 18.00: +0.99/-1.10;
-    20.00: +0.85/-0.76; 21.50: +0.72/+0.05; 22.66: +0.66/+0.56
-  top silhouette, station: half-width (DRAWING-MEASURED, +/-0.08 m):
-    0.00: 0.10; 1.10: 0.78; 2.10: 1.12; 3.20: 1.33;
-    4.40: 1.46; 6.00: 1.52; 8.00: 1.55; 10.00: 1.52;
-    12.00: 1.46; 14.00: 1.34; 16.00: 1.18; 18.00: 0.96;
-    20.00: 0.68; 21.50: 0.38; 22.66: 0.08
-  windscreen front 3.18 m; canopy crown 4.35 m at +2.02 m;
-    canopy rear 5.95 m                                     DRAWING-MEASURED
-  dorsal fillet begins 12.2 m aft of the nose and joins the fin
-    near 17.7 m; the load-bearing fin root is 17.7-22.66 m,
-    rises 3.90 m from its embedded root, and has a 1.19 m
-    tip chord; tailplane leading edge 17.4 m at the root
-    and span 13.7 m                                       DRAWING-MEASURED
-  wing quarter-chord at 30% semispan 8.90 m aft of the nose;
-    that point is this model's origin                       DRAWING-MEASURED
-  pilot eye [4.65, 1.66] in model coordinates (station 4.25 m,
-    0.36 m below the canopy crown)                          DRAWING-MEASURED
+  wing quarter-chord at 30% semispan 6.40 m aft of the nose (top view: leading
+    edge 5.22 m, trailing edge 9.94 m); that point is this model's origin.
+    Check: the spec-fitted tailwheel x then falls at station 17.0 m, where the
+    drawing draws it (16.9 m)                               DRAWING-MEASURED
+  DY: the front view puts the wing root chord line 0.99 m above the keel; the
+    model's wing meets the body side at y=-0.04, so drawing heights + 0.60 m
+    are model heights. The outboard nacelle centerline agrees within 0.02 m
+                                                            DRAWING-MEASURED
+  side silhouette and top-view half-width: PROFILE below (+/-0.05 m); the
+    turrets, chin turret, ball turret, astrodome and guns are excluded
+                                                            DRAWING-MEASURED
+  vertical tail: FIN_LE / FIN_TE below, traced from the outer outline; the
+    dorsal fillet rises from the body top at station 11.18 m at 8 deg to
+    station 16.0 m, then curves into the fin, crown 4.31 m at station 19.27 m;
+    the rudder trailing edge is a straight line from (21.12, +0.49) to
+    (20.54, +3.35); rudder hinge (19.56, +0.49) to (20.00, +3.90)
+                                                            DRAWING-MEASURED
+  tail-gunner housing top +0.49 m from station 19.56 to 21.30 m; tail guns
+    leave the shell at -0.33 m                              DRAWING-MEASURED
+  tailplane: root leading edge 16.65 m, root trailing edge 20.09 m on the
+    centerline, tip chord 1.51 m at 5.72 m out, rounded tip to 6.27 m (span
+    12.53 m), straight unswept elevator hinge at station 18.80 m, chord line
+    -0.12 m                                                 DRAWING-MEASURED
+  wingtip: the last 1.3 m rounds off (chord fraction of the straight taper:
+    1.0 at 14.47 m out, 0.90 at 15.21, 0.72 at 15.51, 0.44 at 15.71, 0.08 at
+    15.81 m); ailerons end where the rounding starts          DRAWING-MEASURED
+  spinner tips 2.36 m (inboard) and 2.82 m (outboard) aft of the nose
+                                                            DRAWING-MEASURED
+  windscreen base 2.95 m; flat cockpit roof +1.14 m from 3.50 m; pilot eye
+    [2.40, 1.44] in model coordinates (station 4.00 m, 0.33 m under the roof)
+                                                            DRAWING-MEASURED
+  turrets: chin 1.25 m, top 5.15 m, ball 11.10 m; cheek guns 1.80 m; waist
+    windows 12.5 m (right) and 13.75 m (left); radio gun 9.80 m; antenna mast
+    12.15 m                                                 DRAWING-MEASURED
 
 Other figures:
   taper 0.36, leading-edge sweep 6 deg, dihedral 4.5 deg    ESTIMATE from
     the drawing; the root leading edge is offset so the 30%-semispan
     quarter-chord is the origin
-  dorsal-fillet thickness and lower edge, fuselage superellipse
-    exponents, nacelle sections, cowl details, control-surface
-    hinges, fairings and insignia positions                         ESTIMATE
+  fin and fillet thickness (0.26 m, thinning over the crown), fuselage
+    superellipse exponents, nacelle sections, cowl details, fairings and
+    insignia positions                                          ESTIMATE
   main gear is one large wheel per side and retracts forward into the
     inboard nacelles; tailwheel retracts forward                     ESTIMATE motion
-  forward dorsal turret center 6.15 m aft of the nose              DRAWING-MEASURED
   turret sizes and arcs                                                ESTIMATE from
     the drawing and the cited nine-position armament layout; the
-    forward dorsal turret base is computed from the authored fuselage
-    loft and sunk 0.04 m into the lowest skin point under its footprint;
-    its 0.82 m collar/dome keeps the level gun traverse above the cockpit
+    top turret base is computed from the authored fuselage loft and sunk
+    0.04 m into the lowest skin point under its footprint
   one bomb bay from x -2.55 to +0.75 m, 0.48 m either side of keel    ESTIMATE;
     covers the existing spec's eight internal rack points
   unpainted natural metal with 1943 star-and-bar markings              ESTIMATE
@@ -85,7 +93,7 @@ authorized loft refinement.                                           CITED meta
 
 FITTED to content/aircraft/b-17-flying-fortress.json without changing the
 flight model: main wheel bottoms y=-2.548 m at x=0.852 m; tailwheel bottom
-y=-1.097 m at x=-10.623 m; the proposed real-cockpit eye is [4.65,1.66,0].
+y=-1.097 m at x=-10.623 m; the proposed real-cockpit eye is [2.40,1.44,0].
 The existing combat gun list is empty, while the visible historical gun
 positions are modeled as Turret1..6 plus static waist/radio barrels.
 
@@ -110,76 +118,122 @@ PROP_DIAMETER = 3.54
 ROOT_T, TIP_T = 0.18, 0.10
 
 UPPER = 'naturalMetal'
-NOSE_TO_ORIGIN = 8.90
+NOSE_TO_ORIGIN = 6.40
+DY = 0.60
 TAPER = 0.36
 SWEEP_DEG = 6.0
 DIHEDRAL_DEG = 4.5
 WING_Y = -0.12
 
-# station aft of nose, half-width, bottom, top, exponent; tail to nose.
+# Drawing frame: station aft of nose, half-width, bottom, top, exponent; tail to nose.
 PROFILE = [
-    (22.66, 0.08, 0.56, 0.66, 2.0),
-    (21.50, 0.38, 0.05, 0.72, 2.0),
-    (20.00, 0.68, -0.76, 0.85, 2.0),
-    (18.00, 0.96, -1.10, 0.99, 2.1),
-    (16.00, 1.18, -1.30, 1.11, 2.2),
-    (14.00, 1.34, -1.46, 1.18, 2.3),
-    (12.00, 1.46, -1.61, 1.13, 2.4),
-    (10.00, 1.52, -1.67, 1.22, 2.4),
-    (8.00, 1.55, -1.69, 1.27, 2.5),
-    (6.00, 1.52, -1.66, 1.30, 2.5),
-    (4.40, 1.46, -1.49, 1.28, 2.4),
-    (3.20, 1.33, -1.31, 1.20, 2.3),
-    (2.10, 1.12, -1.05, 1.05, 2.1),
-    (1.10, 0.78, -0.82, 0.78, 2.0),
-    (0.00, 0.10, -0.10, 0.12, 2.0),
+    (22.66, 0.12, -0.60, -0.22, 2.0),
+    (22.62, 0.22, -0.70, -0.14, 2.2),
+    (22.50, 0.28, -0.76, -0.08, 2.4),
+    (22.25, 0.32, -0.82, -0.03, 2.4),
+    (21.85, 0.36, -0.86, 0.00, 2.5),
+    (21.60, 0.38, -0.88, 0.25, 2.6),
+    (21.30, 0.39, -0.90, 0.49, 2.6),
+    (19.80, 0.44, -1.03, 0.47, 2.6),
+    (19.50, 0.43, -1.06, 0.24, 2.4),
+    (19.00, 0.42, -1.10, 0.22, 2.3),
+    (18.00, 0.44, -1.19, 0.28, 2.2),
+    (17.50, 0.49, -1.24, 0.32, 2.2),
+    (17.00, 0.58, -1.29, 0.36, 2.2),
+    (16.50, 0.70, -1.33, 0.39, 2.2),
+    (16.00, 0.75, -1.36, 0.41, 2.2),
+    (15.00, 0.82, -1.44, 0.46, 2.2),
+    (14.00, 0.90, -1.51, 0.50, 2.2),
+    (13.00, 0.98, -1.57, 0.54, 2.2),
+    (12.00, 1.06, -1.62, 0.58, 2.2),
+    (11.00, 1.11, -1.63, 0.63, 2.3),
+    (10.50, 1.12, -1.64, 0.69, 2.3),
+    (10.00, 1.12, -1.64, 0.79, 2.3),
+    (9.50, 1.14, -1.64, 0.89, 2.3),
+    (9.00, 1.14, -1.64, 0.97, 2.3),
+    (8.50, 1.11, -1.64, 1.04, 2.3),
+    (7.50, 1.09, -1.64, 1.12, 2.3),
+    (6.00, 1.08, -1.64, 1.13, 2.3),
+    (4.50, 1.10, -1.64, 1.14, 2.3),
+    (4.00, 1.08, -1.62, 1.14, 2.3),
+    (3.50, 1.04, -1.58, 1.12, 2.2),
+    (3.25, 1.01, -1.55, 1.00, 2.2),
+    (3.00, 0.99, -1.52, 0.80, 2.2),
+    (2.50, 0.92, -1.47, 0.63, 2.2),
+    (2.00, 0.85, -1.38, 0.55, 2.1),
+    (1.50, 0.78, -1.24, 0.49, 2.1),
+    (1.00, 0.67, -1.08, 0.37, 2.0),
+    (0.75, 0.58, -0.98, 0.27, 2.0),
+    (0.50, 0.47, -0.86, 0.16, 2.0),
+    (0.25, 0.33, -0.72, 0.01, 2.0),
+    (0.00, 0.05, -0.44, -0.28, 2.0),
 ]
-CANOPY = [
-    (5.95, 0.18, 0.12, 1.35),
-    (5.45, 0.62, 0.34, 1.55),
-    (4.85, 0.74, 0.43, 1.59),
-    (4.35, 0.76, 0.45, 1.57),
-    (3.75, 0.71, 0.38, 1.52),
-    (3.18, 0.12, 0.08, 1.31),
-]
-CANOPY_FRAMES = (5.55, 5.05, 4.55, 4.05, 3.55)
-TAILPLANE = dict(span=13.70, leading_station=17.40, root=4.40, taper=0.42, y=0.62, sweep=10.0)
-# The drawing's long line from station 12.2 is a thin dorsal fillet, not the
-# leading edge of a 10.46 m-chord fin.  The main fin begins at station 17.7.
-FIN = dict(root=4.96, taper=0.24, height=3.90, y=0.78, sweep=12.5)
-DORSAL_FILLET = dict(start=12.20, root=8.10, tip=0.82, height=2.35, y=0.84, sweep=66.8)
-TOP_TURRET = dict(station=6.15, radius=0.50, height=0.82, embed=0.04, barrel=0.92)
+# Cockpit glazing stations: it sits CANOPY_PROUD above the roof line it follows.
+CANOPY_STATIONS = (2.95, 3.15, 3.40, 3.70, 4.10, 4.60)
+CANOPY_FRAMES = (3.15, 3.40, 3.70, 4.10)
+CANOPY_PROUD = 0.035
+CANOPY_HALF_HEIGHT = 0.32
+# Vertical tail outer outline, drawing frame: (height, station).
+FIN_LE = [(0.15, 11.18), (0.62, 11.18), (1.30, 16.00), (1.37, 16.25), (1.47, 16.50), (1.60, 16.75),
+          (1.75, 16.98), (1.95, 17.23), (2.15, 17.43), (2.35, 17.59), (2.55, 17.73), (2.75, 17.84),
+          (2.95, 17.93), (3.15, 18.01), (3.35, 18.08), (3.55, 18.14), (3.75, 18.23), (3.85, 18.30),
+          (3.95, 18.39), (4.05, 18.51), (4.15, 18.68), (4.25, 18.94), (4.29, 19.08)]
+FIN_TE = [(0.15, 21.19), (0.49, 21.12), (3.35, 20.54), (3.65, 20.41), (3.85, 20.27), (3.95, 20.17),
+          (4.05, 20.05), (4.15, 19.88), (4.25, 19.63), (4.29, 19.48)]
+FIN_THICKNESS = [(0.15, 0.26), (3.50, 0.26), (3.85, 0.20), (4.05, 0.15), (4.25, 0.08), (4.29, 0.05)]
+RUDDER_HINGE = ((0.49, 19.56), (3.90, 20.00))
+RUDDER_SPAN = (0.52, 3.90)
+# Tailplane: (spanwise z, leading station, trailing station, thickness m); chord line -0.12 m.
+TAILPLANE = [(0.00, 16.65, 20.09, 0.41), (0.68, 16.81, 20.02, 0.38), (5.72, 17.98, 19.49, 0.15),
+             (5.98, 18.07, 19.39, 0.13), (6.14, 18.25, 19.22, 0.10), (6.22, 18.44, 19.03, 0.06),
+             (6.27, 18.61, 18.88, 0.025)]
+TAILPLANE_Y = -0.12
+ELEVATOR = (0.82, 5.70, 18.80)
+# Wingtip rounding: (z, fraction of the straight-taper chord, forward shift of mid-chord as a
+# fraction of that chord).
+WINGTIP = [(14.47, 1.00, 0.0), (14.81, 0.99, 0.01), (15.01, 0.96, 0.02), (15.21, 0.90, 0.03),
+           (15.36, 0.82, 0.05), (15.51, 0.72, 0.06), (15.61, 0.61, 0.07), (15.71, 0.44, 0.09),
+           (15.76, 0.33, 0.10), (15.81, 0.08, 0.11)]
+TOP_TURRET = dict(station=5.15, radius=0.50, height=0.52, embed=0.04, gun=0.26, barrel=0.92)
 ENGINE_Z = (3.03, 6.53)
-NACELLE = [(-1.65, 0.23), (-0.90, 0.62), (0.20, 0.78), (1.55, 0.80), (2.35, 0.72), (2.73, 0.56), (2.78, 0.40)]
-PROP_X = (2.88, 2.42)
+NACELLE_SHIFT = 0.61
+NACELLE = [(x + NACELLE_SHIFT, r) for x, r in
+           [(-1.65, 0.23), (-0.90, 0.62), (0.20, 0.78), (1.55, 0.80), (2.35, 0.72), (2.73, 0.56), (2.78, 0.40)]]
+PROP_X = (2.88 + NACELLE_SHIFT, 2.42 + NACELLE_SHIFT)
 GEAR = dict(x=0.852, z=3.03, hinge_y=-0.42, length=2.128, wheel_r=0.55, wheel_w=0.32)
 TAILWHEEL = dict(x=-10.623, hinge_y=-0.45, length=0.647, wheel_r=0.18, wheel_w=0.14)
 BAYS = [(-2.55, 0.75, 0.48)]
 
 SEGMENTS = 96
-SUBDIVIDE = 5
+SUBDIVIDE = 3
 NACELLE_SEGMENTS = 48
 STATIONS = tuple(sorted(set(kit.AIRFOIL_STATIONS_FINE) | {0.05, 0.10, 0.15, 0.22, 0.30, 0.40, 0.55, 0.68, 0.78, 0.88}))
 FLAP = (0.10, 0.56, 0.74)
-AILERON = (0.61, 0.96, 0.74)
-ELEVATOR = (0.08, 0.96, 0.70)
-RUDDER = (0.06, 0.94, 0.68)
+AILERON = (0.61, WINGTIP[0][0] / (SPAN / 2), 0.74)
 
 
 def X(station):
     return NOSE_TO_ORIGIN - station
 
 
+def lerp(table, h):
+    """Linear interpolation in a [(key, value)] table, keys increasing."""
+    for (h0, v0), (h1, v1) in zip(table, table[1:]):
+        if h <= h1:
+            return v0 + (v1 - v0) * (h - h0) / (h1 - h0)
+    return table[-1][1]
+
+
 def fuselage_rows():
     rows = []
     for s, w, bottom, top, exponent in PROFILE:
-        rows.append((X(s), w, (top - bottom) / 2, (top + bottom) / 2, exponent))
+        rows.append((X(s), w, (top - bottom) / 2, (top + bottom) / 2 + DY, exponent))
     return rows
 
 
 FUSELAGE_ROWS = fuselage_rows()
-NOSE_ROWS = FUSELAGE_ROWS[-3:]
-BODY_ROWS = FUSELAGE_ROWS[:-2]
+NOSE_ROWS = FUSELAGE_ROWS[-4:]
+BODY_ROWS = FUSELAGE_ROWS[:-3]
 _FUSELAGE_FINE, _ = kit._refine_shape(FUSELAGE_ROWS, SUBDIVIDE)
 
 
@@ -200,6 +254,13 @@ def fuselage_top_y(station, z):
     return center_y + half_height * (1.0 - lateral ** exponent) ** (1.0 / exponent)
 
 
+def fuselage_half_width_at(station, y):
+    """Half-width of the authored fuselage loft at a nose station and height y."""
+    half_width, half_height, center_y, exponent = _fuselage_section(X(station))
+    v = min(abs(y - center_y) / half_height, 1.0)
+    return half_width * (1.0 - v ** exponent) ** (1.0 / exponent)
+
+
 def dorsal_turret_base(station, radius, embed):
     """A horizontal turret base below every sampled skin point in its footprint."""
     skin = []
@@ -211,6 +272,22 @@ def dorsal_turret_base(station, radius, embed):
                 # X(station) + dx is the nose station ``station - dx``.
                 skin.append(fuselage_top_y(station - dx, z))
     return min(skin) - embed
+
+
+def canopy_rows():
+    """Glazing hugging the roof: top CANOPY_PROUD above the skin, sides just outside it."""
+    rows = []
+    for s in reversed(CANOPY_STATIONS):
+        top = fuselage_top_y(s, 0.0) + CANOPY_PROUD
+        cy = top - CANOPY_HALF_HEIGHT
+        rows.append((X(s), fuselage_half_width_at(s, cy) + 0.02, CANOPY_HALF_HEIGHT, cy))
+    return rows
+
+
+def fin_rows():
+    heights = sorted({h for h, _ in FIN_LE} | {h for h, _ in FIN_TE} | {h for h, _ in FIN_THICKNESS})
+    root = heights[0]
+    return [(h - root, X(lerp(FIN_LE, h)), X(lerp(FIN_TE, h)), lerp(FIN_THICKNESS, h)) for h in heights]
 
 
 out, _opts = kit.cli_args()
@@ -253,13 +330,14 @@ with m.tagged('nose'), m.shared_chart():
     m.fuselage('glazing', NOSE_ROWS, segments=SEGMENTS, subdivide=SUBDIVIDE,
                lower_role=UPPER, refinement='shape')
 with m.tagged('canopy'), m.shared_chart():
-    m.canopy('glazing', UPPER,
-             [(X(s), w, h, cy) for s, w, h, cy in CANOPY],
-             [X(s) for s in CANOPY_FRAMES], bar=0.025, segments=48, subdivide=3)
+    m.canopy('glazing', UPPER, canopy_rows(), [X(s) for s in CANOPY_FRAMES], bar=0.025, segments=48, subdivide=3)
+    # The navigator's astrodome on the nose roof.
+    m.revolve('glazing', (X(2.05), fuselage_top_y(2.05, 0.0) - 0.05, 0.0), (0.0, 1.0, 0.0),
+              [(0.0, 0.24), (0.10, 0.22), (0.18, 0.14), (0.22, 0.04)], 16)
 
 controls = [(a * SPAN / 2, b * SPAN / 2, h, name)
             for (a, b, h), name in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
-breaks = [0.0, *ENGINE_Z, SPAN / 2]
+breaks = [0.0, *ENGINE_Z]
 with m.tagged('wing'), m.shared_chart():
     for z0, z1 in zip(breaks, breaks[1:]):
         c0, c1 = chord_at(z0), chord_at(z1)
@@ -268,24 +346,24 @@ with m.tagged('wing'), m.shared_chart():
                sweep_deg=SWEEP_DEG, dihedral_deg=DIHEDRAL_DEG,
                thickness=t0 / c0, tip_thickness=t1 / c1, root_z=z0,
                stations=STATIONS, span_segments=1, controls=controls)
+    # The outer panel ends in the drawing's rounded tip.
+    tip_rows = []
+    for z, k, shift in [(ENGINE_Z[1], 1.0, 0.0)] + WINGTIP:
+        c = chord_at(z)
+        mid = wing_le(z) - 0.5 * c + shift * c
+        tip_rows.append((z, mid + 0.5 * k * c, mid - 0.5 * k * c, wing_y(z), k * wing_thickness(z)))
+    m.wing_outline(UPPER, tip_rows, stations=STATIONS, span_segments=1, controls=controls)
 
-tp = TAILPLANE
-tp_half = tp['span'] / 2
 with m.tagged('tailplane'), m.shared_chart():
-    m.wing(UPPER, X(tp['leading_station']), tp['y'], tp['root'], tp['taper'] * tp['root'], tp['span'],
-           sweep_deg=tp['sweep'], thickness=0.11, stations=STATIONS, span_segments=1,
-           controls=[(ELEVATOR[0] * tp_half, ELEVATOR[1] * tp_half, ELEVATOR[2], 'Elevator')])
-fin_root, fin_h = FIN['root'], FIN['height']
-fin_tip = FIN['taper'] * fin_root
+    m.wing_outline(UPPER, [(z, X(le), X(te), TAILPLANE_Y + DY, t) for z, le, te, t in TAILPLANE],
+                   stations=STATIONS, span_segments=1,
+                   controls=[(ELEVATOR[0], ELEVATOR[1], ((ELEVATOR[0], X(ELEVATOR[2])), (ELEVATOR[1], X(ELEVATOR[2]))), 'Elevator')])
 with m.tagged('fin'), m.shared_chart():
-    m.fin(UPPER, X(LENGTH) + fin_root, FIN['y'], fin_root, fin_tip, fin_h,
-          sweep_deg=FIN['sweep'],
-          stations=STATIONS, span_segments=1,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
-    fillet = DORSAL_FILLET
-    m.fin(UPPER, X(fillet['start']), fillet['y'], fillet['root'], fillet['tip'], fillet['height'],
-          sweep_deg=fillet['sweep'], thickness=0.012, tip_thickness=0.075,
-          stations=STATIONS, span_segments=1)
+    root = FIN_LE[0][0]
+    (h_a, s_a), (h_b, s_b) = RUDDER_HINGE
+    m.fin_outline(UPPER, root + DY, fin_rows(), stations=STATIONS, span_segments=1,
+                  controls=[(RUDDER_SPAN[0] - root, RUDDER_SPAN[1] - root,
+                             ((h_a - root, X(s_a)), (h_b - root, X(s_b))), 'Rudder')])
 
 # Four nacelles and their exactly three-fold propellers.
 props = sorted(side * z for z in ENGINE_Z for side in (-1, 1))
@@ -302,7 +380,7 @@ for i, z in enumerate(props, start=1):
             for k in range(3):
                 ey = ny - 0.20 + 0.15 * k
                 ez = z + side * 0.63
-                m.revolve('dark', (0.35 - 0.22 * k, ey, ez), (-1.0, -0.10, side * 0.16),
+                m.revolve('dark', (0.35 + NACELLE_SHIFT - 0.22 * k, ey, ez), (-1.0, -0.10, side * 0.16),
                           [(0.0, 0.045), (0.28, 0.035)], 10)
     with m.tagged('prop'), m.shared_chart():
         m.propeller('dark', (px, ny, z), PROP_DIAMETER, BLADES, 0.38, 0.42, 0.55,
@@ -323,18 +401,15 @@ with m.tagged('gear'), m.shared_chart():
 # B-17G defensive positions. Cheek and tail mounts are flexible guns; waist and
 # radio guns are static detail because the established rig has six aimable groups.
 with m.tagged('turret'), m.shared_chart():
-    m.gun_turret(UPPER, 1, (X(1.75), -0.76, 0.0), 0.48, 0.42, up=-1,
-                 barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
+    chin = 1.25
+    m.gun_turret(UPPER, 1, (X(chin), fuselage_top_y(chin, 0.0) - 2 * _fuselage_section(X(chin))[1] + 0.05, 0.0),
+                 0.42, 0.60, up=-1, barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
     tt = TOP_TURRET
     turret4_y = dorsal_turret_base(tt['station'], tt['radius'], tt['embed'])
     turret4_x = X(tt['station'])
-    # The rotating assembly starts at the skin-derived base. Its low collar
-    # fills the old air gap; the guns sit near the crown so a level traverse
-    # clears the cockpit roof instead of cutting through it.
     m.revolve(UPPER, (turret4_x, turret4_y, 0.0), (0.0, 1.0, 0.0),
-              [(0.0, tt['radius']), (0.20, 0.48), (0.55, 0.36),
-               (tt['height'], 0.12)], 12, 'Turret4')
-    gun_y = turret4_y + 0.96 * tt['height']
+              [(0.0, tt['radius']), (0.12, 0.48), (0.34, 0.36), (tt['height'], 0.12)], 12, 'Turret4')
+    gun_y = turret4_y + tt['gun']
     for barrel in (-0.5, 0.5):
         m.machine_gun('dark', (turret4_x, gun_y, barrel * 0.12),
                       (1.0, 0.0, 0.0), tt['barrel'], node='Turret4Guns')
@@ -342,22 +417,27 @@ with m.tagged('turret'), m.shared_chart():
                                   'axis': [0.0, 1.0, 0.0]}
     m._fixed_hinges['Turret4Guns'] = {'point': [round(turret4_x, 6), round(gun_y, 6), 0.0],
                                       'axis': [0.0, 0.0, 1.0]}
-    m.gun_turret(UPPER, 5, (X(10.15), -1.72, 0.0), 0.52, 0.50, up=-1,
-                 barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
-    # Cheek trunnions sit outside the measured 1.2 m half-width here. This
-    # keeps the full +/-30 degree flex-cone sweep clear of the nose shell.
-    m.flex_gun('dark', 2, (X(2.75), 0.15, -1.34), (1.0, -0.08, -0.38), 0.92, scale=0.8, mount_r=0.08)
-    m.flex_gun('dark', 3, (X(2.75), 0.15, 1.34), (1.0, -0.08, 0.38), 0.92, scale=0.8, mount_r=0.08)
+    ball = 11.10
+    m.gun_turret(UPPER, 5, (X(ball), fuselage_top_y(ball, 0.0) - 2 * _fuselage_section(X(ball))[1] + 0.05, 0.0),
+                 0.48, 0.62, up=-1, barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
+    # Cheek trunnions sit 0.12 m outside the measured half-width, so the full
+    # flex-cone sweep stays clear of the nose shell.
+    cheek = 1.80
+    cheek_y = -0.10 + DY
+    cheek_z = fuselage_half_width_at(cheek, cheek_y) + 0.12
+    m.flex_gun('dark', 2, (X(cheek), cheek_y, -cheek_z), (1.0, -0.08, -0.38), 0.92, scale=0.8, mount_r=0.08)
+    m.flex_gun('dark', 3, (X(cheek), cheek_y, cheek_z), (1.0, -0.08, 0.38), 0.92, scale=0.8, mount_r=0.08)
     # The gun socket is the measured tail plane itself: 5 cm aft of the socket,
     # every allowed flex-cone ray is already outside the closed fuselage loft.
-    m.flex_gun('dark', 6, (X(22.66), 0.61, 0.0), (-1.0, 0.05, 0.0), 1.00, scale=0.9, mount_r=0.08)
+    m.flex_gun('dark', 6, (X(LENGTH), -0.33 + DY, 0.0), (-1.0, 0.05, 0.0), 1.00, scale=0.9, mount_r=0.08)
 
 with m.tagged('fittings'), m.shared_chart():
-    # Waist guns, radio gun, pitot and dorsal antenna.
-    for side in (-1, 1):
-        m.gun_barrel('dark', (X(12.7), 0.0, side * 1.40), side * 65.0, 0.0, 0.78, 0.020)
-    m.gun_barrel('dark', (X(11.6), 1.18, 0.0), 42.0, 0.0, 0.72, 0.018)
-    m.strut('dark', (X(7.2), 1.15, 0.0), (X(7.45), 2.12, 0.0), 0.018, 0.008, sides=6)
+    # Waist guns (staggered, as the drawing's windows), radio gun, pitot and antenna mast.
+    waist_y = -0.22 + DY
+    for side, s in ((-1, 13.75), (1, 12.50)):
+        m.gun_barrel('dark', (X(s), waist_y, side * (fuselage_half_width_at(s, waist_y) - 0.05)), side * 65.0, 0.0, 0.78, 0.020)
+    m.gun_barrel('dark', (X(9.80), fuselage_top_y(9.80, 0.0) - 0.05, 0.0), 42.0, 0.0, 0.72, 0.018)
+    m.strut('dark', (X(12.15), fuselage_top_y(12.15, 0.0) - 0.05, 0.0), (X(12.25), 1.62 + DY, 0.0), 0.018, 0.008, sides=6)
     pz = -12.5
     m.strut('dark', (wing_le(pz) - 0.10, wing_y(pz), pz),
             (wing_le(pz) + 0.62, wing_y(pz), pz), 0.011, sides=6)
@@ -393,7 +473,8 @@ for side in (-1, 1):
     x = wing_le(z) - 0.42 * chord_at(z)
     roundel('wing', (x, wing_y(z), z), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), 1.8)
     roundel('wing', (x, wing_y(z), z), (0.0, -1.0, 0.0), (0.0, 0.0, -1.0), 1.8)
-    roundel('fuselage', (X(15.0), -0.05, side * 1.30), (0.0, 0.0, float(side)),
-            (1.0, 0.0, 0.0) if side > 0 else (-1.0, 0.0, 0.0), 1.45)
+    star_station, star_y = 15.0, -0.45 + DY
+    roundel('fuselage', (X(star_station), star_y, side * (fuselage_half_width_at(star_station, star_y) + 0.01)),
+            (0.0, 0.0, float(side)), (1.0, 0.0, 0.0) if side > 0 else (-1.0, 0.0, 0.0), 1.20)
 
 m.export(out)

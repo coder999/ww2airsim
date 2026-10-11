@@ -246,13 +246,18 @@ def _airfoil(chord, thickness):
     return upper + lower
 
 
-def _airfoil_part(chord, thickness, f0, f1, stations):
+def _airfoil_part(chord, thickness, f0, f1, stations, remap=False):
     """(points, labels) around the closed part of a section between chord fractions f0 < f1: the
     upper surface from the leading end to the trailing end, then the lower back, counterclockwise
     seen from +z as _airfoil's. A cut end (f0 > 0 or f1 < 1) closes with a straight edge;
-    labels[i] is (fraction, 'u' or 'l'). With f0 = 0, f1 = 1 and AIRFOIL_STATIONS this is _airfoil."""
+    labels[i] is (fraction, 'u' or 'l'). With f0 = 0, f1 = 1 and AIRFOIL_STATIONS this is _airfoil.
+    ``remap`` spreads all of ``stations`` over [f0, f1] instead, so the point count does not depend
+    on f0 and f1: a piece whose cut moves along the span still lofts ring to ring."""
     _require(0.0 <= f0 < f1 <= 1.0, f'airfoil part: need 0 <= f0 < f1 <= 1, got {f0}, {f1}')
-    fs = [f0] + [f for f in stations if f0 < f < f1] + [f1]
+    if remap:
+        fs = [f0 + (f1 - f0) * s for s in stations]
+    else:
+        fs = [f0] + [f for f in stations if f0 < f < f1] + [f1]
     low = list(reversed(fs))
     if f1 == 1.0:
         low = low[1:]
@@ -260,6 +265,35 @@ def _airfoil_part(chord, thickness, f0, f1, stations):
         low = low[:-1]
     pts = [(-f * chord, _half_thickness(f, chord, thickness)) for f in fs] + [(-f * chord, -_half_thickness(f, chord, thickness)) for f in low]
     return pts, [(f, 'u') for f in fs] + [(f, 'l') for f in low]
+
+
+def _outline_section(rows):
+    """section(z) -> (chord, thickness ratio, leading-edge x, chord-line y), linear between traced
+    (z, leading-edge x, trailing-edge x, chord-line y, thickness m) rows."""
+    _require(len(rows) >= 2 and all(a[0] < b[0] for a, b in zip(rows, rows[1:])),
+             'outline: need two or more rows, strictly increasing along the span')
+    _require(all(le > te and 0 < t < 0.3 * (le - te) for _z, le, te, _y, t in rows),
+             'outline: every row needs leading x > trailing x and 0 < thickness < 0.3 chord')
+
+    def section(z):
+        i = next((k for k in range(len(rows) - 1) if z <= rows[k + 1][0]), len(rows) - 2)
+        (z0, *a), (z1, *b) = rows[i], rows[i + 1]
+        f = (z - z0) / (z1 - z0)
+        le, te, y, t = (p + (q - p) * f for p, q in zip(a, b))
+        return le - te, t / (le - te), le, y
+    section.knots = [r[0] for r in rows]
+    return section
+
+
+def _outline_controls(controls, section):
+    """Controls with a hinge line ((z_a, x_a), (z_b, x_b)) turned into a hinge chord fraction of z."""
+    out = []
+    for z0, z1, hinge, name in controls or []:
+        if not isinstance(hinge, (int, float)):
+            (za, xa), (zb, xb) = hinge
+            hinge = (lambda za, xa, zb, xb: lambda z: (section(z)[2] - (xa + (xb - xa) * (z - za) / (zb - za))) / section(z)[0])(za, xa, zb, xb)
+        out.append((z0, z1, hinge, name))
+    return out
 
 
 def _refine(vals, k):
@@ -988,6 +1022,25 @@ class Model:
         verts = [(x, root_y + z, center_z - y) for x, y, z in verts]
         self._part(role, verts, [f for f, _ in faces], node, charts, smooth if smooth is not None else False)
 
+    def fin_outline(self, role, root_y, rows, center_z=0.0, node=None, stations=None, span_segments=1, controls=None):
+        """``fin`` traced from a drawing instead of a trapezoid: ``rows`` are (height above root_y,
+        leading-edge x, trailing-edge x, maximum thickness in meters), heights strictly increasing from
+        0, interpolated linearly between rows. A control is (h0, h1, hinge, name) where hinge is a
+        chord fraction or a straight hinge line ((h_a, x_a), (h_b, x_b)) in absolute x."""
+        section = _outline_section([(h, le, te, 0.0, t) for h, le, te, t in rows])
+        top = rows[-1][0]
+        self._lifting_detailed(role, section, 0.0, top, stations, span_segments, _outline_controls(controls, section),
+                               node, None, None, False, lambda v: (v[0], root_y + v[2], center_z - v[1]))
+
+    def wing_outline(self, role, rows, mirror=True, node=None, lower_role=None, lower_node=None, stations=None,
+                     span_segments=1, controls=None):
+        """``wing`` traced from a drawing: ``rows`` are (z, leading-edge x, trailing-edge x, chord-line y,
+        maximum thickness in meters), z strictly increasing from the root, interpolated linearly between
+        rows. Controls are ``fin_outline``'s, in absolute z."""
+        section = _outline_section(rows)
+        self._lifting_detailed(role, section, rows[0][0], rows[-1][0], stations, span_segments, _outline_controls(controls, section),
+                               node, lower_role, lower_node, mirror, lambda v: v)
+
     def _lifting_detailed(self, role, section, z_from, z_to, stations, span_segments, controls, node, lower_role, lower_node, mirror, place):
         """A wing or fin panel as pieces between z_from and z_to: split at every control end; inside a
         control, a main piece cut CONTROL_GAP_M ahead of the hinge and a control piece from the hinge
@@ -1000,7 +1053,9 @@ class Model:
         _require(isinstance(span_segments, int) and span_segments >= 1, f'span_segments must be an integer >= 1, got {span_segments!r}')
         ctrls = []
         for z0, z1, hinge, name in controls or []:
-            _require(z0 < z1 and 0.3 < hinge < 0.95, f'control ({z0}, {z1}, {hinge}): need z0 < z1 and a hinge in (0.3, 0.95)')
+            fractions = [hinge(z) for z in (max(z0, z_from), (z0 + z1) / 2, min(z1, z_to))] if callable(hinge) else [hinge]
+            _require(z0 < z1 and all(0.3 < h < 0.95 for h in fractions),
+                     f'control ({z0}, {z1}, {name}): need z0 < z1 and a hinge in (0.3, 0.95), got {fractions}')
             _require(isinstance(name, str) and name, f'control ({z0}, {z1}, {hinge}): needs a node name, got {name!r}')
             if z1 > z_from and z0 < z_to:
                 ctrls.append((max(z0, z_from), min(z1, z_to), hinge, z0 >= z_from, z1 <= z_to, name))
@@ -1011,8 +1066,11 @@ class Model:
                 self._lifting_piece(role, section, za, zb, 0.0, 1.0, stations, span_segments, node, lower_role, lower_node, mirror, place)
                 continue
             _a, _b, hinge, own_start, own_end, name = c
-            chord = min(section(za)[0], section(zb)[0])
-            self._lifting_piece(role, section, za, zb, 0.0, hinge - CONTROL_GAP_M / chord, stations, span_segments, node, lower_role, lower_node, mirror, place)
+            if callable(hinge):
+                cut = (lambda h: lambda z: h(z) - CONTROL_GAP_M / section(z)[0])(hinge)
+            else:
+                cut = hinge - CONTROL_GAP_M / min(section(za)[0], section(zb)[0])
+            self._lifting_piece(role, section, za, zb, 0.0, cut, stations, span_segments, node, lower_role, lower_node, mirror, place)
             lo = za + CONTROL_GAP_M if own_start and za == _a else za
             hi = zb - CONTROL_GAP_M if own_end and zb == _b else zb
             # The control is its own part (C1). A lower-role underside goes in a child node, which the
@@ -1025,7 +1083,7 @@ class Model:
             line = []
             for z in (lo, hi):
                 ch, _t, le, y = section(z)
-                line.append(place((le - hinge * ch, y, z)))
+                line.append(place((le - (hinge(z) if callable(hinge) else hinge) * ch, y, z)))
             self._hinge(here, line)
             if there is not None:
                 self._hinge(there, [(x, y, -z) for x, y, z in line])
@@ -1052,10 +1110,14 @@ class Model:
         lofted over span_segments spans from za to zb (and mirrored in z = 0 if asked, into
         ``mirror_node`` and ``mirror_lower_node`` when given)."""
         rings, labels = [], None
-        for k in range(span_segments + 1):
-            z = za + (zb - za) * k / span_segments
+        # A traced outline (section.knots) gets a ring at every traced row, each span then split span_segments ways.
+        ends = sorted({za, zb} | {k for k in getattr(section, 'knots', ()) if za < k < zb})
+        zs = [a + (b - a) * k / span_segments for a, b in zip(ends, ends[1:])
+              for k in range(span_segments + (b == zb))]
+        for z in zs:
             chord, t, le, y = section(z)
-            pts, labels = _airfoil_part(chord, t, f0, f1, stations)
+            moving = callable(f0) or callable(f1)
+            pts, labels = _airfoil_part(chord, t, f0(z) if callable(f0) else f0, f1(z) if callable(f1) else f1, stations, remap=moving)
             rings.append([place((le + dx, y + dy, z)) for dx, dy in pts])
         verts, faces = _loft(rings)
         uppers = sum(1 for _f, sfc in labels if sfc == 'u')
