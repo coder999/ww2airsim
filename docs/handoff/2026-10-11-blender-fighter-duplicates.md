@@ -39,6 +39,14 @@ Also new: `preview.py` takes `--view side|top`; a `blueGray` paint role (the Wil
 - Captures, the download and the duplicate side by side, gear down and up:
   `docs/handoff/2026-10-11-blender-fighter-duplicates-shots/` (21 PNGs).
 
+## Second pass: the canopies (2026-10-11, after Mark's review)
+
+Mark: the glass was not a bubble (a triangular join with the hull) and sat too far aft on all three. Measured the downloads'
+glass nodes: Hellcat x -1.49 to 0.0 (crown 1.27 m), Corsair x -2.9 to -1.0 (crown 1.07 m, raked windscreen), Wildcat x -2.12 to -1.31 (crown 0.61 m).
+Rebuilt each canopy from those numbers (see the first trap in `docs/blender-aircraft.md`) and lowered the Corsair's nose deck from 0.9 to 0.66 m
+to match. `tests/tools/models`, `tests/render/hangar` and `airframes` pass (64 files, 1,483 tests); Hangar Tier 2 passes, but checks 7b, 10
+and 16 timed out once under another session's load and passed alone (16 at 45 s of its 60 s limit, so it is close). Captures are redone.
+
 ## Open
 
 - **The likeness is a first pass.** The profiles were matched by eye to the downloads' silhouettes; no three-view drawing was read.

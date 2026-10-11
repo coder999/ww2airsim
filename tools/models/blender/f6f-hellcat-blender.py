@@ -61,21 +61,24 @@ FUSELAGE = [
     (0.940, 0.010, 0.034, 0.044, 2.0),
     (0.869, 0.020, 0.067, 0.019, 2.1),
     (0.791, 0.029, 0.076, 0.012, 2.2),
-    (0.674, 0.041, 0.085, 0.012, 2.2),
-    (0.527, 0.054, 0.093, 0.015, 2.3),
-    (0.381, 0.059, 0.090, 0.012, 2.3),
-    (0.254, 0.062, 0.087, 0.009, 2.2),
-    (0.220, 0.065, 0.082, 0.006, 2.1),
-    (0.186, 0.067, 0.073, 0.000, 2.1),
+    (0.674, 0.041, 0.084, 0.011, 2.2),
+    (0.527, 0.054, 0.090, 0.012, 2.3),
+    (0.381, 0.059, 0.087, 0.009, 2.3),
+    (0.312, 0.062, 0.083, 0.005, 2.2),
+    (0.254, 0.063, 0.081, 0.003, 2.2),
+    (0.220, 0.064, 0.079, 0.003, 2.1),
+    (0.186, 0.067, 0.074, 0.000, 2.1),
     (0.117, 0.070, 0.071, 0.000, 2.0),
     (0.068, 0.068, 0.068, 0.000, 2.0),
     (0.039, 0.062, 0.062, 0.000, 2.0),
     (0.027, 0.049, 0.049, 0.000, 2.0),
     (0.018, 0.033, 0.033, 0.000, 2.0),
 ]
-CANOPY = [(0.520, 0.004, 0.004, 0.100), (0.480, 0.030, 0.026, 0.103), (0.390, 0.033, 0.030, 0.101),
-          (0.310, 0.028, 0.026, 0.101), (0.280, 0.004, 0.004, 0.095)]
-CANOPY_FRAMES = (0.480, 0.440, 0.395, 0.350, 0.310)
+# The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
+# windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
+CANOPY = [(-1.55, 0.10, 1.02), (-1.30, 0.30, 1.18), (-1.00, 0.42, 1.26), (-0.70, 0.45, 1.28), (-0.35, 0.42, 1.20), (-0.10, 0.32, 1.04), (0.04, 0.20, 0.90)]
+CANOPY_BASE = 0.8
+CANOPY_FRAMES = (-1.2, -0.95, -0.7, -0.45, -0.2)
 TAILPLANE = dict(span=0.345, le=0.850, root=0.130, taper=0.50, y=0.010, sweep=6.0)  # span of SPAN; the rest of LENGTH
 FIN = dict(root=0.175, taper=0.42, height=0.105, y=0.045)                           # trailing edge at the tail
 PROP = dict(hub=0.030, chord=0.023, spinner_r=0.026, spinner_len=0.040)             # hub = 0.75 x spinner_len
@@ -156,7 +159,7 @@ with m.tagged('fuselage'):
                            (X(FILLET['le']), 0.004 * L, 0.004 * L, WING_Y * L)],
                    segments=24, center_z=side * fz, subdivide=4)
 with m.tagged('canopy'), m.shared_chart():
-    m.canopy('glazing', UPPER, [(X(f), w * L, h * L, y * L) for f, w, h, y in CANOPY], [X(f) for f in CANOPY_FRAMES],
+    m.canopy('glazing', UPPER, [(x, w, (t - CANOPY_BASE) / 2, (t + CANOPY_BASE) / 2) for x, w, t in CANOPY], list(CANOPY_FRAMES),
              bar=0.022, segments=48, subdivide=4)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
 gear_z = GEAR['z'] * S
