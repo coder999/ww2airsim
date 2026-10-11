@@ -1,5 +1,5 @@
 import { BINDINGS } from '../input/bindings.js'
-import { keyLabel } from './legend.js'
+import { keyLabel, legendEntries } from './legend.js'
 import { createSettingsDialog, type SettingsModel } from './settings.js'
 import { ensureStampFilter, sectionTitle } from './ui/navalComms.js'
 
@@ -47,6 +47,15 @@ export function createPauseScreen(
     'display:block;padding:0;background:transparent;width:min(720px,94vw);' +
     'max-height:88vh;overflow-y:auto'
 
+  const controlsPanel = document.createElement('div')
+  controlsPanel.className = 'naval-comms'
+  controlsPanel.setAttribute('role', 'dialog')
+  controlsPanel.setAttribute('aria-modal', 'true')
+  controlsPanel.setAttribute('aria-label', 'Controls')
+  controlsPanel.style.cssText =
+    'display:none;padding:0;background:transparent;width:min(720px,94vw);' +
+    'max-height:88vh;overflow-y:auto'
+
   const sheet = document.createElement('div')
   sheet.className = 'sheet'
 
@@ -74,7 +83,8 @@ export function createPauseScreen(
 
   const detail = document.createElement('p')
   detail.style.cssText = 'margin:0 0 8px'
-  detail.textContent = 'The mission is still in progress. Resume this sortie, consult the chart, or adjust visual quality.'
+  detail.textContent =
+    'The mission is still in progress. Resume this sortie, consult the chart, review controls, or adjust visual quality.'
   sheet.appendChild(detail)
   sheet.appendChild(sectionTitle('Sortie Controls'))
 
@@ -99,12 +109,13 @@ export function createPauseScreen(
     backdrop.style.display = 'none'
     options.onViewMap()
   })
+  const controls = button('Controls', false, () => showControls())
   const visualQuality = button('Visual Quality', false, () => settingsDialog.open())
   const restart = button('Restart Mission', false, () => {
     backdrop.style.display = 'none'
     options.onRestart()
   })
-  buttons.append(resume, viewMap, visualQuality, restart)
+  buttons.append(resume, viewMap, controls, visualQuality, restart)
   sheet.appendChild(buttons)
 
   const finePrint = document.createElement('div')
@@ -117,7 +128,68 @@ export function createPauseScreen(
   sheet.appendChild(finePrint)
 
   panel.appendChild(sheet)
-  backdrop.appendChild(panel)
+
+  const controlsSheet = document.createElement('div')
+  controlsSheet.className = 'sheet'
+  const controlsLetterhead = document.createElement('div')
+  controlsLetterhead.className = 'letterhead'
+  const controlsLetterheadText = document.createElement('div')
+  controlsLetterheadText.className = 'letterhead-text'
+  const controlsKicker = document.createElement('div')
+  controlsKicker.className = 'letterhead-kicker'
+  controlsKicker.textContent = 'Pilot reference'
+  const controlsTitle = document.createElement('div')
+  controlsTitle.className = 'letterhead-title'
+  controlsTitle.textContent = 'Flight Controls'
+  controlsLetterheadText.append(controlsKicker, controlsTitle)
+  const controlsFormNumber = document.createElement('div')
+  controlsFormNumber.className = 'form-number'
+  controlsFormNumber.textContent = 'FORM OPS-6'
+  controlsLetterhead.append(controlsLetterheadText, controlsFormNumber)
+  controlsSheet.append(controlsLetterhead, sectionTitle('Keyboard Controls'))
+
+  const controlsTable = document.createElement('table')
+  controlsTable.className = 'form-table'
+  const controlsHead = document.createElement('thead')
+  const controlsHeadRow = document.createElement('tr')
+  const controlHeading = document.createElement('th')
+  controlHeading.textContent = 'Control'
+  const keyHeading = document.createElement('th')
+  keyHeading.className = 'num'
+  keyHeading.textContent = 'Key'
+  controlsHeadRow.append(controlHeading, keyHeading)
+  controlsHead.appendChild(controlsHeadRow)
+  const controlsBody = document.createElement('tbody')
+  for (const entry of legendEntries()) {
+    const row = document.createElement('tr')
+    const label = document.createElement('td')
+    label.textContent = entry.label
+    const keys = document.createElement('td')
+    keys.className = 'num'
+    keys.textContent = entry.keys
+    row.append(label, keys)
+    controlsBody.appendChild(row)
+  }
+  controlsTable.append(controlsHead, controlsBody)
+  controlsSheet.appendChild(controlsTable)
+
+  const controlsButtons = document.createElement('div')
+  controlsButtons.className = 'button-row'
+  const back = button('Back', true, () => hideControls())
+  controlsButtons.appendChild(back)
+  controlsSheet.appendChild(controlsButtons)
+
+  const controlsFinePrint = document.createElement('div')
+  controlsFinePrint.className = 'fine-print'
+  const bindingNote = document.createElement('span')
+  bindingNote.textContent = 'Current keyboard bindings'
+  const controlsEsc = document.createElement('span')
+  controlsEsc.textContent = `${keyLabel(BINDINGS.pause[0])} to go back`
+  controlsFinePrint.append(bindingNote, controlsEsc)
+  controlsSheet.appendChild(controlsFinePrint)
+  controlsPanel.appendChild(controlsSheet)
+
+  backdrop.append(panel, controlsPanel)
   root.appendChild(backdrop)
 
   // A child of the pause backdrop so closing it reveals the pause sheet, not
@@ -125,13 +197,43 @@ export function createPauseScreen(
   // the title screen; only non-visual rows are omitted in this context.
   const settingsDialog = createSettingsDialog(backdrop, settings, { scope: 'visual' })
 
+  function showControls(): void {
+    panel.style.display = 'none'
+    controlsPanel.style.display = 'block'
+    back.focus()
+  }
+
+  function hideControls(): void {
+    controlsPanel.style.display = 'none'
+    panel.style.display = 'block'
+    controls.focus()
+  }
+
+  // Controls is a pause sub-screen: Escape navigates back one level instead
+  // of reaching the flight-level handler and resuming the mission.
+  window.addEventListener('keydown', (event) => {
+    if (
+      event.code !== 'Escape' ||
+      backdrop.style.display === 'none' ||
+      controlsPanel.style.display === 'none'
+    ) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    hideControls()
+  }, true)
+
   return {
     show(): void {
+      settingsDialog.close()
+      controlsPanel.style.display = 'none'
+      panel.style.display = 'block'
       backdrop.style.display = 'flex'
       resume.focus()
     },
     hide(): void {
       settingsDialog.close()
+      controlsPanel.style.display = 'none'
+      panel.style.display = 'block'
       backdrop.style.display = 'none'
     },
     isOpen: () => backdrop.style.display !== 'none',

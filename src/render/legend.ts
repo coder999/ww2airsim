@@ -25,6 +25,11 @@ export type LegendRow = {
   readonly pair?: boolean
 }
 
+export type LegendEntry = {
+  readonly label: string
+  readonly keys: string
+}
+
 export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Guns', bindings: ['fireGuns'] },
   // Plan 6b Task 4 added the bindings; the label text and position here match
@@ -124,8 +129,11 @@ export function keyLabel(code: string): string {
 const keysOf = (name: BindingName): string =>
   [...new Set(BINDINGS[name].map(keyLabel))].join(' / ')
 
-/** One display line per row: the label, then its keys. */
-export function legendLines(muted = false, racks: 'Bombs' | 'Torpedo' = 'Bombs'): readonly string[] {
+/** Structured control entries shared by the flight legend and menu surfaces. */
+export function legendEntries(
+  muted = false,
+  racks: 'Bombs' | 'Torpedo' = 'Bombs',
+): readonly LegendEntry[] {
   return LEGEND_ROWS.map((row) => {
     const keys = row.pair
       ? row.bindings.map(keysOf).join('  /  ')
@@ -136,8 +144,13 @@ export function legendLines(muted = false, racks: 'Bombs' | 'Torpedo' = 'Bombs')
     const suffix = muted && row.bindings.includes('toggleMute') ? '  (muted)' : ''
     // The release row names what the player's racks carry (D3 T1).
     const label = row.bindings.includes('dropBomb') ? racks : row.label
-    return `${label}  ${keys}${suffix}`
+    return { label, keys: `${keys}${suffix}` }
   })
+}
+
+/** One display line per row: the label, then its keys. */
+export function legendLines(muted = false, racks: 'Bombs' | 'Torpedo' = 'Bombs'): readonly string[] {
+  return legendEntries(muted, racks).map(({ label, keys }) => `${label}  ${keys}`)
 }
 
 /** The legend's own key, read from BINDINGS so the prompt cannot name a key

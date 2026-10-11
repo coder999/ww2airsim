@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { BINDINGS, type BindingName } from '../../src/input/bindings.js'
 import {
-  CREDITS, LEGEND_ROWS, OSM_COPYRIGHT_URL, WORLDCOVER_LICENCE_URL, creditsLine, keyLabel, legendLines,
+  CREDITS, LEGEND_ROWS, OSM_COPYRIGHT_URL, WORLDCOVER_LICENCE_URL, creditsLine, keyLabel,
+  legendEntries, legendLines,
 } from '../../src/render/legend.js'
 
 describe('the control legend (2026-09-15)', () => {
@@ -34,6 +35,12 @@ describe('the control legend (2026-09-15)', () => {
     expect(throttle).toBeDefined()
     expect(throttle).toContain('-')
     expect(throttle).toContain('=')
+  })
+
+  it('provides structured entries for menu screens from the same control catalog', () => {
+    const guns = legendEntries().find((entry) => entry.label === 'Guns')
+    expect(guns).toEqual({ label: 'Guns', keys: 'Space bar' })
+    expect(legendLines()).toContain(`${guns!.label}  ${guns!.keys}`)
   })
 
   it('never shows a bound key as its raw DOM code', () => {
