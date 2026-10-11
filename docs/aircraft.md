@@ -59,6 +59,8 @@ a coefficient to tune (R36).
 
 ### D4. Model source
 
+A Blender model is built by the process in [`blender-aircraft.md`](blender-aircraft.md).
+
 Options: (a) use the `.glb` already committed under `content/aircraft/`,
 (b) fetch a new licensed model (`docs/models.md` steps 1-6), (c) an original
 model. Recommend (c), an original Blender model, even when (a) exists: see the

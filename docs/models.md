@@ -285,7 +285,8 @@ determinism rules. `hangar.py` is the worked example, and its header shows
 how to cite each figure and label each estimate.
 For aircraft, `ki-84-frank.py`, `ki-21-sally.py` and
 `b-29-superfortress.py` are one-, two- and four-engine templates whose
-geometry is fractions of the cited length and span (R3).
+geometry is fractions of the cited length and span (R3). The whole process, from sourcing figures to a Hangar
+check and to replacing a download with a duplicate, is [`blender-aircraft.md`](blender-aircraft.md).
 
 A building (R4) takes its parts from the kit: `frustum`, `gable_roof`, `tank`, `sandbag_ring`, `strut`,
 `gun_barrel` and `lattice_mast`, all wound outward and checked by

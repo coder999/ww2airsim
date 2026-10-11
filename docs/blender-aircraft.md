@@ -1,0 +1,126 @@
+# Authoring an aircraft in Blender
+
+The process for building an airframe model as a Blender script that fits this game's flight model, rig and Hangar,
+whether it replaces a download or models a new type. It was worked out on the B-29, Ki-84 and TBM-3, then repeated
+on three Blender duplicates of downloaded fighters (2026-10-11): `f6f-hellcat-blender`, `f4u-corsair-blender`
+and `f4f-wildcat-blender`. Those three are the worked examples. This page points at the files that own each fact;
+it does not restate them. Onboarding an airframe as *flyable* (spec, card, flight fit) is
+[`aircraft.md`](aircraft.md); getting a model into the pipeline is [`models.md`](models.md), "Authoring in Blender".
+
+## What the model has to carry
+
+Everything the download it may replace has, because the game draws a flyable aircraft through
+`src/render/scene/airframeRigs.ts` and nothing else:
+
+| Feature | Where it comes from | Checked by |
+| --- | --- | --- |
+| Moving landing gear | named nodes `GearL`, `GearR` (`GearNose`, `Tailwheel`), each with a baked hinge; a `gear` rig row says which way each folds | `aircraftRigs.test.ts`, Hangar checks 2, 7, 13 |
+| Working propeller | node `Prop` (`Prop1..N`), exactly N-fold symmetric; `props` rig row | `aircraftRigs.test.ts`, Hangar check 13 |
+| Control surfaces | `AileronL/R`, `Flap<n>L/R`, `ElevatorL/R`, `Rudder`, named in the script's `controls` | `aircraftRigs.test.ts` (hinge on the leading edge, correct sense) |
+| Gun and bay parts (where the type has them) | `Turret<N>`, `Turret<N>Guns`, `BayDoor<n>L/R` | `aircraftRigs.test.ts`, `gunnerMounts.test.ts`, `internalBay.test.ts` |
+| Bomb and rocket attachment | **not geometry.** The spec's `stores` racks and rails hang on the drawn wing at offsets `npm run models:mounts` measures; the model supplies a wing and nothing else (no rack or launcher is drawn on any model, O1) | `wildcatMounts.test.ts`; for a duplicate, `blenderDuplicates.test.ts` |
+| The spec's stance, eye and guns | fitted to the numbers in `content/aircraft/<spec>.json` | `stance.test.ts`, `eyePoints.test.ts`, `combatFit.test.ts`, `centerPoint.test.ts`; for a duplicate, `blenderDuplicates.test.ts` |
+
+## The steps
+
+1. **Source the figures, and label every one.** Span, length, wing area, airfoil, propeller blades and diameter,
+   gun count: read a source (English Wikipedia's Specifications, or the primary one the spec already cites) and put the
+   read date in the script header. Each figure is **CITED** with its source or **ESTIMATE**; the header is
+   the audit trail (`f6f-hellcat-blender.py` is the model). A figure no source gives is an estimate, never silently
+   a guess. Where a download is being duplicated, take the stance from the spec (step 3), not from the download.
+2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
+   - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
+   - bent (gull) wing: `f4u-corsair-blender.py`
+   - low or mid wing with the gear in the fuselage: `f4f-wildcat-blender.py`
+   - internal bay, turrets, flexible guns: `tbm-3-avenger.py`
+   - two engines: `ki-21-sally.py`, `p-38-lightning.py`; four: `b-29-superfortress.py`
+
+   Stations are fractions of the cited `LENGTH` or `SPAN`, so a new type changes the CITED block and the station
+   tables, not the code.
+3. **Fit the stance to the spec when the model will replace a download.** The flight model reads `gear.heightM`,
+   `mainX`, `thirdX`, `thirdHeightM`, the eye point and the gun positions. Build the wheel bottoms to those numbers
+   and say so in the header ("FITTED to"). The tail wheel's bottom follows from the stance pitch in
+   `src/render/scene/stance.ts`: with mains at x_m, height h and pitch p, the tail contact is
+   y = -h + (x_m - x_t) sin(p) / cos(p) (checked: it reproduces `thirdHeightM` for all three fighters to 0.004 m).
+   A new type with no download sets these from its own sources and writes the spec to match.
+4. **Read the profile off the download before shaping the fuselage.** Render the download and the candidate from
+   the same side view and compare silhouettes: `tools/models/blender/preview.py` takes
+   `--view front|rear|below|side|top`. The first Hellcat pass (a TBM-like tube) looked wrong in profile; matching
+   the download's deck line, belly line and tail depth fixed it. Measure from the picture, in meters, and convert to
+   the station fractions with a short script rather than by hand.
+5. **Build and iterate.** `npx tsx tools/models/blender/cli.ts <id>` writes a candidate glb and prints its
+   inspection in about two seconds; render the views. Only after the shape is right write the manifest entry.
+6. **Write the manifest entry** `tools/models/entries/<id>.json` (`source.kind: "blender"`, `normalize`, `keep`,
+   `budget`; copy a sibling). Each `keep` row's `pivot.point` is the hinge the script placed: propeller hub
+   `(NOSE_X - PROP.hub) * LENGTH`, gear hinge `(x, hinge_y, ±z)`, tail wheel hinge. The axis is `+x` for a leg that folds
+   in or out and `+z` for one that swings aft (the sign table is in `airframeRigs.ts`). A part left out of `keep` is
+   baked into the skin: the Wildcat's fixed tail wheel is done that way. `npm run models:build -- <id>` builds it.
+7. **Register it.** The touchpoints, found by grepping an existing Blender airframe (the TBM-3's), are:
+   - `src/render/scene/airframeRigs.ts`: the rig row. **Fold direction is the thing to get right**
+     (see Traps).
+   - `content/library/<id>.json`: the Hangar card. A duplicate has `model` and no `spec`, so it shows as
+     display-only ("not in the game yet"); `tests/render/hangar/catalog.test.ts` pins that labeling.
+   - `ASSETS.md`: a row (the manifest test requires one).
+   - `tests/tools/models/aircraftDimensions.test.ts` (`CITED`), and `aircraftRigs.test.ts` (the pinned list of
+     airframes with surfaces).
+   - `tests/tools/models/blenderDuplicates.test.ts`: one row pairing the duplicate with the spec it copies.
+   - `tests/e2e/hangar.spec.ts`: the id in checks 10 and 16.
+   - A new paint role needs a `PALETTE` entry in `kit.py` and a surface entry in `tools/models/skin/surfaces.ts`
+     (the build fails by name without the second).
+8. **Run the model tests**: `remote-run npx vitest run tests/tools/models tests/render/hangar tests/render/airframes.test.ts`
+   (about 3.5 minutes on ryzen; `-t "<id>"` narrows it to seconds while iterating).
+9. **Look at it in the Hangar.** `npx vite --port <free port>` from the checkout, then
+   `PW_BASE_URL=http://localhost:<port> npx playwright test tests/e2e/hangar.spec.ts --workers=1` (nexus's own
+   WebGPU is enough for correctness; 23 tests, about 7 minutes). The capture tool beside it,
+   `E2E_CAPTURE=1 E2E_CAPTURE_DIR=<dir> ... tests/e2e/blenderDuplicatesCapture.spec.ts`, writes each duplicate
+   next to its download, gear down and up.
+
+## Promoting a duplicate
+
+A duplicate is shown, not flown. To fly it, replace the download in one change. **This list is derived from the
+files each test reads and has not been exercised yet (2026-10-11); the first promotion should correct it.**
+
+1. In `content/aircraft/<spec>.json` set `view.model` to the duplicate's id, and add the model to
+   `MODEL_STANCE` in `src/render/scene/stance.ts` with the spec's own `mainX` and stance pitch.
+2. Re-measure the stores: `npm run models:mounts`, and write the printed rack and rail offsets into the spec
+   (`wildcatMounts.test.ts` then holds them). `blenderDuplicates.test.ts` already proves the wing takes them.
+3. Add the model to `CANOPY` in `eyePoints.test.ts` (its whole-skin node, as the TBM's), and to the pinned lists in
+   `wildcatMounts.test.ts`; delete its row in `blenderDuplicates.test.ts`.
+4. Point the Library card at the spec (`spec`), and decide the old download's fate (`ASSETS.md` keeps its credit
+   while its glb ships). The Wildcat is the special case: `view.model: "wildcat"` is loaded by `wildcat.ts`
+   with its own leg stretch and code-drawn split flaps, none of which the duplicate needs; the swap goes through the
+   generic rig, and the Wildcat-only tests and constants (`wildcatFrame.ts`, `wildcatGear.test.ts`) fall away with it.
+5. Run the graded flight cards: `tests/sim/testcards/graded.test.ts` reads the spec, so a changed drawing must not
+   change them; if it does, the stance fit was wrong.
+
+## Traps found on the three fighters (2026-10-11)
+
+- **Canopy and fuselage station lists run tail to nose** (x increasing). A reversed list fails with
+  "station x values must be strictly increasing", and only the canopy's order is easy to flip when copying from a
+  nose-first source.
+- **The build merges glass and paint into one whole-skin node** named `<NAME>_<role>` of the upper paint, so
+  the eye-point check measures that node's crown within 0.2 m fore and aft of the eye. A crown more than
+  0.45 m over the eye fails; lowering the canopy 0.03 m fixed the Hellcat's 0.451.
+- **A flap that spans an anhedral panel can lean its front face past the 2 mm hinge tolerance** in
+  `aircraftRigs.test.ts` (the Corsair's inner panel at 7.4 degrees failed by 0.06 mm; 6.5 passes). Reduce the bend or
+  keep the surface off the bent panel.
+- **A folded leg may not stand more than 0.08 m above the skin beneath it.** An upright wheel swung aft
+  (the Hellcat) passes only because its hinge is set low in the wing (0.4 of the root thickness below the chord line);
+  folded flat it is thin enough to hide in the wing (the Corsair, the Wildcat). The Wildcat's legs, hinged at the
+  fuselage side, first failed by 0.129 m where the folded wheel sat behind a thin leading edge; lowering the hinge
+  0.09 m passed it. A debug script that ray-casts the folded points names the offending point in a minute.
+- **Real struts turn the wheel 90 degrees as they fold; one hinge cannot.** Every model here swings the leg and
+  says so in the rig row's `source`. The download Hellcat is on `THROUGH_SKIN` for the same reason.
+- **Preview renders are flat.** `preview.py` is Cycles with no skin; judge shape there and finish in the Hangar, whose
+  lighting and skin are the game's.
+
+## What the three duplicates are (2026-10-11)
+
+| Duplicate | Copies | Cited | Stance fitted to the spec | Glb (bytes / triangles / draws) |
+| --- | --- | --- | --- | --- |
+| `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 820,488 / 25,932 / 12 |
+| `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 823,032 / 25,400 / 14 |
+| `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 806,508 / 25,468 / 17 |
+
+Every other figure is an ESTIMATE labeled in each script's header. No three-view drawing was read: the profiles were
+matched by eye against the downloads' silhouettes and are a first pass, not a likeness study.
