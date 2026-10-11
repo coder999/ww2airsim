@@ -260,6 +260,16 @@ not more unattended visual tuning. Plan and handoff:
 `docs/superpowers/plans/2026-10-10-k-clouds-v3-game-integration.md` and
 `docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
 
+**Current-main integration revalidated 2026-10-11, not merged:** Mark's flight
+verdict was "pretty good." Only the production commit was transplanted onto
+`main` at `2eff2943`; rejected Blender and spike history stayed out. A stale
+production import from the spike was found and replaced with self-contained
+production WGSL. Full verification passed (413 files, 5,696 tests), as did the
+focused game-flight/WebGPU E2E and the exclusive RX 6700 XT budget run (native
+Takram 2.022 ms GPU p95; conservative total 4.779 ms at 2560x1440 High). Branch
+`clouds-v3-integration-main` is ready for a separate merge decision. Handoff:
+`docs/handoff/2026-10-11-k-clouds-v3-main-integration-testing.md`.
+
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**

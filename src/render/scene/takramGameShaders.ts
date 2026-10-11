@@ -1,4 +1,4 @@
-import { cloudsFragment, fullscreenVertex } from '../../../spike/clouds-takram-webgpu/shaders.js'
+import { cloudsFragment, fullscreenVertex } from './takramReferenceShaders.js'
 
 /**
  * The accepted stand-alone march, changed only at its output boundary:
