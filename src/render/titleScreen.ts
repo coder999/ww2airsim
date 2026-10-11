@@ -944,7 +944,9 @@ export function createTitleScreen(
     // and navigating away drops this page's state the same way a reload does.
     // With About and Settings since 2026-10-08 (Mark): reference, not part of starting a sortie.
     const hangar = inkButton(m.hangar)
-    hangar.addEventListener('click', () => { window.location.href = m.hangarHref })
+    // Carry only this page's session-scoped Dev choice. The Hangar uses it to
+    // reveal exact asset ids; a reload or an ordinary Hangar link omits them.
+    hangar.addEventListener('click', () => { window.location.href = `${m.hangarHref}${dev ? '?dev=1' : ''}` })
     // A developer's tool, not a player's (Mark 2026-10-09): shown only while Dev is checked.
     const sounds = inkButton(m.sounds)
     sounds.addEventListener('click', () => { window.location.href = m.soundsHref })

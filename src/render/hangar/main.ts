@@ -68,6 +68,9 @@ async function boot(): Promise<void> {
   let selected: CatalogEntry | null = null
   let frozen = false
   const bench = benchEnabled(import.meta.env.DEV, location.search)
+  // The title passes this only when its session-scoped Dev checkbox is checked.
+  // Keep the exact content id out of the ordinary Library card.
+  const showAssetId = new URLSearchParams(location.search).get('dev') === '1'
   let controller = createBenchController(null)
   let benchUi: BenchHandle | null = null
   const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false, mounts: false }
@@ -131,7 +134,7 @@ async function boot(): Promise<void> {
 
   const panel = createPanel(root, catalog, (id) => {
     select(id).catch((e: unknown) => validationErrors.push(e instanceof Error ? e.message : String(e)))
-  })
+  }, showAssetId)
   // Over the empty bay until the first pick: the canvas's own cell, so it never takes a column.
   const emptyBay = document.createElement('div')
   emptyBay.className = 'hangar-empty'

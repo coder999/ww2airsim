@@ -589,6 +589,20 @@ test("the title's Hangar button opens the hangar", async ({ page }) => {
   await title.getByRole('button', { name: 'Hangar' }).click()
   await page.waitForURL(/hangar\.html$/)
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('fletcher-dd'))
+  await expect(page.getByRole('row', { name: 'Asset ID fletcher-dd' })).toHaveCount(0)
+})
+
+test("the title's checked Dev box exposes the selected asset's exact id in the Hangar details", async ({ page }) => {
+  await page.goto('/')
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
+  await title.getByRole('checkbox', { name: /Dev/ }).check()
+  await title.getByRole('button', { name: 'Hangar' }).click()
+  await page.waitForURL(/hangar\.html\?dev=1$/)
+  await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('fletcher-dd-blender'))
+  await expect(page.getByRole('row', { name: 'Asset ID fletcher-dd-blender' })).toBeVisible()
 })
 
 test('dragging to orbit stops the turntable, and its checkbox says so (H2 review)', async ({ page }) => {

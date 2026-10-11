@@ -33,7 +33,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
  * 2026-10-08), in the Naval Communications style the title screen uses. `onSelect` is called with
  * a library id; main.ts loads the model and calls `showCard`.
  */
-export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[], onSelect: (id: string) => void): HangarPanel {
+export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[], onSelect: (id: string) => void, showAssetId = false): HangarPanel {
   ensureStampFilter()
   const panel = el('div', 'naval-comms hangar-panel')
   panel.setAttribute('role', 'region')
@@ -127,9 +127,14 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
         el('div', 'fine-print', `${l.side === 'allied' ? 'Allied' : 'Japanese'} ${l.kind}${statusNote(entry) === null ? '' : ` · ${statusNote(entry)}`}`),
         el('p', undefined, l.blurb),
       ]
-      if (figures.length > 0 || modelSize || source) {
+      if (figures.length > 0 || modelSize || source || showAssetId) {
         const table = el('table', 'form-table')
         table.setAttribute('aria-label', 'Figures')
+        if (showAssetId) {
+          const tr = el('tr')
+          tr.append(el('th', undefined, 'Asset ID'), el('td', undefined, l.id))
+          table.appendChild(tr)
+        }
         for (const f of figures) {
           const tr = el('tr')
           tr.append(el('th', undefined, f.label), el('td', undefined, f.note ? `${f.value} (${f.note})` : f.value))

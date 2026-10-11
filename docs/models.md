@@ -223,6 +223,10 @@ Every entry must now arrive with its model: R5 deleted the allowlist, and
 - **Look:** open `hangar.html?bench` on the dev server
   (`https://ww2airsim.windomlane.org/hangar.html?bench`). The test bench
   drives every part the model has and reads "not modeled" for the rest.
+  When the title screen's **Dev** box is checked before opening the Hangar,
+  the right-side Figures table also shows the selected Library asset's exact
+  **Asset ID**. The title carries that session choice as `?dev=1`; ordinary
+  Hangar links omit both the flag and the developer-only row.
   *Pivot gizmos* shows where each moving part turns; a gizmo in the wrong
   place is a wrong pivot. *Wireframe* shows the mesh. The counts line reads
   the model against its budget and turns red when it is over.
