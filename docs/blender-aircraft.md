@@ -143,3 +143,10 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 
 Every other figure is an ESTIMATE labeled in each script's header. No three-view drawing was read: the profiles were
 matched by eye against the downloads' silhouettes and are a first pass, not a likeness study.
+
+## Showing the result
+
+A Hangar capture is small and portrait (the panel takes the width). For a review, render the download and the duplicate with
+`preview.py` from the same camera (`--view front|side`), crop to the airplane, and send one contact sheet per aircraft as ordinary
+attachments (`msmtp -t`, under 0.5 MB in all); do not inline images in an HTML body (see the handoff, "Review"). The gated
+`tests/e2e/blenderDuplicatesCapture.spec.ts` shows gear down and up with the game's lighting.
