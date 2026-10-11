@@ -550,4 +550,11 @@ export const AircraftSpecSchema = AircraftSpecObject.refine(
  */
 export type AircraftSpec = z.infer<typeof AircraftSpecSchema> & {
   storesLoad?: { massKg: number; dragAreaM2: number }
+  /** C4: signed fraction of full yaw-rate authority contributed by unequal
+   * engine thrust. Derived by `damagedSpec` from indexed engine hit-zone arms,
+   * never legal content: positive body +Y turns the nose left. `step` applies
+   * throttle and dynamic-pressure authority, and the ground-rate seam
+   * deliberately overrides it. Absent, rather than zero, on every unchanged
+   * single-engine, healthy and symmetric path. */
+  asymmetricThrustYaw?: number
 }

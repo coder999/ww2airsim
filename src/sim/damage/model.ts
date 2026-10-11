@@ -149,19 +149,56 @@ export function ageDamage(spec: AircraftSpec, damage: Damage, dt: number, tick =
   return withStructure(aged, Math.max(0, aged.structure - (FIRE_AT_STRUCTURE / BURN_S) * dt), tick, null)
 }
 
+/** Signed share of full yaw authority from unequal engine thrust (C4). The
+ * indexed engine zones are already the authoritative port-to-starboard engine
+ * positions for damage, smoke and propeller output, so using their body +Z
+ * centers avoids a second position list that could drift. The healthy total
+ * absolute arm is the denominator: one dead engine on a symmetric twin is
+ * therefore 0.5; a four-engine bomber's outer loss is stronger than an inner
+ * loss. Positive means surviving thrust is to starboard, whose body +Y moment
+ * turns the nose left, toward a dead port engine.
+ *
+ * Missing or inconsistent indexed geometry means no new effect. Content schema
+ * tests protect shipped multi-engine aircraft, but this conservative fallback
+ * keeps a synthetic/legacy spec from acquiring a NaN or a guessed arm. */
+function asymmetricThrustYaw(spec: AircraftSpec, outputs: readonly number[]): number {
+  if (outputs.length <= 1) return 0
+  const arms: Array<number | undefined> = Array(outputs.length).fill(undefined)
+  for (const zone of spec.combat?.zones ?? []) {
+    if (zone.system === 'engine' && zone.engine !== undefined && zone.engine < outputs.length) {
+      arms[zone.engine] = zone.center[2]
+    }
+  }
+  if (arms.some((arm) => arm === undefined)) return 0
+  const lateral = arms as number[]
+  const totalArm = lateral.reduce((sum, arm) => sum + Math.abs(arm), 0)
+  if (totalArm <= 0) return 0
+  const moment = lateral.reduce((sum, arm, i) => sum + arm * outputs[i]!, 0)
+  const fraction = Math.max(-1, Math.min(1, moment / totalArm))
+  // Preserve the absent/identity path for balanced geometry even if a future
+  // decimal arm pair leaves an insignificant round-off residual.
+  return Math.abs(fraction) < 1e-12 ? 0 : fraction
+}
+
 /** Healthy state returns the identical spec; existing flight math stays intact.
  *  `engine` is the power fraction to fly, `engineOutput`'s when the caller has
- *  a tick; it defaults to plain health, as before damage stages. */
-export function damagedSpec(spec: AircraftSpec, damage: Damage, engine = damage.engine): AircraftSpec {
-  if (engine === 1 && damage.roll === 1 && damage.pitch === 1 && damage.yaw === 1) return spec
+ *  a tick; it defaults to plain health, as before damage stages. C4's production
+ *  caller passes `engineOutputs` instead, preserving their mean for power while
+ *  also deriving the signed thrust-arm imbalance. */
+export function damagedSpec(spec: AircraftSpec, damage: Damage, engine: number | readonly number[] = damage.engine): AircraftSpec {
+  const outputs = typeof engine === 'number' ? null : engine
+  const power = typeof engine === 'number' ? engine : mean(engine)
+  const yaw = outputs === null ? 0 : asymmetricThrustYaw(spec, outputs)
+  if (power === 1 && yaw === 0 && damage.roll === 1 && damage.pitch === 1 && damage.yaw === 1) return spec
   return {
     ...spec,
-    engine: { ...spec.engine, maxPowerW: spec.engine.maxPowerW * engine, staticThrustN: spec.engine.staticThrustN * engine },
+    engine: { ...spec.engine, maxPowerW: spec.engine.maxPowerW * power, staticThrustN: spec.engine.staticThrustN * power },
     rates: {
       ...spec.rates,
       maxRollRateDegPerSec: spec.rates.maxRollRateDegPerSec * damage.roll,
       maxPitchRateDegPerSec: spec.rates.maxPitchRateDegPerSec * damage.pitch,
       maxYawRateDegPerSec: spec.rates.maxYawRateDegPerSec * damage.yaw,
     },
+    ...(yaw === 0 ? {} : { asymmetricThrustYaw: yaw }),
   }
 }

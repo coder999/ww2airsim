@@ -629,11 +629,38 @@ export function step(
     // the nose must go right to meet it.
     return -Math.max(-maxRad, Math.min(maxRad, rate))
   })()
+  // C4 asymmetric thrust, expressed inside this model's deliberately simple
+  // rate-command moments rather than inventing an inertia/torque integrator for
+  // one term. `damagedSpec` derives the signed, arm-weighted fraction from the
+  // actual per-engine output this tick. Throttle and the same dynamic-pressure
+  // authority as rudder make half of a symmetric twin's thrust counterable by
+  // half opposite rudder at every speed. At zero the old addition below is used
+  // byte-for-byte; no clamp or signed-zero change reaches healthy, symmetric or
+  // single-engine flight.
+  const asymmetricFraction = spec.asymmetricThrustYaw ?? 0
+  const asymmetricYawY = asymmetricFraction === 0 ? 0
+    : asymmetricFraction
+      * clampFinite(controls.throttle, 0, 1)
+      * spec.rates.maxYawRateDegPerSec * DEG
+      * rateAuthority(spec, q)
+  const ordinaryYawY = airRates.y + weathercockY
+  // Existing pilot plus weathercock rates were not jointly clamped. Preserve
+  // that exact behavior unless asymmetric thrust is present; then keep the new
+  // combined result inside the aircraft's declared physical yaw-rate maximum.
+  const maxYawRad = spec.rates.maxYawRateDegPerSec * DEG
+  const yawY = asymmetricFraction === 0
+    ? ordinaryYawY
+    : Math.max(-maxYawRad, Math.min(maxYawRad, ordinaryYawY + asymmetricYawY))
   const stalled = isStalled(spec, air)
-  const withWeathercock = v3(airRates.x, airRates.y + weathercockY, airRates.z)
+  const withWeathercock = v3(airRates.x, yawY, airRates.z)
   const ratesWithStall = stalled
     ? v3(withWeathercock.x + STALL_WING_DROP_RAD_PER_S, withWeathercock.y, withWeathercock.z)
     : withWeathercock
+  // `groundBodyRates` deliberately retains ordinary aerodynamic yaw while it
+  // replaces roll and pitch, so C4 must remove only its new contribution at
+  // this seam to honor the airborne-only ruling. The zero path reuses the old
+  // object exactly.
+  const ratesForGround = asymmetricFraction === 0 ? ratesWithStall : v3(ratesWithStall.x, ordinaryYawY, ratesWithStall.z)
 
   // On the ground, the wheels are the rotation constraint, not the air --
   // spec §5's rate command is right in the air and wrong on a runway, where
@@ -667,7 +694,7 @@ export function step(
   // the ocean.
   const bodyRates =
     startGround !== null && onGroundStart && wheelsDownStart && onLandStart
-      ? groundBodyRates(spec, state, controls, ratesWithStall, dt, startGround.velocity)
+      ? groundBodyRates(spec, state, controls, ratesForGround, dt, startGround.velocity)
       : ratesWithStall
   // On the wheels the airplane turns about the WORLD vertical, not its own
   // body-up axis (T1 taxi regression, 2026-09-28). The two coincide at level

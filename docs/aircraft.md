@@ -102,13 +102,21 @@ Spec: the `gear` block. Model: nodes `GearL`, `GearR`, `GearNose`,
 
 ### D6. Engines
 
-**Decided 2026-09-28 (Mark): summed power.** The spec has one `engine`
-block and one propeller model. A multi-engine type (P-38, Betty, Sally,
-B-17, B-29) gets one block with the summed power, `propEfficiency` fitted as
-for a single engine, and the rig naming `Prop1..PropN` so every propeller
-turns. No engine-out handling. Say in the spec's `source` that the power is a
-sum, and in the card that a failed engine is not modeled. Record as decided,
-not asked. Engine-out is a possible follow-up.
+**Decided 2026-09-28 (Mark): summed baseline power.** The spec has one
+`engine` block and one propeller model. A multi-engine type (P-38, Betty,
+Sally, B-17, B-29) gets one block with the summed power, `propEfficiency`
+fitted as for a single engine, and the rig naming `Prop1..PropN` so every
+propeller turns.
+
+**Added 2026-10-11 (C4): engine-out yaw inside that simplified model.** Damage
+tracks each indexed engine's output. In the air, unequal output produces a
+signed yaw-rate bias from the engine hit zones' lateral arms; an outboard
+four-engine loss therefore has more leverage than an inboard loss. Throttle
+and the existing dynamic-pressure authority scale the bias, and ordinary
+rudder, auto-rudder and AI feedback can oppose it. Healthy, symmetric and
+single-engine paths remain unchanged. This is not a per-engine force or
+inertia model: feathering/windmilling drag, explicit AI trim, and engine-out
+yaw on the runway remain deferred.
 
 ### D7. Payload
 
@@ -359,7 +367,8 @@ Record it in the D-table as "deferred", and do not build it.
   eye-point view (D12) until that work is scheduled.
 - **Bomber AI.** A bomber is flown by the player only.
 - **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors are C2 (`MASTER_PLAN.md`), real door nodes in every bay bomber's model, listed in its rig's `doors` (`docs/models.md` §5): a Blender model gets them from `kit.fuselage(doors=...)`, a download from a `split` with a `cut`. A new bay bomber needs a `bayDoors` block in its spec and the door nodes in its model and rig; `aircraftRigs.test.ts` and `combat.test.ts` pin the lists.
-- **Engine-out handling** for multi-engine types (D6); the power is summed.
+- **Detailed engine-out handling** beyond D6's airborne yaw-rate bias:
+  feathering/windmilling drag, explicit AI trim, and ground/take-off yaw.
 
 ## Lessons from the first run (F4U-1D, 2026-09-29)
 
