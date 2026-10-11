@@ -57,7 +57,7 @@ describe('applyDifficulty', () => {
 describe('the AA hook: errorScaleVs widens only the guns that can fire at that side', () => {
   const at = v3(0, 0, 0)
   const owner: AaOwner = { id: 'dd', side: 'axis', mounts: mountsOf(loadShipSpec('fletcher-dd').armament!), position: at, previous: at, headingRad: 0 }
-  const target = { id: 'p', side: 'allied' as const, position: v3(600, 150, 0), velocity: v3(100, 0, 0), accel: v3(0, 0, 0) }
+  const target = { id: 'p', side: 'allied' as const, kind: 'aircraft' as const, position: v3(600, 150, 0), velocity: v3(100, 0, 0), accel: v3(0, 0, 0) }
   const rounds = (errorScaleVs?: { side: 'allied' | 'axis'; scale: number }): AaRound[] => {
     let aa = { ...initialAa(7), ...(errorScaleVs === undefined ? {} : { errorScaleVs }) }
     const out: AaRound[] = []

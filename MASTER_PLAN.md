@@ -314,8 +314,8 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - light guns fire tracer rounds through the existing ballistics at close range;
      - both sides fire, under the friendly-fire rules;
      - the default is Moderate, measured and pinned: lingering at 300 ft over a destroyer costs a Hellcat in about 20 s, a fast straight pass usually survives.
-     - Builds on E1's lead and aim error. `aa_gun` and `flak_burst` (Track I, I3) are wired; the Dev scenario `aa-range` is the test bed. Mounts do not yet train toward their target (M3).
-  3. **M3 Gun-laying AI (M).** Its own item, buildable separately: target choice, turret training and lead. It drives M2's mounts and M4's turrets.
+     - Builds on E1's lead and aim error. `aa_gun` and `flak_burst` (Track I, I3) are wired; the Dev scenario `aa-range` is the test bed. M3 now trains every drawn mount onto the same target and nominal lead.
+  3. **M3 Gun-laying AI (M). Built on branch `m3-gun-laying-ai`, not merged** (2026-10-10; plan `docs/superpowers/plans/2026-10-10-m3-gun-laying-ai.md`, handoff `docs/handoff/2026-10-10-m3-gun-laying-ai.md`). Every AA mount selects a hostile aircraft, trains and elevates on the same ballistic lead M2 fires at; light-AA gallery poses fan out to every drawn barrel mount. Main turrets select the nearest hostile live ship, then a standing hostile structure, and lay visually without firing. The bounded pose/target contract is M4's firing seam; M3 does not create a main-battery projectile, sound or hull damage.
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.

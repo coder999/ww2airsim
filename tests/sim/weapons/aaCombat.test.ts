@@ -147,10 +147,33 @@ describe('worlds without an armed hostile are untouched', () => {
   })
 })
 
+describe('M3 lays main turrets but does not implement M4 firing', () => {
+  it('two hostile ships acquire each other without creating a projectile or changing hull HP', () => {
+    const base = JSON.parse(JSON.stringify(loadScenarioBundle('aa-range').scenario)) as Record<string, unknown>
+    const scenario = parseScenario({
+      ...base,
+      aircraft: [{ id, spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [-20000, 1500, -48605], headingDeg: 90, speedMps: 120 } }],
+      ships: [
+        { id: 'axis-dd', spec: 'fletcher-dd', side: 'axis', waypoints: [[-27916, -48605]], speedMps: 0 },
+        { id: 'allied-dd', spec: 'fletcher-dd', side: 'allied', waypoints: [[-26916, -48605]], speedMps: 0 },
+      ],
+    })
+    const w0 = worldFromScenario(bundleForScenario(scenario), null)
+    const w = advance(w0, DT).world
+    const axisMain = w.combat.aa.laying['axis-dd']?.filter((p) => p.name.startsWith('Turret')) ?? []
+    expect(axisMain.length).toBe(w.ships.find((s) => s.id === 'axis-dd')!.spec.armament!.turrets.length)
+    expect(axisMain.every((p) => p.targetId === 'allied-dd' && p.targetKind === 'ship')).toBe(true)
+    expect(w.combat.projectiles).toEqual([])
+    expect(w.combat.ships['axis-dd']!.hp).toBe(w0.combat.ships['axis-dd']!.hp)
+    expect(w.combat.ships['allied-dd']!.hp).toBe(w0.combat.ships['allied-dd']!.hp)
+  })
+})
+
 describe('cost: the Range Test with every warship armed and hostile', () => {
-  // Measured 2026-10-10 on ryzen: 13 ships (11 armed), the Hellcat circling in the middle for 60 s with
-  // the guns never losing it: 0.27 ms per 60 Hz tick, 598 live AA rounds at the peak (the cap is 600),
-  // 70 bursts pending at the peak. A tick has 16.7 ms of real time, so the sim uses under 2 percent.
+  // M2 baseline, measured 2026-10-10 on ryzen: 13 ships (11 armed), the Hellcat circling in the middle
+  // for 60 s with the guns never losing it: 0.27 ms per 60 Hz tick, 598 live AA rounds at the peak (the
+  // cap is 600), 70 bursts pending at the peak. M3 adds one bounded current pose per mount; this gate is
+  // rerun with those poses enabled rather than claiming the M2 timing is a fresh M3 measurement.
   it('steps faster than real time, and the live rounds and bursts stay inside their caps', () => {
     const w0 = crowdedWorld()
     expect(w0.ships.filter((s) => s.spec.armament !== undefined).length).toBeGreaterThanOrEqual(11)

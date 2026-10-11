@@ -377,9 +377,12 @@ is Moderate: circling a destroyer at 300 ft costs a Hellcat in about 20
 seconds, a straight fast pass over it usually survives, and at 6,000 ft the
 flak takes about a minute and a half. The guns shoot wide until they have
 ranged in on you and lose you if you fly over them, so speed and not lingering
-are what protect you. The main batteries are M4 (`MASTER_PLAN.md`, Track M); the
-mounts do not yet turn to follow their target (M3). The numbers are
-`AA_TUNING` in `src/sim/weapons/aaFire.ts`.
+are what protect you. **Gun-laying (M3, 2026-10-10):** every drawn AA mount now
+trains and elevates onto the same aircraft and ballistic lead its M2 fire uses.
+Main turrets lay onto a hostile ship, or a standing hostile ground target when
+there is no ship, but do not fire yet; main-battery firing remains M4
+(`MASTER_PLAN.md`, Track M). The AA numbers are `AA_TUNING` in
+`src/sim/weapons/aaFire.ts`.
 
 ## Building roster
 

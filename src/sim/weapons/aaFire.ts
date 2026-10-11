@@ -1,10 +1,14 @@
 import { createRng } from '../rng.js'
-import { add, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.js'
-import { solveMuzzleLead, aimWithError } from '../ai/pursuit.js'
+import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+import { aimWithError } from '../ai/pursuit.js'
 import { aimErrorDraw } from '../ai/noise.js'
 import { idSeed } from '../damage/model.js'
 import type { Side } from '../sides.js'
 import type { ShipArmament } from '../world/ships.js'
+import {
+  ballisticGunLead, constantSpeedLead, gunLayingPose, nearestGunTarget,
+  type GunLayingPose, type GunLayingTarget,
+} from './gunLaying.js'
 
 /**
  * Anti-aircraft fire (Track M, M2). Ships' `armament` and ground `aaa`
@@ -14,9 +18,9 @@ import type { ShipArmament } from '../world/ships.js'
  * Pure: no PRNG cursor and no clock. Every random number is a hash of
  * (seed, mount, time window), so a world replays identically and a world with
  * no AA mount (or no target in range) draws nothing and returns its state
- * unchanged. The director below ("nearest valid enemy in range, E1's lead,
- * aim error from a per-mount skill") is the seam M3, gun-laying AI, replaces:
- * `stepAa` is the only thing `stepCombat` calls.
+ * unchanged. M3 extracts the nominal target/lead director used by both the
+ * firing path and the bounded renderer pose; `stepAa` remains the only thing
+ * `stepCombat` calls.
  */
 
 /**
@@ -99,10 +103,13 @@ export type Caliber = '20mm' | '25mm' | '40mm'
 const CALIBERS: readonly Caliber[] = ['20mm', '25mm', '40mm']
 
 export type AaMount = {
+  readonly name: string
   readonly tier: 'heavy' | 'light'
   readonly caliber: Caliber
   /** Ship frame, metres: +x bow, +y up from the waterline, +z starboard. */
   readonly x: number; readonly y: number; readonly z: number
+  /** Content rest bearing, clockwise/starboard from the bow. */
+  readonly bearingRad: number
   readonly barrels: number
 }
 export type AaMounts = { readonly mounts: readonly AaMount[]; readonly reachM: number }
@@ -119,9 +126,11 @@ export function mountsOf(armament: ShipArmament): AaMounts {
   const hit = cache.get(armament)
   if (hit !== undefined) return hit
   const mounts: AaMount[] = []
-  for (const t of armament.turrets) if (t.aa === 'heavy') mounts.push({ tier: 'heavy', caliber: '20mm', x: t.x, y: t.y, z: t.z, barrels: t.barrels })
-  for (const m of armament.heavyAA) mounts.push({ tier: 'heavy', caliber: '20mm', x: m.x, y: m.y, z: m.z, barrels: m.barrels })
-  for (const m of armament.lightAA) mounts.push({ tier: 'light', caliber: caliberOf(m.kit), x: m.x, y: m.y, z: m.z, barrels: m.barrels })
+  armament.turrets.forEach((t, i) => {
+    if (t.aa === 'heavy') mounts.push({ name: `Turret${i + 1}`, tier: 'heavy', caliber: '20mm', x: t.x, y: t.y, z: t.z, bearingRad: (t.bearingDeg * Math.PI) / 180, barrels: t.barrels })
+  })
+  armament.heavyAA.forEach((m, i) => mounts.push({ name: `HeavyAA${i + 1}`, tier: 'heavy', caliber: '20mm', x: m.x, y: m.y, z: m.z, bearingRad: (m.bearingDeg * Math.PI) / 180, barrels: m.barrels }))
+  armament.lightAA.forEach((m, i) => mounts.push({ name: `LightAA${i + 1}`, tier: 'light', caliber: caliberOf(m.kit), x: m.x, y: m.y, z: m.z, bearingRad: (m.bearingDeg * Math.PI) / 180, barrels: m.barrels }))
   const out = { mounts, reachM: reachOf(mounts) }
   cache.set(armament, out)
   return out
@@ -133,8 +142,8 @@ const reachOf = (mounts: readonly AaMount[]): number =>
 /** A ground battery: one heavy gun and one light twin on the structure. */
 const BATTERY_MOUNTS: AaMounts = (() => {
   const mounts: AaMount[] = [
-    { tier: 'heavy', caliber: '20mm', x: 0, y: 0, z: 0, barrels: 1 },
-    { tier: 'light', caliber: '40mm', x: 3, y: 0, z: 0, barrels: 2 },
+    { name: 'HeavyAA1', tier: 'heavy', caliber: '20mm', x: 0, y: 0, z: 0, bearingRad: 0, barrels: 1 },
+    { name: 'LightAA1', tier: 'light', caliber: '40mm', x: 3, y: 0, z: 0, bearingRad: 0, barrels: 2 },
   ]
   return { mounts, reachM: reachOf(mounts) }
 })()
@@ -152,19 +161,24 @@ export type AaState = {
   readonly bursts: readonly FlakBurst[]
   /** Light guns that fired lately, for the audio (one entry per owner). */
   readonly firing: readonly AaFiring[]
+  /** M3: bounded current laying poses, by armed ship id. Absent means every mount rests. */
+  readonly laying: Readonly<Record<string, readonly GunLayingPose[]>>
   /** M5 difficulty (`sim/difficulty.ts`): every mount NOT on `side` (so every gun that can fire at it)
    *  has its aim and fuse error multiplied by `scale`. Absent, every mount fires as tuned. */
   readonly errorScaleVs?: { readonly side: Side; readonly scale: number }
 }
-export const initialAa = (seed = 1944): AaState => ({ seed: seed >>> 0, nextFire: {}, engagedSince: {}, bursts: [], firing: [] })
+export const initialAa = (seed = 1944): AaState => ({ seed: seed >>> 0, nextFire: {}, engagedSince: {}, bursts: [], firing: [], laying: {} })
 
 /** What `stepCombat` hands the director: an armed, live ship or battery. */
 export type AaOwner = {
   readonly id: string; readonly side: Side; readonly mounts: AaMounts
+  /** Present for a ship, absent for a ground battery. M3 lays all main turrets from it. */
+  readonly armament?: ShipArmament
   readonly position: Vec3; readonly previous: Vec3; readonly headingRad: number
 }
 /** A live airborne airplane. */
-export type AaTarget = { readonly id: string; readonly side: Side; readonly position: Vec3; readonly velocity: Vec3; readonly accel: Vec3 }
+export type AaTarget = GunLayingTarget & { readonly kind: 'aircraft' }
+export type AaSurfaceTarget = GunLayingTarget & { readonly kind: 'ship' | 'structure' }
 
 /** A round for `stepCombat` to fly: it adds the id. `aa` is the hit scale. */
 export type AaRound = {
@@ -189,7 +203,7 @@ export function aaOwnersOf(
   for (const s of ships) {
     const side = shipSides?.[s.id]
     if (side === undefined || s.spec.armament === undefined || shipDown(s.id)) continue
-    out.push({ id: s.id, side, mounts: mountsOf(s.spec.armament), position: s.state.position, previous: s.previous.position, headingRad: s.state.headingRad })
+    out.push({ id: s.id, side, mounts: mountsOf(s.spec.armament), armament: s.spec.armament, position: s.state.position, previous: s.previous.position, headingRad: s.state.headingRad })
   }
   for (const s of structures) {
     const side = structureSides?.[s.id]
@@ -219,7 +233,27 @@ export function aaTargetsOf(
     // The heavy director's turn estimate: the change in velocity over the last tick, capped (3 g).
     const acc = scale(sub(v, a.previous.velocity), 1 / dt)
     const accLen = length(acc)
-    out.push({ id: a.id, side, position: a.state.position, velocity: v, accel: accLen > AA_TUNING.heavy.maxTurnAccelMps2 ? scale(acc, AA_TUNING.heavy.maxTurnAccelMps2 / accLen) : acc })
+    out.push({ id: a.id, side, kind: 'aircraft', position: a.state.position, velocity: v, accel: accLen > AA_TUNING.heavy.maxTurnAccelMps2 ? scale(acc, AA_TUNING.heavy.maxTurnAccelMps2 / accLen) : acc })
+  }
+  return out
+}
+
+/** Live surface targets for M3's main-battery laying. M4 will consume the same records to fire. */
+export function aaSurfaceTargetsOf(
+  ships: readonly ShipLike[], structures: readonly StructureLike[], dt: number,
+  shipSides: Readonly<Record<string, Side>> | undefined, structureSides: Readonly<Record<string, Side>> | undefined,
+  shipDown: (id: string) => boolean, structureDown: (id: string) => boolean,
+): AaSurfaceTarget[] {
+  const out: AaSurfaceTarget[] = []
+  for (const ship of ships) {
+    const side = shipSides?.[ship.id]
+    if (side === undefined || shipDown(ship.id)) continue
+    out.push({ id: ship.id, side, kind: 'ship', position: ship.state.position, velocity: scale(sub(ship.state.position, ship.previous.position), 1 / dt), accel: v3(0, 0, 0) })
+  }
+  for (const structure of structures) {
+    const side = structureSides?.[structure.id]
+    if (side === undefined || structureDown(structure.id)) continue
+    out.push({ id: structure.id, side, kind: 'structure', position: structure.position, velocity: v3(0, 0, 0), accel: v3(0, 0, 0) })
   }
   return out
 }
@@ -269,11 +303,34 @@ export type AaStep = {
   readonly rounds: readonly AaRound[]
 }
 
+/** Visual lead only until M4 specifies and fires the main-battery projectile. */
+export const MAIN_BATTERY_LAYING = { shellSpeedMps: 760 } as const
+
+const sameLaying = (
+  a: Readonly<Record<string, readonly GunLayingPose[]>>,
+  b: Readonly<Record<string, readonly GunLayingPose[]>>,
+): boolean => {
+  const ak = Object.keys(a), bk = Object.keys(b)
+  if (ak.length !== bk.length) return false
+  for (const id of ak) {
+    const ap = a[id]!, bp = b[id]
+    if (bp === undefined || ap.length !== bp.length) return false
+    for (let i = 0; i < ap.length; i++) {
+      const x = ap[i]!, y = bp[i]!
+      if (x.name !== y.name || x.targetId !== y.targetId || x.targetKind !== y.targetKind || x.trainingRad !== y.trainingRad || x.elevationRad !== y.elevationRad) return false
+    }
+  }
+  return true
+}
+
 /**
  * One tick of AA fire. `liveRounds` is how many AA rounds are already in the air (the cap).
  * Returns the same `aa` object when nothing changed.
  */
-export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonly AaTarget[], tick: number, dt: number, liveRounds: number): AaStep {
+export function stepAa(
+  aa: AaState, owners: readonly AaOwner[], targets: readonly AaTarget[], tick: number, dt: number, liveRounds: number,
+  surfaceTargets: readonly AaSurfaceTarget[] = [],
+): AaStep {
   const NONE: AaStep = { aa, rounds: [] }
   const L = AA_TUNING.light, H = AA_TUNING.heavy
   const rounds: AaRound[] = []
@@ -281,32 +338,35 @@ export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonl
   let engagedSince: Record<string, number> | null = null
   let bursts: FlakBurst[] | null = null
   const firing = new Map<string, AaFiring>()
+  const nextLaying: Record<string, readonly GunLayingPose[]> = {}
   let live = liveRounds
 
-  if (targets.length > 0) {
-    for (const o of owners) {
-      // Ship-level early-out: no hostile inside the owner's longest reach, no mount is touched.
-      const hostile: AaTarget[] = []
-      for (const t of targets) if (t.side !== o.side && horizontal(o.position, t.position) <= o.mounts.reachM + 50) hostile.push(t)
-      if (hostile.length === 0) continue
-      const ownVel = scale(sub(o.position, o.previous), 1 / dt)
-      for (let i = 0; i < o.mounts.mounts.length; i++) {
+  for (const o of owners) {
+    // Ship-level early-out: no hostile aircraft inside the owner's longest reach, no AA mount is touched.
+    const hostile: AaTarget[] = []
+    for (const t of targets) if (t.side !== o.side && horizontal(o.position, t.position) <= o.mounts.reachM + 50) hostile.push(t)
+    const ownVel = scale(sub(o.position, o.previous), 1 / dt)
+    const poses: GunLayingPose[] = []
+    for (let i = 0; i < o.mounts.mounts.length; i++) {
         const m = o.mounts.mounts[i]!
         const key = `${o.id}#${i}`
         const mh = hashOf(key)
         const origin = mountWorld(o, m)
         const heavy = m.tier === 'heavy'
         const rangeCap = heavy ? H.maxRangeM : L[m.caliber].rangeM
-        // The nearest hostile in this mount's envelope.
-        let best: AaTarget | null = null
-        let bestD = Infinity
-        for (const t of hostile) {
-          const d = length(sub(t.position, origin))
-          if (d > rangeCap || d >= bestD) continue
-          if (heavy && (d < H.minRangeM || t.position.y - origin.y > H.maxAltitudeM || (t.position.y < H.lowAltitudeM && d > H.maxRangeLowM))) continue
-          best = t; bestD = d
-        }
+        const best = nearestGunTarget(origin, hostile, (t, d) =>
+          d <= rangeCap && (!heavy || (d >= H.minRangeM && t.position.y - origin.y <= H.maxAltitudeM && (t.position.y >= H.lowAltitudeM || d <= H.maxRangeLowM))),
+        ) as AaTarget | null
         if (best === null) continue
+        const c = L[m.caliber]
+        const nominal = heavy
+          ? constantSpeedLead(origin, best, H.shellSpeedMps)?.direction ?? null
+          : ballisticGunLead(origin, ownVel, best, c.muzzleMps, L.dragPerM, (c.rangeM / c.muzzleMps) * L.lifeMargin)
+        if (nominal === null) continue
+        if (o.armament !== undefined) {
+          const pose = gunLayingPose(m.name, best, nominal, o.headingRad, m.bearingRad)
+          if (pose !== null) poses.push(pose)
+        }
         const salvosPerS = heavy ? (H.roundsPerMinutePerBarrel * Math.min(m.barrels, H.maxBarrels)) / 60 : L[m.caliber].salvosPerS
         const intervalTicks = Math.max(1, Math.round(1 / (salvosPerS * dt)))
         const due = (nextFire ?? aa.nextFire)[key]
@@ -334,24 +394,15 @@ export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonl
         if (heavy) {
           if (bursts === null) bursts = [...aa.bursts]
           if (bursts.length >= AA_TUNING.maxPendingBursts) continue
-          // Constant-speed shell against the target flown on at its present velocity and turn.
-          let t = bestD / H.shellSpeedMps
-          let aim = sub(best.position, origin)
-          for (let k = 0; k < 3; k++) {
-            aim = sub(add(add(best.position, scale(best.velocity, t)), scale(best.accel, 0.5 * t * t)), origin)
-            t = length(aim) / H.shellSpeedMps
-          }
-          const fuseS = Math.max(0.2, t + aimErrorDraw(mixInt(mixInt(aa.seed, mh), window ^ 0x5bd1), H.fuseErrorS * skill).right)
-          const dir = aimWithError(normalize(aim), error)
+          const lead = constantSpeedLead(origin, best, H.shellSpeedMps)!
+          const fuseS = Math.max(0.2, lead.timeS + aimErrorDraw(mixInt(mixInt(aa.seed, mh), window ^ 0x5bd1), H.fuseErrorS * skill).right)
+          const dir = aimWithError(lead.direction, error)
           const point = add(origin, scale(dir, fuseS * H.shellSpeedMps))
           bursts.push({ owner: o.id, side: o.side, point, tick: tick + Math.max(1, Math.round(fuseS / dt)) })
         } else {
           if (live >= AA_TUNING.maxLiveRounds) continue
-          const c = L[m.caliber]
-          const solved = solveMuzzleLead(sub(best.position, origin), ownVel, best.velocity, c.muzzleMps, L.dragPerM, (c.rangeM / c.muzzleMps) * L.lifeMargin)
-          if (solved === null) continue
           const scatter = aimErrorDraw(mixInt(mixInt(aa.seed, mh), tick ^ 0x2545), L.dispersionRad)
-          const dir = aimWithError(solved, { right: error.right + scatter.right, up: error.up + scatter.up })
+          const dir = aimWithError(nominal, { right: error.right + scatter.right, up: error.up + scatter.up })
           const volley = Math.floor(tick / intervalTicks) + mh
           rounds.push({
             owner: o.id, position: origin, previous: origin, velocity: add(ownVel, scale(dir, c.muzzleMps)),
@@ -363,8 +414,31 @@ export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonl
         }
         nextFire ??= { ...aa.nextFire }
         nextFire[key] = tick + intervalTicks
-      }
     }
+
+    // Main batteries lay on a hostile ship first, then a standing hostile structure. A dual-purpose
+    // turret already following an aircraft keeps that pose; M4 later consumes the same surface target.
+    if (o.armament !== undefined) {
+      o.armament.turrets.forEach((turret, i) => {
+        const name = `Turret${i + 1}`
+        if (turret.kit === null || poses.some((p) => p.name === name)) return
+        const pseudo: AaMount = {
+          name, tier: 'heavy', caliber: '20mm', x: turret.x, y: turret.y, z: turret.z,
+          bearingRad: (turret.bearingDeg * Math.PI) / 180, barrels: turret.barrels,
+        }
+        const origin = mountWorld(o, pseudo)
+        const accepts = (t: GunLayingTarget): boolean => t.side !== o.side
+        const ships = surfaceTargets.filter((t) => t.kind === 'ship')
+        const structures = surfaceTargets.filter((t) => t.kind === 'structure')
+        const best = nearestGunTarget(origin, ships, accepts) ?? nearestGunTarget(origin, structures, accepts)
+        if (best === null) return
+        const lead = constantSpeedLead(origin, best, MAIN_BATTERY_LAYING.shellSpeedMps)
+        if (lead === null) return
+        const pose = gunLayingPose(name, best, lead.direction, o.headingRad, pseudo.bearingRad)
+        if (pose !== null) poses.push(pose)
+      })
+    }
+    if (poses.length > 0) nextLaying[o.id] = poses
   }
 
   // The audio's list: this tick's firing guns, plus the earlier ones still inside the hold.
@@ -374,8 +448,9 @@ export function stepAa(aa: AaState, owners: readonly AaOwner[], targets: readonl
     const next = [...kept, ...firing.values()]
     if (next.length !== aa.firing.length || firing.size > 0) firingList = next
   }
-  if (nextFire === null && bursts === null && rounds.length === 0 && firingList === aa.firing) return NONE
-  return { aa: { ...aa, nextFire: nextFire ?? aa.nextFire, engagedSince: engagedSince ?? aa.engagedSince, bursts: bursts ?? aa.bursts, firing: firingList }, rounds }
+  const laying = sameLaying(aa.laying, nextLaying) ? aa.laying : nextLaying
+  if (nextFire === null && bursts === null && rounds.length === 0 && firingList === aa.firing && laying === aa.laying) return NONE
+  return { aa: { ...aa, nextFire: nextFire ?? aa.nextFire, engagedSince: engagedSince ?? aa.engagedSince, bursts: bursts ?? aa.bursts, firing: firingList, laying }, rounds }
 }
 
 /** The bursts that go off this tick (or are overdue), and the state without them. */

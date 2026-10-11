@@ -42,10 +42,10 @@ describe('every shipped ship, flattened to AA mounts (enrolled from content/ship
 })
 
 const owner = (side: 'allied' | 'axis', at = v3(0, 0, 0)): AaOwner => ({
-  id: 'dd', side, mounts: mountsOf(loadShipSpec('fletcher-dd').armament!), position: at, previous: at, headingRad: 0,
+  id: 'dd', side, mounts: mountsOf(loadShipSpec('fletcher-dd').armament!), armament: loadShipSpec('fletcher-dd').armament!, position: at, previous: at, headingRad: 0,
 })
 const plane = (id: string, side: 'allied' | 'axis', at: ReturnType<typeof v3>, velocity = v3(100, 0, 0)): AaTarget =>
-  ({ id, side, position: at, velocity, accel: v3(0, 0, 0) })
+  ({ id, side, kind: 'aircraft', position: at, velocity, accel: v3(0, 0, 0) })
 const DT = 1 / 60
 /** Steps the director for `seconds` of an unmoving target and collects what it fired. */
 function fire(o: AaOwner, targets: AaTarget[], seconds = 12) {
@@ -67,6 +67,10 @@ describe('stepAa: who shoots at what', () => {
     const r = fire(owner('axis'), [near])
     expect(r.rounds).toBeGreaterThan(50)
     expect(r.bursts).toBeGreaterThan(0)
+    const poses = r.aa.laying.dd!
+    expect(poses.length).toBeGreaterThan(0)
+    expect(new Set(poses.map((p) => p.targetId))).toEqual(new Set(['p']))
+    expect(poses.every((p) => Number.isFinite(p.trainingRad) && Number.isFinite(p.elevationRad))).toBe(true)
   })
   it('never fires at its own side', () => {
     const r = fire(owner('axis'), [plane('mate', 'axis', v3(600, 150, 0))])
@@ -120,6 +124,27 @@ describe('stepAa: who shoots at what', () => {
     // Ranging is wide (aim error), but on average the rounds are led toward +x (the target flies +x).
     const mean = rounds.reduce((s, r) => s + r.velocity.x, 0) / rounds.length
     expect(mean).toBeGreaterThan(0)
+  })
+
+  it('lays main turrets on a hostile ship without firing an M4 projectile', () => {
+    const o = owner('axis')
+    const surface = [{
+      id: 'enemy-dd', side: 'allied' as const, kind: 'ship' as const,
+      position: v3(1000, 0, 0), velocity: v3(0, 0, 0), accel: v3(0, 0, 0),
+    }]
+    const out = stepAa(initialAa(7), [o], [], 1, DT, 0, surface)
+    const mainNames = o.armament!.turrets.map((_, i) => `Turret${i + 1}`)
+    expect(out.rounds).toEqual([])
+    expect(out.aa.bursts).toEqual([])
+    expect(out.aa.laying.dd?.filter((p) => mainNames.includes(p.name)).map((p) => p.targetId)).toEqual(mainNames.map(() => 'enemy-dd'))
+  })
+
+  it('clears a stale laying pose when the target disappears, then returns the same quiet state', () => {
+    const aimed = stepAa(initialAa(7), [owner('axis')], [near], 1, DT, 0).aa
+    expect(aimed.laying.dd?.length).toBeGreaterThan(0)
+    const rested = stepAa(aimed, [owner('axis')], [], 2, DT, 0).aa
+    expect(rested.laying).toEqual({})
+    expect(stepAa(rested, [owner('axis')], [], 3, DT, 0).aa).toBe(rested)
   })
 })
 

@@ -25,7 +25,7 @@ import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
 import { bayDoorsShut } from '../bayDoors.js'
 import { floodFrom, hitSide, type FloodState } from './flooding.js'
-import { AA_TUNING, aaOwnersOf, aaTargetsOf, flakBlastHp, initialAa, stepAa, takeDueBursts, type AaState } from './aaFire.js'
+import { AA_TUNING, aaOwnersOf, aaSurfaceTargetsOf, aaTargetsOf, flakBlastHp, initialAa, stepAa, takeDueBursts, type AaState } from './aaFire.js'
 import type { ShipArmament } from '../world/ships.js'
 
 export const MAX_PROJECTILES = 4096
@@ -848,19 +848,22 @@ export function stepCombat(
       afloat, structures, targetSides.ships, targetSides.structures,
       (id) => shipDamage[id]?.destroyedTick != null, (id) => structureDamage[id]?.destroyedTick != null,
     )
-    if (owners.length > 0) {
-      const targets = aaTargetsOf(aircraft, dt, sides, (id) => {
-        const d = records[id]?.damage
-        return d === undefined || d.destroyedAt !== null || d.burningSince !== null
-      })
-      let live = 0
-      for (const f of flying) if (f.p.aa !== undefined) live++
-      const stepped = stepAa(aaState, owners, targets, tick, dt, live)
-      aaState = stepped.aa
-      for (const r of stepped.rounds) {
-        if (flying.length >= MAX_PROJECTILES) break
-        flying.push({ p: { ...r, id: nextId++ }, dt, start: 0 })
-      }
+    const targets = aaTargetsOf(aircraft, dt, sides, (id) => {
+      const d = records[id]?.damage
+      return d === undefined || d.destroyedAt !== null || d.burningSince !== null
+    })
+    const surfaceTargets = aaSurfaceTargetsOf(
+      ships, structures, dt, targetSides.ships, targetSides.structures,
+      (id) => shipDamage[id]?.destroyedTick != null, (id) => structureDamage[id]?.destroyedTick != null,
+    )
+    let live = 0
+    for (const f of flying) if (f.p.aa !== undefined) live++
+    // M3 runs even with no current target/owner so a stale rendered pose is cleared to rest.
+    const stepped = stepAa(aaState, owners, targets, tick, dt, live, surfaceTargets)
+    aaState = stepped.aa
+    for (const r of stepped.rounds) {
+      if (flying.length >= MAX_PROJECTILES) break
+      flying.push({ p: { ...r, id: nextId++ }, dt, start: 0 })
     }
   }
 

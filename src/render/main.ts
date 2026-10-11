@@ -7,6 +7,7 @@ import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } 
 import { entityViews } from './mission/entityViews.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
+import { applyShipGunLaying } from './scene/shipGunLaying.js'
 import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
@@ -2711,6 +2712,7 @@ async function boot(): Promise<void> {
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction, floodListRad(damage, s.spec.hullHp))
+      applyShipGunLaying(s.id, shipHandles[i]!.mounts, view.world.combat.aa.laying)
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the
     // CURRENT `World.combat.structures` map unconditionally every frame

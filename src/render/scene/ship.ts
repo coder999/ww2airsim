@@ -33,7 +33,7 @@ export interface ShipView {
   /** `listRad`: a flooded hull's list, positive to starboard (`floodListRad`, D3 T3). */
   setDamage(fire: number, sinkingFraction: number, listRad?: number): void
   /** Every instanced gun mount (Track M, M1): one per armament locator with a kit, bow to stern
-   *  within Turret / HeavyAA / LightAA. Empty for the boxes. Nothing trains them until M3. */
+   *  within Turret / HeavyAA / LightAA. Empty for the boxes. M3 drives these from `CombatState.aa.laying`. */
   readonly mounts: readonly ShipMountView[]
   /** Idempotent. A model view RELEASES its shared instance; it never disposes it (modelCache.ts). */
   dispose(): void

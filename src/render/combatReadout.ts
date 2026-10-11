@@ -108,7 +108,12 @@ export type CombatDiagnostics = {
    *  the flak bursts in the impact ring, so an E2E spec can read that the guns are firing instead of comparing pictures. */
   readonly aa: { readonly rounds: number; readonly pendingBursts: number; readonly firing: number; readonly burstsRecent: number
     /** M5: the Difficulty's AA error scale on the guns facing the player (`AaState.errorScaleVs`); 1 at Veteran. */
-    readonly errorScale: number }
+    readonly errorScale: number
+    /** M3: bounded current ship-mount poses, for wiring/capture inspection rather than pixel inference. */
+    readonly laying: readonly {
+      readonly shipId: string; readonly name: string; readonly targetId: string
+      readonly targetKind: 'aircraft' | 'ship' | 'structure'; readonly trainingRad: number; readonly elevationRad: number
+    }[] }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -145,6 +150,7 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       firing: combat.aa.firing.length,
       burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
       errorScale: combat.aa.errorScaleVs?.scale ?? 1,
+      laying: Object.entries(combat.aa.laying).flatMap(([shipId, poses]) => poses.map((pose) => ({ shipId, ...pose }))),
     },
   }
 }
