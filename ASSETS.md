@@ -51,7 +51,8 @@ AGPL-3.0-or-later. The layout is period-inspired, not a surveyed 1944 reconstruc
 | `content/aircraft/p-38-lightning.glb` | authored in Blender by `tools/models/blender/p-38-lightning.py` from the cited dimensions in its header (English Wikipedia, P-38L specifications); every estimate labeled there | authored for this project | AGPL-3.0-or-later |
 | `content/ships/essex-cv.glb` | original Blender model from the cited dimensions and class general-arrangement references in `tools/models/blender/essex-cv.py` (Track M, M1f, 2026-10-09; it replaced the KTKloss download below, kept as a proportions reference only) | authored for this project | AGPL-3.0-or-later |
 | (retired) `tools/models/cache/enterprise-cv6.glb`, not shipped | https://sketchfab.com/3d-models/uss-enterprise-model-for-small-scale-printing-bf79e093d4c94b0eb02097c178dd6e98 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/); shipped as `content/ships/essex-cv.glb` from Track M's M1 (2026-10-08) to M1f (2026-10-09), now only a proportions reference for the Blender rebuild, so no credit is carried |
-| `content/ships/fletcher-dd.glb` | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1, 2026-10-08): gun mounts carved into instanced kits, missing AA kits added |
+| `content/ships/fletcher-dd.glb` | original Blender model measured from the 1944 U.S. Navy Bureau of Ships Measure 32 Design 13D class drawing and the cited dimensions in `tools/models/blender/fletcher-dd.py` (2026-10-11; every estimate labeled there) | authored for this project | AGPL-3.0-or-later |
+| (retired) `tools/models/cache/fletcher-dd.glb`, not shipped | https://sketchfab.com/3d-models/fletcher-5cddc3309139413e8c08462c8741b884 | JZHU (@hellomynameis.jeffz) | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/); shipped through 2026-10-11, now only a proportions reference for the Blender rebuild, so no credit is carried |
 | `content/ships/type-b-maru.glb` | https://sketchfab.com/3d-models/liberty-ship-a1db8e8414464c5d8b11383e202fcf26 | AlanTinka | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; modified for this project (Track M, M1f, 2026-10-09): the download's US ensign removed, so the ship can serve either side |
 | `content/ships/zuikaku-cv.glb` | https://sketchfab.com/3d-models/ijn-shoukaku-model-for-14000-printing-208f8ceb4ac84ad08b439bdba9a20dc9 | KTKloss | CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/), author credit required; license and authorship read from api.sketchfab.com 2026-10-09 (the author describes building it from the US Navy recognition manual, as with the other four KTKloss ships); modified for this project (Track M, M1e, 2026-10-09): Shōkaku shown as her sister Zuikaku, the model's own 12.7 cm and 25 mm guns removed for instanced kits, box-skinned and baked, camouflage painted |
 | `content/ships/cleveland-cl.glb` | original Blender model from the cited dimensions and class general-arrangement references in `tools/models/blender/cleveland-cl.py` (Track M, M1f, 2026-10-09; it replaced the KTKloss download below, kept as a proportions reference only) | authored for this project | AGPL-3.0-or-later |
@@ -120,8 +121,8 @@ telescoping out over the last quarter of the gear's travel. The long legs park
 the drawing at Grumman's static ground angle of 12°20′, where the model's own
 legs give 7.43°. The glb file itself is unchanged.
 
-The three ship glbs (S1, 2026-09-25) are built by `npm run models:build` from
-`tools/models/entries/{essex-cv,fletcher-dd,type-b-maru}.json`. Each license
+The three ship glbs (S1, 2026-09-25) were initially built by `npm run models:build` from
+`tools/models/entries/{essex-cv,fletcher-dd,type-b-maru}.json`. Each download license
 was read from `api.sketchfab.com/v3/models/<uid>` on the fetch date,
 2026-09-25, and re-read at build time the same day: CC BY 4.0, downloadable, unpriced. The
 build changed each download: it fitted it to its `content/ships/*.json`
@@ -132,8 +133,9 @@ re-encoded textures as WebP. Two were stand-ins: USS Enterprise (CV-6),
 Yorktown class, 15,339 triangles, rendered as the Essex-class `essex-cv`, with
 a 3 m skirt below its waterline cut (retired 2026-10-09: M1f rebuilt `essex-cv`
 in Blender); and a Liberty ship, 42,735 triangles,
-rendered as the Japanese Type B freighter `type-b-maru`. The Fletcher, 43,316
-triangles, is its own class. `src/render/scene/ship.ts`'s procedural hulls stay
+rendered as the Japanese Type B freighter `type-b-maru`. The Fletcher download,
+43,316 triangles, was its own class; it was retired as a shipped asset when the
+measured original Blender model replaced it on 2026-10-11. `src/render/scene/ship.ts`'s procedural hulls stay
 as the fallback for a ship with no model.
 
 The seven R3 aircraft downloads (2026-09-27) are built by `npm run

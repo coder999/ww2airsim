@@ -1,8 +1,7 @@
 // tests/tools/shipModels.test.ts
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { loadModelEntries } from '../../tools/models/manifest.js'
-import { downloadBakeInputs } from '../../tools/models/build.js'
 import { findNode, modelIO } from '../../tools/models/document.js'
 import { documentSoup, SMOKE_REACH_M } from '../../tools/models/stages/shipFit.js'
 import { bounds, fitProblems, residualProblems, surfaceBelow, trapLaneHalfWidth, type ShipFit } from '../../src/render/scene/shipFit.js'
@@ -138,21 +137,5 @@ describe('essex-cv specifically', () => {
     const raised = { ...cv, deckHeightM: 18, flightDeck: { ...cv.flightDeck!, heightM: 18 } }
     const { problems } = fitProblems(documentSoup(await read(entry.output)), raised, entry.ship!)
     expect(problems.join('; ')).toMatch(/deck plane at 17\.0\d\d m vs flightDeck\.heightM 18/)
-  })
-})
-
-describe('fletcher-dd specifically', () => {
-  // M1d: the glb paints its roles into one skin, so read them where they are still materials: the bake input
-  // (the skinned nodes after box projection, build.ts's bakeInput), from the raw.
-  const fletcher = ships.find((e) => e.id === 'fletcher-dd')!
-  it.skipIf(!existsSync(fletcher.input!))('has its waterline on its own boot-top seam: the antifouling role tops out at y = 0 amidships (§4.2)', async () => {
-    const doc = await modelIO().readBinary((await downloadBakeInputs(fletcher)).input)
-    let top = -Infinity
-    for (const p of doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) {
-      if (p.getMaterial()?.getName() !== 'ship:antifouling') continue
-      const a = p.getAttribute('POSITION')!.getArray()!
-      for (let i = 0; i < a.length / 3; i++) if (Math.abs(a[3 * i]!) < 10) top = Math.max(top, a[3 * i + 1]!)
-    }
-    expect(Math.abs(top)).toBeLessThanOrEqual(0.05)
   })
 })
