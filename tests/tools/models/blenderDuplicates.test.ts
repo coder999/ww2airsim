@@ -25,6 +25,20 @@ const DUPLICATES: readonly { spec: string; model: string; skin: string; station?
 ]
 const TOLERANCE_M = 0.05
 
+it('the A6M2 outer aft fuselage keeps the drawing-measured depth and width six meters aft of the spinner', async () => {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/a6m2-zero-blender.glb')))
+  const skin = doc.getRoot().listNodes().find((n) => n.getName() === 'a6m2b_dark')
+  expect(skin, 'no A6M2 whole-skin node').toBeDefined()
+  const x = 2.22 - 6.0 // drawing-measured wing quarter-chord origin is 2.22 m aft of the spinner
+  const section = worldPositions(skin!).filter(([px]) => Math.abs(px - x) <= 0.03)
+  expect(section.length, 'no vertices at the authored 6.0 m aft station').toBeGreaterThan(20)
+  // Wikimedia Commons "Mitsubishi A6M Zero drawing.svg", re-read 2026-10-11: the visible outer belly is
+  // -0.49 m from the thrust line and the half-width is 0.35 m here. The former table accidentally followed
+  // internal lines at +0.25 m / 0.18 m. Tolerances cover pixel rounding and the loft's finite ring sampling.
+  expect(Math.min(...section.map((p) => p[1])), 'aft belly relative to the thrust line').toBeLessThanOrEqual(-0.40)
+  expect(Math.max(...section.map((p) => Math.abs(p[2]))), 'aft half-width').toBeGreaterThanOrEqual(0.32)
+})
+
 describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye }) => {
   const spec = loadAircraftSpec(specId)
 

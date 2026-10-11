@@ -167,6 +167,11 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
   a plausible table into a bumpy fuselage. Correct bad measurements first. For a measured station table that must
   remain inside each authored interval, use `fuselage(..., refinement='shape')` and use `kit._refine_shape` for any
   matching surface-height lookup in the model script. Judge the result in side, top and three-quarter views.
+- **Trace the outer mold line, not the nearest continuous line.** Orthographic drawings also show longerons, panel
+  seams, fairing edges and surfaces behind the fuselage. The first Zero duplicate followed an internal line as the
+  belly and inner plan-view lines as width, reducing a roughly 3 ft-deep aft body to a strip. Mark candidate pixels
+  across several stations, follow each line to a feature you can identify, and confirm the selected envelope against
+  an oblique photograph before converting it to ordinates.
 - **Seat attached parts on the actual local skin.** Compute a turret base, fixed strut root, spat brace or canopy rail
   from the same refined fuselage/wing stations that draw the supporting surface. Sink the join slightly into that
   surface. The B-17 upper turret and D3A fixed gear showed why a plausible world-space height is not enough.

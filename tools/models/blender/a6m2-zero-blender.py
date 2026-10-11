@@ -28,7 +28,9 @@ Each view has its own scale. Side view: spinner tip x=25 px, tail x=1,380 px, th
   0.006686 m/px. Top view: spinner tip x=25 px, tail x=1,474 px, centerline y=1,424 px,
   0.006253 m/px. The top view at 30% semispan has leading/trailing edges x=296/630 px; quarter chord
   is 2.22 m aft of the spinner tip, which is the model origin.
-Nose-relative stations in meters, side view; top/bottom are relative to the thrust line. Canopy is separate:
+Nose-relative stations in meters, side view; top/bottom are the outer mold line relative to the thrust line.
+The 2026-10-11 tail repair re-read the original pixels after Mark found the aft body pinched to a strip: the first
+pass had followed internal longitudinal/panel lines as the belly. Canopy is separate:
   aft     top    bottom
   0.70   +0.58   -0.64
   1.30   +0.61   -0.65
@@ -38,14 +40,23 @@ Nose-relative stations in meters, side view; top/bottom are relative to the thru
   3.10   +0.57   -0.60   canopy crown +1.00
   3.60   +0.56   -0.58   canopy crown +0.92
   4.10   +0.58   -0.42   canopy crown +0.82
-  4.55   +0.61   -0.16   canopy rear +0.70 / turtledeck
-  5.20   +0.57   +0.29
-  6.00   +0.52   +0.25
-  6.80   +0.45   +0.22
-  7.50   +0.40   +0.20
+  4.55   +0.55   -0.55   canopy rear +0.70 / turtledeck
+  5.20   +0.57   -0.54
+  5.50   +0.55   -0.52
+  6.00   +0.52   -0.49
+  6.50   +0.47   -0.45
+  6.80   +0.45   -0.41
+  7.00   +0.36   -0.39
+  7.50   +0.26   -0.34
+  8.00   +0.20   -0.27
+  8.40   +0.14   -0.19
 Top-view fuselage half-widths, same nose-relative stations (meters):
-  0.70 0.54; 1.30 0.52; 2.00 0.51; 2.70 0.49; 3.50 0.47; 4.50 0.45;
-  5.50 0.17; 6.50 0.10; 7.50 0.06; 8.40 0.03; 9.06 0.02.
+  0.70 0.54; 1.30 0.52; 2.00 0.51; 2.70 0.49; 3.50 0.47; 4.55 0.46;
+  5.20 0.42; 5.50 0.38; 6.00 0.35; 6.50 0.32; 6.80 0.29; 7.00 0.26;
+  7.50 0.12; 8.00 0.08; 8.40 0.05; 9.06 0.02.
+The top-view fuselage boundary is hidden by the tailplane around 7.5 m, so the 0.12 m half-width there is
+ESTIMATE, checked against the 1942 photograph of the Akutan A6M2 and a Model 21 tail photograph on Commons;
+all other aft stations above are MEASURED from the drawing's visible outer line (read 2026-10-11).
 The windscreen front is 2.17 m aft of the spinner tip, crown 1.00 m at 2.75-3.10 m, canopy rear 4.55 m;
 the proposed real-cockpit eye is (-0.88, 0.70, 0), 0.30 m below the crown. Fin and tailplane were
 read from the same drawing: fin leading edge about 7.05 m aft, height about 1.2 m above the spine;
@@ -84,13 +95,17 @@ WING_Y = -0.052                # ESTIMATE: wing root chord below the thrust line
 # Read off the real airplane's Commons 'Mitsubishi A6M Zero drawing.svg' three-view,
 # measured 2026-10-11: (d aft of the spinner tip, half-width, half-height, center y), all of LENGTH.
 FUSELAGE = [
-    (1.0000, 0.0022, 0.0110, 0.0276, 2.2),
-    (0.9272, 0.0044, 0.0077, 0.0298, 2.2),
-    (0.8278, 0.0066, 0.0110, 0.0331, 2.2),
-    (0.7506, 0.0110, 0.0132, 0.0364, 2.2),
-    (0.6623, 0.0199, 0.0155, 0.0425, 2.2),
-    (0.5739, 0.0353, 0.0199, 0.0475, 2.2),
-    (0.4967, 0.0497, 0.0497, 0.0160, 2.2),
+    (1.0000, 0.0022, 0.0132, 0.0022, 2.2),
+    (0.9272, 0.0055, 0.0182, -0.0028, 2.2),
+    (0.8830, 0.0088, 0.0260, -0.0039, 2.2),
+    (0.8278, 0.0132, 0.0331, -0.0044, 2.2),
+    (0.7726, 0.0287, 0.0414, -0.0017, 2.2),
+    (0.7506, 0.0320, 0.0475, 0.0022, 2.2),
+    (0.7174, 0.0353, 0.0508, 0.0011, 2.2),
+    (0.6623, 0.0386, 0.0552, 0.0017, 2.2),
+    (0.6071, 0.0419, 0.0591, 0.0017, 2.2),
+    (0.5739, 0.0464, 0.0613, 0.0017, 2.2),
+    (0.5022, 0.0508, 0.0607, 0.0000, 2.2),
     (0.3863, 0.0519, 0.0607, 0.0055, 2.2),
     (0.2980, 0.0541, 0.0662, -0.0011, 2.2),
     (0.2208, 0.0563, 0.0673, 0.0022, 2.1),
@@ -110,7 +125,7 @@ CANOPY = [
 ]
 CANOPY_FRAMES = tuple(NOSE_X * LENGTH - d for d in (4.10, 3.60, 3.10, 2.75, 2.45))
 TAILPLANE = dict(span=0.335, le=0.720, root=0.200, taper=0.48, y=0.0276, sweep=8.0)
-FIN = dict(root=0.222, taper=0.32, height=0.140, y=0.0386)
+FIN = dict(root=0.222, taper=0.32, height=0.163, y=0.0155)
 PROP = dict(hub=0.030, chord=0.025, spinner_r=0.029, spinner_len=0.040)
 # x and bottom are FITTED to the spec; z, wheel and hinge placement are ESTIMATE.
 GEAR = dict(x=0.182, z=0.145, bottom=2.025, wheel_r=0.305, wheel_w=0.16)
@@ -137,7 +152,7 @@ def X(f):
     return (NOSE_X - f) * L
 
 
-_FUS, _ = kit._refine([(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], SUBDIVIDE)
+_FUS, _ = kit._refine_shape([(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], SUBDIVIDE)
 
 
 def fus_section(f):
@@ -180,7 +195,7 @@ def wing_y(z):
 
 with m.tagged('fuselage'):
     m.fuselage(UPPER, [(X(f), w * L, h * L, y * L, n) for f, w, h, y, n in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE,
-               lower_role=LOWER)
+               lower_role=LOWER, refinement='shape')
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = WING_Y * L + 0.55 * ROOT_T * root_chord - FILLET['half_h'] * L
     fz = fus_side_z(mid, fy) + FILLET['half_w'] * L - 0.08
