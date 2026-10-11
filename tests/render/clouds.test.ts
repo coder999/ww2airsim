@@ -7,10 +7,17 @@ import { LOD } from '../../src/render/terrain/lod.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { loadCumulus, loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { cloudRendererFromQuery } from '../../src/render/scene/takramCloudPass.js'
 
 const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
 describe('clouds (Plan 16a)', () => {
+  it('keeps the legacy renderer unless the Takram integration is explicitly selected', () => {
+    expect(cloudRendererFromQuery('')).toBeUndefined()
+    expect(cloudRendererFromQuery('?cloudRenderer=legacy')).toBe('legacy')
+    expect(cloudRendererFromQuery('?cloudRenderer=takram')).toBe('takram')
+    expect(() => cloudRendererFromQuery('?cloudRenderer=unknown')).toThrow(/cloudRenderer/)
+  })
   it('has three tiers that march fewer steps as they descend', () => {
     expect(CLOUD_TIERS.high.cumulusSteps).toBeGreaterThan(CLOUD_TIERS.medium.cumulusSteps)
     expect(CLOUD_TIERS.medium.cumulusSteps).toBeGreaterThan(CLOUD_TIERS.low.cumulusSteps)

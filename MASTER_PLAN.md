@@ -246,6 +246,20 @@ step list and its order; this track does not restate it.** In outline:
 H0's margin was met 2026-10-10 (every High view inside 7.5 ms but in-deck-1900, which has its own 10.0 ms gate), so cloud features can land; each still answers to `budget.spec.ts`. Expect a plan per step, not
 one plan for the lot.
 
+**Plain-cloud game integration complete, opt-in, 2026-10-10:** the accepted
+Takram port now flies in the real game behind `?cloudRenderer=takram`; legacy
+remains the DEV and production default and nothing was deployed. The native
+pass consumes game color/reversed depth, follows the game camera, sun, scenario
+coverage and cumulus base, resets temporal history on cuts, and preserves the
+aircraft/terrain/effects composite. Mark accepted the broad soft edge; the dense
+center's slight out-of-focus look and small residual breakup on thin wisps are
+recorded compromises. Thunderheads and the reference cirrus layer are deferred.
+Locked RX 6700 XT, 2560x1440 High: native clouds 2.016 ms GPU p95; conservative
+whole-frame estimate 4.759 ms. Next checkpoint is Mark's normal flight verdict,
+not more unattended visual tuning. Plan and handoff:
+`docs/superpowers/plans/2026-10-10-k-clouds-v3-game-integration.md` and
+`docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
+
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**

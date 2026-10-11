@@ -8,6 +8,21 @@ discipline of adding a row.
 
 Third-party code must be AGPL-compatible (MIT, BSD, Apache-2.0 are).
 
+## Volumetric cloud assets
+
+The opt-in native WebGPU cloud renderer loads five data textures from
+`content/clouds/takram/`. Four are unmodified assets used by
+`@takram/three-clouds` 0.7.6; `shape-average-mips.bin` is a deterministic
+average-density mip chain generated from Takram's `shape.bin`. The ported
+shader code is an original WGSL implementation guided by the MIT-licensed
+Takram source.
+
+| Asset | Source | Author | License |
+| --- | --- | --- | --- |
+| `content/clouds/takram/{local_weather.png,shape_detail.bin,turbulence.png}` | `takram-design-engineering/three-geospatial` commit `45a1c6c1bb9fd38b3680fd120795ff4c32df68ff`, `packages/clouds/assets/` | Takram | MIT |
+| `content/clouds/takram/shape-average-mips.bin` | Deterministic average-density mip chain generated from Takram's `shape.bin` at the commit above | Takram source; generated for ww2airsim | MIT, as the source texture |
+| `content/clouds/takram/stbn.bin` | Asset loaded by the pinned Takram reference at commit `07db2d1194c5ae8c3c1dfd55aa77d3cd6071517a`; NVIDIA spatiotemporal blue-noise data distributed by `@takram/three-geospatial` | NVIDIA / Takram packaging | MIT distribution in `@takram/three-geospatial` |
+
 ## 3D models
 
 Original procedural airfield structures and instanced tree geometry in

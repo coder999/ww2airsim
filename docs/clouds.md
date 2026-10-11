@@ -5,7 +5,7 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-09-26 at E1 implementation head `28f50ea`; §3.10 records the effects
+on 2026-10-10 for the opt-in Takram game integration; §3.10 records the effects
 dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
@@ -54,6 +54,33 @@ relevant section here in the same commit.
   `cloud-vdb-photo-2026-09-26`), and in-cloud flight on High ("no
   apparent loss of fps", 2026-09-26, after the fixes in §3.8).
 
+### 1.1 Takram replacement, opt-in game integration (2026-10-10)
+
+`?cloudRenderer=takram` selects the fresh native-WebGPU cloud path in DEV;
+omitting it selects `legacy`. Production builds also select `legacy`, so this
+checkpoint changes neither the shipped default nor a deployment. The new pass:
+
+- faithfully adapts the accepted Takram density, lighting and temporal model;
+- marches at one-sixth resolution, reconstructs temporally, then composites at
+  full resolution against the game's color and reversed-depth targets;
+- follows the actual game camera, sun, scenario cumulus base and coverage, and
+  resets history on camera cuts;
+- renders only the plain cumulus layer. The Takram reference cirrus layer is
+  intentionally disabled and thunderheads remain deferred;
+- retains the existing cloud-shadow path for this checkpoint.
+
+The integrated result passed below/in/above-deck flight captures. Mark accepted
+the softened edge treatment as "way better" and the clouds as substantially
+better than their predecessor. The deliberate broad resolve filter also makes
+the dense center look slightly out of focus; keep that as a known compromise.
+Some residual softness/pixel breakup can remain on the thinnest moving wisps.
+
+The locked RX 6700 XT 2560x1440 High measurement was 2.016 ms native-cloud GPU
+p95. The conservative estimated whole frame was 4.759 ms (2.743 ms base with
+clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
+8.33 ms whole-frame gate. See
+`docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
+
 ## 2. Where it lives
 
 | Concern | File |
@@ -61,6 +88,7 @@ relevant section here in the same commit.
 | Tiers, the march, light march, early-outs | `src/render/scene/clouds.ts` |
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |
+| Opt-in Takram raw-WebGPU pass and game adapter | `src/render/scene/takramCloudPass.ts`, `takramGameShaders.ts` |
 | History targets | `src/render/scene/cloudHistory.ts` |
 | Effects dense depth, the cloud march limit's second input | `src/render/fx/fxPass.ts` (`FxCloudLimit`) |
 | Shadow map (sun-view transmittance) | `src/render/scene/cloudShadow.ts` |
@@ -70,7 +98,7 @@ relevant section here in the same commit.
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()`, `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudRenderer=legacy\|takram`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes renderer and Takram GPU time), `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 
@@ -340,6 +368,7 @@ reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |
 | 9 | **Docs debt:** photoreal Task 14 (handoff, supersede notes) never run, re-filed into `MASTER_PLAN.md` track H0 (2026-10-08); 16d documents lack "superseded" | Housekeeping |
 | 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Fixed 2026-10-08 by A2 (`7249619f`): `loadScenario` applies the new scenario's weather; the cloud pass is routed into the output only while there is a deck | Fixed (2026-10-08) |
+| 11 | **Takram resolve softens the dense cloud center and the thinnest moving wisps can retain slight breakup.** This is the accepted trade for eliminating the harsh pixelated/flickering boundary in the initial port | Accepted for the opt-in checkpoint; revisit only after flight evaluation |
 
 ## 6. Proposed next steps
 
@@ -347,38 +376,45 @@ In the order I would take them. Items marked (Mark) need his decision first.
 
 1. **Boot-freeze fix (issue 1): done.** `db044e1` is on `main` (checked
    2026-10-08).
-2. **Measure High in-cloud frame pacing** (issue 4): p50, p95 and p99, plus
+2. **Fly the opt-in Takram path in normal play.** Judge motion, aircraft/effect
+   ordering, weather transitions and the accepted soft-core trade before making
+   it the default. Do not start thunderheads until the plain-cloud result is
+   accepted in the game.
+3. **Measure legacy High in-cloud frame pacing** (issue 4): p50, p95 and p99, plus
    frame-to-frame deltas, in-deck on the reference GPU. If the variance is
    still large, the next lever is the amortized schedule inside cloud.
-3. **Auto tier (Mark)** (issue 2): measure after New game, show the chosen
+4. **Auto tier (Mark)** (issue 2): measure after New game, show the chosen
    tier, and add an E2E test that Mark's Chrome gets High. This does
    more for how the clouds look on his desktop than any shader work.
-4. **Low edge shimmer** (issue 3): try a neighborhood-clamped history on
+5. **Low edge shimmer** (issue 3): try a neighborhood-clamped history on
    Low, or a slightly higher Low resolution within its budget. Check each
    back-to-back against a frozen-scene flicker burst (the method in §3.8).
-5. **Win back margin on `photo`/High** (issue 5): priced by H0 (2026-10-10,
+6. **Win back margin on legacy `photo`/High** (issue 5): priced by H0 (2026-10-10,
    `docs/handoff/2026-10-08-h0-render-budget.md`). The immediate marches at
    cloud silhouettes are the biggest single cost (1.3-3.2 ms at 1440p High);
    Mark took the skip as the default on 2026-10-10, accepting more frozen-scene
    edge flicker; DEV `?h0EdgeMarch=1` compares. Not yet tried: cheaper
    archetype reads.
-6. **Unify the GPU lock file** across sessions, and chase the
+7. **Unify the GPU lock file** across sessions, and chase the
    `waitForTerrain` flake.
-7. **Housekeeping** (issue 9), and the stale comments listed in the
+8. **Housekeeping** (issue 9), and the stale comments listed in the
    2026-09-26 reconciliation.
-8. **Look pass with Mark (Mark)** (issues 6 and 7): one sitting, a fixed set
+9. **Look pass with Mark (Mark)** (issues 6 and 7): one sitting, a fixed set
    of back-to-back captures, decisions recorded here.
 
 ## 7. Outside references
 
-Repositories and papers looked at for ideas. This project is clean-room
-and AGPL-3.0: **no code or data from any of these is in the repo**. Every
-shipped asset is generated by `tools/sky/` (see `content/sky/NOTICE.md`).
+Repositories and papers looked at for ideas. The legacy renderer is clean-room.
+The opt-in replacement is an original WGSL port guided by Takram's MIT source
+and uses the Takram/NVIDIA data assets recorded in `ASSETS.md`; no code or data
+from the other references is in the repo. Legacy assets are generated by
+`tools/sky/` (see `content/sky/NOTICE.md`).
 Licenses were checked on GitHub on 2026-09-26. A repo with no license is
 all-rights-reserved: read it for technique, never copy from it.
 
 | Source | What it is | License | Relevance |
 | --- | --- | --- | --- |
+| [takram-design-engineering/three-geospatial](https://github.com/takram-design-engineering/three-geospatial) | The accepted continuous volumetric density, lighting and temporal reference used by the native WebGPU port | MIT | Ported behind `?cloudRenderer=takram`; exact asset provenance is in `ASSETS.md` |
 | [FarazzShaikh/three-volumetric-clouds](https://github.com/FarazzShaikh/three-volumetric-clouds) | Experimental Three.js (WebGL) clouds after Guerrilla's *Nubis, Evolved*: envelope model, Perlin-Worley 3D noise, envelope erosion, adaptive-step ray marching, multi-scatter and anisotropic phase. Self-described as unfinished (last push 2024-09) | **none** | Closest in spirit to our archetype-per-cell envelope (§3.6) and adaptive stepping |
 | [Spiri0/volumetric-clouds](https://github.com/Spiri0/volumetric-clouds) | A simple volumetric-cloud implementation with a live demo; the author's focus moved to WebGPU (last push 2024-09) | MIT | A baseline comparison; nothing adopted |
 | [CK42BB/procedural-clouds-threejs](https://github.com/CK42BB/procedural-clouds-threejs) | A Claude Code "skill" teaching Three.js clouds: WebGPU/TSL raymarching (Beer-Lambert, HG phase, light march), mesh and billboard fallbacks, all ten genera, time-of-day palettes, WGSL compute noise | MIT | Its cloud-genera parameter notes (`references/cloud-types.md`) are a reasonable source if we ever add genera beyond cumulus and cirrus |

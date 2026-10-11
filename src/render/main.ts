@@ -48,6 +48,9 @@ import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './f
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
+import {
+  cloudRendererFromQuery, createTakramCloudPass, loadTakramCloudAssets, type CloudRendererName, type TakramCloudPass,
+} from './scene/takramCloudPass.js'
 import { FX_CATALOG } from './fx/catalog.js'
 import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
 import { createFxPass, type FxPass } from './fx/fxPass.js'
@@ -1174,11 +1177,13 @@ async function boot(): Promise<void> {
       ordnanceView: () => ordnance.view(camera, window.innerHeight),
       // Plan 16a: which deck is up and at what tier; `off` under `?cloudTier=off`.
       clouds: () => ({
-        layers: cloudLayers, tier: cloudTier, steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
+        layers: cloudLayers, tier: cloudTier, renderer: cloudRenderer,
+        steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
         // Plan 16b: what the shadow pass is doing, for the E2E budget.
         shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
+        takramGpuMs: takramCloudPass?.gpuTimesMs() ?? [],
         composited: cloudPass !== null && routedOutput === cloudPass.composite,
       }),
       // Visual realism §2.1: read through the same closure-after-boot shape as
@@ -1365,6 +1370,7 @@ async function boot(): Promise<void> {
   const skyNoise = await skyNoiseLoading
   boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
+  const cloudRenderer: CloudRendererName = import.meta.env.DEV ? cloudRendererFromQuery(location.search) ?? 'legacy' : 'legacy'
   if (import.meta.env.DEV) applyCloudTune(location.search) // H0 lever pricing, before any tier is read
   cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
@@ -1455,6 +1461,7 @@ async function boot(): Promise<void> {
   // Plan 16a. `?cloudTier=off` is the DEV control for measuring a scene
   // with and without the pass; the field itself was made above the terrain.
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
+  const takramAssets = cloudRenderer === 'takram' ? await loadTakramCloudAssets(renderer) : null
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(terrain.wholeLevel), shadow)
@@ -1521,7 +1528,8 @@ async function boot(): Promise<void> {
     vegetation?.setTier(name)
     if (forcedTerrainTextures === undefined) terrain.setSurfaceDetail(name !== 'low')
   }
-  let cloudPass: CloudPass | null = null
+  let cloudPass: CloudPass | TakramCloudPass | null = null
+  let takramCloudPass: TakramCloudPass | null = null
   let fxSystem: FxSystem | null = null
   let fxPass: FxPass | null = null
   let fxSheets: FxSheetTextures | null = null
@@ -1718,10 +1726,21 @@ async function boot(): Promise<void> {
   // A2: built for a clear sky too, since a scenario switch can bring a deck;
   // `routeOutput` composites it only while there is one, so a clear sky pays
   // no march per frame (the 2026-09-26 6.9 vs 2.0 ms finding, clouds.md #10).
-  cloudPass = cloudTier === 'off' ? null : createCloudPass({
-    clouds, camera, sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
-    fxLimit: fxPass?.cloudLimit ?? null,
-  })
+  if (cloudTier !== 'off') {
+    if (cloudRenderer === 'takram') {
+      if (takramAssets === null) throw new Error('Takram cloud assets were not loaded')
+      takramCloudPass = createTakramCloudPass({
+        renderer, assets: takramAssets, camera,
+        sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+      })
+      cloudPass = takramCloudPass
+    } else {
+      cloudPass = createCloudPass({
+        clouds, camera, sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+        fxLimit: fxPass?.cloudLimit ?? null,
+      })
+    }
+  }
   if (cloudPass !== null && cloudTier !== 'off') {
     cloudPass.setResolutionScale(CLOUD_TIERS[cloudTier].resolutionScale)
     cloudPass.setUpdatePeriod(CLOUD_TIERS[cloudTier].updatePeriod)
@@ -3053,6 +3072,9 @@ async function boot(): Promise<void> {
     framePipeline.setExposure(exposureFor(elevationDeg))
     sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
     clouds.update(view.eye.position, skyTimeS, view.world.wind)
+    takramCloudPass?.setEnvironment(
+      skyTimeS, direction, cumulusCover(cloudLayers), cloudLayers.find(layer => layer.kind === 'cumulus')?.baseM ?? 750,
+    )
     for (const cascade of cascades) {
       cascade.dispatch(skyTimeS)
     }
