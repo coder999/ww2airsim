@@ -497,7 +497,28 @@ export type Ww2Diagnostics = {
    *  elevation and azimuth (degrees, azimuth from north clockwise) and the
    *  unit direction toward it in the world frame (+z south). */
   readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number } }
+  /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the
+   *  frame submitted (`main.ts`'s `cpuFrameSamples` says how each is taken). Reset by `resetFrameTimes`. */
+  readonly cpuFrameSamples: () => readonly CpuFrameSample[]
+  /** Stops (false) or resumes GPU timestamp sampling, which serializes frames on its resolve while on;
+   *  a CPU-cost window turns it off. Writes nothing the sim or the picture reads. */
+  readonly setGpuSampling: (on: boolean) => void
+  /** Entity-scaling plan: the scenario's airframes and hulls, how many have their origin inside the
+   *  camera's view, how many airplanes are down, and the rounds in flight. */
+  readonly entityCounts: () => { readonly aircraft: number; readonly ships: number; readonly aircraftInView: number; readonly shipsInView: number; readonly aircraftDown: number; readonly projectiles: number }
   readonly resetFrameTimes: () => void
+}
+
+export type CpuFrameSample = {
+  /** `frameFn` start to end, ms: the main thread's whole frame, render submission included. */
+  readonly workMs: number
+  /** The `nextFrameState` part of `workMs`: the sim's `advance` and the frame bookkeeping around it. */
+  readonly simMs: number
+  /** Sim ticks that frame ran. */
+  readonly ticks: number
+  readonly rendered: boolean
+  readonly drawCalls: number
+  readonly triangles: number
 }
 
 /**

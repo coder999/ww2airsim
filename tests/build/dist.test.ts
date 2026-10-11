@@ -10,6 +10,7 @@ import { AIRCRAFT_CONTENT_PATH, CURL_NOISE_PATH, finestFetchedLevelFor, INTERIM_
 import { AircraftSpecSchema } from '../../src/sim/flight/schema.js'
 import { BEAUFORT_PARAM } from '../../src/render/ocean/weather.js'
 import { EXCLUDED_CONTENT_DIRS, GA4_HOSTS, GA4_MEASUREMENT_ID } from '../../vite.config.js'
+import { SWARM_PARAMS } from '../../src/sim/swarm.js'
 import { SPAWN_PARAMS } from '../../src/render/spawn.js'
 import { coarsestFetchedLevel } from '../../src/render/terrain/lod.js'
 import { TERRAIN_HEADER } from '../../src/render/terrain/load.js'
@@ -425,6 +426,10 @@ describe('the built artifact', () => {
       // rather than by three literals -- renaming one in `spawn.ts` must not
       // quietly narrow what this test looks for.
       for (const name of SPAWN_PARAMS) {
+        expect(bundle.includes(name), `\`${name}\` reached the production bundle`).toBe(false)
+      }
+      // The entity-scaling swarm (sim/swarm.ts), by the names `swarmFromQuery` parses.
+      for (const name of Object.values(SWARM_PARAMS)) {
         expect(bundle.includes(name), `\`${name}\` reached the production bundle`).toBe(false)
       }
     } finally {
