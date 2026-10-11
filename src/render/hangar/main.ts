@@ -17,6 +17,7 @@ import { benchEnabled } from './benchFlag.js'
 import { installHangarHooks, type HangarWindow } from './hooks.js'
 import { loadRegisteredAirframe } from '../scenarioEntities.js'
 import { makeShipViewLoader } from '../scene/shipModels.js'
+import './hangar.css'
 
 /**
  * hangar.html's entry: the object library and articulation bench (Hangar
@@ -42,16 +43,11 @@ async function boot(): Promise<void> {
     return
   }
 
-  // minmax(0, ...) on both tracks: a grid item's default min size is its
-  // content, so the canvas's own pixel width would otherwise widen its column
-  // past the window and the panel would grow to the list's full height
-  // (measured 2026-09-25: canvas right edge at 1660 px in a 1280 px window).
-  // The third track is the details panel (panel.ts): empty until the first pick, then its own width.
-  root.style.cssText = 'display:grid;grid-template-columns:380px minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);height:100%'
+  // Desktop is the original three-column list / model / details arrangement. At phone widths the
+  // same DOM becomes a compact picker / model / bottom-sheet stack (hangar.css).
+  root.className = 'hangar-layout'
   const canvas = document.createElement('canvas')
   canvas.id = 'hangar-canvas'
-  // Placed explicitly: the empty-bay prompt shares this cell, and auto-placement would move one aside.
-  canvas.style.cssText = 'grid-area:1/2;width:100%;height:100%;display:block;min-width:0;min-height:0'
   const { renderer, adapterVerdict } = await initRenderer(canvas)
   // initRenderer sizes the canvas to the whole window, inline style included
   // (renderer.ts's setSize); here it fills its grid column instead, and fit()
@@ -139,7 +135,6 @@ async function boot(): Promise<void> {
   const emptyBay = document.createElement('div')
   emptyBay.className = 'hangar-empty'
   emptyBay.textContent = 'Pick an item'
-  emptyBay.style.cssText = 'grid-area:1/2;place-self:center;pointer-events:none;color:var(--paper);opacity:.7;font-family:var(--font-display);font-size:22px;letter-spacing:.15em;text-transform:uppercase'
   root.append(canvas, emptyBay, panel.detail)
   const stage = createStage(renderer, canvas, () => {
     debug.turntable = false

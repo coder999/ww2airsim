@@ -221,6 +221,25 @@ note? }[]`, tested in Node against the committed content:
   `SUN_DIRECTION`, and `exposureFor` at that elevation. The game's quality
   tier selection applies unchanged.
 
+### 6.1 Responsive layout (implemented 2026-10-11)
+
+The Hangar uses one accessible DOM at every size; mobile is not a second page
+or a reduced catalog. At widths up to 820 CSS pixels it becomes three rows:
+
+1. a compact header, the same Kind / Side / Origin filters, and one Asset
+   picker containing the filtered catalog (the long desktop list is hidden),
+2. the full-width WebGPU model viewport, and
+3. the same details and test bench in a scrollable bottom sheet.
+
+The bottom sheet collapses to a 44-pixel handle and gives its height back to
+the model. On desktop the original list / model / details columns remain, and
+the same control collapses the details to give its width back to the model.
+Controls are at least 44 pixels high on mobile, safe-area insets are honored,
+and neither layout permits document-level horizontal scrolling. The mobile
+E2E acceptance runs at 390 × 844 CSS pixels and asserts the picker, stacking,
+viewport width, on-screen bottom sheet, collapse behavior, and lack of
+horizontal overflow.
+
 ## 7. The model adapter (`models.ts`)
 
 This is the only module that knows where geometry comes from:

@@ -11,8 +11,8 @@ export interface HangarPanel {
   showCard(entry: CatalogEntry, figures: readonly Figure[], modelSize: { x: number; y: number; z: number } | null, source: ModelProvenance | 'code' | null): void
   /** The element the bench (bench.ts) mounts into, under the card. */
   readonly benchSlot: HTMLElement
-  /** The right-hand panel holding the card and the bench: hidden until the first pick, then
-   *  collapsible to a thin strip. main.ts places it after the canvas in the grid. */
+  /** The detail panel holding the card and the bench: right-hand on desktop, a bottom sheet on
+   *  mobile; hidden until the first pick, then collapsible to a thin strip. */
   readonly detail: HTMLElement
 }
 
@@ -38,11 +38,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   const panel = el('div', 'naval-comms hangar-panel')
   panel.setAttribute('role', 'region')
   panel.setAttribute('aria-label', 'Hangar')
-  // The panel fills its grid cell and the sheet scrolls inside it, rather
-  // than the page growing to the list's height.
-  panel.style.cssText = 'min-height:0;overflow:hidden;padding:16px'
   const sheet = el('div', 'sheet')
-  sheet.style.cssText = 'flex:1 1 0;min-height:0;width:100%;box-sizing:border-box;overflow-y:auto;padding:14px 16px'
   panel.appendChild(sheet)
 
   const header = el('div', 'letterhead')
@@ -52,8 +48,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   sheet.append(header, back)
 
   let filter: CatalogFilter = { kind: 'all', side: 'all', origin: 'all' }
-  const filters = el('div')
-  filters.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:10px 0'
+  const filters = el('div', 'hangar-filters')
   const select = (options: readonly string[], labels: Readonly<Record<string, string>>, name: string, onChange: (v: string) => void) => {
     const s = el('select')
     s.setAttribute('aria-label', name)
@@ -72,44 +67,70 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   )
   const list = el('ul')
   list.setAttribute('aria-label', 'Objects')
-  list.style.cssText = 'list-style:none;margin:0;padding:0'
-  sheet.append(filters, list)
+  const mobilePicker = el('label', 'hangar-mobile-picker')
+  mobilePicker.appendChild(el('span', undefined, 'Asset'))
+  const mobileSelect = el('select')
+  mobileSelect.setAttribute('aria-label', 'Asset')
+  mobilePicker.appendChild(mobileSelect)
+  sheet.append(filters, mobilePicker, list)
   root.appendChild(panel)
 
   const detail = el('div', 'naval-comms hangar-detail')
   detail.setAttribute('role', 'region')
   detail.setAttribute('aria-label', 'Details')
-  detail.style.cssText = 'grid-area:1/3;min-height:0;overflow:hidden;padding:16px;display:none'
+  detail.style.display = 'none'
   const detailSheet = el('div', 'sheet')
-  detailSheet.style.cssText = sheet.style.cssText
   const toggle = el('button', 'ink-button')
   toggle.type = 'button'
-  // Paper-backed: it sits on the dark page, outside the sheet, where ink alone barely shows.
-  toggle.style.cssText = 'align-self:flex-end;padding:4px 12px;font-size:16px;background:var(--paper);border-color:var(--paper-edge)'
+  toggle.classList.add('hangar-detail-toggle')
   const card = el('div', 'hangar-card')
   const benchSlot = el('div', 'hangar-bench')
   detailSheet.append(card, benchSlot)
   detail.append(toggle, detailSheet)
   let collapsed = false
+  const mobileLayout = window.matchMedia('(max-width: 820px)')
   const layout = (): void => {
-    // Collapsed, the panel is a strip holding only its toggle, and the model gets the width.
-    detail.style.width = collapsed ? 'auto' : '380px'
-    detail.style.gap = collapsed ? '0' : '8px'
+    // Collapsed, the panel is a strip holding only its toggle. The model gets the freed width on
+    // desktop and height on mobile; CSS owns both layouts so the breakpoint can change live.
+    detail.classList.toggle('is-collapsed', collapsed)
     detailSheet.style.display = collapsed ? 'none' : ''
-    toggle.textContent = collapsed ? '‹' : '›'
+    toggle.textContent = mobileLayout.matches ? (collapsed ? '⌃' : '⌄') : (collapsed ? '‹' : '›')
     toggle.setAttribute('aria-label', collapsed ? 'Expand details' : 'Collapse details')
     toggle.setAttribute('aria-expanded', String(!collapsed))
   }
   toggle.addEventListener('click', () => { collapsed = !collapsed; layout() })
+  mobileLayout.addEventListener('change', layout)
   layout()
 
+  let selectedId = ''
+  const choose = (id: string): void => {
+    selectedId = id
+    mobileSelect.value = id
+    for (const button of list.querySelectorAll<HTMLButtonElement>('button[data-id]')) {
+      if (button.dataset['id'] === id) button.setAttribute('aria-current', 'true')
+      else button.removeAttribute('aria-current')
+    }
+    onSelect(id)
+  }
+  mobileSelect.addEventListener('change', () => { if (mobileSelect.value) choose(mobileSelect.value) })
+
   function renderList(): void {
-    list.replaceChildren(...filterCatalog(catalog, filter).map((e) => {
+    const entries = filterCatalog(catalog, filter)
+    const prompt = el('option', undefined, `Choose an asset (${entries.length})`)
+    prompt.value = ''
+    prompt.disabled = true
+    mobileSelect.replaceChildren(prompt, ...entries.map((e) => {
+      const option = el('option', undefined, listLabel(e))
+      option.value = e.library.id
+      return option
+    }))
+    mobileSelect.value = entries.some((e) => e.library.id === selectedId) ? selectedId : ''
+    list.replaceChildren(...entries.map((e) => {
       const li = el('li')
       const b = el('button', 'ink-button', listLabel(e))
       b.dataset['id'] = e.library.id
-      b.style.cssText = 'width:100%;text-align:left;margin:2px 0'
-      b.addEventListener('click', () => onSelect(e.library.id))
+      if (e.library.id === selectedId) b.setAttribute('aria-current', 'true')
+      b.addEventListener('click', () => choose(e.library.id))
       li.appendChild(b)
       return li
     }))

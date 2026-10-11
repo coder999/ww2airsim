@@ -319,6 +319,10 @@ thing. A roster row with no game content yet shows as **Not yet in
 service**, with its history and no model or figures; the card fills in when
 its spec and model land. Stand-ins are disclosed on the card.
 
+On a phone, the same complete catalog uses a compact filtered asset picker,
+a full-width model viewport and a collapsible details sheet at the bottom.
+The desktop layout keeps the object list and details beside the model.
+
 The rosters below are checked against `content/library/` by a test: a row
 added here without a library file fails the suite. Design:
 [hangar spec](docs/superpowers/specs/2026-09-25-hangar-library-design.md).

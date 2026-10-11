@@ -260,8 +260,8 @@ test.describe('the Hangar', () => {
       expect(aimed.equals(rest), `${id}: aiming moved nothing`).toBe(false)
       expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
     }
-    // The Chi-Ha's turret joined V1 (2026-10-09).
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger', 'type97-chi-ha'])
+    // The Chi-Ha's turret joined V1 (2026-10-09); the M4 joined V2 (2026-10-11).
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'm4-sherman', 'tbm-3-avenger', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -575,6 +575,46 @@ test('the details panel appears on the right once something is picked, and colla
   await details.getByRole('button', { name: 'Collapse details' }).click()
   await expect(details.getByRole('table', { name: 'Figures' })).toBeHidden()
   await expect.poll(async () => (await edges()).canvas.width).toBeGreaterThan(open.canvas.width + 200)
+  await details.getByRole('button', { name: 'Expand details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+})
+
+test('the mobile Hangar uses a compact picker, full-width model, and collapsible bottom sheet', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await openHangar(page)
+
+  const panel = page.getByRole('region', { name: 'Hangar' })
+  const details = page.getByRole('region', { name: 'Details' })
+  const picker = page.getByRole('combobox', { name: 'Asset' })
+  await expect(panel.getByRole('list', { name: 'Objects' })).toBeHidden()
+  await expect(picker).toBeVisible()
+  expect((await picker.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+
+  await picker.selectOption('f4f-wildcat')
+  await expect(details).toBeVisible()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+
+  const edges = () => page.evaluate(() => {
+    const box = (s: string) => document.querySelector(s)!.getBoundingClientRect()
+    return {
+      canvas: box('#hangar-canvas'),
+      details: box('.hangar-detail'),
+      panel: box('.hangar-panel'),
+      scrollWidth: document.documentElement.scrollWidth,
+      w: innerWidth,
+      h: innerHeight,
+    }
+  })
+  const open = await edges()
+  expect(open.panel.bottom, 'picker stays above the model').toBeLessThanOrEqual(open.canvas.top + 1)
+  expect(open.canvas.width, 'model uses the phone width').toBeGreaterThanOrEqual(open.w - 1)
+  expect(open.canvas.bottom, 'details stay below the model').toBeLessThanOrEqual(open.details.top + 1)
+  expect(open.details.bottom, 'bottom sheet stays on-screen').toBeLessThanOrEqual(open.h)
+  expect(open.scrollWidth, 'page has no horizontal overflow').toBeLessThanOrEqual(open.w)
+
+  await details.getByRole('button', { name: 'Collapse details' }).click()
+  await expect(details.getByRole('table', { name: 'Figures' })).toBeHidden()
+  await expect.poll(async () => (await edges()).canvas.height).toBeGreaterThan(open.canvas.height + 100)
   await details.getByRole('button', { name: 'Expand details' }).click()
   await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
 })
