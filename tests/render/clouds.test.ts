@@ -13,7 +13,7 @@ import { volumeMipLayout } from '../../src/render/scene/takramTslAssets.js'
 const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
 describe('clouds (Plan 16a)', () => {
-  it('keeps the legacy renderer unless the Takram integration is explicitly selected', () => {
+  it('reads an explicit cloud renderer and leaves the default (takram-tsl, main.ts) to the caller', () => {
     expect(cloudRendererFromQuery('')).toBeUndefined()
     expect(cloudRendererFromQuery('?cloudRenderer=legacy')).toBe('legacy')
     expect(cloudRendererFromQuery('?cloudRenderer=takram')).toBe('takram')

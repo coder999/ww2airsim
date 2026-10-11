@@ -1426,7 +1426,10 @@ async function boot(): Promise<void> {
   const skyNoise = await skyNoiseLoading
   boot.end('sky')
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
-  const cloudRenderer: CloudRendererName = import.meta.env.DEV ? cloudRendererFromQuery(location.search) ?? 'legacy' : 'legacy'
+  // The full TSL Takram port is the shipped renderer (Mark, 2026-10-11, after
+  // the edge-history fix: "really really good"). `?cloudRenderer=legacy|takram`
+  // keeps the other two selectable in DEV for comparison.
+  const cloudRenderer: CloudRendererName = import.meta.env.DEV ? cloudRendererFromQuery(location.search) ?? 'takram-tsl' : 'takram-tsl'
   if (import.meta.env.DEV) applyCloudTune(location.search) // H0 lever pricing, before any tier is read
   cloudLayers = forcedCloudTier === 'off'
     ? []

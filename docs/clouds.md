@@ -64,9 +64,9 @@ relevant section here in the same commit.
 
 ### 1.1 Takram replacement, opt-in game integration (2026-10-10)
 
-`?cloudRenderer=takram` selects the fresh native-WebGPU cloud path in DEV;
-omitting it selects `legacy`. Production builds also select `legacy`, so this
-checkpoint changes neither the shipped default nor a deployment. The new pass:
+`?cloudRenderer=takram` selects the fresh native-WebGPU cloud path in DEV.
+At this checkpoint omitting it selected `legacy`, as did production builds;
+since 2026-10-11 the default is the TSL port (§1.2). The new pass:
 
 - faithfully adapts the accepted Takram density, lighting and temporal model;
 - marches at one-sixth resolution, reconstructs temporally, then composites at
@@ -96,8 +96,8 @@ Merged main commit `1c654889` adds a second DEV-only selector,
 the accepted Takram-derived path: native Three textures (including the
 averaged 3D shape mip chain), weather and density, ray march and lighting,
 2×3 temporal reconstruction, broad soft-edge resolve, and reversed-depth
-scene composite. It embeds no WGSL cloud stage. `legacy` remains the default
-and `takram` remains the accepted native WGSL implementation.
+scene composite. It embeds no WGSL cloud stage. At merge `legacy` remained
+the default and `takram` the accepted native WGSL implementation.
 
 Matched 2560×1440 below-, in-, and above-deck captures are visually
 equivalent: weather placement, cloud silhouettes, lighting, opacity, depth
@@ -129,9 +129,20 @@ put TSL whole-frame p95 at 5.746 and 5.772 ms versus same-scene native estimates
 of 5.890 and 5.915 ms. The TSL march itself fell from 2.820–2.839 to
 1.537–1.542 ms p95; temporal stayed 0.228–0.230 ms. It now clears both the
 8.33 ms game gate and the plan's at-most-15% promotion criterion. The accepted
-`54fd91f7` branch state was merged for continued use and comparison; legacy
-remains the default, and replacing native WGSL remains a separate decision. See
+`54fd91f7` branch state was merged for continued use and comparison. See
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
+
+**Promoted to the default, 2026-10-11.** After the edge fix below Mark judged
+the TSL and native views "pretty similar" and the TSL one "really really
+good", and ruled: `takram-tsl` is the default on `main`, in DEV and in
+production, with no query parameter needed (`src/render/main.ts`,
+`cloudRenderer`). `?cloudRenderer=legacy|takram` still selects the others in
+DEV for comparison. The 4.1 MB of Takram assets under
+`content/clouds/takram/` now ship with every build; `deploy.yml` asserts
+`stbn.bin` is in `dist/`. The budget gate (`budget.spec.ts`) therefore
+measures this renderer from now on; the last locked TSL numbers were 5.75 to
+5.77 ms whole-frame p95 at 1440p High against the 8.33 ms gate, before the
++0.14 ms temporal-pass cost of the edge fix.
 
 ## 2. Where it lives
 
@@ -152,7 +163,7 @@ remains the default, and replacing native WGSL remains a separate decision. See
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudRenderer=legacy\|takram\|takram-tsl`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes native total and TSL march/temporal GPU samples), `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudRenderer=legacy\|takram\|takram-tsl` (default `takram-tsl` since 2026-10-11), `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes native total and TSL march/temporal GPU samples), `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 

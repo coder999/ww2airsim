@@ -295,6 +295,9 @@ estimates of 5.890–5.915 ms, passing both the 8.33 ms game gate and the plan's
 15% promotion criterion. It remains an opt-in research path; legacy is still
 the default, and no deployment or preferred-renderer decision follows from the
 merge. The rejected adaptive-sampling follow-up remains preserved separately.
+**Promoted 2026-10-11 (Mark):** after the edge-history fix (`docs/clouds.md` §1.2),
+`takram-tsl` is the default renderer on `main` in DEV and production; `legacy` and
+`takram` stay selectable by query in DEV.
 Form 2 now also rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
 initial selection, which the player may change; it sets combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
