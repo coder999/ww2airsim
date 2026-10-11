@@ -107,6 +107,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'a6m2-zero-blender': {
+    // Original Blender duplicate (a6m2-zero-blender.py): the kit propeller is exactly 3-fold symmetric.
+    // Summary 85 says the mains retract 90 degrees inward; this one-hinge model swings each leg inward
+    // about +x and leaves the wheel upright. The tailwheel swing is an ESTIMATE.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'Summary 85, through a6m2-zero-blender.py; one-hinge motion ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'Summary 85, through a6m2-zero-blender.py; one-hinge motion ESTIMATE' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (a6m2-zero-blender.py header)' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
   'b-17-flying-fortress': {
     // Each prop is its three blade islands (exactly 3-fold symmetric); the spinners stay static in
     // the body, as the F6F's. Turrets are the three that are clean islands: chin, top, ball. The tail
@@ -139,6 +152,29 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     // leading edges; the elevators are cut from the tailplane.
     surfaces: surfaces(1),
   },
+  'b-17-flying-fortress-blender': {
+    // Original Hangar-only B-17G duplicate. The kit makes each of the four propellers exactly
+    // three-fold symmetric. The single main wheel on each side folds forward into its inboard
+    // nacelle; the tailwheel folds forward. All three motions are one-hinge ESTIMATES documented
+    // in b-17-flying-fortress-blender.py.
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }, { node: 'Prop3', blades: 3 }, { node: 'Prop4', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-17-flying-fortress-blender.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-17-flying-fortress-blender.py header)' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (b-17-flying-fortress-blender.py header)' },
+    ],
+    // Chin, port cheek, starboard cheek, upper, ball and tail positions, in nose-to-tail order.
+    turrets: ['Turret1', 'Turret2', 'Turret3', 'Turret4', 'Turret5', 'Turret6'],
+    turretArcs: {
+      Turret1: { traverseDeg: 86, elevationDeg: [-46, 10], restElevationDeg: 0, source: 'ESTIMATE: Bendix chin turret; +10 deg is the modeled skin-clear limit' },
+      Turret2: flexCone(-4.6), Turret3: flexCone(-4.6),
+      Turret4: fullCircle([0, 85], 0),
+      Turret5: fullCircle([-90, 0], 0),
+      Turret6: flexCone(2.9),
+    },
+    doors: ['BayDoor1L', 'BayDoor1R'],
+    surfaces: surfaces(1),
+  },
   'b-29-superfortress': {
     // An original Blender model (b-29-superfortress.py): the kit's propellers are exactly 4-fold
     // symmetric. The mains fold forward under the inboard nacelles and the nose gear aft under the
@@ -169,6 +205,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     gear: [],
     turrets: [],
     surfaces: surfaces(1),
+  },
+  'd3a-val-blender': {
+    // Original Hangar-only duplicate (d3a-val-blender.py): exact 3-fold prop symmetry; the fixed spatted
+    // mains and tailwheel are baked into the skin and never retract. The rear Type 92 is drawn static:
+    // a display-only duplicate has no combat.gunners spec for the turret-aim contract to bind.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [],
+    turrets: [],
+    surfaces: surfaces(2),
   },
   'f4f-wildcat-blender': {
     // An original Blender model (f4f-wildcat-blender.py), a duplicate beside the download: the kit's propeller is
@@ -284,6 +329,18 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     props: [{ node: 'Prop', blades: 3, symmetryTolerance: 0.02 }],
     gear: [
       { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'Ki-43 main gear retracts inward into the wing; the angle is an ESTIMATE' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
+  'ki-43-oscar-blender': {
+    // Original Blender duplicate measured from the Commons three-view. The kit propeller is exactly
+    // 3-fold symmetric. The mains pivot inward as the real gear does; the single hinge is an ESTIMATE.
+    // The cited fixed tailwheel stays baked into the skin.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE of the one-hinge motion; direction CITED (ki-43-oscar-blender.py header)' },
       { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
     ],
     turrets: [],

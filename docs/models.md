@@ -297,6 +297,12 @@ For aircraft, `ki-84-frank.py`, `ki-21-sally.py` and
 geometry is fractions of the cited length and span (R3). The whole process, from sourcing figures to a Hangar
 check and to replacing a download with a duplicate, is [`blender-aircraft.md`](blender-aircraft.md).
 
+The seven downloaded aircraft all have comparison-only Blender alternatives in the Hangar: A6M2, B-17G, D3A2,
+F4F-4, F4U-1D, F6F-5 and Ki-43-IIb. Both versions remain registered and the flying specs still select the downloads.
+Their scripts use one Wikimedia Commons orthographic series as a common silhouette family, with published dimensions
+and explicit adjacent-variant corrections owning the final geometry; `blender-aircraft.md` is the standing source and
+promotion record.
+
 A building (R4) takes its parts from the kit: `frustum`, `gable_roof`, `tank`, `sandbag_ring`, `strut`,
 `gun_barrel` and `lattice_mast`, all wound outward and checked by
 `tests/tools/models/blender/kitBuildings.test.ts`. One kit node is one draw call, so the building

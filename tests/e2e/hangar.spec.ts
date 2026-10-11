@@ -261,7 +261,7 @@ test.describe('the Hangar', () => {
       expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
     }
     // The Chi-Ha's turret joined V1 (2026-10-09).
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger', 'type97-chi-ha'])
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -273,9 +273,16 @@ test.describe('the Hangar', () => {
       // From the side, gear up: an open door hangs flat-on to this view. From the front the B-17's chin
       // turret hides its whole belly line (measured 2026-10-08: 0 px changed).
       const { empty, model: shut } = await view(page, id, 'side', { bayDoorFraction: 0, gearFraction: 0 })
-      await page.getByRole('button', { name: 'Cycle bay doors' }).click()
-      // 12 s at 60 Hz covers every shipped spec's bayDoors.travelSeconds (10 s for the B-17, 2026-10-08).
-      await page.evaluate(() => { for (let i = 0; i < 720; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      const cycle = page.getByRole('button', { name: 'Cycle bay doors' })
+      if (await cycle.count()) {
+        await cycle.click()
+        // 12 s at 60 Hz covers every shipped spec's bayDoors.travelSeconds (10 s for the B-17, 2026-10-08).
+        await page.evaluate(() => { for (let i = 0; i < 720; i++) (window as HangarWindow).__hangar!.tick(1 / 60) })
+      } else {
+        // A Hangar-only duplicate has no flight spec and therefore no travel time/Cycle button;
+        // its rigged doors must still respond to the bench pose control.
+        await pose(page, { bayDoorFraction: 1 })
+      }
       expect(await page.evaluate(() => (window as HangarWindow).__hangar!.bench()), id).toMatchObject({ bayDoorFraction: 1, cycling: null })
       const open = await shot(page)
       const m = await masks(page, empty, [shut, open])
@@ -283,8 +290,8 @@ test.describe('the Hangar', () => {
       // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
       expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
     }
-    // The B-17, B-29, G4M and Ki-21, and the TBM-3 Avenger (D1, 2026-10-09).
-    expect(bombers).toBe(5)
+    // The five flyable bay aircraft plus the Hangar-only B-17 duplicate.
+    expect(bombers).toBe(6)
   })
 
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
@@ -333,7 +340,7 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'd3a-val', 'g4m-betty', 'b-17-flying-fortress', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
+    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'ki-43-oscar-blender', 'd3a-val', 'd3a-val-blender', 'g4m-betty', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
@@ -436,7 +443,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
       'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
@@ -453,7 +460,7 @@ test.describe('the Hangar', () => {
   test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
     const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
     const ids = await entries(page)
-    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(12)
+    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(13)
     for (const ship of ships) {
       const a = ship.armament
       // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
@@ -561,6 +568,9 @@ test('the details panel appears on the right once something is picked, and colla
 test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
+  // A6 runs the first-visit graphics check before exposing the title controls.
+  // Wait for that real readiness seam instead of Playwright's 5 s visibility default.
+  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
   await expect(title).toBeVisible()
   await title.getByRole('button', { name: 'Hangar' }).click()
   await page.waitForURL(/hangar\.html$/)

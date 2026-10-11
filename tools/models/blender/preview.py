@@ -1,7 +1,11 @@
 # tools/models/blender/preview.py
 """Renders a glb to a PNG for a handoff: Cycles on the CPU (nexus is headless; 0.3 s for a
 cube at 16 samples, measured 2026-09-26). Not a gate; the Hangar's Tier 2 is the gate from M1 on.
-Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb> [--view front|rear|below|side|top]
+Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb>
+  [--view front|rear|below|side|top] [--frame-glb <other.glb>]
+
+`--frame-glb` includes a second, hidden model only when calculating the camera center and radius. Render A
+with B as its frame and B with A as its frame to get an identical comparison camera around their union.
 """
 import math
 import os
@@ -20,7 +24,15 @@ if view not in ('front', 'rear', 'below', 'side', 'top'):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=opts['glb'])
 meshes = [o for o in bpy.context.scene.objects if o.type == 'MESH']
-corners = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]
+frame_meshes = []
+if 'frame-glb' in opts:
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=opts['frame-glb'])
+    frame_objects = [o for o in bpy.context.scene.objects if o not in before]
+    frame_meshes = [o for o in frame_objects if o.type == 'MESH']
+    for o in frame_objects:
+        o.hide_render = True
+corners = [o.matrix_world @ Vector(c) for o in meshes + frame_meshes for c in o.bound_box]
 lo = Vector([min(c[i] for c in corners) for i in range(3)])
 hi = Vector([max(c[i] for c in corners) for i in range(3)])
 center, radius = (lo + hi) / 2, (hi - lo).length / 2

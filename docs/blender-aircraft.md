@@ -2,8 +2,8 @@
 
 The process for building an airframe model as a Blender script that fits this game's flight model, rig and Hangar,
 whether it replaces a download or models a new type. It was worked out on the B-29, Ki-84 and TBM-3, then repeated
-on three Blender duplicates of downloaded fighters (2026-10-11): `f6f-hellcat-blender`, `f4u-corsair-blender`
-and `f4f-wildcat-blender`. Those three are the worked examples. This page points at the files that own each fact;
+on Blender duplicates of downloaded fighters (2026-10-11): `f6f-hellcat-blender`, `f4u-corsair-blender`,
+`f4f-wildcat-blender` and the drawing-measured `a6m2-zero-blender`. They are the worked examples. This page points at the files that own each fact;
 it does not restate them. Onboarding an airframe as *flyable* (spec, card, flight fit) is
 [`aircraft.md`](aircraft.md); getting a model into the pipeline is [`models.md`](models.md), "Authoring in Blender".
 
@@ -40,6 +40,18 @@ Everything the download it may replace has, because the game draws a flyable air
    2.58 m aft of the spinner tip for the Hellcat, Corsair and Wildcat). Scale each drawing by its own spinner-tip-to-tail pixels over the cited length. Put
    the tables in the script as meters aft of the nose, with the drawing named in the header. Check by overlaying the
    model's centerline silhouette on the drawing: the three fighters' tops, canopies and bellies sit within a few cm of it.
+   Before accepting those measurements, search public factory-drawing catalogs for master lines, loft ordinates and
+   installation drawings. Record useful drawing numbers, titles and access status even when the sheets are gated, but
+   never treat an index title as numerical validation or bypass membership controls. The B-17 pass found useful public
+   AirCorps Library metadata for cockpit, inboard-wing, wing-rib, fin, rear-gun and stabilizer contour sets; the sheets
+   themselves require sign-in, so they remain a recommended refinement rather than a source used by the model.
+   A blank field in an otherwise cited specification is still an **ESTIMATE**: for example, the B-17G Wikipedia table
+   names three-blade propellers but leaves diameter blank, so the script labels its drawing-measured diameter accordingly.
+   If Commons offers only an adjacent variant's drawing, use it only when the cited dimensions agree, name the mismatch in
+   the script and handoff, and keep variant-specific details labeled as estimates. Never silently present that drawing as
+   the requested variant (the D3A2 duplicate had only a Commons D3A1 three-view available, 2026-10-11).
+   Apply the same rule to the Ki-43-II: the article's only drawing is labeled Ki-43-I, so the II's shorter cited span,
+   three-blade propeller, longer cowl and taller canopy override it. Any remaining cross-variant likeness is an estimate.
 2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
    - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
    - bent (gull) wing: `f4u-corsair-blender.py`
@@ -62,6 +74,15 @@ Everything the download it may replace has, because the game draws a flyable air
    the station fractions with a short script rather than by hand.
 5. **Build and iterate.** `npx tsx tools/models/blender/cli.ts <id>` writes a candidate glb and prints its
    inspection in about two seconds; render the views. Only after the shape is right write the manifest entry.
+   For an exact download/new-model comparison, render each through `preview.py` with the other as
+   `--frame-glb`: that hidden second model contributes only to the union camera bounds, so reversing the two
+   paths gives both renders the same camera. Without it, `preview.py` frames each model independently and the
+   pictures are not a scale comparison. A three-view's side and top drawings may use different scales; derive
+   each view's meters per pixel from that view's own spinner-tip-to-tail length.
+   `silhouette-overlay.ts` plots the built model's side-projected vertices over that calibrated drawing;
+   pass the drawing's nose, tail and thrust-line pixels, the model origin's nose-relative station, the cited
+   length and the side-view crop bottom. Keep the overlay with the handoff evidence; it is a review artifact,
+   not a screenshot-golden test.
 6. **Write the manifest entry** `tools/models/entries/<id>.json` (`source.kind: "blender"`, `normalize`, `keep`,
    `budget`; copy a sibling). Each `keep` row's `pivot.point` is the hinge the script placed: propeller hub
    `(NOSE_X - PROP.hub) * LENGTH`, gear hinge `(x, hinge_y, ±z)`, tail wheel hinge. The axis is `+x` for a leg that folds
@@ -76,9 +97,16 @@ Everything the download it may replace has, because the game draws a flyable air
    - `tests/tools/models/aircraftDimensions.test.ts` (`CITED`), and `aircraftRigs.test.ts` (the pinned list of
      airframes with surfaces).
    - `tests/tools/models/blenderDuplicates.test.ts`: one row pairing the duplicate with the spec it copies.
+   - A turreted Hangar-only duplicate also belongs in the pinned `turreted` list in
+     `tests/tools/models/gunnerMounts.test.ts`; keep its no-spec id out of the flyable gunner/content comparison.
+   - A Hangar-only duplicate with bay doors has no spec travel time and thus no Cycle button. In Hangar check 7b,
+     drive its `bayDoorFraction` directly while keeping the timed Cycle assertion for flyable bay aircraft.
    - `tests/e2e/hangar.spec.ts`: the id in checks 10 and 16.
    - A new paint role needs a `PALETTE` entry in `kit.py` and a surface entry in `tools/models/skin/surfaces.ts`
      (the build fails by name without the second).
+   - Fixed gear is baked into the skin and has no `GearL`/`GearR` row. A flexible gun on a Hangar-only duplicate may also
+     remain static when there is no duplicate combat spec for `gunnerMounts.test.ts`; say so in the rig and handoff. Parts
+     without a renderer input, such as the D3A's dive brakes, can be drawn static but must not invent a control-surface name.
 8. **Run the model tests**: `remote-run npx vitest run tests/tools/models tests/render/hangar tests/render/airframes.test.ts`
    (about 3.5 minutes on ryzen; `-t "<id>"` narrows it to seconds while iterating).
 9. **Look at it in the Hangar.** `npx vite --port <free port>` from the checkout, then
@@ -132,17 +160,26 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
   says so in the rig row's `source`. The download Hellcat is on `THROUGH_SKIN` for the same reason.
 - **Preview renders are flat.** `preview.py` is Cycles with no skin; judge shape there and finish in the Hangar, whose
   lighting and skin are the game's.
+- **A specifications table can leave a requested figure blank.** Record the blank explicitly rather than making
+  the citation imply the value exists; derive it from the measured drawing or another named source and tag it
+  `ESTIMATE`. The A6M2 table gives three propeller blades and the maker but no diameter (2026-10-11).
 
-## What the three duplicates are (2026-10-11)
+## What the duplicates are (2026-10-11)
 
 | Duplicate | Copies | Cited | Stance fitted to the spec | Glb (bytes / triangles / draws) |
 | --- | --- | --- | --- | --- |
-| `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 820,488 / 25,932 / 12 |
-| `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 823,032 / 25,400 / 14 |
-| `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 806,508 / 25,468 / 17 |
+| `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 788,316 / 24,796 / 12 |
+| `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 868,724 / 27,320 / 14 |
+| `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 825,212 / 26,236 / 17 |
+| `a6m2-zero-blender` | `a6m2-zero` (A6M2 Model 21) | span 12.0 m, length 9.06 m, area 22.44 m2, 3 blades; prop diameter 2.90 m measured because the table is blank | 2.025 m at x 0.182, tail wheel x -6.532 | 717,844 / 21,464 / 18 |
+| `b-17-flying-fortress-blender` | `b-17-flying-fortress` (B-17G) | span 31.62 m, length 22.66 m, area 131.92 m2, four 3-blade props | 2.548 m at x 0.852, tail wheel x -10.623 | 1,163,684 / 36,408 / 29 |
+| `d3a-val-blender` | `d3a-val` (D3A2 Model 22) | span 14.365 m, length 10.195 m, area 34.9 m2, 3 blades; D3A1 drawing limitation recorded | fixed mains 1.850 m below at x 0.257, tail wheel x -6.577 | 901,876 / 27,060 / 19 |
+| `ki-43-oscar-blender` | `ki-43-oscar` (Ki-43-IIb) | span 10.84 m, length 8.92 m, area 21.4 m2, 2.79 m 3-blade prop; Ki-43-I drawing limitation recorded | 1.843 m at x 0.348, tail wheel x -5.375 (fixed) | 806,148 / 25,624 / 17 |
 
-Every other figure is an ESTIMATE labeled in each script's header. No three-view drawing was read: the profiles were
-matched by eye against the downloads' silhouettes and are a first pass, not a likeness study.
+All seven now use a Commons three-view from Kaboldy's orthographic series as their common silhouette family. Published
+dimensions and the project spec own scale and stance; the D3A2 and Ki-43-IIb headers keep their adjacent-variant caveats.
+Each script records nose-relative stations and separately labels cited facts, drawing measurements, spec fits and estimates.
+The SVGs are credited measurement references and are not bundled in the repository.
 
 ## Showing the result
 
