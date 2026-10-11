@@ -6,13 +6,13 @@ import type { ReprojectionResidual } from './cloudPass.js'
 import { shaderModuleSource, takramGameCloudsFragment, takramGameCompositeFragment, takramGameTemporalFragment } from './takramGameShaders.js'
 
 export const CLOUD_RENDERER_PARAM = 'cloudRenderer'
-export type CloudRendererName = 'legacy' | 'takram'
+export type CloudRendererName = 'legacy' | 'takram' | 'takram-tsl'
 
 export function cloudRendererFromQuery(search: string): CloudRendererName | undefined {
   const raw = new URLSearchParams(search).get(CLOUD_RENDERER_PARAM)
   if (raw === null) return undefined
-  if (raw === 'legacy' || raw === 'takram') return raw
-  throw new Error(`${CLOUD_RENDERER_PARAM}: ${JSON.stringify(raw)} is not a cloud renderer (legacy, takram)`)
+  if (raw === 'legacy' || raw === 'takram' || raw === 'takram-tsl') return raw
+  throw new Error(`${CLOUD_RENDERER_PARAM}: ${JSON.stringify(raw)} is not a cloud renderer (legacy, takram, takram-tsl)`)
 }
 
 type NativeBackend = {

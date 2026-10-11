@@ -5,7 +5,8 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-10-10 for the opt-in Takram game integration; §3.10 records the effects
+on 2026-10-11 for the opt-in Takram game integration and experimental full TSL
+port; §3.10 records the effects
 dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
@@ -81,6 +82,30 @@ clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
 8.33 ms whole-frame gate. See
 `docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
 
+### 1.2 Full TSL port experiment (2026-10-11)
+
+Branch `clouds-v3-tsl-port` adds a second DEV-only selector,
+`?cloudRenderer=takram-tsl`. It is a complete Three Shader Language port of
+the accepted Takram-derived path: native Three textures (including the
+averaged 3D shape mip chain), weather and density, ray march and lighting,
+2×3 temporal reconstruction, broad soft-edge resolve, and reversed-depth
+scene composite. It embeds no WGSL cloud stage. `legacy` remains the default
+and `takram` remains the accepted native WGSL implementation.
+
+Matched 2560×1440 below-, in-, and above-deck captures are visually
+equivalent: weather placement, cloud silhouettes, lighting, opacity, depth
+ordering and the accepted soft-edge treatment match. The residual stippling
+at thin near-cloud edges appears in both implementations; it was not added by
+TSL.
+
+The TSL port is technically successful but is **not a replacement candidate**.
+Two exclusive RX 6700 XT measurements put its whole-frame p95 at 7.042 and
+7.100 ms, still inside the 8.33 ms game gate. The conservative native totals
+were 4.820 and 5.373 ms, so TSL was 46% and 32% slower, respectively, missing
+the plan's at-most-15% promotion criterion. Keep the branch as a working
+research implementation and leave native WGSL selected for Takram flight.
+See `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
+
 ## 2. Where it lives
 
 | Concern | File |
@@ -89,6 +114,7 @@ clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |
 | Opt-in Takram raw-WebGPU pass and game adapter | `src/render/scene/takramCloudPass.ts`, `takramGameShaders.ts` |
+| Experimental full TSL Takram port and Three texture loader | `src/render/scene/takramTslCloudPass.ts`, `takramTslAssets.ts` |
 | History targets | `src/render/scene/cloudHistory.ts` |
 | Effects dense depth, the cloud march limit's second input | `src/render/fx/fxPass.ts` (`FxCloudLimit`) |
 | Shadow map (sun-view transmittance) | `src/render/scene/cloudShadow.ts` |
@@ -98,7 +124,7 @@ clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudRenderer=legacy\|takram`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes renderer and Takram GPU time), `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudRenderer=legacy\|takram\|takram-tsl`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes renderer and native Takram GPU time), `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 
@@ -289,6 +315,29 @@ The fixed 3840×2160 `photo`/High view measured **16.102 ms p95 with
 arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
 currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
 reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
+
+### 3.11 Full TSL Takram port (2026-10-11)
+
+The full port proved that Three r186 TSL can express the complete accepted
+renderer without a hidden raw-WGSL escape hatch. The important working pieces
+were named MRT outputs, per-material laid-out density functions, Three-owned
+3D textures with a manually uploaded averaged mip chain, and full-resolution
+ping-pong history rendered through `QuadMesh`.
+
+Two traps mattered:
+
+- MRT render-target texture names must exactly match the keys passed to
+  `mrt(...)`; otherwise Three emits an empty output struct and the frame is
+  black.
+- Mutable values owned by the pass use TSL `uniform(...)`; `reference(...)`
+  is only for actual object properties such as camera near/far.
+
+The first complete Ryzen/WebGPU flight passed with no console, page or WebGPU
+validation errors, including camera-cut history invalidation. Matched captures
+then showed that its remaining thin-edge breakup is the same accepted native
+artifact. Cost, not fidelity, stopped promotion: TSL whole-frame p95 was
+7.042–7.100 ms, against conservative native totals of 4.820–5.373 ms. The
+experiment remains useful source, but the native renderer stays authoritative.
 
 ## 4. Traps
 

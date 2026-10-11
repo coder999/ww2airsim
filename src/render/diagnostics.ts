@@ -442,7 +442,7 @@ export type Ww2Diagnostics = {
   /** The cloud deck in force and its tier (Plan 16a); `off` under the DEV
    *  `?cloudTier=off`, `steps` the cumulus march count at that tier. */
   readonly clouds: () => {
-    readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly renderer: 'legacy' | 'takram'; readonly steps: number
+    readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly renderer: 'legacy' | 'takram' | 'takram-tsl'; readonly steps: number
     /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
     readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
     /** Photoreal Task 4: frames the cloud pass resolved WITHOUT history since
