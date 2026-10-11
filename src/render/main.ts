@@ -490,7 +490,6 @@ async function boot(): Promise<void> {
     spawnPosition = nextSpawnedAt
     loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
-    if (swarmHidden) nextScenarioWorld.ships.forEach((s, i) => { if (s.id.startsWith('swarm-')) scenarioEntities!.shipHandles[i]!.root.visible = false })
     applyScenarioWeather?.(nextBundle.scenario.weather)
   }
   /**
@@ -2854,6 +2853,7 @@ async function boot(): Promise<void> {
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
       if (damage !== undefined) shipHandles[i]!.setDamage(damage.fire, damage.sinkingFraction, floodListRad(damage, s.spec.hullHp))
+      if (swarmHidden && s.id.startsWith('swarm-')) shipHandles[i]!.root.visible = false // after setDamage, which sets it
       applyShipGunLaying(s.id, shipHandles[i]!.mounts, view.world.combat.aa.laying)
     })
     // Structures: like the sinking/burning ships above, `sync` is handed the

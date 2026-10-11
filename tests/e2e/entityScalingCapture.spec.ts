@@ -10,8 +10,12 @@ import { SWARM_PARAMS, SWARM_PROBE_ANCHOR, type SwarmLayout } from '../../src/si
  * tier forced as `budget.spec.ts` does. A measurement tool, not a test: skipped unless E2E_CAPTURE=1.
  * Run it on the reference GPU under `hwlock ryzen-budget` (docs/testing.md), with ryzen otherwise idle.
  *
- * Per point, three windows on one page load, in this order because a furball drifts out of the camera's
+ * Per point, four windows on one page load, in this order because a furball drifts out of the camera's
  * view as it fights (each window records how many airframes it ended with in view):
+ *  - frozen, 4 s, paused (Esc) right after the settle, so every airframe the layout put in view is still
+ *    there and the CPU is nearly idle: the GPU cost of drawing the swarm alone, at the GPU clocks a
+ *    GPU-bound frame gets (a CPU-bound frame leaves the GPU idle between frames, and its timestamps
+ *    then read a down-clocked GPU);
  *  - 1x, 6 s: GPU p50/p95 (`gpuFrameTimesMs`, budget.spec's method) and, from the SAME frames, the main
  *    thread's work per rendered frame (`cpuFrameSamples`), the sim's ms per tick, draw calls, triangles;
  *  - 3x (`T`), 4 s: the same, with three times the ticks per frame;
@@ -81,10 +85,22 @@ for (let r = FIRST_REP; r < FIRST_REP + REPEATS; r++) for (const tier of TIERS) 
     expect(start.counts.aircraft).toBe(aircraft + 2) // free-flight's two, plus the swarm
     expect(start.counts.ships).toBe(ships + 3)
 
+    await page.keyboard.press('Escape')
+    const pauseMenu = page.getByRole('dialog', { name: 'Pause menu' })
+    await expect(pauseMenu).toBeVisible()
+    await page.waitForTimeout(500)
+    await reset(page)
+    await page.waitForTimeout(4000)
+    const frozen = await read(page)
+    expect(frozen.cpu.every((c) => c.ticks === 0), 'the sim ran while paused').toBe(true)
+    await pauseMenu.getByRole('button', { name: 'Resume' }).click()
+    await expect(pauseMenu).toBeHidden()
+
     await reset(page)
     await page.waitForTimeout(6000)
     const w1 = await read(page)
-    expect(w1.gpu.length, 'no GPU timestamp samples').toBeGreaterThan(30)
+    // A small floor: at 60 + 20 tight a frame can take 100 ms+, so 6 s may hold only a few dozen samples.
+    expect(w1.gpu.length, 'no GPU timestamp samples').toBeGreaterThan(5)
     if (r === 0 && tier === 'high' && SCREENSHOT.has(point)) await page.screenshot({ path: `${OUT}/${layout}-${point}${EXTRA.swarmHide === '1' ? '-hidden' : ''}.png` })
 
     await page.keyboard.press('KeyT')
@@ -103,14 +119,15 @@ for (let r = FIRST_REP; r < FIRST_REP + REPEATS; r++) for (const tier of TIERS) 
 
     const row = {
       layout, aircraft, ships, tier, rep: r, params: process.env.ENTITY_PARAMS ?? '', inViewAtStart: start.counts.aircraftInView,
-      x1: windowStats(w1), x3: windowStats(w3),
+      frozen: windowStats(frozen), x1: windowStats(w1), x3: windowStats(w3),
       pace: { rafP50: p(pace.raf, 0.5), rafP95: p(pace.raf, 0.95), workP50: p(pace.cpu.map((c) => c.workMs), 0.5), workP95: p(pace.cpu.map((c) => c.workMs), 0.95), inView: pace.counts.aircraftInView },
       heapMb: pace.heapMb === null ? null : r3(pace.heapMb),
     }
     expect(w3.timeScale).toBe(3)
-    expect(row.x3.ticksPerFrame, '3x ran no faster than 1x').toBeGreaterThan(row.x1.ticksPerFrame * 2)
+    // Not 3x: at the heaviest points both speeds hit MAX_STEPS_PER_FRAME (5) and drop steps.
+    expect(row.x3.ticksPerFrame, '3x ran no faster than 1x').toBeGreaterThan(row.x1.ticksPerFrame)
     console.log(`ENTITY ${JSON.stringify(row)}`)
     appendFileSync(`${OUT}/entity-scaling.jsonl`, JSON.stringify(row) + '\n')
-    expect([...w1.errors, ...pace.errors]).toEqual([])
+    expect([...frozen.errors, ...w1.errors, ...pace.errors]).toEqual([])
   })
 }
