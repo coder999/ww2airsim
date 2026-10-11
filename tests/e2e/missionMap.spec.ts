@@ -12,7 +12,10 @@ test("the navigation chart selects recovery points without advancing the world",
   const tick = () => page.evaluate(() => (window as DiagWindow).__ww2!.tick());
 
   await page.keyboard.press("KeyP");
-  const chart = page.getByRole("dialog", { name: "Navigation chart" });
+  const pause = page.getByRole("dialog", { name: "Pause menu" });
+  const chart = pause.getByRole("region", { name: "Mission map" });
+  await expect(pause).toBeVisible();
+  await expect(pause.getByRole("tab", { name: "Map" })).toHaveAttribute("aria-selected", "true");
   await expect(chart).toBeVisible();
   await expect(chart).toContainText("YOU");
   await expect(chart).toContainText("Tacloban");
@@ -68,7 +71,7 @@ test("the navigation chart selects recovery points without advancing the world",
   await page.screenshot({ path: "test-results/mission-map.png" });
 
   await page.keyboard.press("KeyP");
-  await expect(chart).toBeHidden();
+  await expect(pause).toBeHidden();
   await page.waitForTimeout(300);
   expect(await tick()).toBeGreaterThan(frozen);
   const errors = await page.evaluate(
