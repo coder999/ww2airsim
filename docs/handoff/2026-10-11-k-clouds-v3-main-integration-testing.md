@@ -1,4 +1,4 @@
-# K Clouds v3: current-main integration test report
+# K Clouds v3: current-main focused integration test report
 
 Date: 2026-10-11
 
@@ -8,13 +8,13 @@ Worktree: `/home/mark/projects/ww2airsim-clouds-v3-integration`
 
 Main base: `2eff2943` (`E2E: ai-pursuit-difficulty times its keys in sim ticks, 3 s after Launch`)
 
-Scope: integration and testing only; not merged, not deployed, legacy clouds remain the default
+Scope: focused integration testing and merge; not deployed, legacy clouds remain the default
 
 ## Result
 
-The production Takram cloud integration has been transplanted onto a clean
+The production Takram cloud integration was transplanted onto a clean
 worktree from current `main` without the rejected Blender experiments or the
-Takram spike history. All requested verification passed.
+Takram spike history, then fast-forwarded into `main` at `92b9b6ee`.
 
 The transplant exposed one genuine packaging defect: the production shader
 adapter still imported its accepted WGSL baseline from the spike directory.
@@ -26,7 +26,12 @@ The tested game is live at:
 
 `https://ww2airsim-3.windomlane.org/?spawnX=289068&spawnY=1300&spawnZ=-55605&launch&cloudRenderer=takram&cloudTier=high`
 
-## End-to-end results
+## Focused end-to-end results
+
+These results cover the two Takram-specific Playwright tests below. They are
+not the repository-wide `npm run test:e2e` suite described in
+`docs/testing.md`. That full browser suite was not run, and this report does
+not claim its coverage of boot, UI, missions, replay, audio and other systems.
 
 ### Flight, composition and camera cuts
 
@@ -67,13 +72,15 @@ conservative whole-frame estimate remains below the 8.33 ms 120 Hz gate.
   Takram renderer and the rule that DEV-only selection code does not leak into
   the production bundle.
 
-## State after testing
+## State after testing and merge
 
-- The branch is based on current main as of `2eff2943`.
+- The integration was based on main at `2eff2943` and fast-forwarded into
+  `main` at `92b9b6ee` on 2026-10-11.
 - Only the production integration, assets, tests and documentation were
   transplanted; the rejected research commits were not merged.
 - Slot 3 now serves this current-main integration worktree and returns HTTP 200.
 - Takram remains selected only with `?cloudRenderer=takram` in DEV.
-- No merge to `main`, default flip or deployment was performed in this step.
+- No default flip or deployment was performed.
 
-The branch is ready for the separate merge decision.
+The full repository-wide E2E suite remains a separate, explicitly authorized
+test run if it is wanted later.
