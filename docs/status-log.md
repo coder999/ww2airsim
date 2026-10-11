@@ -457,7 +457,7 @@ Three disjoint wave bands use 509/127/31 m periods. High quality runs three
 can reduce quality if measured cost exceeds its threshold. Water remains a
 rendering effect: wave forces and water collision are future work.
 
-**A6 preflight graphics check completed on branch 2026-10-11.** The old
+**A6 preflight graphics check merged to `main` 2026-10-11 (`2ac3cc6c`).** The old
 first-flight quality probe and Form 4 rendering controls were replaced by a
 first-visit title-scene check that recommends one quality/render-scale pair,
 persists the measured environment, and yields to any explicit user choice.

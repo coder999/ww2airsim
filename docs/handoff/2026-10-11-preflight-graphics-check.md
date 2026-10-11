@@ -1,6 +1,6 @@
 # A6 handoff: preflight graphics check and shared rendering settings (2026-10-11)
 
-Plan: `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`. Branch `gpu-quality-check`, rebased onto `main` at `9e53d9c2`. Unattended run; final-product checkpoint only.
+Plan: `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`. Branch `gpu-quality-check`, rebased onto `main` at `9e53d9c2` and fast-forwarded into `main` at `2ac3cc6c` on 2026-10-11. Unattended run; final-product checkpoint only.
 
 ## Product decision
 
