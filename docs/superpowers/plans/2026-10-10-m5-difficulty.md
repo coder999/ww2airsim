@@ -5,7 +5,7 @@ damage the player's aircraft takes, with scenario `skill` values as the baseline
 
 ## Header
 
-- **Branch:** `m5-difficulty`, a worktree of `main` at `91da48f0`. Not merged; Mark merges.
+- **Branch:** `m5-difficulty`, a worktree of `main` at `91da48f0`. Merged to `main` 2026-10-10.
 - **Mark's decisions (2026-10-10):**
   - Three levels, **Recruit / Veteran / Ace**. **Veteran is today's tuning exactly, and the default**,
     so nothing changes until a player picks. Recruit is easier, Ace harder; each scales AA accuracy,

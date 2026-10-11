@@ -64,7 +64,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 - **Today:** `predictImpact` (`sim/weapons/impactPrediction.ts`) flies the sim's own bomb or rocket step to terrain or sea; the **Impact marker** (`U`) draws the result. Matches the real sim to 1 cm.
 - **This is a period-incorrect aid** (no CCIP in 1944), so it is an Assist: off by default (§4 Q2). Torpedoes are not covered.
 
-**B3. Navigation autopilot (M).** Built on branch `worktree-agent-a9f86eab69be97b65` 2026-10-10, not merged; plan [`2026-10-10-b3-pursuit-g-limit.md`](docs/superpowers/plans/2026-10-10-b3-pursuit-g-limit.md), handoff [`2026-10-10-b3-pursuit-g-limit.md`](docs/handoff/2026-10-10-b3-pursuit-g-limit.md).
+**B3. Navigation autopilot (M).** Done and merged 2026-10-10; plan [`2026-10-10-b3-pursuit-g-limit.md`](docs/superpowers/plans/2026-10-10-b3-pursuit-g-limit.md), handoff [`2026-10-10-b3-pursuit-g-limit.md`](docs/handoff/2026-10-10-b3-pursuit-g-limit.md).
 - **Built:** Shift pulls at most 0.9 of each airframe's own `gLimit` (rudder included) and stops diving at 0.9 of its dive speed. The 13 g overshoot (13.55 g, F6F broken up) is now 6.78 g, structure intact; Damage Range taps unchanged (11 and 14 hits on the first two).
 - **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
 - **What exists:** the AI already flies the laws: `goalDesiredVelocity` (ingress), `loiterDesiredVelocity`, `approachControls`, formation keeping. The measurement autopilot holds level flight (`sim/autopilot.ts`).
@@ -160,7 +160,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ **Dropped for now (Mark, 2026-10-10): no AI flies into a ship on purpose.** The first attempt is parked on branch `ship-collision-kamikaze-wip`. An airplane that hits a ship by accident is destroyed and damages it all the same (the collision rule, `src/sim/shipCollision.ts`).
    - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
-   - **Built and reference-GPU verified 2026-10-10 on branch `e3-bombers-gunners`, not merged.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
+   - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
    - wingman commands (7f §4.5);
@@ -317,12 +317,12 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - both sides fire, under the friendly-fire rules;
      - the default is Moderate, measured and pinned: lingering at 300 ft over a destroyer costs a Hellcat in about 20 s, a fast straight pass usually survives.
      - Builds on E1's lead and aim error. `aa_gun` and `flak_burst` (Track I, I3) are wired; the Dev scenario `aa-range` is the test bed. M3 now trains every drawn mount onto the same target and nominal lead.
-  3. **M3 Gun-laying AI (M). Built on branch `m3-gun-laying-ai`, not merged** (2026-10-10; plan `docs/superpowers/plans/2026-10-10-m3-gun-laying-ai.md`, handoff `docs/handoff/2026-10-10-m3-gun-laying-ai.md`). Every AA mount selects a hostile aircraft, trains and elevates on the same ballistic lead M2 fires at; light-AA gallery poses fan out to every drawn barrel mount. Main turrets select the nearest hostile live ship, then a standing hostile structure, and lay visually without firing. The bounded pose/target contract is M4's firing seam; M3 does not create a main-battery projectile, sound or hull damage.
+  3. **M3 Gun-laying AI (M). Done and merged 2026-10-10** ( plan `docs/superpowers/plans/2026-10-10-m3-gun-laying-ai.md`, handoff `docs/handoff/2026-10-10-m3-gun-laying-ai.md`). Every AA mount selects a hostile aircraft, trains and elevates on the same ballistic lead M2 fires at; light-AA gallery poses fan out to every drawn barrel mount. Main turrets select the nearest hostile live ship, then a standing hostile structure, and lay visually without firing. The bounded pose/target contract is M4's firing seam; M3 does not create a main-battery projectile, sound or hull damage.
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
-     - **Built on branch `m5-difficulty`, not merged** (2026-10-10; plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
+     - **Done and merged 2026-10-10** ( plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
   6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
 
 ---
@@ -366,9 +366,9 @@ prerequisites are met.
 | 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
 | 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
 | 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
-| 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire~~ done by 2026-10-10; B3, M3 gun-laying AI, M5 difficulty | Player experience; C1 and I1 share the flap and gear motion |
-| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation~~ done 2026-10-10 (L1.1), then trees; K in-cloud pacing | |
-| 6 | ~~E2 attack AI; C2 bomb bays~~ done; E3 bombers and turrets; F Escort (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
+| 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire; B3; M3 gun-laying AI; M5 difficulty~~ done by 2026-10-10 | Player experience; C1 and I1 share the flap and gear motion |
+| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a), then trees; K in-cloud pacing | |
+| 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; F Escort (now content-only) (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
 | 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |

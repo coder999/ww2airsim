@@ -1,7 +1,7 @@
 # B3 handoff: the pursuit autopilot is g-limited
 
 **Date:** 2026-10-10. **Plan:** [`2026-10-10-b3-pursuit-g-limit.md`](../superpowers/plans/2026-10-10-b3-pursuit-g-limit.md).
-**Branch:** `worktree-agent-a9f86eab69be97b65` (worktree `.claude/worktrees/agent-a9f86eab69be97b65`), cut from `main` `91da48f0`. **Not merged.**
+**Branch:** `worktree-agent-a9f86eab69be97b65` (worktree `.claude/worktrees/agent-a9f86eab69be97b65`), cut from `main` `91da48f0`. **Merged to `main` 2026-10-10** (with M5; `npm run verify` on the merge: 399 files, 5,561 passed).
 **Run:** unattended; viewing checkpoint is the final product only (fly it, below).
 
 ## What changed

@@ -1,6 +1,6 @@
 # E3 handoff: bombers in formation, and gunners that shoot back (2026-10-10)
 
-Plan: `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`. Branch `e3-bombers-gunners`, cut from `main` `91da48f0`, in worktree `.claude/worktrees/agent-a9bc867f9b5e66ad5`. **Not merged.** Run unattended. The viewing checkpoint is the final product, below.
+Plan: `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`. Branch `e3-bombers-gunners`, cut from `main` `91da48f0`, in worktree `.claude/worktrees/agent-a9bc867f9b5e66ad5`. **Merged to `main` 2026-10-10** (15390826, after B3, M5, L1.1a and M3; `npm run verify` 406 files, 5,627 passed; `gunnery`, `furball`, `strike` and `takeoff` E2E on the reference GPU, 10 passed). Run unattended. The viewing checkpoint is the final product, below.
 
 **Look at it:** the E3 worktree is served on dev slot 2, [Bomber Range](https://ww2airsim-2.windomlane.org/?scenario=bomber-range&launch&god=1). Dev on, then *Bomber Range (dev)* (`?scenario=bomber-range&launch`, add `&god=1` to be harmless). Sit behind the formation and close slowly: tracers come back at you. Then try a high-side pass.
 

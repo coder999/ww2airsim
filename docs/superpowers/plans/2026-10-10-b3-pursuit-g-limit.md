@@ -1,12 +1,12 @@
 # B3: g-limit the player's pursuit autopilot
 
-**Status (2026-10-10):** built on the branch, not merged; results in [`../../handoff/2026-10-10-b3-pursuit-g-limit.md`](../../handoff/2026-10-10-b3-pursuit-g-limit.md).
+**Status (2026-10-10):** merged to `main`; results in [`../../handoff/2026-10-10-b3-pursuit-g-limit.md`](../../handoff/2026-10-10-b3-pursuit-g-limit.md).
 **Mark's decisions (2026-10-10):**
 - The g-limit is **each airframe's own structural limit from its spec (`limits.gLimit`), minus a margin**, so the autopilot never overstresses the airplane under Realistic damage. The margin is chosen and justified by measurement (Task 3).
 - Scope per MASTER_PLAN §4 Q5: pursuit only, g-limited lead pursuit onto a gun solution; the player still fires. No heading/altitude hold, no waypoint mode.
 **Viewing checkpoint:** final product only.
 **Run mode:** unattended, to completion.
-**Location:** worktree `.claude/worktrees/agent-a9f86eab69be97b65`, branch `worktree-agent-a9f86eab69be97b65`, cut from `main` `91da48f0`. Not merged by this run.
+**Location:** worktree `.claude/worktrees/agent-a9f86eab69be97b65`, branch `worktree-agent-a9f86eab69be97b65`, cut from `main` `91da48f0`. Merged to `main` 2026-10-10.
 **Heavy jobs:** `tsc`, eslint, vitest suites and `npm run verify` go to ryzen (`REMOTE_RUN_OVERFLOW=0 remote-run`). On nexus, single small test files and the headless probe only.
 **Parallel work:** 1a (terrain gzip), M5 (difficulty: `settings.ts`, AI aim scaling, `aaFire`, player damage scaling), E3 (bomber AI, turrets, `combat.ts`) and k1 (clouds) run at the same time. This plan touches `src/sim/ai/autoPursuit.ts`, one optional parameter in `src/sim/ai/safety.ts`, their tests, a probe tool and docs.
 

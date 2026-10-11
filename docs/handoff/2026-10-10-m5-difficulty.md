@@ -1,7 +1,7 @@
 # M5 handoff: global difficulty (2026-10-10)
 
 Plan: `docs/superpowers/plans/2026-10-10-m5-difficulty.md`. Branch `m5-difficulty`, cut from `main`
-`91da48f0`, **built on branch, not merged**. Run unattended; the viewing checkpoint is the final
+`91da48f0`, **merged to `main` 2026-10-10** (with B3; `npm run verify` on the merge: 399 files, 5,561 passed). Run unattended; the viewing checkpoint is the final
 product, collected here.
 
 ## What you get
