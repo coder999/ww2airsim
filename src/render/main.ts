@@ -1129,6 +1129,7 @@ async function boot(): Promise<void> {
       },
       // Ship-models spec §9. `shipHandles` is built in `world.ships` order (buildScenarioEntities).
       shipModels: () => scenarioEntities?.shipHandles.map((h) => h.model) ?? [],
+      vehicleModelCount: () => scenarioEntities?.vehicleHandles?.length ?? 0,
       shipDeckProbe: (shipId, points, space) => {
         const i = frame?.world.ships.findIndex((s) => s.id === shipId) ?? -1
         const view = i >= 0 ? scenarioEntities?.shipHandles[i] : undefined
@@ -2740,6 +2741,12 @@ async function boot(): Promise<void> {
       const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
       m.quaternion.set(q.x, q.y, q.z, q.w)
     })
+    const tankStructures = view.world.structures.filter((s) => s.kind === 'tank')
+    const vehicleHandles = scenarioEntities!.vehicleHandles ?? []
+    vehicleHandles.forEach((handle, i) => {
+      const tank = tankStructures[i]!
+      handle.sync(tank, view.world.combat.structures[tank.id])
+    })
 
     // The cockpit group (the panel) shares the PLAYER's exact pose: panel.ts
     // authors the panel in the same body frame, relative to the eye, so it
@@ -3314,7 +3321,23 @@ async function boot(): Promise<void> {
         ? createVillages(arrived, villagesData as readonly Village[], next.world.airfields)
         : null
       if (villages) scene.add(villages.object)
-      vegetation = createVegetation(arrived, next.world.airfields, [...towns.hutFootprints, ...(villages?.footprints ?? [])])
+      // Scenario-authored armor has to be visible and attackable. Reuse the
+      // vegetation system's rectangular exclusions, with 12 m of working
+      // room around each hull, so trees do not grow through or immediately
+      // mask a tank while preserving the jungle between dispersed pairs.
+      const vehicleFootprints = next.world.structures
+        .filter((structure) => structure.kind === 'tank')
+        .map((structure) => ({
+          x: structure.position.x,
+          z: structure.position.z,
+          width: structure.halfSize.x * 2 + 24,
+          length: structure.halfSize.z * 2 + 24,
+        }))
+      vegetation = createVegetation(arrived, next.world.airfields, [
+        ...towns.hutFootprints,
+        ...(villages?.footprints ?? []),
+        ...vehicleFootprints,
+      ])
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --

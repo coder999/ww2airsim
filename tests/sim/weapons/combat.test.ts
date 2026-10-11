@@ -440,7 +440,7 @@ describe('production fixed-step ordnance', () => {
     expect(enemy.combat.aircraft['shooter']!.structuresDestroyed).toBe(1)
   })
 
-  it('credits a structure kill to killsByType.aaa for an aaa-kind structure, and .building for hangar/tower (Plan 9 Task 2)', () => {
+  it('credits AAA, buildings and tanks separately without counting a tank as RAZED', () => {
     const shooter = plane('shooter', -100)
     // Far apart so neither structure falls inside the other's blast radius.
     const aaa: StructureEntity = {
@@ -451,6 +451,10 @@ describe('production fixed-step ordnance', () => {
       id: 'hangar-1', airfield: 'test', kind: 'hangar', position: v3(2000, 5, 0), headingRad: 0,
       halfSize: { x: 5, y: 5, z: 5 }, hp: 50,
     }
+    const tank: StructureEntity = {
+      id: 'tank-1', kind: 'tank', model: 'type97-chi-ha', position: v3(4000, 1.105, 0), headingRad: 0,
+      halfSize: { x: 1.165, y: 1.105, z: 2.75 }, hp: 48, side: 'axis',
+    }
     // Bomb already armed, sitting exactly at the target's box center -- the
     // same trick "threads enemyAirfields..." above uses so contact is
     // deterministic without simulating a real release and fall.
@@ -458,14 +462,18 @@ describe('production fixed-step ordnance', () => {
       owner: 'shooter', id: 1, position: s.position, previous: s.position,
       velocity: v3(0, -50, 0), lifeS: 60, tracer: false, kind: 'bomb', ageS: 1,
     })
-    const c0 = createCombat([shooter], {}, [], [{ id: 'aaa-1', hp: 50 }, { id: 'hangar-1', hp: 50 }])
-    const c1 = stepCombat({ ...c0, projectiles: [bombAt(aaa)] }, [shooter], [], [aaa, hangar], null, null, [], 1, DT)
+    const targets = [aaa, hangar, tank]
+    const c0 = createCombat([shooter], {}, [], targets.map((s) => ({ id: s.id, hp: s.hp })))
+    const c1 = stepCombat({ ...c0, projectiles: [bombAt(aaa)] }, [shooter], [], targets, null, null, [], 1, DT)
     expect(c1.structures['aaa-1']!.destroyedTick).not.toBeNull()
-    const c2 = stepCombat({ ...c1, projectiles: [bombAt(hangar)] }, [shooter], [], [aaa, hangar], null, null, [], 2, DT)
+    const c2 = stepCombat({ ...c1, projectiles: [bombAt(hangar)] }, [shooter], [], targets, null, null, [], 2, DT)
     expect(c2.structures['hangar-1']!.destroyedTick).not.toBeNull()
-    expect(c2.aircraft.shooter!.structuresDestroyed).toBe(2)
-    expect(c2.aircraft.shooter!.killsByType.aaa).toBe(1)
-    expect(c2.aircraft.shooter!.killsByType.building).toBe(1)
+    const c3 = stepCombat({ ...c2, projectiles: [bombAt(tank)] }, [shooter], [], targets, null, null, [], 3, DT)
+    expect(c3.structures['tank-1']!.destroyedTick).not.toBeNull()
+    expect(c3.aircraft.shooter!.structuresDestroyed).toBe(2)
+    expect(c3.aircraft.shooter!.killsByType.aaa).toBe(1)
+    expect(c3.aircraft.shooter!.killsByType.building).toBe(1)
+    expect(c3.aircraft.shooter!.killsByType.tank).toBe(1)
   })
 
   it('credits every sunk hull to killsByType by role: escort scores as destroyer, merchant as transport', () => {

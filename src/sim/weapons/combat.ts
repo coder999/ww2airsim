@@ -733,10 +733,11 @@ export function stepCombat(
       return
     }
     if (enemyStructureIds !== null && !enemyStructureIds.has(s.id)) return
-    const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : 'building'
+    const targetType: TargetType = s.kind === 'aaa' ? 'aaa' : s.kind === 'tank' ? 'tank' : 'building'
     records[owner] = {
       ...shooter,
-      structuresDestroyed: shooter.structuresDestroyed + 1,
+      // The legacy RAZED counter means buildings/AAA; armor has its own tally row.
+      structuresDestroyed: shooter.structuresDestroyed + (s.kind === 'tank' ? 0 : 1),
       killsByType: { ...shooter.killsByType, [targetType]: shooter.killsByType[targetType] + 1 },
     }
   }

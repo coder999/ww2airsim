@@ -47,6 +47,7 @@ const TARGET_LABELS: Readonly<Record<TargetType, string>> = {
   aaa: 'Anti-aircraft',
   runway: 'Runways',
   building: 'Buildings',
+  tank: 'Tanks',
   carrier: 'Carriers',
 }
 
