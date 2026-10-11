@@ -126,6 +126,21 @@ describe('stepAa: who shoots at what', () => {
     expect(mean).toBeGreaterThan(0)
   })
 
+  it('starts light-AA reaction and ranging timers while an in-range target has no muzzle solution', () => {
+    const mount = { name: 'LightAA1', tier: 'light' as const, caliber: '20mm' as const, x: 0, y: 0, z: 0, bearingRad: 0, barrels: 1 }
+    const o: AaOwner = { id: 'light', side: 'axis', mounts: { mounts: [mount], reachM: AA_TUNING.light['20mm'].rangeM }, position: v3(0, 0, 0), previous: v3(0, 0, 0), headingRad: 0 }
+    const key = 'light#0'
+    const unsolved = plane('p', 'allied', v3(0, 100, -600), v3(5000, 0, 0))
+    const first = stepAa(initialAa(7), [o], [unsolved], 1, DT, 0)
+    expect(first.rounds).toEqual([])
+    expect(first.aa.engagedSince[key]).toBe(1)
+    expect(first.aa.nextFire[key]).toBeDefined()
+
+    const second = stepAa(first.aa, [o], [unsolved], 2, DT, 0)
+    expect(second.aa.engagedSince[key]).toBe(1)
+    expect(second.aa.nextFire[key]).toBe(first.aa.nextFire[key])
+  })
+
   it('lays main turrets on a hostile ship without firing an M4 projectile', () => {
     const o = owner('axis')
     const surface = [{

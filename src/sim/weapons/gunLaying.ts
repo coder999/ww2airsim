@@ -51,12 +51,14 @@ export function constantSpeedLead(
   origin: Vec3,
   target: GunLayingTarget,
   speedMps: number,
+  ownVelocity?: Vec3,
 ): { readonly direction: Vec3; readonly timeS: number } | null {
   if (!(speedMps > 0) || !Number.isFinite(speedMps)) return null
+  const relativeVelocity = ownVelocity === undefined ? target.velocity : sub(target.velocity, ownVelocity)
   let timeS = length(sub(target.position, origin)) / speedMps
   let aim = sub(target.position, origin)
   for (let i = 0; i < 3; i++) {
-    aim = sub(add(add(target.position, scale(target.velocity, timeS)), scale(target.accel, 0.5 * timeS * timeS)), origin)
+    aim = add(add(sub(target.position, origin), scale(relativeVelocity, timeS)), scale(target.accel, 0.5 * timeS * timeS))
     timeS = length(aim) / speedMps
   }
   return length(aim) > 1e-9 && Number.isFinite(timeS) ? { direction: normalize(aim), timeS } : null
