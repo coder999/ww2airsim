@@ -170,12 +170,13 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 10 missions and 6 ranges ship (counted in `SCENARIO_OPTIONS` 2026-10-11).
+  - 11 missions and 6 ranges ship on the Surigao branch (counted in `SCENARIO_OPTIONS` 2026-10-11).
   - A new mission is a JSON file, one `SCENARIO_OPTIONS` row and one `RIBBONS` design (`src/render/insignia.ts`; `tests/render/insignia.test.ts` fails without it), unless it needs a new objective kind, AI behavior or model.
   - **Ribbons and rank insignia done 2026-10-10:** an invented ribbon per mission badge and the 1944 USN collar device per rank, in the Dossier, debrief, roster and mission picker (GAMEPLAY.md, "Badges").
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
   - **Escort done 2026-10-10 (merged):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
+  - **Surigao Strait built 2026-10-11 (branch `surigao-strait-mission`, pending merge):** at dawn, a bomb-and-rocket F6F pursues *Mogami* while Oldendorf's battle line engages a representative rear guard; recovery is aboard a staged Essex (plan `docs/superpowers/plans/2026-10-11-surigao-strait-mission.md`, handoff `docs/handoff/2026-10-11-surigao-strait-mission.md`).
   - **Tank Buster done 2026-10-11:** a Hellcat attacks six stationary Japanese tanks southwest of Dulag; four kills plus recovery earn the badge, all six the secondary objective. The Chi-Ha is an explicit stand-in for the Type 89/Type 95 tanks better documented on Leyte.
   - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
@@ -187,7 +188,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | ~~Escort~~ | done 2026-10-10 |
   | Kamikaze Watch | deferred: needs an intentional kamikaze run, which Mark dropped 2026-10-10 |
   | ~~Flattop Hunt~~ | done 2026-10-10: Japanese carrier, D torpedoes/flooding and E2 attack AI |
-  | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
+  | ~~Surigao Strait~~ (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | built 2026-10-11 on `surigao-strait-mission`, pending merge; uses M2-M4 and first light stays inside the §3 no-night rule |
 
 - **Campaign by day** (missions spec §6.2): needs per-day airfield ownership plus the above. Build it after the missions, not before.
 
@@ -355,7 +356,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
      - **Done and merged 2026-10-10** (plan `docs/superpowers/plans/2026-10-10-m4-main-batteries.md`, handoff `docs/handoff/2026-10-10-m4-main-batteries.md`). Real shells on M3's targets, damage by shell weight, mount knock-out, muzzle flash and smoke, `ship_gun_heavy`; on only where a scenario says `"mainBatteries": true`. Item 6's test range is the Dev scenario `gunnery-duel`. Duel tables in the handoff.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
      - **Done and merged 2026-10-10** ( plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
-  6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
+  6. **Content.** The test range is `gunnery-duel`; Surigao Strait is built on `surigao-strait-mission` (2026-10-11), pending merge (Track F).
 
 ---
 

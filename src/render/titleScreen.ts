@@ -226,6 +226,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'flattop-hunt', label: 'Flattop Hunt', kind: 'mission', badge: { id: 'flattop-hunt', name: 'Flattop Hunt' }, dev: false, start: 'airborne', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
   // Track F (2026-10-10): escort four E3 B-17s to Dulag's hangars against Zeros. "Escort" is a substring of no other label.
   { value: 'escort', label: 'Escort', kind: 'mission', badge: { id: 'escort', name: 'Escort' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  // Track F (2026-10-11): dawn pursuit south through Surigao Strait while the battle line finishes the rear guard.
+  { value: 'surigao-strait', label: 'Surigao Strait', kind: 'mission', badge: { id: 'surigao-strait', name: 'Surigao Strait' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M2's two fixture missions, Dev-only like every test bed (A1).
   { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },

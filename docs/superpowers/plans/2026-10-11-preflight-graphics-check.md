@@ -1,9 +1,9 @@
 # Preflight graphics check — implementation plan
 
-**Date:** 2026-10-11  
-**Branch/worktree:** `gpu-quality-check` / `~/projects/ww2airsim-gpu-quality-check`  
+**Date:** 2026-10-11
+**Branch/worktree:** `gpu-quality-check` / `~/projects/ww2airsim-gpu-quality-check`
 **Run mode:** unattended unless Mark selects the offered attended checkpoint before the
-UI checkpoint is reached.  
+UI checkpoint is reached.
 **Viewing checkpoints:** final product only by default; first-run, recovery, main-menu
 and pause-screen captures go in the handoff.
 
