@@ -20,6 +20,7 @@ import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObj
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
+import { initialMainBattery } from './weapons/mainBattery.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
  *  must name the same four values; a mismatch here is a compile error. */
@@ -204,6 +205,8 @@ const ScenarioShipObject = z.object({
   /** Friendly fire (spec 2026-09-26 §2): absent means axis, through
    *  `sideOf`, the same default 7e gave every aircraft but the player. */
   side: SideField,
+  /** M4: what its main batteries engage first (`ShipOrders.fireAt`). */
+  fireAt: z.array(id).min(1).optional(),
 }).strict().refine((s) => s.speedMps === 0 || s.waypoints.length >= 2, {
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
@@ -234,6 +237,9 @@ const ScenarioShape = z.object({
   airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
+  /** M4: warships' main batteries fire at hostile ships and batteries in reach. Absent: they lay
+   *  (M3) but hold fire, as every scenario before M4 (ruling R1 of the M4 plan). */
+  mainBatteries: z.boolean().optional(),
   /** Steady wind, meteorological convention: the true bearing it blows FROM,
    *  and its speed. Plan 8. `windMps: 0` is calm, which `worldFromScenario`
    *  turns into a `null` world wind so the calm code path is selected. */
@@ -587,7 +593,7 @@ function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string
  *  verbatim. */
 function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainField | null): ShipEntity {
   const spec = lookup(bundle.shipSpecs, sh.spec, 'ship spec')
-  const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps }
+  const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps, ...(sh.fireAt === undefined ? {} : { fireAt: sh.fireAt }) }
   if (terrain !== null) assertLoopOverWater(sh.id, orders, terrain)
   const first = orders.waypoints[0]!
   // A moving ship's heading comes from its first two waypoints, same as
@@ -789,6 +795,16 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
  * `storesFromLoadout`'s zero-stores case, so an omitted third argument is
  * bit-identical to the pre-Task-7 hardcode it replaces.
  */
+/** M4: the same world with its warships' main batteries free to fire (scenario `mainBatteries`, or
+ *  the DEV `?mainBatteries=all` alternative to ruling R1). */
+export const withMainBatteries = <M>(w: World<M>): World<M> =>
+  w.combat.mainBattery !== undefined ? w : { ...w, combat: { ...w.combat, mainBattery: initialMainBattery() } }
+/** M4: the same world with every main battery holding fire (DEV `?mainBatteries=off`). */
+export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
+  const { mainBattery, ...combat } = w.combat
+  return mainBattery === undefined ? w : { ...w, combat }
+}
+
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
@@ -846,5 +862,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     })
   }
   checkSides(s, airfields)
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  const world = createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  return s.mainBatteries === true ? withMainBatteries(world) : world
 }

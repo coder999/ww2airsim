@@ -1,0 +1,16 @@
+{
+  "id": "gunnery-duel",
+  "player": "f6f-1",
+  "airfields": ["tacloban"],
+  "airfieldSides": { "tacloban": "axis" },
+  "mainBatteries": true,
+  "aircraft": [
+    { "id": "f6f-1", "spec": "f6f-hellcat", "airborneAt": { "position": [-21000, 610, -34000], "headingDeg": 0, "speedMps": 120 } }
+  ],
+  "ships": [
+    { "id": "dd-allied", "spec": "fletcher-dd", "side": "allied", "waypoints": [[-26000, -38000], [-16000, -38000]], "speedMps": 7.7, "fireAt": ["dd-axis"] },
+    { "id": "dd-axis", "spec": "kagero-dd", "side": "axis", "waypoints": [[-16000, -46000], [-26000, -46000]], "speedMps": 7.7, "fireAt": ["dd-allied"] },
+    { "id": "cl-shore", "spec": "cleveland-cl", "side": "allied", "waypoints": [[-26500, -51000]], "speedMps": 0, "fireAt": ["tacloban-aaa-1"] }
+  ],
+  "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 12 }
+}

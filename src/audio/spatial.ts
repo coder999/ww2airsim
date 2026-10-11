@@ -60,7 +60,9 @@ export type SpatialInputs = {
   readonly decks: readonly { readonly id: string; readonly center: Vec; readonly lengthM: number }[]
   /** Detonations, plus a torpedo's water entry (D3 T2): `torpedo` marks a torpedo event, `'splash'`
    *  at entry or a break-up on the water, `'hit'` at a hull. */
-  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec; readonly torpedo?: 'splash' | 'hit'; readonly flak?: true }[]
+  readonly blasts: readonly { readonly tick: number; readonly surface: string; readonly position: Vec; readonly torpedo?: 'splash' | 'hit'; readonly flak?: true
+    /** M4: a main-battery salvo leaving its turret: `ship_gun_heavy` at any range. */
+    readonly gun?: true }[]
   /** Ships and batteries whose light guns fired lately (M2), at the gun that fired. Absent reads as none. */
   readonly aaGuns?: readonly { readonly id: string; readonly position: Vec }[]
 }
@@ -215,7 +217,8 @@ export function nextSpatial(
   fresh.filter((f) => f.d <= BLAST_HEARD_M).sort((p, q) => p.d - q.d).slice(0, MAX_BLASTS_PER_UPDATE).forEach(({ b, d }) => {
     // A torpedo has its own takes at any range (D3 T2, Track I's I3); distance still dulls them.
     // A flak burst (M2) is always flak: the close take within FLAK_SWITCH_M, the far one beyond.
-    const clip: ClipId = b.torpedo === 'splash' ? 'torpedo_splash' : b.torpedo === 'hit' ? 'torpedo_hit'
+    // M4: a main-battery salvo is always the big gun's report; distance dulls it like the rest.
+    const clip: ClipId = b.gun === true ? 'ship_gun_heavy' : b.torpedo === 'splash' ? 'torpedo_splash' : b.torpedo === 'hit' ? 'torpedo_hit'
       : d > FLAK_SWITCH_M ? 'flak_distant' : b.flak === true ? 'flak_burst' : b.surface === 'water' ? 'water_crash' : 'explosion'
     enqueue(clip, b.position, d, BLAST_REF_M)
   })

@@ -17,7 +17,7 @@ export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
-  'kill.air', 'flak.burst', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
+  'kill.air', 'flak.burst', 'muzzle.heavy', 'muzzle.light', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
@@ -110,6 +110,11 @@ const BOMB_LAND: RawEmitter[] = [
 ]
 const BOMB_WATER: RawEmitter[] = [waterColumn(5, [9.2, 23]), crown(24), surge(16)]
 
+const MUZZLE_HEAVY: RawEmitter[] = [
+  { ...fireball(6, [14, 34], [0.9, 1.3]), radiusM: 3, speedMps: [2, 6], inheritVelocity: 0.9, dragPerS: 4, accelYMps2: 0 },
+  { mode: 'burst', sheet: 'smoke', count: 14, lifeS: [7, 12], speedMps: [2, 7], direction: 'sphere', spreadDeg: 180, radiusM: 4, sizeM: [14, 60], alpha: 0.75, tint: [0.36, 0.33, 0.29], dragPerS: 0.7, accelYMps2: 0.6, inheritVelocity: 0.7 },
+]
+
 const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'bomb.land': { emitters: BOMB_LAND, source: ESTIMATE },
   'bomb.water': { emitters: BOMB_WATER, source: ESTIMATE },
@@ -138,6 +143,11 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { ...fireball(2, [7, 15], [0.7, 1.0]), radiusM: 2 },
     { mode: 'burst', sheet: 'smoke', count: 6, lifeS: [4.5, 7.5], speedMps: [2, 9], direction: 'sphere', spreadDeg: 180, radiusM: 7, sizeM: [22, 48], alpha: 0.85, tint: [0.035, 0.035, 0.04], dragPerS: 1.1, accelYMps2: 0.3 },
   ], source: 'estimate (M2, 2026-10-10): sizes and life chosen for legibility from the cockpit at AA range' },
+  // M4: a main-battery salvo. A short orange flash thrown down the barrel, then a brown-grey cordite cloud
+  // carried out from the muzzle that slows, spreads, drifts up and fades over about ten seconds. The trigger's
+  // velocity is the barrel's direction (events.ts MUZZLE_BLAST_MPS). Estimate, never compared with a photograph.
+  'muzzle.heavy': { emitters: MUZZLE_HEAVY, source: 'estimate (M4, 2026-10-10): sizes and life chosen to read a 14-inch broadside from a mile off' },
+  'muzzle.light': { emitters: smaller(MUZZLE_HEAVY, 0.6), source: 'estimate (M4, 2026-10-10): muzzle.heavy at 0.6, so a 5-inch salvo still reads from half a mile' },
   // Today's smoke.ts: dark (0x23262b), opacity 0.25..0.8 with damage.
   // Damage stages round 2: grey, light at low intensity and heavy at high (rate follows intensity);
   // smoke.black joins it for the last stretch before the fire (events.ts SMOKE_BLACK_FROM).

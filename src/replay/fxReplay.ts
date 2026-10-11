@@ -24,6 +24,8 @@ export const REPLAY_FX_SEED = 1945
 export type FxAnchors = {
   readonly shipSmokeOrigins: ReadonlyMap<string, Vec3>
   readonly structureAnchors: ReadonlyMap<string, Vec3>
+  /** M4: the drawn muzzles (`FxWorldView.muzzles`). */
+  readonly muzzles?: NonNullable<FxWorldView['muzzles']>
 }
 
 const viewOf = (w: World<undefined>, poses: ReplayPoses['poses'], anchors: FxAnchors): FxWorldView => ({

@@ -116,6 +116,14 @@ export type CombatDiagnostics = {
     }[] }
   /** E3: defensive gunners' salvos in the air, and each gunner-armed airplane's salvos so far (its `shots`). */
   readonly gunners: { readonly rounds: number; readonly salvos: Readonly<Record<string, number>> }
+  /** M4: main batteries on (`CombatState.mainBattery`), shells in the air, the salvos and bursts in the
+   *  impact ring (each salvo's ship and mount), and every ship's hull points and knocked-out mounts. */
+  readonly mainBattery: {
+    readonly on: boolean; readonly shells: number
+    readonly salvosRecent: readonly { readonly tick: number; readonly ship: string; readonly mount: string }[]
+    readonly burstsRecent: number
+    readonly ships: readonly { readonly id: string; readonly hp: number; readonly mountsOut: readonly string[] }[]
+  }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -153,6 +161,13 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
       burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
       errorScale: combat.aa.errorScaleVs?.scale ?? 1,
       laying: Object.entries(combat.aa.laying).flatMap(([shipId, poses]) => poses.map((pose) => ({ shipId, ...pose }))),
+    },
+    mainBattery: {
+      on: combat.mainBattery !== undefined,
+      shells: combat.projectiles.filter((p) => p.shell !== undefined).length,
+      salvosRecent: combat.impacts.flatMap((i) => (i.cause === 'shell' && i.outcome === 'fired' && i.mount !== undefined ? [{ tick: i.tick, ship: i.mount.ship, mount: i.mount.name }] : [])),
+      burstsRecent: combat.impacts.filter((i) => i.cause === 'shell' && i.outcome === 'detonated').length,
+      ships: Object.entries(combat.ships).map(([id, d]) => ({ id, hp: d.hp, mountsOut: d.mountsOut ?? [] })),
     },
     gunners: {
       rounds: combat.projectiles.filter((p) => p.gunner === true).length,

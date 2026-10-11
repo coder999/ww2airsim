@@ -49,6 +49,10 @@ export interface ShipMountView {
   readonly maxElevationRad: number
   /** Raises this mount's guns alone about their trunnion, radians above level, clamped to [0, maxElevationRad]. */
   setElevation(rad: number): void
+  /** M4: where the drawn barrels end, center of the guns' front face, and the unit vector they point
+   *  along, in three's world frame under the current pose (`scene.position` included). Absent on a
+   *  vehicle's rig, which never fires a shell. */
+  muzzle?(): { readonly position: Vec3; readonly direction: Vec3 }
 }
 
 /** A locator: an armament entry, or one gun of a gallery (`LightAA5_3`, M1b). */
@@ -93,6 +97,14 @@ function instanceMounts(root: Object3D): { mounts: ShipMountView[]; dispose: () 
       parts.push({ mesh, rel: kitInverse.clone().multiply(o.matrixWorld), guns })
     })
     kitNode.removeFromParent()
+    // M4: the muzzle, kit-local: the front (+x) face of the guns (or of the whole kit, where the guns are not a part).
+    const front = new Box3(), box = new Box3()
+    for (const p of parts) {
+      if (gunsNode !== null && !p.guns) continue
+      p.mesh.geometry.computeBoundingBox()
+      front.union(box.copy(p.mesh.geometry.boundingBox!).applyMatrix4(p.rel))
+    }
+    const muzzleLocal = new Vector3(front.max.x, (front.min.y + front.max.y) / 2, (front.min.z + front.max.z) / 2)
     const toTrunnion = new Matrix4().makeTranslation(trunnion[0]!, trunnion[1]!, trunnion[2]!)
     const fromTrunnion = new Matrix4().makeTranslation(-trunnion[0]!, -trunnion[1]!, -trunnion[2]!)
     users.forEach((loc, i) => {
@@ -113,6 +125,14 @@ function instanceMounts(root: Object3D): { mounts: ShipMountView[]; dispose: () 
         name: loc.name, kit, maxElevationRad,
         setTraining: (rad) => { training = rad; pose() },
         setElevation: (rad) => { elevation = Math.min(Math.max(rad, 0), maxElevationRad); pose() },
+        muzzle: () => {
+          root.updateWorldMatrix(true, false)
+          const w = new Matrix4().multiplyMatrices(root.matrixWorld, at).multiply(turn)
+          if (gunsNode !== null) w.multiply(raise)
+          const position = muzzleLocal.clone().applyMatrix4(w)
+          const direction = new Vector3(1, 0, 0).transformDirection(w)
+          return { position: { x: position.x, y: position.y, z: position.z }, direction: { x: direction.x, y: direction.y, z: direction.z } }
+        },
       })
     })
     for (const p of parts) { root.add(p.mesh); owned.push(p.mesh) }
