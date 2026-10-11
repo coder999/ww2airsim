@@ -2,7 +2,10 @@
 
 **Plan:** `docs/superpowers/plans/2026-10-11-surigao-strait-mission.md`.
 
-**Branch:** `surigao-strait-mission`, worktree `/home/mark/projects/ww2airsim-surigao-strait`, cut from `main` `b8c17fb7e09cb3a44e668ad5568e0678736aff39`. Pending review and merge; no deployment was attempted.
+**Merged:** feature branch `surigao-strait-mission`, cut from `main`
+`b8c17fb7e09cb3a44e668ad5568e0678736aff39`, was integrated into `main` by
+`a8c01fd2`; the final combined C4/Surigao/ground-vehicle integration is
+`14c33607`. No deployment was attempted.
 
 **Run:** unattended. Mark's checkpoint is the final product below.
 
@@ -14,7 +17,9 @@ No review captures were accepted. A local-nexus Playwright attempt reached Sorti
 
 ## Mission result
 
-`content/scenarios/surigao-strait.json` adds the tenth shipped mission without a new model, AI mode, objective kind or sound asset.
+`content/scenarios/surigao-strait.json` added the tenth shipped mission at the
+time of its feature branch without a new model, AI mode, objective kind or
+sound asset. Later merged missions may change the catalog count.
 
 - *Fuso* and *Yamashiro* do not appear: both are already sunk by dawn.
 - Player: F6F-5 Hellcat, airborne at 1,500 m, heading south at 120 m/s.
@@ -72,12 +77,27 @@ Browser flow:
 
 ## Files and overlap
 
-The functional delta is the scenario plus enrollment in the title picker, ribbon and text-radio registries. Tests cover content honesty, picker parity, radio parity, ribbon width, mission geometry, production bomb/rocket/round damage margin, live surface fire, success/failure and the browser-flow declaration. `MASTER_PLAN.md` and `GAMEPLAY.md` describe the branch as pending merge.
+The functional delta is the scenario plus enrollment in the title picker,
+ribbon and text-radio registries. Tests cover content honesty, picker parity,
+radio parity, ribbon width, mission geometry, production bomb/rocket/round
+damage margin, live surface fire, success/failure and the browser-flow
+declaration. `MASTER_PLAN.md` and `GAMEPLAY.md` now describe the merged mission.
 
-Overlap with the other 2026-10-11 tracks is low. C4 asymmetric engine-loss yaw should touch flight/damage code and tests, none used here. Drivable ground vehicles may touch title/product tests and the standing docs, so expect ordinary textual conflicts in `MASTER_PLAN.md`, `GAMEPLAY.md`, and possibly exact scenario-option arrays; the Surigao scenario and mission suite are isolated.
+The later C4 and ground-vehicle integrations preserved the Surigao scenario,
+radio/ribbon/title enrollment, mission tests, Tank Buster, and the current
+aircraft/preflight work. The combined catalog and documentation conflicts were
+resolved before `14c33607`.
 
 ## Remaining review risks
 
 1. Run the single Surigao mission E2E on the reference Windows GPU and retain `f-surigao-strait-{briefing,chart,debrief}.png`.
 2. Human-fly the mixed-weapon attack and carrier recovery; production tests prove the damage margin and outcomes, not that the sortie feels well paced.
 3. The representative fleet composition and Essex staging are deliberate abstractions and should remain named as such in player-facing history.
+
+## Final integrated status
+
+The merged main-tree verification at `14c33607` passed typecheck, lint,
+dependency analysis, `git diff --check`, all 376 focused integration tests,
+and all Surigao coverage in the 5,959-test full run. The full run's only
+failure was the pre-existing Escort easy/unescorted loss-count assertion,
+reproduced unchanged on main before the ground-vehicle merge.

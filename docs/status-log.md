@@ -471,6 +471,26 @@ recommended High/100% and nexus Radeon 680M recommended Medium/75% at
 [handoff](handoff/2026-10-11-preflight-graphics-check.md); MASTER_PLAN A6 is
 the authoritative status.
 
+**C4, Surigao Strait and Track V ground vehicles merged 2026-10-11.** C4
+asymmetric engine-loss yaw entered main at `4e5c2f61`, the Surigao Strait dawn
+mission at `a8c01fd2`, and scenario-driven ground vehicles at final main merge
+`14c33607` (feature integration `633087b1`). Track V provides authored,
+terrain-following waypoint motion, held spawns, damage and scoring, replay and
+mission-chart support, and the original Type 95 Kurogane Japanese jeep-role
+counterpart. Tank Buster now uses the same `World.vehicles` representation.
+See the [C4 handoff](handoff/2026-10-11-c4-asymmetric-engine-yaw.md),
+[Surigao handoff](handoff/2026-10-11-surigao-strait-mission.md), and
+[Track V handoff](handoff/2026-10-11-v2-ground-vehicles.md).
+
+Final integrated verification on `14c33607` passed `git diff --check`,
+typecheck, lint, dependency analysis and 17 focused files / 376 tests. The full
+run passed 419 files and 5,947 tests with 11 skipped; its sole failure was the
+pre-existing Escort easy/unescorted loss-count assertion, reproduced
+identically on main before V2 integration. C4, Surigao, Tank Buster, Track V,
+USS Crow, AI lethality and deterministic model rebuilds were green. The three
+feature worktrees were clean and merged before removal; the Kurogane review
+captures were retained with the handoff. No deployment was performed.
+
 **The Blender Hellcat canopy was corrected from Mark's side photograph on
 2026-10-11.** Its profile now has the real airplane's steep windscreen, high
 forward bow and straight descending roof instead of a smoothed bubble. After

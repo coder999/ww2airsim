@@ -1,8 +1,10 @@
 # Handoff: C4 asymmetric engine-loss yaw (2026-10-11)
 
-**Branch:** `c4-engine-out-yaw`, from `main` at `b8c17fb7`. **Plan:**
+**Merged:** feature branch `c4-engine-out-yaw` was integrated into `main` by
+`4e5c2f61`; the final combined C4/Surigao/ground-vehicle integration is
+`14c33607`. **Plan:**
 `docs/superpowers/plans/2026-10-11-c4-asymmetric-engine-yaw.md`. **Run:** unattended;
-final-product checkpoint only. Delivery is this branch; no merge or deployment.
+final-product checkpoint only. No deployment was performed.
 
 ## What is there now
 
@@ -76,3 +78,11 @@ curves.
   inertia or angular acceleration.
 
 Those boundaries are recorded in `docs/aircraft.md` D6 and `MASTER_PLAN.md` C4.
+
+## Final integrated status
+
+The merged main-tree verification at `14c33607` passed typecheck, lint,
+dependency analysis, `git diff --check`, all 376 focused integration tests,
+and all C4 coverage in the 5,959-test full run. The full run's only failure
+was the pre-existing Escort easy/unescorted loss-count assertion, reproduced
+unchanged on main before the ground-vehicle merge.

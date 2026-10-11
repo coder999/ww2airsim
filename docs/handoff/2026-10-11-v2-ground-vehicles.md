@@ -3,6 +3,7 @@
 Date: 2026-10-11
 Branch: `v2-ground-vehicles`
 Plan: `docs/superpowers/plans/2026-10-11-v2-ground-vehicles.md`
+Merged: feature integration `633087b1`; final main merge `14c33607`
 
 ## Shipped behavior
 
@@ -60,13 +61,21 @@ Recorded after implementation:
   case lost one bomber rather than its asserted more-than-one both in-suite and
   isolated; normal/hard and the other seven Escort cases passed. No vehicle,
   Tank Buster, Surigao Strait, C4 or chart regression failed.
+- Final integrated main verification at `14c33607`: typecheck, lint,
+  dependency analysis and `git diff --check` passed; the focused integration
+  suite passed 17 files / 376 tests. The full run passed 419 files and 5,947
+  tests, skipped 11, and retained only the same Escort easy/unescorted
+  assertion (one bomber lost versus the existing more-than-one expectation).
+  That assertion was reproduced identically on pre-V2 main. USS Crow, V2,
+  Tank Buster, Surigao, C4, AI lethality and deterministic Blender rebuilds
+  were green.
 - Bounded nexus local-GPU E2E (isolated loopback Vite port; no shared
   HTTPS slot): Gunnery Range strafing-pass mission plus the vehicle Hangar
   capture tool, two tests passed in 1.4 minutes. The mission recorded 144 shots,
   50 hits, one kill, a stopped runway landing, and zero WebGPU validation
   errors.
 - Final Hangar checkpoint captures are in
-  `test-results/v2-ground-vehicles/type95-kurogane-{left,right,front}.png`.
+  `docs/handoff/2026-10-11-v2-ground-vehicles-shots/type95-kurogane-{left,right,front}.png`.
   All three were inspected at original resolution: silhouette, wheel placement,
   steering pose, fittings and framing are coherent; no clipping or missing
   materials was visible.
@@ -81,3 +90,5 @@ Recorded after implementation:
   dedicated persistent smoke effect.
 - The Kurogane has no rider. Add one only if a close-view scenario justifies
   the separate figure, rig and draw-call cost.
+
+No deployment was performed.
