@@ -24,10 +24,13 @@ Real-airplane measurement (read 2026-10-11): Wikimedia Commons
 prop=images list was checked first; it exposes the raster three-view rather
 than this corrected SVG, so Commons search located the SVG counterpart.
 Each table is in meters aft of the nose tip; vertical values are meters above
-the model's wing-quarter-chord horizontal datum. Pixel scale for the side view is 45.5 px/m from
-the 1,032 px nose-to-tail length over the cited 22.66 m. The drawing has no
-fuselage cross-sections, so half-widths are read from its top view and remain
-ESTIMATE between the shown outlines.
+the model's wing-quarter-chord horizontal datum. The original profile tables
+were read from the 1,600 px raster. The tail was re-read on 2026-10-11 from a
+1,920 px raster: the side-view airframe runs from nose x=33 to tail shell
+x=1,385 (59.7 px/m over the cited 22.66 m); the main-fin leading root is at
+station 17.7 m and its top is 3.90 m above the embedded root. The drawing has
+no fuselage cross-sections, so half-widths are read from its top view and
+remain ESTIMATE between the shown outlines.
 
   side silhouette, station: top / bottom (DRAWING-MEASURED, +/-0.08 m):
     0.00: +0.12/-0.10; 1.10: +0.78/-0.82; 2.10: +1.05/-1.05;
@@ -42,9 +45,11 @@ ESTIMATE between the shown outlines.
     20.00: 0.68; 21.50: 0.38; 22.66: 0.08
   windscreen front 3.18 m; canopy crown 4.35 m at +2.02 m;
     canopy rear 5.95 m                                     DRAWING-MEASURED
-  fin/dorsal-fillet root 12.2-22.66 m, top leading/trailing stations
-    17.7/19.7 m, height 5.20 m; tailplane leading edge
-    17.4 m at the root and span 13.7 m                     DRAWING-MEASURED
+  dorsal fillet begins 12.2 m aft of the nose and joins the fin
+    near 17.7 m; the load-bearing fin root is 17.7-22.66 m,
+    rises 3.90 m from its embedded root, and has a 1.19 m
+    tip chord; tailplane leading edge 17.4 m at the root
+    and span 13.7 m                                       DRAWING-MEASURED
   wing quarter-chord at 30% semispan 8.90 m aft of the nose;
     that point is this model's origin                       DRAWING-MEASURED
   pilot eye [4.65, 1.66] in model coordinates (station 4.25 m,
@@ -54,12 +59,17 @@ Other figures:
   taper 0.36, leading-edge sweep 6 deg, dihedral 4.5 deg    ESTIMATE from
     the drawing; the root leading edge is offset so the 30%-semispan
     quarter-chord is the origin
-  fuselage superellipse exponents, nacelle sections, cowl details,
-    control-surface hinges, fairings and insignia positions         ESTIMATE
+  dorsal-fillet thickness and lower edge, fuselage superellipse
+    exponents, nacelle sections, cowl details, control-surface
+    hinges, fairings and insignia positions                         ESTIMATE
   main gear is one large wheel per side and retracts forward into the
     inboard nacelles; tailwheel retracts forward                     ESTIMATE motion
-  turret stations and arcs                                            ESTIMATE from
-    the drawing and the cited nine-position armament layout
+  forward dorsal turret center 6.15 m aft of the nose              DRAWING-MEASURED
+  turret sizes and arcs                                                ESTIMATE from
+    the drawing and the cited nine-position armament layout; the
+    forward dorsal turret base is computed from the authored fuselage
+    loft and sunk 0.04 m into the lowest skin point under its footprint;
+    its 0.82 m collar/dome keeps the level gun traverse above the cockpit
   one bomb bay from x -2.55 to +0.75 m, 0.48 m either side of keel    ESTIMATE;
     covers the existing spec's eight internal rack points
   unpainted natural metal with 1943 star-and-bar markings              ESTIMATE
@@ -134,7 +144,11 @@ CANOPY = [
 ]
 CANOPY_FRAMES = (5.55, 5.05, 4.55, 4.05, 3.55)
 TAILPLANE = dict(span=13.70, leading_station=17.40, root=4.40, taper=0.42, y=0.62, sweep=10.0)
-FIN = dict(root=10.46, taper=2.00 / 10.46, height=5.20, y=0.62, sweep=46.6)
+# The drawing's long line from station 12.2 is a thin dorsal fillet, not the
+# leading edge of a 10.46 m-chord fin.  The main fin begins at station 17.7.
+FIN = dict(root=4.96, taper=0.24, height=3.90, y=0.78, sweep=12.5)
+DORSAL_FILLET = dict(start=12.20, root=8.10, tip=0.82, height=2.35, y=0.84, sweep=66.8)
+TOP_TURRET = dict(station=6.15, radius=0.50, height=0.82, embed=0.04, barrel=0.92)
 ENGINE_Z = (3.03, 6.53)
 NACELLE = [(-1.65, 0.23), (-0.90, 0.62), (0.20, 0.78), (1.55, 0.80), (2.35, 0.72), (2.73, 0.56), (2.78, 0.40)]
 PROP_X = (2.88, 2.42)
@@ -166,6 +180,37 @@ def fuselage_rows():
 FUSELAGE_ROWS = fuselage_rows()
 NOSE_ROWS = FUSELAGE_ROWS[-3:]
 BODY_ROWS = FUSELAGE_ROWS[:-2]
+_FUSELAGE_FINE, _ = kit._refine_shape(FUSELAGE_ROWS, SUBDIVIDE)
+
+
+def _fuselage_section(x):
+    """Interpolated (half-width, half-height, center y, exponent) at x."""
+    i = next(k for k in range(len(_FUSELAGE_FINE) - 1)
+             if _FUSELAGE_FINE[k][0] <= x <= _FUSELAGE_FINE[k + 1][0])
+    f = (x - _FUSELAGE_FINE[i][0]) / (_FUSELAGE_FINE[i + 1][0] - _FUSELAGE_FINE[i][0])
+    return tuple(_FUSELAGE_FINE[i][c] +
+                 (_FUSELAGE_FINE[i + 1][c] - _FUSELAGE_FINE[i][c]) * f
+                 for c in (1, 2, 3, 4))
+
+
+def fuselage_top_y(station, z):
+    """Top of the authored fuselage loft at a nose station and lateral z."""
+    half_width, half_height, center_y, exponent = _fuselage_section(X(station))
+    lateral = min(abs(z) / half_width, 1.0)
+    return center_y + half_height * (1.0 - lateral ** exponent) ** (1.0 / exponent)
+
+
+def dorsal_turret_base(station, radius, embed):
+    """A horizontal turret base below every sampled skin point in its footprint."""
+    skin = []
+    for ix in range(-4, 5):
+        dx = radius * ix / 4
+        for iz in range(-4, 5):
+            z = radius * iz / 4
+            if dx * dx + z * z <= radius * radius:
+                # X(station) + dx is the nose station ``station - dx``.
+                skin.append(fuselage_top_y(station - dx, z))
+    return min(skin) - embed
 
 
 out, _opts = kit.cli_args()
@@ -200,11 +245,13 @@ def wing_thickness(z):
 
 
 with m.tagged('fuselage'), m.shared_chart():
-    m.fuselage(UPPER, BODY_ROWS, segments=SEGMENTS, subdivide=SUBDIVIDE, doors=BAYS)
+    m.fuselage(UPPER, BODY_ROWS, segments=SEGMENTS, subdivide=SUBDIVIDE,
+               doors=BAYS, refinement='shape')
 with m.tagged('nose'), m.shared_chart():
     # The bombardier's greenhouse occupies the upper half of the B-17G nose;
     # the lower half stays metal and carries the chin turret.
-    m.fuselage('glazing', NOSE_ROWS, segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=UPPER)
+    m.fuselage('glazing', NOSE_ROWS, segments=SEGMENTS, subdivide=SUBDIVIDE,
+               lower_role=UPPER, refinement='shape')
 with m.tagged('canopy'), m.shared_chart():
     m.canopy('glazing', UPPER,
              [(X(s), w, h, cy) for s, w, h, cy in CANOPY],
@@ -235,6 +282,10 @@ with m.tagged('fin'), m.shared_chart():
           sweep_deg=FIN['sweep'],
           stations=STATIONS, span_segments=1,
           controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
+    fillet = DORSAL_FILLET
+    m.fin(UPPER, X(fillet['start']), fillet['y'], fillet['root'], fillet['tip'], fillet['height'],
+          sweep_deg=fillet['sweep'], thickness=0.012, tip_thickness=0.075,
+          stations=STATIONS, span_segments=1)
 
 # Four nacelles and their exactly three-fold propellers.
 props = sorted(side * z for z in ENGINE_Z for side in (-1, 1))
@@ -274,8 +325,23 @@ with m.tagged('gear'), m.shared_chart():
 with m.tagged('turret'), m.shared_chart():
     m.gun_turret(UPPER, 1, (X(1.75), -0.76, 0.0), 0.48, 0.42, up=-1,
                  barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
-    m.gun_turret(UPPER, 4, (X(5.65), 1.90, 0.0), 0.50, 0.48, up=1,
-                 barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
+    tt = TOP_TURRET
+    turret4_y = dorsal_turret_base(tt['station'], tt['radius'], tt['embed'])
+    turret4_x = X(tt['station'])
+    # The rotating assembly starts at the skin-derived base. Its low collar
+    # fills the old air gap; the guns sit near the crown so a level traverse
+    # clears the cockpit roof instead of cutting through it.
+    m.revolve(UPPER, (turret4_x, turret4_y, 0.0), (0.0, 1.0, 0.0),
+              [(0.0, tt['radius']), (0.20, 0.48), (0.55, 0.36),
+               (tt['height'], 0.12)], 12, 'Turret4')
+    gun_y = turret4_y + 0.96 * tt['height']
+    for barrel in (-0.5, 0.5):
+        m.machine_gun('dark', (turret4_x, gun_y, barrel * 0.12),
+                      (1.0, 0.0, 0.0), tt['barrel'], node='Turret4Guns')
+    m._fixed_hinges['Turret4'] = {'point': [round(turret4_x, 6), round(turret4_y, 6), 0.0],
+                                  'axis': [0.0, 1.0, 0.0]}
+    m._fixed_hinges['Turret4Guns'] = {'point': [round(turret4_x, 6), round(gun_y, 6), 0.0],
+                                      'axis': [0.0, 0.0, 1.0]}
     m.gun_turret(UPPER, 5, (X(10.15), -1.72, 0.0), 0.52, 0.50, up=-1,
                  barrels=2, barrel_length=0.92, facing=1, gun_role='dark')
     # Cheek trunnions sit outside the measured 1.2 m half-width here. This

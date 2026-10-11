@@ -175,6 +175,10 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 - **Seat attached parts on the actual local skin.** Compute a turret base, fixed strut root, spat brace or canopy rail
   from the same refined fuselage/wing stations that draw the supporting surface. Sink the join slightly into that
   surface. The B-17 upper turret and D3A fixed gear showed why a plausible world-space height is not enough.
+- **A turret base and its gun trunnion solve different constraints.** Seat the lowest collar into the sampled skin,
+  then put the trunnion high enough that `aircraftRigs.test.ts` can sweep every declared traverse/elevation without a
+  barrel crossing the fuselage or cockpit. Lowering an old floating dome as one rigid primitive made the B-17's guns
+  cut through its cockpit; a joined collar/dome kept the base attached while preserving the clear gun arc.
 - **Canopy and fuselage station lists run tail to nose** (x increasing). A reversed list fails with
   "station x values must be strictly increasing", and only the canopy's order is easy to flip when copying from a
   nose-first source.

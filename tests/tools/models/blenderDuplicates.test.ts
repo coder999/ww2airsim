@@ -116,3 +116,28 @@ describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, mode
     }
   })
 })
+
+it('B-17G uses the drawing-sized main fin and seats its forward dorsal turret in the fuselage crown', async () => {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/b-17-flying-fortress-blender.glb')))
+  const one = (name: string) => {
+    const nodes = doc.getRoot().listNodes().filter((node) => node.getName() === name)
+    expect(nodes, name).toHaveLength(1)
+    return nodes[0]!
+  }
+  const extent = (points: readonly (readonly number[])[], axis: number) =>
+    Math.max(...points.map((point) => point[axis]!)) - Math.min(...points.map((point) => point[axis]!))
+
+  // Commons' B-17G side view measures a 3.90 m structural fin. The rudder
+  // occupies 88% of that authored height; the old 5.20 m all-in fillet/fin
+  // made this 4.58 m and therefore fails this outside-truth check.
+  expect(extent(worldPositions(one('Rudder')), 1)).toBeCloseTo(3.43, 1)
+
+  // The lowest fuselage crown beneath the 0.50 m-radius turret footprint is
+  // 1.26 m in the drawing-derived loft. Its 1.22 m base deliberately sinks
+  // 0.04 m into that skin; the former 1.90 m pivot floated in clear air.
+  const turret = worldPositions(one('Turret4'))
+  const base = Math.min(...turret.map((point) => point[1]!))
+  expect(base).toBeGreaterThanOrEqual(1.18)
+  expect(base).toBeLessThanOrEqual(1.22)
+  expect(extent(turret, 1)).toBeCloseTo(0.82, 2)
+})
