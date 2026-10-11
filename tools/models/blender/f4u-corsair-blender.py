@@ -25,6 +25,19 @@ Figures (read 2026-10-11):
   knee at 2.1 m                                         ESTIMATE, period three-view proportions
   fuselage sections, the long nose, the raised canopy, tail surfaces
                                                         ESTIMATE (the station table below)
+  canopy front/rear, side crown line and top-view rail half-widths
+                                                        MEASURED, Wikimedia Commons
+                                                        "Vought F4U-1 Corsair 3-view.svg",
+                                                        read 2026-10-11; this is the adjacent
+                                                        F4U-1 drawing, not an F4U-1D factory sheet
+  canopy rail/shoulder/roof cross-sections              ESTIMATE, checked against Commons photographs
+                                                        "NASM - Vought F4U-1D Corsair - side.jpg" and
+                                                        "NASM - Vought F4U-1D Corsair - front.jpg",
+                                                        read 2026-10-11; the rail is fitted 0.01-0.02 m
+                                                        inside the measured fuselage skin
+  Chance Vought drawing 40204, "Lines & Ordinates - Fuselage - Cockpit Cabin - Windshield & Sliding Section"
+                                                        INDEXED, AirCorps Library, read 2026-10-11;
+                                                        sheets require membership and supplied no numbers
   main wheels 0.82 m diameter                           ESTIMATE
   stance: wheels 2.418 m below the origin at x 0.418, tailwheel at x -5.722, 1.306 m below
                                                         FITTED to f4u-corsair.json gear.heightM / mainX /
@@ -83,10 +96,21 @@ FUSELAGE = [
     (0.0780, 0.0702, 0.0687, 0.0024, 2.0),
     (0.0487, 0.0487, 0.0439, 0.0000, 2.0),
 ]
-# The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
-# windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
-CANOPY = [(-2.68, 0.14, 1.17), (-2.43, 0.3, 1.21), (-2.13, 0.38, 1.28), (-1.83, 0.4, 1.32), (-1.53, 0.4, 1.28), (-1.23, 0.32, 1.08), (-1.08, 0.18, 0.93)]
-CANOPY_BASE = 0.82
+# Eight values per section: x, rail half-width/y, shoulder half-width/y,
+# roof half-width/y, crown y. The longitudinal outline and rail widths are
+# measured from the F4U-1 drawing. The F4U-1D photographs own the near-vertical
+# side panes and narrower roof; without factory ordinates those are ESTIMATE.
+# The rail y values are the local fuselage skin minus 0.01-0.02 m, so no closed
+# elliptical canopy can sit above the hull as a separate pod.
+CANOPY = [
+    (-2.68, 0.100, 1.151, 0.095, 1.161, 0.064, 1.168, 1.170),
+    (-2.43, 0.260, 1.045, 0.247, 1.131, 0.166, 1.194, 1.210),
+    (-2.13, 0.380, 0.868, 0.361, 1.082, 0.243, 1.239, 1.280),
+    (-1.83, 0.430, 0.753, 0.408, 1.048, 0.275, 1.263, 1.320),
+    (-1.53, 0.440, 0.704, 0.418, 1.003, 0.282, 1.222, 1.280),
+    (-1.23, 0.340, 0.797, 0.323, 0.944, 0.218, 1.052, 1.080),
+    (-1.08, 0.180, 0.876, 0.171, 0.904, 0.115, 0.925, 0.930),
+]
 CANOPY_FRAMES = (-2.23, -1.98, -1.68, -1.38)
 TAILPLANE = dict(span=0.4, le=0.8285, root=0.127, taper=0.64, y=0.049, sweep=7.3)  # span of SPAN; the rest of LENGTH
 FIN = dict(root=0.205, taper=0.5, height=0.156, y=0.068)                           # trailing edge at the tail
@@ -172,8 +196,11 @@ with m.tagged('fuselage'):
                            (X(FILLET['le']), 0.004 * L, 0.004 * L, ROOT_Y)],
                    segments=24, center_z=side * fz, subdivide=4)
 with m.tagged('canopy'), m.shared_chart():
-    m.canopy('glazing', UPPER, [(x, w, (t - CANOPY_BASE) / 2, (t + CANOPY_BASE) / 2) for x, w, t in CANOPY], list(CANOPY_FRAMES),
-             bar=0.022, segments=48, subdivide=4)
+    for x, rail_w, rail_y, *_rest in CANOPY:
+        f = NOSE_X - x / L
+        sink = fus_top_y(f, rail_w) - rail_y
+        assert 0.005 <= sink <= 0.025, f'canopy rail at x {x:.2f} sinks {sink:.3f} m into fuselage skin'
+    m.faired_canopy('glazing', UPPER, CANOPY, list(CANOPY_FRAMES), bar=0.022)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP1, 'Flap1'), (FLAP2, 'Flap2'), (AILERON, 'Aileron'))]
 gear_z = GEAR['z']
 breaks = [0.0, KNEE_Z, S / 2]
