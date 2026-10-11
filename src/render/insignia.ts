@@ -16,6 +16,7 @@ type Stripe = readonly [color: string, width: number]
  *  Widths in 1/32 in, so 44 across matches a real 1 3/8 in ribbon. */
 export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'basic-flying': [[GOLD, 2], [SKY, 4], [WHITE, 2], [SKY, 12], [NAVY, 4]],
+  'torpedo-qualified': [[NAVY, 4], [WHITE, 2], [SKY, 3], [GOLD, 11], [SCARLET, 4]],
   'carrier-qualified': [[NAVY, 6], [GOLD, 2], [NAVY, 10], [WHITE, 2], [GOLD, 4]],
   'airfield-strike': [[GREEN, 3], [BROWN, 14], [SCARLET, 3], [WHITE, 4]],
   'convoy-strike': [[NAVY, 3], [GREEN, 14], [WHITE, 2], [NAVY, 2], [SCARLET, 2]],

@@ -209,6 +209,9 @@ const ScenarioShipObject = z.object({
   side: SideField,
   /** M4: what its main batteries engage first (`ShipOrders.fireAt`). */
   fireAt: z.array(id).min(1).optional(),
+  /** A range hulk: ordnance still contacts and detonates, but cannot alter
+   *  hull damage, flooding or sinking state. Scenario-local by design. */
+  practiceTarget: z.boolean().optional(),
 }).strict().refine((s) => s.speedMps === 0 || s.waypoints.length >= 2, {
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
@@ -487,6 +490,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (o.kind === 'deny' && typeof o.around === 'string' && !startAircraft.has(o.around) && !startShips.has(o.around)) {
       issue(`deny.around "${o.around}" is not a starting aircraft or ship`, [...path, 'around'])
     }
+    if (o.kind === 'release' && o.target !== undefined && !startAircraft.has(o.target) && !startShips.has(o.target)) {
+      issue(`release.target "${o.target}" is not a starting aircraft or ship`, [...path, 'target'])
+    }
     if (o.kind === 'state' && planeStateIsEmpty(o)) {
       issue(`objective "${o.id}": a state objective needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle`, path)
     }
@@ -621,7 +627,11 @@ function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainFie
     speedMps: sh.speedMps,
     waypoint: 1,
   })
-  return { id: sh.id, spec, state, previous: state, orders, ...(sh.side === undefined ? {} : { side: sh.side }) }
+  return {
+    id: sh.id, spec, state, previous: state, orders,
+    ...(sh.side === undefined ? {} : { side: sh.side }),
+    ...(sh.practiceTarget === undefined ? {} : { practiceTarget: sh.practiceTarget }),
+  }
 }
 
 /** The entity's `side`, only when the content says one, so a scenario

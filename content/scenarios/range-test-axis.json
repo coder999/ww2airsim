@@ -195,6 +195,18 @@
       "speedMps": 0
     },
     {
+      "id": "ship-crow-amc-20",
+      "spec": "crow-amc-20",
+      "side": "allied",
+      "waypoints": [
+        [
+          -28666,
+          -48855
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
       "id": "ship-essex-cv",
       "spec": "essex-cv",
       "side": "allied",

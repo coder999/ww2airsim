@@ -30,7 +30,7 @@ export type ObjectiveStatus = 'inactive' | 'active' | 'complete' | 'failed'
 export type ObjectiveState = {
   readonly status: ObjectiveStatus
   /** destroy: targets destroyed; protect: targets lost; land: landings
-   *  counted; approaches: passes missed. 0 for every other kind. */
+   *  counted; release: stores released; approaches: passes missed. */
   readonly count: number
   /** hold: ticks spent inside the station while active, accumulated
    *  (spec §0.9). 0 for every other kind. */

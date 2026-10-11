@@ -500,10 +500,10 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped today** (`content/scenarios/`, checked 2026-10-10) are the
+**Shipped today** (`content/scenarios/`, checked 2026-10-11) are the
 sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus nine real missions: **Basic Flying**, **Deck Quals**
+others — plus ten real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
 ("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
 Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt** and **Escort**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
@@ -530,3 +530,10 @@ gear and flaps and slow to under 120 mph, land. A step is done when the
 airplane is in the state it asks for (a *plane-state test*, `CONTEXT.md`); the
 instructor's lines are on-screen text only. Handoff
 `docs/handoff/2026-10-10-b4-tutorial.md`.
+
+**Torpedo Qualification** (2026-10-11) is the Avenger's production training
+mission. The instructor leads a runway takeoff, a marked low-level run toward
+USS Crow, opening the internal bay, releasing one Mk 13, securing the bay and
+recovering at Tacloban. The release itself completes the attack step, so a hit
+or miss is acceptable. Crow's scenario-only `practiceTarget` flag preserves the
+normal torpedo run, splash and detonation while preventing hull damage, flooding,

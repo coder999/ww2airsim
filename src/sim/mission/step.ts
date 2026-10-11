@@ -138,6 +138,17 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
     }
     case 'state':
       return c.alive && planeStateHolds(o, c.player, c.t.wind) ? { ...p, status: 'complete' } : p
+    case 'release': {
+      const record = c.t.combat.aircraft[c.t.player]
+      if (!c.alive || record === undefined) return p
+      const n = o.store === 'rocket'
+        ? record.rocketsFired
+        : o.store === 'torpedo'
+          ? record.torpedoesDropped
+          : record.bombsDropped - record.torpedoesDropped
+      const need = o.count ?? 1
+      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
     case 'approaches': {
       if (c.passEvent !== 'missed') return p
       const missed = p.count + 1

@@ -86,6 +86,7 @@ describe.each(ENROLLED)('%s', (storeId) => {
     expect(Math.hypot(p!.velocity.x, p!.velocity.z)).toBeCloseTo(t.runSpeedMps!, 6)
     expect(p!.velocity.y).toBe(0)
     expect(combat.impacts.map((i) => i.outcome)).toEqual(['entered'])
+    expect(combat.aircraft.p!.torpedoesDropped).toBe(1)
     expect(combat.aircraft.p!.torpedoesBrokeUp).toBe(0)
   })
 
@@ -101,6 +102,15 @@ describe.each(ENROLLED)('%s', (storeId) => {
     const combat = run(spec, runner(t, at, t.armRunM! + 1), [ship(150)])
     expect(combat.ships.target!.hp).toBeLessThanOrEqual(1000 - t.damage)
     expect(combat.impacts.filter((i) => i.outcome === 'detonated').map((i) => i.surface)).toEqual(['ship'])
+  })
+
+  it('detonates on a practice target without changing its damage or flooding state', () => {
+    const protectedTarget: CombatShip = { ...ship(150), practiceTarget: true }
+    const combat = run(spec, runner(t, v3(0, 0, 0), t.armRunM! + 1), [protectedTarget])
+    expect(combat.impacts.filter((i) => i.outcome === 'detonated').map((i) => i.surface)).toEqual(['ship'])
+    expect(combat.ships.target!.hp).toBe(1000)
+    expect(combat.ships.target!.floods ?? []).toEqual([])
+    expect(combat.ships.target!.destroyedTick).toBeNull()
   })
 
   it('a hit inside its arming run is a dud', () => {

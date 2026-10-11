@@ -70,6 +70,7 @@ function objectiveTarget<M>(world: World<M>, points: readonly MapPoint[]): Steer
   if (active.kind === 'takeoff') point = pointForBase(points, active.from)
   else if (active.kind === 'land') point = pointForBase(points, active.at)
   else if (active.kind === 'reach' || active.kind === 'hold') point = points.find((p) => p.id === `station:${active.id}`) ?? null
+  else if (active.kind === 'release' && active.target !== undefined) point = points.find((p) => entityId(p) === active.target) ?? null
   else if (active.kind === 'destroy') {
     const ids = new Set(active.resolved)
     const player = playerAircraft(world).state.position

@@ -37,7 +37,7 @@ const HULL_MARGIN_M = 120
 
 /** Ship nationality is not in the ship specs, only a role, so it is written down here. */
 export const NATIONALITY: Readonly<Record<string, 'allied' | 'japanese' | 'cargo'>> = {
-  'casablanca-cve': 'allied', 'cleveland-cl': 'allied', 'essex-cv': 'allied', 'fletcher-dd': 'allied', 'pennsylvania-bb': 'allied',
+  'casablanca-cve': 'allied', 'cleveland-cl': 'allied', 'crow-amc-20': 'allied', 'essex-cv': 'allied', 'fletcher-dd': 'allied', 'pennsylvania-bb': 'allied',
   'abukuma-cl': 'japanese', 'kagero-dd': 'japanese', 'mogami-ca': 'japanese', 'shiratsuyu-dd': 'japanese', 'yamato-bb': 'japanese', 'zuikaku-cv': 'japanese',
   'type-b-maru': 'cargo',
 }

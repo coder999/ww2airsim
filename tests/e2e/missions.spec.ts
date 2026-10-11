@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt' | 'escort'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'torpedo-qualification' | 'flattop-hunt' | 'escort'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -129,6 +129,20 @@ const reasonRows = (debrief: Locator) =>
   debrief.locator('div').evaluateAll((els) =>
     els.filter((e) => e.children.length === 0 && /: (incomplete|failed)$/.test(e.textContent ?? '')).map((e) => e.textContent ?? ''),
   )
+
+test('Torpedo Qualification: briefing, recommended torpedo, opening lesson and full chart reach the production UI', async ({ page }) => {
+  const id = 'torpedo-qualification'
+  const title = await orders(page, 'Torpedo Student')
+  const s = await briefingFor(page, title, id, 'Torpedo Qualification')
+  await launched(page, title, id, async (t) => {
+    await expect(t.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 }).toBe(true)
+  await expect(objectiveLine(page)).toHaveText('FULL THROTTLE')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+})
 
 /**
  * Airfield Strike ends in a dive, not a landing (controller ruling T8-R2,

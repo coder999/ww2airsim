@@ -51,6 +51,8 @@ export type CombatShip = {
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
   /** M4: a scenario's fire orders (`ShipOrders.fireAt`). */
   readonly orders?: { readonly fireAt?: readonly string[] | undefined }
+  /** A scenario-local range target which records contacts but takes no damage. */
+  readonly practiceTarget?: boolean
 }
 export type AircraftCombat = {
   readonly guns: readonly GunState[]
@@ -91,6 +93,8 @@ export type AircraftCombat = {
    *  `stores.rockets` decrement exactly -- a release can be a pair. */
   readonly bombsDropped: number
   readonly rocketsFired: number
+  /** Cumulative torpedoes released; also included in `bombsDropped`. */
+  readonly torpedoesDropped: number
   /** Cumulative: this aircraft's torpedoes that met the water outside their drop envelope, or met
    *  anything else first, and broke up. What the HUD's "TORPEDO BROKE UP" notice follows. */
   readonly torpedoesBrokeUp: number
@@ -158,7 +162,7 @@ export function createCombat(
       damage: healthyDamage(engineCountOf(a.spec)), stress: initialStructuralStress(a.state, a.spec.limits),
       shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
-      bombsDropped: 0, rocketsFired: 0, torpedoesBrokeUp: 0,
+      bombsDropped: 0, rocketsFired: 0, torpedoesDropped: 0, torpedoesBrokeUp: 0,
     }])),
     projectiles: [], nextId: 1, rngState: seed >>> 0, poolSaturated: 0,
     ships: Object.fromEntries(ships.map(s => [s.id, healthyShipDamage(s.hullHp)])),
@@ -611,12 +615,14 @@ export function stepCombat(
       for (const p of release.projectiles) flying.push({ p: { ...p, id: nextId++ }, dt, start: 0 })
       return release.projectiles.length
     }
+    const rackCarriesTorpedo = storeTypeOf(a.spec, 'torpedo') !== null
     const bombsThisTick = wantsBomb ? emit(releaseBomb(a, stores, rngState)) : 0
     const rocketsThisTick = wantsRockets ? emit(releaseRockets(a, combat!, stores, rngState)) : 0
     records[a.id] = {
       ...rec, stores,
       bombsDropped: rec.bombsDropped + bombsThisTick,
       rocketsFired: rec.rocketsFired + rocketsThisTick,
+      torpedoesDropped: rec.torpedoesDropped + (rackCarriesTorpedo ? bombsThisTick : 0),
     }
   }
 
@@ -743,6 +749,7 @@ export function stepCombat(
 
   const damageShipAt = (ship: CombatShip, amount: number, owner: string): void => {
     const was = shipDamage[ship.id]
+    if (ship.practiceTarget === true) return
     if (was === undefined) return
     // `shipsSunk` is NOT credited here: a hull is sunk when it reaches the
     // bottom 90 s later, off the attacker this blow fixed (spec §3.6).
@@ -815,6 +822,7 @@ export function stepCombat(
       impacts.push({ tick, cause: 'torpedo', outcome: 'detonated', surface: 'ship', point })
       damageShipAt(hit.ship, store.damage, p.owner)
       // Track D step 3 (D3 T3): the hole floods, on the side the torpedo came in on.
+      if (hit.ship.practiceTarget === true) { applyBlast(point, store.damage, store.blastRadiusM, { t: hit.t, kind: 'ship', ship: hit.ship }, p.owner); return }
       const flooded = shipDamage[hit.ship.id]
       if (flooded !== undefined && flooded.destroyedTick === null) {
         const side = hitSide(hit.ship.state.position, hit.ship.state.headingRad, point)

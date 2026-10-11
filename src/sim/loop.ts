@@ -378,6 +378,9 @@ export interface ShipEntity {
   /** Friendly fire (spec 2026-09-26 §2): content's `"side"`, present only
    *  when the scenario says one; read through `sideOf` (absent: axis). */
   readonly side?: Side
+  /** Scenario-local range hulk. Combat contacts and effects remain visible,
+   *  but its persistent damage state is immutable. */
+  readonly practiceTarget?: boolean
 }
 
 export interface World<M = undefined> {
