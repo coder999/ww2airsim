@@ -1,8 +1,8 @@
 # M4 handoff: main batteries, and the Gunnery Duel test range (2026-10-10)
 
 **Status:** built on branch `worktree-agent-ad21505b9051bdcd7` (worktree
-`/home/mark/projects/ww2airsim/.claude/worktrees/agent-ad21505b9051bdcd7`), cut from `main` `cbc7d5ff`. Not merged,
-not deployed. Plan: `docs/superpowers/plans/2026-10-10-m4-main-batteries.md`. Run unattended; the viewing
+`/home/mark/projects/ww2airsim/.claude/worktrees/agent-ad21505b9051bdcd7`), cut from `main` `cbc7d5ff`. Merged to `main` 2026-10-10
+(verify 409 files, 5,665 passed), not deployed. Plan: `docs/superpowers/plans/2026-10-10-m4-main-batteries.md`. Run unattended; the viewing
 checkpoint (final product only) is this document and its captures.
 
 ## What was built
@@ -93,12 +93,18 @@ camera, so the turrets read small; the muzzle placement itself is proven by the 
 
 ## Frame time
 
-**Not measured.** The muzzle smoke adds particles to the existing FX pool (no new draw call, pass or
-shader); it does add overdraw. Both shared ryzen slots (`ww2airsim-2` on 5175, `ww2airsim-3` on 5174) were
-held by other sessions for the whole run, so the reference-GPU budget run could not be made. The spec is
-ready: `tests/e2e/mainBatteryFrameTimeCapture.spec.ts`, `MB_VARIANT=live|off` interleaved three each, under
-`hwlock ryzen-budget`, beside the Fletcher at 300 ft (live against the same scene with `?mainBatteries=off`).
-Run it before clearing the effect against the 8.33 ms gate.
+**Measured after the merge (2026-10-10, reference GPU, console Playwright server, merged `main`).**
+`tests/e2e/mainBatteryFrameTimeCapture.spec.ts`, `MB_VARIANT=live|off` interleaved three each under
+`hwlock ryzen-budget`, beside the Fletcher at 300 ft, clouds off. Ryzen's CPU peaked at 25% and no other
+Chrome was on the GPU (per-process 3D-engine monitor) throughout.
+
+| Variant | GPU p50 (3 runs) | GPU p95 (3 runs) | Salvos in window |
+| --- | --- | --- | --- |
+| live | 2.409, 2.402, 2.405 | 4.450, 3.369, 3.829 | 22-23 |
+| off | 2.282, 2.271, 2.285 | 3.067, 2.857, 2.816 | 0 |
+
+The muzzle fire and smoke, splashes and shell traffic cost about 0.12 ms at p50 and about 1.0 ms at p95
+(medians 3.83 against 2.86 ms) in this close-up view, well inside the 8.33 ms gate.
 
 ## Verify
 

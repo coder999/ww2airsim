@@ -6,7 +6,7 @@
 - **Viewing checkpoint:** the final product only.
 - **Run:** unattended, to completion.
 
-**Branch:** `escort-mission`, in the worktree `.claude/worktrees/agent-a760a41b3978ca82f`, cut from `main` at `cbc7d5ff`. Not merged; merging is Mark's call.
+**Branch:** `escort-mission`, in the worktree `.claude/worktrees/agent-a760a41b3978ca82f`, cut from `main` at `cbc7d5ff`. Merged to `main` 2026-10-10. (Originally: not merged; merging is Mark's call.)
 
 **Parallel work (2026-10-10):** M4 main batteries and Track E fixes (wingman commands, the 7c list, `disengageThreshold`) run in other worktrees. This plan touches shared AI files (`pilotTick.ts`, `formation.ts`, `ingress.ts`, `attack.ts`) and the scenario schema (`scenario.ts`) in small, marked places; the handoff lists them.
 

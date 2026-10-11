@@ -2,7 +2,7 @@
 
 **Plan:** `docs/superpowers/plans/2026-10-10-escort-mission.md`.
 
-**Branch:** `escort-mission`, in the worktree `.claude/worktrees/agent-a760a41b3978ca82f`, cut from `main` `cbc7d5ff`. **Built on the branch, not merged.**
+**Branch:** `escort-mission`, in the worktree `.claude/worktrees/agent-a760a41b3978ca82f`, cut from `main` `cbc7d5ff`. **Merged to `main` 2026-10-10**: `npm run verify` 407 files green but for `aiLethality`'s known 30 s load timeout (9/9 alone); `missions`, `mission-ui` and `instantReplay` E2E on the reference GPU, 14 passed, after their chart locators moved to the pause dossier's Map tab.
 
 **Run:** unattended. Mark's checkpoint is the final product, below.
 
