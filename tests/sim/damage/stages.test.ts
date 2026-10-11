@@ -1,9 +1,10 @@
 import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { BURN_S, ENGINE_DEAD_BELOW, FIRE_AT_STRUCTURE, SPUTTER_BELOW, SPUTTER_MAX_CUT, ageDamage, damageFromHit, engineCountOf, engineHealths, engineOutput, engineOutputs, healthyDamage, isDoomed, type Damage } from '../../../src/sim/damage/model.js'
+import { BURN_S, ENGINE_DEAD_BELOW, FIRE_AT_STRUCTURE, SPUTTER_BELOW, SPUTTER_MAX_CUT, ageDamage, damagedSpec, damageFromHit, engineCountOf, engineHealths, engineOutput, engineOutputs, healthyDamage, isDoomed, type Damage } from '../../../src/sim/damage/model.js'
 import { DT } from '../../../src/sim/flight/model.js'
-import { advance, WRECK_TERMINAL_MPS, type World } from '../../../src/sim/loop.js'
-import { length } from '../../../src/sim/math/vec3.js'
+import { createState } from '../../../src/sim/flight/state.js'
+import { advance, createWorldOf, WRECK_TERMINAL_MPS, type World } from '../../../src/sim/loop.js'
+import { length, v3 } from '../../../src/sim/math/vec3.js'
 import { duelWorld } from '../../../tools/ai/duel.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { flatField } from '../mission/fixture.js'
@@ -99,6 +100,92 @@ describe('a multi-engine airplane loses its engines one at a time (round 2)', ()
     for (let t = 0; t < 600; t++) d = ageDamage(spec, d, DT, t)
     expect(engineHealths(d).slice(0, 3)).toEqual([1, 1, 1])
     expect(engineHealths(d)[3]!).toBeLessThan(hit)
+  })
+})
+
+describe('asymmetric multi-engine thrust', () => {
+  const ids = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'p-38-lightning'] as const
+
+  it.each(ids)('%s derives equal and opposite yaw from the measured engine arms', (id) => {
+    const spec = loadAircraftSpec(id)
+    const n = engineCountOf(spec)
+    const whole = Array<number>(n).fill(1)
+    // A fully healthy array must return the original object, not merely an equal
+    // one. Other symmetric output retains old behavior but may still scale power.
+    expect(damagedSpec(spec, healthyDamage(n), whole)).toBe(spec)
+
+    const portDead = [...whole]
+    portDead[0] = 0
+    const starboardDead = [...whole]
+    starboardDead[n - 1] = 0
+    const portYaw = damagedSpec(spec, healthyDamage(n), portDead).asymmetricThrustYaw?.rateDegPerSec
+    const starboardYaw = damagedSpec(spec, healthyDamage(n), starboardDead).asymmetricThrustYaw?.rateDegPerSec
+    // Body +Y is nose-left. A live starboard engine therefore turns toward a
+    // dead port engine; reversing the failed side reverses the turn exactly.
+    expect(portYaw, id).toBeGreaterThan(0)
+    expect(starboardYaw, id).toBeLessThan(0)
+    expect(portYaw, id).toBeCloseTo(-starboardYaw!, 12)
+  })
+
+  it.each(['b-17-flying-fortress', 'b-29-superfortress'] as const)('%s weights an outer loss more than an inner loss', (id) => {
+    const spec = loadAircraftSpec(id)
+    const whole = [1, 1, 1, 1]
+    const outer = damagedSpec(spec, healthyDamage(4), [0, ...whole.slice(1)]).asymmetricThrustYaw!.rateDegPerSec
+    const inner = damagedSpec(spec, healthyDamage(4), [1, 0, 1, 1]).asymmetricThrustYaw!.rateDegPerSec
+    expect(Math.abs(outer), id).toBeGreaterThan(Math.abs(inner))
+  })
+
+  it('keeps the damaged single-engine derivation exactly unchanged', () => {
+    const spec = loadAircraftSpec('f6f-hellcat')
+    const damage = { ...healthyDamage(), engine: 0.5 }
+    expect(damagedSpec(spec, damage, [0.5])).toStrictEqual(damagedSpec(spec, damage, 0.5))
+  })
+
+  const productionYaw = (engines: readonly [number, number], yaw: number): number => {
+    const spec = loadAircraftSpec('g4m-betty')
+    const state = createState({
+      position: v3(0, 2000, 0),
+      velocity: v3(spec.rates.rateRefSpeedMps, 0, 0),
+    })
+    const fixture = duelWorld('tail', 'veteran', 'green', 0)
+    const player = fixture.aircraft.find((aircraft) => aircraft.id === 'p')!
+    const world = createWorldOf({
+      aircraft: [{
+        ...player,
+        pilot: null,
+        spec,
+        state,
+        previous: state,
+        controls: { ...player.controls, roll: 0, pitch: 0, yaw: 0, throttle: 1 },
+      }],
+      player: 'p',
+    })
+    const record = world.combat.aircraft.p!
+    const damaged = {
+      ...world,
+      combat: {
+        ...world.combat,
+        aircraft: {
+          ...world.combat.aircraft,
+          p: { ...record, damage: { ...healthyDamage(2), engines, engine: 0.5, yaw } },
+        },
+      },
+    }
+    const after = advance(damaged, DT).world
+    return after.aircraft.find((aircraft) => aircraft.id === 'p')!.state.bodyRates.y
+  }
+
+  it.each([
+    { side: 'port', engines: [0, 1] as const, sign: 1 },
+    { side: 'starboard', engines: [1, 0] as const, sign: -1 },
+  ])('keeps $side engine-out yaw independent of partial and zero yaw-control health through production advance', ({ engines, sign }) => {
+    const intact = productionYaw(engines, 1)
+    expect(Math.sign(intact)).toBe(sign)
+    for (const yaw of [0.4, 0]) {
+      const damaged = productionYaw(engines, yaw)
+      expect(Math.sign(damaged), `yaw health ${yaw}`).toBe(sign)
+      expect(damaged, `yaw health ${yaw}`).toBeCloseTo(intact, 12)
+    }
   })
 })
 

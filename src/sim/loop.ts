@@ -1,5 +1,5 @@
 import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
-import { ageDamage, damagedSpec, engineOutput, idSeed, type Damage } from './damage/model.js'
+import { ageDamage, damagedSpec, engineOutputs, idSeed, type Damage } from './damage/model.js'
 import { createRng } from './rng.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
@@ -739,7 +739,8 @@ function stepAircraftEntity<M>(
       && supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity),
   }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
-  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, engineOutput(damage, tick, entity.id, DT)), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  const outputs = engineOutputs(damage, tick, entity.id, DT)
+  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, outputs), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
   }

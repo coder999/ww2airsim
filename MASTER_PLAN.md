@@ -110,7 +110,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
 - **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
 
-**C4. Damage stages (M). Merged 2026-10-10.**
+**C4. Damage stages (M). Damage merged 2026-10-10; asymmetric engine-loss yaw completed 2026-10-11.**
 - **Mark's report (2026-10-09):** a shot Zero froze in mid-air.
 - **Now:** a hit engine smokes, sputters below half health, and stalls dead below 15%. At 25% structure the airframe catches fire and is doomed. AI pilots spiral down, and the fire burns it out in 15 s. At zero it explodes, its props and control surfaces break away, and the wreck falls to the surface.
 - **Credit** waits for the explosion or the impact (Mark's ruling).
@@ -121,7 +121,8 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - The B-17 and B-29 (1,440 HP) and the G4M and Ki-21 (480) take hits, with each engine damaged on its own. Bomber range: `?scenario=bomber-range&launch`.
   - AI duels resolve 18 of 72, down from 27 (handoff table). A stalled AI now unloads before its floor pull.
   - On the merge (2026-10-10), D1's Kate and Avenger took the same 4x (Mark): 280 and 560 HP.
-- **Open:** asymmetric yaw on an engine loss; bomber gunners fire since E3 (Track E item 3, on its branch); whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
+- **Asymmetric engine-loss yaw (2026-10-11):** multi-engine damage now carries each engine's output into flight. The existing rate-command model derives signed airborne yaw from measured engine-zone arms; outer losses have naturally more leverage, and rudder/auto-rudder/AI feedback can counter it. Yaw-control damage does not weaken the independent thrust effect; the combined rate remains capped at the healthy maximum. Healthy flight stays exact, while symmetric and single-engine output add no yaw bias. Plan `docs/superpowers/plans/2026-10-11-c4-asymmetric-engine-yaw.md`; handoff `docs/handoff/2026-10-11-c4-asymmetric-engine-yaw.md`.
+- **Open:** whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing. Detailed windmilling drag, explicit AI engine-out trim, and ground/take-off yaw are deferred.
 
 ### Track V: Ground vehicles and ordnance models (S). Static targets extended 2026-10-11
 

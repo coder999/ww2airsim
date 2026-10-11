@@ -550,4 +550,11 @@ export const AircraftSpecSchema = AircraftSpecObject.refine(
  */
 export type AircraftSpec = z.infer<typeof AircraftSpecSchema> & {
   storesLoad?: { massKg: number; dragAreaM2: number }
+  /** C4: signed engine-out yaw rate and its healthy-airframe combined cap,
+   * derived by `damagedSpec` from indexed engine hit-zone arms before yaw
+   * control damage scales `rates.maxYawRateDegPerSec`. Never legal content:
+   * positive body +Y turns the nose left. `step` applies throttle and
+   * dynamic-pressure authority, and the ground-rate seam deliberately
+   * overrides it. Absent on single-engine, healthy and symmetric output. */
+  asymmetricThrustYaw?: { rateDegPerSec: number; maxRateDegPerSec: number }
 }
