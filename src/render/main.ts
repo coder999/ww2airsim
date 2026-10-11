@@ -2043,6 +2043,8 @@ async function boot(): Promise<void> {
   // `nextFrameState`, just like the throttle cut.
   let pendingDropBomb = false
   let pendingFireRockets = false
+  // E4: a wingman call (1, 2, 3), latched the same way: the key's code, or null.
+  let pendingWingmanKey: string | null = null
   // And the gear and flap levers. Found 2026-09-17 by an E2E screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
@@ -2065,6 +2067,7 @@ async function boot(): Promise<void> {
     pendingHook = false
     pendingDropBomb = false
     pendingFireRockets = false
+    pendingWingmanKey = null
   }
   const navigationMap = createMissionMap(root, {
     onClose: () => closeNavigationChart(),
@@ -2267,6 +2270,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
     if (BINDINGS.dropBomb.includes(e.code as never) && !e.repeat) pendingDropBomb = true
     if (BINDINGS.fireRockets.includes(e.code as never) && !e.repeat) pendingFireRockets = true
+    if ([...BINDINGS.wingmanAttack, ...BINDINGS.wingmanCover, ...BINDINGS.wingmanFormUp].includes(e.code as never) && !e.repeat) pendingWingmanKey = e.code
     // Space scrolls the page and activates a focused button; neither is
     // what a pilot holding the trigger means (Plan 6). Not latched like the
     // toggles above: firing is a HOLD, read from `pressed` every frame.
@@ -2348,6 +2352,7 @@ async function boot(): Promise<void> {
     pendingHook = false
     pendingDropBomb = false
     pendingFireRockets = false
+    pendingWingmanKey = null
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -2415,6 +2420,7 @@ async function boot(): Promise<void> {
       if (pendingHook) latched.push(BINDINGS.toggleHook[0])
       if (pendingDropBomb) latched.push(BINDINGS.dropBomb[0])
       if (pendingFireRockets) latched.push(BINDINGS.fireRockets[0])
+      if (pendingWingmanKey !== null) latched.push(pendingWingmanKey)
     }
     const frameKeys = chartOpen ? NO_KEYS : latched.length > 0 ? new Set([...pressed, ...latched]) : pressed
     const inputFrame =
@@ -2431,6 +2437,7 @@ async function boot(): Promise<void> {
             hookPressed: pendingHook ? false : frame!.hookPressed,
             dropBombPressed: pendingDropBomb ? false : frame!.dropBombPressed,
             fireRocketsPressed: pendingFireRockets ? false : frame!.fireRocketsPressed,
+            wingmanCallPressed: pendingWingmanKey !== null ? null : frame!.wingmanCallPressed,
           }
     // The Damage Model setting, read fresh every frame rather than captured:
     // the dialog is reachable from the title screen between sorties, and
@@ -2471,6 +2478,7 @@ async function boot(): Promise<void> {
     pendingHook = false
     pendingDropBomb = false
     pendingFireRockets = false
+    pendingWingmanKey = null
     frame = current
     {
       // Guarded on the world clock actually having moved: `advance` (Task 7
