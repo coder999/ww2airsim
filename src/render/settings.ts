@@ -454,6 +454,12 @@ export type SettingsDialogHandle = {
   destroy(): void
 }
 
+export type SettingsDialogOptions = {
+  /** The pause screen reuses the title's visual controls without showing
+   * gameplay choices (Damage Model and Difficulty) in the middle of flight. */
+  readonly scope?: 'all' | 'visual'
+}
+
 function sectionTitle(text: string): HTMLDivElement {
   const el = document.createElement('div')
   el.className = 'form-section-title'
@@ -467,13 +473,18 @@ function sectionTitle(text: string): HTMLDivElement {
  * branch below reads a field the model already computed, which is what makes
  * the `node`-environment test suite's coverage of the model meaningful.
  */
-export function createSettingsDialog(parent: HTMLElement, model: SettingsModel): SettingsDialogHandle {
+export function createSettingsDialog(
+  parent: HTMLElement,
+  model: SettingsModel,
+  options: SettingsDialogOptions = {},
+): SettingsDialogHandle {
+  const visualOnly = options.scope === 'visual'
   const overlay = document.createElement('div')
   overlay.dataset.ww2Settings = ''
   overlay.className = 'naval-comms'
   overlay.setAttribute('role', 'dialog')
   overlay.setAttribute('aria-modal', 'true')
-  overlay.setAttribute('aria-label', 'Settings')
+  overlay.setAttribute('aria-label', visualOnly ? 'Visual quality settings' : 'Settings')
   overlay.style.cssText =
     'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
   // Document-level and idempotent -- `.stamp` is invisible without it, and
@@ -494,7 +505,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   kicker.textContent = 'Requisition & Standing Orders'
   const title = document.createElement('div')
   title.className = 'letterhead-title'
-  title.textContent = "Ship's Options"
+  title.textContent = visualOnly ? 'Visual Quality' : "Ship's Options"
   letterheadText.append(kicker, title)
   const formNumber = document.createElement('div')
   formNumber.className = 'form-number'
@@ -583,7 +594,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
   sheet.appendChild(assetNote)
 
   // ---- Damage Model ----
-  sheet.appendChild(sectionTitle('Damage Model'))
+  const damageTitle = sectionTitle('Damage Model')
   const damageGroup = radioGroup('Damage model')
   const damageOptions = new Map<DamageModel, HTMLDivElement>()
   for (const option of DAMAGE_MODEL_OPTIONS) {
@@ -591,10 +602,10 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     damageOptions.set(option.value, el)
     damageGroup.appendChild(el)
   }
-  sheet.appendChild(damageGroup)
+  if (!visualOnly) sheet.append(damageTitle, damageGroup)
 
   // ---- Difficulty (M5) ----
-  sheet.appendChild(sectionTitle('Difficulty'))
+  const difficultyTitle = sectionTitle('Difficulty')
   const difficultyGroup = radioGroup('Difficulty')
   const difficultyOptions = new Map<Difficulty, HTMLDivElement>()
   for (const option of DIFFICULTY_OPTIONS) {
@@ -602,12 +613,11 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     difficultyOptions.set(option.value, el)
     difficultyGroup.appendChild(el)
   }
-  sheet.appendChild(difficultyGroup)
   const difficultyNote = document.createElement('p')
   difficultyNote.className = 'fine-print'
   difficultyNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
   difficultyNote.textContent = DIFFICULTY_EFFECT_NOTE
-  sheet.appendChild(difficultyNote)
+  if (!visualOnly) sheet.append(difficultyTitle, difficultyGroup, difficultyNote)
 
   // ---- Actions. No Save and no Cancel: every control above has already
   // applied and persisted by the time it is released (spec §6, naval-comms
@@ -695,7 +705,10 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     e.stopPropagation()
     model.close()
   }
-  window.addEventListener('keydown', onKey)
+  // Capture keeps Esc from reaching the flight's pause binding after it has
+  // closed this nested dialog. The title screen did not expose that race,
+  // because its own key handler is inert while the title is up.
+  window.addEventListener('keydown', onKey, true)
 
   return {
     isOpen: () => model.snapshot().isOpen,
@@ -706,7 +719,7 @@ export function createSettingsDialog(parent: HTMLElement, model: SettingsModel):
     close: (): void => model.close(),
     destroy: (): void => {
       unsubscribe()
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
       overlay.remove()
     },
   }
