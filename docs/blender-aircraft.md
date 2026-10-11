@@ -67,11 +67,14 @@ Everything the download it may replace has, because the game draws a flyable air
    `src/render/scene/stance.ts`: with mains at x_m, height h and pitch p, the tail contact is
    y = -h + (x_m - x_t) sin(p) / cos(p) (checked: it reproduces `thirdHeightM` for all three fighters to 0.004 m).
    A new type with no download sets these from its own sources and writes the spec to match.
-4. **Read the profile off the download before shaping the fuselage.** Render the download and the candidate from
-   the same side view and compare silhouettes: `tools/models/blender/preview.py` takes
-   `--view front|rear|below|side|top`. The first Hellcat pass (a TBM-like tube) looked wrong in profile; matching
-   the download's deck line, belly line and tail depth fixed it. Measure from the picture, in meters, and convert to
-   the station fractions with a short script rather than by hand.
+4. **Shape the volume from the real airplane; use the download only as a review foil.** Calibrate the side, top and
+   front views of the source drawing independently. The side view owns deck, belly, canopy and fin outlines; the top
+   view owns half-widths, planform and tailplane; the front view or a primary cross-section owns section shape and
+   canopy shoulder/roof width. Do not transfer a silhouette, canopy station, cross-section or attachment point from
+   a downloaded model. Render that model beside the candidate only to expose a conspicuous interpretation error.
+   `tools/models/blender/preview.py` takes `--view front|rear|below|side|top`. Measure source pixels in meters and
+   convert to station fractions with a short script rather than by hand. If no trustworthy front view or section
+   exists, label the transverse section **ESTIMATE** and check it against photographs from several angles.
 5. **Build and iterate.** `npx tsx tools/models/blender/cli.ts <id>` writes a candidate glb and prints its
    inspection in about two seconds; render the views. Only after the shape is right write the manifest entry.
    For an exact download/new-model comparison, render each through `preview.py` with the other as
@@ -82,7 +85,10 @@ Everything the download it may replace has, because the game draws a flyable air
    `silhouette-overlay.ts` plots the built model's side-projected vertices over that calibrated drawing;
    pass the drawing's nose, tail and thrust-line pixels, the model origin's nose-relative station, the cited
    length and the side-view crop bottom. Keep the overlay with the handoff evidence; it is a review artifact,
-   not a screenshot-golden test.
+   not a screenshot-golden test. A side overlay cannot detect a needle-thin tail, an over-wide canopy or a part
+   floating above the skin. Before accepting a model, make equivalent top/front checks and inspect three-quarter
+   renders. Canopy rails, turret bases, landing-gear roots and fairings must overlap the supporting surface in the
+   generated mesh; a visually adjacent part is not attached.
 6. **Write the manifest entry** `tools/models/entries/<id>.json` (`source.kind: "blender"`, `normalize`, `keep`,
    `budget`; copy a sibling). Each `keep` row's `pivot.point` is the hinge the script placed: propeller hub
    `(NOSE_X - PROP.hub) * LENGTH`, gear hinge `(x, hinge_y, ±z)`, tail wheel hinge. The axis is `+x` for a leg that folds
@@ -148,13 +154,22 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 
 ## Traps found on the three fighters (2026-10-11)
 
-- **Read the canopy off the real airplane, in numbers.** The first pass put each canopy 0.7 to 1 m too
+- **Read the canopy off the real airplane, in numbers and in section.** The first pass put each canopy 0.7 to 1 m too
   far aft and built it as a long pointed lens, which met the deck as a triangle instead of reading as a bubble (Mark,
   2026-10-11). The second pass copied the downloads' glass and was still aft: the downloads are wrong (step 1, "Measure the real
-  airplane"). Build the glass as stations of (x, half-width, crown y) with a
-  raked, blunt windscreen, the crown over the eye, and a long taper aft, its base sunk below the deck. The deck
+  airplane"). Build the glass with explicit fuselage rail, shoulder, roof and crown points: straight panes between
+  those points, a raked blunt windscreen, the crown over the eye, and an inset closure buried below the rails. Use
+  `faired_canopy`'s eight-value stations when the compact four-value section is visibly too generic. The deck
   forward of the windscreen must sit at the drawing's height (the Hellcat's cowl top is about 0.85 m, so its
-  canopy stands 0.4 m proud), or the glass looks sunk.
+  canopy stands 0.4 m proud), or the glass looks sunk. Check the join from front and three-quarter views: no bulb
+  perched on the centerline, no open side gap, and no rail hovering above the fuselage shoulder.
+- **Smoothness is not permission to move the measured stations.** Catmull-Rom can overshoot noisy ordinates and turn
+  a plausible table into a bumpy fuselage. Correct bad measurements first. For a measured station table that must
+  remain inside each authored interval, use `fuselage(..., refinement='shape')` and use `kit._refine_shape` for any
+  matching surface-height lookup in the model script. Judge the result in side, top and three-quarter views.
+- **Seat attached parts on the actual local skin.** Compute a turret base, fixed strut root, spat brace or canopy rail
+  from the same refined fuselage/wing stations that draw the supporting surface. Sink the join slightly into that
+  surface. The B-17 upper turret and D3A fixed gear showed why a plausible world-space height is not enough.
 - **Canopy and fuselage station lists run tail to nose** (x increasing). A reversed list fails with
   "station x values must be strictly increasing", and only the canopy's order is easy to flip when copying from a
   nose-first source.

@@ -289,6 +289,75 @@ def _refine(vals, k):
     return out, authored
 
 
+def _refine_shape(vals, k):
+    """Shape-preserving refinement for aircraft loft stations.
+
+    This is the piecewise-cubic Hermite interpolation used by PCHIP: authored
+    stations are exact, monotone intervals cannot overshoot either endpoint,
+    and a change of slope gets zero tangent at the authored extremum.  It is
+    deliberately opt-in because the older Catmull-Rom refinement is part of
+    the generated shape of existing assets.
+    """
+    _require(isinstance(k, int) and k >= 1, f'_refine_shape: k must be an integer >= 1, got {k!r}')
+    _require(len(vals) >= 2, f'_refine_shape: need at least 2 stations, got {len(vals)}')
+    xs = [float(v[0]) for v in vals]
+    _require(all(xs[i] < xs[i + 1] for i in range(len(xs) - 1)),
+             '_refine_shape: station x values must be strictly increasing')
+
+    def slopes(ys):
+        n = len(ys)
+        h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+        delta = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+        if n == 2:
+            return [delta[0], delta[0]]
+        d = [0.0] * n
+        for i in range(1, n - 1):
+            if delta[i - 1] == 0.0 or delta[i] == 0.0 or delta[i - 1] * delta[i] < 0.0:
+                d[i] = 0.0
+            else:
+                w1 = 2.0 * h[i] + h[i - 1]
+                w2 = h[i] + 2.0 * h[i - 1]
+                d[i] = (w1 + w2) / (w1 / delta[i - 1] + w2 / delta[i])
+
+        def endpoint(h0, h1, delta0, delta1):
+            value = ((2.0 * h0 + h1) * delta0 - h0 * delta1) / (h0 + h1)
+            if value * delta0 <= 0.0:
+                return 0.0
+            if delta0 * delta1 < 0.0 and abs(value) > abs(3.0 * delta0):
+                return 3.0 * delta0
+            return value
+
+        d[0] = endpoint(h[0], h[1], delta[0], delta[1])
+        d[-1] = endpoint(h[-1], h[-2], delta[-1], delta[-2])
+        return d
+
+    columns = [[float(v[c]) for v in vals] for c in range(1, 5)]
+    derivatives = [slopes(column) for column in columns]
+    out, authored = [], []
+    for i in range(len(vals) - 1):
+        authored.append(len(out))
+        out.append(vals[i])
+        h = xs[i + 1] - xs[i]
+        for s in range(1, k):
+            t = s / k
+            h00 = 2.0 * t ** 3 - 3.0 * t ** 2 + 1.0
+            h10 = t ** 3 - 2.0 * t ** 2 + t
+            h01 = -2.0 * t ** 3 + 3.0 * t ** 2
+            h11 = t ** 3 - t ** 2
+            rest = []
+            for c, (ys, ds) in enumerate(zip(columns, derivatives), start=1):
+                value = h00 * ys[i] + h10 * h * ds[i] + h01 * ys[i + 1] + h11 * h * ds[i + 1]
+                if c in (1, 2):
+                    value = max(value, 1e-6)
+                if c == 4:
+                    value = max(value, 1.0)
+                rest.append(value)
+            out.append((xs[i] + h * t, *rest))
+    authored.append(len(out))
+    out.append(vals[-1])
+    return out, authored
+
+
 def _refine_hull(vals, k):
     """k - 1 stations between each authored pair of (x, half_beam, draft, deck_y, deck_half_beam):
     x linear, the rest Catmull-Rom (ends repeated), each clamped between half the smaller neighbor
@@ -699,7 +768,8 @@ class Model:
                        None if charts is None else [charts[i] for i in ids],
                        False if smooth is None else [smooth[i] for i in ids])
 
-    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1, doors=None):
+    def fuselage(self, role, stations, segments=16, center_z=0.0, node=None, lower_role=None, lower_node=None, subdivide=1, doors=None,
+                 refinement='catmull'):
         """Loft a fuselage, nacelle, boom or canopy from stations in the glTF frame.
 
         Each station is ``(x, half_width, half_height, center_y[, exponent])``: a superellipse
@@ -707,8 +777,10 @@ class Model:
         (center_y, ``center_z``). Stations run tail to nose, x strictly increasing, and both
         ends are capped, so a pointed end is a tiny nonzero section. With ``lower_role``, the
         side faces below each section's center go to ``lower_node`` in that role.
-        ``subdivide`` k > 1 lofts k - 1 Catmull-Rom stations between each authored pair (a
-        smoother silhouette); panel lines stay at the authored ones.
+        ``subdivide`` k > 1 lofts k - 1 stations between each authored pair; ``refinement``
+        is ``'catmull'`` for the historical Catmull-Rom silhouette or ``'shape'`` for a
+        shape-preserving cubic that cannot overshoot an authored interval. Panel lines stay
+        at the authored stations.
 
         ``doors`` (C2) is a list of (x0, x1, half_width) bomb bays, numbered in the order given: the
         belly quads between the rings nearest x0 and x1, out to the first ring vertex at least
@@ -720,6 +792,8 @@ class Model:
         _require(isinstance(segments, int) and segments >= 8 and segments % 4 == 0,
                  f'fuselage: segments must be a multiple of 4, at least 8, got {segments!r}')
         _require(isinstance(subdivide, int) and subdivide >= 1, f'fuselage: subdivide must be an integer >= 1, got {subdivide!r}')
+        _require(refinement in ('catmull', 'shape'),
+                 f"fuselage: refinement must be 'catmull' or 'shape', got {refinement!r}")
         _require(len(stations) >= 2, f'fuselage: need at least 2 stations, got {len(stations)}')
         vals = []
         for i, st in enumerate(stations):
@@ -734,7 +808,7 @@ class Model:
         _require(all(vals[i][0] < vals[i + 1][0] for i in range(len(vals) - 1)), 'fuselage: station x values must be strictly increasing')
         authored = list(range(len(vals)))
         if subdivide > 1:
-            vals, authored = _refine(vals, subdivide)
+            vals, authored = (_refine_shape if refinement == 'shape' else _refine)(vals, subdivide)
         rings = []
         for x, half_w, half_h, center_y, n in vals:
             ring = []
@@ -1110,46 +1184,62 @@ class Model:
     def faired_canopy(self, glass_role, frame_role, stations, frames, bar=0.02, center_z=0.0, node=None, frame_node=None):
         """A canopy whose lower side edges fair directly into the fuselage.
 
-        Stations are ``(x, half_width, base_y, crown_y)``. Unlike :meth:`canopy`,
-        this is not a closed ellipse buried in the deck: each visible side runs
-        inward from the full-width base edge to a narrow roof. A shallow hidden
-        underside closes the mesh. This keeps a fighter hood from reading as a
-        bubble pinched onto the centerline of the fuselage.
+        A compact station is ``(x, rail_half_width, rail_y, crown_y)``. An exact
+        section is ``(x, rail_half_width, rail_y, shoulder_half_width,
+        shoulder_y, roof_half_width, roof_y, crown_y)``. Unlike :meth:`canopy`,
+        the visible panes are straight runs between an explicit fuselage rail,
+        shoulder and roof. A flat, inset underside closes the mesh below the
+        rail, inside the fuselage. This prevents both the pod-like bubble and
+        the open side gap produced by a full ellipse perched on the deck.
         """
         _require(bar > 0 and frames, f'faired_canopy: need bar > 0 and at least one frame, got {bar}, {frames}')
         _require(len(stations) >= 2, f'faired_canopy: need at least 2 stations, got {len(stations)}')
         vals = []
         for i, station in enumerate(stations):
-            _require(len(station) == 4, f'faired_canopy: station {i} needs 4 values, got {len(station)}')
-            x, half_width, base_y, crown_y = (float(v) for v in station)
-            _require(all(math.isfinite(v) for v in (x, half_width, base_y, crown_y)),
+            _require(len(station) in (4, 8), f'faired_canopy: station {i} needs 4 or 8 values, got {len(station)}')
+            values = tuple(float(v) for v in station)
+            if len(values) == 4:
+                x, rail_width, rail_y, crown_y = values
+                height = crown_y - rail_y
+                shoulder_width, shoulder_y = 0.90 * rail_width, rail_y + 0.34 * height
+                roof_width, roof_y = 0.62 * rail_width, rail_y + 0.90 * height
+            else:
+                x, rail_width, rail_y, shoulder_width, shoulder_y, roof_width, roof_y, crown_y = values
+            _require(all(math.isfinite(v) for v in (x, rail_width, rail_y, shoulder_width,
+                                                    shoulder_y, roof_width, roof_y, crown_y)),
                      f'faired_canopy: station {i} has a non-finite value')
-            _require(half_width > 0 and crown_y > base_y,
-                     f'faired_canopy: station {i} needs half-width > 0 and crown above base')
-            vals.append((x, half_width, base_y, crown_y))
+            _require(rail_width >= shoulder_width >= roof_width > 0 and
+                     rail_y <= shoulder_y <= roof_y < crown_y,
+                     f'faired_canopy: station {i} needs narrowing widths and rising rail/shoulder/roof/crown')
+            vals.append((x, rail_width, rail_y, shoulder_width, shoulder_y,
+                         roof_width, roof_y, crown_y))
         _require(all(vals[i][0] < vals[i + 1][0] for i in range(len(vals) - 1)),
                  'faired_canopy: station x values must be strictly increasing')
 
-        def ring(value, width_pad=0.0, crown_pad=0.0):
-            x, half_width, base_y, crown_y = value
-            width = half_width + width_pad
-            height = crown_y - base_y + crown_pad
-            crown = crown_y + crown_pad
-            # Clockwise from the crown as seen from +x. The first side point
-            # continues the fuselage's inward slope instead of rounding back
-            # toward a zero-width bottom, which is the bubble-shaped failure
-            # this primitive exists to avoid.
+        def ring(value, width_pad=0.0, vertical_pad=0.0):
+            x, rail_width, rail_y, shoulder_width, shoulder_y, roof_width, roof_y, crown_y = value
+            rail_width += width_pad
+            shoulder_width += width_pad
+            roof_width += width_pad
+            shoulder_y += vertical_pad
+            roof_y += vertical_pad
+            crown_y += vertical_pad
+            embed = max(bar, 0.08 * (crown_y - rail_y))
+            inner_width = max(0.70 * rail_width, rail_width - 2.0 * embed)
+            # Clockwise from the crown as seen from +x. The underside is a
+            # short, flat inset below the rail rather than a centerline point;
+            # viewed from either side, the glazing therefore intersects the
+            # fuselage instead of opening into a visible triangular gap.
             profile = [
-                (crown, 0.0),
-                (base_y + 0.97 * height, 0.68 * width),
-                (base_y + 0.82 * height, 0.86 * width),
-                (base_y + 0.28 * height, 0.95 * width),
-                (base_y, width),
-                (base_y - bar, 0.0),
-                (base_y, -width),
-                (base_y + 0.28 * height, -0.95 * width),
-                (base_y + 0.82 * height, -0.86 * width),
-                (base_y + 0.97 * height, -0.68 * width),
+                (crown_y, 0.0),
+                (roof_y, roof_width),
+                (shoulder_y, shoulder_width),
+                (rail_y, rail_width),
+                (rail_y - embed, inner_width),
+                (rail_y - embed, -inner_width),
+                (rail_y, -rail_width),
+                (shoulder_y, -shoulder_width),
+                (roof_y, -roof_width),
             ]
             return [(x, y, center_z + z) for y, z in profile]
 
@@ -1163,9 +1253,8 @@ class Model:
                      f'faired_canopy: frame at {x} is outside the canopy ({vals[0][0]}, {vals[-1][0]})')
             i = next(k for k in range(len(vals) - 1) if vals[k][0] <= x <= vals[k + 1][0])
             f = (x - vals[i][0]) / (vals[i + 1][0] - vals[i][0])
-            half_width, base_y, crown_y = (vals[i][c] + (vals[i + 1][c] - vals[i][c]) * f for c in (1, 2, 3))
-            frame_values = [(x - bar / 2, half_width, base_y, crown_y),
-                            (x + bar / 2, half_width, base_y, crown_y)]
+            section = tuple(vals[i][c] + (vals[i + 1][c] - vals[i][c]) * f for c in range(1, 8))
+            frame_values = [(x - bar / 2, *section), (x + bar / 2, *section)]
             frame_rings = [ring(value, bar, bar) for value in frame_values]
             frame_verts, frame_faces = _loft(frame_rings)
             frame_charts = self._loft_charts(frame_rings, frame_role)[0] if self.skin else None
