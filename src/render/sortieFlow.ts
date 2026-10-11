@@ -40,6 +40,18 @@ export function defaultLoadout(ctx: FlowContext, scenarioId: string, specId: str
   return allowed.includes(DEFAULT_LOADOUT) ? DEFAULT_LOADOUT : 'clean'
 }
 
+/**
+ * The hidden boot world historically uses Both until the player reaches the
+ * sortie forms. Preserve that for aircraft which can carry it, but never ask
+ * a racks-only aircraft to boot an illegal loadout. In that case the same
+ * recommendation/fallback policy as Form 4 supplies a legal world.
+ */
+export function bootLoadout(ctx: FlowContext, scenarioId: string, specId: string): Loadout {
+  return loadoutsFor(ctx, specId).includes(DEFAULT_LOADOUT)
+    ? DEFAULT_LOADOUT
+    : defaultLoadout(ctx, scenarioId, specId)
+}
+
 export function initialDraft(ctx: FlowContext, scenarioId: string): SortieDraft {
   const aircraftSpec = option(ctx, scenarioId).aircraft
   return { scenarioId, aircraftSpec, loadout: defaultLoadout(ctx, scenarioId, aircraftSpec) }

@@ -5,7 +5,7 @@ import { parseLibraryEntry } from '../../src/render/hangar/library.js'
 import { flyableAircraft } from '../../src/render/sortie/flyable.js'
 import { SCENARIO_OPTIONS } from '../../src/render/titleScreen.js'
 import {
-  aircraftFor, defaultLoadout, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext,
+  aircraftFor, bootLoadout, defaultLoadout, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext,
 } from '../../src/render/sortieFlow.js'
 
 const library = readdirSync('content/library').map((f) => parseLibraryEntry(JSON.parse(readFileSync(`content/library/${f}`, 'utf8'))))
@@ -33,6 +33,11 @@ describe('the sortie form model (sortie spec, Navigation, A3)', () => {
   })
   it('a range with no recommendation starts on both (SF-R4)', () => {
     expect(initialDraft(ctx(false), 'free-flight').loadout).toBe('both')
+  })
+  it('the hidden boot world keeps Both when legal and falls back for a racks-only mission aircraft', () => {
+    expect(bootLoadout(ctx(false), 'free-flight', 'f6f-hellcat')).toBe('both')
+    expect(bootLoadout(ctx(false), 'flattop-hunt', 'tbm-3-avenger')).toBe('bombs')
+    expect(loadoutsFor(ctx(false), 'tbm-3-avenger')).not.toContain('both')
   })
   it('A3, mission change: resets the aircraft (SF-R5) and the loadout to the recommendation', () => {
     expect(withScenario(ctx(false), 'combat-air-patrol')).toEqual({ scenarioId: 'combat-air-patrol', aircraftSpec: 'f6f-hellcat', loadout: 'clean' })
