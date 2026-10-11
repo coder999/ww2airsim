@@ -5,6 +5,8 @@ import type { Controls } from '../flight/state.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { STANDARD_GRAVITY_MPS2 } from '../damage/overload.js'
 import { commandedBodyRates } from '../flight/model.js'
+import { loadFactorBudget } from './safety.js'
+import { liftPursuitControls, steerToward } from './liftVector.js'
 import type { AimError, FormationOrders, IngressOrders, PilotDecisionState, PilotSkill, RecoveryHome } from './pilot.js'
 
 export type PilotAssignment = {
@@ -150,6 +152,14 @@ export function pursuitDesiredVelocity<M>(
   return aim === null ? maneuver : scale(aim, length(maneuver))
 }
 
+/** Lead pursuit's steering toward `desired`: the lift vector for a pilot whose
+ *  skill flies it (E4), else 7c's `steerToward`. A shooter with no pilot keeps 7c's. */
+export function pursuitSteering<M>(self: AircraftEntity<M>, desired: Vec3): Controls {
+  return self.pilot?.skill.liftVectorPursuit === true
+    ? liftPursuitControls(self.state, self.spec, desired, loadFactorBudget(self.spec))
+    : steerToward(self.state, self.spec, desired, loadFactorBudget(self.spec))
+}
+
 /** Within this angle of the nose, a pursuer in gun range flies `gunTrackingControls`. */
 export const GUN_TRACKING_RAD = 12 * Math.PI / 180
 /** The tracking law's correction, per second of nose error. */
@@ -188,7 +198,8 @@ export function gunTrackingControls<M>(self: AircraftEntity<M>, target: Aircraft
   const wantPitch = dot(swing, right) + lead * TRACKING_GAIN_PER_S * pitchError
   const wantYaw = dot(swing, up) - lead * TRACKING_GAIN_PER_S * yawError
   const unit = commandedBodyRates(self.spec, self.state, { roll: 0, pitch: 1, yaw: 1, throttle: 0, gearDown: false, flapDown: false, brake: 0 })
-  const base = controlsForDesiredVelocity(self.state, self.spec, pursuitDesiredVelocity(self, target))
+  // Roll (E4): for a pilot who flies it, the lift vector onto the solution, as lead pursuit does.
+  const base = pursuitSteering(self, pursuitDesiredVelocity(self, target))
   const clamp1 = (n: number): number => Math.min(1, Math.max(-1, n))
   return {
     ...base,

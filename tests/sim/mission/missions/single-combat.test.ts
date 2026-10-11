@@ -21,7 +21,9 @@ import { progressOf } from '../fixture.js'
 import { isDoomed } from '../../../../src/sim/damage/model.js'
 import { destroyNow, fieldApproach, hold, levelAt, stepsWithControls, terrainOrSkip } from '../fly.js'
 
-const KILLED_S: readonly [number, number] = [115, 145]
+// F2 measured 130.0 s and pinned [115, 145]. E4 (2026-10-10: the veteran's lift-vector lead pursuit,
+// the stall guard) brought it to 107.0 s, re-pinned with the same margin; handoff 2026-10-10-e4-ai-fixes.md.
+const KILLED_S: readonly [number, number] = [92, 122]
 const TALLY = "Tacloban tower: single bandit, a Frank, five miles west, angels ten. He's yours."
 const SPLASH = 'Tacloban tower: splash one Frank. Come on home.'
 const ON_START = levelAt({ x: -14666, z: -47605 }, 3000, 120, 270)

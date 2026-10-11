@@ -24,6 +24,7 @@ import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, 
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
 import { exemptFromFloor, peelOffRecovery, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
 import { takeoffControls } from './takeoff.js'
+import { coverAccepts, selfDefenseAccepts } from './wingmanOrders.js'
 
 /** What a pilot may read besides the start-of-tick aircraft snapshot. All of
  *  it is the start of the tick too: `combat` is the record `advance` has just
@@ -52,9 +53,19 @@ function chooseTarget<M>(
     return fixed === undefined || isAircraftDoomed(view.combat, fixed) ? null : fixed.id
   }
   // 7f spec §4: a wingman fights what threatens its leader or itself, and
-  // passes the leader so 7e's LEADER_THREAT_BONUS_M applies.
+  // passes the leader so 7e's LEADER_THREAT_BONUS_M applies. E4: the player's
+  // last call, if any, decides instead (`wingmanOrders.ts`).
   if (leader !== null) {
-    return selectTarget(a, view, { current, leaderId: leader.id, accept: wingmanAccepts(a, leader, view.combat[a.id]!, current, nowS) })
+    const order = pilot.formation?.order
+    if (order?.kind === 'attack' && order.target !== null) {
+      const named = view.snapshot.find((c) => c.id === order.target)
+      return named === undefined || isAircraftDoomed(view.combat, named) ? null : named.id
+    }
+    const accept = order === undefined ? wingmanAccepts(a, leader, view.combat[a.id]!, current, nowS)
+      : order.kind === 'cover' ? coverAccepts(a, leader, view.combat, nowS)
+      : order.kind === 'form' ? selfDefenseAccepts(a, view.combat[a.id]!, nowS)
+      : undefined
+    return selectTarget(a, view, accept === undefined ? { current, leaderId: leader.id } : { current, leaderId: leader.id, accept })
   }
   // An ingress pilot fights only what attacks it or comes close (§4.5).
   const accept = pilot.ingress === undefined ? undefined : ingressAccepts(a, view.combat[a.id]!, current, nowS)
@@ -162,6 +173,15 @@ function flyPilot<M>(
     const l = snapshot.find((c) => c.id === pilot!.formation!.leader)
     if (l === undefined || isAircraftDoomed(ctx.combat.aircraft, l)) pilot = leaderlessPilot(pilot, l, ctx.nowS)
     else leader = l
+  }
+  // E4: an Attack call lapses once its target is down or gone, and the wingman is back on 7f's rule.
+  const order = pilot.formation?.order
+  if (order?.kind === 'attack' && order.target !== null) {
+    const named = snapshot.find((c) => c.id === order.target)
+    if (named === undefined || isAircraftDoomed(ctx.combat.aircraft, named)) {
+      const { leader: leaderId, slot } = pilot.formation!
+      pilot = { ...pilot, formation: { leader: leaderId, slot }, decision: { ...pilot.decision, nextRescoreS: ctx.nowS } }
+    }
   }
   // A leader still on its deck or runway is loitered on, not formed on (spec §4).
   const leaderFlying = leader !== null && airborne(leader, ctx.terrain, ctx.decks)
@@ -336,7 +356,9 @@ function flyPilot<M>(
   }
   // 7f spec §3: on station, by the one law that also rejoins.
   if (target === null && decision.mode === 'formation' && leader !== null && leaderFlying) {
-    const base = formationControls(a, leader, pilot.formation!.slot, (decision.coverUntilS ?? 0) > ctx.nowS)
+    // E4: Cover me holds trail cover; Form up holds the slot even while the leader fights.
+    const call = pilot.formation!.order?.kind
+    const base = formationControls(a, leader, pilot.formation!.slot, call === 'cover' || (call !== 'form' && (decision.coverUntilS ?? 0) > ctx.nowS))
     const { controls, cursor } = finishControls(a, base, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
     // E3: a bomber wingman toggles on its leader: a bomb for each one the leader has dropped and it has not.
     const dropped = ctx.combat.aircraft[leader.id]?.bombsDropped ?? 0

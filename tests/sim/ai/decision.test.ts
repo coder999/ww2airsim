@@ -193,3 +193,15 @@ describe('maneuverControls steers against the observed snapshot, not live target
     expect(maneuverControls(self, target, decision, NO_NOISE).controls).toEqual(limitLoadFactor(self.state, self.spec, pursuitControls(self, target)))
   })
 })
+
+describe('the energy disengage (E4: energyDiscipline, now that disengageThreshold is gone)', () => {
+  // No threat, no angle or range penalty, full fuel: Pursue gives way to Extend below
+  // -1000 d / (2 - d) J/kg, -538 for the veteran (d = 0.7) and -176 for the green (d = 0.3).
+  const at = (relativeEnergyJPerKg: number) => ({ ...HEALTHY, relativeEnergyJPerKg })
+  it('the veteran holds the attack to about -538 J/kg, the green to about -176', () => {
+    expect(decideManeuver(at(-530), VETERAN_SKILL)).toBe('pursue')
+    expect(decideManeuver(at(-545), VETERAN_SKILL)).toBe('extend')
+    expect(decideManeuver(at(-170), GREEN_SKILL)).toBe('pursue')
+    expect(decideManeuver(at(-182), GREEN_SKILL)).toBe('extend')
+  })
+})

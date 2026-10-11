@@ -14,6 +14,7 @@ import { decksOf } from '../sim/world/deck.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { wheelDepthOf } from '../sim/gearContact.js'
 import { autoPursuit } from '../sim/ai/autoPursuit.js'
+import { orderWingmen, playerAttackTarget, wingmenOf } from '../sim/ai/wingmanOrders.js'
 import {
   assistFor,
   DEFAULT_ASSIST_SETTINGS,
@@ -191,6 +192,11 @@ export type FrameState = {
    *  holding a level heading. Held, not a lever: nothing here carries it into
    *  the next frame, it is recomputed from the key every frame. */
   readonly autopilot: { readonly target: string | null } | null
+  /** E4: the wingman call key down last frame, for edge detection, or null. */
+  readonly wingmanCallPressed: WingmanCall | null
+  /** E4: the wingman's radio answers so far, append-only: one per call that
+   *  reached a wingman, at the tick it was made (the HUD radio, `radioFeed`). */
+  readonly wingmanCalls: readonly { readonly tick: number; readonly text: string }[]
   /**
    * Whether the simulation is paused (Mark, 2026-09-17: "esc key pauses
    * game"). Applied the same way triple time is, to the frame delta: a paused
@@ -237,6 +243,18 @@ export type FrameState = {
 /** One "was this toggle key down last frame" flag per assist. See
  *  `FrameState.assistTogglesDown`. */
 export type AssistTogglesDown = Readonly<Record<keyof AssistSettings, boolean>>
+
+/** E4 (Mark, 2026-10-10): the player's three calls to his wingmen, and what the wingman answers on the
+ *  radio line. Text-only: `RADIO_LINES` (src/audio/radio.ts) maps each to `null`. */
+export type WingmanCall = 'attack' | 'cover' | 'form'
+const WINGMAN_CALLS: readonly { readonly binding: 'wingmanAttack' | 'wingmanCover' | 'wingmanFormUp'; readonly call: WingmanCall }[] = [
+  { binding: 'wingmanAttack', call: 'attack' }, { binding: 'wingmanCover', call: 'cover' }, { binding: 'wingmanFormUp', call: 'form' },
+]
+export const WINGMAN_RADIO: Readonly<Record<WingmanCall, string>> = {
+  attack: 'Wingman: Roger, engaging.',
+  cover: "Wingman: Roger, I'm on your tail.",
+  form: 'Wingman: Roger, rejoining.',
+}
 
 const MODES: readonly CameraMode[] = ['chase', 'cockpit']
 
@@ -342,6 +360,8 @@ export function initialFrameStateFor(
     torpedoNoticeS: 0,
     respotHandledTick: lastRespotTick(world),
     throttleCutPressed: false,
+    wingmanCallPressed: null,
+    wingmanCalls: [],
     dropBombPressed: false,
     fireRocketsPressed: false,
     autopilot: null,
@@ -574,6 +594,13 @@ export function nextFrameState(
   // snapping to centre.
   const autopilotDown = BINDINGS.autopilot.some((c) => pressed.has(c))
   const autopilotCommand = autopilotDown && !paused ? autoPursuit(prev.world) : null
+  // E4: a wingman call, one per press, live flight only; the world takes it before this frame's steps.
+  const callDown = WINGMAN_CALLS.find((c) => BINDINGS[c.binding].some((k) => pressed.has(k)))?.call ?? null
+  const call = callDown !== null && callDown !== prev.wingmanCallPressed && !paused && wingmenOf(prev.world, prev.world.player).length > 0 ? callDown : null
+  const orderedWorld = call === null ? prev.world : orderWingmen(prev.world, call === 'attack'
+    ? { kind: 'attack', target: playerAttackTarget(prev.world, autopilotCommand?.target ?? null) }
+    : { kind: call })
+  const wingmanCalls = call === null ? prev.wingmanCalls : [...prev.wingmanCalls, { tick: prev.world.tick, text: WINGMAN_RADIO[call] }]
   const controlsAxes =
     autopilotCommand === null
       ? cutAxes
@@ -740,7 +767,7 @@ export function nextFrameState(
   //    decision, here, on the same mechanism as the other two.
   const holding = (prev.groundSpawn && prev.world.terrain === null) || player.impact !== null || prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null
   const advanced = advance(
-    withControls(prev.world, prev.world.player, controls),
+    withControls(orderedWorld, prev.world.player, controls),
     holding ? 0 : simElapsedSeconds,
     stepper,
     assist,
@@ -806,6 +833,8 @@ export function nextFrameState(
     dropBombPressed: dropBombKeyDown,
     fireRocketsPressed: fireRocketsKeyDown,
     autopilot: autopilotCommand === null ? null : { target: autopilotCommand.target },
+    wingmanCallPressed: callDown,
+    wingmanCalls,
     paused,
     pausePressed: pauseDown,
     landing,

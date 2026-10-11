@@ -41,12 +41,20 @@ export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null 
  * flight goes on (the call is set once, at a tick no later than now), so the
  * feed only grows and `RadioLine.seen` stays a valid count.
  */
-export function radioFeed<M>(m: MissionState<M> | null, friendlyFire: { readonly tick: number; readonly text: string } | null): readonly { readonly text: string }[] {
-  const messages = m === null ? [] : radioMessages(m)
-  if (friendlyFire === null) return messages
-  const at = messages.findIndex((x) => x.tick > friendlyFire.tick)
-  return at < 0 ? [...messages, friendlyFire] : [...messages.slice(0, at), friendlyFire, ...messages.slice(at)]
+export function radioFeed<M>(
+  m: MissionState<M> | null, friendlyFire: RadioCall | null,
+  /** E4: the wingman's answers (`FrameState.wingmanCalls`), append-only, merged the same way. */
+  calls: readonly RadioCall[] = [],
+): readonly { readonly text: string }[] {
+  let feed: readonly RadioCall[] = m === null ? [] : radioMessages(m)
+  const extra = friendlyFire === null ? calls : [...calls, friendlyFire].sort((a, b) => a.tick - b.tick)
+  for (const call of extra) {
+    const at = feed.findIndex((x) => x.tick > call.tick)
+    feed = at < 0 ? [...feed, call] : [...feed.slice(0, at), call, ...feed.slice(at)]
+  }
+  return feed
 }
+type RadioCall = { readonly tick: number; readonly text: string }
 
 export const RADIO_SHOW_MS = 5000
 export type RadioLine = { readonly seen: number; readonly text: string | null; readonly remainingMs: number }
@@ -63,7 +71,7 @@ export function nextRadioLine(r: RadioLine, messages: readonly { readonly text: 
 
 export type MissionHudHandle = {
   /** Returns the steering cue for the in-scene arrow (scene/steeringArrow.ts). */
-  update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire?: { readonly tick: number; readonly text: string } | null): SteeringCue | null
+  update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire?: { readonly tick: number; readonly text: string } | null, calls?: readonly { readonly tick: number; readonly text: string }[]): SteeringCue | null
   /** Puts the steering label beside the arrow or marker: `anchor` in NDC, null hides it. */
   placeSteering(anchor: { readonly x: number; readonly y: number } | null, mode: SteeringMode): void
   reset(): void
@@ -112,7 +120,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
   let shownMode: SteeringMode | null = null
 
   return {
-    update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire: { readonly tick: number; readonly text: string } | null = null): SteeringCue | null {
+    update<M>(world: World<M>, selectedNavigationId: string | null, frameMs: number, paused: boolean, friendlyFire: { readonly tick: number; readonly text: string } | null = null, calls: readonly { readonly tick: number; readonly text: string }[] = []): SteeringCue | null {
       const m = world.mission
       const objective = objectiveLineLabel(m)
       if (objective !== shownObjective) {
@@ -121,7 +129,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
         objectiveEl.style.display = objective === null ? 'none' : 'block'
       }
 
-      radio = nextRadioLine(radio, radioFeed(m, friendlyFire), paused ? 0 : frameMs)
+      radio = nextRadioLine(radio, radioFeed(m, friendlyFire, calls), paused ? 0 : frameMs)
       if (radio.text !== shownRadio) {
         shownRadio = radio.text
         radioEl.textContent = radio.text ?? ''

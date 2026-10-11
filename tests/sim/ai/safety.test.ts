@@ -2,11 +2,15 @@ import { sidesOf } from '../../../src/sim/sides.js'
 import { describe, expect, it } from 'vitest'
 import {
   FLOOR_BUFFER_M, FLOOR_M, G_BUDGET, OVERSPEED_THROTTLE_CUT, PURSUIT_FLOOR_M, finishControls, floorTriggerM, heightAboveGround,
-  limitLoadFactor, needsFloorRecovery, safetyOverride,
+  STALL_GUARD_ALPHA_FRACTION, limitLoadFactor, needsFloorRecovery, safetyOverride,
 } from '../../../src/sim/ai/safety.js'
+import { DT, isStalled } from '../../../src/sim/flight/model.js'
+import { isDoomed } from '../../../src/sim/damage/model.js'
+import { qFromAxisAngle } from '../../../src/sim/math/quat.js'
+import { duelWorld } from '../../../tools/ai/duel.js'
 import { pilotTick } from '../../../src/sim/ai/pilotTick.js'
 import { VETERAN_SKILL, initialDecision, type PilotManeuver } from '../../../src/sim/ai/pilot.js'
-import { createWorldOf } from '../../../src/sim/loop.js'
+import { advance, createWorldOf } from '../../../src/sim/loop.js'
 import { deckOf } from '../../../src/sim/world/deck.js'
 import { createShipState } from '../../../src/sim/world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from '../../../src/sim/world/terrain.js'
@@ -219,4 +223,40 @@ describe('the pursuit floor (Mark, 2026-09-26: "ai chases you unless under 50 *f
     // Rejecting side: the same altitude off the deck is over the sea, 29 m up.
     expect(safetyOf('pursue', v3(3000, deckY + 12, 3000), v3(3000, 10, 0), null, [deck])).toBe('none')
   })
+})
+
+describe('the stall guard (E4; 7c handoff open item 7)', () => {
+  // A Hellcat at 3,000 m with its nose `alphaDeg` above its flight path: that is its angle of attack.
+  const pitchedUp = (alphaDeg: number, speedMps = 70) => entity(f6f, createState({
+    position: v3(0, 3000, 0), velocity: v3(speedMps, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), alphaDeg * Math.PI / 180),
+  }))
+  const fullPull = { roll: 0, pitch: 1, yaw: 0, throttle: 1 }
+
+  it('past the stall, a full pull becomes a push: the stick comes forward', () => {
+    expect(isStalled(f6f, pitchedUp(18).state)).toBe(true)
+    expect(finishControls(pitchedUp(18), fullPull, 0, 0, null).controls.pitch).toBeLessThan(0)
+  })
+
+  it('near the stall it eases the pull; well short of it, it leaves the stick alone', () => {
+    const near = finishControls(pitchedUp(STALL_GUARD_ALPHA_FRACTION * f6f.aero.alphaCritDeg), fullPull, 0, 0, null).controls.pitch
+    expect(near).toBeLessThan(0.5)
+    expect(finishControls(pitchedUp(4), fullPull, 0, 0, null).controls.pitch).toBe(1)
+  })
+
+  it('reads the angle of attack off the air: sinking air lowers it, so the guard eases', () => {
+    const a = pitchedUp(16)
+    expect(finishControls(a, fullPull, 0, 0, v3(0, -15, 0)).controls.pitch).toBeGreaterThan(finishControls(a, fullPull, 0, 0, null).controls.pitch)
+  })
+
+  // The census (plan 2026-10-10-e4-ai-fixes.md): before the guard, the E1 duels flew an AI stalled
+  // on 20.7% of its live ticks, 98.6% of them with no safety override. One of those duels here.
+  it('in a veteran duel, an AI is almost never stalled', () => {
+    let w = duelWorld('head-on', 'veteran', 'veteran', 0)
+    let stalled = 0, ticks = 0
+    for (let i = 0; i < 60 / DT; i++) {
+      w = advance(w, DT).world
+      for (const e of w.aircraft) if (e.pilot != null && !isDoomed(w.combat.aircraft[e.id]!.damage)) { ticks++; if (isStalled(e.spec, e.state)) stalled++ }
+    }
+    expect(stalled / ticks).toBeLessThan(0.01)
+  }, 30_000)
 })

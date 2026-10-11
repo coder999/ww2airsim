@@ -7,6 +7,7 @@ import { qRotate } from '../../src/sim/math/quat.js'
 import { dot, v3 } from '../../src/sim/math/vec3.js'
 import { bundleForScenario, loadAircraftSpec, loadScenarioBundle } from '../content/load.js'
 import { readdirSync } from 'node:fs'
+import { gunsSafe } from '../ai/replica.js'
 
 /**
  * B3's instrument: the player's pursuit autopilot (Shift) flown headless
@@ -99,7 +100,11 @@ export function evaderWorld(g: Geometry, skill: 'veteran' | 'green', cursor: num
     ships: [], weather: { windFromDeg: 0, windMps: 0, timeOfDay: 12 },
   })
   const w = worldFromScenario(bundleForScenario(scenario), null)
-  return { ...w, aircraft: w.aircraft.map((x) => x.pilot == null ? x : { ...x, pilot: { ...x.pilot, decision: { ...x.pilot.decision, noiseCursor: (x.pilot.decision.noiseCursor + cursor) >>> 0 } } }) }
+  // Guns safe (E4): "nobody fires" was true only while the Zero never got a
+  // solution. With E4's stall guard the green Zero at cursor 15838 put 12
+  // rounds into the F6F at 65 s (structure 0.867, measured 2026-10-10), which
+  // this harness, a test of the autopilot's g, would read as overload.
+  return gunsSafe({ ...w, aircraft: w.aircraft.map((x) => x.pilot == null ? x : { ...x, pilot: { ...x.pilot, decision: { ...x.pilot.decision, noiseCursor: (x.pilot.decision.noiseCursor + cursor) >>> 0 } } }) }, 'z')
 }
 
 export type EvaderReport = Stress & { readonly firstSolutionS: number | null; readonly solutionS: number }

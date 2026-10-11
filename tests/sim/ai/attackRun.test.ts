@@ -49,19 +49,20 @@ describe('attack run (7c spec §3.5)', () => {
 
     // One entry per attack run, from its selection to the next run's entry
     // (a new latch) or the end of the window.
-    type Run = { enteredAtS: number; entryY: number; lowest: number; highestAfterLowest: number; firedInDescent: boolean }
+    type Run = { enteredAtS: number; entryY: number; lowest: number; highestAfterLowest: number; firedInDescent: boolean; highestInLatch: number }
     const runs: Run[] = []
     runCanned(world, { t: straight }, 40, (w) => {
       const s = self(w)
       const d = s.pilot!.decision
       const y = s.state.position.y
       if (d.named === 'attack-run' && d.latch !== null && d.latch.enteredAtS !== runs.at(-1)?.enteredAtS) {
-        runs.push({ enteredAtS: d.latch.enteredAtS, entryY: y, lowest: y, highestAfterLowest: -Infinity, firedInDescent: false })
+        runs.push({ enteredAtS: d.latch.enteredAtS, entryY: y, lowest: y, highestAfterLowest: -Infinity, firedInDescent: false, highestInLatch: -Infinity })
       }
       const run = runs.at(-1)
       if (run !== undefined) {
-        if (y < run.lowest) { run.lowest = y; run.highestAfterLowest = -Infinity } else run.highestAfterLowest = Math.max(run.highestAfterLowest, y)
+        if (y < run.lowest) { run.lowest = y; run.highestAfterLowest = -Infinity; run.highestInLatch = -Infinity } else run.highestAfterLowest = Math.max(run.highestAfterLowest, y)
         if (d.named === 'attack-run' && d.latch?.phase === 0 && s.state.velocity.y < 0 && s.controls.fire === true) run.firedInDescent = true
+        if (d.named === 'attack-run' && d.latch?.enteredAtS === run.enteredAtS && y >= run.lowest) run.highestInLatch = Math.max(run.highestInLatch, y)
       }
     })
     const first = runs[0]!
@@ -70,6 +71,9 @@ describe('attack run (7c spec §3.5)', () => {
     const lost = first.entryY - first.lowest
     expect(lost).toBeGreaterThan(0)
     expect(first.highestAfterLowest - first.lowest).toBeGreaterThanOrEqual(0.6 * lost)
+    // E4 (7c handoff open item 5): the zoom does it inside its own latch, not on momentum after a
+    // cap closed it mid-climb. Before E4 the 20 s cap closed it at 0.529, climbing at 129 m/s.
+    expect(first.highestInLatch - first.lowest).toBeGreaterThanOrEqual(0.6 * lost)
   })
 })
 

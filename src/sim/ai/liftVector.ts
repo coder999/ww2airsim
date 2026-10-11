@@ -99,3 +99,43 @@ export function steerToward(state: AircraftState, spec: AircraftSpec, desiredVel
   if (offNose < LIFT_VECTOR_HANDOFF_RAD) return velocityControls
   return controlsForLiftVector(state, spec, desiredVelocity, loadFactorG, velocityControls.throttle)
 }
+
+/** How fast `liftPursuitControls` turns the flight path onto the desired
+ *  direction: per second, per radian of angle between them. Swept 2026-10-10
+ *  in the E1 duels (tools/ai/duel.ts, 8 cursors, stall guard at 0.85, before
+ *  the skill gate and the rudder limit): kills of 72 at 2 -> 18, 1 -> 29,
+ *  0.5 -> 31; against the 3 g turner (pursueManeuvers.test.ts) the veteran
+ *  held a solution for 246 / 220 / 160 ticks before the target eased. 1 is
+ *  kept: a stiffer law over-pulls, a softer one tracks late. */
+export const PURSUIT_TURN_GAIN_PER_S = 1
+
+/**
+ * Lead pursuit's steering since E4 (7c handoff open item 3): the lift vector
+ * put where the turn needs it, at any bank. The flight path is turned toward
+ * `desiredVelocity` at PURSUIT_TURN_GAIN_PER_S times the angle between them,
+ * and the lift carries the weight as well, so a level turn holds its height.
+ * The load is capped at `maxLoadG`; the throttle is the velocity controller's.
+ *
+ * The velocity controller it replaces asks for a bank of 1.6 x the heading
+ * error in the body frame, capped at 70° (about 2.9 g level): a turn needs a
+ * standing heading error to hold its bank, and above 2.9 g none will do.
+ * Measured 2026-10-10 (pursueManeuvers.test.ts's 3 g turner): it settled
+ * 40° off the target, turning at 14°/s against the target's 19°/s, and never
+ * had a gun solution in the 17.3 s the target turned.
+ */
+export function liftPursuitControls(state: AircraftState, spec: AircraftSpec, desiredVelocity: Vec3, maxLoadG: number): Controls {
+  const throttle = controlsForDesiredVelocity(state, spec, desiredVelocity).throttle
+  const speed = length(state.velocity)
+  const wantSpeed = length(desiredVelocity)
+  if (speed < 1 || wantSpeed < 1e-6) return controlsForDesiredVelocity(state, spec, desiredVelocity)
+  const along = scale(state.velocity, 1 / speed)
+  const want = scale(desiredVelocity, 1 / wantSpeed)
+  const toward = sub(want, scale(along, dot(want, along)))
+  const off = Math.acos(clamp(dot(want, along), -1, 1))
+  const turn = length(toward) > 1e-9 ? scale(normalize(toward), speed * PURSUIT_TURN_GAIN_PER_S * off) : v3(0, 0, 0)
+  // The lift's acceleration: the turn's, plus 1 g up against gravity, less what lies along the path.
+  const lift = v3(turn.x, turn.y + G_MPS2, turn.z)
+  const liftPerp = sub(lift, scale(along, dot(lift, along)))
+  const n = Math.min(maxLoadG, length(liftPerp) / G_MPS2)
+  return controlsForLiftVector(state, spec, liftPerp, n, throttle)
+}

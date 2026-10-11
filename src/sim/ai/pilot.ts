@@ -19,12 +19,15 @@ export type PilotSkill = {
    *  unchanged. Does not change AI_GUN_RANGE_M. */
   readonly gunneryAccuracy: number
   /** 0-1. Scales how much relative-energy margin Pursue needs over Extend
-   *  before Pursue still wins the score. Higher = holds the attack longer. */
+   *  before Pursue still wins the score. Higher = holds the attack longer.
+   *  This is the pilot's energy disengage: with no threat and no angle or
+   *  range penalty, Pursue gives way to Extend below -1000 d / (2 - d) J/kg
+   *  of relative energy, -538 for the veteran and -176 for the green.
+   *  (E4, 2026-10-10: 7b's `disengageThreshold`, a forced Extend that nothing
+   *  read, was deleted; its preset values sat inside these crossovers, so
+   *  wiring it would have made both presets quit sooner. Plan
+   *  2026-10-10-e4-ai-fixes.md.) */
   readonly energyDiscipline: number
-  /** Relative-energy floor (same units as the decision layer's energy term)
-   *  below which Extend is forced -- reserved for a future slice; this
-   *  plan's forced override is range-based (MIN_ENGAGEMENT_RANGE_M) only. */
-  readonly disengageThreshold: number
   /** Standard deviation of noise added to each of roll/pitch/yaw, in the
    *  same [-1, 1] units `Controls` already uses. 0 = perfect (no jitter).
    *  HIGHER IS ALWAYS WORSE -- unlike `gunneryAccuracy`, chosen
@@ -44,6 +47,12 @@ export type PilotSkill = {
    *  flies the flight path at the solution as before E1. A shooter with no
    *  pilot tracks fully. HIGHER IS BETTER. */
   readonly gunTracking: number
+  /** E4: lead pursuit flies the lift vector at any bank (`liftPursuitControls`),
+   *  which turns with a 3 g target; false keeps the velocity controller's 70°
+   *  bank, which cannot. The veteran's, not the green's: with it the green
+   *  broke the 7d bar (a scripted evasion never got behind it at two cursors,
+   *  measured 2026-10-10), and Mark's green "should be beaten easily". */
+  readonly liftVectorPursuit: boolean
   /** Which named maneuvers this pilot flies (master spec §7: "green versus
    *  veteran is data"). The intent defaults are always flown, listed or not. */
   readonly repertoire: readonly ManeuverName[]
@@ -53,7 +62,6 @@ export const VETERAN_SKILL: PilotSkill = {
   reactionS: 0.3,
   gunneryAccuracy: 0.6,
   energyDiscipline: 0.7,
-  disengageThreshold: -400,
   repertoire: ['lead-pursuit', 'lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'defensive-break', 'scissors', 'split-s', 'extend', 'immelmann'],
   // 7c (Mark's ruling 2026-09-25, "tone the veteran down"): 0.02 -> 0.01.
   // Measured 2026-09-25 through the production frame path against a passive
@@ -74,13 +82,13 @@ export const VETERAN_SKILL: PilotSkill = {
   // 8.1 s (aiLethality.test.ts item 1) and still wins 17 of 24 duels on a green.
   aimErrorRad: 0.025,
   gunTracking: 1,
+  liftVectorPursuit: true,
 }
 
 export const GREEN_SKILL: PilotSkill = {
   reactionS: 1.0,
   gunneryAccuracy: 1.0,
   energyDiscipline: 0.3,
-  disengageThreshold: -150,
   // Measured 2026-09-24 on the reference GPU (pursuit-range, same tail-chase
   // flight as VETERAN_SKILL's comment, skill swapped to 'green' via a
   // temporary scenario edit and reverted after): the same headingRad
@@ -102,6 +110,7 @@ export const GREEN_SKILL: PilotSkill = {
   // extending for 130 s). Swept 2026-10-09.
   aimErrorRad: 0.026,
   gunTracking: 0,
+  liftVectorPursuit: false,
   // 7c Task 8 (Mark, 2026-09-25: "green never goes vertical"): no yo-yo,
   // attack run, split-S or Immelmann. 7c Task 14 (Mark, 2026-09-26: "remove
   // lag pursuit from green pilots. green pilots should be beaten easily"): no
@@ -218,7 +227,16 @@ export type RecoveryHome =
 export type FormationSlot = 1 | 2 | 3
 /** 7f spec §1: a wingman's orders. The leader is a same-side aircraft,
  *  possibly the player, that is not itself a wingman (no chains). */
-export type FormationOrders = { readonly leader: string; readonly slot: FormationSlot }
+export type FormationOrders = {
+  readonly leader: string; readonly slot: FormationSlot
+  /** E4: the player's last call to this wingman (`wingmanOrders.ts`). Absent is 7f's own rule. */
+  readonly order?: WingmanOrder
+}
+/** E4, Mark's three calls (2026-10-10). `attack` names the player's target, or null for "engage anything". */
+export type WingmanOrder =
+  | { readonly kind: 'attack'; readonly target: string | null }
+  | { readonly kind: 'cover' }
+  | { readonly kind: 'form' }
 
 /** What a pilot is doing at the top level (7e spec §4.1). 7e flies
  *  `engage`, `ingress` (§4.5) and `loiter`; 7f fills in `formation`, 7g

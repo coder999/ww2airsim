@@ -166,3 +166,25 @@ describe('low yo-yo', () => {
     expect(m.positiveClosure).toBe(true)
   })
 })
+
+describe('lead pursuit against a sustained hard turn (E4; 7c handoff open item 3, the 70° bank cap)', () => {
+  // Before E4 (measured 2026-10-10): lead pursuit banked at most 70° (about 2.9 g level), and this
+  // veteran, 600 m behind and 150 m above a Hellcat in a 3 g level turn, never had a gun solution
+  // before the target eased below 85 m/s at 17.3 s; its first came at 35.5 s.
+  it('a veteran behind and above a 3 g turner gets a gun solution while the target still turns', () => {
+    const skill = withRepertoire(VETERAN_SKILL, ['lead-pursuit', 'defensive-break', 'extend'] as ManeuverName[])
+    const world = createWorldOf({
+      aircraft: [
+        level(P, f6f, v3(-600, 3150, 0), v3(140, 0, 0), pilotFor(T, skill, 1.0)),
+        level(T, f6f, v3(0, 3000, 0), v3(130, 0, 0)),
+      ],
+      player: T,
+    })
+    const turn = levelTurn(3, -1)
+    let eased = false, coneWhileTurning = 0
+    runCanned(world, { [T]: (a, w) => { if (length(a.state.velocity) < 85) eased = true; return eased ? straight(a, w) : turn(a, w) } }, 20, (w) => {
+      if (!eased && hasGunSolution(self(w), other(w))) coneWhileTurning++
+    })
+    expect(coneWhileTurning).toBeGreaterThan(0)
+  })
+})

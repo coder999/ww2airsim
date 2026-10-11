@@ -77,6 +77,10 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   "Instructor: Targets down. Bombs away on the cargo ship in the bay if you have them: U shows where a bomb will land, V drops one. Then join the final.": null,
   "Instructor: On the final. Gear down (G), flaps down (F), and slow to under 120 miles an hour.": null,
   "Instructor: Good. Line up on the runway and put her down.": null,
+  // E4: the wingman's answers to the player's calls (src/render/frame.ts, WINGMAN_RADIO), text-only.
+  'Wingman: Roger, engaging.': null,
+  "Wingman: Roger, I'm on your tail.": null,
+  'Wingman: Roger, rejoining.': null,
   // The dev scenarios (dev-mission-ui.json) have no recorded lines.
   'Tower: cleared for takeoff.': null,
   'Tower: a friendly is passing overhead.': null,

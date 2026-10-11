@@ -244,6 +244,8 @@ export type Ww2Diagnostics = {
     readonly takeoff: TakeoffPhase | null
     readonly maneuver: ManeuverName | null
     readonly targetId: string | null
+    /** E4: the player's last call to this wingman, while it stands, else `null`. */
+    readonly order: 'attack' | 'cover' | 'form' | null
   }[]
   /**
    * Whether the wheels are currently carrying the airplane -- `supportedContact`

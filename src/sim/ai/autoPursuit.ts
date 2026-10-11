@@ -5,11 +5,8 @@ import { decksOf } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import { airborne } from './airborne.js'
 import { controlsForDesiredVelocity } from './controller.js'
-import { limitLoadFactor, loadFactorBudget } from './safety.js'
-import { airVelocity, commandedBodyRates } from '../flight/model.js'
-import type { AircraftSpec } from '../flight/schema.js'
-import type { AircraftState, Controls } from '../flight/state.js'
-import { STANDARD_GRAVITY_MPS2 } from '../damage/overload.js'
+import { limitLoadFactorAndRudder } from './safety.js'
+import { airVelocity } from '../flight/model.js'
 import { pursuitDesiredVelocity } from './pursuit.js'
 import { sideOf } from '../sides.js'
 import { isAircraftDoomed } from '../weapons/combat.js'
@@ -64,28 +61,9 @@ export const AUTO_PURSUIT_G_FRACTION = 0.9
  *  throttle at the same 0.9 (`OVERSPEED_THROTTLE_CUT`). */
 export const AUTO_PURSUIT_DIVE_FRACTION = 0.9
 
-/**
- * `limitLoadFactor` on the pitch, with the autopilot's own fraction, then the
- * rudder held to the lateral load the pitch leaves inside the same budget.
- * The load the overload model reads is the magnitude of the whole proper
- * acceleration, and at 230 m/s full rudder alone is about 5 g of sideslip:
- * measured 2026-10-10 (pursuitProbe crossing/green) with the pitch limited
- * to 0.9 x 7.5 g, the yaw at 1.00 took the F6F to 8.27 g. Both rates are
- * linear in the stick (`commandedBodyRates`), so a unit command converts.
- * The lateral term ignores gravity along the wing, as `pitchCommandForLoadFactor`
- * does not: the measured peaks are what say it is enough.
- */
-export function limitPursuitLoad(state: AircraftState, spec: AircraftSpec, controls: Controls, fraction: number): Controls {
-  const c = limitLoadFactor(state, spec, controls, fraction)
-  const speed = length(state.velocity)
-  const unit = commandedBodyRates(spec, state, { roll: 0, pitch: 1, yaw: 1, throttle: 0 })
-  if (speed < 1 || Math.abs(unit.z) < 1e-6 || Math.abs(unit.y) < 1e-6) return c
-  const budget = loadFactorBudget(spec, fraction)
-  const normal = speed * unit.z * c.pitch / STANDARD_GRAVITY_MPS2 + qRotate(state.attitude, v3(0, 1, 0)).y
-  const lateral = Math.sqrt(Math.max(0, budget * budget - normal * normal))
-  const yawMax = lateral * STANDARD_GRAVITY_MPS2 / (speed * Math.abs(unit.y))
-  return { ...c, yaw: Math.min(yawMax, Math.max(-yawMax, c.yaw)) }
-}
+/** B3's pitch-and-rudder limit, with the autopilot's own fraction; since E4 it lives in safety.ts,
+ *  where every AI command also runs it (`limitLoadFactorAndRudder`). */
+export const limitPursuitLoad = limitLoadFactorAndRudder
 
 /** Below the floor, climb out at this sine of flight-path angle (~15 deg). */
 const RECOVERY_CLIMB_SIN = 0.25

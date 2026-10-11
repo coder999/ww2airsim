@@ -3,7 +3,10 @@ import type { AircraftState, Controls } from '../flight/state.js'
 import type { AircraftEntity } from '../loop.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
-import { DT, airVelocity } from '../flight/model.js'
+import { DT, airVelocity, angleOfAttack, commandedBodyRates } from '../flight/model.js'
+import { STANDARD_GRAVITY_MPS2 } from '../damage/overload.js'
+import { qRotate } from '../math/quat.js'
+import { alphaCritRad } from '../aero.js'
 import { groundUnder } from '../world/ground.js'
 import { SEA_LEVEL_M } from '../world/terrain.js'
 import { length, v3, type Vec3 } from '../math/vec3.js'
@@ -58,6 +61,28 @@ export const PURSUIT_FLOOR_M = 50 * 0.3048
  *  25 is kept. */
 export const PURSUIT_FLOOR_BELOW_TARGET_M = 25
 
+/**
+ * E4, the stall guard (7c handoff open item 7): the pitch command is capped at
+ * STALL_GUARD_GAIN x (STALL_GUARD_ALPHA_FRACTION - alpha / alphaCrit), and
+ * floored at its mirror for negative alpha, so the stick eases from about
+ * 0.65 of the critical angle, is neutral at 0.85 and comes forward past it.
+ * Alpha is read off the air (`airVelocity`), as the model's `isStalled` is.
+ * Before it (census, 2026-10-10, the E1 duels at 4 cursors): an AI was
+ * stalled on 20.7% of its live ticks, 98.6% of them under no safety
+ * override, as slow as 16 mph; with it, 0.4% (measured 2026-10-10). The
+ * fraction, swept the same day in the duels with every E4 change in: 0.85 ->
+ * 37 kills of 72, 0.95 -> 34. Handoff: docs/handoff/2026-10-10-e4-ai-fixes.md.
+ */
+export const STALL_GUARD_ALPHA_FRACTION = 0.85
+export const STALL_GUARD_GAIN = 5
+
+export function limitAngleOfAttack(state: AircraftState, spec: AircraftSpec, controls: Controls, wind: Vec3 | null): Controls {
+  const r = angleOfAttack({ ...state, velocity: airVelocity(state, wind) }) / alphaCritRad(spec)
+  const hi = STALL_GUARD_GAIN * (STALL_GUARD_ALPHA_FRACTION - r)
+  const lo = -STALL_GUARD_GAIN * (STALL_GUARD_ALPHA_FRACTION + r)
+  return { ...controls, pitch: Math.min(Math.max(controls.pitch, lo), hi) }
+}
+
 const UP = v3(0, 1, 0)
 
 /** `fraction` of the airframe's `gLimit`: the AI's `G_BUDGET` unless a caller
@@ -85,6 +110,33 @@ export function limitLoadFactor(state: AircraftState, spec: AircraftSpec, contro
   const lo = pitchCommandForLoadFactor(state, spec, negativeLoadFloor(spec, fraction))
   if (hi === null || lo === null) return controls
   return { ...controls, pitch: Math.min(Math.max(controls.pitch, lo), hi) }
+}
+
+/**
+ * `limitLoadFactor` on the pitch, with the caller's fraction, then the
+ * rudder held to the lateral load the pitch leaves inside the same budget.
+ * The load the overload model reads is the magnitude of the whole proper
+ * acceleration, and at 230 m/s full rudder alone is about 5 g of sideslip:
+ * measured 2026-10-10 (pursuitProbe crossing/green) with the pitch limited
+ * to 0.9 x 7.5 g, the yaw at 1.00 took the F6F to 8.27 g. Both rates are
+ * linear in the stick (`commandedBodyRates`), so a unit command converts.
+ * The lateral term ignores gravity along the wing, as `pitchCommandForLoadFactor`
+ * does not: the measured peaks are what say it is enough.
+ *
+ * B3 wrote it for the player's autopilot; E4 runs it on every AI command
+ * (`finishControls`): a veteran's defensive break at 194 m/s in the furball
+ * soak reached 7.66 g against a 7.5 g limit on the rudder (measured 2026-10-10).
+ */
+export function limitLoadFactorAndRudder(state: AircraftState, spec: AircraftSpec, controls: Controls, fraction = G_BUDGET): Controls {
+  const c = limitLoadFactor(state, spec, controls, fraction)
+  const speed = length(state.velocity)
+  const unit = commandedBodyRates(spec, state, { roll: 0, pitch: 1, yaw: 1, throttle: 0 })
+  if (speed < 1 || Math.abs(unit.z) < 1e-6 || Math.abs(unit.y) < 1e-6) return c
+  const budget = loadFactorBudget(spec, fraction)
+  const normal = speed * unit.z * c.pitch / STANDARD_GRAVITY_MPS2 + qRotate(state.attitude, v3(0, 1, 0)).y
+  const lateral = Math.sqrt(Math.max(0, budget * budget - normal * normal))
+  const yawMax = lateral * STANDARD_GRAVITY_MPS2 / (speed * Math.abs(unit.y))
+  return { ...c, yaw: Math.min(yawMax, Math.max(-yawMax, c.yaw)) }
 }
 
 /** Height above what is under the aircraft: a deck, the terrain, or sea
@@ -166,19 +218,12 @@ export function safetyOverride<M>(
     // 400 m, the full-G pull went vertical, the Zero stalled at 25 mph and
     // fell into the sea under a second recovery it no longer had the speed
     // to fly. No AI had made that kill before honest gunnery.
-    const v0 = self.state.velocity
     // Stalled (damage stages round 2, 2026-10-09): fights last longer at the tougher HP, and in the
     // furball soak a slow-fighting wingman stalled at 105 mph near 600 m and pulled full back stick
     // under this recovery, mushing into the sea. Pulling cannot fly a stalled wing; unload instead,
     // full throttle, nose RECOVERY_CLIMB_RAD below the horizon, until there is the speed to climb.
     const airspeed0 = length(airVelocity(self.state, wind))
-    if (airspeed0 < STALL_RECOVERY_FACTOR * self.spec.reference.stallSpeedMps) {
-      const flat = Math.hypot(v0.x, v0.z)
-      const heading = flat < 1e-6 ? v3(1, 0, 0) : v3(v0.x / flat, 0, v0.z / flat)
-      const speed = self.spec.reference.stallSpeedMps * 1.3
-      const dive = v3(heading.x * Math.cos(RECOVERY_CLIMB_RAD) * speed, -Math.sin(RECOVERY_CLIMB_RAD) * speed, heading.z * Math.cos(RECOVERY_CLIMB_RAD) * speed)
-      return { mode: 'recover', controls: limitLoadFactor(self.state, self.spec, { ...controlsForDesiredVelocity(self.state, self.spec, dive), throttle: 1 }) }
-    }
+    if (airspeed0 < STALL_RECOVERY_FACTOR * self.spec.reference.stallSpeedMps) return { mode: 'recover', controls: unloadControls(self) }
     if (self.state.velocity.y >= 0) {
       const v = self.state.velocity
       const flat = Math.hypot(v.x, v.z)
@@ -190,10 +235,27 @@ export function safetyOverride<M>(
     return { mode: 'recover', controls: controlsForLiftVector(self.state, self.spec, UP, n, 1) }
   }
   const airspeed = length(airVelocity(self.state, wind))
+  // E4, the stall guard's speed half: below the stall speed, wherever it is, unload as above. The
+  // angle-of-attack limit (`limitAngleOfAttack`) cannot fly a wing that has run out of airspeed:
+  // with it alone, the E1 duels still stalled on 1.13% of their ticks, almost all of them in Extend's
+  // climb back toward a threat above, zoomed to under 10 mph (census, 2026-10-10). Exempt where the
+  // floor is (7g's approach, E2's committed runs), which fly their own speeds.
+  if (Number.isFinite(floorM) && airspeed < self.spec.reference.stallSpeedMps) return { mode: 'recover', controls: unloadControls(self) }
   if (airspeed >= OVERSPEED_RECOVER * self.spec.limits.diveSpeedMps && self.state.velocity.y < 0) {
     return { mode: 'overspeed', controls: controlsForLiftVector(self.state, self.spec, UP, n, 0) }
   }
   return null
+}
+
+/** A stalled wing's recovery: full throttle, the nose RECOVERY_CLIMB_RAD below the horizon on the
+ *  current heading, until there is the speed to fly. */
+function unloadControls<M>(self: AircraftEntity<M>): Controls {
+  const v0 = self.state.velocity
+  const flat = Math.hypot(v0.x, v0.z)
+  const heading = flat < 1e-6 ? v3(1, 0, 0) : v3(v0.x / flat, 0, v0.z / flat)
+  const speed = self.spec.reference.stallSpeedMps * 1.3
+  const dive = v3(heading.x * Math.cos(RECOVERY_CLIMB_RAD) * speed, -Math.sin(RECOVERY_CLIMB_RAD) * speed, heading.z * Math.cos(RECOVERY_CLIMB_RAD) * speed)
+  return limitLoadFactor(self.state, self.spec, { ...controlsForDesiredVelocity(self.state, self.spec, dive), throttle: 1 })
 }
 
 /** The last three stages of every AI command, in order: the load-factor
@@ -201,11 +263,14 @@ export function safetyOverride<M>(
 export function finishControls<M>(
   self: AircraftEntity<M>, base: Controls, noiseStdDev: number, cursor: number, wind: Vec3 | null,
 ): { readonly controls: Controls; readonly cursor: number } {
-  const limited = limitLoadFactor(self.state, self.spec, base)
+  // The stall guard first (E4), then the load factor, whose negative-g floor
+  // (an engine that cuts out) outranks it.
+  const limit = (c: Controls): Controls => limitLoadFactorAndRudder(self.state, self.spec, limitAngleOfAttack(self.state, self.spec, c, wind))
+  const limited = limit(base)
   const fast = length(airVelocity(self.state, wind)) >= OVERSPEED_THROTTLE_CUT * self.spec.limits.diveSpeedMps
   // The noise is limited too (E1, 2026-10-09): unlimited, green's 0.15 put a
   // defensive break 0.2 of stick past the budget, at 7.54 g against a 7.5 g
   // limit (formationLeader.test.ts, once E1's lead had changed the geometry).
   const noisy = applyControlNoise(fast ? { ...limited, throttle: 0 } : limited, noiseStdDev, cursor)
-  return { ...noisy, controls: limitLoadFactor(self.state, self.spec, noisy.controls) }
+  return { ...noisy, controls: limit(noisy.controls) }
 }

@@ -218,7 +218,20 @@ export function selectManeuver(m: ManeuverFacts, repertoire: readonly ManeuverNa
 const PHASED: ReadonlySet<ManeuverName> = new Set<ManeuverName>(['lag-pursuit', 'high-yo-yo', 'low-yo-yo', 'attack-run', 'scissors', 'split-s', 'immelmann'])
 export const isPhased = (name: ManeuverName): boolean => PHASED.has(name)
 
-export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= LATCH_CAP_S
+/**
+ * E4 (7c handoff open item 5): the attack run's own cap. A run from 1,000 m
+ * above dives, pulls out and zooms for longer than LATCH_CAP_S: before E4 the
+ * 20 s cap closed its zoom while it was still climbing at 129 m/s, with 0.53
+ * of the height regained inside its latch (attackRun.test.ts's world,
+ * measured 2026-10-10). The zoom ends itself, on its entry altitude or once
+ * the climb is spent, so a longer cap only bounds a dive that never passes.
+ */
+export const ATTACK_RUN_LATCH_CAP_S = 40
+
+/** How long a latch of this maneuver may hold. */
+export const latchCapS = (name: ManeuverName): number => name === 'attack-run' ? ATTACK_RUN_LATCH_CAP_S : LATCH_CAP_S
+
+export const latchExpired = (latch: ManeuverLatch, nowS: number): boolean => nowS - latch.enteredAtS >= latchCapS(latch.name)
 
 /** Spec §3.5: the only intent that interrupts a latch is a Break forced by a
  *  threat astern (safety overrides clear latches in pilotTick). */

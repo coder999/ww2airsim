@@ -13,10 +13,10 @@ import { duel, type Geometry, type Skill } from '../../../tools/ai/duel.js'
  * 3.4-5 deg behind the nose, outside the veteran's 1.8 deg cone.
  *
  * Mark's retune the same day (veterans toned down, green to hit harder) set
- * the numbers below. Not pinned: veteran against veteran head-on and on the
- * tail (1 of 4 and 0 of 4), and green against green but for the crossing,
- * where most of the fight is both pilots in Break and Extend, as slow as
- * 80 mph. That is the decision layer's (Track E item 4), not gunnery.
+ * the numbers below, re-measured since (round 2, E4). Not pinned: green
+ * against green, where most of the fight is both pilots in Break and Extend.
+ * Before E4 those fights ran as slow as 16 mph, stalled; E4's stall guard
+ * keeps them flying, but neither green converts.
  *
  * Damage stages (2026-10-09): a duel is decided when an airplane catches fire
  * (`tools/ai/duel.ts`), and a hit engine now sputters. That unpinned green
@@ -32,11 +32,20 @@ const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
 //   tail     v-g 8 -> 5 (51 -> 75 s),   v-v 1 -> 1 (107 -> 108 s), g-g 0 -> 0
 //   crossing v-g 5 -> 5 (49 -> 64 s),   v-v 5 -> 2 (71 -> 97 s),   g-g 0 -> 0
 // 27 of 72 duels resolved before, 18 after. Green against green resolves in none, so it stays out.
+// E4 (2026-10-10; handoff docs/handoff/2026-10-10-e4-ai-fixes.md): the stall guard, lift-vector lead
+// pursuit for the veteran, the rudder limit and the attack run's longer latch. Re-measured at 8 cursors,
+// kills round 2 -> E4 (mean time to kill after):
+//   head-on  v-g 3 -> 4 (119 s), v-v 2 -> 4 (117 s)
+//   tail     v-g 5 -> 7 (112 s), v-v 1 -> 8 (103 s)
+//   crossing v-g 5 -> 8 (81 s),  v-v 2 -> 2 (125 s)
+// 18 of 72 resolved before, 33 after. Green against green still resolves in none.
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
-  // geometry, a, b, cursors, kills, measured 2026-10-09 at round 2's HP
-  ['head-on', 'veteran', 'green', CURSORS_8, 3],
-  ['tail', 'veteran', 'green', CURSORS_8, 5],
-  ['crossing', 'veteran', 'green', CURSORS_8, 5],
+  // geometry, a, b, cursors, kills, measured 2026-10-10 (E4)
+  ['head-on', 'veteran', 'green', CURSORS_8, 4],
+  ['head-on', 'veteran', 'veteran', CURSORS_8, 4],
+  ['tail', 'veteran', 'green', CURSORS_8, 7],
+  ['tail', 'veteran', 'veteran', CURSORS_8, 8],
+  ['crossing', 'veteran', 'green', CURSORS_8, 8],
   ['crossing', 'veteran', 'veteran', CURSORS_8, 2],
 ]
 

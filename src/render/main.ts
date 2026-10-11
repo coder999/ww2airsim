@@ -1056,6 +1056,7 @@ async function boot(): Promise<void> {
             takeoff: a.pilot?.decision.takeoff?.phase ?? null,
             maneuver: a.pilot?.decision.named ?? null,
             targetId: a.pilot?.decision.targetId ?? null,
+            order: a.pilot?.formation?.order?.kind ?? null,
           }
         }),
       // Same `??`-guard as the rest: before the first frame exists there is
@@ -2694,7 +2695,7 @@ async function boot(): Promise<void> {
     // up -- the same impact/destroyedAt/landingShown signals `openNavigationChart`
     // (above) already reads to recognise a debrief is showing.
     const debriefUp = player.impact !== null || current.world.combat.aircraft[current.world.player]!.damage.destroyedAt !== null || landingShown
-    const steering = missionHud.update(current.world, navigationMapState.selectedId, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world))
+    const steering = missionHud.update(current.world, navigationMapState.selectedId, frameMs, current.paused || debriefUp, friendlyFireRadio(current.world), current.wingmanCalls)
     // I2: the radio voices what the HUD line shows and what the LSO calls. Live, unpaused flight
     // only, so a replay, the title or a debrief never speaks.
     if (replay === null && !sortieIdle && !current.paused && !debriefUp) {
