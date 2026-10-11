@@ -494,16 +494,23 @@ eight.
 **Shipped today** (`content/scenarios/`, checked 2026-10-10) are the
 sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus eight real missions: **Basic Flying**, **Deck Quals**
+others — plus nine real missions: **Basic Flying**, **Deck Quals**
 ("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
-Air Patrol**, **Single Combat**, **Scramble** and **Flattop Hunt**. Each declares real objectives,
+Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt** and **Escort**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
 checks the briefing, objective line, radio, chart and debrief). Open items are in the M3 and M4 handoffs
 (`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`),
 the F2 handoff (`docs/handoff/2026-10-09-f2-single-combat-scramble.md`) and
-the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`).
+the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`) and
+the Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`).
+
+**Escort** (Track F, 2026-10-10) is item 4 above, as Mark decided it: the
+player's Hellcat escorts four B-17s to Dulag's hangars while four Zeros
+intercept. The badge needs at least three bombers left, a hangar down, and a
+landing at Tacloban. Unescorted, the Zeros shoot down three or four of the
+bombers at every difficulty.
 
 **Basic Flying** (B4, 2026-10-10) is the tutorial, and the first mission in the
 picker. It is an ordinary mission with an instructor on the radio: full

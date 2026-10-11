@@ -191,6 +191,18 @@ describe('ingress content (7e spec §4.5)', () => {
     const s = build([PLAYER_FAR, RAIDER])
     expect(raider(s).pilot!.ingress!.destination).toEqual({ kind: 'ship', id: 'cv-1' })
   })
+  it('an airfield destination with `aim` points at the middle of the buildings it names (Escort, 2026-10-10)', () => {
+    const at = (aim: string) => {
+      const w = worldFromScenario(bundleForScenario(parseScenario(base({ ingress: { route: ROUTE, destination: { airfield: 'tacloban', aim } } }))), null)
+      return raider(w).pilot!.ingress!.destination
+    }
+    const hangar = worldFromScenario(bundleForScenario(parseScenario(base({ ingress: { route: ROUTE } }))), null).structures
+      .find((s) => s.id.startsWith('tacloban-hangar'))!
+    const { id, position: one } = hangar
+    // One building by id: its own position (a tag's middle: the Escort mission test). Unknown: a content error.
+    expect(at(id)).toMatchObject({ kind: 'point', x: expect.closeTo(one.x, 6), z: expect.closeTo(one.z, 6) })
+    expect(() => at('no-such-building')).toThrow(/names no building at airfield "tacloban"/)
+  })
   it('the mission fixture still parses with no held-group changes', () => {
     expect(() => missionWorld({})).not.toThrow()
     expect(BASE.aircraft.length).toBe(2)
