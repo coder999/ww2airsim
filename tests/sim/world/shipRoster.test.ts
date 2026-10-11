@@ -6,6 +6,7 @@ const roster = {
   'abukuma-cl': 'cruiser',
   'casablanca-cve': 'carrier',
   'cleveland-cl': 'cruiser',
+  'crow-amc-20': 'merchant',
   'essex-cv': 'carrier',
   'fletcher-dd': 'escort',
   'kagero-dd': 'escort',
@@ -48,6 +49,7 @@ describe('the GAMEPLAY.md ship roster is strict content (R2)', () => {
     'abukuma-cl': [5, 1, 4], // four 25 mm triples, for balance, not history (Mark, M1f F3)
     'casablanca-cve': [1, 0, 12],
     'cleveland-cl': [4, 6, 14],
+    'crow-amc-20': null,
     'essex-cv': [8, 0, 4], // cut to four 40 mm quads for balance, not history (Mark, M1d)
     'fletcher-dd': [5, 0, 12],
     'kagero-dd': [2, 0, 5],

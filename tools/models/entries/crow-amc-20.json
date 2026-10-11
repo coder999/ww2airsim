@@ -1,0 +1,26 @@
+{
+  "id": "crow-amc-20",
+  "output": "content/ships/crow-amc-20.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/crow-amc-20.py",
+    "dimensions": "25.35 m overall, 6.38 m beam and 1.52 m draft from content/ships/crow-amc-20.json; silhouette and torpedo-recovery fit reconstructed from NHHC photographs including 80-G-277691",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 25.35 } },
+  "skin": true,
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "crow-amc-20",
+    "fit": "hull",
+    "kind": "full-hull",
+    "keelM": -1.52,
+    "palette": "usn-1944",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting", "antifouling": "antifouling" },
+    "otherMaterials": "classify",
+    "smokeOrigin": [-1.55, 6.5, 0],
+    "bow": "narrow-end"
+  }
+}

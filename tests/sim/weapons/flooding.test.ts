@@ -21,7 +21,7 @@ const CARRIER_OF: Record<string, string> = { mk13: 'tbm-3-avenger', type91: 'b5n
 
 it('enrolls every ship in content', () => {
   expect(SHIP_IDS).toEqual([
-    'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'essex-cv', 'fletcher-dd', 'kagero-dd', 'mogami-ca',
+    'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'crow-amc-20', 'essex-cv', 'fletcher-dd', 'kagero-dd', 'mogami-ca',
     'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv',
   ])
 })

@@ -366,6 +366,7 @@ before art/hull-geometry work begins. `role` matches
 | Fletcher-class destroyer | Escort, friendly (shipped: `fletcher-dd.json`) |
 | Cleveland-class light cruiser | Cruiser, friendly |
 | Pennsylvania-class battleship | Battleship, friendly — one of the pre-war "Old Battleships" that fought at Surigao Strait |
+| USS Crow (AMc-20) | Merchant, friendly, unarmed torpedo-recovery and training-target vessel |
 | Type B "Maru" transport | Merchant, hostile (shipped: `type-b-maru.json`) |
 | Kagero-class destroyer | Escort, hostile |
 | Shiratsuyu-class destroyer | Escort, hostile — *Shigure* was the only survivor of Nishimura's force at Surigao Strait |
@@ -373,10 +374,10 @@ before art/hull-geometry work begins. `role` matches
 | Yamato-class battleship | Battleship, hostile, higher performance/heaviest armor |
 | Shōkaku-class fleet carrier | Carrier, hostile: *Zuikaku*, Ozawa's flagship in the Northern Force decoy at Leyte Gulf (added 2026-10-09, Track M, M1e) |
 
-All eleven ship classes ship with models (verified 2026-10-09). Since Track M's M1
+All thirteen ship classes ship with models (verified 2026-10-11). Since Track M's M1
 (2026-10-08), every warship carries its gun mounts: main turrets, heavy AA and
 light AA at the positions its `content/ships/<id>.json` `armament` lists, each
-mount drawn separately and able to turn; the Maru carries none. **Anti-aircraft
+mount drawn separately and able to turn; Crow and the Maru carry none. **Anti-aircraft
 fire (M2, 2026-10-10):** every armed ship and every AAA battery shoots at any
 airplane of the other side in range, never its own. Heavy guns (the 5-inch and
 12.7 cm mounts) throw **flak bursts** that go off near you and hurt in a radius;

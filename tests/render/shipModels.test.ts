@@ -22,7 +22,7 @@ describe('the ship model registry (ship-models spec §3.1)', () => {
     }
   })
 
-  it('the complete ten-ship roster names exactly the complete registry (R2)', () => {
+  it('the complete ship roster names exactly the complete registry (R2)', () => {
     expect(shipIds).toEqual(Object.keys(SHIP_MODELS))
     expect(shipIds.map((id) => loadShipSpec(id).view?.model)).toEqual(shipIds)
   })

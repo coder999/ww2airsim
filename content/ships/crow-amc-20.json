@@ -1,0 +1,16 @@
+{
+  "id": "crow-amc-20",
+  "name": "USS Crow (AMc-20)",
+  "role": "merchant",
+  "lengthM": 25.35,
+  "beamM": 6.38,
+  "deckWidthM": 6.38,
+  "deckHeightM": 2.15,
+  "maxSpeedMps": 5.14,
+  "turnRateRadPerS": 0.08,
+  "hullHp": 80,
+  "view": { "model": "crow-amc-20" },
+  "reference": {
+    "source": "Length 83 ft 2 in (25.35 m), beam 20 ft 11 in (6.38 m), draft 5 ft (1.52 m), 300 hp and 10 kn from the published USS Crow (AMc-20) particulars, read 2026-10-11. NHHC photograph 80-G-277691 shows Crow in Puget Sound on 4 June 1943 during torpedo-recovery operations with torpedoes on the fantail; NHHC records her accidental sinking on 23 August 1943 while serving as a torpedo-plane target. deckHeightM, turnRateRadPerS and hullHp are gameplay/modeling choices. The merchant role intentionally makes this proposed training target unarmed."
+  }
+}

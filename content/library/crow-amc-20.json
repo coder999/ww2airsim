@@ -1,0 +1,27 @@
+{
+  "id": "crow-amc-20",
+  "name": "USS Crow (AMc-20)",
+  "rosterName": "USS Crow torpedo-recovery ship",
+  "kind": "ship",
+  "side": "allied",
+  "spec": "crow-amc-20",
+  "blurb": "A small wooden coastal minesweeper and historically apt torpedo-training target.",
+  "history": "Crow began life in 1935 as the wooden purse seiner Jadran. The U.S. Navy acquired her for coastal minesweeping and assigned her to the 13th Naval District in Puget Sound. Her fishing-vessel origins remained visible in the compact wheelhouse, working mast and open stern.\n\nBy June 1943 Crow was supporting torpedo recovery; an official Navy photograph shows recovered torpedoes on her fantail. On 23 August an erratic aircraft torpedo struck and sank her while she served as a target for torpedo-plane training. This model depicts that working recovery configuration and omits armament for use as a training target.",
+  "sources": [
+    {
+      "title": "USS Crow (AMc-20)",
+      "url": "https://www.history.navy.mil/our-collections/photography/us-navy-ships/alphabetical-listing/c/uss-crow--amc-20--0.html",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "80-G-277691 USS CROW (AMC-20)",
+      "url": "https://www.history.navy.mil/content/history/nhhc/our-collections/photography/numerical-list-of-images/nhhc-series/nh-series/80-G-277000/80-G-277691.html",
+      "read": "2026-10-11"
+    },
+    {
+      "title": "USS Crow (AMc-20)",
+      "url": "https://en.wikipedia.org/wiki/USS_Crow_(AMc-20)",
+      "read": "2026-10-11"
+    }
+  ]
+}

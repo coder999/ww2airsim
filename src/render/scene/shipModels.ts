@@ -15,6 +15,7 @@ export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'abukuma-cl': { url: shipModelUrl('abukuma-cl') },
   'casablanca-cve': { url: shipModelUrl('casablanca-cve') },
   'cleveland-cl': { url: shipModelUrl('cleveland-cl') },
+  'crow-amc-20': { url: shipModelUrl('crow-amc-20') },
   'essex-cv': { url: shipModelUrl('essex-cv') },
   'fletcher-dd': { url: shipModelUrl('fletcher-dd') },
   'kagero-dd': { url: shipModelUrl('kagero-dd') },
