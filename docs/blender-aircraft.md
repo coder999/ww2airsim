@@ -47,6 +47,9 @@ Everything the download it may replace has, because the game draws a flyable air
    themselves require sign-in, so they remain a recommended refinement rather than a source used by the model.
    A blank field in an otherwise cited specification is still an **ESTIMATE**: for example, the B-17G Wikipedia table
    names three-blade propellers but leaves diameter blank, so the script labels its drawing-measured diameter accordingly.
+   If Commons offers only an adjacent variant's drawing, use it only when the cited dimensions agree, name the mismatch in
+   the script and handoff, and keep variant-specific details labeled as estimates. Never silently present that drawing as
+   the requested variant (the D3A2 duplicate had only a Commons D3A1 three-view available, 2026-10-11).
 2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
    - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
    - bent (gull) wing: `f4u-corsair-blender.py`
@@ -99,6 +102,9 @@ Everything the download it may replace has, because the game draws a flyable air
    - `tests/e2e/hangar.spec.ts`: the id in checks 10 and 16.
    - A new paint role needs a `PALETTE` entry in `kit.py` and a surface entry in `tools/models/skin/surfaces.ts`
      (the build fails by name without the second).
+   - Fixed gear is baked into the skin and has no `GearL`/`GearR` row. A flexible gun on a Hangar-only duplicate may also
+     remain static when there is no duplicate combat spec for `gunnerMounts.test.ts`; say so in the rig and handoff. Parts
+     without a renderer input, such as the D3A's dive brakes, can be drawn static but must not invent a control-surface name.
 8. **Run the model tests**: `remote-run npx vitest run tests/tools/models tests/render/hangar tests/render/airframes.test.ts`
    (about 3.5 minutes on ryzen; `-t "<id>"` narrows it to seconds while iterating).
 9. **Look at it in the Hangar.** `npx vite --port <free port>` from the checkout, then

@@ -25,6 +25,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'b-17-flying-fortress-blender': { spanM: 31.62, lengthM: 22.66, tolerance: 0.01, source: "English Wikipedia 'Boeing B-17 Flying Fortress', Specifications (B-17G): span 103 ft 9 in, length 74 ft 4 in, read 2026-10-11" },
   'b-29-superfortress': { spanM: 43.05, lengthM: 30.18, tolerance: 0.01, source: "English Wikipedia 'Boeing B-29 Superfortress', Specifications (the section names no variant): span 141 ft 3 in, length 99 ft 0 in, read 2026-09-27" },
   'd3a-val': { spanM: 14.365, lengthM: 10.195, tolerance: 0.04, source: "English Wikipedia 'Aichi D3A', Specifications (D3A2 Model 22), read 2026-09-27" },
+  'd3a-val-blender': { spanM: 14.365, lengthM: 10.195, tolerance: 0.01, source: "English Wikipedia 'Aichi D3A', Specifications (D3A2 Model 22), read 2026-10-11" },
   'f6f-hellcat': { spanM: 13.06, lengthM: 10.24, tolerance: 0.04, source: "English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5 Hellcat), read 2026-09-27" },
   'f6f-hellcat-blender': { spanM: 13.06, lengthM: 10.24, tolerance: 0.01, source: "English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5 Hellcat), read 2026-10-11" },
   'f4f-wildcat-blender': { spanM: 11.58, lengthM: 8.76, tolerance: 0.01, source: "English Wikipedia 'Grumman F4F Wildcat', Specifications (the F4F-3 table: span 38 ft 0 in, length 28 ft 9 in; the F4F-4 shares them), read 2026-10-11" },

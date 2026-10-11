@@ -206,6 +206,15 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'd3a-val-blender': {
+    // Original Hangar-only duplicate (d3a-val-blender.py): exact 3-fold prop symmetry; the fixed spatted
+    // mains and tailwheel are baked into the skin and never retract. The rear Type 92 is drawn static:
+    // a display-only duplicate has no combat.gunners spec for the turret-aim contract to bind.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [],
+    turrets: [],
+    surfaces: surfaces(2),
+  },
   'f4f-wildcat-blender': {
     // An original Blender model (f4f-wildcat-blender.py), a duplicate beside the download: the kit's propeller is
     // exactly 3-fold symmetric. The mains fold inboard about +x into the fuselage (the real legs are hand-cranked up

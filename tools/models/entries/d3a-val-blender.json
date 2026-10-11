@@ -1,0 +1,32 @@
+{
+  "id": "d3a-val-blender",
+  "output": "content/aircraft/d3a-val-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/d3a-val-blender.py",
+    "dimensions": "span 14.365 m, length 10.195 m, wing area 34.9 m2, a 3-blade propeller and two forward plus one flexible rear 7.7 mm guns: English Wikipedia 'Aichi D3A', Specifications (D3A2 Model 22), read 2026-10-11; Wikipedia's airfoil and propeller-diameter fields are blank, so the NACA 23015 / 23009 procedural section and 3.20 m diameter are labeled ESTIMATES; stance fitted to content/aircraft/d3a-val.json; every other figure is CITED, MEASURED, FITTED or ESTIMATE in the script header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": {
+    "forward": "+x",
+    "up": "+y",
+    "origin": [0, 0, 0],
+    "fit": { "extent": "span", "meters": 14.365 }
+  },
+  "keep": [
+    { "node": "Prop", "pivot": { "point": [2.27, 0, 0], "axis": "+x" } },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "Flap2L" },
+    { "node": "Flap2R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder" }
+  ],
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "skin": true,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 60000, "maxDrawCalls": 47 },
+  "noseNode": "Prop"
+}
