@@ -457,7 +457,7 @@ export type Ww2Diagnostics = {
   /** The cloud deck in force and its tier (Plan 16a); `off` under the DEV
    *  `?cloudTier=off`, `steps` the cumulus march count at that tier. */
   readonly clouds: () => {
-    readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly renderer: 'legacy' | 'takram'; readonly steps: number
+    readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly renderer: 'legacy' | 'takram' | 'takram-tsl'; readonly steps: number
     /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
     readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
     /** Photoreal Task 4: frames the cloud pass resolved WITHOUT history since
@@ -465,6 +465,8 @@ export type Ww2Diagnostics = {
     readonly historyResets: number
     /** Native Takram march + temporal reconstruction + composite GPU samples. */
     readonly takramGpuMs: readonly number[]
+    /** Full-TSL direct GPU samples for the separately rendered march and temporal passes. */
+    readonly takramPassGpuMs: { readonly march: readonly number[]; readonly temporal: readonly number[] }
     /** A2: whether the cloud pass is in the frame output (a clear sky routes it out). */
     readonly composited: boolean
   }

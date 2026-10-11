@@ -8,6 +8,7 @@ import { loadScenario } from '../../tools/content/load.js'
 import { loadCumulus, loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { cloudRendererFromQuery } from '../../src/render/scene/takramCloudPass.js'
+import { volumeMipLayout } from '../../src/render/scene/takramTslAssets.js'
 
 const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
@@ -16,7 +17,17 @@ describe('clouds (Plan 16a)', () => {
     expect(cloudRendererFromQuery('')).toBeUndefined()
     expect(cloudRendererFromQuery('?cloudRenderer=legacy')).toBe('legacy')
     expect(cloudRendererFromQuery('?cloudRenderer=takram')).toBe('takram')
+    expect(cloudRendererFromQuery('?cloudRenderer=takram-tsl')).toBe('takram-tsl')
     expect(() => cloudRendererFromQuery('?cloudRenderer=unknown')).toThrow(/cloudRenderer/)
+  })
+
+  it('maps the accepted 128-cube shape chain without gaps', () => {
+    const layout = volumeMipLayout(128)
+    expect(layout.map(value => value.size)).toEqual([128, 64, 32, 16, 8, 4, 2, 1])
+    for (let i = 1; i < layout.length; i += 1) {
+      expect(layout[i]!.offset).toBe(layout[i - 1]!.offset + layout[i - 1]!.length)
+    }
+    expect(layout.at(-1)!.offset + 1).toBe(2_396_745)
   })
   it('has three tiers that march fewer steps as they descend', () => {
     expect(CLOUD_TIERS.high.cumulusSteps).toBeGreaterThan(CLOUD_TIERS.medium.cumulusSteps)

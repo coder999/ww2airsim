@@ -282,6 +282,20 @@ claimed by this checkpoint. `main` reached `92b9b6ee`; legacy remains the
 default and no deployment occurred. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-main-integration-testing.md`.
 
+**Full TSL experiment complete and optimized on an isolated branch, 2026-10-11:**
+`clouds-v3-tsl-port` implements the same Takram-derived renderer entirely in
+Three Shader Language behind DEV-only `?cloudRenderer=takram-tsl`; the native
+WGSL `takram` path and all defaults are unchanged. Matched below-, in-, and
+above-deck captures are visually equivalent, and the focused Ryzen/WebGPU
+flight test is clean. R8 volume textures and conditional explicit-LOD weather
+fetches cut the TSL march p95 by 45–46%. Two locked 1440p High runs measured
+optimized TSL whole-frame p95 at 5.746–5.772 ms versus same-scene native
+estimates of 5.890–5.915 ms, passing both the 8.33 ms game gate and the plan's
+15% promotion criterion. Keep it as a working research branch pending a
+separate promotion decision; do not merge, deploy, or publish it as the
+preferred renderer. Handoff:
+`docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
+
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**

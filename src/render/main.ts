@@ -55,6 +55,8 @@ import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
 import {
   cloudRendererFromQuery, createTakramCloudPass, loadTakramCloudAssets, type CloudRendererName, type TakramCloudPass,
 } from './scene/takramCloudPass.js'
+import { createTakramTslCloudPass } from './scene/takramTslCloudPass.js'
+import { loadTakramTslAssets } from './scene/takramTslAssets.js'
 import { FX_CATALOG } from './fx/catalog.js'
 import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
 import { createFxPass, type FxPass } from './fx/fxPass.js'
@@ -1225,6 +1227,7 @@ async function boot(): Promise<void> {
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
         takramGpuMs: takramCloudPass?.gpuTimesMs() ?? [],
+        takramPassGpuMs: takramCloudPass?.gpuPassTimesMs() ?? { march: [], temporal: [] },
         composited: cloudPass !== null && routedOutput === cloudPass.composite,
       }),
       // Visual realism §2.1: read through the same closure-after-boot shape as
@@ -1503,6 +1506,7 @@ async function boot(): Promise<void> {
   // with and without the pass; the field itself was made above the terrain.
   const clouds = createClouds(cloudLayers, skyNoise, cloudField)
   const takramAssets = cloudRenderer === 'takram' ? await loadTakramCloudAssets(renderer) : null
+  const takramTslAssets = cloudRenderer === 'takram-tsl' ? await loadTakramTslAssets(renderer) : null
   if (cloudTier !== 'off') clouds.setTier(cloudTier)
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(terrain.wholeLevel), shadow)
@@ -1793,6 +1797,13 @@ async function boot(): Promise<void> {
       if (takramAssets === null) throw new Error('Takram cloud assets were not loaded')
       takramCloudPass = createTakramCloudPass({
         renderer, assets: takramAssets, camera,
+        sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+      })
+      cloudPass = takramCloudPass
+    } else if (cloudRenderer === 'takram-tsl') {
+      if (takramTslAssets === null) throw new Error('Takram TSL cloud assets were not loaded')
+      takramCloudPass = createTakramTslCloudPass({
+        assets: takramTslAssets, camera,
         sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
       })
       cloudPass = takramCloudPass
@@ -3279,6 +3290,7 @@ async function boot(): Promise<void> {
       // dispatch is the same work every frame, so the latest is that frame's.
       void Promise.all([renderer.resolveTimestampsAsync('render'), renderer.resolveTimestampsAsync('compute')])
         .then(([ms, computeMs]: [number | undefined, number | undefined]) => {
+          takramCloudPass?.captureGpuTimes()
           // `undefined` when tracking is off (three warns once and returns
           // nothing); 0 when the pool had nothing pending. Neither is a frame.
           if (typeof ms !== 'number' || ms <= 0) return
