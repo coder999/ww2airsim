@@ -50,6 +50,8 @@ Everything the download it may replace has, because the game draws a flyable air
    If Commons offers only an adjacent variant's drawing, use it only when the cited dimensions agree, name the mismatch in
    the script and handoff, and keep variant-specific details labeled as estimates. Never silently present that drawing as
    the requested variant (the D3A2 duplicate had only a Commons D3A1 three-view available, 2026-10-11).
+   Apply the same rule to the Ki-43-II: the article's only drawing is labeled Ki-43-I, so the II's shorter cited span,
+   three-blade propeller, longer cowl and taller canopy override it. Any remaining cross-variant likeness is an estimate.
 2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
    - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
    - bent (gull) wing: `f4u-corsair-blender.py`

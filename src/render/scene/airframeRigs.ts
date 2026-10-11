@@ -334,6 +334,18 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'ki-43-oscar-blender': {
+    // Original Blender duplicate measured from the Commons three-view. The kit propeller is exactly
+    // 3-fold symmetric. The mains pivot inward as the real gear does; the single hinge is an ESTIMATE.
+    // The cited fixed tailwheel stays baked into the skin.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE of the one-hinge motion; direction CITED (ki-43-oscar-blender.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
   'ki-84-frank': {
     // An original Blender model (ki-84-frank.py): the kit's propeller is exactly 4-fold symmetric,
     // so the default 1% tolerance holds with nothing waived. Every retraction is an ESTIMATE.

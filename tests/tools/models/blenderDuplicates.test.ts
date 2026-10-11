@@ -17,6 +17,7 @@ import { drawnPoints } from './_drawnPoints.js'
 const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number; eye: readonly [number, number] }[] = [
   { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.88, 0.70] },
   { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-1.75, 1.03] },
+  { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.75, 0.65] },
   { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17] },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.82, 0.95] },

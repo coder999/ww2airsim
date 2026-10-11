@@ -1,0 +1,13 @@
+{
+  "id": "ki-43-oscar-blender",
+  "name": "Nakajima Ki-43-II Oscar (Blender model)",
+  "kind": "aircraft",
+  "side": "japanese",
+  "blurb": "An original Blender Oscar kept beside the downloaded model for comparison: measured real-aircraft silhouette, moving inboard-folding main gear, a 3-blade propeller and working control surfaces. Not flown yet.",
+  "history": "The Nakajima Ki-43 Hayabusa was the Imperial Japanese Army Air Service's most numerous fighter. Light, maneuverable and pleasant to fly, it served from China and Burma through New Guinea and the Philippines. Allied pilots called it Oscar and sometimes confused it with the Navy's Zero.\n\nWhat this entry models: an original Ki-43-IIb, 35 ft 7 in across and 29 ft 3 in long, measured from the Wikimedia Commons three-view linked from the English Wikipedia article and corrected to the IIb's cited dimensions, 3-blade propeller and taller canopy. The model fits the flying Oscar's stance, guns and bomb stations, but the flying Oscar still uses the downloaded model.",
+  "sources": [
+    { "title": "Nakajima Ki-43 Hayabusa", "url": "https://en.wikipedia.org/wiki/Nakajima_Ki-43_Hayabusa", "read": "2026-10-11" },
+    { "title": "Nakajima Ki 43-I three-view", "url": "https://commons.wikimedia.org/wiki/File:Nakajima_Ki_43-I.svg", "read": "2026-10-11" }
+  ],
+  "model": { "kind": "aircraft", "id": "ki-43-oscar-blender" }
+}

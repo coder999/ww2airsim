@@ -7,11 +7,20 @@ import type { CameraPreset } from '../../src/render/hangar/framing.js'
 
 // A capture tool, not a test: a plain E2E run skips it (docs/testing.md, "Philosophy"). Each Blender duplicate
 // (docs/blender-aircraft.md) beside the download it copies, in the Hangar: gear down from two views, then the new
-// one's gear up. That the gear, propeller and surfaces move is asserted by hangar.spec.ts; this is for Mark's eye.
+// one's gear up. Fixed-gear aircraft repeat that pose deliberately so this stays one fleet-wide review matrix.
+// That the gear, propeller and surfaces move is asserted by hangar.spec.ts; this is for Mark's eye.
 test.skip(!process.env.E2E_CAPTURE, 'set E2E_CAPTURE=1 to run the duplicate capture')
 
 const OUT = process.env.E2E_CAPTURE_DIR ?? 'test-results/blender-duplicates'
-const PAIRS: readonly (readonly [string, string])[] = [['f6f-hellcat', 'f6f-hellcat-blender'], ['f4u-corsair', 'f4u-corsair-blender'], ['f4f-wildcat', 'f4f-wildcat-blender']]
+const PAIRS: readonly (readonly [string, string])[] = [
+  ['a6m2-zero', 'a6m2-zero-blender'],
+  ['b-17-flying-fortress', 'b-17-flying-fortress-blender'],
+  ['d3a-val', 'd3a-val-blender'],
+  ['f4f-wildcat', 'f4f-wildcat-blender'],
+  ['f4u-corsair', 'f4u-corsair-blender'],
+  ['f6f-hellcat', 'f6f-hellcat-blender'],
+  ['ki-43-oscar', 'ki-43-oscar-blender'],
+]
 
 async function snap(page: Page, id: string, preset: CameraPreset, pose: PartPose, name: string): Promise<void> {
   await page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
