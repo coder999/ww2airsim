@@ -394,8 +394,8 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   name. Downloads bake AO two-sided (`bake.py`'s `TWO_SIDED_BELOW`) because
   some of their parts are inside out. A download's `mask` materials keep their
   own textures beside the skin, and its metallic-roughness map ships at half
-  the atlas size. Bytes decide the atlas: the retired downloaded Fletcher's
-  geometry left room only for 1,024 px (measured 2026-10-09). Shiratsuyu is
+  the atlas size. Bytes decide the atlas: the external Fletcher's geometry
+  leaves room only for 1,024 px (measured 2026-10-09). Shiratsuyu is
   left on its author's textures (see the M1d handoff).
 - **Camouflage on a download (M1e, 2026-10-09).** `boxSkin.detail.camo` lists
   patches, each `on` the `sides` ((x, y) points, mirrored onto both sides of
@@ -415,17 +415,20 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   generated ones. Ensigns are not in the glb: the renderer hangs one from the spec's
   `view.ensign` (`src/render/scene/ensign.ts`), so a download gets one the same way; a download's
   own flag is cut out (`remove`), as on Shiratsuyu and the Maru.
-- **Same-id ship replacements (Fletcher, 2026-10-11).** Measure an authoritative profile and plan
+- **Ship comparison duplicates (Fletcher, 2026-10-11).** Measure an authoritative profile and plan
   before writing geometry: keep a bow-relative station table in the script, then compare fixed-camera
-  side and top silhouettes with the drawing and the retired download. Preserve the download in
-  `content/models/candidates/` before changing its entry. `tools/models/cache/` is shared by the nexus
-  worktrees, and a Blender build writes `<id>.glb` there; after a same-id replacement build, restore
-  the old pinned raw (`npm run models:raws -- --restore`, or a hash-verified candidate) so an older
-  worktree does not see the generated raw as its download. `NAVAL_DRY_RUN=1` exports every named main
-  mount and is the comparison source; the committed GLB retains one donor per kit because the renderer
-  instances the remaining spec mounts at run time. Use the Hangar for the final committed-output check.
-  Run `npm run models:bake -- <id>` directly on nexus: it already dispatches Blender to Ryzen's GPU, so
-  wrapping it in `remote-run` creates a nested SSH job and can time out.
+  side and top silhouettes with the drawing and the download. A Hangar-only ship duplicate takes the
+  original ship's `spec`, explicit `displayOnly: true`, plus its own `{ kind: "ship", id: "<id>-blender" }`
+  model override in its Library card, with matching rows in `tools/models/entries` and `SHIP_MODELS`; do not add a duplicate
+  gameplay spec or scenario reference. The Hangar loader must apply that override through `createShipView`
+  so the base spec still supplies trainable/elevating mounts. A distinct `<id>-blender` also avoids overwriting the download raw in the
+  shared `tools/models/cache/`. If a same-id replacement is genuinely intended, first preserve the raw
+  in `content/models/candidates/`, then restore its pinned hash after building so older worktrees are not
+  poisoned. `NAVAL_DRY_RUN=1` exports every named main mount and is the comparison source; the committed
+  GLB retains one donor per kit because the renderer instances the remaining spec mounts at run time.
+  Use the Hangar for the final committed-output check. Run `npm run models:bake -- <id>` directly on
+  nexus: it already dispatches Blender to Ryzen's GPU, so wrapping it in `remote-run` creates a nested
+  SSH job and can time out.
 - **Planks (M1c).** The `planks` marking shades boards (or linoleum sheets)
   on sky-facing faces in world (x, z), each its own shade and roughness, with
   dark seams. `railing()` and `rounded_box()` are in `kit.py`.

@@ -35,7 +35,7 @@ describe('the models credit line (ship-models spec §10)', () => {
     expect(hrefs.sort()).toEqual(MODEL_CREDITS.map((c) => c.url).sort())
   })
 
-  it('reads with each author named once: Fletcher is original as of 2026-10-11, and Zuikaku is KTKloss\'s remaining shipped ship', () => {
-    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), manilov.ap (1 2 3), everlasting17th, AlanTinka, snrnsrk5, rojatsu, MattyNL, KTKloss (CC BY 4.0)')
+  it('reads, after R5, with each author named once: manilov.ap for three works, helijah two (M1f, 2026-10-09: four KTKloss ships rebuilt in Blender leave Zuikaku his one)', () => {
+    expect(modelCreditsText(MODEL_CREDITS)).toBe('Models: SavinienBerault, helijah (1 2), manilov.ap (1 2 3), JZHU, everlasting17th, AlanTinka, snrnsrk5, rojatsu, MattyNL, KTKloss (CC BY 4.0)')
   })
 })

@@ -6,10 +6,11 @@ import { createShipMesh, createShipView, type ShipView } from './ship.js'
 
 /**
  * Model id (a ship spec's `view.model`) to its committed glb (ship-models
- * spec §3.1), the ships twin of airframes.ts. An id equals its spec id and its
- * entry id (§3.2). tests/render/shipModels.test.ts checks that every
- * content/ships JSON that names a model names one registered here, and that
- * every id here has its entry and its committed glb.
+ * spec §3.1), the ships twin of airframes.ts. An id normally equals its spec
+ * id and its entry id (§3.2); an explicit Library model override may instead
+ * name a display-only comparison model. tests/render/shipModels.test.ts checks
+ * that every spec model and Library ship-model override is registered here,
+ * and that every registered id has its entry and committed glb.
  */
 export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'abukuma-cl': { url: shipModelUrl('abukuma-cl') },
@@ -18,6 +19,7 @@ export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'crow-amc-20': { url: shipModelUrl('crow-amc-20') },
   'essex-cv': { url: shipModelUrl('essex-cv') },
   'fletcher-dd': { url: shipModelUrl('fletcher-dd') },
+  'fletcher-dd-blender': { url: shipModelUrl('fletcher-dd-blender') },
   'kagero-dd': { url: shipModelUrl('kagero-dd') },
   'mogami-ca': { url: shipModelUrl('mogami-ca') },
   'pennsylvania-bb': { url: shipModelUrl('pennsylvania-bb') },

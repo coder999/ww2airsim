@@ -1,4 +1,4 @@
-"""Fletcher-class destroyer, late-war U.S. Navy fit.
+"""Fletcher-class destroyer, late-war U.S. Navy fit; Hangar comparison duplicate.
 Original work, AGPL-3.0-or-later.
 
 CITED (read 2026-10-11):
@@ -42,7 +42,7 @@ MEASURED (2026-10-11 from the 1944 Bureau of Ships sheet; bow pixel 1161,
   mouths measure about 14.9 m above the waterline; the forward mast truck is
   about 25 m.  These values set STATIONS and the major vertical tiers.
 
-FITTED (the preserved gameplay/rig contract, content/ships/fletcher-dd.json):
+FITTED (the Hangar duplicate uses the gameplay/rig contract in content/ships/fletcher-dd.json):
   five 5 in mount feet are at x 37.36, 29.59, -20.11, -31.20 and -38.86 m.
   No. 2 stands on a 7.39 m gun deck; Nos. 3 and 4 share the 5.68 m after
   deckhouse; No. 5 stands on the 3.17 m quarterdeck.  Every Bofors/Oerlikon
@@ -91,7 +91,7 @@ SECTION = ((0.0, -1.0), (0.35, -0.97), (0.72, -0.78), (0.95, -0.42),
 DRY_RUN = os.environ.get('NAVAL_DRY_RUN') == '1'
 
 out, opts = kit.cli_args()
-m = kit.Model('fletcher-dd', skin=2048)
+m = kit.Model('fletcher-dd-blender', skin=2048)
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, SECTION, node='Hull', deck_role='deck',
                  deck_node='MainDeck', below_role='antifouling',
