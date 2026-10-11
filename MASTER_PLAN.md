@@ -32,17 +32,13 @@ render quality with auto-detect.
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
 - **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
-**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09**, same merge: the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Mark's Chrome on Ryzen reads 104 fps and High (`qualityProbeChrome.spec.ts`).
-- **Today:** the probe takes one p95 after 180 frames **on the title screen**, under vsync. A vsynced Chrome downclocks the GPU and reads about 3× high, so Mark's desktop measured 11.4 ms and got Low (`main.ts:1424-1442`, `ocean/tiers.ts:25`).
-- **Proposal:**
-  - Measure a representative flight view, not the title screen.
-  - Recommend one bundle across ocean, clouds and scenery rather than ocean only.
-  - Show the recommendation on a quality step in the launch flow, with an override.
-- This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
+**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
 **A5. Render scale in Settings (S, after H0 and A4). Done and merged 2026-10-10:** Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
+
+**A6. Preflight graphics check and shared rendering settings (M). Done on branch 2026-10-11:** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. Form 4 no longer owns editable rendering controls: its administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
 
 ### Track B: Guidance, autopilot and tutorial
 

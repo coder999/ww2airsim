@@ -1,7 +1,7 @@
 import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type Object3D } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
-import { applyRenderScale, initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
+import { applyRenderScale, initRenderer, normalizeGpuError, pixelRatioFor, rendererQueue, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
 import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
@@ -14,6 +14,10 @@ import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, ty
 import { makeTextTexture } from './scene/text.js'
 import { aircraftUrl, BEACHES_URL, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
+import {
+  GRAPHICS_PROFILES, browserMajorFromUserAgent, createGraphicsCheckSession,
+  type GraphicsCheckEnvironment, type GraphicsCheckSession,
+} from './graphicsCheck.js'
 import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
@@ -102,7 +106,7 @@ import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
 import { createOceanCompute, type OceanCompute } from './ocean/compute.js'
-import { OCEAN_TIERS, oceanTierFromQuery, tierForFrameIntervalsMs } from './ocean/tiers.js'
+import { OCEAN_TIERS, oceanTierFromQuery } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
@@ -691,7 +695,10 @@ async function boot(): Promise<void> {
   // declaration removes the hazard structurally instead of relying on every
   // future reader re-deriving that no caller happens to invoke the hook that
   // early.
-  let qualityChecked = quality.probeSuppressed
+  let qualityChecked = false
+  // Hoisted with the diagnostics hook for the same temporal-dead-zone reason
+  // as `qualityChecked`: the hook exists before tier targets are bound.
+  let graphicsCheck: GraphicsCheckSession | null = null
   // Captured once per page load, before any object depends on it: the terrain
   // pyramid's floor cannot change mid-flight, which is what the dialog's
   // `ASSET_QUALITY_EFFECT_NOTE` tells the player. Nothing persisted means
@@ -864,8 +871,24 @@ async function boot(): Promise<void> {
   // frame intervals instead (`adaptQuality`).
   boot.begin('renderer')
   const renderScaleOverride = import.meta.env.DEV ? renderScaleFromQuery(location.search) : null
-  const { renderer, adapterVerdict } = await initRenderer(canvas, import.meta.env.DEV, renderScaleOverride ?? quality.renderScale())
-  if (renderScaleOverride === null) quality.bindRenderScale((s) => { applyRenderScale(renderer, s) })
+  let activeRenderScale = renderScaleOverride ?? quality.renderScale()
+  const { renderer, adapterVerdict, adapterInfo } = await initRenderer(canvas, import.meta.env.DEV, activeRenderScale)
+  if (renderScaleOverride === null) quality.bindRenderScale((s) => {
+    activeRenderScale = s
+    applyRenderScale(renderer, s)
+  })
+  const nativePixelRatio = pixelRatioFor(window.devicePixelRatio, 1)
+  const graphicsEnvironment: GraphicsCheckEnvironment = {
+    adapter: {
+      vendor: adapterInfo.vendor,
+      architecture: adapterInfo.architecture,
+      device: adapterInfo.device,
+      description: adapterInfo.description,
+    },
+    pixelWidth: Math.max(1, Math.floor(window.innerWidth * nativePixelRatio)),
+    pixelHeight: Math.max(1, Math.floor(window.innerHeight * nativePixelRatio)),
+    browserMajor: browserMajorFromUserAgent(navigator.userAgent),
+  }
   boot.end('renderer')
   // Plan 16b: gates the sun's custom shadow node (AnalyticLightNode.setupShadow,
   // three r186); with a custom node three renders no shadow map.
@@ -996,6 +1019,10 @@ async function boot(): Promise<void> {
       // previously pinned only by a source-text regex on
       // `bootQuality.test.ts`, never by a running check (Task 6 review).
       qualityProbeChecked: () => qualityChecked,
+      graphicsCheck: () => ({
+        session: graphicsCheck?.snapshot() ?? null,
+        record: quality.graphicsCheckRecord(),
+      }),
       oceanLandWeight: (x, z) => {
         if (!oceanDepth) return null
         return landWeightAt(terrain.levelTexture(terrain.wholeLevel), oceanDepth.header.halfExtentM, x, z)
@@ -1561,45 +1588,66 @@ async function boot(): Promise<void> {
   // during boot's own awaits, when the dialog was already clickable and there
   // was nothing yet to apply it to.
   quality.bind({ setOceanTier: (t) => { void applyOceanTier(t) }, setSceneryTier: applySceneryTier, setCloudTier: applyCloudTier, setFxTier: applyFxTier })
-  // A4: the one-time quality probe, measured in flight (incident 2026-09-20:
-  // it used to read GPU timestamps on the title screen, which a vsynced
-  // browser inflates about 3x). It reads the frame rate the pilot gets, rAF
-  // interval by rAF interval: a vsynced GPU that idles and clocks down still
-  // makes every frame, and a browser whose GPU falls behind stops issuing
-  // frames until it catches up. Headless Chromium does NOT throttle rAF that
-  // way (measured on nexus 2026-10-09: 16.7 ms rAF at 26 ms of GPU work), so
-  // under the E2E harness this probe always reads High; the reference check is
-  // a real Chrome (the handoff). `tierForFrameIntervalsMs` has the rule. It
-  // skips a warm-up (shader compiles, the first terrain tiles), then reads up
-  // to PROBE_FRAMES intervals or 5 s of them: a slow machine must not fly
-  // 20 s at a tier it cannot hold. A gap over 250 ms (a hidden tab, a
-  // debugger) is not a frame and is dropped.
-  const PROBE_WARMUP = { frames: 120, ms: 2000 }
-  const PROBE_FRAMES = 240
-  const PROBE_MS = 5000
-  let warmupFrames = 0
-  let warmupMs = 0
-  let probeMs = 0
-  const probeIntervalsMs: number[] = []
-  // In DEV the probe shares its frames with the GPU timestamp sampling (budget
-  // tests need those samples); production tracks no timestamps.
-  const adaptQuality = (frameMs: number, inFlight: boolean): void => {
-    if (qualityChecked || forcedOceanTier !== undefined || !inFlight || document.hidden) return
-    if (warmupFrames < PROBE_WARMUP.frames && warmupMs < PROBE_WARMUP.ms) { warmupFrames += 1; warmupMs += frameMs; return }
-    if (frameMs > 250) return
-    probeIntervalsMs.push(frameMs)
-    probeMs += frameMs
-    if (probeIntervalsMs.length < PROBE_FRAMES && probeMs < PROBE_MS) return
+  // The first-visit check owns the title's final boot stage. It observes
+  // completion of the real canonical boot view instead of inferring GPU work
+  // from requestAnimationFrame cadence. Candidate application uses the same
+  // live setters as Settings, but does not become a player override.
+  let shadersCompleted = false
+  const finishGraphicsBoot = (): void => {
+    if (boot.ready) return
     qualityChecked = true
-    const { tier, medianMs } = tierForFrameIntervalsMs(probeIntervalsMs)
-    // Spec §5 step 3: always recorded (the "Recommended" stamp, now persisted),
-    // applied and saved only when the player has not picked a tier first.
-    quality.applyProbeResult(tier.name)
-    const fps = Math.round(1000 / medianMs)
-    console.info(`quality: measured ${fps} fps in flight at ${oceanTier.name}; recommends ${tier.name}, in force ${quality.current().ocean}`)
-    // J: what the probe measured against what is in force (a player's pick wins), for A4.
-    track('quality_tier', { detected: tier.name, chosen: quality.current().ocean, fps })
+    boot.end('graphics')
+    track('boot_ready', { ms: Math.round(performance.now()) })
   }
+  const buildGraphicsCheck = (): GraphicsCheckSession => createGraphicsCheckSession({
+    now: () => performance.now(),
+    queueDone: () => rendererQueue(renderer).onSubmittedWorkDone(),
+    applyProfile: (profile) => quality.previewGraphicsProfile(profile),
+    profileReady: (profile) =>
+      oceanTier.name === profile.quality && sceneryTier === profile.quality &&
+      cloudTier === profile.quality && fxTier === profile.quality && activeRenderScale === profile.renderScale &&
+      // The benchmark is only representative once the canonical title view
+      // includes terrain-dependent scenery. Otherwise a fast connection and
+      // a slow one could recommend different settings for the same machine.
+      vegetation !== null,
+    onComplete: (profile, measurements) => {
+      const record = {
+        version: 1 as const,
+        environment: graphicsEnvironment,
+        recommended: profile,
+        measurements,
+        checkedAt: new Date().toISOString(),
+      }
+      quality.finishGraphicsCheck(record)
+      const accepted = measurements.at(-1)!
+      console.info(
+        `graphics check: ${Math.round(accepted.framesPerSecond)} fps, ${accepted.latencyP95Ms.toFixed(1)} ms p95 completion; ` +
+        `recommends ${profile.quality} at ${Math.round(profile.renderScale * 100)}%`,
+      )
+      track('quality_tier', {
+        detected: profile.quality, chosen: quality.current().ocean,
+        fps: Math.round(accepted.framesPerSecond), render_scale: profile.renderScale,
+      })
+      finishGraphicsBoot()
+      graphicsCheck = null
+    },
+    onFailure: (message) => {
+      // A queue-measurement failure is not evidence that WebGPU is absent --
+      // the real frame just rendered. Keep the conservative floor visible and
+      // recorded instead of silently falling back to High.
+      console.warn('graphics check failed; using Low at 50%:', message)
+      const profile = GRAPHICS_PROFILES.at(-1)!
+      quality.finishGraphicsCheck({
+        version: 1,
+        environment: graphicsEnvironment,
+        recommended: profile,
+        measurements: graphicsCheck?.snapshot().measurements ?? [],
+        checkedAt: new Date().toISOString(),
+      })
+      finishGraphicsBoot()
+      graphicsCheck = null
+    },
+  })
   const sky = createSky()
   scene.add(sky)
   // Plan 16b: the sun carries the cloud-shadow lookup into every lit
@@ -3082,7 +3130,10 @@ async function boot(): Promise<void> {
     // previous frame's timestamp resolve has landed. The paragraph after the
     // next explains why the guard alone stopped being enough on 2026-09-17.
     const inFlight = !title.up() && !swapPending && !navigationMapState.open && replay === null
-    const sampling = gpuSamplingOn && renderer.hasFeature('timestamp-query') && gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
+    // The DEV diagnostics intentionally serialize timestamp resolves. Do not
+    // let that diagnostic path become the workload the graphics check grades.
+    const sampling = graphicsCheck === null && inFlight && gpuSamplingOn && renderer.hasFeature('timestamp-query') &&
+      gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
     const rendered = !(sampling && gpuResolvePending)
     if (rendered) {
       // Plan 16b: the shadow map first, inside the same frame and the same
@@ -3176,7 +3227,16 @@ async function boot(): Promise<void> {
     // heavy AND samples are still wanted: the first FRAME_TIME_CAPACITY
     // frames after boot or a `resetFrameTimes()`, i.e. an E2E budget window.
     // DEV only since A4 (2026-10-09): production no longer tracks timestamps.
-    adaptQuality(frameMs, inFlight)
+    if (graphicsCheck !== null && quality.graphicsMode() === 'custom') {
+      // Settings remains available during preflight. A deliberate choice is
+      // authoritative immediately; stop candidate swaps as well as refusing
+      // to persist the eventual verdict.
+      graphicsCheck.cancel()
+      graphicsCheck = null
+      finishGraphicsBoot()
+    } else if (graphicsCheck !== null && !document.hidden && title.up()) {
+      graphicsCheck.frame(rendered)
+    }
     if (sampling && !gpuResolvePending) {
       gpuResolvePending = true
       // The sample is the frame's whole GPU cost, render AND compute
@@ -3222,10 +3282,21 @@ async function boot(): Promise<void> {
         drawCalls: renderer.info.render.drawCalls - drawCallsAtStart, triangles: renderer.info.render.triangles - trianglesAtStart,
       })
     }
-    // The first frame built every material; the title can unlock.
-    if (!boot.ready) {
+    // The first frame built every material. A first automatic visit keeps the
+    // title locked for the final graphics-check stage; custom settings, a
+    // current record and DEV-forced tiers skip it deterministically.
+    if (!shadersCompleted) {
+      shadersCompleted = true
       boot.end('shaders')
-      track('boot_ready', { ms: Math.round(performance.now()) })
+      boot.begin('graphics')
+      const forcedProfile = forcedOceanTier !== undefined || forcedCloudTier !== undefined ||
+        fxQuery.tier !== undefined || renderScaleOverride !== null
+      if (forcedProfile || !quality.shouldRunGraphicsCheck(graphicsEnvironment)) {
+        finishGraphicsBoot()
+      } else {
+        graphicsCheck = buildGraphicsCheck()
+        graphicsCheck.start()
+      }
     }
   }
   // One paint BEFORE the first frame, which is the shader build (spec §A.1):

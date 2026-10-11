@@ -58,23 +58,25 @@ test('pause dossier exposes live mission records, the navigation chart, and conf
   await expect(controls.getByRole('row', { name: /Throttle.*Num \+/ })).toBeVisible()
   await expect(controls.getByRole('row', { name: /Navigation chart P/ })).toBeVisible()
 
-  // The quality tab opens settings.ts's real dialog and live model, scoped to
-  // visual rows exactly like the main-menu entry.
+  // The quality tab embeds settings.ts's real controls and live model. It is
+  // the common main-menu implementation, scoped to changes safe mid-sortie.
   await pause.getByRole('tab', { name: 'Visual Quality' }).click()
-  await pause.getByRole('button', { name: 'Open Visual Quality Settings' }).click()
-  const quality = page.getByRole('dialog', { name: 'Visual quality settings' })
+  const quality = pause.getByRole('region', { name: 'Visual quality settings' })
   await expect(quality).toBeVisible()
   await expect(quality.getByRole('radiogroup', { name: 'Render quality' })).toBeVisible()
   await expect(quality.getByRole('radiogroup', { name: 'Render scale' })).toBeVisible()
-  await expect(quality.getByRole('radiogroup', { name: 'Asset quality' })).toBeVisible()
+  await expect(quality.getByRole('radiogroup', { name: 'Asset quality' })).toHaveCount(0)
   await expect(quality.getByRole('radiogroup', { name: 'Damage model' })).toHaveCount(0)
+  await expect(quality.getByRole('radiogroup', { name: 'Difficulty' })).toHaveCount(0)
+  await expect(quality.getByRole('button', { name: 'Run graphics check again' })).toHaveCount(0)
+  await expect(quality.getByRole('button', { name: 'Close' })).toHaveCount(0)
   await quality.getByRole('radiogroup', { name: 'Render quality' }).getByRole('radio', { name: /Low\b/ }).click()
   expect(await page.evaluate(() => JSON.parse(window.localStorage.getItem('ww2airsim.quality.v1')!))).toEqual({
     ocean: 'low', scenery: 'low', clouds: 'low', fx: 'low',
   })
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.oceanTier() === 'low')
-  await quality.getByRole('button', { name: 'Close' }).click()
   await expect(pause).toBeVisible()
+  await page.screenshot({ path: 'test-results/preflight-pause-visual-quality.png' })
 
   // Restart and Abort both require a second, explicit acknowledgement. The
   // safe choice and Escape preserve the held world and return to the folder.

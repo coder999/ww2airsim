@@ -4,6 +4,10 @@ import {
 } from './quality.js'
 import { createSettingsModel, type RenderScale, type SettingsModel } from './settings.js'
 import type { Difficulty } from '../sim/difficulty.js'
+import {
+  graphicsCheckIsCurrent, loadGraphicsCheckRecord, saveGraphicsCheckRecord,
+  type GraphicsCheckEnvironment, type GraphicsCheckRecord, type GraphicsMode, type GraphicsProfile,
+} from './graphicsCheck.js'
 
 /**
  * The join between the Settings dialog's model (`settings.ts`, Task 5) and
@@ -23,8 +27,8 @@ import type { Difficulty } from '../sim/difficulty.js'
  * reaches the three setters; what is left in `main.ts` is only the three
  * setters' bodies.
  *
- * The spec's `explicitChoiceMade` rule lives here too (§5 step 3): the probe
- * may never overwrite a deliberate pick.
+ * The spec's `explicitChoiceMade` rule lives here too (§5 step 3): an
+ * automatic check may never overwrite a deliberate pick.
  */
 
 /**
@@ -75,13 +79,18 @@ export type BootQuality = {
    * model can save anything of its own.
    */
   readonly probeSuppressed: boolean
+  readonly graphicsMode: () => GraphicsMode
+  readonly graphicsCheckRecord: () => GraphicsCheckRecord | null
+  shouldRunGraphicsCheck(environment: GraphicsCheckEnvironment): boolean
+  previewGraphicsProfile(profile: GraphicsProfile): void
+  finishGraphicsCheck(record: GraphicsCheckRecord): void
   /** The boolean `stepCombat`'s `arcadeDamage` parameter takes, live: a
    *  Damage Model pick applies to the very next tick, with no reload. */
   readonly arcadeDamage: () => boolean
   /** M5: the Difficulty the next sortie is built at (`buildWorld`'s `applyDifficulty`). A function, so a
    *  pick made on the title screen reaches the sortie launched after it. */
   readonly difficulty: () => Difficulty
-  /** A5: the Render Scale in force, for `initRenderer`. */
+  /** A5/A6: the Render Scale in force, for `initRenderer`. */
   readonly renderScale: () => RenderScale
   /** A5: connects the live render-scale setter and applies the current value
    *  at once, as `bind` does, so a pick made during boot still lands.
@@ -106,7 +115,7 @@ export type BootQuality = {
   applyProbeResult(tier: QualityTierName): void
 }
 
-export function createBootQuality(): BootQuality {
+export function createBootQuality(reload: () => void = () => window.location.reload()): BootQuality {
   // Before the model exists, so it cannot see the model's own writes.
   const savedAtBoot = loadQualitySettings()
 
@@ -125,6 +134,7 @@ export function createBootQuality(): BootQuality {
     onQualityChange: (q) => { apply(q) },
     onDamageModelChange: (model) => { arcade = model === 'arcade' },
     onRenderScaleChange: (scale) => { setScale?.(scale) },
+    onRunGraphicsCheck: reload,
   })
   // The model loaded the persisted damage model at construction; this is that
   // value. Read through the snapshot rather than `loadDamageModel()` again so
@@ -137,6 +147,19 @@ export function createBootQuality(): BootQuality {
     current: () => settings.snapshot().quality,
     assetQuality,
     probeSuppressed: savedAtBoot !== null,
+    graphicsMode: () => settings.snapshot().graphicsMode,
+    graphicsCheckRecord: () => settings.snapshot().graphicsCheck,
+    shouldRunGraphicsCheck: (environment): boolean => {
+      if (settings.snapshot().graphicsMode === 'custom') return false
+      const record = loadGraphicsCheckRecord()
+      return record === null || !graphicsCheckIsCurrent(record, environment)
+    },
+    previewGraphicsProfile: (profile): void => settings.previewAutomaticProfile(profile),
+    finishGraphicsCheck: (record): void => {
+      saveGraphicsCheckRecord(record)
+      settings.setGraphicsCheckRecord(record)
+      if (settings.snapshot().graphicsMode === 'automatic') settings.applyAutomaticProfile(record.recommended)
+    },
     arcadeDamage: () => arcade,
     renderScale: () => settings.snapshot().renderScale,
     difficulty: () => settings.snapshot().difficulty,

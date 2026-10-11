@@ -13,6 +13,10 @@ import {
   clearAssetQualityTier, defaultQualitySettings,
 } from '../../src/render/quality.js'
 import { INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import {
+  loadGraphicsCheckRecord, loadGraphicsMode, saveGraphicsCheckRecord,
+  type GraphicsCheckRecord,
+} from '../../src/render/graphicsCheck.js'
 
 /** The same in-memory `Storage` stand-in `quality.test.ts` and `roster.test.ts`
  *  already use -- this suite's environment is `node` (vitest.config.ts), so
@@ -97,18 +101,94 @@ describe('the render scale (A5, Mark 2026-10-10)', () => {
     expect(createSettingsModel().snapshot().renderScale).toBe(1)
   })
 
-  it('a pick persists and fires its callback, but is not a render-quality choice', () => {
+  it('a pick persists, fires its callback and becomes a custom graphics choice', () => {
     const seen: number[] = []
     const model = createSettingsModel({ onRenderScaleChange: (s) => { seen.push(s) } })
     model.selectRenderScale(0.75)
     expect(seen).toEqual([0.75])
     expect(createSettingsModel().snapshot().renderScale).toBe(0.75)
-    // Nothing probes the scale, so it must neither block the probe's verdict
-    // nor arm Reset to auto-detect.
-    expect(model.snapshot().explicitChoiceMade).toBe(false)
+    expect(model.snapshot().explicitChoiceMade).toBe(true)
+    expect(model.snapshot().graphicsMode).toBe('custom')
+    expect(loadGraphicsMode()).toBe('custom')
     expect(model.snapshot().canReset).toBe(false)
-    model.resetToAutoDetect()
     expect(loadRenderScale()).toBe(0.75)
+  })
+})
+
+const GRAPHICS_RECORD: GraphicsCheckRecord = {
+  version: 1,
+  environment: {
+    adapter: { vendor: 'test-vendor', architecture: 'test-arch', device: '', description: '' },
+    pixelWidth: 1920,
+    pixelHeight: 1080,
+    browserMajor: 141,
+  },
+  recommended: { quality: 'medium', renderScale: 0.75 },
+  measurements: [{
+    profile: { quality: 'medium', renderScale: 0.75 }, completedFrames: 90,
+    framesPerSecond: 58, latencyP95Ms: 28,
+  }],
+  checkedAt: '2026-10-11T12:00:00.000Z',
+}
+
+describe('automatic and custom graphics profiles', () => {
+  it('previews candidates live without saving them or creating an override', () => {
+    const quality: string[] = []
+    const scales: number[] = []
+    const model = createSettingsModel({
+      onQualityChange: (next) => quality.push(next.ocean),
+      onRenderScaleChange: (next) => scales.push(next),
+    })
+
+    model.previewAutomaticProfile({ quality: 'medium', renderScale: 0.75 })
+
+    expect(model.snapshot().quality).toEqual(defaultQualitySettings('medium'))
+    expect(model.snapshot().renderScale).toBe(0.75)
+    expect(model.snapshot().graphicsMode).toBe('automatic')
+    expect(model.snapshot().explicitChoiceMade).toBe(false)
+    expect(loadQualitySettings()).toBeNull()
+    expect(loadRenderScale()).toBeNull()
+    expect(quality).toEqual(['medium'])
+    expect(scales).toEqual([0.75])
+  })
+
+  it('persists both halves of an accepted automatic profile', () => {
+    const model = createSettingsModel()
+    model.applyAutomaticProfile({ quality: 'low', renderScale: 0.5 })
+    expect(loadQualitySettings()).toEqual(defaultQualitySettings('low'))
+    expect(loadRenderScale()).toBe(0.5)
+    expect(loadGraphicsMode()).toBe('automatic')
+    expect(createSettingsModel().snapshot().graphicsMode).toBe('automatic')
+  })
+
+  it('lets a custom user return to the complete measured recommendation', () => {
+    saveGraphicsCheckRecord(GRAPHICS_RECORD)
+    const model = createSettingsModel()
+    model.selectSimpleTier('high')
+    model.selectRenderScale(1)
+    expect(model.snapshot().graphicsMode).toBe('custom')
+
+    model.useRecommendedProfile()
+
+    expect(model.snapshot().quality).toEqual(defaultQualitySettings('medium'))
+    expect(model.snapshot().renderScale).toBe(0.75)
+    expect(model.snapshot().graphicsMode).toBe('automatic')
+  })
+
+  it('clears the verdict and profile keys before asking boot to rerun', () => {
+    saveGraphicsCheckRecord(GRAPHICS_RECORD)
+    saveQualitySettings(defaultQualitySettings('medium'))
+    saveRenderScale(0.75)
+    let reloads = 0
+    const model = createSettingsModel({ onRunGraphicsCheck: () => { reloads++ } })
+
+    model.runGraphicsCheckAgain()
+
+    expect(loadGraphicsCheckRecord()).toBeNull()
+    expect(loadQualitySettings()).toBeNull()
+    expect(loadRenderScale()).toBeNull()
+    expect(loadGraphicsMode()).toBe('automatic')
+    expect(reloads).toBe(1)
   })
 })
 

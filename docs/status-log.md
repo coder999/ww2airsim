@@ -457,3 +457,17 @@ Three disjoint wave bands use 509/127/31 m periods. High quality runs three
 can reduce quality if measured cost exceeds its threshold. Water remains a
 rendering effect: wave forces and water collision are future work.
 
+**A6 preflight graphics check completed on branch 2026-10-11.** The old
+first-flight quality probe and Form 4 rendering controls were replaced by a
+first-visit title-scene check that recommends one quality/render-scale pair,
+persists the measured environment, and yields to any explicit user choice.
+Main-menu Settings owns the complete rendering configuration; the pause
+dossier embeds the same implementation with only live-safe controls. Failure
+states now distinguish a browser that exposed no adapter from a computer that
+has no GPU and provide concrete Chrome/Edge recovery steps. Ryzen RX 6700 XT
+recommended High/100% and nexus Radeon 680M recommended Medium/75% at
+2560×1440. See the
+[plan](superpowers/plans/2026-10-11-preflight-graphics-check.md) and
+[handoff](handoff/2026-10-11-preflight-graphics-check.md); MASTER_PLAN A6 is
+the authoritative status.
+
