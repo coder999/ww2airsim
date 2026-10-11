@@ -30,6 +30,7 @@ import { createPauseBadge } from './pauseBadge.js'
 import { createPauseScreen, type PauseScreenHandle } from './pauseScreen.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
+import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
@@ -2096,12 +2097,34 @@ async function boot(): Promise<void> {
     navigationMap.show(frame!.world, navigationMapState.selectedId)
   }
   pauseScreen = createPauseScreen(root, quality.settings, {
+    snapshot: () => {
+      if (bundle === null) throw new Error('Pause dossier requires a loaded scenario')
+      const pilot = currentPilotId === null ? null : roster.find((candidate) => candidate.id === currentPilotId) ?? null
+      return {
+        pilotName: pilot?.name ?? 'Unassigned pilot',
+        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.killsByType,
+        careerKills: pilot?.killsByType ?? zeroKillsByType(),
+        world: frame!.world,
+        selectedNavigationId: navigationMapState.selectedId,
+        briefing: briefingModel(bundle.scenario, pilot?.badges ?? []),
+      }
+    },
     onResume: () => {
       frame = withPaused(frame!, false)
       clearMapInput()
     },
     onRestart: restartMission,
-    onViewMap: openNavigationChart,
+    onSelectNavigation: (id) => {
+      navigationMapState = selectNavigationDestination(navigationMapState, id)
+    },
+    onAbort: () => {
+      // Unlike a debrief return, aborting an active sortie banks nothing. Drop
+      // every flight-only surface and recording before showing the roster;
+      // the next New game rebuild supplies a fresh world.
+      resetFlightUi()
+      clearMapInput()
+      title.show(requestedScenarioId)
+    },
   })
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
