@@ -1103,6 +1103,70 @@ class Model:
             hw, hh, cy = (vals[i][c] + (vals[i + 1][c] - vals[i][c]) * f for c in (1, 2, 3))
             self.fuselage(frame_role, [(x - bar / 2, hw + bar, hh + bar, cy), (x + bar / 2, hw + bar, hh + bar, cy)], segments, center_z, frame_node)
 
+    def faired_canopy(self, glass_role, frame_role, stations, frames, bar=0.02, center_z=0.0, node=None, frame_node=None):
+        """A canopy whose lower side edges fair directly into the fuselage.
+
+        Stations are ``(x, half_width, base_y, crown_y)``. Unlike :meth:`canopy`,
+        this is not a closed ellipse buried in the deck: each visible side runs
+        inward from the full-width base edge to a narrow roof. A shallow hidden
+        underside closes the mesh. This keeps a fighter hood from reading as a
+        bubble pinched onto the centerline of the fuselage.
+        """
+        _require(bar > 0 and frames, f'faired_canopy: need bar > 0 and at least one frame, got {bar}, {frames}')
+        _require(len(stations) >= 2, f'faired_canopy: need at least 2 stations, got {len(stations)}')
+        vals = []
+        for i, station in enumerate(stations):
+            _require(len(station) == 4, f'faired_canopy: station {i} needs 4 values, got {len(station)}')
+            x, half_width, base_y, crown_y = (float(v) for v in station)
+            _require(all(math.isfinite(v) for v in (x, half_width, base_y, crown_y)),
+                     f'faired_canopy: station {i} has a non-finite value')
+            _require(half_width > 0 and crown_y > base_y,
+                     f'faired_canopy: station {i} needs half-width > 0 and crown above base')
+            vals.append((x, half_width, base_y, crown_y))
+        _require(all(vals[i][0] < vals[i + 1][0] for i in range(len(vals) - 1)),
+                 'faired_canopy: station x values must be strictly increasing')
+
+        def ring(value, width_pad=0.0, crown_pad=0.0):
+            x, half_width, base_y, crown_y = value
+            width = half_width + width_pad
+            height = crown_y - base_y + crown_pad
+            crown = crown_y + crown_pad
+            # Clockwise from the crown as seen from +x. The first side point
+            # continues the fuselage's inward slope instead of rounding back
+            # toward a zero-width bottom, which is the bubble-shaped failure
+            # this primitive exists to avoid.
+            profile = [
+                (crown, 0.0),
+                (base_y + 0.97 * height, 0.68 * width),
+                (base_y + 0.82 * height, 0.86 * width),
+                (base_y + 0.28 * height, 0.95 * width),
+                (base_y, width),
+                (base_y - bar, 0.0),
+                (base_y, -width),
+                (base_y + 0.28 * height, -0.95 * width),
+                (base_y + 0.82 * height, -0.86 * width),
+                (base_y + 0.97 * height, -0.68 * width),
+            ]
+            return [(x, y, center_z + z) for y, z in profile]
+
+        rings = [ring(value) for value in vals]
+        verts, faces = _loft(rings)
+        charts = self._loft_charts(rings, glass_role)[0] if self.skin else None
+        self._part(glass_role, verts, [face for face, _ in faces], node, charts, False)
+
+        for x in frames:
+            _require(vals[0][0] < x < vals[-1][0],
+                     f'faired_canopy: frame at {x} is outside the canopy ({vals[0][0]}, {vals[-1][0]})')
+            i = next(k for k in range(len(vals) - 1) if vals[k][0] <= x <= vals[k + 1][0])
+            f = (x - vals[i][0]) / (vals[i + 1][0] - vals[i][0])
+            half_width, base_y, crown_y = (vals[i][c] + (vals[i + 1][c] - vals[i][c]) * f for c in (1, 2, 3))
+            frame_values = [(x - bar / 2, half_width, base_y, crown_y),
+                            (x + bar / 2, half_width, base_y, crown_y)]
+            frame_rings = [ring(value, bar, bar) for value in frame_values]
+            frame_verts, frame_faces = _loft(frame_rings)
+            frame_charts = self._loft_charts(frame_rings, frame_role)[0] if self.skin else None
+            self._part(frame_role, frame_verts, [face for face, _ in frame_faces], frame_node, frame_charts, False)
+
     def gear_leg(self, role, hinge, length, wheel_radius, wheel_width, strut_radius=None, node=None):
         """A landing-gear leg hanging straight down from ``hinge``: a strut to the axle and a
         wheel whose lowest point is exactly ``length`` below the hinge. One node, so the entry

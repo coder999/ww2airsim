@@ -471,3 +471,12 @@ recommended High/100% and nexus Radeon 680M recommended Medium/75% at
 [handoff](handoff/2026-10-11-preflight-graphics-check.md); MASTER_PLAN A6 is
 the authoritative status.
 
+**The Blender Hellcat canopy was corrected from Mark's side photograph on
+2026-10-11.** Its profile now has the real airplane's steep windscreen, high
+forward bow and straight descending roof instead of a smoothed bubble. After
+Mark's second review, broad side panes now fair directly into the calculated
+fuselage surface rather than pinching into it as an oval. The gated Hangar
+capture includes close side and three-quarter views, and the focused generator,
+dimension, rig and duplicate-model suite passes 525/525. See the updated
+[fighter-model handoff](handoff/2026-10-11-blender-fighter-duplicates.md).
+
