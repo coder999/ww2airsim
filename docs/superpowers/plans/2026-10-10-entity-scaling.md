@@ -6,6 +6,7 @@ with entity count. `MASTER_PLAN.md` Track H (rendering budget) carries the point
 
 **Run:** in a worktree (branch `worktree-agent-a4e28ab8cde4a6876`), unattended.
 **Viewing checkpoints:** the final product only (the handoff and its screenshots). Nothing blocks on Mark.
+**Result:** [`docs/handoff/2026-10-10-entity-scaling.md`](../../handoff/2026-10-10-entity-scaling.md). As run, the capture added a frozen (paused) GPU window: a CPU-bound frame's GPU timestamps read a down-clocked GPU.
 **Scope:** measurement and DEV-only tooling. The shipping game is unchanged
 (`tests/build/dist.test.ts` asserts the swarm parameters never reach a production bundle).
 Fixes are recommended, ranked by measured payoff, and not implemented.

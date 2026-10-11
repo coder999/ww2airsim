@@ -229,6 +229,8 @@ H1-H3: those names already mean the Hangar plans.)
 - **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
 - **Done 2026-10-10, Mark's rulings applied** (handoff `docs/handoff/2026-10-08-h0-render-budget.md`, "Rulings and the as-merged result"): the cloud-edge re-march skip is the default, so every High view clears 8.33 ms at 1440p; in-deck-1900 has its own 10.0 ms gate (9.51 ms measured); terrainTextures' runway keeps 9.0 ms. Every view but in-deck is inside the 7.5 ms margin (worst: deckquals 7.01 ms).
 
+**Entity scaling (measured 2026-10-11, not a fix):** about 5 to 10 extra aircraft fit the 120 Hz bar today, not 30; the main thread's draw calls and, in a furball, the sim's bullet contact test bind first. Handoff `docs/handoff/2026-10-10-entity-scaling.md` (ranked fixes inside).
+
 ### Track K: Clouds (size L)
 
 Clouds have needed attempt after attempt (`clouds.md` §3 is the
