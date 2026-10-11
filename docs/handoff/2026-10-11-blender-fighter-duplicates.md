@@ -60,6 +60,14 @@ real eye points, now asserted by `blenderDuplicates.test.ts`: Hellcat (-0.87, 1.
 against (-1.85, 0.78); Wildcat (-0.82, 0.95) against (-1.713, 0.315). Promotion moves the spec to them; the Wildcat's is a 0.9 m forward and 0.6 m
 up change of the cockpit view.
 
+## Review (2026-10-11)
+
+Mark reviewed contact sheets of each duplicate beside its download (flat Blender previews, same camera) and judged them "great".
+Still his to decide: the eye points above, and whether to push and to promote a duplicate. To send him snapshots again: one JPEG
+contact sheet per aircraft as plain attachments, under 0.5 MB in total. An HTML email with 18 inline `cid:` images (0.8 MB) was
+accepted by Cloudflare (msmtp exit 0) and never arrived, and was not in spam, while a one-line API email arrived; the attachment
+route arrived (2026-10-11). Cloudflare's usage counter read 0 sent all day, so it cannot confirm a send either.
+
 ## Open
 
 - **The likeness is still a measured first pass**: silhouettes from the Commons 3-view drawings, no photographs or cross sections read. The wing planform, nose cowl detail and the tail fillets were not refit to the drawings. Mark's eye is the review.
