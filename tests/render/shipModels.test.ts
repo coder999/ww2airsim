@@ -1,7 +1,8 @@
 // tests/render/shipModels.test.ts
 import { describe, expect, it } from 'vitest'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { loadShipSpec } from '../../tools/content/load.js'
+import { loadModelEntries } from '../../tools/models/manifest.js'
 import { SHIP_MODELS, shipModelUrlFor } from '../../src/render/scene/shipModels.js'
 import { shipModelUrl } from '../../src/render/content.js'
 
@@ -15,16 +16,18 @@ describe('the ship model registry (ship-models spec §3.1)', () => {
     }
   })
 
-  it('every registered id is its own spec id, at its own content/ships URL (spec §3.2)', () => {
+  it('every registered id has its own model entry and committed content/ships glb', () => {
+    const entries = loadModelEntries()
     for (const [id, { url }] of Object.entries(SHIP_MODELS)) {
-      expect(shipIds, id).toContain(id)
       expect(url).toBe(shipModelUrl(id))
+      expect(entries.some((e) => e.id === id && e.output === `content/ships/${id}.glb`), id).toBe(true)
+      expect(existsSync(`content/ships/${id}.glb`), id).toBe(true)
     }
   })
 
-  it('the complete ship roster names exactly the complete registry (R2)', () => {
-    expect(shipIds).toEqual(Object.keys(SHIP_MODELS))
+  it('the complete simulation ship roster names its like-named registered models (R2)', () => {
     expect(shipIds.map((id) => loadShipSpec(id).view?.model)).toEqual(shipIds)
+    expect(shipIds.every((id) => Object.hasOwn(SHIP_MODELS, id))).toBe(true)
   })
 
   it('an unregistered or prototype-named id throws, naming the registry', () => {

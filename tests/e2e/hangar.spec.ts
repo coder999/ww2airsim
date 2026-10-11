@@ -411,6 +411,11 @@ test.describe('the Hangar', () => {
     await expect(row.getByRole('link', { name: 'manilov.ap' })).toHaveAttribute('href', /^https:\/\/sketchfab\.com\/3d-models\/f4u-/)
     await select(page, 'ki-84-frank')
     await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
+    await select(page, 'shiratsuyu-dd')
+    await expect(row).toContainText('Sketchfab download by everlasting17th (CC BY 4.0)')
+    await select(page, 'shiratsuyu-dd-blender')
+    await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
+    await expect(page.locator('ul[aria-label="Objects"] button[data-id="shiratsuyu-dd-blender"]')).toContainText('hangar only')
     // Since R4 no Library entry is drawn in code; provenance.test.ts covers that case in Node.
     await select(page, 'tower')
     await expect(row).toContainText('Original Blender model (AGPL-3.0-or-later)')
@@ -443,7 +448,7 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
+    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'shiratsuyu-dd-blender', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
       'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
@@ -457,11 +462,13 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test('17. every warship\'s gun mounts are its spec\'s armament, and each trains and elevates on its own: 90 deg changes the top view, full elevation the side view, 0 restores each exactly (M1, M1b)', async ({ page }) => {
+  test('17. every warship and fitted comparison model uses its spec\'s armament, and each mount trains and elevates (M1, M1b)', async ({ page }) => {
     const ships = readdirSync('content/ships').filter((f) => f.endsWith('.json')).map((f) => JSON.parse(readFileSync(`content/ships/${f}`, 'utf8')) as { id: string; role: string; armament?: Record<'turrets' | 'heavyAA' | 'lightAA', { kit: string | null; barrels: number; run?: number }[]> })
     const ids = await entries(page)
-    expect(ships.filter((s) => ids.includes(s.id)).length).toBe(13)
-    for (const ship of ships) {
+    expect(ships.filter((s) => ids.includes(s.id))).toHaveLength(ships.length)
+    const shiratsuyu = ships.find((s) => s.id === 'shiratsuyu-dd')!
+    const displayed = [...ships, { ...shiratsuyu, id: 'shiratsuyu-dd-blender' }]
+    for (const ship of displayed) {
       const a = ship.armament
       // M1b: a gallery (`run`) draws one mount per barrel, `<name>_<i>`.
       const want = a ? ([['turrets', 'Turret'], ['heavyAA', 'HeavyAA'], ['lightAA', 'LightAA']] as const).flatMap(([k, p]) => a[k].flatMap((m, i) => (m.kit === null ? [] : m.run === undefined ? [`${p}${i + 1}`] : Array.from({ length: m.barrels }, (_, g) => `${p}${i + 1}_${g + 1}`)))) : []

@@ -6,10 +6,11 @@ import { createShipMesh, createShipView, type ShipView } from './ship.js'
 
 /**
  * Model id (a ship spec's `view.model`) to its committed glb (ship-models
- * spec §3.1), the ships twin of airframes.ts. An id equals its spec id and its
- * entry id (§3.2). tests/render/shipModels.test.ts checks that every
- * content/ships JSON that names a model names one registered here, and that
- * every id here has its entry and its committed glb.
+ * spec §3.1), the ships twin of airframes.ts. A simulation model id normally
+ * equals its spec and entry id (§3.2); a Hangar-only comparison may instead
+ * be referenced by a Library entry's own `model`. tests/render/shipModels.test.ts
+ * checks that every spec model is registered and every registry id has its
+ * entry and committed glb.
  */
 export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'abukuma-cl': { url: shipModelUrl('abukuma-cl') },
@@ -22,6 +23,7 @@ export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'mogami-ca': { url: shipModelUrl('mogami-ca') },
   'pennsylvania-bb': { url: shipModelUrl('pennsylvania-bb') },
   'shiratsuyu-dd': { url: shipModelUrl('shiratsuyu-dd') },
+  'shiratsuyu-dd-blender': { url: shipModelUrl('shiratsuyu-dd-blender') },
   'type-b-maru': { url: shipModelUrl('type-b-maru') },
   'yamato-bb': { url: shipModelUrl('yamato-bb') },
   'zuikaku-cv': { url: shipModelUrl('zuikaku-cv') },

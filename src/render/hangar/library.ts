@@ -38,6 +38,9 @@ export const LibraryEntrySchema = z.object({
    *  spec §4.3). With no `spec`, the entry is drawn but is "not in the game yet". The id resolves
    *  in AIRFRAME_MODELS, SHIP_MODELS, STATIC_MODELS or the generated ordnance entries by kind (tests/render/hangar/roster.test.ts). */
   model: z.object({ kind: z.enum(MODEL_KINDS), id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict().optional(),
+  /** True only for a Hangar comparison model that borrows a sim spec for dimensions and articulation.
+   *  It remains display-only: it is not a second gameplay roster entry. */
+  displayOnly: z.literal(true).optional(),
   /** One or two sentences: what it is in this game. Never a gameplay number (§4.2). */
   blurb: z.string().min(1),
   /** One to three short paragraphs, separated by a blank line: the real thing. */
@@ -52,6 +55,7 @@ export const LibraryEntrySchema = z.object({
   const n = historyParagraphs(e.history).length
   if (n < 1 || n > 3) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['history'], message: `must be 1 to 3 paragraphs, found ${n}` })
   if (e.model !== undefined && e.model.kind !== e.kind) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['model', 'kind'], message: `must be the entry's own kind "${e.kind}"` })
+  if (e.displayOnly && (e.spec === undefined || e.model === undefined)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['displayOnly'], message: 'requires both a spec and an own model' })
   if (e.kind === 'vehicle' && e.spec !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['spec'], message: 'no vehicle is in the sim: a vehicle entry takes no spec' })
 })
 

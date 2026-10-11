@@ -30,6 +30,7 @@ export type Origin = 'internal' | 'external'
 export type Availability = 'in-game' | 'display-only' | 'not-drawn'
 
 export function availability(e: CatalogEntry): Availability {
+  if (e.library.displayOnly === true) return 'display-only'
   if (e.subject !== null) return 'in-game'
   return e.library.model !== undefined ? 'display-only' : 'not-drawn'
 }
@@ -45,13 +46,13 @@ const STATUS: Readonly<Record<Availability, string | null>> = {
 
 /** The list button's text: the name, and the status of anything not in the game. */
 export function listLabel(e: CatalogEntry): string {
-  const s = STATUS[availability(e)]
+  const s = e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
   return s === null ? e.library.name : `${e.library.name} (${s})`
 }
 
 /** The card's status note, capitalized; null in the game. */
 export function statusNote(e: CatalogEntry): string | null {
-  const s = STATUS[availability(e)]
+  const s = e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
   return s === null ? null : `${s[0]!.toUpperCase()}${s.slice(1)}`
 }
 

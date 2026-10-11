@@ -1,0 +1,20 @@
+{
+  "id": "shiratsuyu-dd-blender",
+  "output": "content/ships/shiratsuyu-dd-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/shiratsuyu-dd-blender.py",
+    "dimensions": "107.5 m gameplay length and 9.9 m beam from content/ships/shiratsuyu-dd.json; English Wikipedia 'Shiratsuyu-class destroyer' gives 107.5 m waterline, 109.6 m overall, 9.9 m beam and 3.5 m draft; July 1944 Samidare side/plan silhouettes from Wikimedia Commons 'Fig of IJN DD Samidare in 1944.gif'",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 107.5 } },
+  "skin": true,
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 3000000, "maxTriangles": 45000, "maxDrawCalls": 12 },
+  "ship": {
+    "spec": "shiratsuyu-dd", "fit": "hull", "kind": "full-hull", "keelM": -3.5, "palette": "ijn",
+    "materials": { "hull": "hull", "deck": "deck", "superstructure": "superstructure", "fitting": "fitting", "antifouling": "antifouling" },
+    "otherMaterials": "classify", "smokeOrigin": [16.6, 12.25, 0], "bow": "narrow-end"
+  }
+}

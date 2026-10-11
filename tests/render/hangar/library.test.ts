@@ -19,16 +19,19 @@ describe('content/library (Hangar spec §4.4)', () => {
     for (const e of entries) {
       if (e.spec === undefined) continue
       if (e.kind === 'aircraft') expect(content.aircraft.find((a) => a.id === e.spec)?.name, e.id).toBe(e.name)
-      if (e.kind === 'ship') expect(content.ships.find((s) => s.id === e.spec)?.name, e.id).toBe(e.name)
+      if (e.kind === 'ship' && e.id === e.spec) expect(content.ships.find((s) => s.id === e.spec)?.name, e.id).toBe(e.name)
       if (e.kind === 'building') expect(buildingKinds, e.id).toContain(e.spec)
       if (e.kind === 'ordnance') expect(storeIds, e.id).toContain(e.spec)
     }
   })
 
-  it('3. every sim spec has exactly one library entry', () => {
-    const count = (kind: string, spec: string) => entries.filter((e) => e.kind === kind && e.spec === spec).length
+  it('3. every sim spec has exactly one canonical library entry; comparison models may share it', () => {
+    const count = (kind: string, spec: string) => entries.filter((e) => e.kind === kind && e.spec === spec && e.displayOnly !== true).length
     for (const a of content.aircraft) expect(count('aircraft', a.id), `aircraft ${a.id}`).toBe(1)
-    for (const s of content.ships) expect(count('ship', s.id), `ship ${s.id}`).toBe(1)
+    for (const s of content.ships) {
+      expect(count('ship', s.id), `ship ${s.id}`).toBe(1)
+      expect(entries.filter((e) => e.kind === 'ship' && e.spec === s.id && e.id === s.id), `canonical ship ${s.id}`).toHaveLength(1)
+    }
     for (const k of buildingKinds) expect(count('building', k), `building kind ${k}`).toBe(1)
     for (const id of storeIds) expect(count('ordnance', id), `ordnance ${id}`).toBe(1)
   })
@@ -64,6 +67,8 @@ describe('LibraryEntrySchema', () => {
     ['a model of another kind', { ...valid, model: { kind: 'aircraft', id: 'wildcat' } }, /entry's own kind \\"ship\\"/],
     ['a model with an unknown kind', { ...valid, model: { kind: 'tank', id: 'x' } }, /model/],
     ['a vehicle with a spec', { ...valid, kind: 'vehicle', spec: 'jeep' }, /no vehicle is in the sim/],
+    ['display-only without a spec', { ...valid, displayOnly: true, model: { kind: 'ship', id: 'x' } }, /requires both a spec and an own model/],
+    ['display-only without an own model', { ...valid, displayOnly: true, spec: 'x' }, /requires both a spec and an own model/],
     ['a model on an ordnance entry', { ...valid, kind: 'ordnance', spec: 'an-m65', model: { kind: 'building', id: 'hangar' } }, /entry's own kind \\"ordnance\\"/],
   ])('rejects %s', (_l, raw, message) => {
     expect(() => parseLibraryEntry(raw)).toThrow(message)
@@ -72,6 +77,7 @@ describe('LibraryEntrySchema', () => {
   it('accepts a model of its own kind, with or without a spec', () => {
     expect(parseLibraryEntry({ ...valid, model: { kind: 'ship', id: 'essex-cv' } }).model).toEqual({ kind: 'ship', id: 'essex-cv' })
     expect(parseLibraryEntry({ ...valid, kind: 'vehicle', model: { kind: 'vehicle', id: 'jeep' } }).kind).toBe('vehicle')
+    expect(parseLibraryEntry({ ...valid, spec: 'x', model: { kind: 'ship', id: 'x' }, displayOnly: true }).displayOnly).toBe(true)
   })
 
   it('gameplayNumbersIn catches a number with a unit, and only that', () => {

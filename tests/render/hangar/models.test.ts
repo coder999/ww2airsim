@@ -240,13 +240,17 @@ describe("an entry's own model (R1)", () => {
     expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat') // sortie forms A4: the game now draws the same model
   })
 
-  it('a ship model and a vehicle model go through the display loader too', async () => {
+  it('a fitted ship model override keeps the spec and ship mounts; a vehicle uses the display loader', async () => {
     const c = nodeHangarContent()
     const cruiser = { ...c.library.find((e) => e.id === 'cleveland-cl')!, model: { kind: 'ship' as const, id: 'essex-cv' } }
     const seenShip: unknown[] = []
     const shipEntry = buildCatalog({ ...c, library: [cruiser] })[0]!
-    await loadHangarModel(shipEntry, undefined, undefined, undefined, async (ref) => { seenShip.push(ref); return instance().inst })
-    expect(seenShip).toEqual([{ kind: 'ship', id: 'essex-cv' }])
+    const shipModel = await loadHangarModel(shipEntry, undefined, async (spec) => {
+      seenShip.push({ id: spec.id, model: spec.view?.model })
+      return { root: new Group(), model: spec.view?.model ?? null, smokeOrigin: new Group(), setDamage: () => {}, mounts: [], dispose: () => {} }
+    })
+    expect(seenShip).toEqual([{ id: 'cleveland-cl', model: 'essex-cv' }])
+    expect(shipModel!.gunMounts).toEqual([])
 
     const tank = { ...c.library.find((e) => e.id === 'type97-chi-ha')!, model: { kind: 'vehicle' as const, id: 'type97-chi-ha' } }
     const seenVehicle: unknown[] = []

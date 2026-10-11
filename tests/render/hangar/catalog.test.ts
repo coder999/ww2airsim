@@ -105,6 +105,16 @@ describe('availability (R1, model-roster spec §4.3)', () => {
     expect([get('ki-84-frank'), get('test-undrawn')].map(drawable)).toEqual([true, false])
   })
 
+  it('an explicit comparison model stays display-only while borrowing a spec', () => {
+    const base = c.library.find((e) => e.id === 'f4f-wildcat')!
+    const comparison = { ...base, id: 'wildcat-comparison', displayOnly: true as const, model: { kind: 'aircraft' as const, id: 'wildcat' } }
+    const entry = buildCatalog({ ...c, library: [comparison] })[0]!
+    expect(entry.subject?.kind).toBe('aircraft')
+    expect(availability(entry)).toBe('display-only')
+    expect(listLabel(entry)).toBe(`${base.name} (hangar only)`)
+    expect(statusNote(entry)).toBe('Hangar only')
+  })
+
   it('labels the list and the card by availability', () => {
     expect(listLabel(get('f4f-wildcat'))).toBe(get('f4f-wildcat').library.name)
     expect(listLabel(get('ki-84-frank'))).toBe(`${frank.name} (not in the game yet)`)
