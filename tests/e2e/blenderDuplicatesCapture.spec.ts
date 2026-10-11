@@ -13,7 +13,7 @@ test.skip(!process.env.E2E_CAPTURE, 'set E2E_CAPTURE=1 to run the duplicate capt
 
 const OUT = process.env.E2E_CAPTURE_DIR ?? 'test-results/blender-duplicates'
 const PAIRS: readonly (readonly [string, string])[] = [
-  ['a6m2-zero', 'a6m2-zero-blender'],
+  ['a6m-zero', 'a6m2-zero-blender'],
   ['b-17-flying-fortress', 'b-17-flying-fortress-blender'],
   ['d3a-val', 'd3a-val-blender'],
   ['f4f-wildcat', 'f4f-wildcat-blender'],

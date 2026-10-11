@@ -168,14 +168,18 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 
 | Duplicate | Copies | Cited | Stance fitted to the spec | Glb (bytes / triangles / draws) |
 | --- | --- | --- | --- | --- |
-| `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 820,488 / 25,932 / 12 |
-| `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 823,032 / 25,400 / 14 |
-| `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 806,508 / 25,468 / 17 |
+| `f6f-hellcat-blender` | `f6f-hellcat` (F6F-5) | span 13.06 m, length 10.24 m, area 31.0 m2, 3.99 m 3-blade prop | wheels 2.42 m below the origin at x 0.62, tail wheel x -6.0 | 788,316 / 24,796 / 12 |
+| `f4u-corsair-blender` | `f4u-corsair` (F4U-1D) | span 12.50 m, length 10.26 m, area 29.17 m2, 4.06 m 3-blade prop, inverted gull wing | 2.418 m at x 0.418, tail wheel x -5.722 | 868,724 / 27,320 / 14 |
+| `f4f-wildcat-blender` | `f4f-wildcat` (F4F-4) | span 11.58 m, length 8.76 m, area 24.15 m2, 3 blades, aileron span and hinge | 2.3952 m at x 0.413, tail wheel x -4.627 (fixed) | 825,212 / 26,236 / 17 |
 | `a6m2-zero-blender` | `a6m2-zero` (A6M2 Model 21) | span 12.0 m, length 9.06 m, area 22.44 m2, 3 blades; prop diameter 2.90 m measured because the table is blank | 2.025 m at x 0.182, tail wheel x -6.532 | 717,844 / 21,464 / 18 |
+| `b-17-flying-fortress-blender` | `b-17-flying-fortress` (B-17G) | span 31.62 m, length 22.66 m, area 131.92 m2, four 3-blade props | 2.548 m at x 0.852, tail wheel x -10.623 | 1,163,684 / 36,408 / 29 |
+| `d3a-val-blender` | `d3a-val` (D3A2 Model 22) | span 14.365 m, length 10.195 m, area 34.9 m2, 3 blades; D3A1 drawing limitation recorded | fixed mains 1.850 m below at x 0.257, tail wheel x -6.577 | 901,876 / 27,060 / 19 |
+| `ki-43-oscar-blender` | `ki-43-oscar` (Ki-43-IIb) | span 10.84 m, length 8.92 m, area 21.4 m2, 2.79 m 3-blade prop; Ki-43-I drawing limitation recorded | 1.843 m at x 0.348, tail wheel x -5.375 (fixed) | 806,148 / 25,624 / 17 |
 
-For the first three, every other figure is an ESTIMATE labeled in each script's header; their profiles were matched by
-eye against the downloads and are a first pass. The A6M2 instead records nose-relative stations measured from its Commons
-three-view and keeps a built-model/drawing overlay with its handoff; its script separately labels remaining estimates.
+All seven now use a Commons three-view from Kaboldy's orthographic series as their common silhouette family. Published
+dimensions and the project spec own scale and stance; the D3A2 and Ki-43-IIb headers keep their adjacent-variant caveats.
+Each script records nose-relative stations and separately labels cited facts, drawing measurements, spec fits and estimates.
+The SVGs are credited measurement references and are not bundled in the repository.
 
 ## Showing the result
 
