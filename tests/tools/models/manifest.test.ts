@@ -64,7 +64,7 @@ describe('ModelEntrySchema', () => {
     expect(() => parseModelEntry({ ...kagero, skin: true, ship: { ...kagero.ship, materials: { hull: 'keep' } } })).toThrow(/keep and mask do not apply/)
   })
   it('boxSkin is a downloaded ship\'s alone, at its textures.maxSize, with every material classified, mapped to a role or masked (DP2, M1d)', () => {
-    const essex: Record<string, unknown> = { ...JSON.parse(readFileSync('tools/models/entries/fletcher-dd.json', 'utf8')) as Record<string, unknown>, textures: { maxSize: 1024, format: 'webp' } } // a downloaded ship fixture; Zuikaku is a Blender model since 2026-10-11
+    const essex: Record<string, unknown> = { ...JSON.parse(readFileSync('tools/models/entries/zuikaku-cv.json', 'utf8')) as Record<string, unknown>, textures: { maxSize: 1024, format: 'webp' } } // a download carrier (Essex is a Blender model since M1f)
     expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 } }).boxSkin).toEqual({ atlasPx: 1024 })
     // M1d: a masked lattice keeps its own texture beside the skin; a kept texture still does not.
     expect(parseModelEntry({ ...essex, boxSkin: { atlasPx: 1024 }, ship: { ...(essex['ship'] as object), materials: { net: 'mask' } } }).boxSkin).toEqual({ atlasPx: 1024 })

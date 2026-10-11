@@ -1,23 +1,21 @@
-# Zuikaku Blender replacement handoff (2026-10-11)
+# Zuikaku Blender comparison handoff (2026-10-11)
 
 Worktree: `/home/mark/projects/ww2airsim-zuikaku-blender`; branch: `blender-zuikaku-cv`; base: `863c290eef9928d82d23645a22a03d43a578249b`. Unattended, final-product-only checkpoint. This branch has not been pushed or merged.
 
 ## Outcome
 
-`zuikaku-cv` is now an original Blender/`kit.py` Shokaku-class carrier representing Zuikaku in late October 1944. It replaces the external Shokaku stand-in under the same ID and keeps the live flight, trap, damage, smoke and balanced-armament contracts unchanged.
+The existing external `zuikaku-cv` Shōkaku stand-in remains byte-for-byte intact and remains the sole gameplay/scenario ship. A separate Hangar-only comparison, `zuikaku-cv-blender`, is an original Blender/`kit.py` Shōkaku-class carrier representing Zuikaku in late October 1944.
 
-- Model: `tools/models/blender/zuikaku-cv.py`
-- Entry: the existing `tools/models/entries/zuikaku-cv.json`, now `source.kind: "blender"`
-- Output: `content/ships/zuikaku-cv.glb`
-- Final output: 1,087,924 bytes, 15,160 triangles, 6 draw calls; SHA-256 `4b9c94080490f37c1cc9d3aefc21f9ef52f03bf634bab08252ba011f4807f1be`
-- Replaced output: 946,688 bytes, 10,606 triangles, 6 draw calls.
-- A second final build produced the same SHA-256 byte for byte.
-
-The external model remains credited in `ASSETS.md` as a retired proportions reference. It is not an input to the Blender script or shipped output.
+- Original external output: `content/ships/zuikaku-cv.glb`; 946,688 bytes; SHA-256 `b3514e88b664cfa7ba009f2aac5221c2a34edadc774e7a041fd87b717e7a7b05` (identical to the base commit).
+- Original external manifest/spec: `tools/models/entries/zuikaku-cv.json` and `content/ships/zuikaku-cv.json`, restored unchanged from the base commit.
+- Blender source: `tools/models/blender/zuikaku-cv-blender.py`.
+- Blender entry/output: `tools/models/entries/zuikaku-cv-blender.json` and `content/ships/zuikaku-cv-blender.glb`.
+- Blender output: 1,087,964 bytes, 15,160 triangles, 6 draw calls; SHA-256 `25adbff35e2ebc3f188456c8644744b21bc2545de5d75b287fcd0777e734c7d9`.
+- Library card: `content/library/zuikaku-cv-blender.json`, explicitly `displayOnly: true`, borrowing `spec: "zuikaku-cv"` while overriding the model so the shared Hangar ship loader can pose the fitted guns. It is not enrolled in missions or gameplay.
 
 ## Sources and measurements
 
-**CITED:** English Wikipedia, [Shokaku-class aircraft carrier](https://en.wikipedia.org/wiki/Sh%C5%8Dkaku-class_aircraft_carrier), Specifications and Flight deck and hangars, read 2026-10-11: 257.5 m (844 ft 10 in) overall length, 29 m (95 ft 2 in) maximum beam, 9.32 m (30 ft 7 in) deep-load draft, 23 m (75 ft 6 in) moulded depth, 34.5 kn; 242.2 × 29.0 m (794 ft 7 in × 95 ft 2 in) flight deck; two hangars; three elevator sizes; ten arrestor wires; and eight twin Type 89 127 mm mounts.
+**CITED:** English Wikipedia, [Shōkaku-class aircraft carrier](https://en.wikipedia.org/wiki/Sh%C5%8Dkaku-class_aircraft_carrier), Specifications and Flight deck and hangars, read 2026-10-11: 257.5 m (844 ft 10 in) overall length, 29 m (95 ft 2 in) maximum beam, 9.32 m (30 ft 7 in) deep-load draft, 23 m (75 ft 6 in) moulded depth, 34.5 kn; 242.2 × 29.0 m (794 ft 7 in × 95 ft 2 in) flight deck; two hangars; three elevator sizes; ten arrestor wires; and eight twin Type 89 127 mm mounts.
 
 **CITED / MEASURED:** Wikimedia Commons, [Fig of japanese aircraft carrier Zuikaku in 1944.gif](https://commons.wikimedia.org/wiki/File:Fig_of_japanese_aircraft_carrier_Zuikaku_in_1944.gif), SnowCloudInSummer, CC BY-SA 3.0, read 2026-10-11. The drawing is explicitly October 1944 and cites *Nihon Kaigun Kantei Zumenshu*, 4th ed. (1978), and *Shashin Nihon no Gunkan*, vol. 3 (1989). It was fetched through the Commons API and canonical `Special:FilePath` route. Its 0–50 m scale bar is 205 px (4.10 px/m), while the 257.5 m hull reads 1,037 px (4.03 px/m). The profile and plan established the long slab-sided hangar, sheer, waterline/deck widths, island at about +35 m, elevators near +72/0/−70 m, starboard funnel/masts, gallery rhythm and camouflage character. Temporary source and measurement files were removed before commit.
 
@@ -32,34 +30,36 @@ The fixed-camera side/plan contact sheet was visually compared with the cited dr
 
 ## What is fitted and what is estimated
 
-**FITTED:** the existing simulation contract remains authoritative where gameplay already depends on it. `FlightDeck` is exactly 242.2 × 29.0 m (794 ft 7 in × 95 ft 2 in), its top is exactly 15.5 m (50 ft 10 in), `TrapBand` stays probeable and unobstructed, the waterline beam is the spec's 26.0 m (85 ft 4 in), the smoke origin remains `[25, 34.4, 18.9]`, bow is +x and the island is starboard. The full hull reaches the cited −9.32 m (−30 ft 7 in) keel.
+**FITTED:** the existing `zuikaku-cv` simulation contract remains authoritative for the comparison model. `FlightDeck` is exactly 242.2 × 29.0 m (794 ft 7 in × 95 ft 2 in), its top is exactly 15.5 m (50 ft 10 in), `TrapBand` stays probeable and unobstructed, the waterline beam is the spec's 26.0 m (85 ft 4 in), the smoke origin remains `[25, 34.4, 18.9]`, bow is +x and the island is starboard. The full hull reaches the cited −9.32 m (−30 ft 7 in) keel.
 
-All eight twin Type 89 mounts and the four deliberately balanced Type 96 triple mounts are at the existing spec's exact positions. Their `Turret1`…`Turret8` and `LightAA1`…`LightAA4` locators use the existing hierarchy, train and elevate at runtime, and each locator stands on modeled gallery/sponson geometry. The real late-1944 ship carried much more 25 mm armament; this branch intentionally preserves the simulation's four-triple balance fit.
+All eight twin Type 89 mounts and the four deliberately balanced Type 96 triple mounts are at the existing spec's exact positions. Their `Turret1`…`Turret8` and `LightAA1`…`LightAA4` locators use the existing hierarchy, train and elevate at runtime, and each locator stands on modeled gallery/sponson geometry. The real late-1944 ship carried much more 25 mm armament; this model intentionally preserves the simulation's four-triple balance fit.
 
 **ESTIMATE / modeling choice:** sectional fullness between measured stations; exact hangar ends/openings; platform thicknesses and supports; island tier, funnel, mast, radar and director dimensions; boats, rails, rigging and other fine fittings; exact camouflage polygon boundaries. The 26.0 m waterline beam and 15.5 m flight-deck height are inherited simulation estimates, not claimed drawing measurements. Camouflage follows the source drawing's late-1944 character but is simplified.
 
 ## Repository changes
 
-- Added the original deterministic Blender script and updated its bake sidecars.
-- Converted the same manifest from the external source to Blender; retained the 1.5 MB / 60k-triangle / 8-draw budget.
-- Kept the existing ship spec's deck, trap zone, damage, smoke, ensign and balanced armament. Only the reference text and ensign hoist point were made honest for the new measured model.
-- Added Zuikaku to the Blender ship raw-export checks and removed it from the twelve remaining Sketchfab downloads.
-- Generalized the carrier-deck contract test to Essex and Zuikaku and pinned the new `flattop-hunt` roster in the E2E ship check.
-- Added the source-credit row and documented the missing downloaded-ship-to-measured-Blender replacement process in `docs/models.md`.
+- Preserved the original external entry, source cache/output, ship spec and attribution under `zuikaku-cv`.
+- Added deterministic Blender source, bake sidecars and output under `zuikaku-cv-blender`, retaining the 1.5 MB / 60k-triangle / 8-draw budget.
+- Registered the duplicate model in `SHIP_MODELS`, the Blender ship checks, carrier-deck contract checks, Hangar catalog and checks 10/16.
+- Added an explicit display-only Library card with base-spec/model-override linkage; did not add the duplicate to any scenario or gameplay roster.
+- Documented the downloaded-ship comparison workflow in `docs/models.md`.
 
 ## Verification
 
-- Final deterministic rebuild: PASS, identical SHA-256 `4b9c9408…`; 1,087,924 bytes, 15,160 triangles, 6 draws.
-- `REMOTE_RUN_OVERFLOW=0 remote-run` relevant post-restore suite: PASS, 16 files and 367 tests. This included raw Blender ship topology/coplanarity/palette/deck checks, all committed ship fit/armament/deck checks, download rebuilds, manifest parsing, render fit/models/palette/gun-laying, carrier takeoff/landing, trap logic, gun laying and ship rosters.
-- The broader model run also passed `blenderEntries.test.ts`: all 38 tests, including a byte-identical Zuikaku rebuild. Its first pass exposed two branch defects (one missing fixture brace and twelve coplanar faces); both were fixed, and the focused raw-ship rerun passed 101/101 tests.
-- Local Vite at `http://127.0.0.1:5198`, Playwright `ships.spec.ts` + `deckQuals.spec.ts`, one worker: the combined first pass was load-starved (3 passed, 9 failed: eight terrain/title/resource timeouts or resource errors and one low GPU-sample count). Required isolated reruns passed all four ship-validation scenarios, the Hangar side view, moving-deck attachment, full-throttle carrier launch, hook/legend and rendered-deck/wheel alignment. The deck luminance itself measured in range (runway 68.2, deck 45.5, ratio 0.667; shadowed deck 39.4), but its isolated assertion still failed because Chromium reported 24 `ERR_INSUFFICIENT_RESOURCES` loads; a second isolated try timed out at the title dialog. The isolated strike-range GPU check still recorded only 8 samples instead of >100. Those two failures are host-resource/performance evidence, not model-validation failures.
+- Final deterministic rebuild: PASS. Rebuilding `zuikaku-cv-blender` again produced 1,087,964 bytes, 15,160 triangles, 6 draw calls and the same SHA-256 `25adbff35e2ebc3f188456c8644744b21bc2545de5d75b287fcd0777e734c7d9`.
+- Focused post-restore `REMOTE_RUN_OVERFLOW=0 remote-run` suite: PASS, 5 files and 210/210 tests. It covered raw Blender ship topology/coplanarity/palette/deck checks, both Zuikaku model entries' live-spec fit, armament, smoke and carrier-deck contracts, all thirteen external rebuilds (including the restored Fletcher and external Zuikaku), manifest parsing and the complete ship-model registry.
+- Focused Hangar budget and provenance tests: PASS, 2 files and 12/12 tests.
+- The Hangar model-selection unit suite stops before collecting tests on this standalone branch because the current strict Library parser rejects the new `displayOnly` key. That is the expected boundary with the separately owned shared schema/ship-override-loader change; no competing parser or loader change was added here.
+- Local-Vite Hangar checks 10 and 16 were not rerun against this standalone branch for the same parser dependency. Both checks previously exercised the identical authored geometry under the replacement ID; final duplicate-card execution must be rerun after the shared lifecycle commit is integrated.
+- The earlier full ship/deck E2E evidence remains applicable to the identical authored geometry: isolated Hangar side view, moving-deck attachment, carrier launch, hook/legend and deck/wheel alignment passed. Two broader checks remained host-resource/performance limited (`ERR_INSUFFICIENT_RESOURCES` and an undersampled GPU range run), not model-validation failures.
 
-## Known limits
+## Known limits and integration dependency
 
-- The flight-deck collision/probe must remain a full 242.2 × 29.0 m rectangle for the simulation contract, so the visual outline is less tapered than the plan drawing.
+- The flight-deck collision/probe remains a full 242.2 × 29.0 m rectangle for the simulation contract, so the visual outline is less tapered than the plan drawing.
 - The source drawing supports the principal silhouette and stations, not every small fitting. No claim is made that every gallery, boat or radar dimension is exact.
 - Only four triple 25 mm mounts are modeled because the live combat spec intentionally balances the ship that way.
+- Mount motion on the display-only duplicate requires the shared Hangar ship-override loader change being integrated separately. This branch intentionally does not duplicate that shared runtime implementation or relax the shared Library duplicate-spec invariant.
 
 ## Capture and email
 
-`zuikaku-old-new-contact.jpg` is a 48,571-byte JPEG contact sheet: old/new starboard side and plan views from identical orthographic cameras. `zuikaku-drawing-overlay.jpg` is a 109,701-byte JPEG with the new rendered centerline silhouette in red over the cited October 1944 drawing. The two attachments total 158,272 bytes and were sent as plain attachments from `alerts@marktuttle.dev` to `marktuttle1@gmail.com`. This handoff was also emailed through the repository handoff mailer.
+`zuikaku-old-new-contact.jpg` is a 48,571-byte JPEG contact sheet: the preserved external model and authored comparison from identical starboard-side and plan cameras. `zuikaku-drawing-overlay.jpg` is a 109,701-byte JPEG with the authored centerline silhouette in red over the cited October 1944 drawing. The two attachments total 158,272 bytes and were sent as plain attachments from `alerts@marktuttle.dev` to `marktuttle1@gmail.com`. The original handoff was also emailed; this corrected comparison-ID handoff supersedes it.

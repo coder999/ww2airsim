@@ -371,10 +371,14 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   ShipSpec remains authoritative for the collision hull, `FlightDeck`, trap zone and deliberately
   balanced armament. Put every spec mount on modeled geometry within `MOUNT_SLACK_M`; the build turns
   its first named donor into `Kit_<kit>` and the existing renderer trains/elevates every locator.
-  Render the old and new GLBs from identical side/top cameras and overlay the new silhouettes on the
-  drawing before accepting the replacement. Change the same-id entry to `source.kind: blender`,
-  retire but retain attribution for a former external reference in `ASSETS.md`, enroll the id in
-  `tests/tools/models/blender/ships.test.ts`, and reduce the pinned download count.
+  Render the old and new GLBs from identical side/top cameras and overlay the new silhouette on the
+  drawing before accepting the result. For a requested comparison, keep the external id unchanged
+  and give the original work a `-blender` model entry plus a `displayOnly` Library card that borrows
+  the live ship `spec` while overriding `model`; this lets the Hangar pose its fitted mounts without
+  enrolling the comparison model in gameplay. Register that model id in `SHIP_MODELS`. For a true
+  replacement, change the same-id entry to `source.kind: blender`,
+  retain attribution for the former external reference in `ASSETS.md` and reduce the pinned download
+  count. In either case, enroll the Blender id in `tests/tools/models/blender/ships.test.ts`.
 - **The look** lives in `tools/models/skin/surfaces.ts` (per-role scan,
   finish, chips, rivets) and `tools/models/skin/layers.ts` (paint, markings,
   panel lines, height). A change there re-skins every skinned model and moves

@@ -1,4 +1,5 @@
-"""Zuikaku, Shokaku-class fleet carrier, late October 1944. Original work,
+"""Zuikaku, Shokaku-class fleet carrier, late October 1944. Hangar-only
+duplicate beside the external zuikaku-cv model. Original work,
 AGPL-3.0-or-later.
 
 CITED (English Wikipedia, "Shokaku-class aircraft carrier", Specifications and
@@ -70,7 +71,7 @@ STATIONS = [
 ]
 
 out, opts = kit.cli_args()
-m = kit.Model('zuikaku-cv', skin=2048)
+m = kit.Model('zuikaku-cv-blender', skin=2048)
 with m.tagged('hull'):
     m.hull_lines('hull', STATIONS, node='Hull', deck_role='deck', deck_node='MainDeck',
                  below_role='antifouling', below_node='Bottom', subdivide=SUBDIVIDE)

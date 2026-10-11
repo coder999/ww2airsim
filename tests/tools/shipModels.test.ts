@@ -25,7 +25,7 @@ describe('the committed ship models', () => {
   it('are the complete Library roster', () => {
     expect(ships.map((e) => e.id)).toEqual([
       'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'crow-amc-20', 'essex-cv', 'fletcher-dd', 'kagero-dd',
-      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv',
+      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv-blender', 'zuikaku-cv',
     ])
   })
 })
@@ -121,9 +121,13 @@ describe.each(ships.map((e) => [e.id, e] as const))('committed ship %s carries i
   })
 })
 
-describe.each(['essex-cv', 'zuikaku-cv'])('%s carrier deck specifically', (id) => {
-  const entry = ships.find((e) => e.id === id)!
-  const cv = loadShipSpec(id)
+describe.each([
+  ['essex-cv', 'essex-cv'],
+  ['zuikaku-cv', 'zuikaku-cv'],
+  ['zuikaku-cv-blender', 'zuikaku-cv'],
+] as const)('%s carrier deck specifically', (modelId, specId) => {
+  const entry = ships.find((e) => e.id === modelId)!
+  const cv = loadShipSpec(specId)
 
   it('carries TrapBand at the trap zone\'s center on the deck, as wide as its own island leaves clear', async () => {
     const doc = await read(entry.output)

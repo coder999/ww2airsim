@@ -1,0 +1,21 @@
+{
+  "id": "zuikaku-cv-blender",
+  "output": "content/ships/zuikaku-cv-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/zuikaku-cv-blender.py",
+    "dimensions": "257.5 m overall, 26.0 m waterline beam and the 242.2 x 29.0 m flight deck at 15.5 m from content/ships/zuikaku-cv.json; hull, island, elevators, funnel, masts, AA galleries and late-October-1944 camouflage measured from the cited Wikimedia Commons profile/plan; every estimate labeled in the script header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 257.5 } },
+  "skin": true,
+  "keep": [{ "node": "FlightDeck" }],
+  "textures": { "maxSize": 2048, "format": "webp" },
+  "opaque": false,
+  "budget": { "maxBytes": 1500000, "maxTriangles": 60000, "maxDrawCalls": 8 },
+  "ship": {
+    "spec": "zuikaku-cv", "fit": "deck", "kind": "full-hull", "keelM": -9.32, "palette": "ijn",
+    "materials": { "hull": "hull", "antifouling": "antifouling", "deck": "deck", "flightDeck": "flightDeck", "superstructure": "superstructure", "fitting": "fitting" },
+    "otherMaterials": "classify", "smokeOrigin": [25.0, 34.4, 18.9], "bow": "island-starboard"
+  }
+}

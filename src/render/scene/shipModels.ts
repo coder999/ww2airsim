@@ -6,9 +6,10 @@ import { createShipMesh, createShipView, type ShipView } from './ship.js'
 
 /**
  * Model id (a ship spec's `view.model`) to its committed glb (ship-models
- * spec §3.1), the ships twin of airframes.ts. An id equals its spec id and its
- * entry id (§3.2). tests/render/shipModels.test.ts checks that every
- * content/ships JSON that names a model names one registered here, and that
+ * spec §3.1), the ships twin of airframes.ts. A simulation model id equals its
+ * spec id and entry id (§3.2); a Hangar-only comparison model may add a model
+ * and entry id without adding a ship spec. tests/render/shipModels.test.ts
+ * checks that every content/ships JSON that names a model names one registered here, and that
  * every id here has its entry and its committed glb.
  */
 export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
@@ -25,6 +26,7 @@ export const SHIP_MODELS: Readonly<Record<string, { readonly url: string }>> = {
   'type-b-maru': { url: shipModelUrl('type-b-maru') },
   'yamato-bb': { url: shipModelUrl('yamato-bb') },
   'zuikaku-cv': { url: shipModelUrl('zuikaku-cv') },
+  'zuikaku-cv-blender': { url: shipModelUrl('zuikaku-cv-blender') },
 }
 
 export function shipModelUrlFor(modelId: string): string {
