@@ -37,5 +37,16 @@ test('the Blender duplicates beside their downloads', async ({ page }) => {
     await snap(page, next, 'front', { gearFraction: 0 }, `${old}-blender-front-gear-up`)
     await snap(page, next, 'three-quarter', { gearFraction: 0 }, `${old}-blender-three-quarter-gear-up`)
   }
+  // Mark's canopy reviews need the glazing large enough to judge its side
+  // silhouette. The normal whole-airframe side capture makes a 0.5 m-tall
+  // windscreen only a few pixels high.
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('f6f-hellcat-blender'))
+  // The Hellcat's half-span is 6.55 m, so the side camera must remain beyond
+  // the wingtip even though its target is the canopy.
+  // The stage lifts the model by its 2.42 m gear height, putting the canopy
+  // crown near y=3.9 in stage space.
+  await page.evaluate(() => (window as HangarWindow).__hangar!.aim([-1.1, 3.7, 9], [-1.1, 3.7, 0]))
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
+  writeFileSync(`${OUT}/f6f-hellcat-blender-canopy-side.png`, await page.locator('#hangar-canvas').screenshot())
   expect(true).toBe(true)
 })

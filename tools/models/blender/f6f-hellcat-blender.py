@@ -76,11 +76,22 @@ FUSELAGE = [
     (0.0781, 0.0723, 0.0723, 0.0000, 2.0),
     (0.0537, 0.0488, 0.0537, 0.0000, 2.0),
 ]
-# The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
-# windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
-CANOPY = [(-2.17, 0.12, 1.19), (-1.87, 0.26, 1.24), (-1.57, 0.38, 1.32), (-1.27, 0.42, 1.43), (-0.97, 0.42, 1.46), (-0.67, 0.42, 1.4), (-0.42, 0.34, 1.22), (-0.27, 0.2, 1.06)]
+# Side silhouette corrected from Mark's 2026-10-11 photograph: a steep,
+# almost triangular windscreen rises to a high forward bow, then the straight
+# roof descends aft into the turtledeck. The earlier download-derived crown
+# was a low symmetric bubble. Stations are (x, half-width, crown y), tail to
+# nose, in meters; `base` sinks into the deck.
+CANOPY = [
+    (-2.12, 0.10, 1.12),
+    (-1.84, 0.24, 1.24),
+    (-1.52, 0.35, 1.34),
+    (-1.22, 0.40, 1.43),
+    (-0.88, 0.40, 1.51),
+    (-0.62, 0.36, 1.55),
+    (-0.29, 0.18, 1.01),
+]
 CANOPY_BASE = 0.95
-CANOPY_FRAMES = (-1.47, -1.17, -0.87, -0.57)
+CANOPY_FRAMES = (-1.48, -1.18, -0.88, -0.60)
 TAILPLANE = dict(span=0.45, le=0.8105, root=0.166, taper=0.56, y=0.011, sweep=13.6)  # span of SPAN; the rest of LENGTH
 FIN = dict(root=0.195, taper=0.4, height=0.137, y=0.049)                           # trailing edge at the tail
 PROP = dict(hub=0.030, chord=0.023, spinner_r=0.026, spinner_len=0.040)             # hub = 0.75 x spinner_len
@@ -162,7 +173,7 @@ with m.tagged('fuselage'):
                    segments=24, center_z=side * fz, subdivide=4)
 with m.tagged('canopy'), m.shared_chart():
     m.canopy('glazing', UPPER, [(x, w, (t - CANOPY_BASE) / 2, (t + CANOPY_BASE) / 2) for x, w, t in CANOPY], list(CANOPY_FRAMES),
-             bar=0.022, segments=48, subdivide=4)
+             bar=0.022, segments=48, subdivide=1)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
 gear_z = GEAR['z'] * S
 breaks = [0.0, gear_z, S / 2]

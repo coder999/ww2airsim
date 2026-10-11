@@ -60,6 +60,18 @@ real eye points, now asserted by `blenderDuplicates.test.ts`: Hellcat (-0.87, 1.
 against (-1.85, 0.78); Wildcat (-0.82, 0.95) against (-1.713, 0.315). Promotion moves the spec to them; the Wildcat's is a 0.9 m forward and 0.6 m
 up change of the cockpit view.
 
+## Fourth pass: Hellcat canopy photograph (2026-10-11)
+
+Mark supplied a side photograph showing that the Hellcat canopy is not a rounded bubble: its windscreen climbs steeply to a high
+forward bow, then a long, nearly straight roof descends aft into the turtledeck. The Hellcat generator now uses seven explicit side
+stations for that wedge and leaves them unsubdivided so Catmull-Rom refinement cannot round the authored corners away. The frame
+stations moved with the new silhouette. The close side capture is now part of the gated capture tool because the normal whole-airframe
+view makes the roughly 0.5 m-high glass too small to judge.
+
+Review captures are in [`2026-10-11-hellcat-canopy-shots/`](2026-10-11-hellcat-canopy-shots/). The focused model suite passes all
+525 tests, including byte-identical headless rebuild of the committed Hellcat GLB, dimensions, rigs and duplicate-model checks; the
+gated Playwright capture passes 1/1.
+
 ## Review (2026-10-11)
 
 Mark reviewed contact sheets of each duplicate beside its download (flat Blender previews, same camera) and judged them "great".
@@ -70,7 +82,9 @@ route arrived (2026-10-11). Cloudflare's usage counter read 0 sent all day, so i
 
 ## Open
 
-- **The likeness is still a measured first pass**: silhouettes from the Commons 3-view drawings, no photographs or cross sections read. The wing planform, nose cowl detail and the tail fillets were not refit to the drawings. Mark's eye is the review.
+- **The likeness is still a measured first pass outside the Hellcat canopy**: silhouettes came from the Commons 3-view drawings, and
+  the Hellcat canopy now also follows Mark's side photograph. No cross sections were read. The wing planform, nose cowl detail and the
+  tail fillets were not refit to the drawings. Mark's eye is the review.
 - **The folds are one-hinge estimates**: the Hellcat swings its legs aft with the wheel upright, the Corsair and Wildcat fold flat
   inboard. The real struts turn the wheel 90 degrees as they swing.
 - **Promotion is untested.** `docs/blender-aircraft.md`, "Promoting a duplicate", is derived from the files the tests read; the
