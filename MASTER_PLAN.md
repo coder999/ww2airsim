@@ -160,9 +160,10 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ **Dropped for now (Mark, 2026-10-10): no AI flies into a ship on purpose.** The first attempt is parked on branch `ship-collision-kamikaze-wip`. An airplane that hits a ship by accident is destroyed and damages it all the same (the collision rule, `src/sim/shipCollision.ts`).
    - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
-   - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
+   - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`.
+   - **Formation turns (E3 open item 1): built on branch `escort-mission`, not merged (2026-10-10).** A bomber formation leader turns at no more than 20 degrees of bank, so inside wingmen keep flying speed through a waypoint turn (before: 83 degrees, a Ki-21 wingman at 33 m/s). Handoff `docs/handoff/2026-10-10-escort-mission.md`.
 4. **Fixes:**
-   - escort pursuit (7f §4.2);
+   - ~~escort pursuit (7f §4.2)~~ built on branch `escort-mission`, not merged (2026-10-10): a wingman pursues a hostile attacking its leader whatever the energy, and `formationCover.test.ts` asserts it fires within gun solution (decision 11). Handoff `docs/handoff/2026-10-10-escort-mission.md`;
    - wingman commands (7f §4.5);
    - the 7c list (no stall guard, 70° bank cap, 20 s latch cap);
    - `disengageThreshold` unread (7b).
@@ -174,14 +175,15 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
-  - Two more missions are designed in GAMEPLAY.md and not built: Escort and Kamikaze Watch (deferred: it needs the dropped kamikaze run).
+  - **Escort built on branch `escort-mission`, not merged (2026-10-10):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
+  - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 
   | Mission | Needs |
   | --- | --- |
   | ~~Single Combat~~ | done 2026-10-09 (F2) |
   | ~~Scramble~~ | done 2026-10-09 (F2) |
-  | Escort | E1, E3 (bombers to escort) |
+  | Escort | built on branch `escort-mission` 2026-10-10, not merged |
   | Kamikaze Watch | deferred: needs an intentional kamikaze run, which Mark dropped 2026-10-10 |
   | ~~Flattop Hunt~~ | done 2026-10-10: Japanese carrier, D torpedoes/flooding and E2 attack AI |
   | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
@@ -368,8 +370,8 @@ prerequisites are met.
 | 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire; B3; M3 gun-laying AI; M5 difficulty~~ done by 2026-10-10 | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a), then trees; K in-cloud pacing | |
-| 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; F Escort (now content-only) (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
-| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
+| 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; F Escort built on branch `escort-mission`, not merged (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
+| 7 | ~~D torpedoes (Avenger)~~ done (D1, D3, and E2's AI torpedo run, 2026-10-10); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
