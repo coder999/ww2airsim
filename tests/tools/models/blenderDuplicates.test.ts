@@ -16,6 +16,7 @@ import { drawnPoints } from './_drawnPoints.js'
 const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number }[] = [
   { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark' },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4 },
+  { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray' },
 ]
 const TOLERANCE_M = 0.05
 

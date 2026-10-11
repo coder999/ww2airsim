@@ -28,6 +28,8 @@ export interface Surface {
 
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
+  // The Navy's 1941-43 non-specular blue-gray: a matte camouflage paint like ijaGreen (ESTIMATE).
+  blueGray: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
   underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.005, rivets: true, scanNormal: 0.6 },
   // D1: Glossy Sea Blue is a gloss enamel, so smoother than the matte camouflage paints (ESTIMATE).
   seaBlue: { scan: 'painted-metal', roughness: 0.45, metallic: 0, fade: 0.10, chip: 0.008, rivets: true, scanNormal: 0.6 },
