@@ -37,6 +37,15 @@ The prerequisite gate was already green at the branch point: `zuikaku-cv`, the T
   - `tests/e2e/adapter.spec.ts`: **3 passed** (reference adapter, zero WebGPU validation errors on the sweep, Medium boot clean).
   - Flattop Hunt case in `tests/e2e/missions.spec.ts`: **1 passed** (briefing, recommended Torpedo, `FLATTOP 0/1`, opening radio, chart objectives, and killed/no-badge debrief).
 
+### Post-review direct-URL correction
+
+A cross-review found that a bare `?scenario=flattop-hunt` boot selected the global
+`both` loadout before Form 4 could apply the mission's Torpedo recommendation. The
+racks-only Avenger then failed non-Dev sortie validation. The boot now preserves Both
+where it is legal and otherwise uses the mission recommendation/fallback. Focused Ryzen
+verification: **3 files, 74 passed**, plus clean typecheck and focused lint. The real
+direct URL in `scenarioPicker.spec.ts` **1 passed** on the Nexus Radeon 680M.
+
 ## Final-only captures
 
 All are 2560 × 1440 and were visually checked:

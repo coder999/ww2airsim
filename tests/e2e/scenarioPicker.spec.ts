@@ -17,6 +17,25 @@ import { debriefDialog, spawnUrl, startGame, waitForScenario, type DiagWindow, l
  */
 test.setTimeout(120_000)
 
+test('a direct Flattop Hunt URL boots its racks-only Avenger with a legal loadout', async ({ page }) => {
+  // Regression: boot used the global Both default before Form 4 could apply
+  // this mission's Bombs/Torpedo recommendation. The Avenger has racks but no
+  // rails, so validation replaced the title with a bad-content failure.
+  await page.goto('/?scenario=flattop-hunt')
+  await waitForScenario(page, 'flattop-hunt')
+
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await expect(title).toBeVisible()
+  await title.getByRole('button', { name: 'New pilot' }).click()
+  await title.getByPlaceholder('Pilot name').fill('Direct Flattop Test')
+  await title.getByRole('button', { name: 'Add' }).click()
+  await title.getByRole('button', { name: 'New game' }).click()
+  await expect(title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Flattop Hunt' })).toBeChecked()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toBeChecked()
+})
+
 test('picking a different scenario swaps entities in place, with no navigation', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')

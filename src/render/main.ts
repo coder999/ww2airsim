@@ -36,6 +36,7 @@ import { createDebrief, debriefModel, destructionModel, killsSince, landingModel
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
+import { bootLoadout } from './sortieFlow.js'
 import { createBootProgress } from './bootProgress.js'
 import { track } from './analytics.js'
 import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
@@ -598,14 +599,17 @@ async function boot(): Promise<void> {
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
     return
   }
-  // The boot sortie: the scenario's own aircraft and today's default loadout
-  // (not the briefing's recommendation, which the forms apply before Launch),
-  // so a boot world is what it was before the sortie forms. A quick launch
+  // The boot sortie: the scenario's own aircraft and today's default loadout,
+  // so a boot world is what it was before the sortie forms. A racks-only
+  // aircraft cannot legally carry Both, so `bootLoadout` falls back to the
+  // briefing recommendation (then Clean) for that case. A quick launch
   // picks its own aircraft and loadout, the recommendation standing in for an
   // absent loadout, always with Dev available (A6).
   const bootOption = SCENARIO_OPTIONS.find((o) => o.value === requestedScenarioId)!
+  const flyable = loadFlyableAircraft()
+  const initialLoadout = bootLoadout({ options: SCENARIO_OPTIONS, flyable, dev: bootOption.dev }, requestedScenarioId, bootOption.aircraft)
   let chosen: SortieChoice = quick === null
-    ? { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: DEFAULT_LOADOUT, dev: bootOption.dev }
+    ? { scenarioId: requestedScenarioId, aircraftSpec: bootOption.aircraft, loadout: initialLoadout, dev: bootOption.dev }
     : { scenarioId: requestedScenarioId, aircraftSpec: quick.aircraft ?? bootOption.aircraft, loadout: quick.loadout ?? bootOption.recommendedLoadout ?? DEFAULT_LOADOUT, dev: true }
   // Sortie spec A5: whether the flight in progress NEEDED Dev, which is what
   // gates recording (not whether the box was checked). Set by `onNewGame`
@@ -774,7 +778,7 @@ async function boot(): Promise<void> {
     // Same scenario, so no `applyScenarioWeather`: only the hour can have changed (A3).
     scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     rebuildFrame()
-  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable: loadFlyableAircraft(), ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
   // A quick launch (A6, SF-R9) builds the title and hides it at once rather
   // than skipping it: `title.up()` gates keys and pausing in several places,
   // and "Return to title" must work as after any flight. No pilot is chosen,
