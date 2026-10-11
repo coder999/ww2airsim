@@ -105,6 +105,23 @@ ordering and the accepted soft-edge treatment match. The residual stippling
 at thin near-cloud edges appears in both implementations; it was not added by
 TSL.
 
+**Edge and horizon flicker fixed in both twins (2026-10-11).** The temporal
+pass rejected history wherever the reprojected and reconstructed representative
+depths differed by more than 0.035. That depth jumps from the cloud to 200 km
+at every silhouette and along the horizon, so a reference-GPU mask showed
+history thrown away in a band along every edge and in 65% of the sky band
+above the deck, almost all of it the depth term; those pixels showed the raw
+per-phase reconstruction, which changed with the 2×3 phase every frame
+(Mark: "edges pixelated and flickering, horizon flickers"). Both temporal
+shaders now keep history by clamping it into the mean ± 1.25σ of this frame's
+3×3 low-resolution neighborhood (the usual TAA test) and compare no depth.
+Cost: TSL temporal p95 0.229 → 0.367 ms at 1440p on the RX 6700 XT; the march
+is unchanged. Tried and rejected the same day: advancing the STBN jitter slice
+per frame, which moved the stipple into a grain across the whole cloud body.
+Codex's earlier attempt (`676d0c2b`, reverted) blended every phase with the
+bilinear reconstruction, which blurs rather than fixes, because the rejection
+itself was the fault.
+
 The first TSL port was about 19% slower on a corrected same-scene comparison.
 An optimization pass restored R8 volumes and native WGSL's conditional
 1/2/4-sample explicit-LOD weather fetch. Two clean locked RX 6700 XT runs then

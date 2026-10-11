@@ -108,18 +108,43 @@ fn currentRay(pixel: vec2f) -> vec3f {
   let validUv = all(previousUv > vec2f(0.002)) && all(previousUv < vec2f(0.998)) && z > 0.0;
   let previousColour = textureSampleLevel(historyColour, linearSampler, previousUv, 0.0);
   let previousDepthValue = textureSampleLevel(historyDepth, linearSampler, previousUv, 0.0).r;
-  let depthAgreement = abs(previousDepthValue - reconstructedDepth) < 0.035;
-  let historyValid = u.previousPositionValid.w > 0.5 && validUv && depthAgreement;
+  let historyValid = u.previousPositionValid.w > 0.5 && validUv;
   let isCurrentPixel = all((pixel % vec2u(2u, 3u)) == phaseOffsets[phase]);
   let freshColour = select(reconstructedColour, exactColour, isCurrentPixel);
   let freshDepth = select(reconstructedDepth, exactDepth, isCurrentPixel);
+  // History survives by neighborhood clamping, not by a depth comparison: the
+  // representative depth jumps from the cloud to 200 km at every silhouette
+  // and along the horizon, so the old |previous - reconstructed| < 0.035 test
+  // rejected history in a band along every edge, where the raw per-phase
+  // reconstruction then changed with the phase every frame. Same rule as the
+  // TSL twin (takramTslCloudPass.ts), measured there 2026-10-11.
+  let lowMax = vec2i(textureDimensions(currentColour)) - 1;
+  var moment1 = vec4f(0.0);
+  var moment2 = vec4f(0.0);
+  var depthMin = 1.0;
+  var depthMax = 0.0;
+  for (var dy = -1; dy <= 1; dy++) {
+    for (var dx = -1; dx <= 1; dx++) {
+      let at = clamp(lowPixel + vec2i(dx, dy), vec2i(0), lowMax);
+      let colour = textureLoad(currentColour, at, 0);
+      moment1 += colour;
+      moment2 += colour * colour;
+      let depthTap = textureLoad(currentDepth, at, 0).r;
+      depthMin = min(depthMin, depthTap);
+      depthMax = max(depthMax, depthTap);
+    }
+  }
+  let mean = moment1 / 9.0;
+  let halfWidth = sqrt(max(moment2 / 9.0 - mean * mean, vec4f(0.0))) * 1.25;
+  let clampedColour = clamp(previousColour, mean - halfWidth, mean + halfWidth);
+  let clampedDepth = clamp(previousDepthValue, depthMin, depthMax);
   let farHistory = smoothstep(0.20, 0.75, reconstructedDepth);
   let historyWeight = mix(0.82, 0.93, farHistory);
-  let blendedColour = mix(freshColour, previousColour, select(0.0, historyWeight, historyValid));
-  let blendedDepth = mix(freshDepth, previousDepthValue, select(0.0, historyWeight, historyValid));
+  let blendedColour = mix(freshColour, clampedColour, select(0.0, historyWeight, historyValid));
+  let blendedDepth = mix(freshDepth, clampedDepth, select(0.0, historyWeight, historyValid));
   var out: TemporalOutput;
-  out.colourOpacity = select(blendedColour, previousColour, historyValid && !isCurrentPixel);
-  out.cloudDepth = vec4f(select(blendedDepth, previousDepthValue, historyValid && !isCurrentPixel), 0.0, 0.0, 1.0);
+  out.colourOpacity = select(blendedColour, clampedColour, historyValid && !isCurrentPixel);
+  out.cloudDepth = vec4f(select(blendedDepth, clampedDepth, historyValid && !isCurrentPixel), 0.0, 0.0, 1.0);
   return out;
 }`
 

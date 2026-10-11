@@ -39,6 +39,10 @@ const LAYER_LOW_M = 750
 const LAYER_HIGH_M = 2_200
 const PHASES: readonly (readonly [number, number])[] = [[0, 0], [1, 2], [0, 1], [1, 0], [0, 2], [1, 1]]
 const CloudOutputs = struct({ cloudColor: 'vec4', cloudDepth: 'vec4' })
+/** The 3x3 low-resolution neighborhood the temporal pass clamps history into. */
+const NEIGHBORHOOD: readonly (readonly [number, number])[] = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]]
+/** Half-width of the history clamp in standard deviations of that neighborhood. */
+const CLAMP_GAMMA = 1.25
 
 function remap(value: F, low: F | number, high: F | number): F {
   const lo = typeof low === 'number' ? float(low) : low
@@ -204,6 +208,12 @@ function makeDensity(assets: TakramTslAssets) {
   return (position: V3, weatherMip: F, shapeMip: F, jitter: F, coverage: F, layerOffset: F): F =>
     layerDensity(position, int(0), weatherMip, shapeMip, jitter, coverage, layerOffset)
       .add(layerDensity(position, int(1), weatherMip, shapeMip, jitter, coverage, layerOffset)) as unknown as F
+}
+
+/** Integer texel coordinate clamped into [0, max]; `clamp`'s @types/three
+ *  overloads admit only float vectors, as `cloudPass.ts` already notes. */
+function clampTexel(at: Node<'ivec2'>, hi: Node<'ivec2'>): Node<'ivec2'> {
+  return (clamp as unknown as (x: Node<'ivec2'>, lo: Node<'ivec2'>, hi: Node<'ivec2'>) => Node<'ivec2'>)(at, ivec2(0, 0), hi)
 }
 
 function makeTarget(name: string, count = 1): RenderTarget {
@@ -394,18 +404,45 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const previousDepthValue = this.historyDepth.sample(previousUv).level(float(0)).r.toVar()
       const validUv = previousUv.x.greaterThan(0.002).and(previousUv.x.lessThan(0.998))
         .and(previousUv.y.greaterThan(0.002)).and(previousUv.y.lessThan(0.998)).and(z.greaterThan(0))
-      const depthAgreement = abs(previousDepthValue.sub(reconstructedDepth)).lessThan(0.035)
-      const valid = this.historyValid.greaterThan(0.5).and(validUv).and(depthAgreement)
+      const valid = this.historyValid.greaterThan(0.5).and(validUv)
       const phase = ivec2(this.phaseOffset).toVar()
       const isCurrent = pixel.x.mod(2).equal(phase.x).and(pixel.y.mod(3).equal(phase.y))
       const freshColor = select(isCurrent, exactColor, reconstructedColor).toVar()
       const freshDepth = select(isCurrent, exactDepth, reconstructedDepth).toVar()
+      // History survives by neighborhood clamping (the usual TAA test), not by
+      // a depth comparison. The representative depth jumps from the cloud to
+      // 200 km at every silhouette and along the horizon, so a binary
+      // |previous - reconstructed| < 0.035 test threw history away in a band
+      // along every edge, and those pixels showed the raw per-phase
+      // reconstruction, which changes with the phase every frame. The reference
+      // GPU mask on 2026-10-11 rejected 65% of the sky band that way, almost
+      // all of it the depth term. Clamping the reprojected history into the
+      // mean +- gamma*sigma of this frame's 3x3 low-resolution neighborhood
+      // keeps it everywhere it is plausible and still kills real ghosts.
+      const moment1 = vec4(0).toVar()
+      const moment2 = vec4(0).toVar()
+      const depthMin = float(1).toVar()
+      const depthMax = float(0).toVar()
+      const lowMax = ivec2(this.lowSize).sub(1)
+      for (const [dx, dy] of NEIGHBORHOOD) {
+        const at = clampTexel(lowPixel.add(ivec2(dx, dy)), lowMax)
+        const colour = this.lowColor.load(at)
+        const depthTap = this.lowDepth.load(at).r
+        moment1.addAssign(colour)
+        moment2.addAssign(colour.mul(colour))
+        depthMin.assign(min(depthMin, depthTap))
+        depthMax.assign(max(depthMax, depthTap))
+      }
+      const mean = moment1.div(NEIGHBORHOOD.length).toVar()
+      const halfWidth = sqrt(max(moment2.div(NEIGHBORHOOD.length).sub(mean.mul(mean)), 0)).mul(CLAMP_GAMMA).toVar()
+      const clampedColor = clamp(previousColor, mean.sub(halfWidth), mean.add(halfWidth)).toVar()
+      const clampedDepth = clamp(previousDepthValue, depthMin, depthMax).toVar()
       const historyWeight = mix(0.82, 0.93, smoothstep(0.20, 0.75, reconstructedDepth)).toVar()
       const weight = select(valid, historyWeight, 0).toVar()
-      const blendedColor = mix(freshColor, previousColor, weight).toVar()
-      const blendedDepth = mix(freshDepth, previousDepthValue, weight).toVar()
-      const carriedColor = select(valid.and(isCurrent.not()), previousColor, blendedColor)
-      const carriedDepth = select(valid.and(isCurrent.not()), previousDepthValue, blendedDepth)
+      const blendedColor = mix(freshColor, clampedColor, weight).toVar()
+      const blendedDepth = mix(freshDepth, clampedDepth, weight).toVar()
+      const carriedColor = select(valid.and(isCurrent.not()), clampedColor, blendedColor)
+      const carriedDepth = select(valid.and(isCurrent.not()), clampedDepth, blendedDepth)
       return CloudOutputs(vec4(carriedColor), vec4(carriedDepth, 0, 0, 1))
     })()
     this.temporalMaterial.fragmentNode = mrt({ cloudColor: temporal.get('cloudColor'), cloudDepth: temporal.get('cloudDepth') })
