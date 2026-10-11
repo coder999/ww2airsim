@@ -206,6 +206,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(2),
   },
+  'f4u-corsair-blender': {
+    // An original Blender model (f4u-corsair-blender.py), a duplicate beside the download: the kit's propeller is
+    // exactly 3-fold symmetric (the -1D's three blades). The mains fold inboard about +x with the wheels flat, as the
+    // download's rig does (the real struts swing aft and turn 90 deg; one hinge, ESTIMATE); the tailwheel swings aft.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
+      { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
+    ],
+    turrets: [],
+    surfaces: surfaces(2),
+  },
   'g4m-betty': {
     // An original Blender model (g4m-betty.py), replacing the flat, gearless download (2026-09-29): the kit's
     // propellers are exactly 3-fold symmetric (three blades: English Wikipedia 'Mitsubishi G4M', read

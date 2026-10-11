@@ -2,7 +2,7 @@
 // A Blender duplicate of a downloaded airframe (docs/blender-aircraft.md) is shown in the Hangar beside the
 // download and may replace it. It earns the swap by fitting the spec the download flies on, unchanged: the
 // same stance, the guns inside the hull, the eye under the canopy, and a wing the stores hang on. Each row
-// pairs a spec with its duplicate; "Promoting a duplicate" in that document is what follows a pass.
+// pairs a spec with its duplicate (`station`: the semi-span fraction centerPoint.test.ts cuts that spec's wing at, where not 0.3); "Promoting a duplicate" in that document is what follows a pass.
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
@@ -13,12 +13,13 @@ import { MODEL_STANCE } from '../../../src/render/scene/stance.js'
 import { drawnPoints } from './_drawnPoints.js'
 
 /** `skin`: the duplicate's whole-airframe node (the build merges the glass into it, as the Ki-84's and the TBM's are; kit.py names it <NAME>_dark). */
-const DUPLICATES: readonly { spec: string; model: string; skin: string }[] = [
+const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number }[] = [
   { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark' },
+  { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4 },
 ]
 const TOLERANCE_M = 0.05
 
-describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin }) => {
+describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3 }) => {
   const spec = loadAircraftSpec(specId)
 
   it('mains on gear.heightM at the stance x, tail on the ground at the stance pitch', async () => {
@@ -32,6 +33,12 @@ describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, mode
     const [c, s] = [Math.cos(stance.tailDownPitchRad), Math.sin(stance.tailDownPitchRad)]
     const lowestAft = pts.filter((p) => p[0] < main[0] - 1).map(([x, y]) => main[1] + (x - main[0]) * s + (y - main[1]) * c).reduce((a, b) => Math.min(a, b))
     expect(Math.abs(lowestAft - main[1]), `tail ${(lowestAft - main[1]).toFixed(3)} m off the ground`).toBeLessThanOrEqual(TOLERANCE_M)
+  })
+
+  it('the wing quarter-chord sits at the origin (the sim body frame stands on it)', async () => {
+    const sec = (await sectionAtFor(model))(station * spec.geometry.wingSpanM / 2)
+    const qc = sec.leadingX - 0.25 * (sec.leadingX - sec.trailingX)
+    expect(Math.abs(qc), `quarter-chord at x ${qc.toFixed(3)} m`).toBeLessThanOrEqual(0.15)
   })
 
   it('every gun position is inside the airframe, propeller excluded', async () => {
