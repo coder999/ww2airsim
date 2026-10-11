@@ -189,6 +189,7 @@ export function damagedSpec(spec: AircraftSpec, damage: Damage, engine: number |
   const outputs = typeof engine === 'number' ? null : engine
   const power = typeof engine === 'number' ? engine : mean(engine)
   const yaw = outputs === null ? 0 : asymmetricThrustYaw(spec, outputs)
+  const healthyMaxYawRate = spec.rates.maxYawRateDegPerSec
   if (power === 1 && yaw === 0 && damage.roll === 1 && damage.pitch === 1 && damage.yaw === 1) return spec
   return {
     ...spec,
@@ -199,6 +200,11 @@ export function damagedSpec(spec: AircraftSpec, damage: Damage, engine: number |
       maxPitchRateDegPerSec: spec.rates.maxPitchRateDegPerSec * damage.pitch,
       maxYawRateDegPerSec: spec.rates.maxYawRateDegPerSec * damage.yaw,
     },
-    ...(yaw === 0 ? {} : { asymmetricThrustYaw: yaw }),
+    // Capture both values before `damage.yaw` scales rudder authority above.
+    // Engine-out thrust exists independently of damage to the yaw-control
+    // system, while the healthy airframe's rate remains the combined cap.
+    ...(yaw === 0 ? {} : { asymmetricThrustYaw: {
+      rateDegPerSec: yaw * healthyMaxYawRate, maxRateDegPerSec: healthyMaxYawRate,
+    } }),
   }
 }

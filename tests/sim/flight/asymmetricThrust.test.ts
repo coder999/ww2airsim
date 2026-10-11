@@ -8,7 +8,10 @@ import { flatField } from '../mission/fixture.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 
 const base = loadAircraftSpec('g4m-betty')
-const portDead = { ...base, asymmetricThrustYaw: 0.5 }
+const portDead = {
+  ...base,
+  asymmetricThrustYaw: { rateDegPerSec: base.rates.maxYawRateDegPerSec * 0.5, maxRateDegPerSec: base.rates.maxYawRateDegPerSec },
+}
 const airborne = createState({ position: v3(0, 2000, 0), velocity: v3(base.rates.rateRefSpeedMps, 0, 0) })
 const controls = (yaw: number, throttle = 1): Controls => ({ roll: 0, pitch: 0, yaw, throttle })
 
@@ -34,9 +37,20 @@ describe('asymmetric thrust in the rate-command flight model', () => {
     expect(after.bodyRates.y).toBeCloseTo(0, 12)
   })
 
+  it('uses the healthy maximum as the combined cap after yaw-control damage', () => {
+    const damaged = {
+      ...portDead,
+      rates: { ...portDead.rates, maxYawRateDegPerSec: base.rates.maxYawRateDegPerSec * 0.8 },
+    }
+    // Negative control yaw commands the same body +Y direction as this port
+    // loss. The 0.8 rudder rate plus 0.5 engine-out rate caps at healthy 1.0.
+    const after = step(damaged, airborne, controls(-1), { dt: DT, tick: 1 })
+    expect(after.bodyRates.y).toBeCloseTo(base.rates.maxYawRateDegPerSec * Math.PI / 180, 12)
+  })
+
   it('leaves healthy flight bit-identical when the transient field is absent', () => {
     const before = step(base, airborne, controls(0.2), { dt: DT, tick: 1 })
-    const explicitZero = step({ ...base, asymmetricThrustYaw: 0 }, airborne, controls(0.2), { dt: DT, tick: 1 })
+    const explicitZero = step({ ...base, asymmetricThrustYaw: { rateDegPerSec: 0, maxRateDegPerSec: base.rates.maxYawRateDegPerSec } }, airborne, controls(0.2), { dt: DT, tick: 1 })
     expect(explicitZero).toStrictEqual(before)
   })
 

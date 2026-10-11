@@ -12,13 +12,17 @@ the mean too early. `damagedSpec` still uses that mean for summed power, and sep
 signed, normalized moment from each indexed engine hit zone's lateral arm.
 
 The rate-command flight model converts that fraction into a bounded yaw-rate contribution with the
-existing maximum yaw rate, throttle and dynamic-pressure authority. Ordinary rudder, auto-rudder and
-AI feedback can oppose it. The ground seam removes only the new engine-out contribution; ordinary
-aerodynamic/weathercock yaw remains intact.
+undamaged maximum yaw rate, throttle and dynamic-pressure authority. The absolute bias and healthy
+cap are captured before damage scales ordinary yaw-control authority, so coincident rudder/yaw damage
+cannot reduce or erase engine-out thrust. Ordinary rudder, auto-rudder and AI feedback can oppose it.
+The ground seam removes only the new engine-out contribution; ordinary aerodynamic/weathercock yaw
+remains intact.
 
-Healthy and symmetric multi-engine flight returns the original spec object and takes the old flight
-path. Single-engine damage takes the old scalar path exactly. No JSON schema or duplicated engine
-position list was added: the transient `AircraftSpec.asymmetricThrustYaw` field is TypeScript-only.
+Fully healthy output returns the original spec object. Symmetric degraded output still derives its
+existing mean-power spec but adds no yaw field. Production now passes the output vector for every
+aircraft; a single-engine vector derives no bias and is regression-tested against the scalar direct
+call for equal results. No JSON schema or duplicated engine-position list was added: the transient
+`AircraftSpec.asymmetricThrustYaw` field is TypeScript-only.
 
 ## Measured result
 
@@ -41,13 +45,19 @@ curves.
 ## Tests and verification
 
 - `tests/sim/damage/stages.test.ts` enrolls all five multi-engine aircraft. It holds exact healthy
-  identity, equal/opposite failed-side signs, outer-over-inner four-engine leverage, the unchanged
-  single-engine path, and the production `advance` wiring.
+  identity, equal/opposite failed-side signs, outer-over-inner four-engine leverage, scalar/vector
+  single-engine result equivalence, and the production `advance` wiring. Port and starboard losses
+  retain the same signed bias with partial or zero yaw-control health.
 - `tests/sim/flight/asymmetricThrust.test.ts` holds nose direction, exact opposite-rudder cancellation
-  for a symmetric twin at zero sideslip, closed-throttle suppression, absent-versus-zero bit identity,
-  and airborne-only behavior at the wheel-contact seam.
+  for a symmetric twin at zero sideslip, the healthy combined cap after yaw-control damage,
+  closed-throttle suppression, absent-versus-zero bit identity, and airborne-only behavior at the
+  wheel-contact seam.
 - Tests-first checkpoint: the two focused files initially had 11 expected failures; after the
   implementation they pass 44/44.
+- Review follow-up: new production regressions first failed on both port and starboard losses
+  (40% yaw-control health reduced the bias to 40%; zero erased it). After separating the transient
+  bias/bound from damaged control authority, the focused files pass **46/46**, including partial and
+  zero yaw-control health; `npx tsc --noEmit`, focused ESLint and `git diff --check` also pass.
 - `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` was run twice. Typecheck, lint and depcruise
   were clean both times. Each full suite reached **5,708 passed, 11 skipped**, with no assertion
   failures, but the shared runner was concurrently rebuilding models and a different pair of

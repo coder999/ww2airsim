@@ -113,9 +113,11 @@ tracks each indexed engine's output. In the air, unequal output produces a
 signed yaw-rate bias from the engine hit zones' lateral arms; an outboard
 four-engine loss therefore has more leverage than an inboard loss. Throttle
 and the existing dynamic-pressure authority scale the bias, and ordinary
-rudder, auto-rudder and AI feedback can oppose it. Healthy, symmetric and
-single-engine paths remain unchanged. This is not a per-engine force or
-inertia model: feathering/windmilling drag, explicit AI trim, and engine-out
+rudder, auto-rudder and AI feedback can oppose it. Damage to yaw-control
+authority does not reduce this separate thrust effect; their combined rate is
+capped at the healthy maximum. Healthy flight stays exact, while symmetric and
+single-engine output add no yaw bias. This is not a per-engine force or inertia
+model: feathering/windmilling drag, explicit AI trim, and engine-out
 yaw on the runway remain deferred.
 
 ### D7. Payload

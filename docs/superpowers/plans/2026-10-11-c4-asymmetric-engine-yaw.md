@@ -22,7 +22,7 @@ power yaws toward the weaker side instead of losing only the average share of it
   take-off, landing and taxi.
 - Existing auto-rudder and AI feedback may counter the yaw. Add no explicit engine-out trim logic.
 - Defer windmilling-propeller drag, explicit AI engine-out behavior and ground/take-off asymmetry.
-- Healthy, symmetric and single-engine flight must remain bit-identical.
+- Healthy flight and the flight results of symmetric or single-engine output must remain bit-identical.
 
 ## What is in the code
 
@@ -37,8 +37,8 @@ power yaws toward the weaker side instead of losing only the average share of it
 ## Design
 
 `engineOutputs` remains the one deterministic source of per-engine power. `damagedSpec` accepts that
-vector in addition to its existing scalar-compatible/default path, keeps scaling summed power by the
-mean, and derives a transient flight-only asymmetry value on the returned `AircraftSpec`:
+vector in addition to its scalar-compatible direct-call form, keeps scaling summed power by the mean,
+and derives a transient flight-only asymmetry value on the returned `AircraftSpec`:
 
 ```text
 arm imbalance = sum(engine lateral z * engine output)
@@ -53,10 +53,12 @@ toward a dead port engine, and vice versa.
 
 The transient value is added to `AircraftSpec`'s TypeScript-only extension, beside `storesLoad`; it is
 not legal JSON content and adds no new duplicated engine-location data. `step` converts it to a yaw
-rate by multiplying by throttle, existing yaw-rate authority and the aircraft's existing maximum yaw
-rate. It then adds that rate beside the weathercock term, before the ground override. The existing
-ground seam removes that contribution. The existing maximum yaw rate is also the bound: natural imbalance plus pilot rudder and weathercock cannot make
-this simplified model rotate faster merely because a new contributor exists.
+rate by multiplying by throttle and existing dynamic-pressure authority. The transient spec captures
+the absolute bias and healthy maximum before `damage.yaw` scales ordinary rudder authority, so a
+damaged or missing yaw-control system cannot weaken engine-out thrust. It then adds that rate beside
+the weathercock term, before the ground override. The existing ground seam removes that contribution.
+The healthy maximum yaw rate is also the combined bound: natural imbalance plus pilot rudder and
+weathercock cannot make this simplified model rotate faster merely because a new contributor exists.
 
 The effect uses actual per-tick engine outputs, so an independently sputtering engine produces a
 deterministic intermittent yaw. At closed throttle the asymmetric-thrust rate is zero. No extra drag
@@ -73,7 +75,7 @@ is charged to a dead propeller in this plan.
 4. Extend the TypeScript-only `AircraftSpec` shape with the transient asymmetry field.
 5. Carry `engineOutputs` through `loop.ts`; derive the normalized signed arm imbalance in
    `damagedSpec`; add the bounded airborne rate in `flight/model.ts`.
-6. Protect the unchanged paths: healthy/symmetric multi-engine, healthy single-engine and damaged
+6. Protect unchanged results: healthy/symmetric multi-engine, healthy single-engine and damaged
    single-engine behavior stay exact; determinism and finite-state tests stay green.
 7. Update `docs/aircraft.md` D6 to describe summed baseline power plus independent engine damage and
    asymmetric handling. Close the C4 open item in `MASTER_PLAN.md` without duplicating the plan.
