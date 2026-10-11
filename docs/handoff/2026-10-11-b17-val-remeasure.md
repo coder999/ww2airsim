@@ -84,5 +84,6 @@ check.
 
 ## Viewing
 
-Not merged at writing; see the commit log for whether it reached `main`. Once on `main`, both appear in the
-Hangar at `ww2airsim.windomlane.org`.
+Fast-forwarded into local `main` 2026-10-11 (`b8bc0b88`, `aebe8d4f`), not pushed: `main` already carried
+other sessions' unpushed commits. Both models show in the Hangar at `ww2airsim.windomlane.org` (up, HTTP 200),
+listed beside their downloads under their `*-blender` ids.
