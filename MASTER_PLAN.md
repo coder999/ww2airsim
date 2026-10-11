@@ -87,9 +87,10 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 - **Blender fighter duplicates merged 2026-10-11:** original Hellcat, Corsair and Wildcat models sit beside their downloads in the
   Hangar. A photo-guided Hellcat follow-up replaces the rounded canopy with its steep windscreen and straight descending roof, with a
   dedicated close side capture for review. Handoff `docs/handoff/2026-10-11-blender-fighter-duplicates.md`.
-- **External-aircraft Blender comparison set complete on its worktree, 2026-10-11:** A6M2, B-17G, D3A2 and Ki-43-IIb alternatives
-  join the Hellcat, Corsair and Wildcat alternatives. All seven sit beside their downloads in the Hangar, use one Commons
-  orthographic family where available, and remain display-only until reviewed; no flying spec was promoted. Plan
+- **External-aircraft Blender comparison set merged, 2026-10-11:** A6M2, B-17G, D3A2 and Ki-43-IIb alternatives
+  join the Hellcat, Corsair and Wildcat alternatives. All seven retain separate `*-blender` ids beside their legacy downloads
+  in the main Hangar, use one Commons orthographic family where available, and remain display-only until reviewed; no flying spec
+  was promoted. Remove any rejected duplicate later by its distinct library/model id. Plan
   `docs/superpowers/plans/2026-10-11-fleet-blender-rebuild.md`; handoff `docs/handoff/2026-10-11-fleet-blender-rebuild.md`.
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.

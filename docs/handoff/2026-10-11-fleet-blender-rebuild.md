@@ -9,7 +9,7 @@ The seven downloaded aircraft now each have an original, deterministic Blender-p
 - Base: `main` at `863c290e`
 - Live review: `https://ww2airsim-2.windomlane.org/hangar.html?bench`
 - Captures: `docs/handoff/2026-10-11-fleet-blender-rebuild-shots/` (51 PNGs: seven paired aircraft in seven views, plus two Hellcat canopy close-ups)
-- Delivery status: committed and pushed; not merged and not deployed
+- Delivery status: merged into `main` and pushed; not deployed. Every legacy download and Blender alternative retains a distinct id so individual duplicates can be removed after visual review.
 
 The Hangar pairs are:
 
