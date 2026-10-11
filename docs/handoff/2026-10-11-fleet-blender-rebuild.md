@@ -5,11 +5,12 @@
 The seven downloaded aircraft now each have an original, deterministic Blender-path alternative in the Hangar. The alternatives are display-only and sit beside the existing downloads for direct review; no aircraft spec, flight model, eye point, weapon, store mount, stance, or mission was changed.
 
 - Branch: `codex/fleet-blender-rebuild`
-- Worktree: `/home/mark/projects/ww2airsim-fleet-rebuild`
+- Source worktree: `/home/mark/projects/ww2airsim-fleet-rebuild` (retired after merge)
 - Base: `main` at `863c290e`
-- Live review: `https://ww2airsim-2.windomlane.org/hangar.html?bench`
+- Live review: `https://ww2airsim.windomlane.org/hangar.html?bench`
 - Captures: `docs/handoff/2026-10-11-fleet-blender-rebuild-shots/` (51 PNGs: seven paired aircraft in seven views, plus two Hellcat canopy close-ups)
 - Delivery status: merged into `main` and pushed; not deployed. Every legacy download and Blender alternative retains a distinct id so individual duplicates can be removed after visual review.
+- Cleanup: the temporary slot-2 review server and merged source worktree were retired after this documentation update; the committed captures remain the durable visual record.
 
 The Hangar pairs are:
 
@@ -58,7 +59,7 @@ Two stale Hangar test assumptions were corrected while exercising the full roste
 
 ## Review and next decision
 
-Use the live Hangar's Origin filter or the paired cards to compare the download and Blender versions. The existing downloads remain the models used in missions, deliberately separating the visual decision from flight and combat fit.
+Use the main Hangar's Origin filter or the paired cards to compare the download and Blender versions. The existing downloads remain the models used in missions, deliberately separating the visual decision from flight and combat fit.
 
 If a Blender alternative is approved for promotion, handle it as a separate aircraft-by-aircraft change: point the spec at the alternative, remeasure stores, validate the eye point and stance, remove its display-only duplicate status, and rerun the graded flight cards. The first promotion should also verify and update the promotion checklist in `docs/blender-aircraft.md`; that checklist is derived from current code paths but has not yet been exercised end to end.
 

@@ -115,6 +115,19 @@ Everything the download it may replace has, because the game draws a flyable air
    `E2E_CAPTURE=1 E2E_CAPTURE_DIR=<dir> ... tests/e2e/blenderDuplicatesCapture.spec.ts`, writes each duplicate
    next to its download, gear down and up.
 
+## Keeping comparison duplicates
+
+A comparison pass is additive. Keep the legacy Library card and GLB unchanged, and give the candidate one stable id with a
+`-blender` suffix across its Blender script, manifest entry, generated GLB, rig row and Library card. The candidate card has
+`model` but no `spec`, so the Hangar labels it display-only while missions continue to resolve the legacy id. Merge both ids to
+`main`: do not overwrite the download merely to make the comparison convenient. This is the convention used by the seven-aircraft
+fleet review in `docs/handoff/2026-10-11-fleet-blender-rebuild.md`.
+
+The separate id is also the cleanup seam. After review, find every occurrence with `rg -n '<id>'` and remove only that candidate's
+Library card, generated GLB, Blender script, manifest entry, rig/test enrollment and asset-ledger rows. Keep shared kit changes and
+source-method documentation. Then rerun the duplicate, rig, catalog and roster checks. Promotion is different from removal and
+follows the next section; it deliberately changes the flying spec.
+
 ## Promoting a duplicate
 
 A duplicate is shown, not flown. To fly it, replace the download in one change. **This list is derived from the
