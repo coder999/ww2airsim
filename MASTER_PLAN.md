@@ -163,9 +163,10 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
-   - wingman commands (7f §4.5);
-   - the 7c list (no stall guard, 70° bank cap, 20 s latch cap);
-   - `disengageThreshold` unread (7b).
+   - ~~wingman commands (7f §4.5)~~ **Built on branch, not merged (E4, 2026-10-10):** `1` Attack, `2` Cover me, `3` Form up, with text-only radio answers.
+   - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Built on branch, not merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran, a 40 s attack-run latch. The E1 duels resolve 33 of 72, from 18.
+   - ~~`disengageThreshold` unread (7b)~~ **Deleted (E4):** `energyDiscipline` already is the energy disengage.
+   - E4: plan `docs/superpowers/plans/2026-10-10-e4-ai-fixes.md`; handoff `docs/handoff/2026-10-10-e4-ai-fixes.md`; branch `worktree-agent-a35670f0d4dd2f8bc`.
 
 ### Track F: Missions and a campaign (M then L)
 
