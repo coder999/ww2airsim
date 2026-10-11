@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt' | 'escort'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt' | 'escort' | 'surigao-strait'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -57,7 +57,8 @@ const figureRows = (root: Locator) =>
  */
 async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
   const s = loadScenario(id)
-  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: label, exact: true }).check()
+  const choices = title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio')
+  await choices.filter({ has: title.getByText(label, { exact: true }) }).click()
   const briefing = title.getByRole('region', { name: 'Briefing' })
   const firstSentence = s.briefing!.situation.split(/(?<=\.) /)[0]!
   await expect(briefing).toContainText(firstSentence)
@@ -79,6 +80,7 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
   if (id === 'tutorial') return `b4-tutorial-${what}.png`
   if (id === 'flattop-hunt') return `f-flattop-hunt-${what}.png`
   if (id === 'escort') return `f-escort-${what}.png`
+  if (id === 'surigao-strait') return `f-surigao-strait-${what}.png`
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
@@ -236,6 +238,28 @@ test('Escort: briefing, HANGARS 0/1, bomber lead call, chart; into the sea earns
     ['Recover', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
+})
+
+test('Surigao Strait: briefing, MOGAMI 0/1, pursuit call, chart; into the sea earns no badge', async ({ page }) => {
+  const id = 'surigao-strait'
+  const title = await orders(page, 'Surigao Strait Pilot')
+  const s = await briefingFor(page, title, id, 'Surigao Strait')
+  await launched(page, title, id, async (t) => {
+    await expect(t.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Both' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  await expect(objectiveLine(page)).toHaveText('MOGAMI 0/1')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+
+  await diveToSea(page)
+  await debriefShows(page, id, [
+    ['Mogami', 'INCOMPLETE'],
+    ['Rear guard (secondary)', 'INCOMPLETE'],
+    ['Recover', 'INCOMPLETE'],
+    ['Badge', 'Killed — no badge'],
+  ])
+  expect(await reasonRows(debriefDialog(page))).toEqual(['Mogami: incomplete', 'Recover: incomplete'])
 })
 
 test('Carrier Qualification: briefing, LAUNCH, Paddles call, chart; a deck run to DOWNWIND, then into the sea', async ({ page }) => {

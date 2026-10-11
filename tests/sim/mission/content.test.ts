@@ -37,8 +37,8 @@ describe('every shipped scenario', () => {
  *  reconstruction, with sources a player can actually look up. `dev-mission-*`
  *  fixtures are excluded by their `dev-` prefix; they are not shipped content. */
 describe('every mission is honest content', () => {
-  it('found the nine shipped missions', () => {
-    expect(MISSION_IDS).toEqual(['airfield-strike', 'combat-air-patrol', 'convoy-strike', 'deck-quals-mission', 'escort', 'flattop-hunt', 'scramble', 'single-combat', 'tutorial'])
+  it('found the ten shipped missions', () => {
+    expect(MISSION_IDS).toEqual(['airfield-strike', 'combat-air-patrol', 'convoy-strike', 'deck-quals-mission', 'escort', 'flattop-hunt', 'scramble', 'single-combat', 'surigao-strait', 'tutorial'])
   })
 
   it.each(MISSION_IDS)('%s cites lookupable, non-empty sources', (id) => {

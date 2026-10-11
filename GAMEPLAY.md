@@ -499,12 +499,13 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped today** (`content/scenarios/`, checked 2026-10-10) are the
+**Shipped on the Surigao branch** (`content/scenarios/`, checked 2026-10-11) are the
 sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus nine real missions: **Basic Flying**, **Deck Quals**
+others — plus ten real missions: **Basic Flying**, **Deck Quals**
 ("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
-Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt** and **Escort**. Each declares real objectives,
+Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt**, **Escort** and
+**Surigao Strait**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
@@ -512,7 +513,17 @@ checks the briefing, objective line, radio, chart and debrief). Open items are i
 (`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`),
 the F2 handoff (`docs/handoff/2026-10-09-f2-single-combat-scramble.md`) and
 the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`) and
-the Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`).
+the Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`) and Surigao
+handoff (`docs/handoff/2026-10-11-surigao-strait-mission.md`).
+
+**Surigao Strait** (Track F, 2026-10-11) is a dawn-aftermath mission. *Fuso*
+and *Yamashiro* are already sunk. The player's F6F carries both bombs and
+rockets, pursues *Mogami* south while an American battle line exchanges real
+main-battery fire with a representative rear guard, then recovers aboard a
+staged Essex. Explicit surface-fire orders and separation keep the battle
+line from completing the player's *Mogami* objective. The roster and carrier
+compress several real formations and hours of the 25 October pursuit; the
+briefing and cited history call out that abstraction.
 
 **Escort** (Track F, 2026-10-10) is item 4 above, as Mark decided it: the
 player's Hellcat escorts four B-17s to Dulag's hangars while four Zeros

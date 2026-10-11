@@ -1,0 +1,120 @@
+{
+  "id": "surigao-strait",
+  "player": "f6f-1",
+  "airfields": ["tacloban"],
+  "mainBatteries": true,
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [9000, 1500, 78000],
+        "headingDeg": 176,
+        "speedMps": 120
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "cv-1", "spec": "essex-cv", "side": "allied",
+      "waypoints": [[-2000, 43000], [-1000, 42000], [0, 43000], [-1000, 44000]], "speedMps": 7.717
+    },
+    {
+      "id": "old-battle-1", "spec": "pennsylvania-bb", "side": "allied",
+      "tags": ["battle-line"],
+      "waypoints": [[5000, 56000], [5000, 64000], [6500, 64000], [6500, 56000]], "speedMps": 8,
+      "fireAt": ["abukuma", "shigure", "rear-destroyer"]
+    },
+    {
+      "id": "cruiser-1", "spec": "cleveland-cl", "side": "allied",
+      "tags": ["battle-line"],
+      "waypoints": [[4500, 55500], [4500, 63500], [6000, 63500], [6000, 55500]], "speedMps": 8,
+      "fireAt": ["abukuma", "shigure", "rear-destroyer"]
+    },
+    {
+      "id": "destroyer-1", "spec": "fletcher-dd", "side": "allied",
+      "tags": ["battle-line"],
+      "waypoints": [[3500, 55000], [3500, 63000], [5000, 63000], [5000, 55000]], "speedMps": 8,
+      "fireAt": ["abukuma", "shigure", "rear-destroyer"]
+    },
+    {
+      "id": "abukuma", "spec": "abukuma-cl", "side": "axis",
+      "tags": ["rear-guard"],
+      "waypoints": [[6000, 68000], [6000, 76000], [7500, 76000], [7500, 68000]], "speedMps": 8,
+      "fireAt": ["old-battle-1", "cruiser-1", "destroyer-1"]
+    },
+    {
+      "id": "shigure", "spec": "shiratsuyu-dd", "side": "axis",
+      "tags": ["rear-guard"],
+      "waypoints": [[5000, 67500], [5000, 75500], [6500, 75500], [6500, 67500]], "speedMps": 8,
+      "fireAt": ["old-battle-1", "cruiser-1", "destroyer-1"]
+    },
+    {
+      "id": "rear-destroyer", "spec": "kagero-dd", "side": "axis",
+      "tags": ["rear-guard"],
+      "waypoints": [[7000, 68500], [7000, 76500], [8500, 76500], [8500, 68500]], "speedMps": 8,
+      "fireAt": ["old-battle-1", "cruiser-1", "destroyer-1"]
+    },
+    {
+      "id": "mogami", "spec": "mogami-ca", "side": "axis",
+      "tags": ["pursuit"],
+      "waypoints": [[10000, 92000], [10000, 98000], [12000, 98000], [12000, 92000]], "speedMps": 10
+    }
+  ],
+  "weather": {
+    "windFromDeg": 30,
+    "windMps": 3,
+    "timeOfDay": 6.5,
+    "clouds": [
+      { "kind": "cumulus", "baseM": 1200, "thicknessM": 500, "coverage": 0.25 },
+      { "kind": "cirrus", "baseM": 7000, "thicknessM": 300, "coverage": 0.2 }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "mogami", "label": "Mogami", "priority": "primary", "kind": "destroy", "targets": ["mogami"]
+    },
+    {
+      "id": "rear-guard", "label": "Rear guard", "priority": "secondary", "kind": "destroy",
+      "targets": ["rear-guard"], "count": 2
+    },
+    {
+      "id": "home", "label": "Recover", "priority": "primary", "kind": "land", "at": "cv-1", "after": "mogami"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "pursuit-call",
+      "when": { "at": 1 },
+      "then": [
+        { "message": "Strike lead: Mogami is retiring south through the strait. Battle line has the rear guard; finish the cruiser." }
+      ]
+    },
+    {
+      "id": "rear-guard-broken",
+      "when": { "completed": "rear-guard" },
+      "then": [
+        { "message": "Oldendorf: rear guard is broken. Keep after Mogami." }
+      ]
+    },
+    {
+      "id": "mogami-down",
+      "when": { "completed": "mogami" },
+      "then": [
+        { "message": "Strike lead: Mogami is finished. Turn north and recover aboard Essex." }
+      ]
+    }
+  ],
+  "badge": { "id": "surigao-strait", "name": "Surigao Strait" },
+  "briefing": {
+    "situation": "First light over Surigao Strait. Oldendorf's battle line is finishing the scattered rear guard, but the damaged cruiser Mogami is escaping south. You are airborne in a bomb-and-rocket Hellcat. Pursue and sink Mogami, then turn north and recover aboard Essex.",
+    "loadout": "both"
+  },
+  "history": {
+    "text": "In the early hours of 25 October 1944, Rear Admiral Jesse Oldendorf's battleships, cruisers and destroyers shattered Vice Admiral Shoji Nishimura's Southern Force in Surigao Strait. Fuso and Yamashiro were already sunk by dawn; Mogami and Shigure escaped the gun line, while Abukuma withdrew with Vice Admiral Kiyohide Shima's force. After sunrise, aircraft from U.S. escort carriers attacked the retiring ships, and later strikes pounded the crippled Mogami. This mission is inspired by that dawn pursuit rather than a reconstruction: its representative survivors, Hellcat and staged Essex compress separate forces and hours of action into one sortie.",
+    "sources": [
+      "Naval History and Heritage Command, H-Gram 038-2, \"Leyte Gulf in Detail\" (2019), Battle of Surigao Strait: https://www.history.navy.mil/about-us/leadership/director/directors-corner/h-grams/h-gram-038/h-038-2.html",
+      "Naval History and Heritage Command, Dictionary of American Naval Fighting Ships, \"Manila Bay (CVE-61)\" (the dawn pursuit and strikes on Mogami): https://www.history.navy.mil/research/histories/ship-histories/danfs/m/manila-bay.html"
+    ]
+  }
+}

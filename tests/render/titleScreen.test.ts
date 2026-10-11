@@ -119,7 +119,7 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
-      'flattop-hunt', 'escort', 'dev-mission-ui', 'dev-mission-circuit',
+      'flattop-hunt', 'escort', 'surigao-strait', 'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -147,6 +147,7 @@ describe('the title screen scenario picker', () => {
     expect(labels['single-combat']).toBe('Single Combat')
     expect(labels['flattop-hunt']).toBe('Flattop Hunt')
     expect(labels.escort).toBe('Escort')
+    expect(labels['surigao-strait']).toBe('Surigao Strait')
   })
 
   it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
@@ -165,6 +166,7 @@ describe('the title screen scenario picker', () => {
         ['single-combat', { id: 'single-combat', name: 'Single Combat' }],
         ['flattop-hunt', { id: 'flattop-hunt', name: 'Flattop Hunt' }],
         ['escort', { id: 'escort', name: 'Escort' }],
+        ['surigao-strait', { id: 'surigao-strait', name: 'Surigao Strait' }],
       ])
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })

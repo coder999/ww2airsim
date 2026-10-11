@@ -62,6 +62,10 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   "Bomber lead: bandits, eleven o'clock high, fifteen miles. Four Zeros.": null,
   'Bomber lead: bombs away, hangars burning. Thanks for the ride, little friend.': null,
   "Bomber lead: we've lost two ships.": null,
+  // Surigao Strait (2026-10-11): no recordings; the dawn-pursuit calls stay text-only.
+  'Strike lead: Mogami is retiring south through the strait. Battle line has the rear guard; finish the cruiser.': null,
+  'Oldendorf: rear guard is broken. Keep after Mogami.': null,
+  'Strike lead: Mogami is finished. Turn north and recover aboard Essex.': null,
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',
