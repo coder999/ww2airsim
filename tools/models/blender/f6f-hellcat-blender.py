@@ -53,38 +53,40 @@ PROP_DIAMETER = 3.99
 TAPER = 0.42
 DIHEDRAL_DEG = 2.5
 UPPER = 'seaBlue'
-NOSE_X = 0.283                # spinner tip ahead of the origin, of LENGTH
+NOSE_X = 0.2959                # spinner tip ahead of the origin, of LENGTH
 WING_Y = -0.050               # wing root chord line below the thrust line, of LENGTH
 # (x aft of the spinner tip, half-width, half-height, center y, exponent), tail to nose; of LENGTH
+# Read off the real airplane's three-view (English Wikipedia, Commons 'Grumman F6F Hellcat 3-view line drawing', 'Vought F4U-1 Corsair 3-view',
+# 'Grumman F4F Wildcat 3-view line drawing', measured 2026-10-11): (d aft of the spinner tip, half-width, half-height, center y), all of LENGTH.
 FUSELAGE = [
-    (0.996, 0.002, 0.011, 0.050, 2.0),
-    (0.940, 0.010, 0.034, 0.044, 2.0),
-    (0.869, 0.020, 0.067, 0.019, 2.1),
-    (0.791, 0.029, 0.076, 0.012, 2.2),
-    (0.674, 0.041, 0.084, 0.011, 2.2),
-    (0.527, 0.054, 0.090, 0.012, 2.3),
-    (0.381, 0.059, 0.087, 0.009, 2.3),
-    (0.312, 0.062, 0.083, 0.005, 2.2),
-    (0.254, 0.063, 0.081, 0.003, 2.2),
-    (0.220, 0.064, 0.079, 0.003, 2.1),
-    (0.186, 0.067, 0.074, 0.000, 2.1),
-    (0.117, 0.070, 0.071, 0.000, 2.0),
-    (0.068, 0.068, 0.068, 0.000, 2.0),
-    (0.039, 0.062, 0.062, 0.000, 2.0),
-    (0.027, 0.049, 0.049, 0.000, 2.0),
-    (0.018, 0.033, 0.033, 0.000, 2.0),
+    (1.0000, 0.0039, 0.0171, 0.0024, 2.2),
+    (0.9766, 0.0088, 0.0283, 0.0010, 2.2),
+    (0.8789, 0.0215, 0.0508, -0.0039, 2.2),
+    (0.7812, 0.0342, 0.0620, -0.0083, 2.2),
+    (0.6836, 0.0420, 0.0781, -0.0029, 2.2),
+    (0.5859, 0.0508, 0.0933, 0.0044, 2.2),
+    (0.5078, 0.0586, 0.1057, 0.0105, 2.2),
+    (0.4492, 0.0648, 0.1076, 0.0096, 2.2),
+    (0.3906, 0.0713, 0.1047, 0.0047, 2.2),
+    (0.3320, 0.0736, 0.1025, 0.0010, 2.2),
+    (0.2637, 0.0752, 0.0986, -0.0029, 2.2),
+    (0.1953, 0.0752, 0.0952, -0.0063, 2.0),
+    (0.1465, 0.0754, 0.0881, -0.0061, 2.0),
+    (0.0977, 0.0757, 0.0811, -0.0059, 2.0),
+    (0.0781, 0.0723, 0.0723, 0.0000, 2.0),
+    (0.0537, 0.0488, 0.0537, 0.0000, 2.0),
 ]
 # The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
 # windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
-CANOPY = [(-1.55, 0.10, 1.02), (-1.30, 0.30, 1.18), (-1.00, 0.42, 1.26), (-0.70, 0.45, 1.28), (-0.35, 0.42, 1.20), (-0.10, 0.32, 1.04), (0.04, 0.20, 0.90)]
-CANOPY_BASE = 0.8
-CANOPY_FRAMES = (-1.2, -0.95, -0.7, -0.45, -0.2)
-TAILPLANE = dict(span=0.345, le=0.850, root=0.130, taper=0.50, y=0.010, sweep=6.0)  # span of SPAN; the rest of LENGTH
-FIN = dict(root=0.175, taper=0.42, height=0.105, y=0.045)                           # trailing edge at the tail
+CANOPY = [(-2.17, 0.12, 1.19), (-1.87, 0.26, 1.24), (-1.57, 0.38, 1.32), (-1.27, 0.42, 1.43), (-0.97, 0.42, 1.46), (-0.67, 0.42, 1.4), (-0.42, 0.34, 1.22), (-0.27, 0.2, 1.06)]
+CANOPY_BASE = 0.95
+CANOPY_FRAMES = (-1.47, -1.17, -0.87, -0.57)
+TAILPLANE = dict(span=0.45, le=0.8105, root=0.166, taper=0.56, y=0.011, sweep=13.6)  # span of SPAN; the rest of LENGTH
+FIN = dict(root=0.195, taper=0.4, height=0.137, y=0.049)                           # trailing edge at the tail
 PROP = dict(hub=0.030, chord=0.023, spinner_r=0.026, spinner_len=0.040)             # hub = 0.75 x spinner_len
 # x, z, wheel of LENGTH or SPAN; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin.
 GEAR = dict(x=0.62, z=0.118, bottom=2.42, wheel_r=0.345, wheel_w=0.20)
-TAILWHEEL = dict(x=-6.0, y=0.0, bottom=1.318, wheel_r=0.15, wheel_w=0.08)           # x, hinge y, bottom: m
+TAILWHEEL = dict(x=-6.0, y=-0.55, bottom=1.318, wheel_r=0.15, wheel_w=0.08)           # x, hinge y, bottom: m
 
 SEGMENTS = 96
 SUBDIVIDE = 6
@@ -216,7 +218,7 @@ with m.tagged('fittings'), m.shared_chart():
     pz = -6.2
     m.strut('dark', (le_x(pz) - 0.10, wing_y(pz), pz), (le_x(pz) + 0.40, wing_y(pz), pz), 0.009, sides=6)
     # Antenna mast aft of the canopy, raked aft.
-    m.strut('dark', (X(0.56), fus_top_y(0.56, 0.0) - 0.04, 0.0), (X(0.58), fus_top_y(0.56, 0.0) + 0.42, 0.0), 0.014, 0.007, sides=6)
+    m.strut('dark', (X(0.488), fus_top_y(0.488, 0.0) - 0.04, 0.0), (X(0.508), fus_top_y(0.488, 0.0) + 0.42, 0.0), 0.014, 0.007, sides=6)
 
 
 def star(r_out):

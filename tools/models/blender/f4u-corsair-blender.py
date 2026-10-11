@@ -63,34 +63,37 @@ ROOT_Y = -0.62                # m, wing root chord line below the thrust line
 ANHEDRAL_DEG = 6.5            # inner panel, root to knee (the panel goes down)
 DIHEDRAL_DEG = 5.4            # outer panel, knee to tip
 UPPER = 'seaBlue'
-NOSE_X = 0.305                # spinner tip ahead of the origin, of LENGTH
+NOSE_X = 0.2797                # spinner tip ahead of the origin, of LENGTH
+# Read off the real airplane's three-view (English Wikipedia, Commons 'Grumman F6F Hellcat 3-view line drawing', 'Vought F4U-1 Corsair 3-view',
+# 'Grumman F4F Wildcat 3-view line drawing', measured 2026-10-11): (d aft of the spinner tip, half-width, half-height, center y), all of LENGTH.
 FUSELAGE = [
-    (1.000, 0.002, 0.006, 0.008, 2.0),
-    (0.939, 0.008, 0.019, 0.009, 2.0),
-    (0.861, 0.018, 0.039, -0.002, 2.1),
-    (0.753, 0.031, 0.052, 0.001, 2.2),
-    (0.636, 0.045, 0.066, 0.010, 2.3),
-    (0.519, 0.054, 0.070, 0.008, 2.3),
-    (0.393, 0.058, 0.065, -0.001, 2.3),
-    (0.266, 0.063, 0.066, -0.002, 2.2),
-    (0.188, 0.063, 0.061, 0.001, 2.1),
-    (0.134, 0.072, 0.065, 0.003, 2.0),
-    (0.052, 0.071, 0.061, 0.005, 2.0),
-    (0.027, 0.064, 0.055, 0.006, 2.0),
-    (0.016, 0.049, 0.043, 0.008, 2.0),
-    (0.009, 0.033, 0.030, 0.009, 2.0),
+    (1.0000, 0.0039, 0.0015, 0.0424, 2.2),
+    (0.9649, 0.0078, 0.0038, 0.0477, 2.2),
+    (0.8772, 0.0166, 0.0180, 0.0453, 2.2),
+    (0.7797, 0.0273, 0.0368, 0.0431, 2.2),
+    (0.6823, 0.0370, 0.0546, 0.0400, 2.2),
+    (0.5848, 0.0448, 0.0724, 0.0367, 2.2),
+    (0.5458, 0.0472, 0.0795, 0.0355, 2.2),
+    (0.4678, 0.0519, 0.0828, 0.0225, 2.2),
+    (0.3899, 0.0565, 0.0802, 0.0101, 2.2),
+    (0.3119, 0.0596, 0.0766, 0.0065, 2.2),
+    (0.2437, 0.0624, 0.0748, 0.0046, 2.2),
+    (0.1852, 0.0702, 0.0714, 0.0051, 2.0),
+    (0.1365, 0.0702, 0.0702, 0.0039, 2.0),
+    (0.0780, 0.0702, 0.0687, 0.0024, 2.0),
+    (0.0487, 0.0487, 0.0439, 0.0000, 2.0),
 ]
 # The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
 # windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
-CANOPY = [(-2.95, 0.15, 0.88), (-2.6, 0.3, 0.93), (-2.2, 0.35, 1.07), (-1.8, 0.35, 1.05), (-1.5, 0.32, 0.9), (-1.2, 0.26, 0.74), (-1.0, 0.18, 0.64)]
-CANOPY_BASE = 0.56
-CANOPY_FRAMES = (-2.4, -2.0, -1.7, -1.35)
-TAILPLANE = dict(span=0.376, le=0.858, root=0.135, taper=0.50, y=0.004, sweep=6.0)  # span of SPAN; the rest of LENGTH
-FIN = dict(root=0.170, taper=0.45, height=0.178, y=0.030)                           # trailing edge at the tail
+CANOPY = [(-2.68, 0.14, 1.17), (-2.43, 0.3, 1.21), (-2.13, 0.38, 1.28), (-1.83, 0.4, 1.32), (-1.53, 0.4, 1.28), (-1.23, 0.32, 1.08), (-1.08, 0.18, 0.93)]
+CANOPY_BASE = 0.82
+CANOPY_FRAMES = (-2.23, -1.98, -1.68, -1.38)
+TAILPLANE = dict(span=0.4, le=0.8285, root=0.127, taper=0.64, y=0.049, sweep=7.3)  # span of SPAN; the rest of LENGTH
+FIN = dict(root=0.205, taper=0.5, height=0.156, y=0.068)                           # trailing edge at the tail
 PROP = dict(hub=0.030, chord=0.025, spinner_r=0.026, spinner_len=0.040)             # hub = 0.75 x spinner_len
 # x, z, wheel in m; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin.
 GEAR = dict(x=0.418, z=1.80, bottom=2.418, wheel_r=0.41, wheel_w=0.25)
-TAILWHEEL = dict(x=-5.722, y=-0.40, bottom=1.306, wheel_r=0.13, wheel_w=0.08)       # x, hinge y, bottom: m
+TAILWHEEL = dict(x=-5.722, y=0.20, bottom=1.306, wheel_r=0.13, wheel_w=0.08)       # x, hinge y, bottom: m
 
 SEGMENTS = 96
 SUBDIVIDE = 6
@@ -224,7 +227,7 @@ with m.tagged('fittings'), m.shared_chart():
     pz = -5.9
     m.strut('dark', (le_x(pz) - 0.10, wing_y(pz), pz), (le_x(pz) + 0.40, wing_y(pz), pz), 0.009, sides=6)
     # Antenna mast aft of the canopy, raked aft.
-    m.strut('dark', (X(0.62), fus_top_y(0.62, 0.0) - 0.04, 0.0), (X(0.64), fus_top_y(0.62, 0.0) + 0.42, 0.0), 0.014, 0.007, sides=6)
+    m.strut('dark', (X(0.565), fus_top_y(0.565, 0.0) - 0.04, 0.0), (X(0.585), fus_top_y(0.565, 0.0) + 0.42, 0.0), 0.014, 0.007, sides=6)
 
 
 def star(r_out):

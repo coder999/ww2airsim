@@ -62,35 +62,37 @@ TAPER = 0.55
 DIHEDRAL_DEG = 4.0
 ROOT_Y = -0.72                # m, wing root chord line below the thrust line (FITTED: center -0.54 at z 2.66)
 UPPER, LOWER = 'blueGray', 'underside'
-NOSE_X = 0.30                 # spinner tip ahead of the origin, of LENGTH
+NOSE_X = 0.2945                 # spinner tip ahead of the origin, of LENGTH
+# Read off the real airplane's three-view (English Wikipedia, Commons 'Grumman F6F Hellcat 3-view line drawing', 'Vought F4U-1 Corsair 3-view',
+# 'Grumman F4F Wildcat 3-view line drawing', measured 2026-10-11): (d aft of the spinner tip, half-width, half-height, center y), all of LENGTH.
 FUSELAGE = [
-    (1.000, 0.002, 0.007, 0.016, 2.0),
-    (0.939, 0.008, 0.015, 0.015, 2.0),
-    (0.859, 0.019, 0.030, 0.007, 2.1),
-    (0.768, 0.032, 0.045, 0.001, 2.2),
-    (0.665, 0.043, 0.055, -0.004, 2.3),
-    (0.574, 0.050, 0.064, -0.009, 2.3),
-    (0.483, 0.057, 0.070, -0.013, 2.3),
-    (0.368, 0.064, 0.073, -0.011, 2.3),
-    (0.254, 0.071, 0.075, -0.007, 2.2),
-    (0.186, 0.074, 0.075, -0.002, 2.1),
-    (0.117, 0.075, 0.075, 0.000, 2.0),
-    (0.072, 0.074, 0.074, 0.001, 2.0),
-    (0.043, 0.068, 0.067, 0.001, 2.0),
-    (0.026, 0.055, 0.054, 0.001, 2.0),
-    (0.017, 0.037, 0.035, 0.001, 2.0),
+    (1.0000, 0.0057, 0.0245, 0.0303, 2.2),
+    (0.9132, 0.0218, 0.0397, 0.0265, 2.2),
+    (0.8219, 0.0361, 0.0513, 0.0240, 2.2),
+    (0.7420, 0.0457, 0.0571, 0.0183, 2.2),
+    (0.6849, 0.0514, 0.0668, 0.0200, 2.2),
+    (0.6393, 0.0559, 0.0745, 0.0213, 2.2),
+    (0.5708, 0.0639, 0.0879, 0.0251, 2.2),
+    (0.5251, 0.0694, 0.0926, 0.0250, 2.2),
+    (0.4566, 0.0753, 0.0956, 0.0208, 2.2),
+    (0.3653, 0.0799, 0.0964, 0.0120, 2.2),
+    (0.2968, 0.0799, 0.0942, 0.0074, 2.2),
+    (0.2511, 0.0785, 0.0919, 0.0051, 2.2),
+    (0.1826, 0.0776, 0.0870, 0.0032, 2.0),
+    (0.1142, 0.0776, 0.0804, -0.0005, 2.0),
+    (0.0571, 0.0571, 0.0514, 0.0000, 2.0),
 ]
 # The glass, read off the download's canopy node (x, half-width, crown y; tail to nose, meters, 2026-10-11): a raked
 # windscreen, the crown over the eye, a long taper aft into the deck. `base` sinks into the deck.
-CANOPY = [(-2.35, 0.1, 0.5), (-2.1, 0.28, 0.58), (-1.8, 0.35, 0.62), (-1.5, 0.36, 0.61), (-1.2, 0.3, 0.56), (-0.95, 0.18, 0.49)]
-CANOPY_BASE = 0.42
-CANOPY_FRAMES = (-1.9, -1.6, -1.3)
-TAILPLANE = dict(span=0.37, le=0.862, root=0.131, taper=0.50, y=0.026, sweep=5.0)   # span of SPAN; the rest of LENGTH
-FIN = dict(root=0.160, taper=0.45, height=0.115, y=0.022)                           # trailing edge at the tail
+CANOPY = [(-1.87, 0.12, 1.05), (-1.62, 0.24, 1.1), (-1.32, 0.31, 1.17), (-0.92, 0.35, 1.24), (-0.47, 0.35, 1.24), (-0.27, 0.3, 1.1), (-0.12, 0.18, 0.92)]
+CANOPY_BASE = 0.86
+CANOPY_FRAMES = (-1.42, -1.02, -0.62)
+TAILPLANE = dict(span=0.356, le=0.8447, root=0.154, taper=0.55, y=0.064, sweep=16.0)   # span of SPAN; the rest of LENGTH
+FIN = dict(root=0.251, taper=0.45, height=0.151, y=0.068)                           # trailing edge at the tail
 PROP = dict(hub=0.032, chord=0.024, spinner_r=0.028, spinner_len=0.043)             # hub = 0.75 x spinner_len
 # x, z, wheel in m; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin.
 GEAR = dict(x=0.413, z=0.80, y=-0.64, bottom=2.3952, wheel_r=0.33, wheel_w=0.20)
-TAILWHEEL = dict(x=-4.627, y=-0.10, bottom=1.293, wheel_r=0.12, wheel_w=0.07)       # x, hinge y, bottom: m
+TAILWHEEL = dict(x=-4.627, y=-0.20, bottom=1.293, wheel_r=0.12, wheel_w=0.07)       # x, hinge y, bottom: m
 
 SEGMENTS = 96
 SUBDIVIDE = 6
@@ -220,7 +222,7 @@ with m.tagged('fittings'), m.shared_chart():
     pz = -5.2
     m.strut('dark', (le_x(pz) - 0.10, wing_y(pz), pz), (le_x(pz) + 0.40, wing_y(pz), pz), 0.009, sides=6)
     # Antenna mast aft of the canopy, raked aft.
-    m.strut('dark', (X(0.62), fus_top_y(0.62, 0.0) - 0.04, 0.0), (X(0.64), fus_top_y(0.62, 0.0) + 0.40, 0.0), 0.014, 0.007, sides=6)
+    m.strut('dark', (X(0.719), fus_top_y(0.719, 0.0) - 0.04, 0.0), (X(0.739), fus_top_y(0.719, 0.0) + 0.42, 0.0), 0.014, 0.007, sides=6)
 
 
 def star(r_out):
