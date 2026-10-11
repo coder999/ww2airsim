@@ -115,13 +115,11 @@ fn currentRay(pixel: vec2f) -> vec3f {
   let freshDepth = select(reconstructedDepth, exactDepth, isCurrentPixel);
   let farHistory = smoothstep(0.20, 0.75, reconstructedDepth);
   let historyWeight = mix(0.82, 0.93, farHistory);
-  // Keep accumulated detail, but let all six phases converge every frame.
-  // Carrying non-current pixels unchanged made the 2x3 phase lattice visible
-  // and unstable in thin wisps.
-  let weight = select(0.0, historyWeight, historyValid);
+  let blendedColour = mix(freshColour, previousColour, select(0.0, historyWeight, historyValid));
+  let blendedDepth = mix(freshDepth, previousDepthValue, select(0.0, historyWeight, historyValid));
   var out: TemporalOutput;
-  out.colourOpacity = mix(freshColour, previousColour, weight);
-  out.cloudDepth = vec4f(mix(freshDepth, previousDepthValue, weight), 0.0, 0.0, 1.0);
+  out.colourOpacity = select(blendedColour, previousColour, historyValid && !isCurrentPixel);
+  out.cloudDepth = vec4f(select(blendedDepth, previousDepthValue, historyValid && !isCurrentPixel), 0.0, 0.0, 1.0);
   return out;
 }`
 
@@ -155,10 +153,6 @@ fn cloudTap(uv: vec2f) -> vec4f {
   let uv = position.xy / size;
   let texel = 1.0 / size;
   let centre = cloudTap(uv);
-  let localNorth = cloudTap(uv - vec2f(0.0, texel.y));
-  let localSouth = cloudTap(uv + vec2f(0.0, texel.y));
-  let localWest = cloudTap(uv - vec2f(texel.x, 0.0));
-  let localEast = cloudTap(uv + vec2f(texel.x, 0.0));
   let radius = texel * 3.0;
   let north = cloudTap(uv - vec2f(0.0, radius.y));
   let south = cloudTap(uv + vec2f(0.0, radius.y));
@@ -168,24 +162,19 @@ fn cloudTap(uv: vec2f) -> vec4f {
   let northEast = cloudTap(uv + vec2f(radius.x, -radius.y));
   let southWest = cloudTap(uv + vec2f(-radius.x, radius.y));
   let southEast = cloudTap(uv + radius);
-  let localMin = min(centre.a, min(min(localNorth.a, localSouth.a), min(localWest.a, localEast.a)));
-  let localMax = max(centre.a, max(max(localNorth.a, localSouth.a), max(localWest.a, localEast.a)));
-  let nearMin = min(localMin, min(min(north.a, south.a), min(west.a, east.a)));
-  let nearMax = max(localMax, max(max(north.a, south.a), max(west.a, east.a)));
+  let nearMin = min(centre.a, min(min(north.a, south.a), min(west.a, east.a)));
+  let nearMax = max(centre.a, max(max(north.a, south.a), max(west.a, east.a)));
   let diagonalMin = min(min(northWest.a, northEast.a), min(southWest.a, southEast.a));
   let diagonalMax = max(max(northWest.a, northEast.a), max(southWest.a, southEast.a));
   let contrast = max(nearMax, diagonalMax) - min(nearMin, diagonalMin);
-  let phaseSoft = (centre * 4.0 + localNorth + localSouth + localWest + localEast) / 8.0;
-  let phaseStrength = (1.0 - smoothstep(0.18, 0.65, centre.a)) * smoothstep(0.004, 0.03, contrast);
-  let base = mix(centre, phaseSoft, phaseStrength);
-  var cloud = base;
+  var cloud = centre;
   if (contrast > 0.012) {
-    let softEdge = (base * 4.0 + (north + south + west + east) * 2.0 + northWest + northEast + southWest + southEast) / 16.0;
+    let softEdge = (centre * 4.0 + (north + south + west + east) * 2.0 + northWest + northEast + southWest + southEast) / 16.0;
     let cloudDistance = textureSampleLevel(cloudDepth, linearSampler, uv, 0.0).r;
     let farResolve = smoothstep(0.20, 0.75, cloudDistance);
     let maxStrength = mix(0.90, 1.0, farResolve);
     let strength = min(maxStrength, (contrast - 0.012) / max(contrast, 1e-4) * 1.35);
-    cloud = mix(base, softEdge, strength);
+    cloud = mix(centre, softEdge, strength);
   }
   let pixel = vec2i(position.xy);
   // The game renderer uses reversed floating-point depth (near=1, far=0).

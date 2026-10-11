@@ -75,11 +75,6 @@ the softened edge treatment as "way better" and the clouds as substantially
 better than their predecessor. The deliberate broad resolve filter also makes
 the dense center look slightly out of focus; keep that as a known compromise.
 Some residual softness/pixel breakup can remain on the thinnest moving wisps.
-A 2026-10-11 follow-up on the research branch reduces that shared native/TSL
-artifact: non-current pixels now accept the same gently weighted bilinear
-reconstruction as the exact temporal phase, and a one-pixel cross average is
-applied only where low-opacity samples disagree. Dense cloud interiors retain
-the accepted broad resolve without the extra average.
 
 The locked RX 6700 XT 2560x1440 High measurement was 2.016 ms native-cloud GPU
 p95. The conservative estimated whole frame was 4.759 ms (2.743 ms base with
@@ -101,8 +96,7 @@ Matched 2560×1440 below-, in-, and above-deck captures are visually
 equivalent: weather placement, cloud silhouettes, lighting, opacity, depth
 ordering and the accepted soft-edge treatment match. The residual stippling
 at thin near-cloud edges appears in both implementations; it was not added by
-TSL. The follow-up phase-convergence pass described in §1.1 is implemented
-identically in native WGSL and TSL on this branch.
+TSL.
 
 The first TSL port was about 19% slower on a corrected same-scene comparison.
 An optimization pass restored R8 volumes and native WGSL's conditional
@@ -353,15 +347,6 @@ therefore passed the plan's performance criterion. The native renderer remains
 authoritative because the work intentionally stays on a research branch, not
 because TSL missed budget.
 
-After Mark's normal flight exposed the shared 2×3 stipple on thin wisps, a
-follow-up reconstruction pass stopped carrying the five non-current temporal
-phases unchanged and added a one-pixel, low-opacity-only cross average ahead of
-the existing broad feather. The native and TSL implementations remain matched.
-The focused two-renderer WebGPU test passed, and a locked 2560×1440 High run
-measured native at 5.737 ms estimated whole-frame p95 and TSL at 5.522 ms p95
-(TSL march 1.521 ms, temporal 0.173 ms). A preceding run stopped on the test's
-sample-count guard and is not a performance result.
-
 ## 4. Traps
 
 **TSL and three r186**
@@ -443,8 +428,7 @@ sample-count guard and is not a performance result.
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |
 | 9 | **Docs debt:** photoreal Task 14 (handoff, supersede notes) never run, re-filed into `MASTER_PLAN.md` track H0 (2026-10-08); 16d documents lack "superseded" | Housekeeping |
 | 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Fixed 2026-10-08 by A2 (`7249619f`): `loadScenario` applies the new scenario's weather; the cloud pass is routed into the output only while there is a deck | Fixed (2026-10-08) |
-| 11 | **Takram resolve softens the dense cloud center and the thinnest moving wisps can retain slight breakup.** The 2026-10-11 research-branch follow-up lets every temporal phase converge and locally averages low-opacity disagreement without further softening dense interiors | Improved on `clouds-v3-tsl-port`; awaiting Mark's flight checkpoint before promotion |
-| 12 | **A gray strip remains at the sea horizon.** The same strip is present with `?cloudTier=off`, so it is the existing atmosphere/ocean horizon treatment, not a Takram cloud boundary | Open separately; do not tune the cloud resolve to hide it |
+| 11 | **Takram resolve softens the dense cloud center and the thinnest moving wisps can retain slight breakup.** This is the accepted trade for eliminating the harsh pixelated/flickering boundary in the initial port | Accepted for the opt-in checkpoint; revisit only after flight evaluation |
 
 ## 6. Proposed next steps
 

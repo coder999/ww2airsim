@@ -281,13 +281,9 @@ flight test is clean. R8 volume textures and conditional explicit-LOD weather
 fetches cut the TSL march p95 by 45–46%. Two locked 1440p High runs measured
 optimized TSL whole-frame p95 at 5.746–5.772 ms versus same-scene native
 estimates of 5.890–5.915 ms, passing both the 8.33 ms game gate and the plan's
-15% promotion criterion. A follow-up after Mark's flight now converges all six
-temporal phases and locally averages only low-opacity disagreement in both the
-native and TSL paths; the focused WebGPU test passed and a locked run measured
-5.737 ms native estimated whole-frame p95 and 5.522 ms TSL p95. The gray sea
-horizon strip also reproduces with clouds off and is not a cloud defect. Keep
-this as a working research branch until Mark's final edge checkpoint; do not
-merge, deploy, or publish it as the preferred renderer before that verdict. Handoff:
+15% promotion criterion. Keep it as a working research branch pending a
+separate promotion decision; do not merge, deploy, or publish it as the
+preferred renderer. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 
 ### Track L: Terrain (size L)

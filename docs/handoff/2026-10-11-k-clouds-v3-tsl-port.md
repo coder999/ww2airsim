@@ -4,7 +4,7 @@
 **Branch:** `clouds-v3-tsl-port`  
 **Base:** `b8c17fb7`  
 **Worktree:** `/home/mark/projects/ww2airsim-clouds-v3-tsl`  
-**Disposition:** optimized promotion candidate; awaiting Mark's final edge checkpoint
+**Disposition:** complete working experiment; keep native WGSL authoritative
 
 ## Outcome
 
@@ -40,9 +40,8 @@ These URLs are the isolated worktree's temporary slot, not a deployment.
 
 The paired 2560×1440 Ryzen captures match in weather placement, silhouettes,
 lighting direction, opacity, scene-depth ordering and soft-edge treatment. The
-thin near-cloud stippling in this original pair is present in both columns. It
-was a native artifact, not a regression introduced by TSL. The follow-up below
-now reduces it identically in both implementations.
+thin near-cloud stippling is present in both columns. It is the accepted native
+artifact, not a regression introduced by TSL.
 
 ## Architecture
 
@@ -124,38 +123,6 @@ sanity gate failed. This directly confirms that concurrent Ryzen work can
 contaminate budget tests even though `hwlock ryzen-budget` excludes other
 budget tests.
 
-### Follow-up edge-stability pass
-
-Mark's normal flight exposed two distinct effects in screenshots at
-`?spawnX=298545&spawnY=1825&spawnZ=-60447`:
-
-- thin/low-opacity cloud edges retained a visible, flickering 2×3 lattice;
-- a gray strip crossed the sea horizon.
-
-The horizon strip reproduces with `?cloudTier=off`, so it belongs to the
-existing atmosphere/ocean horizon treatment and was not hidden in the cloud
-shader. The cloud fix instead targets the real temporal cause. Previously the
-five non-current pixels in each six-phase cycle carried history unchanged.
-They now accept the same near/far-weighted bilinear reconstruction as the exact
-phase. A one-pixel cross average runs only when low-opacity neighboring alpha
-disagrees, ahead of the existing broad feather; dense interiors keep their
-existing value. Native WGSL and full TSL received the same algorithm.
-
-Evidence:
-
-- typecheck and zero-warning lint passed through `remote-run`;
-- the focused native and TSL Ryzen/WebGPU flight test passed (2/2), including
-  camera-cut history resets and no console, page or validation errors;
-- locked RX 6700 XT, 2560×1440 High: native estimated whole-frame p95
-  **5.737 ms**, TSL whole-frame p95 **5.522 ms**, TSL march **1.521 ms** and
-  temporal **0.173 ms**. TSL/native was 0.963×;
-- a preceding attempt stopped at the harness's sample-count guard (88 native
-  scene samples, minimum >120) and produced no budget claim. The clean repeat
-  collected 253 native-scene and 238 TSL samples.
-
-The branch is ready for Mark's attended visual checkpoint. Promotion and merge
-remain intentionally unperformed until that verdict.
-
 ## TSL traps found
 
 1. MRT render-target texture names must exactly match the keys passed to
@@ -175,8 +142,7 @@ remain intentionally unperformed until that verdict.
 ## Deliberately unchanged
 
 - No default selector changed.
-- Density, lighting and march behavior were not rewritten; native WGSL and TSL
-  temporal/composite reconstruction changed together to preserve parity.
+- The accepted native WGSL shaders and pass were not rewritten.
 - Thunderheads and the Takram cirrus layer remain deferred.
 - No deployment, merge to `main`, public fork or upstream pull request was
   made.
