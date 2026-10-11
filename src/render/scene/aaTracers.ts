@@ -23,7 +23,7 @@ export type AaTracerInstance = TracerInstance & { readonly widthM: number }
 export function aaTracerInstances(projectiles: readonly Projectile[], eye: Vec3, capacity = AA_TRACER_CAPACITY): AaTracerInstance[] {
   const out: (AaTracerInstance & { readonly d: number })[] = []
   for (const p of projectiles) {
-    if (p.aa === undefined || !p.tracer) continue
+    if (p.aa === undefined || p.gunner === true || !p.tracer) continue
     const speed = length(p.velocity)
     const dir = speed > 1e-9 ? scale(p.velocity, 1 / speed) : v3(1, 0, 0)
     const lengthM = Math.max(length(sub(p.position, p.previous)), AA_TRACER_MIN_LENGTH_M)

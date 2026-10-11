@@ -27,12 +27,16 @@ import { bayDoorsShut } from '../bayDoors.js'
 import { floodFrom, hitSide, type FloodState } from './flooding.js'
 import { AA_TUNING, aaOwnersOf, aaSurfaceTargetsOf, aaTargetsOf, flakBlastHp, initialAa, stepAa, takeDueBursts, type AaState } from './aaFire.js'
 import type { ShipArmament } from '../world/ships.js'
+import { stepGunners, type GunnerState } from './gunners.js'
+import type { PilotSkill } from '../ai/pilot.js'
 
 export const MAX_PROJECTILES = 4096
 export type GunState = { readonly ammo: number; readonly cooldownS: number; readonly shots: number }
 export type CombatAircraft = {
   readonly id: string; readonly spec: AircraftSpec; readonly state: AircraftState
   readonly previous: AircraftState; readonly controls: Controls; readonly impact: unknown | null
+  /** E3: the pilot, whose skill the airplane's gunners share (`gunners.ts`). Absent: green gunners. */
+  readonly pilot?: { readonly skill: PilotSkill } | null | undefined
 }
 export type CombatShip = {
   readonly id: string
@@ -103,6 +107,8 @@ export type Projectile = {
   /** M2: an anti-aircraft round, fired by a ship or battery (`owner` is its id, not an airplane's). The value is the
    *  hit scale it does to an airplane. It flies and hits in `stepCombat`'s AA branch: hostile airplanes only. */
   readonly aa?: number
+  /** E3: a defensive gunner's salvo (`gunners.ts`), flown in the AA branch with its own gun's drag. */
+  readonly gunner?: true
 }
 export type ShipDamage = {
   readonly hp: number; readonly fire: number
@@ -126,6 +132,8 @@ export type CombatState = {
   readonly impacts: readonly CombatImpact[]
   /** M2: anti-aircraft fire in flight and its gun timers (`aaFire.ts`). */
   readonly aa: AaState
+  /** E3: the defensive gunners' timers, absent until a gunner first sees a target. */
+  readonly gunners?: GunnerState
 }
 export function createCombat(
   aircraft: readonly CombatAircraft[],
@@ -867,12 +875,32 @@ export function stepCombat(
     }
   }
 
+  // E3: defensive gunners. Their salvos fly as AA rounds do (hostile airplanes only) and count in the
+  // bomber's `shots`, which its gun sound follows.
+  let gunnerState = before.gunners
+  if (sides !== null) {
+    let liveGunner = 0
+    for (const f of flying) if (f.p.gunner === true) liveGunner++
+    const stepped = stepGunners(gunnerState, aircraft, sides, (id) => {
+      const d = records[id]?.damage
+      return d === undefined || d.destroyedAt !== null || d.burningSince !== null
+    }, aaState.seed, tick, dt, liveGunner)
+    gunnerState = stepped.gunners
+    for (const r of stepped.rounds) {
+      if (flying.length >= MAX_PROJECTILES) break
+      flying.push({ p: { ...r, id: nextId++ }, dt, start: 0 })
+    }
+    for (const [id, n] of Object.entries(stepped.salvos)) records[id] = { ...records[id]!, shots: records[id]!.shots + n }
+  }
+
   /** An AA round's tick: it meets a hostile airplane, the sea or the ground, or flies on. */
   const flyAaRound = (shot: { p: Projectile; dt: number; start: number }): void => {
     if (shot.dt <= 0) return
-    const flown = flyProjectile(shot.p, shot.dt, wind, AA_TUNING.light.dragPerM)
+    const gunnerSpec = shot.p.gunner === true ? specs.get(shot.p.owner)?.combat : undefined
+    const drag = gunnerSpec === undefined ? AA_TUNING.light.dragPerM : gunBallistics(gunnerSpec, shot.p.gunType).dragPerM
+    const flown = flyProjectile(shot.p, shot.dt, wind, drag)
     const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
-    const hostile = hostileAircraft(targetSides?.ships[p.owner] ?? targetSides?.structures[p.owner])
+    const hostile = hostileAircraft(targetSides?.ships[p.owner] ?? targetSides?.structures[p.owner] ?? sides?.[p.owner])
     // Broad phase: only an airplane within 20 m of this tick's segment is worth the box tests.
     const seg = sub(p.position, p.previous), segLen2 = Math.max(1e-9, seg.x * seg.x + seg.y * seg.y + seg.z * seg.z)
     const near = hostile.filter((a) => {
@@ -977,7 +1005,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState, ...(gunnerState === undefined ? {} : { gunners: gunnerState }) }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same

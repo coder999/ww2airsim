@@ -139,6 +139,11 @@ test('firing at 1440p: the rounds fly with no validation errors', async ({ page 
   await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
   await page.keyboard.down('Space')
   await page.waitForTimeout(4_000)
+  // E3 verification (2026-10-10): shared Ryzen load yielded only 101 samples in four seconds.
+  // Keep the sample requirement; wait for it instead of treating machine load as a combat failure.
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.gpuFrameTimesMs().length), {
+    timeout: 15_000,
+  }).toBeGreaterThan(120)
   await page.keyboard.up('Space')
   const after = await page.evaluate(() => {
     const d = (window as DiagWindow).__ww2!

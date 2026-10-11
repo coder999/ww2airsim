@@ -170,6 +170,14 @@
     "fuelLeakKgPerS": 1.5,
     "engineDecayPerS": 0.05,
     "guns": [],
+    "gunTypes": {
+      "type89-7.7mm": {
+        "roundsPerMinute": 600,
+        "muzzleVelocityMps": 745,
+        "dragPerM": 0.00034,
+        "hitScale": 0.4
+      }
+    },
     "zones": [
       {
         "id": "engine-1",
@@ -300,6 +308,56 @@
         "system": "roll"
       }
     ],
-    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 480 is 1.5x the Zero (320) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 100 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 1.5 (no self-sealing tanks). No fixed guns: the gunners are not modeled (turret aim is visual only), so `guns` is empty and the ballistic fields are placeholders nothing fires. Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll."
+    "gunners": [
+      {
+        "mount": "Turret1",
+        "position": [
+          6.34,
+          -0.12,
+          0.0
+        ],
+        "restHeadingDeg": 0,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          -20,
+          30
+        ],
+        "barrels": 1,
+        "type": "type89-7.7mm"
+      },
+      {
+        "mount": "Turret2",
+        "position": [
+          -1.81,
+          0.94,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": null,
+        "elevationDeg": [
+          0,
+          80
+        ],
+        "barrels": 1,
+        "type": "type89-7.7mm"
+      },
+      {
+        "mount": "Turret3",
+        "position": [
+          -9.25,
+          0.27,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          -30,
+          10
+        ],
+        "barrels": 1,
+        "type": "type89-7.7mm"
+      }
+    ],
+    "source": "Damage stages round 2 (Mark, 2026-10-09): the bomber takes hits, burns and explodes like a fighter. GAMEPLAY ESTIMATES: structureHp 480 is 1.5x the Zero (320) by Mark's ruling (B-17 and B-29 about 3x a fighter, G4M and Ki-21 about 1.5x, they burn easily); subsystemHp 100 is its side's fighter value, so one engine dies about as a fighter's does, and each engine is hit on its own (zone `engine`). fuelLeakKgPerS 1.5 (no self-sealing tanks). Hit zones are boxes from the committed glb's measured bounds and prop centers (2026-10-09): one per engine nacelle behind its prop, the forward fuselage and the wing center section as fuel, the aft fuselage and tailplane as pitch, the fin as yaw, the outer wings as roll. GUNNERS (E3, 2026-10-10): the nose, dorsal and tail guns fire (`gunners`, src/sim/weapons/gunners.ts), each one Type 89 7.7 mm flexible gun (Ki-21-II, EN-WP 'Mitsubishi Ki-21'; the ventral and beam guns are not drawn and do not fire). gunTypes: 600 rpm is an ESTIMATE; muzzle velocity, drag and hit scale are the Zero's Type 97 7.7 mm. Positions are the GLB's turret pivots and the arcs are airframeRigs.ts's (tests/tools/models/gunnerMounts.test.ts). No fixed guns: `guns` is empty."
   }
 }

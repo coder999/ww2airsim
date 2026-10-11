@@ -114,6 +114,8 @@ export type CombatDiagnostics = {
       readonly shipId: string; readonly name: string; readonly targetId: string
       readonly targetKind: 'aircraft' | 'ship' | 'structure'; readonly trainingRad: number; readonly elevationRad: number
     }[] }
+  /** E3: defensive gunners' salvos in the air, and each gunner-armed airplane's salvos so far (its `shots`). */
+  readonly gunners: { readonly rounds: number; readonly salvos: Readonly<Record<string, number>> }
 }
 
 export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
@@ -145,12 +147,16 @@ export function combatDiagnosticsFor(frame: FrameState): CombatDiagnostics {
     tracers: combat.projectiles.filter((p) => p.tracer).length,
     poolSaturated: combat.poolSaturated,
     aa: {
-      rounds: combat.projectiles.filter((p) => p.aa !== undefined).length,
+      rounds: combat.projectiles.filter((p) => p.aa !== undefined && p.gunner !== true).length,
       pendingBursts: combat.aa.bursts.length,
       firing: combat.aa.firing.length,
       burstsRecent: combat.impacts.filter((i) => i.cause === 'flak').length,
       errorScale: combat.aa.errorScaleVs?.scale ?? 1,
       laying: Object.entries(combat.aa.laying).flatMap(([shipId, poses]) => poses.map((pose) => ({ shipId, ...pose }))),
+    },
+    gunners: {
+      rounds: combat.projectiles.filter((p) => p.gunner === true).length,
+      salvos: Object.fromEntries(frame.world.aircraft.filter((a) => (a.spec.combat?.gunners ?? []).length > 0).map((a) => [a.id, combat.aircraft[a.id]!.shots])),
     },
   }
 }

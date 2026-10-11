@@ -125,7 +125,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - The B-17 and B-29 (1,440 HP) and the G4M and Ki-21 (480) take hits, with each engine damaged on its own. Bomber range: `?scenario=bomber-range&launch`.
   - AI duels resolve 18 of 72, down from 27 (handoff table). A stalled AI now unloads before its floor pull.
   - On the merge (2026-10-10), D1's Kate and Avenger took the same 4x (Mark): 280 and 560 HP.
-- **Open:** asymmetric yaw on an engine loss; bomber gunners never fire; whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
+- **Open:** asymmetric yaw on an engine loss; bomber gunners fire since E3 (Track E item 3, on its branch); whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
 
 ### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
 
@@ -160,6 +160,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ **Dropped for now (Mark, 2026-10-10): no AI flies into a ship on purpose.** The first attempt is parked on branch `ship-collision-kamikaze-wip`. An airplane that hits a ship by accident is destroyed and damages it all the same (the collision rule, `src/sim/shipCollision.ts`).
    - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
+   - **Built and reference-GPU verified 2026-10-10 on branch `e3-bombers-gunners`, not merged.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
 4. **Fixes:**
    - escort pursuit (7f §4.2);
    - wingman commands (7f §4.5);

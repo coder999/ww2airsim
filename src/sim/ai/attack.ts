@@ -91,6 +91,17 @@ export const TORPEDO_ALIGN_RAD = rad(4)
 
 /** Level bombing. */
 export const LEVEL_RUN_IN_M = 4000
+/** E3: a formation leader drops its whole load on one pass, a bomb every this many seconds (an intervalometer's
+ *  train, about 100 ft apart at 200 mph). ESTIMATE. A lone raider keeps E2's one bomb a pass. */
+export const TRAIN_INTERVAL_S = 0.3
+
+/** E3: armed with its full racks at the start: an attacker, or a wingman whose leader is one (it drops when its
+ *  leader drops). Every other AI airplane flies clean. */
+export function armedForAttack<M>(a: AircraftEntity<M>, all: readonly AircraftEntity<M>[]): boolean {
+  if (a.pilot?.ingress?.attack !== undefined) return true
+  const lead = a.pilot?.formation?.leader
+  return lead !== undefined && all.some((l) => l.id === lead && l.pilot?.ingress?.attack !== undefined)
+}
 
 /** Every kind: the egress runs this far from the target before the next pass (or the end). */
 export const EGRESS_RANGE_M = 4000
@@ -176,6 +187,8 @@ function levelVelocity(self: AircraftEntity<unknown>, dx: number, dz: number, sp
  */
 export function attackFlight<M>(
   a: AircraftEntity<M>, orders: IngressOrders, decision: PilotDecisionState, ctx: PilotTickContext,
+  /** E3: this raider leads a formation, so a level-bombing run drops its whole load as a train. */
+  train = false,
 ): AttackFlight | null {
   const kind = orders.attack
   if (kind === undefined) return null
@@ -315,11 +328,16 @@ export function attackFlight<M>(
       const dx = v.x / gs, dz = v.z / gs
       const along = (aimX - impact.point.x) * dx + (aimZ - impact.point.z) * dz
       const across = Math.abs(-(aimX - impact.point.x) * dz + (aimZ - impact.point.z) * dx)
-      if (armed === null && along <= 0 && across <= 300) armed = nowS
+      // E3: a train starts half its length short of the aim, so it straddles it.
+      const trainLead = train ? ((bombsLeft - 1) / 2) * TRAIN_INTERVAL_S * gs : 0
+      if (armed === null && along <= trainLead && across <= 300) armed = nowS
     }
     const doors = !bayDoorsShut(a.spec, a.state.bayDoorFraction)
     if (armed !== null && nowS - armed >= st.lateS && doors && bombsLeft > 0) {
-      return { controls: { ...fly(desired, goalThrottle(a, cruise.speedMps)), dropBomb: true }, attack: startEgress(st) }
+      const controls = { ...fly(desired, goalThrottle(a, cruise.speedMps)), dropBomb: true }
+      // A train: hold the run and let the next bomb go TRAIN_INTERVAL_S later.
+      if (train && bombsLeft > 1) return { controls, attack: { ...st, armedSinceS: nowS + TRAIN_INTERVAL_S - st.lateS } }
+      return { controls, attack: startEgress(st) }
     }
     if (pass && armed === null) return { controls: fly(desired, goalThrottle(a, cruise.speedMps)), attack: startEgress(st) }
     return { controls: fly(desired, goalThrottle(a, cruise.speedMps)), attack: armed === st.armedSinceS ? st : { ...st, armedSinceS: armed } }

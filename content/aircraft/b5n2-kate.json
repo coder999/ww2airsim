@@ -105,6 +105,14 @@
     "fuelLeakKgPerS": 1.5,
     "engineDecayPerS": 0.05,
     "guns": [],
+    "gunTypes": {
+      "type92-7.7mm": {
+        "roundsPerMinute": 600,
+        "muzzleVelocityMps": 745,
+        "dragPerM": 0.00034,
+        "hitScale": 0.4
+      }
+    },
     "zones": [
       {
         "id": "engine",
@@ -191,7 +199,25 @@
         "system": "roll"
       }
     ],
-    "source": "NO FIXED GUNS: the B5N2's armament is one 7.7 mm Type 92 machine gun in the rear dorsal position, hand-loaded from 97-round drums (EN-WP, Francillon); some B5N1s carried two 7.7 mm wing guns, the B5N2 did not. The D1 plan's D11 row named 'forward 7.7 mm guns' for the B5N2; the source read says otherwise and wins (a sourced figure over a plan's assumption), so guns is empty and nothing fires forward. The rear gun is drawn and AIMS (Turret1, a flexible gun) but does not fire: defensive gunners are Track E3. The top-level ballistic is the Val's Type 97 7.7 mm (unused, kept so the block is complete). Hit zones follow the drawn airframe (combatFit.test.ts); structureHp 70 and subsystemHp 25 are ESTIMATES for an unarmored airplane with unprotected tanks, below the Val's 80; the rest of the block is the Val's. Damage stages round 2 (Mark, 2026-10-10, on merging with D1): structureHp and subsystemHp are 4x the values above, as for every fighter (docs/handoff/2026-10-09-aircraft-damage-stages.md, Round 2)."
+    "gunners": [
+      {
+        "mount": "Turret1",
+        "position": [
+          -3.5,
+          0.68,
+          0.0
+        ],
+        "restHeadingDeg": 180,
+        "traverseDeg": 30,
+        "elevationDeg": [
+          0,
+          30
+        ],
+        "barrels": 1,
+        "type": "type92-7.7mm"
+      }
+    ],
+    "source": "NO FIXED GUNS: the B5N2's armament is one 7.7 mm Type 92 machine gun in the rear dorsal position, hand-loaded from 97-round drums (EN-WP, Francillon); some B5N1s carried two 7.7 mm wing guns, the B5N2 did not. The D1 plan's D11 row named 'forward 7.7 mm guns' for the B5N2; the source read says otherwise and wins (a sourced figure over a plan's assumption), so guns is empty and nothing fires forward. The top-level ballistic is the Val's Type 97 7.7 mm (unused, kept so the block is complete). Hit zones follow the drawn airframe (combatFit.test.ts); structureHp 70 and subsystemHp 25 are ESTIMATES for an unarmored airplane with unprotected tanks, below the Val's 80; the rest of the block is the Val's. Damage stages round 2 (Mark, 2026-10-10, on merging with D1): structureHp and subsystemHp are 4x the values above, as for every fighter (docs/handoff/2026-10-09-aircraft-damage-stages.md, Round 2). GUNNER (E3, 2026-10-10): the rear Type 92 7.7 mm fires (`gunners`, src/sim/weapons/gunners.ts); 600 rpm is an ESTIMATE, the rest of its gunType is the Zero's Type 97. Its position is the GLB's pivot and its arc airframeRigs.ts's (tests/tools/models/gunnerMounts.test.ts)."
   },
   "reference": {
     "source": "Sources (all read 2026-10-09). NO FLIGHT-TEST REPORT WAS FOUND: wwiiaircraftperformance.org has no B5N file, and the TAIC Manual No. 1 Kate pages were not read, so EVERY figure below is SECONDARY or an ESTIMATE (D10: primary first, else secondary, with the gap named). EN-WP = English Wikipedia 'Nakajima B5N', Specifications (B5N2), citing R. J. Francillon, Japanese Aircraft of the Pacific War (Putnam, 1970), pp. 415-416. Geometry: wingSpanM 15.518 = 50 ft 11 in and wingAreaM2 37.7 = 406 sq ft (EN-WP). Engine: one Nakajima Sakae 11, 1,000 hp for take-off and 970 hp at 3,000 m (EN-WP); maxPowerW 745,700 = 1,000 x 745.7. powerFractionByAltitudeM: 0.97 at 3,000 m is SOURCED (970 / 1,000); 0.94 at sea level (military below take-off power) and 0.85, 0.70, 0.50 and 0.38 at 4,500, 6,000, 8,000 and 9,500 m are ESTIMATES. Mass: emptyKg 2,279 = 5,024 lb, maxTakeoffKg 4,100 = 9,039 lb (EN-WP); fuelCapacityKg 720 = 1,000 L at 0.72 kg/L is an ESTIMATE (no capacity was read; the Zero's density rule). testMassKg 3,800 = 8,378 lb, EN-WP's gross weight: an ESTIMATE for pairing, because the source ties no weight to its speed or climb. It is 1,521 kg above emptyKg, which the harness carries as disposable load (crew, oil and fuel, and perhaps the torpedo the source does not say). Graded figures: topSpeedMps 105.0 = 378 km/h at topSpeedAltitudeM 3,600 m = 11,800 ft (EN-WP, SOURCED secondary); there is ONE speed point. climbRateMps 6.52 is DERIVED, EN-WP's 3,000 m in 7 min 40 s as an average (3,000 / 460 s; EN-WP's own 6.5 m/s rate is the same division), graded at sea level as the card requires: an average over the climb, so below the initial rate the card reads. Stalls: NONE SOURCED. stallSpeedMps 34.0 (76 mph) is an ESTIMATE, the speed at which the fleet's shared clMax 1.4 stalls testMassKg on 37.7 sq m, sqrt(2 x 3,800 x 9.81 / (1.225 x 37.7 x 1.4)): the card grades the model against its own estimate. stallSpeedFlapMps 29.2 follows from flap.clIncrement 0.5, also an ESTIMATE, so the flap card is circular too. FITTED, NOT SOURCED (measured 2026-10-09, a tools/testcards/measure.ts sweep at testMassKg, cd0 0.0195 to 0.028 x propEfficiency 0.55 to 0.70): aero.cd0 0.0195 and engine.propEfficiency 0.60 land the one top speed; the pair is fitted to one figure, and 0.60 was chosen because higher efficiencies widen the climb miss. Result (measured 2026-10-09): top speed 105.06 vs 105.0 m/s (+0.06 percent) at 3,600 m; climb 8.26 vs 6.52 m/s (+26.6 percent) at sea level and 8.21 m/s at 1,500 m, the middle of the averaged climb (+25.9 percent): REPORTED, not tuned, the fleet's known climb bias (F6F +16.8, Ki-84 +14.5 percent) plus the average-versus-initial gap; stalls 33.88 clean and 29.01 flaps against their own estimates; roll 55.0 vs its ESTIMATE. The model reads 94.8 m/s (212 mph) at sea level; an uncited web page (ibiblio.org/phha, 'Kate') gives 205 mph there, 3.4 percent below, not used. engine.staticThrustN 10,000 is DERIVED, the Corsair's 20,000 N scaled by take-off power (746 / 1,491 kW); engine.windmillCd0 0.039 is DERIVED as 2 x cd0; negativeGCutout true (a float carburetor, ESTIMATE). gear.dragAreaM2 0.29 and flap.dragAreaM2 0.71 are ESTIMATES, the B-17's derived figures scaled by wing area (37.7 / 131.92); gear.travelSeconds 8 and flap.travelSeconds 6 are ESTIMATES. No take-off distance, roll rate, dive limit or g limit was read, so reference.takeoffDistanceM is absent and these are ESTIMATES: rollRateDegPerSec 55 (rates.maxRollRateDegPerSec is set to it), maxPitchRateDegPerSec 28, maxYawRateDegPerSec 14, rateRefSpeedMps 85, limits.diveSpeedMps 130 (291 mph) and gLimit 5.5. The lift curve, weathercockSeconds, autoRudderGainPerDeg and stallLimiterSeconds are the fleet's shared ESTIMATES. Gear layout (measured 2026-10-09 from the drawn model with a throwaway drawnPoints probe, the propeller excluded): heightM 2.009 and mainX 0.206 (the mains' lowest point), thirdX -5.867 and thirdHeightM 0.588 (the fixed tailwheel, the first aft point to touch when pitched about the mains, 13.168 degrees). No B5N ground angle was read. layout taildragger and thirdSteering casterLock are ESTIMATES; steerYawRateDegPerSec 5, steerLockSpeedMps 8, tailLiftSpeedMps 22 and propWashSpeedMps 10 are ESTIMATES; torqueYawRateDegPerSec 0 (Mark's fleet ruling of 2026-09-28). carrierCapable true (the Navy's Type 97 Carrier Attack Bomber, EN-WP). view.eyePointM is inside the greenhouse's forward bay (eyePoints.test.ts).",
