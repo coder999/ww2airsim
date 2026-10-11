@@ -47,6 +47,7 @@ const TARGET_LABELS: Readonly<Record<TargetType, string>> = {
   aaa: 'Anti-aircraft',
   runway: 'Runways',
   building: 'Buildings',
+  tank: 'Tanks',
   carrier: 'Carriers',
 }
 
@@ -221,13 +222,10 @@ export function createPauseScreen<M>(
     'Rendering changes apply immediately to the held mission and use the same settings as the main menu.'
   qualityPanel.appendChild(qualityCopy)
 
-  // The real title-screen Settings dialog, scoped to rendering-only rows.
-  const settingsDialog = createSettingsDialog(backdrop, settings, { scope: 'visual' })
-  const qualityButton = document.createElement('button')
-  qualityButton.className = 'ink-button ink-button--primary'
-  qualityButton.textContent = 'Open Visual Quality Settings'
-  qualityButton.addEventListener('click', () => settingsDialog.open())
-  qualityPanel.appendChild(qualityButton)
+  // The title-screen Settings controls themselves, scoped to rows that are
+  // safe to change in a held sortie. Inline avoids stacking a modal over the
+  // pause dossier while keeping one implementation and one live model.
+  const settingsSurface = createSettingsDialog(qualityPanel, settings, { scope: 'live', presentation: 'inline' })
 
   const button = (label: string, primary: boolean, run: () => void): HTMLButtonElement => {
     const el = document.createElement('button')
@@ -432,7 +430,7 @@ export function createPauseScreen<M>(
   activateTab('tally', false)
   return {
     show(tab: PauseScreenTab = 'tally'): void {
-      settingsDialog.close()
+      settingsSurface.close()
       confirmationPanel.style.display = 'none'
       folder.style.display = 'block'
       renderSnapshot(options.snapshot())
@@ -442,13 +440,13 @@ export function createPauseScreen<M>(
       else tabButtons.get(tab)!.focus()
     },
     hide(): void {
-      settingsDialog.close()
+      settingsSurface.close()
       confirmationPanel.style.display = 'none'
       folder.style.display = 'block'
       embeddedMap.hide()
       backdrop.style.display = 'none'
     },
     isOpen: () => backdrop.style.display !== 'none',
-    settingsOpen: settingsDialog.isOpen,
+    settingsOpen: settingsSurface.isOpen,
   }
 }

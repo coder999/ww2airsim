@@ -142,11 +142,12 @@ export async function waitForTerrain(page: Page): Promise<void> {
 /**
  * A radio row's whole label (AD-1), as a name matcher. Not `exact: true`: a
  * checked ballot row's accessible name carries its box's mark ("✕ Free
- * Flight"), which an exact match would miss. Anchored at the end, so "Air
- * Combat" does not also match "Air Combat: Veteran".
+ * Flight"), and mission rows append a ribbon image's accessible name. The
+ * required whitespace/end boundary still keeps "Air Combat" from matching
+ * "Air Combat: Veteran" (whose next character is a colon).
  */
 export function wholeLabel(label: string): RegExp {
-  return new RegExp(`(^|\\s)${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+  return new RegExp(`(^|\\s)${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|\\s)`)
 }
 
 export async function startGame(

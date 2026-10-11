@@ -8,6 +8,10 @@ import {
 } from '../../src/render/quality.js'
 import { saveDamageModel, saveDifficulty, saveRenderScale } from '../../src/render/settings.js'
 import { INTERIM_ASSET_QUALITY_TIER } from '../../src/render/content.js'
+import {
+  loadGraphicsCheckRecord, saveGraphicsCheckRecord,
+  type GraphicsCheckEnvironment, type GraphicsCheckRecord,
+} from '../../src/render/graphicsCheck.js'
 
 /** The in-memory `Storage` stand-in `quality.test.ts`, `roster.test.ts` and
  *  `settings.test.ts` already use -- this suite's environment is `node`
@@ -41,6 +45,29 @@ function recordingTargets(): QualityTargets & { readonly seen: { ocean: QualityT
     setSceneryTier: (t) => { seen.scenery.push(t) },
     setCloudTier: (t) => { seen.clouds.push(t) },
     setFxTier: (t) => { seen.fx.push(t) },
+  }
+}
+
+const GRAPHICS_ENVIRONMENT: GraphicsCheckEnvironment = {
+  adapter: { vendor: 'test-vendor', architecture: 'test-arch', device: '', description: '' },
+  pixelWidth: 1920,
+  pixelHeight: 1080,
+  browserMajor: 141,
+}
+
+function graphicsRecord(
+  quality: 'low' | 'medium' | 'high' = 'medium',
+  renderScale: 0.5 | 0.75 | 1 = 0.75,
+): GraphicsCheckRecord {
+  return {
+    version: 1,
+    environment: GRAPHICS_ENVIRONMENT,
+    recommended: { quality, renderScale },
+    measurements: [{
+      profile: { quality, renderScale }, completedFrames: 90,
+      framesPerSecond: 58, latencyP95Ms: 28,
+    }],
+    checkedAt: '2026-10-11T12:00:00.000Z',
   }
 }
 
@@ -155,6 +182,67 @@ describe('the boot sequence\'s side of the Settings dialog (render-quality-selec
   })
 })
 
+describe('preflight graphics check policy', () => {
+  it('runs for a fresh automatic profile and skips a current saved result', () => {
+    const first = createBootQuality()
+    expect(first.graphicsMode()).toBe('automatic')
+    expect(first.shouldRunGraphicsCheck(GRAPHICS_ENVIRONMENT)).toBe(true)
+
+    saveGraphicsCheckRecord(graphicsRecord())
+    const returning = createBootQuality()
+    expect(returning.shouldRunGraphicsCheck(GRAPHICS_ENVIRONMENT)).toBe(false)
+  })
+
+  it('reruns after a material browser, adapter, or pixel-count change', () => {
+    saveGraphicsCheckRecord(graphicsRecord())
+    const quality = createBootQuality()
+    expect(quality.shouldRunGraphicsCheck({ ...GRAPHICS_ENVIRONMENT, browserMajor: 142 })).toBe(true)
+    expect(quality.shouldRunGraphicsCheck({
+      ...GRAPHICS_ENVIRONMENT,
+      adapter: { ...GRAPHICS_ENVIRONMENT.adapter, vendor: 'another-vendor' },
+    })).toBe(true)
+    expect(quality.shouldRunGraphicsCheck({ ...GRAPHICS_ENVIRONMENT, pixelWidth: 3840, pixelHeight: 2160 })).toBe(true)
+  })
+
+  it('treats legacy saved quality or scale as a custom override', () => {
+    saveQualitySettings(defaultQualitySettings('low'))
+    expect(createBootQuality().shouldRunGraphicsCheck(GRAPHICS_ENVIRONMENT)).toBe(false)
+    window.localStorage.clear()
+    saveRenderScale(0.75)
+    expect(createBootQuality().shouldRunGraphicsCheck(GRAPHICS_ENVIRONMENT)).toBe(false)
+  })
+
+  it('saves and applies a completed recommendation while mode is automatic', () => {
+    const quality = createBootQuality()
+    const targets = recordingTargets()
+    const scales: number[] = []
+    quality.bind(targets)
+    quality.bindRenderScale((scale) => { scales.push(scale) })
+
+    quality.finishGraphicsCheck(graphicsRecord('medium', 0.75))
+
+    expect(loadGraphicsCheckRecord()?.recommended).toEqual({ quality: 'medium', renderScale: 0.75 })
+    expect(quality.current()).toEqual(defaultQualitySettings('medium'))
+    expect(quality.renderScale()).toBe(0.75)
+    expect(targets.seen.ocean.at(-1)).toBe('medium')
+    expect(scales.at(-1)).toBe(0.75)
+  })
+
+  it('records but does not apply a result after the player makes a custom pick', () => {
+    const quality = createBootQuality()
+    quality.bind(recordingTargets())
+    quality.settings.selectSimpleTier('high')
+    quality.settings.selectRenderScale(1)
+
+    quality.finishGraphicsCheck(graphicsRecord('low', 0.5))
+
+    expect(loadGraphicsCheckRecord()?.recommended).toEqual({ quality: 'low', renderScale: 0.5 })
+    expect(quality.current()).toEqual(defaultQualitySettings('high'))
+    expect(quality.renderScale()).toBe(1)
+    expect(quality.graphicsMode()).toBe('custom')
+  })
+})
+
 describe('Asset Quality at boot (render-quality-selector spec §10)', () => {
   it('defaults a first-time visitor to the INTERIM tier', () => {
     // Medium since L1.1 (2026-10-10), Mark's 2026-09-27 ruling, once L0 stopped
@@ -262,12 +350,15 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   it('binds the model to the live tier setters', () => {
     expect(source).toContain('quality.bind({ setOceanTier:')
     expect(source).toContain('setFxTier: applyFxTier')
-    expect(source).toContain('quality.applyProbeResult(tier.name)')
-    expect(source).toContain('let qualityChecked = quality.probeSuppressed')
+    expect(source).toContain('createGraphicsCheckSession({')
+    expect(source).toContain('quality.previewGraphicsProfile(profile)')
+    expect(source).toContain('quality.finishGraphicsCheck(record)')
+    expect(source).toContain('let qualityChecked = false')
   })
 
   it('starts the renderer at the Render Scale setting and binds it live, unless DEV overrides (A5)', () => {
-    expect(source).toContain('renderScaleOverride ?? quality.renderScale())')
+    expect(source).toContain('let activeRenderScale = renderScaleOverride ?? quality.renderScale()')
+    expect(source).toContain('initRenderer(canvas, import.meta.env.DEV, activeRenderScale)')
     expect(source).toContain('if (renderScaleOverride === null) quality.bindRenderScale(')
   })
 

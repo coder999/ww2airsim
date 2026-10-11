@@ -5,8 +5,7 @@ import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
 import { insigniaElement, ribbonElement } from './insignia.js'
-import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
-import type { QualityTierName } from './quality.js'
+import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
 import { DEFAULT_TIME_OF_DAY, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type TakeoffTime } from './sky/sun.js'
@@ -216,6 +215,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'tank-buster', label: 'Tank Buster', kind: 'mission', badge: { id: 'tank-buster', name: 'Tank Buster' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
   { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
@@ -502,6 +502,7 @@ export function createTitleScreen(
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
   let unsubscribeBoot: (() => void) | null = null
+  let unsubscribeGraphicsSummary: (() => void) | null = null
   // Rebuilt with the overlay on every `build()`; the MODEL above is not,
   // which is what makes a choice survive a return-to-title.
   let settingsDialog: SettingsDialogHandle | null = null
@@ -532,6 +533,8 @@ export function createTitleScreen(
     onKey = null
     unsubscribeBoot?.()
     unsubscribeBoot = null
+    unsubscribeGraphicsSummary?.()
+    unsubscribeGraphicsSummary = null
   }
 
   // Rebuilds the whole overlay from nothing -- both the initial build below
@@ -864,32 +867,6 @@ export function createTitleScreen(
     const ordnanceForm = sortieForm(TITLE_FORMS.ordnance)
     const loadoutGroup = radioGroup('Loadout')
     ordnanceForm.left.append(sectionTitle('Armament'), loadoutGroup)
-    // A4: the render-quality step of the launch flow. The same model and the
-    // same explicit pick as the Settings dialog's Simple row; "(recommended)"
-    // marks the probe's verdict, as the briefing's loadout is marked above.
-    const qualityGroup = radioGroup('Render quality')
-    const qualityNote = document.createElement('p')
-    qualityNote.style.cssText = 'margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--ink-faint)'
-    ordnanceForm.left.append(sectionTitle('Render quality'), qualityGroup, qualityNote)
-    const renderQuality = (): void => {
-      const snap = settings.snapshot()
-      const rows = new Map<QualityTierName, HTMLDivElement>()
-      qualityGroup.replaceChildren()
-      for (const option of [...RENDER_QUALITY_OPTIONS].reverse()) {
-        const el = ballotOption(option.value === snap.recommendedTier ? `${option.label} (recommended)` : option.label, '', () => {
-          settings.selectSimpleTier(option.value)
-          renderQuality()
-        })
-        rows.set(option.value, el)
-        qualityGroup.appendChild(el)
-      }
-      markGroup(rows, snap.simpleTier)
-      const picked = RENDER_QUALITY_OPTIONS.find((o) => o.value === snap.simpleTier)
-      qualityNote.textContent = [
-        picked?.note ?? 'Custom: set per system in Settings.',
-        snap.recommendedTier === null ? 'Not measured yet: this machine is measured in its first seconds of flight.' : '',
-      ].filter((t) => t !== '').join(' ')
-    }
     const storesHost = document.createElement('div')
     ordnanceForm.right.append(sectionTitle('Stores'), storesHost)
     const ordnanceBack = inkButton(m.back)
@@ -925,7 +902,6 @@ export function createTitleScreen(
         if (note !== null) hangs.push(note)
       }
       storesHost.replaceChildren(...hangs.map(paragraph))
-      renderQuality()
     }
 
     // ============ Administrative memo: About / Settings ============
@@ -941,6 +917,26 @@ export function createTitleScreen(
     const adminKicker = document.createElement('div')
     adminKicker.className = 'letterhead-kicker'
     adminKicker.textContent = 'Administration'
+    const graphicsSummary = document.createElement('div')
+    graphicsSummary.setAttribute('aria-label', 'Graphics status')
+    graphicsSummary.style.cssText = 'margin-top:3px;font-size:12px;color:var(--ink-faint)'
+    const renderGraphicsSummary = (): void => {
+      const snap = settings.snapshot()
+      const tier = snap.simpleTier === null ? 'Custom mix' :
+        `${snap.simpleTier[0]!.toUpperCase()}${snap.simpleTier.slice(1)}`
+      const adapter = snap.graphicsCheck?.environment.adapter
+      const adapterName = adapter === undefined ? '' :
+        [adapter.vendor, adapter.architecture].filter((v) => v.trim() !== '').join(' ').toUpperCase()
+      const mode = snap.graphicsMode === 'automatic' ? 'recommended' : 'custom'
+      graphicsSummary.textContent = [
+        adapterName === '' ? 'Graphics' : adapterName,
+        tier,
+        `${Math.round(snap.renderScale * 100)}%`,
+        mode,
+      ].join(' · ')
+    }
+    const adminLabel = document.createElement('div')
+    adminLabel.append(adminKicker, graphicsSummary)
     const about = inkButton(m.about)
     const settingsButton = inkButton(m.settings)
     // A plain link, not a mode: the Hangar is its own page (Hangar spec §3),
@@ -955,8 +951,10 @@ export function createTitleScreen(
     const adminButtons = document.createElement('div')
     adminButtons.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap'
     adminButtons.append(hangar, sounds, about, settingsButton)
-    adminRow.append(adminKicker, adminButtons)
+    adminRow.append(adminLabel, adminButtons)
     admin.sheet.appendChild(adminRow)
+    unsubscribeGraphicsSummary = settings.subscribe(renderGraphicsSummary)
+    renderGraphicsSummary()
     overlay.appendChild(admin.panel)
     overlay.appendChild(bootWrap)
 

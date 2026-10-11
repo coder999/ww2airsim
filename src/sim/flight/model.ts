@@ -629,11 +629,41 @@ export function step(
     // the nose must go right to meet it.
     return -Math.max(-maxRad, Math.min(maxRad, rate))
   })()
+  // C4 asymmetric thrust remains a rate inside this deliberately simple model.
+  // `damagedSpec` derives it from actual per-engine output and captures the
+  // undamaged yaw-rate scale before damage to the rudder/control system changes
+  // `spec.rates.maxYawRateDegPerSec`. The two effects are independent: even zero
+  // rudder authority cannot erase engine-out thrust. Throttle and the same
+  // dynamic-pressure curve still scale the bias. At zero the old addition below
+  // is used byte-for-byte; no clamp or signed-zero change reaches healthy,
+  // symmetric or single-engine flight.
+  const asymmetric = spec.asymmetricThrustYaw
+  const asymmetricRateDegPerSec = asymmetric?.rateDegPerSec ?? 0
+  const hasAsymmetricYaw = asymmetricRateDegPerSec !== 0
+  const asymmetricYawY = !hasAsymmetricYaw ? 0
+    : asymmetricRateDegPerSec
+      * clampFinite(controls.throttle, 0, 1)
+      * DEG
+      * rateAuthority(spec, q)
+  const ordinaryYawY = airRates.y + weathercockY
+  // Existing pilot plus weathercock rates were not jointly clamped. Preserve
+  // that exact behavior unless asymmetric thrust is present; then keep the new
+  // combined result inside the healthy aircraft's declared maximum. Damage to
+  // yaw controls reduces ordinary authority, not the engine-out bias or bound.
+  const maxYawRad = (asymmetric?.maxRateDegPerSec ?? spec.rates.maxYawRateDegPerSec) * DEG
+  const yawY = !hasAsymmetricYaw
+    ? ordinaryYawY
+    : Math.max(-maxYawRad, Math.min(maxYawRad, ordinaryYawY + asymmetricYawY))
   const stalled = isStalled(spec, air)
-  const withWeathercock = v3(airRates.x, airRates.y + weathercockY, airRates.z)
+  const withWeathercock = v3(airRates.x, yawY, airRates.z)
   const ratesWithStall = stalled
     ? v3(withWeathercock.x + STALL_WING_DROP_RAD_PER_S, withWeathercock.y, withWeathercock.z)
     : withWeathercock
+  // `groundBodyRates` deliberately retains ordinary aerodynamic yaw while it
+  // replaces roll and pitch, so C4 must remove only its new contribution at
+  // this seam to honor the airborne-only ruling. The zero path reuses the old
+  // object exactly.
+  const ratesForGround = !hasAsymmetricYaw ? ratesWithStall : v3(ratesWithStall.x, ordinaryYawY, ratesWithStall.z)
 
   // On the ground, the wheels are the rotation constraint, not the air --
   // spec §5's rate command is right in the air and wrong on a runway, where
@@ -667,7 +697,7 @@ export function step(
   // the ocean.
   const bodyRates =
     startGround !== null && onGroundStart && wheelsDownStart && onLandStart
-      ? groundBodyRates(spec, state, controls, ratesWithStall, dt, startGround.velocity)
+      ? groundBodyRates(spec, state, controls, ratesForGround, dt, startGround.velocity)
       : ratesWithStall
   // On the wheels the airplane turns about the WORLD vertical, not its own
   // body-up axis (T1 taxi regression, 2026-09-28). The two coincide at level

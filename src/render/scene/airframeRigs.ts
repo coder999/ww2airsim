@@ -170,12 +170,37 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'f4f-wildcat-blender': {
+    // An original Blender model (f4f-wildcat-blender.py), a duplicate beside the download: the kit's propeller is
+    // exactly 3-fold symmetric. The mains fold inboard about +x into the fuselage (the real legs are hand-cranked up
+    // into the fuselage sides; one hinge, ESTIMATE); the tailwheel is fixed and static.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
   'f6f-hellcat': {
     props: [{ node: 'Prop', blades: 3 }],
     gear: [
       { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: F6F main legs swing aft into the wing, turning 90 deg to lie flat; modeled as the swing alone' },
       { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE of the motion: as GearL' },
       { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
+  'f6f-hellcat-blender': {
+    // An original Blender model (f6f-hellcat-blender.py), a duplicate beside the download: the kit's propeller is
+    // exactly 3-fold symmetric. The mains swing aft about +z as the download's do (the real struts also turn the
+    // wheels flat; one hinge swings, ESTIMATE); the tailwheel swings aft too.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
+      { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
     ],
     turrets: [],
     surfaces: surfaces(1),
@@ -189,6 +214,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
       { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE of the motion: the real F4U legs swing aft and turn 90 deg to lie flat; one hinge axis cannot do both, so the legs fold inboard about +x with the wheels flat, hinge lowered 0.09 m to sit in the wing (2026-09-29: a plain aft swing put the wheels 0.41 m through the wing top; this leaves 0.05 m)' },
       { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE of the motion: mirror of GearL' },
       { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE' },
+    ],
+    turrets: [],
+    surfaces: surfaces(2),
+  },
+  'f4u-corsair-blender': {
+    // An original Blender model (f4u-corsair-blender.py), a duplicate beside the download: the kit's propeller is
+    // exactly 3-fold symmetric (the -1D's three blades). The mains fold inboard about +x with the wheels flat, as the
+    // download's rig does (the real struts swing aft and turn 90 deg; one hinge, ESTIMATE); the tailwheel swings aft.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
+      { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f4u-corsair-blender.py header)' },
     ],
     turrets: [],
     surfaces: surfaces(2),

@@ -36,14 +36,14 @@ import { DIFFICULTY_SCALES } from '../../src/sim/difficulty.js'
  *    alongside the box/visibility checks, which are necessary but not
  *    sufficient on their own.
  *
- * Settings is reachable only from the title screen (its button lives in
- * `titleScreen.ts`'s always-visible row, hidden once "New game" dismisses the
- * overlay -- there is no in-flight reopening path), so every case that both
- * drives the dialog AND needs a live in-game effect does the dialog work
- * FIRST, then calls `startGame`. `waitForTerrain` itself calls `startGame`,
- * so it is deliberately NOT used before the dialog is done with here -- the
- * manual `groundHeightM()` wait below is the same signal without the
- * New-game side effect.
+ * The complete Settings dialog is reached from the title screen. The pause
+ * dossier now embeds the same implementation with only live-safe controls;
+ * that path is covered in `pauseUi.spec.ts`. Cases here that both drive the
+ * complete dialog and need a live in-game effect therefore do the dialog work
+ * FIRST, then call `startGame`. `waitForTerrain` itself calls `startGame`, so
+ * it is deliberately NOT used before the dialog is done with here -- the
+ * manual `groundHeightM()` wait below is the same signal without the New-game
+ * side effect.
  */
 
 const f6f = loadAircraftSpec('f6f-hellcat')
@@ -87,35 +87,31 @@ function settingsDialog(page: Page) {
   return page.getByRole('dialog', { name: 'Settings' })
 }
 
-test('fresh profile: no Recommended tag on the title; the probe measures the first sortie, and the tag is there after a reload', async ({ page }) => {
+test('fresh profile: preflight finishes before mission selection, and its recommendation is reused after reload', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
+  const verdict = page.waitForEvent('console', { predicate: (m) => m.text().startsWith('graphics check:'), timeout: 90_000 })
   await page.goto('/')
-  await waitForTerrainOnly(page)
+  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 90_000 })
+  console.log((await verdict).text())
   const title = page.getByRole('dialog', { name: 'Title' })
   await title.getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
 
-  // Nothing persisted, so the probe has not resolved -- and A4 (2026-10-09)
-  // moved it into the flight, so the title never resolves it however long it
-  // stays up (incident 2026-09-20: the title is not the scene a pilot flies).
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(false)
-  await expect(dlg.getByText('Recommended')).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/settings-fresh-no-recommended.png' })
-  await page.waitForTimeout(6_000)
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(false)
-  await dlg.getByRole('button', { name: 'Close' }).click()
-
-  await startGame(page)
-  await page.waitForFunction(() => (window as DiagWindow).__ww2!.qualityProbeChecked(), undefined, { timeout: 60_000 })
-
-  // The verdict persists (A4), so a reload shows the stamp with no new probe.
-  await page.reload()
-  await waitForTerrainOnly(page)
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
-  await expect(settingsDialog(page).getByText('Recommended')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
-  await page.screenshot({ path: 'test-results/settings-fresh-recommended.png' })
+  await expect(dlg.locator('.stamp', { hasText: 'Recommended' })).toHaveCount(2)
+  const firstRecord = await page.evaluate(() => (window as DiagWindow).__ww2!.graphicsCheck().record)
+  expect(firstRecord).not.toBeNull()
+  await page.screenshot({ path: 'test-results/settings-preflight-recommended.png' })
+
+  // A current verdict is reused: no session exists after the reload.
+  await page.reload()
+  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
+  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await expect(settingsDialog(page).locator('.stamp', { hasText: 'Recommended' })).toHaveCount(2)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.graphicsCheck().session)).toBeNull()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.graphicsCheck().record)).toEqual(firstRecord)
 })
 
 test('Difficulty: a Recruit pick in the dialog reaches the sortie it launches (M5)', async ({ page }) => {
@@ -136,7 +132,7 @@ test('Difficulty: a Recruit pick in the dialog reaches the sortie it launches (M
   expect((await combat(page)).aa.errorScale).toBe(DIFFICULTY_SCALES.easy.aaError)
 })
 
-test('an explicit Simple-row pick persists across a reload, with no second probe run', async ({ page }) => {
+test('an explicit Simple-row pick becomes custom across reload without erasing the measured recommendation', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   await waitForTerrainOnly(page)
@@ -145,18 +141,16 @@ test('an explicit Simple-row pick persists across a reload, with no second probe
   let dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
 
-  // Pick Low before the probe has any chance to resolve -- proves the pick
-  // itself, not a race with the probe, is what persists.
+  // Settings is usable during preflight. The pick must cancel candidate swaps
+  // immediately and become authoritative even if the check was still active.
   await dlg.getByRole('radiogroup', { name: 'Render quality' }).getByRole('radio', { name: /Low\b/ }).click()
   const saved = await page.evaluate(() => window.localStorage.getItem('ww2airsim.quality.v1'))
   expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low', fx: 'low' })
+  expect(await page.evaluate(() => window.localStorage.getItem('ww2airsim.graphicsMode.v1'))).toBe('custom')
 
   await page.reload()
   await waitForTerrainOnly(page)
 
-  // `probeSuppressed` is read at construction from whatever was ALREADY saved
-  // before this page load, so it is latched true from the very first read --
-  // no waiting required, unlike the fresh-profile case above.
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.oceanTier())).toBe('low')
 
@@ -168,11 +162,12 @@ test('an explicit Simple-row pick persists across a reload, with no second probe
     dlg.getByRole('radiogroup', { name: 'Render quality' }).getByRole('radio', { name: /Low\b/ }),
   ).toHaveAttribute('aria-checked', 'true')
 
-  // Wait past the ~3s the fresh-profile case measured for the probe to
-  // resolve, and confirm the stamp still never appears -- the actual
-  // behavioral claim, not just the flag's initial value.
+  // The previous measurement remains available as advice; it is not the
+  // active profile while mode is custom.
   await page.waitForTimeout(6_000)
-  await expect(dlg.getByText('Recommended')).toHaveCount(0)
+  const record = await page.evaluate(() => (window as DiagWindow).__ww2!.graphicsCheck().record)
+  if (record === null) await expect(dlg.getByText('Recommended')).toHaveCount(0)
+  else await expect(dlg.locator('.stamp', { hasText: 'Recommended' })).toHaveCount(2)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.oceanTier())).toBe('low')
   await page.screenshot({ path: 'test-results/settings-persisted-no-second-probe.png' })
 })
@@ -240,7 +235,8 @@ test('DEV ?oceanTier= override wins over a saved low render-quality setting', as
   // reads it as this session's ALREADY-saved choice, exactly as a returning
   // player's browser would have it.
   await page.addInitScript(() => {
-    window.localStorage.setItem('ww2airsim.quality.v1', JSON.stringify({ ocean: 'low', scenery: 'low', clouds: 'low' }))
+    window.localStorage.setItem('ww2airsim.quality.v1', JSON.stringify({ ocean: 'low', scenery: 'low', clouds: 'low', fx: 'low' }))
+    window.localStorage.setItem('ww2airsim.graphicsMode.v1', 'custom')
   })
   await page.goto('/?oceanTier=high')
   await waitForTerrainOnly(page)
@@ -267,7 +263,7 @@ test('DEV ?oceanTier= override wins over a saved low render-quality setting', as
   // entirely, `applySceneryTier`'s own early return) -- not itself a claim
   // about pixels, which the Advanced-override test below covers visually.
   const saved = await page.evaluate(() => window.localStorage.getItem('ww2airsim.quality.v1'))
-  expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low' })
+  expect(JSON.parse(saved!)).toEqual({ ocean: 'low', scenery: 'low', clouds: 'low', fx: 'low' })
 })
 
 test('rapid Ocean picks settle on the last choice after older cascade rebuilds finish', async ({ page }) => {
@@ -349,6 +345,10 @@ test('baseline at default (all High): the same spawn with trees, for comparison 
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.addInitScript(() => {
+    window.localStorage.setItem('ww2airsim.quality.v1', JSON.stringify({ ocean: 'high', scenery: 'high', clouds: 'high', fx: 'high' }))
+    window.localStorage.setItem('ww2airsim.graphicsMode.v1', 'custom')
+  })
   await page.goto('/')
   // Wait for terrain BEFORE "New game", matching the Scenery-override test's
   // own sequencing -- skipping this (an earlier version of this test did)

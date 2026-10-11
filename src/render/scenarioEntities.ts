@@ -6,6 +6,7 @@ import type { Airframe } from './scene/airframe.js'
 import type { StoreMounts } from './scene/stores.js'
 import { disposeMeshTree } from './models/dispose.js'
 import type { World } from '../sim/loop.js'
+import { loadRegisteredVehicleView, type LoadVehicleView, type VehicleView } from './scene/vehicleModels.js'
 
 export { disposeMeshTree }
 
@@ -20,6 +21,7 @@ export { disposeMeshTree }
 export interface ScenarioEntities {
   readonly airframes: readonly Airframe[]
   readonly shipHandles: readonly ShipView[]
+  readonly vehicleHandles?: readonly VehicleView[]
   readonly player: Airframe
   /** A mission's held-group meshes, keyed by entity id (M2 R1): world order
    *  cannot index them, since `spawnInto` appends in trigger order.
@@ -56,7 +58,7 @@ export const loadRegisteredAirframe: LoadAirframe = (modelId, stores) => airfram
  */
 export async function buildScenarioEntities(
   scene: Scene,
-  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'player' | 'mission'>,
+  world: Pick<World<undefined>, 'aircraft' | 'ships' | 'structures' | 'player' | 'mission'>,
   previous: ScenarioEntities | null,
   // Defaulted for production; tests substitute a cheap synchronous stand-in
   // (createHellcat) so they never run a real GLTFLoader parse in Node. It receives
@@ -65,16 +67,19 @@ export async function buildScenarioEntities(
   // Ship-models spec §3.3-3.4: never rejects; a model that fails draws boxes
   // and reports through the loader's own sink (main.ts passes validationErrors).
   loadShip: LoadShipView = loadRegisteredShipView,
+  loadVehicle: LoadVehicleView = loadRegisteredVehicleView,
 ): Promise<ScenarioEntities> {
   const heldAircraft = (world.mission?.held ?? []).flatMap((g) => g.aircraft)
   const heldShips = (world.mission?.held ?? []).flatMap((g) => g.ships)
-  const [settled, shipSettled, heldSettled, heldShipSettled] = await Promise.all([
+  const vehicles = world.structures.filter((s) => s.kind === 'tank')
+  const [settled, shipSettled, heldSettled, heldShipSettled, vehicleSettled] = await Promise.all([
     Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
     Promise.allSettled(heldAircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(heldShips.map((s) => loadShip(s.spec))),
+    Promise.allSettled(vehicles.map(loadVehicle)),
   ])
-  const all = [...settled, ...shipSettled, ...heldSettled, ...heldShipSettled]
+  const all = [...settled, ...shipSettled, ...heldSettled, ...heldShipSettled, ...vehicleSettled]
   const failed = all.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed !== undefined) {
     for (const r of all) if (r.status === 'fulfilled') r.value.dispose()
@@ -84,6 +89,7 @@ export async function buildScenarioEntities(
   const shipHandles = shipSettled.map((r) => (r as PromiseFulfilledResult<ShipView>).value)
   const heldAirframes = heldSettled.map((r) => (r as PromiseFulfilledResult<Airframe>).value)
   const heldShipHandles = heldShipSettled.map((r) => (r as PromiseFulfilledResult<ShipView>).value)
+  const vehicleHandles = vehicleSettled.map((r) => (r as PromiseFulfilledResult<VehicleView>).value)
 
   if (previous !== null) {
     previous.airframes.forEach((a) => {
@@ -101,6 +107,10 @@ export async function buildScenarioEntities(
       scene.remove(a.root)
       a.dispose()
     }
+    for (const handle of previous.vehicleHandles ?? []) {
+      scene.remove(handle.root)
+      handle.dispose()
+    }
   }
 
   for (const a of airframes) {
@@ -113,6 +123,7 @@ export async function buildScenarioEntities(
   const playerIndex = world.aircraft.findIndex((a) => a.id === world.player)
   const player = airframes[playerIndex]!
   for (const h of shipHandles) scene.add(h.root)
+  for (const h of vehicleHandles) scene.add(h.root)
   for (const h of [...heldAirframes, ...heldShipHandles]) {
     h.root.visible = false
     scene.add(h.root)
@@ -122,6 +133,7 @@ export async function buildScenarioEntities(
   return {
     airframes,
     shipHandles,
+    vehicleHandles,
     player,
     held: {
       airframes: new Map(heldAircraft.map((a, i) => [a.id, heldAirframes[i]!])),

@@ -1,0 +1,19 @@
+{
+  "id": "f4f-wildcat-blender",
+  "name": "Grumman F4F-4 Wildcat (Blender model)",
+  "kind": "aircraft",
+  "side": "allied",
+  "blurb": "A second Wildcat model, built in Blender from the cited dimensions and kept beside the downloaded one for comparison: moving gear, propeller and control surfaces, the same stance as the flying Wildcat. Not flown yet.",
+  "history": "The Grumman F4F Wildcat was an American carrier-based fighter that entered service in 1940 with the U.S. Navy and the British Royal Navy, which called it the Martlet. At the time of Pearl Harbor it was the best fighter the Navy and Marine Corps had, and it remained so until mid-1943. The F4F-4, which first met the Zero at Midway, added folding wings and a heavier gun battery without more engine power, and was more sluggish than the F4F-3 before it.\n\nWhat this entry models: an original Blender model of the F4F-4 (span 38 ft 0 in, length 28 ft 9 in, 3-bladed propeller), with every figure the sources do not give labeled as an estimate in its script. The flying Wildcat still draws the downloaded model.",
+  "sources": [
+    {
+      "title": "Grumman F4F Wildcat",
+      "url": "https://en.wikipedia.org/wiki/Grumman_F4F_Wildcat",
+      "read": "2026-09-25"
+    }
+  ],
+  "model": {
+    "kind": "aircraft",
+    "id": "f4f-wildcat-blender"
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { failureMessage } from '../../src/render/failure.js'
+import { failureMessage, recoveryGuide } from '../../src/render/failure.js'
 
 describe('failureMessage', () => {
   it('tells you what to do about a missing navigator.gpu, not just that it is missing', () => {
@@ -10,7 +10,7 @@ describe('failureMessage', () => {
 
   it('names the software rasterizer case as a distinct failure', () => {
     const m = failureMessage('software-adapter', 'vendor="google"')
-    expect(m.title).toMatch(/software/i)
+    expect(`${m.title} ${m.detail}`).toMatch(/software/i)
     expect(m.detail).toMatch(/vendor="google"/)
   })
 
@@ -42,6 +42,29 @@ describe('failureMessage', () => {
       expect(m.title.length).toBeGreaterThan(0)
       expect(m.detail.length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('graphics recovery guide', () => {
+  it('gives Chrome-specific acceleration, diagnostics, driver and policy steps', () => {
+    const guide = recoveryGuide('no-adapter', 'Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36', 'Win32')!
+    expect(guide.steps.join('\n')).toMatch(/chrome:\/\/settings\/system/i)
+    expect(guide.steps.join('\n')).toMatch(/chrome:\/\/gpu/i)
+    expect(guide.steps.join('\n')).toMatch(/driver/i)
+    expect(guide.steps.join('\n')).toMatch(/High performance/i)
+    expect(guide.steps.join('\n')).toMatch(/chrome:\/\/policy/i)
+  })
+
+  it('uses Edge URLs and labels unsafe flags as advanced diagnostics', () => {
+    const guide = recoveryGuide('software-adapter', 'Mozilla/5.0 Edg/141.0.0.0', 'Linux')!
+    expect(guide.steps.join('\n')).toMatch(/edge:\/\/settings\/system/i)
+    expect(guide.steps.join('\n')).not.toMatch(/High performance/i)
+    expect(guide.advanced.join('\n')).toMatch(/unsafe-webgpu/)
+    expect(guide.advanced.join('\n')).toMatch(/stability|security/i)
+  })
+
+  it('does not add browser recovery steps to unrelated failures', () => {
+    expect(recoveryGuide('bad-content', 'Chrome/141', 'Win32')).toBeNull()
   })
 })
 

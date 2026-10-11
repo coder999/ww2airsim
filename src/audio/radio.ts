@@ -66,6 +66,9 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Strike lead: Mogami is retiring south through the strait. Battle line has the rear guard; finish the cruiser.': null,
   'Oldendorf: rear guard is broken. Keep after Mogami.': null,
   'Strike lead: Mogami is finished. Turn north and recover aboard Essex.': null,
+  // Tank Buster (2026-10-11) is text-only; no forward-air-control recordings yet.
+  'Forward air control: Japanese armor is moving southwest of Dulag. Three pairs along the road.': null,
+  'Forward air control: column broken. Return to Tacloban, or finish the remaining tanks.': null,
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

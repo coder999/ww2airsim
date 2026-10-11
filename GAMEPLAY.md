@@ -36,6 +36,7 @@ sortie, 0 points, however it ends.
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
 | Destroyer | 750 | Transport | 400 |
+| Tank | 300 | | |
 
 Recovery multiplier applied to the mission total:
 
@@ -457,14 +458,14 @@ crates and a windsock. They block trees and are visual only.
 
 ## Vehicle roster
 
-New 2026-09-25, candidate only. No vehicle exists in the sim, and the
-[scoring table](#scoring) has no vehicle row, so none of these can be shot or
-scored yet. Listed so the candidate models in `ASSETS.md` have a role to be
-checked against.
+Scenario-authored vehicles are stationary ground targets in the existing
+structure damage pipeline. They take gun, rocket and bomb damage, appear on
+mission maps and objective lists, and score in their own **Tank** row. Moving
+vehicles, vehicle weapons and ground AI remain open.
 
 | Vehicle | Role |
 | --- | --- |
-| Type 97 Chi-Ha medium tank | Hostile ground target |
+| Type 97 Chi-Ha medium tank | Hostile 48-HP ground target in Tank Buster; temporary visual stand-in for the Type 89 and Type 95 tanks better documented on Leyte |
 | Willys MB jeep | Friendly airfield scenery |
 
 ## Ordnance roster
@@ -499,21 +500,22 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped on the Surigao branch** (`content/scenarios/`, checked 2026-10-11) are the
-sandbox and test-range scenarios the engineering plans needed —
-`free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus ten real missions: **Basic Flying**, **Deck Quals**
-("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
-Air Patrol**, **Single Combat**, **Scramble**, **Flattop Hunt**, **Escort** and
-**Surigao Strait**. Each declares real objectives,
+**Shipped on this branch** (`content/scenarios/`, checked 2026-10-11) are the
+sandbox and test-range scenarios the engineering plans needed — `free-flight`,
+`gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus eleven
+real missions: **Basic Flying**, **Deck Quals** ("Carrier Qualification"),
+**Airfield Strike**, **Convoy Strike**, **Tank Buster**, **Combat Air Patrol**,
+**Single Combat**, **Scramble**, **Flattop Hunt**, **Escort** and **Surigao
+Strait**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
 checks the briefing, objective line, radio, chart and debrief). Open items are in the M3 and M4 handoffs
 (`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`),
 the F2 handoff (`docs/handoff/2026-10-09-f2-single-combat-scramble.md`) and
-the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`) and
-the Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`) and Surigao
+the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`), the
+Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`), the Tank Buster
+handoff (`docs/handoff/2026-10-11-tank-buster-mission.md`) and the Surigao
 handoff (`docs/handoff/2026-10-11-surigao-strait-mission.md`).
 
 **Surigao Strait** (Track F, 2026-10-11) is a dawn-aftermath mission. *Fuso*
@@ -524,6 +526,13 @@ staged Essex. Explicit surface-fire orders and separation keep the battle
 line from completing the player's *Mogami* objective. The roster and carrier
 compress several real formations and hours of the 25 October pursuit; the
 briefing and cited history call out that abstraction.
+
+**Tank Buster** (2026-10-11) starts a Hellcat airborne south of Dulag with
+rockets and bombs. Six Japanese tanks form three close pairs along the
+Dulag-Burauen approach; destroy four and recover at Tacloban for the badge,
+or destroy all six for the secondary objective. The mission is a historical
+composite. Its Chi-Ha is authentic to the Philippines theater but explicitly
+stands in for Type 89 and Type 95 tanks better documented on Leyte.
 
 **Escort** (Track F, 2026-10-10) is item 4 above, as Mark decided it: the
 player's Hellcat escorts four B-17s to Dulag's hangars while four Zeros

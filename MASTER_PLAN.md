@@ -32,17 +32,13 @@ render quality with auto-detect.
 - **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
 - **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
-**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09**, same merge: the probe measures the first seconds of flight by frame rate, and Form 4 gains a Render quality row stamped with its verdict. Mark's Chrome on Ryzen reads 104 fps and High (`qualityProbeChrome.spec.ts`).
-- **Today:** the probe takes one p95 after 180 frames **on the title screen**, under vsync. A vsynced Chrome downclocks the GPU and reads about 3× high, so Mark's desktop measured 11.4 ms and got Low (`main.ts:1424-1442`, `ocean/tiers.ts:25`).
-- **Proposal:**
-  - Measure a representative flight view, not the title screen.
-  - Recommend one bundle across ocean, clouds and scenery rather than ocean only.
-  - Show the recommendation on a quality step in the launch flow, with an override.
-- This closes incident 2026-09-20 and `clouds.md` #2. **`clouds.md` notes this does more for how the clouds look on Mark's desktop than any shader work.**
+**A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
 **A5. Render scale in Settings (S, after H0 and A4). Done and merged 2026-10-10:** Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
+
+**A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. Form 4 no longer owns editable rendering controls: its administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
 
 ### Track B: Guidance, autopilot and tutorial
 
@@ -114,7 +110,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
 - **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
 
-**C4. Damage stages (M). Merged 2026-10-10.**
+**C4. Damage stages (M). Damage merged 2026-10-10; asymmetric engine-loss yaw completed 2026-10-11.**
 - **Mark's report (2026-10-09):** a shot Zero froze in mid-air.
 - **Now:** a hit engine smokes, sputters below half health, and stalls dead below 15%. At 25% structure the airframe catches fire and is doomed. AI pilots spiral down, and the fire burns it out in 15 s. At zero it explodes, its props and control surfaces break away, and the wreck falls to the surface.
 - **Credit** waits for the explosion or the impact (Mark's ruling).
@@ -125,12 +121,14 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - The B-17 and B-29 (1,440 HP) and the G4M and Ki-21 (480) take hits, with each engine damaged on its own. Bomber range: `?scenario=bomber-range&launch`.
   - AI duels resolve 18 of 72, down from 27 (handoff table). A stalled AI now unloads before its floor pull.
   - On the merge (2026-10-10), D1's Kate and Avenger took the same 4x (Mark): 280 and 560 HP.
-- **Open:** asymmetric yaw on an engine loss; bomber gunners fire since E3 (Track E item 3, on its branch); whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing.
+- **Asymmetric engine-loss yaw (2026-10-11):** multi-engine damage now carries each engine's output into flight. The existing rate-command model derives signed airborne yaw from measured engine-zone arms; outer losses have naturally more leverage, and rudder/auto-rudder/AI feedback can counter it. Yaw-control damage does not weaken the independent thrust effect; the combined rate remains capped at the healthy maximum. Healthy flight stays exact, while symmetric and single-engine output add no yaw bias. Plan `docs/superpowers/plans/2026-10-11-c4-asymmetric-engine-yaw.md`; handoff `docs/handoff/2026-10-11-c4-asymmetric-engine-yaw.md`.
+- **Open:** whether the slower AI fights need AI gunnery work (Track E). Also Round 1's unattended rulings, e.g. hits on a burning airplane take nothing. Detailed windmilling drag, explicit AI engine-out trim, and ground/take-off yaw are deferred.
 
-### Track V: Ground vehicles and ordnance models (S). Done 2026-10-09
+### Track V: Ground vehicles and ordnance models (S). Static targets extended 2026-10-11
 
-- **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Render and Hangar only, in `src/render/scene/vehicleRig.ts`: no vehicle is in the sim yet, so neither moves in a scenario. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
-- **Open:** vehicles as sim entities (ground targets that drive) would be their own plan; the rigs take a distance and a steer, so a sim pose drives them unchanged.
+- **V1** (plan `docs/superpowers/plans/2026-10-09-v1-ordnance-vehicles.md`, handoff `docs/handoff/2026-10-09-v1-ordnance-vehicles.md`): the Chi-Ha's turret trains and its gun elevates, its wheels and tread run; the jeep's wheels turn and steer, with a driver at the wheel. Also the Mk 13 and Type 91 torpedo models (Track D) and the Type 98 No. 25 bomb, now the store of every Japanese bomber.
+- **Static ground targets done 2026-10-11:** scenarios can place stationary, destructible tank entities. Tank Buster uses six 48-HP Chi-Ha stand-ins near Dulag; they share structure damage/objectives, render the V1 model, keep a wreck pose and score 300 points as Tanks.
+- **Open:** vehicles that drive, fire or use ground AI. The rigs already take a distance and a steer, so a future sim pose can drive them unchanged.
 
 ### Track D: Torpedoes (L)
 
@@ -172,13 +170,14 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 10 missions and 6 ranges ship on the Surigao branch (counted in `SCENARIO_OPTIONS` 2026-10-11).
+  - 11 missions and 6 ranges ship on the Surigao branch (counted in `SCENARIO_OPTIONS` 2026-10-11).
   - A new mission is a JSON file, one `SCENARIO_OPTIONS` row and one `RIBBONS` design (`src/render/insignia.ts`; `tests/render/insignia.test.ts` fails without it), unless it needs a new objective kind, AI behavior or model.
   - **Ribbons and rank insignia done 2026-10-10:** an invented ribbon per mission badge and the 1944 USN collar device per rank, in the Dossier, debrief, roster and mission picker (GAMEPLAY.md, "Badges").
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
   - **Escort done 2026-10-10 (merged):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
   - **Surigao Strait built 2026-10-11 (branch `surigao-strait-mission`, pending merge):** at dawn, a bomb-and-rocket F6F pursues *Mogami* while Oldendorf's battle line engages a representative rear guard; recovery is aboard a staged Essex (plan `docs/superpowers/plans/2026-10-11-surigao-strait-mission.md`, handoff `docs/handoff/2026-10-11-surigao-strait-mission.md`).
+  - **Tank Buster done 2026-10-11:** a Hellcat attacks six stationary Japanese tanks southwest of Dulag; four kills plus recovery earn the badge, all six the secondary objective. The Chi-Ha is an explicit stand-in for the Type 89/Type 95 tanks better documented on Leyte.
   - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 

@@ -6,6 +6,12 @@ import {
   saveAssetQualityTier, saveQualitySettings, saveRecommendedTier, uniformTier,
   type AssetQualityTierName, type QualitySettings, type QualityTierName,
 } from './quality.js'
+import {
+  clearGraphicsCheckRecord, loadGraphicsCheckRecord, loadGraphicsMode, saveGraphicsMode,
+  type GraphicsCheckRecord, type GraphicsMode, type GraphicsProfile, type RenderScale,
+} from './graphicsCheck.js'
+
+export type { RenderScale } from './graphicsCheck.js'
 
 /**
  * The title screen's Settings dialog (design:
@@ -25,7 +31,7 @@ import {
  * for two reasons: that file is already ~490 lines and Task 7 of the same
  * plan rewrites its roster section, so keeping the dialog out of it removes
  * a real collision; and `main.ts` (Task 6) needs the model, not the title
- * screen, to read settings at boot and push the GPU probe's result back in.
+ * screen, to read settings at boot and push the graphics check's result back in.
  * `titleScreen.ts` owns only the button that opens it.
  *
  * WHERE EACH SETTING PERSISTS, since this dialog writes three separate
@@ -39,8 +45,9 @@ import {
  *   gameplay consequence toggle that happens to share this dialog. Folding
  *   it into a module called `quality` would make the module's name a lie
  *   and would tempt the boot sequence into treating it as probe-related.
- * - Render Scale   -> `ww2airsim.renderScale.v1`, below (A5, 2026-10-10),
- *   here for the same reason: nothing probes it, so it is not a tier.
+ * - Render Scale   -> `ww2airsim.renderScale.v1`, below (A5, 2026-10-10).
+ *   A6's check recommends it together with Render Quality, but it remains a
+ *   separate persisted axis so an explicit user choice can change it live.
  * - Difficulty     -> `ww2airsim.difficulty.v1`, below (M5, 2026-10-10): a
  *   gameplay setting like Damage Model.
  */
@@ -99,7 +106,6 @@ const RENDER_SCALE_KEY = 'ww2airsim.renderScale.v1'
  *  drawn at, on top of `devicePixelRatio` (still capped at 2,
  *  `renderer.ts`'s `pixelRatioFor`). 1 is the default, so nothing changes
  *  until a player picks a lower one. */
-export type RenderScale = 0.5 | 0.75 | 1
 export const DEFAULT_RENDER_SCALE: RenderScale = 1
 
 const RENDER_SCALES: readonly RenderScale[] = [0.5, 0.75, 1]
@@ -127,6 +133,14 @@ export function saveRenderScale(scale: RenderScale): void {
     window.localStorage.setItem(RENDER_SCALE_KEY, String(scale))
   } catch (err) {
     console.warn('render scale could not be saved to localStorage:', err)
+  }
+}
+
+export function clearRenderScale(): void {
+  try {
+    window.localStorage.removeItem(RENDER_SCALE_KEY)
+  } catch (err) {
+    console.warn('render scale could not be cleared from localStorage:', err)
   }
 }
 
@@ -241,7 +255,7 @@ export const DIFFICULTY_EFFECT_NOTE = 'Takes effect next time you start a sortie
 /** Spec §6: the recommendation is measured, not assumed, and only after the
  *  ~180-frame probe window has elapsed. */
 export const RECOMMENDATION_NOTE =
-  'The recommendation is measured from this machine automatically, a few seconds into your first sortie.'
+  'The recommendation is measured from the real title scene before your first mission selection.'
 
 export type SettingsSnapshot = {
   readonly isOpen: boolean
@@ -258,6 +272,11 @@ export type SettingsSnapshot = {
    *  threaded in as a parameter -- visual-realism spec §1. */
   readonly arcadeDamage: boolean
   readonly renderScale: RenderScale
+  /** Automatic lets a graphics check update the active profile. Custom is a
+   * player override and is never moved by a later result. */
+  readonly graphicsMode: GraphicsMode
+  readonly graphicsCheck: GraphicsCheckRecord | null
+  readonly recommendedProfile: GraphicsProfile | null
   readonly difficulty: Difficulty
   /** The probe's pick once `main.ts` pushes it in; `null` until then, which
    *  is what suppresses the Recommended stamp rather than a "measuring..."
@@ -291,6 +310,9 @@ export type SettingsCallbacks = {
   readonly onDamageModelChange?: (model: DamageModel) => void
   /** Fired on a Render Scale pick; `bootQuality.ts` applies it live. */
   readonly onRenderScaleChange?: (scale: RenderScale) => void
+  /** A rerun starts from a reload so the canonical boot view and pipeline
+   * warm-up are identical to a first visit. */
+  readonly onRunGraphicsCheck?: () => void
 }
 
 export type SettingsModel = {
@@ -306,6 +328,12 @@ export type SettingsModel = {
   selectDamageModel(model: DamageModel): void
   selectRenderScale(scale: RenderScale): void
   selectDifficulty(difficulty: Difficulty): void
+  /** Applies a measured profile without turning it into a player override. */
+  previewAutomaticProfile(profile: GraphicsProfile): void
+  applyAutomaticProfile(profile: GraphicsProfile): void
+  useRecommendedProfile(): void
+  runGraphicsCheckAgain(): void
+  setGraphicsCheckRecord(record: GraphicsCheckRecord): void
   /** Spec §6: clears the saved render-quality choice so the NEXT page load
    *  probes again. Deliberately does not re-probe or revert live state. */
   resetToAutoDetect(): void
@@ -343,19 +371,29 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   // loaded here IS what is rendering. With nothing persisted the app boots at
   // today's existing default of `high` for all three, and the probe may
   // replace it via `setCurrentQuality` a few seconds later.
-  let quality: QualitySettings = loadQualitySettings() ?? defaultQualitySettings('high')
+  const savedQualityAtStart = loadQualitySettings()
+  const savedScaleAtStart = loadRenderScale()
+  let quality: QualitySettings = savedQualityAtStart ?? defaultQualitySettings('high')
 
   // Nothing persisted -> show what this boot is ACTUALLY loading: the same
   // constant the loader reads, so the dialog cannot preselect one tier while
   // the loader fetches another.
   let assetQuality: AssetQualityTierName = loadAssetQualityTier() ?? INTERIM_ASSET_QUALITY_TIER
   let damageModel: DamageModel = loadDamageModel() ?? DEFAULT_DAMAGE_MODEL
-  let renderScale: RenderScale = loadRenderScale() ?? DEFAULT_RENDER_SCALE
+  let renderScale: RenderScale = savedScaleAtStart ?? DEFAULT_RENDER_SCALE
   let difficulty: Difficulty = loadDifficulty() ?? DEFAULT_DIFFICULTY
+  // Old builds had no mode marker. Preserve any old saved quality/scale as a
+  // custom choice rather than allowing a new benchmark to overwrite it.
+  let graphicsMode: GraphicsMode = loadGraphicsMode() ??
+    (savedQualityAtStart !== null || savedScaleAtStart !== null ? 'custom' : 'automatic')
+  let graphicsCheck = loadGraphicsCheckRecord()
 
   let isOpen = false
   let advancedExpanded = false
-  let recommendedTier: QualityTierName | null = loadRecommendedTier()
+  const legacyRecommended = loadRecommendedTier()
+  let recommendedTier: QualityTierName | null = graphicsCheck?.recommended.quality ?? legacyRecommended
+  let recommendedProfile: GraphicsProfile | null = graphicsCheck?.recommended ??
+    (legacyRecommended === null ? null : { quality: legacyRecommended, renderScale })
   let explicitChoiceMade = false
   const listeners = new Set<() => void>()
 
@@ -366,6 +404,8 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   const applyQuality = (next: QualitySettings): void => {
     quality = next
     explicitChoiceMade = true
+    graphicsMode = 'custom'
+    saveGraphicsMode(graphicsMode)
     // Saved BEFORE the callback runs, so a throw out of `main.ts`'s live
     // `setTier` work cannot leave the player's pick unpersisted.
     saveQualitySettings(next)
@@ -383,6 +423,9 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       damageModel,
       arcadeDamage: damageModel === 'arcade',
       renderScale,
+      graphicsMode,
+      graphicsCheck,
+      recommendedProfile,
       difficulty,
       recommendedTier,
       // Read from storage rather than tracked as a flag: `main.ts` also saves
@@ -412,6 +455,9 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
     },
     selectRenderScale: (scale: RenderScale): void => {
       renderScale = scale
+      explicitChoiceMade = true
+      graphicsMode = 'custom'
+      saveGraphicsMode(graphicsMode)
       saveRenderScale(scale)
       callbacks.onRenderScaleChange?.(scale)
       changed()
@@ -419,6 +465,58 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
     selectDifficulty: (next: Difficulty): void => {
       difficulty = next
       saveDifficulty(next)
+      changed()
+    },
+    previewAutomaticProfile: (profile: GraphicsProfile): void => {
+      quality = defaultQualitySettings(profile.quality)
+      renderScale = profile.renderScale
+      callbacks.onQualityChange?.(quality)
+      callbacks.onRenderScaleChange?.(renderScale)
+      changed()
+    },
+    applyAutomaticProfile: (profile: GraphicsProfile): void => {
+      quality = defaultQualitySettings(profile.quality)
+      renderScale = profile.renderScale
+      graphicsMode = 'automatic'
+      saveGraphicsMode(graphicsMode)
+      saveQualitySettings(quality)
+      saveRenderScale(renderScale)
+      callbacks.onQualityChange?.(quality)
+      callbacks.onRenderScaleChange?.(renderScale)
+      changed()
+    },
+    useRecommendedProfile: (): void => {
+      if (recommendedProfile === null) return
+      quality = defaultQualitySettings(recommendedProfile.quality)
+      renderScale = recommendedProfile.renderScale
+      graphicsMode = 'automatic'
+      saveGraphicsMode(graphicsMode)
+      saveQualitySettings(quality)
+      saveRenderScale(renderScale)
+      callbacks.onQualityChange?.(quality)
+      callbacks.onRenderScaleChange?.(renderScale)
+      changed()
+    },
+    runGraphicsCheckAgain: (): void => {
+      clearGraphicsCheckRecord()
+      graphicsCheck = null
+      recommendedProfile = null
+      recommendedTier = null
+      saveRecommendedTier(null)
+      graphicsMode = 'automatic'
+      saveGraphicsMode(graphicsMode)
+      // The benchmark's first candidate is High/100. Clear the active keys so
+      // the reload builds exactly that candidate before any tier-dependent
+      // object exists.
+      clearQualitySettings()
+      clearRenderScale()
+      callbacks.onRunGraphicsCheck?.()
+      changed()
+    },
+    setGraphicsCheckRecord: (record: GraphicsCheckRecord): void => {
+      graphicsCheck = record
+      recommendedProfile = record.recommended
+      recommendedTier = record.recommended.quality
       changed()
     },
     resetToAutoDetect: (): void => {
@@ -434,7 +532,12 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       // says it is.
       changed()
     },
-    setRecommendedTier: (tier: QualityTierName): void => { recommendedTier = tier; saveRecommendedTier(tier); changed() },
+    setRecommendedTier: (tier: QualityTierName): void => {
+      recommendedTier = tier
+      recommendedProfile = { quality: tier, renderScale }
+      saveRecommendedTier(tier)
+      changed()
+    },
     setCurrentQuality: (settings: QualitySettings): void => { quality = settings; changed() },
     subscribe: (next: () => void): (() => void) => {
       listeners.add(next)
@@ -455,9 +558,12 @@ export type SettingsDialogHandle = {
 }
 
 export type SettingsDialogOptions = {
-  /** The pause screen reuses the title's visual controls without showing
-   * gameplay choices (Damage Model and Difficulty) in the middle of flight. */
-  readonly scope?: 'all' | 'visual'
+  /** The pause screen reuses only settings that can affect the held sortie
+   * immediately. Asset Quality and the rerun action remain main-menu-only. */
+  readonly scope?: 'all' | 'live'
+  /** Inline puts the same live controls directly inside the pause dossier
+   * instead of opening a second modal over an already-modal surface. */
+  readonly presentation?: 'dialog' | 'inline'
 }
 
 function sectionTitle(text: string): HTMLDivElement {
@@ -478,21 +584,23 @@ export function createSettingsDialog(
   model: SettingsModel,
   options: SettingsDialogOptions = {},
 ): SettingsDialogHandle {
-  const visualOnly = options.scope === 'visual'
+  const liveOnly = options.scope === 'live'
+  const inline = options.presentation === 'inline'
   const overlay = document.createElement('div')
   overlay.dataset.ww2Settings = ''
   overlay.className = 'naval-comms'
-  overlay.setAttribute('role', 'dialog')
-  overlay.setAttribute('aria-modal', 'true')
-  overlay.setAttribute('aria-label', visualOnly ? 'Visual quality settings' : 'Settings')
-  overlay.style.cssText =
-    'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
+  overlay.setAttribute('role', inline ? 'region' : 'dialog')
+  if (!inline) overlay.setAttribute('aria-modal', 'true')
+  overlay.setAttribute('aria-label', liveOnly ? 'Visual quality settings' : 'Settings')
+  overlay.style.cssText = inline
+    ? 'position:relative;display:block;background:transparent'
+    : 'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
   // Document-level and idempotent -- `.stamp` is invisible without it, and
   // the debrief (Task 8) needs the same filter from its own screen.
   ensureStampFilter()
 
   const sheet = document.createElement('div')
-  sheet.className = 'sheet'
+  sheet.className = inline ? 'settings-inline' : 'sheet'
   sheet.style.maxWidth = '640px'
   overlay.appendChild(sheet)
 
@@ -505,13 +613,13 @@ export function createSettingsDialog(
   kicker.textContent = 'Requisition & Standing Orders'
   const title = document.createElement('div')
   title.className = 'letterhead-title'
-  title.textContent = visualOnly ? 'Visual Quality' : "Ship's Options"
+  title.textContent = liveOnly ? 'Visual Quality' : "Ship's Options"
   letterheadText.append(kicker, title)
   const formNumber = document.createElement('div')
   formNumber.className = 'form-number'
   formNumber.textContent = 'FORM OPS-4'
   letterhead.append(letterheadText, formNumber)
-  sheet.appendChild(letterhead)
+  if (!inline) sheet.appendChild(letterhead)
 
   // ---- Render Quality, the Simple row ----
   sheet.appendChild(sectionTitle('Render Quality'))
@@ -528,17 +636,19 @@ export function createSettingsDialog(
   // The Recommended tag: one stamp, moved to whichever tier the probe named,
   // rather than one hidden stamp per tier. Absent entirely until `main.ts`
   // pushes a recommendation in (spec §6: no "measuring..." placeholder).
-  const recommendedStamp = document.createElement('div')
-  recommendedStamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2'
-  recommendedStamp.textContent = 'Recommended'
-  // Position only. The roughen filter comes from `.stamp` itself now that
-  // `ensureStampFilter` declares the id the stylesheet actually names.
-  recommendedStamp.style.cssText = 'position:absolute;top:-30px;right:18px'
+  const recommendationStamp = (): HTMLDivElement => {
+    const stamp = document.createElement('div')
+    stamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2'
+    stamp.textContent = 'Recommended'
+    stamp.style.cssText = 'position:absolute;top:-30px;right:18px'
+    return stamp
+  }
+  const recommendedTierStamp = recommendationStamp()
+  const recommendedScaleStamp = recommendationStamp()
 
   const recommendationNote = document.createElement('p')
   recommendationNote.className = 'fine-print'
   recommendationNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
-  recommendationNote.textContent = RECOMMENDATION_NOTE
   sheet.appendChild(recommendationNote)
 
   // ---- Advanced disclosure ----
@@ -572,13 +682,14 @@ export function createSettingsDialog(
   const scaleOptions = new Map<RenderScale, HTMLDivElement>()
   for (const option of RENDER_SCALE_OPTIONS) {
     const el = ballotOption(option.label, option.note, () => model.selectRenderScale(option.value))
+    el.style.position = 'relative'
     scaleOptions.set(option.value, el)
     scaleGroup.appendChild(el)
   }
   sheet.appendChild(scaleGroup)
 
   // ---- Asset Quality ----
-  sheet.appendChild(sectionTitle('Asset Quality'))
+  const assetTitle = sectionTitle('Asset Quality')
   const assetGroup = radioGroup('Asset quality')
   const assetOptions = new Map<AssetQualityTierName, HTMLDivElement>()
   for (const option of ASSET_QUALITY_OPTIONS) {
@@ -586,12 +697,12 @@ export function createSettingsDialog(
     assetOptions.set(option.value, el)
     assetGroup.appendChild(el)
   }
-  sheet.appendChild(assetGroup)
+  if (!liveOnly) sheet.append(assetTitle, assetGroup)
   const assetNote = document.createElement('p')
   assetNote.className = 'fine-print'
   assetNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
   assetNote.textContent = ASSET_QUALITY_EFFECT_NOTE
-  sheet.appendChild(assetNote)
+  if (!liveOnly) sheet.appendChild(assetNote)
 
   // ---- Damage Model ----
   const damageTitle = sectionTitle('Damage Model')
@@ -602,7 +713,7 @@ export function createSettingsDialog(
     damageOptions.set(option.value, el)
     damageGroup.appendChild(el)
   }
-  if (!visualOnly) sheet.append(damageTitle, damageGroup)
+  if (!liveOnly) sheet.append(damageTitle, damageGroup)
 
   // ---- Difficulty (M5) ----
   const difficultyTitle = sectionTitle('Difficulty')
@@ -617,22 +728,28 @@ export function createSettingsDialog(
   difficultyNote.className = 'fine-print'
   difficultyNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
   difficultyNote.textContent = DIFFICULTY_EFFECT_NOTE
-  if (!visualOnly) sheet.append(difficultyTitle, difficultyGroup, difficultyNote)
+  if (!liveOnly) sheet.append(difficultyTitle, difficultyGroup, difficultyNote)
 
   // ---- Actions. No Save and no Cancel: every control above has already
   // applied and persisted by the time it is released (spec §6, naval-comms
   // spec §1). "Close" dismisses, it does not confirm. ----
   const buttons = document.createElement('div')
   buttons.className = 'button-row'
-  const resetButton = document.createElement('button')
-  resetButton.className = 'ink-button'
-  resetButton.textContent = 'Reset to auto-detect'
-  resetButton.addEventListener('click', () => model.resetToAutoDetect())
+  const recommendedButton = document.createElement('button')
+  recommendedButton.className = 'ink-button'
+  recommendedButton.textContent = 'Use recommended'
+  recommendedButton.addEventListener('click', () => model.useRecommendedProfile())
+  const rerunButton = document.createElement('button')
+  rerunButton.className = 'ink-button'
+  rerunButton.textContent = 'Run graphics check again'
+  rerunButton.addEventListener('click', () => model.runGraphicsCheckAgain())
   const closeButton = document.createElement('button')
   closeButton.className = 'ink-button ink-button--primary'
   closeButton.textContent = 'Close'
   closeButton.addEventListener('click', () => model.close())
-  buttons.append(resetButton, closeButton)
+  buttons.append(recommendedButton)
+  if (!liveOnly) buttons.append(rerunButton)
+  if (!inline) buttons.append(closeButton)
   sheet.appendChild(buttons)
 
   const finePrint = document.createElement('div')
@@ -652,7 +769,7 @@ export function createSettingsDialog(
 
   const render = (): void => {
     const s = model.snapshot()
-    overlay.style.display = s.isOpen ? 'flex' : 'none'
+    overlay.style.display = inline ? 'block' : s.isOpen ? 'flex' : 'none'
 
     markGroup(simpleOptions, s.simpleTier)
     for (const system of ADVANCED_SYSTEMS) {
@@ -670,22 +787,34 @@ export function createSettingsDialog(
     // is a runtime measurement). Cleared from every row first: the
     // recommendation is pushed in once, but nothing guarantees it is pushed
     // in only once, or always for the same tier.
-    for (const el of simpleOptions.values()) el.style.marginTop = ''
-    if (s.recommendedTier === null) {
-      recommendedStamp.remove()
+    for (const el of [...simpleOptions.values(), ...scaleOptions.values()]) el.style.marginTop = ''
+    if (s.recommendedProfile === null) {
+      recommendedTierStamp.remove()
+      recommendedScaleStamp.remove()
+      recommendationNote.textContent = RECOMMENDATION_NOTE
     } else {
-      const row = simpleOptions.get(s.recommendedTier)
-      row?.appendChild(recommendedStamp)
+      const row = simpleOptions.get(s.recommendedProfile.quality)
+      row?.appendChild(recommendedTierStamp)
       if (row !== undefined) row.style.marginTop = '30px'
+      const scaleRow = scaleOptions.get(s.recommendedProfile.renderScale)
+      scaleRow?.appendChild(recommendedScaleStamp)
+      if (scaleRow !== undefined) scaleRow.style.marginTop = '30px'
+      const accepted = s.graphicsCheck?.measurements.at(-1)
+      const measured = accepted === undefined ? '' : ` (${Math.round(accepted.framesPerSecond)} fps in the check)`
+      recommendationNote.textContent =
+        `Graphics check recommends ${s.recommendedProfile.quality[0]!.toUpperCase()}${s.recommendedProfile.quality.slice(1)} ` +
+        `at ${Math.round(s.recommendedProfile.renderScale * 100)}%${measured}.`
     }
 
     advancedToggle.textContent = s.advancedExpanded ? 'Advanced ▾' : 'Advanced ▸'
     advancedToggle.setAttribute('aria-expanded', String(s.advancedExpanded))
     advancedPanel.style.display = s.advancedExpanded ? 'block' : 'none'
 
-    resetButton.disabled = !s.canReset
-    resetButton.style.opacity = s.canReset ? '1' : '.45'
-    resetButton.style.cursor = s.canReset ? 'pointer' : 'default'
+    const usingRecommended = s.graphicsMode === 'automatic'
+    recommendedButton.disabled = s.recommendedProfile === null || usingRecommended
+    recommendedButton.style.opacity = recommendedButton.disabled ? '.45' : '1'
+    recommendedButton.style.cursor = recommendedButton.disabled ? 'default' : 'pointer'
+    rerunButton.disabled = false
   }
 
   // Kept so `destroy()` can drop it. Without that, every `show()` would leave
@@ -708,18 +837,19 @@ export function createSettingsDialog(
   // Capture keeps Esc from reaching the flight's pause binding after it has
   // closed this nested dialog. The title screen did not expose that race,
   // because its own key handler is inert while the title is up.
-  window.addEventListener('keydown', onKey, true)
+  if (!inline) window.addEventListener('keydown', onKey, true)
 
   return {
-    isOpen: () => model.snapshot().isOpen,
+    isOpen: () => !inline && model.snapshot().isOpen,
     open: (): void => {
+      if (inline) return
       model.open()
       closeButton.focus()
     },
-    close: (): void => model.close(),
+    close: (): void => { if (!inline) model.close() },
     destroy: (): void => {
       unsubscribe()
-      window.removeEventListener('keydown', onKey, true)
+      if (!inline) window.removeEventListener('keydown', onKey, true)
       overlay.remove()
     },
   }

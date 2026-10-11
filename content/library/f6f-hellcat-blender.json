@@ -1,0 +1,19 @@
+{
+  "id": "f6f-hellcat-blender",
+  "name": "Grumman F6F-5 Hellcat (Blender model)",
+  "kind": "aircraft",
+  "side": "allied",
+  "model": {
+    "kind": "aircraft",
+    "id": "f6f-hellcat-blender"
+  },
+  "blurb": "A second Hellcat model, built in Blender from the cited F6F-5 dimensions and kept beside the downloaded one for comparison: moving gear, propeller and control surfaces, the same stance as the flying Hellcat. Not flown yet.",
+  "history": "The Grumman F6F Hellcat was designed to replace the F4F Wildcat and to counter the Mitsubishi A6M Zero, and it became the U.S. Navy's dominant fighter in the second half of the Pacific War. It used the Pratt & Whitney R-2800 Double Wasp, the engine of the Corsair and the P-47 Thunderbolt.\n\nWhat this entry models: an original Blender model of the F6F-5 (span 42 ft 10 in, length 33 ft 7 in, 3-bladed propeller), with every figure the sources do not give labeled as an estimate in its script. The flying Hellcat still draws the downloaded model.",
+  "sources": [
+    {
+      "title": "Grumman F6F Hellcat",
+      "url": "https://en.wikipedia.org/wiki/Grumman_F6F_Hellcat",
+      "read": "2026-09-25"
+    }
+  ]
+}

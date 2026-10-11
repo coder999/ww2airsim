@@ -1,9 +1,22 @@
 import { WebGPURenderer } from 'three/webgpu'
-import { judgeAdapter, type AdapterVerdict } from './adapterGuard.js'
+import { judgeAdapter, type AdapterInfoLike, type AdapterVerdict } from './adapterGuard.js'
 
 export type RendererBundle = {
   readonly renderer: WebGPURenderer
   readonly adapterVerdict: AdapterVerdict
+  readonly adapterInfo: AdapterInfoLike
+}
+
+export type GpuQueueCompletion = { onSubmittedWorkDone(): Promise<void> }
+
+/** The preflight check observes completion of real renderer submissions. Three
+ * does not expose the queue in its public type, although its WebGPU backend
+ * necessarily owns it (the ocean and native-cloud passes use the same seam). */
+export function rendererQueue(renderer: WebGPURenderer): GpuQueueCompletion {
+  const backend = renderer.backend as unknown as { readonly device?: { readonly queue?: GpuQueueCompletion } }
+  const queue = backend.device?.queue
+  if (queue === undefined) throw new Error('graphics check: WebGPU queue is unavailable')
+  return queue
 }
 
 /**
@@ -121,13 +134,14 @@ export async function initRenderer(
   if (!adapter) throw new Error('no-adapter')
 
   const info = adapter.info
-  const adapterVerdict = judgeAdapter({
+  const adapterInfo: AdapterInfoLike = {
     vendor: info.vendor,
     architecture: info.architecture,
     device: info.device,
     description: info.description,
     isFallbackAdapter: info.isFallbackAdapter,
-  })
+  }
+  const adapterVerdict = judgeAdapter(adapterInfo)
 
   // The 0.1 m cockpit near plane and 440 km ocean far plane need reversed
   // floating-point depth. Conventional depth visibly interleaved land and
@@ -144,5 +158,5 @@ export async function initRenderer(
   applyRenderScale(renderer, renderScale)
   renderer.setSize(window.innerWidth, window.innerHeight)
 
-  return { renderer, adapterVerdict }
+  return { renderer, adapterVerdict, adapterInfo }
 }
