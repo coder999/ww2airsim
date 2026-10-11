@@ -54,6 +54,9 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Tacloban tower: splash one Frank. Come on home.': 'radio_tower_splash_frank',
   'Tacloban tower: scramble! Bettys inbound from the northwest, thirty miles, angels ten.': 'radio_tower_scramble',
   "Tacloban tower: raid's broken up. Bring it home.": 'radio_tower_scramble_clear',
+  // Flattop Hunt has no recorded lines yet; keep both messages deliberately text-only.
+  'Strike lead: flattop bearing two-two-five, twelve miles. Avengers take the carrier.': null,
+  'Strike lead: Zuikaku is going down. Reform east and recover aboard Essex.': null,
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

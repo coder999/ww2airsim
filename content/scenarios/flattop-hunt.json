@@ -1,0 +1,318 @@
+{
+  "id": "flattop-hunt",
+  "player": "avenger-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "aircraft": [
+    {
+      "id": "avenger-1",
+      "spec": "tbm-3-avenger",
+      "airborneAt": {
+        "position": [
+          -70000,
+          800,
+          8000
+        ],
+        "headingDeg": 225,
+        "speedMps": 90
+      }
+    },
+    {
+      "id": "avenger-2",
+      "spec": "tbm-3-avenger",
+      "side": "allied",
+      "tags": [
+        "strike"
+      ],
+      "airborneAt": {
+        "position": [
+          -70200,
+          800,
+          7800
+        ],
+        "headingDeg": 225,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -76000,
+              "z": 14000,
+              "altitudeM": 800,
+              "speedMps": 90
+            }
+          ],
+          "destination": {
+            "ship": "zuikaku"
+          },
+          "attack": "torpedo"
+        }
+      }
+    },
+    {
+      "id": "avenger-3",
+      "spec": "tbm-3-avenger",
+      "side": "allied",
+      "tags": [
+        "strike"
+      ],
+      "airborneAt": {
+        "position": [
+          -69800,
+          800,
+          8200
+        ],
+        "headingDeg": 225,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -76000,
+              "z": 14000,
+              "altitudeM": 800,
+              "speedMps": 90
+            }
+          ],
+          "destination": {
+            "ship": "zuikaku"
+          },
+          "attack": "torpedo"
+        }
+      }
+    },
+    {
+      "id": "avenger-4",
+      "spec": "tbm-3-avenger",
+      "side": "allied",
+      "tags": [
+        "strike"
+      ],
+      "airborneAt": {
+        "position": [
+          -70000,
+          800,
+          8400
+        ],
+        "headingDeg": 225,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "veteran",
+        "ingress": {
+          "route": [
+            {
+              "x": -76000,
+              "z": 14000,
+              "altitudeM": 800,
+              "speedMps": 90
+            }
+          ],
+          "destination": {
+            "ship": "zuikaku"
+          },
+          "attack": "torpedo"
+        }
+      }
+    }
+  ],
+  "ships": [
+    {
+      "id": "cv-1",
+      "spec": "essex-cv",
+      "side": "allied",
+      "waypoints": [
+        [
+          -61000,
+          0
+        ],
+        [
+          -60000,
+          -1000
+        ],
+        [
+          -59000,
+          0
+        ],
+        [
+          -60000,
+          1000
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "zuikaku",
+      "spec": "zuikaku-cv",
+      "side": "axis",
+      "tags": [
+        "flattop"
+      ],
+      "waypoints": [
+        [
+          -84000,
+          22000
+        ],
+        [
+          -73000,
+          -9000
+        ],
+        [
+          -71000,
+          -8000
+        ],
+        [
+          -82000,
+          23000
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "escort-1",
+      "spec": "kagero-dd",
+      "side": "axis",
+      "tags": [
+        "screen"
+      ],
+      "waypoints": [
+        [
+          -83400,
+          21700
+        ],
+        [
+          -72400,
+          -9300
+        ],
+        [
+          -70400,
+          -8300
+        ],
+        [
+          -81400,
+          22700
+        ]
+      ],
+      "speedMps": 7.717
+    },
+    {
+      "id": "escort-2",
+      "spec": "kagero-dd",
+      "side": "axis",
+      "tags": [
+        "screen"
+      ],
+      "waypoints": [
+        [
+          -84600,
+          22300
+        ],
+        [
+          -73600,
+          -8700
+        ],
+        [
+          -71600,
+          -7700
+        ],
+        [
+          -82600,
+          23300
+        ]
+      ],
+      "speedMps": 7.717
+    }
+  ],
+  "weather": {
+    "windFromDeg": 45,
+    "windMps": 7.717,
+    "timeOfDay": 8.67,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 700,
+        "coverage": 0.35
+      },
+      {
+        "kind": "cirrus",
+        "baseM": 7000,
+        "thicknessM": 300,
+        "coverage": 0.25
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "flattop",
+      "label": "Flattop",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "zuikaku"
+      ]
+    },
+    {
+      "id": "screen",
+      "label": "Screen",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "screen"
+      ],
+      "count": 1
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "cv-1",
+      "after": "flattop"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "tally",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Strike lead: flattop bearing two-two-five, twelve miles. Avengers take the carrier."
+        }
+      ]
+    },
+    {
+      "id": "carrier-down",
+      "when": {
+        "completed": "flattop"
+      },
+      "then": [
+        {
+          "message": "Strike lead: Zuikaku is going down. Reform east and recover aboard Essex."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "flattop-hunt",
+    "name": "Flattop Hunt"
+  },
+  "briefing": {
+    "situation": "An enemy carrier group is steaming southwest of your strike. You are airborne in an Avenger with three veteran torpedo bombers alongside. Find and sink Zuikaku; one of her screening destroyers is a secondary target. When the carrier is down, recover aboard Essex.",
+    "loadout": "bombs"
+  },
+  "history": {
+    "text": "On 25 October 1944, Task Force 38 carrier aircraft attacked Vice Admiral Jisaburo Ozawa's decoy force off Cape Engaño, northeast of Luzon, and sank Zuikaku and three light carriers. An official U.S. Navy photograph shows a TBM Avenger beside the listing Zuikaku after several hits. This mission is inspired by that battle rather than a reconstruction of it: the real action was far north of this map, while the game's carrier group and recovery carrier are staged over the Leyte world.",
+    "sources": [
+      "Naval History and Heritage Command, National Museum of the U.S. Navy, \"Battle off Cape Engano: October 25, 1944\": https://www.history.navy.mil/content/history/museums/nmusn/explore/photography/wwii/wwii-pacific/leyte/cape-engano.html",
+      "Naval History and Heritage Command photograph 80-G-281769, \"Battle off Cape Engano, Japanese carrier Zuikaku, October 25, 1944\": https://www.history.navy.mil/our-collections/photography/numerical-list-of-images/nara-series/80-g/80-G-280000/80-G-281769.html"
+    ]
+  }
+}

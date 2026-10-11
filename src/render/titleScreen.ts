@@ -219,6 +219,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // F2 (2026-10-09). Neither label is a substring of another row's.
   { value: 'scramble', label: 'Scramble', kind: 'mission', badge: { id: 'scramble', name: 'Scramble' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'single-combat', label: 'Single Combat', kind: 'mission', badge: { id: 'single-combat', name: 'Single Combat' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  // Track F (2026-10-10): the first shipped mission to use E2 torpedo-attack pilots and the Japanese carrier.
+  { value: 'flattop-hunt', label: 'Flattop Hunt', kind: 'mission', badge: { id: 'flattop-hunt', name: 'Flattop Hunt' }, dev: false, start: 'airborne', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
   // M2's two fixture missions, Dev-only like every test bed (A1).
   { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },

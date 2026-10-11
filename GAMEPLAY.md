@@ -488,16 +488,19 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped today** (`content/scenarios/`, checked 2026-09-27) are the
+**Shipped today** (`content/scenarios/`, checked 2026-10-10) are the
 sandbox and test-range scenarios the engineering plans needed —
 `free-flight`, `gunnery-range`, `pursuit-range`, `strike-range` and a few
-others — plus four real missions: **Deck Quals** ("Carrier Qualification"),
-**Airfield Strike**, **Convoy Strike** and **Combat Air Patrol**. Each declares real objectives,
+others — plus eight real missions: **Basic Flying**, **Deck Quals**
+("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Combat
+Air Patrol**, **Single Combat**, **Scramble** and **Flattop Hunt**. Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
 checks the briefing, objective line, radio, chart and debrief). Open items are in the M3 and M4 handoffs
-(`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`).
+(`docs/handoff/2026-09-27-m3-missions.md`, `2026-09-27-m4-combat-air-patrol.md`),
+the F2 handoff (`docs/handoff/2026-10-09-f2-single-combat-scramble.md`) and
+the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`).
 
 **Basic Flying** (B4, 2026-10-10) is the tutorial, and the first mission in the
 picker. It is an ordinary mission with an instructor on the radio: full

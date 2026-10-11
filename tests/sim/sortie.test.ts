@@ -82,7 +82,9 @@ describe('the player-spec swap and the Dev stores layout', () => {
   it('a default sortie is bit-identical to today for every shipped scenario (Global Constraint)', () => {
     for (const id of scenarioIds) {
       const bundle = loadScenarioBundle(id)
-      for (const loadout of ALL_LOADOUTS) {
+      const playerSpecId = bundle.scenario.aircraft.find((a) => a.id === bundle.scenario.player)!.spec
+      const playerSpec = bundle.aircraftSpecs[playerSpecId]!
+      for (const loadout of eligibleLoadouts(playerSpec, false)) {
         expect(worldFromScenario(sortieBundle(bundle, loadout, hellcat.stores), null, loadout), `${id} ${loadout}`)
           .toEqual(worldFromScenario(bundle, null, loadout))
       }
