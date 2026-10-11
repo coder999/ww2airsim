@@ -108,7 +108,7 @@ it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
 // it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
 it('control surfaces: exactly the batch-1 to batch-4 airframes, each driving roll, pitch, yaw and flaps', () => {
   const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
-  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4u-corsair', 'f6f-hellcat', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger', 'b5n2-kate'].sort())
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'd3a-val', 'f4u-corsair', 'f6f-hellcat', 'f6f-hellcat-blender', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger', 'b5n2-kate'].sort())
   for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
 })
 

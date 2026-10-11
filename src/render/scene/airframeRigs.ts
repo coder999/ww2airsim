@@ -180,6 +180,19 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     turrets: [],
     surfaces: surfaces(1),
   },
+  'f6f-hellcat-blender': {
+    // An original Blender model (f6f-hellcat-blender.py), a duplicate beside the download: the kit's propeller is
+    // exactly 3-fold symmetric. The mains swing aft about +z as the download's do (the real struts also turn the
+    // wheels flat; one hinge swings, ESTIMATE); the tailwheel swings aft too.
+    props: [{ node: 'Prop', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
+      { node: 'Tailwheel', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f6f-hellcat-blender.py header)' },
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+  },
   'f4u-corsair': {
     // The download draws its propeller as a translucent disc (a 3-blade motion-blur texture at
     // alpha 0.3) plus the spinner cap, with no blade geometry, so no vertex orbit closes and
