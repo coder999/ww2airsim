@@ -172,8 +172,9 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 8 missions and 6 ranges ship.
-  - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
+  - 9 missions and 6 ranges ship (counted in `SCENARIO_OPTIONS` 2026-10-10).
+  - A new mission is a JSON file, one `SCENARIO_OPTIONS` row and one `RIBBONS` design (`src/render/insignia.ts`; `tests/render/insignia.test.ts` fails without it), unless it needs a new objective kind, AI behavior or model.
+  - **Ribbons and rank insignia done 2026-10-10:** an invented ribbon per mission badge and the 1944 USN collar device per rank, in the Dossier, debrief, roster and mission picker (GAMEPLAY.md, "Badges").
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
   - **Escort done 2026-10-10 (merged):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
