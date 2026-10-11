@@ -141,3 +141,20 @@ it('B-17G uses the drawing-sized main fin and seats its forward dorsal turret in
   expect(base).toBeLessThanOrEqual(1.22)
   expect(extent(turret, 1)).toBeCloseTo(0.82, 2)
 })
+
+it('ki-43-oscar-blender keeps its 2026-10-11 Wikimedia upper-silhouette stations', async () => {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/ki-43-oscar-blender.glb')))
+  const pts = doc.getRoot().listNodes().filter((n) => n.getName() === 'ki43b_dark').flatMap((n) => worldPositions(n))
+  const xOriginAftNoseM = 2.32
+  const topAt = (aftNoseM: number) => {
+    const x = xOriginAftNoseM - aftNoseM
+    const centerline = pts.filter((p) => Math.abs(p[0]! - x) <= 0.006 && Math.abs(p[2]!) <= 0.006)
+    expect(centerline.length, `no centerline vertices at ${aftNoseM.toFixed(2)} m aft nose`).toBeGreaterThan(0)
+    return Math.max(...centerline.map((p) => p[1]!))
+  }
+
+  // The superseded mesh followed internal cowl/wing-root lines here (.54/.48/.59/.50 m),
+  // which made the side silhouette visibly dip and hump instead of following the drawing outline.
+  for (const [aftNoseM, topM] of [[1.60, .64], [2.00, .64], [4.00, .54], [4.50, .44]] as const)
+    expect(topAt(aftNoseM), `upper silhouette at ${aftNoseM.toFixed(2)} m aft nose`).toBeCloseTo(topM, 2)
+})

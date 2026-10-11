@@ -72,6 +72,9 @@ Everything the download it may replace has, because the game draws a flyable air
    view owns half-widths, planform and tailplane; the front view or a primary cross-section owns section shape and
    canopy shoulder/roof width. Do not transfer a silhouette, canopy station, cross-section or attachment point from
    a downloaded model. Render that model beside the candidate only to expose a conspicuous interpretation error.
+   At every side station, follow the outer silhouette rather than a nearby panel seam, wing-root line or hidden
+   continuation; the first Ki-43 pass accidentally sampled those internal lines at four stations and produced a
+   visible cowl dip and rear-cockpit hump. Pin corrected source-measured stations in a mesh-level regression.
    `tools/models/blender/preview.py` takes `--view front|rear|below|side|top`. Measure source pixels in meters and
    convert to station fractions with a short script rather than by hand. If no trustworthy front view or section
    exists, label the transverse section **ESTIMATE** and check it against photographs from several angles.
@@ -211,7 +214,7 @@ files each test reads and has not been exercised yet (2026-10-11); the first pro
 | `a6m2-zero-blender` | `a6m2-zero` (A6M2 Model 21) | span 12.0 m, length 9.06 m, area 22.44 m2, 3 blades; prop diameter 2.90 m measured because the table is blank | 2.025 m at x 0.182, tail wheel x -6.532 | 717,844 / 21,464 / 18 |
 | `b-17-flying-fortress-blender` | `b-17-flying-fortress` (B-17G) | span 31.62 m, length 22.66 m, area 131.92 m2, four 3-blade props | 2.548 m at x 0.852, tail wheel x -10.623 | 1,163,684 / 36,408 / 29 |
 | `d3a-val-blender` | `d3a-val` (D3A2 Model 22) | span 14.365 m, length 10.195 m, area 34.9 m2, 3 blades; D3A1 drawing limitation recorded | fixed mains 1.850 m below at x 0.257, tail wheel x -6.577 | 901,876 / 27,060 / 19 |
-| `ki-43-oscar-blender` | `ki-43-oscar` (Ki-43-IIb) | span 10.84 m, length 8.92 m, area 21.4 m2, 2.79 m 3-blade prop; Ki-43-I drawing limitation recorded | 1.843 m at x 0.348, tail wheel x -5.375 (fixed) | 806,148 / 25,624 / 17 |
+| `ki-43-oscar-blender` | `ki-43-oscar` (Ki-43-IIb) | span 10.84 m, length 8.92 m, area 21.4 m2, 2.79 m 3-blade prop; Ki-43-I drawing limitation recorded | 1.843 m at x 0.348, tail wheel x -5.375 (fixed) | 804,744 / 25,596 / 17 |
 
 All seven now use a Commons three-view from Kaboldy's orthographic series as their common silhouette family. Published
 dimensions and the project spec own scale and stance; the D3A2 and Ki-43-IIb headers keep their adjacent-variant caveats.

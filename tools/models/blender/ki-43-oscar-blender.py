@@ -29,14 +29,14 @@ tail over the cited 8.92 m = 148.77 px/m. Stations are meters aft of the spinner
      0.45      0.57    -0.67      0.58
      0.80      0.62    -0.70      0.59
      1.20      0.63    -0.72      0.58
-     1.60      0.54    -0.65      0.59
-     2.00      0.48    -0.69      0.56
+     1.60      0.64    -0.65      0.59
+     2.00      0.64    -0.69      0.56
      2.40      0.55    -0.71      0.54
      2.80      0.55    -0.71      0.50
      3.20      0.54    -0.71      0.48
      3.60      0.54    -0.70      0.46
-     4.00      0.59    -0.68      0.42
-     4.50      0.50    -0.66      0.38
+     4.00      0.54    -0.68      0.42
+     4.50      0.44    -0.66      0.38
      5.00      0.45    -0.62      0.34
      5.60      0.40    -0.57      0.30
      6.20      0.34    -0.52      0.25
@@ -48,13 +48,19 @@ tail over the cited 8.92 m = 148.77 px/m. Stations are meters aft of the spinner
   windscreen front 2.18 m; crown 2.75-3.20 m; canopy rear 3.68 m
                                                        DRAWING MEASUREMENT, canopy raised 0.08 m
                                                        for the cited II "slightly taller" (ESTIMATE)
-  fin root 7.2-8.9 m, height 1.45 m; tailplane LE 7.45 m,
+  The corrected upper outline follows the outer silhouette at 1.60, 2.00,
+  4.00 and 4.50 m; the superseded values followed cowl-panel or wing-root
+  lines inside the silhouette.                              DRAWING MEASUREMENT
+  fin root 7.2-8.9 m, visible height 1.17 m above its 0.17 m
+  dorsal root (about 1.34 m above the thrust line); tailplane LE 7.45 m,
   span 3.45 m, root chord 1.35 m                       DRAWING MEASUREMENT (+/- about 0.08 m)
   wing quarter-chord at 30% semispan 2.32 m aft nose  DRAWING MEASUREMENT (+/- about 0.06 m); origin
   taper 0.38, unswept quarter chord, 5.5 deg dihedral;
   control-surface spans and hinges                    ESTIMATE from drawing
   cross-section centers/exponents, cowl lip, fillets,
-  exact canopy widths                                 ESTIMATE constrained by outlines
+  exact canopy widths and transverse shoulder/roof
+  section fractions                                   ESTIMATE constrained by outlines;
+  canopy rails are fitted 0.02 m into the measured fuselage skin
   main wheel 0.58 m diameter; gear station 1.40 m     ESTIMATE from drawing proportions
   wheel bottoms 1.843 m below origin at x 0.348;
   tailwheel x -5.375 and 0.595 m below origin         FITTED to ki-43-oscar.json gear fields
@@ -92,24 +98,22 @@ FUSELAGE = [
     (8.00, .16, .16, -.38, 2.2), (7.40, .18, .28, -.42, 2.2),
     (6.80, .22, .28, -.47, 2.2), (6.20, .25, .34, -.52, 2.2),
     (5.60, .30, .40, -.57, 2.2), (5.00, .34, .45, -.62, 2.2),
-    (4.50, .38, .50, -.66, 2.2), (4.00, .42, .59, -.68, 2.2),
+    (4.50, .38, .44, -.66, 2.2), (4.00, .42, .54, -.68, 2.2),
     (3.60, .46, .54, -.70, 2.2), (3.20, .48, .54, -.71, 2.2),
     (2.80, .50, .55, -.71, 2.2), (2.40, .54, .55, -.71, 2.2),
-    (2.00, .56, .48, -.69, 2.2), (1.60, .59, .54, -.65, 2.1),
+    (2.00, .56, .64, -.69, 2.2), (1.60, .59, .64, -.65, 2.1),
     (1.20, .58, .63, -.72, 2.0), (.80, .59, .62, -.70, 2.0),
     (.45, .58, .57, -.67, 2.0), (.20, .40, .35, -.40, 2.0),
 ]
-CANOPY = [
-    (ORIGIN_AFT_NOSE_M - 3.68, .12, .49, .64),
-    (ORIGIN_AFT_NOSE_M - 3.42, .26, .50, .82),
-    (ORIGIN_AFT_NOSE_M - 3.15, .34, .50, .92),
-    (ORIGIN_AFT_NOSE_M - 2.78, .36, .50, .94),
-    (ORIGIN_AFT_NOSE_M - 2.46, .32, .51, .88),
-    (ORIGIN_AFT_NOSE_M - 2.18, .16, .52, .62),
+# Longitudinal station, rail half-width, crown. The rail height is fitted to the
+# measured fuselage section below; the transverse shoulder/roof shape is ESTIMATE.
+CANOPY_PROFILE = [
+    (3.68, .12, .64), (3.42, .26, .82), (3.15, .34, .92),
+    (2.78, .36, .94), (2.46, .32, .88), (2.18, .16, .62),
 ]
 CANOPY_FRAMES = tuple(ORIGIN_AFT_NOSE_M - d for d in (3.42, 3.15, 2.78, 2.46))
 TAILPLANE = dict(span=3.45, le=7.45, root=1.35, taper=.48, y=.17, sweep=11.0)
-FIN = dict(root=1.72, taper=.30, height=1.45, y=.17)
+FIN = dict(root=1.72, taper=.30, height=1.17, y=.17)
 PROP = dict(hub=.27, chord=.22, spinner_r=.25, spinner_len=.36)
 GEAR = dict(x=.348, z=1.40, y=-.42, bottom=1.843, wheel_r=.29, wheel_w=.18)
 TAILWHEEL = dict(x=-5.375, y=-.25, bottom=.595, wheel_r=.105, wheel_w=.06)
@@ -130,7 +134,7 @@ def ring(d, w, top, bottom, exponent):
     return (X(d), w, (top - bottom) / 2, (top + bottom) / 2, exponent)
 
 
-_FUS, _ = kit._refine([ring(*s) for s in FUSELAGE], SUBDIVIDE)
+_FUS, _ = kit._refine_shape([ring(*s) for s in FUSELAGE], SUBDIVIDE)
 
 
 def fus_section(d):
@@ -148,6 +152,19 @@ def fus_side_z(d, y):
 def fus_top_y(d, z):
     hw, hh, cy, n = fus_section(d)
     return cy + hh * max(0.0, 1.0 - abs(z / hw) ** n) ** (1.0 / n)
+
+
+def canopy_station(d, rail_width, crown_y):
+    """Eight-value fitted section: measured longitudinal profile, estimated transverse form."""
+    rail_y = fus_top_y(d, rail_width) - EMBED_M
+    height = crown_y - rail_y
+    return (X(d), rail_width, rail_y,
+            .88 * rail_width, rail_y + .36 * height,
+            .58 * rail_width, rail_y + .84 * height,
+            crown_y)
+
+
+CANOPY = [canopy_station(*s) for s in CANOPY_PROFILE]
 
 
 out, _opts = kit.cli_args()
@@ -171,7 +188,8 @@ def wing_y(z):
 
 
 with m.tagged('fuselage'):
-    m.fuselage(UPPER, [ring(*s) for s in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE, lower_role=LOWER)
+    m.fuselage(UPPER, [ring(*s) for s in FUSELAGE], segments=SEGMENTS, subdivide=SUBDIVIDE,
+               lower_role=LOWER, refinement='shape')
     mid = (FILLET['le'] + FILLET['te']) / 2
     fy = ROOT_Y + .45 * ROOT_T * root_chord - FILLET['half_h']
     fz = fus_side_z(mid, fy) + FILLET['half_w'] - .08
