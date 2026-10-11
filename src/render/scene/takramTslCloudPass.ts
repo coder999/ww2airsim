@@ -401,12 +401,16 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const freshColor = select(isCurrent, exactColor, reconstructedColor).toVar()
       const freshDepth = select(isCurrent, exactDepth, reconstructedDepth).toVar()
       const historyWeight = mix(0.82, 0.93, smoothstep(0.20, 0.75, reconstructedDepth)).toVar()
+      // Every pixel gets a small contribution from this frame's bilinear
+      // reconstruction. Carrying the five non-current 2x3 phases unchanged
+      // left their old values interleaved as a visible, flickering lattice in
+      // thin wisps. Reuse the accepted near/far history weight for all six
+      // phases so bilinear reconstruction and exact samples converge equally.
       const weight = select(valid, historyWeight, 0).toVar()
-      const blendedColor = mix(freshColor, previousColor, weight).toVar()
-      const blendedDepth = mix(freshDepth, previousDepthValue, weight).toVar()
-      const carriedColor = select(valid.and(isCurrent.not()), previousColor, blendedColor)
-      const carriedDepth = select(valid.and(isCurrent.not()), previousDepthValue, blendedDepth)
-      return CloudOutputs(vec4(carriedColor), vec4(carriedDepth, 0, 0, 1))
+      return CloudOutputs(
+        vec4(mix(freshColor, previousColor, weight)),
+        vec4(mix(freshDepth, previousDepthValue, weight), 0, 0, 1),
+      )
     })()
     this.temporalMaterial.fragmentNode = mrt({ cloudColor: temporal.get('cloudColor'), cloudDepth: temporal.get('cloudDepth') })
     this.temporalMaterial.name = 'TakramTslTemporal'
@@ -503,6 +507,10 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const uv = position.div(this.fullSize).toVar()
       const texel = float(1).div(this.fullSize).toVar()
       const centre = this.resolvedColor.sample(uv).level(float(0)).toVar()
+      const localNorth = this.resolvedColor.sample(uv.sub(vec2(float(0), texel.y))).level(float(0)).toVar()
+      const localSouth = this.resolvedColor.sample(uv.add(vec2(float(0), texel.y))).level(float(0)).toVar()
+      const localWest = this.resolvedColor.sample(uv.sub(vec2(texel.x, float(0)))).level(float(0)).toVar()
+      const localEast = this.resolvedColor.sample(uv.add(vec2(texel.x, float(0)))).level(float(0)).toVar()
       const radius = texel.mul(3).toVar()
       const north = this.resolvedColor.sample(uv.sub(vec2(float(0), radius.y))).level(float(0)).toVar()
       const south = this.resolvedColor.sample(uv.add(vec2(float(0), radius.y))).level(float(0)).toVar()
@@ -512,18 +520,26 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const ne = this.resolvedColor.sample(uv.add(vec2(radius.x, radius.y.negate()))).level(float(0)).toVar()
       const sw = this.resolvedColor.sample(uv.add(vec2(radius.x.negate(), radius.y))).level(float(0)).toVar()
       const se = this.resolvedColor.sample(uv.add(radius)).level(float(0)).toVar()
-      const nearMin = min(centre.a, min(min(north.a, south.a), min(west.a, east.a)))
-      const nearMax = max(centre.a, max(max(north.a, south.a), max(west.a, east.a)))
+      const localMin = min(centre.a, min(min(localNorth.a, localSouth.a), min(localWest.a, localEast.a)))
+      const localMax = max(centre.a, max(max(localNorth.a, localSouth.a), max(localWest.a, localEast.a)))
+      const nearMin = min(localMin, min(min(north.a, south.a), min(west.a, east.a)))
+      const nearMax = max(localMax, max(max(north.a, south.a), max(west.a, east.a)))
       const diagonalMin = min(min(nw.a, ne.a), min(sw.a, se.a))
       const diagonalMax = max(max(nw.a, ne.a), max(sw.a, se.a))
       const contrast = max(nearMax, diagonalMax).sub(min(nearMin, diagonalMin)).toVar()
-      const cloud = vec4(centre).toVar()
+      // Mix the six temporal phases only where their alpha disagreement is
+      // visible. Dense interiors keep the accepted sharp centre; low-opacity
+      // wisps get a one-pixel cross average before the broader edge feather.
+      const phaseSoft = centre.mul(4).add(localNorth).add(localSouth).add(localWest).add(localEast).div(8)
+      const phaseStrength = float(1).sub(smoothstep(0.18, 0.65, centre.a)).mul(smoothstep(0.004, 0.03, contrast))
+      const base = mix(centre, phaseSoft, phaseStrength).toVar()
+      const cloud = vec4(base).toVar()
       If(contrast.greaterThan(0.012), () => {
-        const soft = centre.mul(4).add(north.add(south).add(west).add(east).mul(2)).add(nw).add(ne).add(sw).add(se).div(16)
+        const soft = base.mul(4).add(north.add(south).add(west).add(east).mul(2)).add(nw).add(ne).add(sw).add(se).div(16)
         const distance = this.resolvedDepth.sample(uv).level(float(0)).r
         const maxStrength = mix(0.90, 1, smoothstep(0.20, 0.75, distance))
         const strength = min(maxStrength, contrast.sub(0.012).div(max(contrast, 1e-4)).mul(1.35))
-        cloud.assign(mix(centre, soft, strength))
+        cloud.assign(mix(base, soft, strength))
       })
       const depth = this.sceneDepth.load(ivec2(floor(position))).x
       const viewZ = perspectiveDepthToViewZ(depth, this.nearNode, this.farNode).negate().toVar()
