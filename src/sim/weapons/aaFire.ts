@@ -136,6 +136,12 @@ export function mountsOf(armament: ShipArmament): AaMounts {
   return out
 }
 
+/** M4: the mounts left after a shell knocked out `lost`. */
+const withoutMounts = (all: AaMounts, lost: readonly string[]): AaMounts => {
+  const mounts = all.mounts.filter((m) => !lost.includes(m.name))
+  return { mounts, reachM: reachOf(mounts) }
+}
+
 const reachOf = (mounts: readonly AaMount[]): number =>
   mounts.reduce((r, m) => Math.max(r, m.tier === 'heavy' ? AA_TUNING.heavy.maxRangeM : AA_TUNING.light[m.caliber].rangeM), 0)
 
@@ -175,10 +181,14 @@ export type AaOwner = {
   /** Present for a ship, absent for a ground battery. M3 lays all main turrets from it. */
   readonly armament?: ShipArmament
   readonly position: Vec3; readonly previous: Vec3; readonly headingRad: number
+  /** M4: mounts a shell knocked out (`TurretN`, `HeavyAAN`, `LightAAN`). They neither fire nor lay. */
+  readonly out?: readonly string[]
+  /** M4: the scenario's fire orders: surface targets its turrets take first, in priority. */
+  readonly fireAt?: readonly string[]
 }
 /** A live airborne airplane. */
 export type AaTarget = GunLayingTarget & { readonly kind: 'aircraft' }
-export type AaSurfaceTarget = GunLayingTarget & { readonly kind: 'ship' | 'structure' }
+export type AaSurfaceTarget = GunLayingTarget & { readonly kind: 'ship' | 'structure'; readonly battery?: true }
 
 /** A round for `stepCombat` to fly: it adds the id. `aa` is the hit scale. */
 export type AaRound = {
@@ -189,6 +199,7 @@ export type AaRound = {
 type ShipLike = {
   readonly id: string; readonly spec: { readonly armament?: ShipArmament | undefined }
   readonly state: { readonly position: Vec3; readonly headingRad: number }; readonly previous: { readonly position: Vec3 }
+  readonly orders?: { readonly fireAt?: readonly string[] | undefined }
 }
 type StructureLike = { readonly id: string; readonly kind: string; readonly position: Vec3 }
 
@@ -198,12 +209,16 @@ export function aaOwnersOf(
   ships: readonly ShipLike[], structures: readonly StructureLike[],
   shipSides: Readonly<Record<string, Side>> | undefined, structureSides: Readonly<Record<string, Side>> | undefined,
   shipDown: (id: string) => boolean, structureDown: (id: string) => boolean,
+  mountsOut: (id: string) => readonly string[] | undefined = () => undefined,
 ): AaOwner[] {
   const out: AaOwner[] = []
   for (const s of ships) {
     const side = shipSides?.[s.id]
     if (side === undefined || s.spec.armament === undefined || shipDown(s.id)) continue
-    out.push({ id: s.id, side, mounts: mountsOf(s.spec.armament), armament: s.spec.armament, position: s.state.position, previous: s.previous.position, headingRad: s.state.headingRad })
+    const lost = mountsOut(s.id)
+    const all = mountsOf(s.spec.armament)
+    const mounts = lost === undefined || lost.length === 0 ? all : withoutMounts(all, lost)
+    out.push({ id: s.id, side, mounts, armament: s.spec.armament, position: s.state.position, previous: s.previous.position, headingRad: s.state.headingRad, ...(lost === undefined || lost.length === 0 ? {} : { out: lost }), ...(s.orders?.fireAt === undefined ? {} : { fireAt: s.orders.fireAt }) })
   }
   for (const s of structures) {
     const side = structureSides?.[s.id]
@@ -253,7 +268,7 @@ export function aaSurfaceTargetsOf(
   for (const structure of structures) {
     const side = structureSides?.[structure.id]
     if (side === undefined || structureDown(structure.id)) continue
-    out.push({ id: structure.id, side, kind: 'structure', position: structure.position, velocity: v3(0, 0, 0), accel: v3(0, 0, 0) })
+    out.push({ id: structure.id, side, kind: 'structure', position: structure.position, velocity: v3(0, 0, 0), accel: v3(0, 0, 0), ...(structure.kind === 'aaa' ? { battery: true as const } : {}) })
   }
   return out
 }
@@ -303,7 +318,8 @@ export type AaStep = {
   readonly rounds: readonly AaRound[]
 }
 
-/** Visual lead only until M4 specifies and fires the main-battery projectile. */
+/** M3's visual lead for a turret M4 is not firing (no target in reach, or main batteries off).
+ *  A firing turret's elevation is M4's ballistic solution (`mainBattery.ts`). */
 export const MAIN_BATTERY_LAYING = { shellSpeedMps: 760 } as const
 
 const sameLaying = (
@@ -424,7 +440,7 @@ export function stepAa(
     if (o.armament !== undefined) {
       o.armament.turrets.forEach((turret, i) => {
         const name = `Turret${i + 1}`
-        if (turret.kit === null || poses.some((p) => p.name === name)) return
+        if (turret.kit === null || o.out?.includes(name) === true || poses.some((p) => p.name === name)) return
         const pseudo: AaMount = {
           name, tier: 'heavy', caliber: '20mm', x: turret.x, y: turret.y, z: turret.z,
           bearingRad: (turret.bearingDeg * Math.PI) / 180, barrels: turret.barrels,
@@ -433,7 +449,12 @@ export function stepAa(
         const accepts = (t: GunLayingTarget): boolean => t.side !== o.side
         const ships = surfaceTargets.filter((t) => t.kind === 'ship')
         const structures = surfaceTargets.filter((t) => t.kind === 'structure')
-        const best = nearestGunTarget(origin, ships, accepts) ?? nearestGunTarget(origin, structures, accepts)
+        // M4: the scenario's fire orders first; then a ship; then a battery (an `aaa` structure) before any
+        // other building, since it is the one that fights back.
+        const ordered = o.fireAt?.map((id) => surfaceTargets.find((t) => t.id === id && accepts(t))).find((t) => t !== undefined) ?? null
+        const best = ordered ?? nearestGunTarget(origin, ships, accepts)
+          ?? nearestGunTarget(origin, structures.filter((t) => t.battery === true), accepts)
+          ?? nearestGunTarget(origin, structures, accepts)
         if (best === null) return
         const lead = constantSpeedLead(origin, best, MAIN_BATTERY_LAYING.shellSpeedMps, ownVel)
         if (lead === null) return

@@ -128,7 +128,7 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
 
   // Chart: objectives listed; the objective target is clickable for a course.
   await page.keyboard.press('KeyP')
-  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const chart = page.getByRole('dialog', { name: 'Pause menu' }).getByRole('region', { name: 'Mission map' })
   await expect(chart.getByLabel('Objectives')).toContainText('Take off')
   await expect(chart.getByLabel('Objectives')).toContainText('ACTIVE')
   await expect(chart.getByLabel('Objectives')).toContainText('PENDING')
@@ -175,7 +175,7 @@ test('steering cue follows the current objective and a chart override', async ({
   await page.keyboard.press('Slash')
 
   await page.keyboard.press('KeyP')
-  const chart = page.getByRole('dialog', { name: 'Navigation chart' })
+  const chart = page.getByRole('dialog', { name: 'Pause menu' }).getByRole('region', { name: 'Mission map' })
   await chart.getByRole('button', { name: 'Set target-1 as navigation destination' }).click()
   await page.keyboard.press('KeyP')
   await expect(chart).toBeHidden()

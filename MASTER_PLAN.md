@@ -160,9 +160,10 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - ~~**Kamikaze**, for the "Kamikaze Watch" mission.~~ **Dropped for now (Mark, 2026-10-10): no AI flies into a ship on purpose.** The first attempt is parked on branch `ship-collision-kamikaze-wip`. An airplane that hits a ship by accident is destroyed and damages it all the same (the collision rule, `src/sim/shipCollision.ts`).
    - ~~Raiders that actually attack instead of orbiting.~~
 3. **Bombers and turrets (M-L):** bomber AI (formation level bombing), then defensive gunners. The turrets already aim, visually (turret aim, `docs/handoff/2026-10-09-turret-aim.md`), and so do the nose, cheek and tail guns (flex guns, `docs/handoff/2026-10-09-flex-guns.md`): gunners add firing.
-   - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`. Escort is now content only.
+   - **Done 2026-10-10, merged to `main` (15390826), reference-GPU verified.** Bombers fly formation (E2's `level-bomb` leader drops a train, wingmen drop with it); every turret and flexible gun fires (`src/sim/weapons/gunners.ts`), tuned to Mark's "noticeable, not deadly" with measured tables; the Bomber Range is a formation that shoots back. Plan `docs/superpowers/plans/2026-10-10-e3-bombers-gunners.md`; handoff `docs/handoff/2026-10-10-e3-bombers-gunners.md`.
+   - **Formation turns (E3 open item 1): done, merged 2026-10-10.** A bomber formation leader turns at no more than 20 degrees of bank, so inside wingmen keep flying speed through a waypoint turn (before: 83 degrees, a Ki-21 wingman at 33 m/s). Handoff `docs/handoff/2026-10-10-escort-mission.md`.
 4. **Fixes:**
-   - escort pursuit (7f §4.2);
+   - ~~escort pursuit (7f §4.2)~~ done, merged 2026-10-10: a wingman pursues a hostile attacking its leader whatever the energy, and `formationCover.test.ts` asserts it fires within gun solution (decision 11). Handoff `docs/handoff/2026-10-10-escort-mission.md`;
    - ~~wingman commands (7f §4.5)~~ **Built on branch, not merged (E4, 2026-10-10):** `1` Attack, `2` Cover me, `3` Form up, with text-only radio answers.
    - ~~the 7c list (no stall guard, 70° bank cap, 20 s latch cap)~~ **Built on branch, not merged (E4):** an angle-of-attack and stall-speed guard on every AI, lift-vector lead pursuit for the veteran, a 40 s attack-run latch. The E1 duels resolve 33 of 72, from 18.
    - ~~`disengageThreshold` unread (7b)~~ **Deleted (E4):** `energyDiscipline` already is the energy disengage.
@@ -175,14 +176,15 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
   - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
-  - Two more missions are designed in GAMEPLAY.md and not built: Escort and Kamikaze Watch (deferred: it needs the dropped kamikaze run).
+  - **Escort done 2026-10-10 (merged):** the player's Hellcat escorts four B-17s to Dulag's hangars against four Zeros; the badge needs three bombers left, a hangar down and a landing (plan `docs/superpowers/plans/2026-10-10-escort-mission.md`, handoff `docs/handoff/2026-10-10-escort-mission.md`).
+  - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 
   | Mission | Needs |
   | --- | --- |
   | ~~Single Combat~~ | done 2026-10-09 (F2) |
   | ~~Scramble~~ | done 2026-10-09 (F2) |
-  | Escort | E1, E3 (bombers to escort) |
+  | ~~Escort~~ | done 2026-10-10 |
   | Kamikaze Watch | deferred: needs an intentional kamikaze run, which Mark dropped 2026-10-10 |
   | ~~Flattop Hunt~~ | done 2026-10-10: Japanese carrier, D torpedoes/flooding and E2 attack AI |
   | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
@@ -264,7 +266,7 @@ one plan for the lot.
 
 ### Track I: Sound (M, two plans)
 
-- **Today (counted from `src/audio/assets.ts` 2026-10-10, after M2):** 29 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose) and `ship_gun_heavy` (M4).
+- **Today (counted from `src/audio/assets.ts` 2026-10-10, after M2):** 29 of the 31 clips in `AUDIO_ASSETS` are wired, plus the 76 voice lines. Unwired: `engine_radial_small` (on purpose); `ship_gun_heavy` was wired by M4 (2026-10-10).
 - **Quick win: done 2026-10-08** (`fe0eaffe`): `engine_radial_big` for the ~2,000 hp radials (F6F, F4U, Ki-84), a fourth family keyed by aircraft id. Smaller radials keep `propeller.wav` (Mark, 2026-09-29), so `engine_radial_small` stays unwired on purpose.
 - **I1, synthesized mechanicals. Done 2026-10-09** (branch `i1-synth-sounds`, plan `docs/superpowers/plans/2026-10-09-i1-synth-sounds.md`, handoff `docs/handoff/2026-10-09-i1-synth-sounds.md`):
   - All of these are made in code at load (`synth.ts` `SYNTH_CLIPS`): wind (airspeed), wheel rumble (land or deck), stall buffet and buzzer (angle of attack, below), overspeed creak (the spec's dive limit), and radio static under each transmission.
@@ -284,7 +286,7 @@ one plan for the lot.
   - **Wired 2026-10-09:** `gear_cycle` and `flaps_cycle`, once as travel starts, both ways.
   - **Wired since:** `torpedo_splash` and `torpedo_hit` (D3, 2026-10-09; a torpedo's release reuses `bombs_away`), `flak_burst` (the close burst) and `aa_gun` (a 20 mm loop, every AA gun, ship and ground) with M2 (2026-10-10). `rocket_whoosh` is now take 2 (wired). `radio_squelch` (Freesound CC0) is wired: it brackets each radio line (I2).
   - `torpedo_hit` is Mark's own Firefly clip.
-  - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; unwired, M4).
+  - `ship_gun_heavy` (the deepest 5-inch take, for main batteries; wired by M4, 2026-10-10).
   - **Staged:** the 40 mm and other 5-inch takes stay on `sounds.html` as alternatives.
 - **Both:** an ear-tuning pass with Mark, and the E2E runs 15b and 15c never got.
 
@@ -322,6 +324,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.
+     - **Done and merged 2026-10-10** (plan `docs/superpowers/plans/2026-10-10-m4-main-batteries.md`, handoff `docs/handoff/2026-10-10-m4-main-batteries.md`). Real shells on M3's targets, damage by shell weight, mount knock-out, muzzle flash and smoke, `ship_gun_heavy`; on only where a scenario says `"mainBatteries": true`. Item 6's test range is the Dev scenario `gunnery-duel`. Duel tables in the handoff.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
      - **Done and merged 2026-10-10** ( plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
   6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
@@ -369,8 +372,8 @@ prerequisites are met.
 | 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire; B3; M3 gun-laying AI; M5 difficulty~~ done by 2026-10-10 | Player experience; C1 and I1 share the flap and gear motion |
 | 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a), then trees; K in-cloud pacing | |
-| 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; F Escort (now content-only) (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
-| 7 | D torpedoes (Avenger); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
+| 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; ~~F Escort~~ done 2026-10-10 (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
+| 7 | ~~D torpedoes (Avenger)~~ done (D1, D3, and E2's AI torpedo run, 2026-10-10); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 

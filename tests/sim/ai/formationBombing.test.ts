@@ -128,3 +128,46 @@ describe('the Bomber Range (Dev): Mark\'s test bed for E3', () => {
     expect(w.combat.aircraft['betty-1']!.stores.bombs).toBe(1)
   }, 60_000)
 })
+
+describe('a bomber formation turns a corner (Escort plan, 2026-10-10)', () => {
+  // E3 open item 1: at a 90-degree waypoint the leader banked to 83 degrees and its inside wingmen, flying a
+  // tighter circle at the leader's turn rate, bled below stall. Measured 2026-10-10 before the fix (a throwaway
+  // probe on this route): the Ki-21 fell to 33.4 m/s (stall 41.8), the B-29 to 52.3 (stall 57.7), station
+  // errors 330-750 m. With the leader held to FORMATION_LEADER_MAX_BANK_RAD: 84-86 m/s, errors 18-40 m.
+  // Left then right, so each side is the inside wing once; E3's mixed formation, so the worst stall margins fly.
+  it('every wingman keeps flying speed and its station through a left and a right 90-degree turn', () => {
+    const ALT_T = 2500, V_T = 90
+    const leg = (x: number, z: number) => ({ x, z, altitudeM: ALT_T, speedMps: V_T })
+    const route = [leg(12000, 0), leg(12000, -15000), leg(27000, -15000)]
+    const specs = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally'] as const
+    const at = [[0, 0], [-80, 100], [-80, -100], [-160, -200]] as const
+    const raw = {
+      id: 'formation-turns', player: 'f6f-1', airfields: ['tacloban'], ships: [], weather: { windFromDeg: 0, windMps: 0 },
+      aircraft: [
+        { id: 'f6f-1', spec: 'f6f-hellcat', airborneAt: { position: [60000, 3000, 60000], headingDeg: 90, speedMps: 120 } },
+        ...specs.map((spec, i) => ({
+          id: `b${i}`, spec, side: 'axis', airborneAt: { position: [at[i]![0], ALT_T, at[i]![1]], headingDeg: 90, speedMps: V_T, throttle: 0.7 },
+          pilot: i === 0 ? { skill: 'veteran', ingress: { route } } : { skill: 'veteran', leader: 'b0', slot: i },
+        })),
+      ],
+    }
+    let w = worldFromScenario(bundleForScenario(parseScenario(raw)), flatField(0))
+    const slowest = [Infinity, Infinity, Infinity, Infinity], worst = [0, 0, 0, 0]
+    for (let t = 0; t < Math.round(560 / DT); t++) {
+      w = advance(w, DT).world
+      const lead = w.aircraft.find((a) => a.id === 'b0')!
+      for (let i = 1; i < 4; i++) {
+        const a = w.aircraft.find((x) => x.id === `b${i}`)!
+        const v = a.state.velocity
+        slowest[i] = Math.min(slowest[i]!, Math.hypot(v.x, v.y, v.z) / a.spec.reference.stallSpeedMps)
+        if (t * DT > 20) worst[i] = Math.max(worst[i]!, stationErrorM(a, lead, a.pilot!.formation!.slot))
+      }
+    }
+    // The route was flown: past both corners and onto the last leg.
+    expect(w.aircraft.find((a) => a.id === 'b0')!.pilot!.decision.legIndex).toBeGreaterThanOrEqual(2)
+    for (let i = 1; i < 4; i++) {
+      expect(slowest[i], `${specs[i]} slowest, x stall`).toBeGreaterThan(1.3)
+      expect(worst[i], `${specs[i]} worst station error, m`).toBeLessThan(60)
+    }
+  }, 60_000)
+})

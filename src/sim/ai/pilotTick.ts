@@ -9,17 +9,17 @@ import { length, sub, v3, type Vec3 } from '../math/vec3.js'
 import { qRotate, type Quat } from '../math/quat.js'
 import type { Side } from '../sides.js'
 import { controlsForDesiredVelocity } from './controller.js'
-import { deriveFacts, decideManeuver, maneuverControls } from './decision.js'
+import { deriveFacts, decideManeuver, maneuverControls, MIN_ENGAGEMENT_RANGE_M } from './decision.js'
 import { friendlyInLineOfFire } from './holdFire.js'
 import { attackCommitted, attackExemptFromFloor, attackFlight, type AttackFlight } from './attack.js'
-import { ingressAccepts, ingressBayDoorsOpen, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, nextLegIndex } from './ingress.js'
+import { formationLeaderBankRad, formationLeaderReachM, ingressAccepts, ingressBayDoorsOpen, ingressDesiredVelocity, ingressOrbitControls, ingressThrottle, liftTowardControls, nextLegIndex } from './ingress.js'
 import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { airframeRepertoire, interruptsLatch, isPhased, latchExpired, maneuverFacts, openLatch, selectManeuver } from './maneuvers.js'
 import { aimErrorDraw } from './noise.js'
 import { DEFAULT_MANEUVER, type PilotDecisionState } from './pilot.js'
 import type { PilotAssignment } from './pursuit.js'
 import { airborne } from './airborne.js'
-import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, wingmanAccepts } from './formation.js'
+import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, threatensLeader, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
 import { exemptFromFloor, peelOffRecovery, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
@@ -274,7 +274,10 @@ function flyPilot<M>(
       decision = { ...decision, nextRescoreS: ctx.nowS + pilot.skill.reactionS }
     } else {
       const facts = deriveFacts(a, target, 1 - record.damage.structure, a.state.fuelKg / a.spec.mass.fuelCapacityKg)
-      const intent = decideManeuver(facts, pilot.skill)
+      // Escort pursuit (MASTER_PLAN §4 decision 11, 2026-10-10): a wingman goes after a hostile attacking its
+      // leader whatever the energy, unless that hostile already has it in its own guns or they are about to collide.
+      const escorting = leader !== null && leaderFlying && !facts.threatAstern && facts.rangeM >= MIN_ENGAGEMENT_RANGE_M && threatensLeader(target, leader)
+      const intent = escorting ? 'pursue' : decideManeuver(facts, pilot.skill)
       decision = {
         ...decision,
         nextRescoreS: ctx.nowS + pilot.skill.reactionS,
@@ -303,13 +306,17 @@ function flyPilot<M>(
   // its leg index stays put; with the order absent (every raider before E2) none of this runs.
   let attacking: AttackFlight | null = null
   let attackWas: PilotDecisionState['attack']
+  const leadsFormation = snapshot.some((c) => c.pilot?.formation?.leader === a.id)
+  const leaderBankRad = formationLeaderBankRad(a, leadsFormation)
   if (target === null && pilot.ingress?.attack !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed' && decision.legIndex >= pilot.ingress.route.length) {
     attackWas = decision.attack
-    attacking = attackFlight(a, pilot.ingress, decision, ctx, snapshot.some((c) => c.pilot?.formation?.leader === a.id))
+    attacking = attackFlight(a, pilot.ingress, decision, ctx, leadsFormation)
     if (attacking !== null) decision = { ...decision, attack: attacking.attack }
   }
   if (attacking === null && target === null && pilot.ingress !== undefined && decision.mode !== 'rtb' && decision.mode !== 'landed') {
-    const legIndex = nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships)
+    const legIndex = leaderBankRad !== undefined
+      ? nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships, formationLeaderReachM(a))
+      : nextLegIndex(a, pilot.ingress, decision.legIndex, ctx.ships)
     if (legIndex !== decision.legIndex) decision = { ...decision, legIndex }
   }
   // 7g Review Focus 5: a home ship that is gone, sunk or deckless drops the
@@ -370,11 +377,15 @@ function flyPilot<M>(
     const base = attacking !== null ? attacking.controls : orders === undefined
       ? controlsForDesiredVelocity(a.state, a.spec, loiterDesiredVelocity(a, decision.loiter ?? loiterReference(a, pilot.passive?.orbitRadiusM)))
       : decision.legIndex > orders.route.length
-        ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships)
-        : {
-            ...controlsForDesiredVelocity(a.state, a.spec, ingressDesiredVelocity(a, orders, decision.legIndex, ctx.ships)),
-            throttle: ingressThrottle(a, orders, decision.legIndex, ctx.ships),
-          }
+        ? ingressOrbitControls(a, orders, decision.legIndex, ctx.ships, leaderBankRad)
+        // Escort plan (2026-10-10): a bomber formation leader flies its route on the bank-limited lift vector, so
+        // a waypoint turn is one its wingmen can follow; every other raider keeps the velocity controller.
+        : leaderBankRad !== undefined
+          ? liftTowardControls(a, ingressDesiredVelocity(a, orders, decision.legIndex, ctx.ships), ingressThrottle(a, orders, decision.legIndex, ctx.ships), leaderBankRad)
+          : {
+              ...controlsForDesiredVelocity(a.state, a.spec, ingressDesiredVelocity(a, orders, decision.legIndex, ctx.ships)),
+              throttle: ingressThrottle(a, orders, decision.legIndex, ctx.ships),
+            }
     const { controls, cursor } = finishControls(a, base, pilot.skill.controlNoise, decision.noiseCursor, ctx.wind)
     return { ...a, pilot: { ...pilot, decision: { ...decision, safety: 'none', latch: null, noiseCursor: cursor } }, controls }
   }

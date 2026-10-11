@@ -170,7 +170,7 @@ test('manual replay controls, cameras and effects stay isolated from the held fl
   for (const key of ['KeyL', 'KeyR', 'KeyQ', 'KeyP', 'Tab', 'KeyI', 'Slash', 'KeyT']) {
     await page.keyboard.press(key)
   }
-  await expect(page.getByRole('dialog', { name: 'Navigation chart' })).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Pause menu' })).toBeHidden()
 
   await page.keyboard.press('Escape')
   await expect.poll(() => replayState(page)).toBeNull()
@@ -185,5 +185,5 @@ test('manual replay controls, cameras and effects stay isolated from the held fl
     return { assists: d.assists(), muted: d.audio().muted, timeScale: d.timeScale() }
   })
   expect(restored).toEqual(liveState)
-  await expect(page.getByRole('dialog', { name: 'Navigation chart' })).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Pause menu' })).toBeHidden()
 })

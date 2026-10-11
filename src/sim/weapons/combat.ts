@@ -28,6 +28,7 @@ import { floodFrom, hitSide, type FloodState } from './flooding.js'
 import { AA_TUNING, aaOwnersOf, aaSurfaceTargetsOf, aaTargetsOf, flakBlastHp, initialAa, stepAa, takeDueBursts, type AaState } from './aaFire.js'
 import type { ShipArmament } from '../world/ships.js'
 import { stepGunners, type GunnerState } from './gunners.js'
+import { knockOuts, MAIN_BATTERY, SHELLS, shellDamage, shellDragPerM, stepMainBattery, type MainBatteryState } from './mainBattery.js'
 import type { PilotSkill } from '../ai/pilot.js'
 
 export const MAX_PROJECTILES = 4096
@@ -48,6 +49,8 @@ export type CombatShip = {
   }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
+  /** M4: a scenario's fire orders (`ShipOrders.fireAt`). */
+  readonly orders?: { readonly fireAt?: readonly string[] | undefined }
 }
 export type AircraftCombat = {
   readonly guns: readonly GunState[]
@@ -109,11 +112,15 @@ export type Projectile = {
   readonly aa?: number
   /** E3: a defensive gunner's salvo (`gunners.ts`), flown in the AA branch with its own gun's drag. */
   readonly gunner?: true
+  /** M4: a main-battery shell, by its gun's kit (`mainBattery.ts` SHELLS); `owner` is the ship's id. */
+  readonly shell?: string
 }
 export type ShipDamage = {
   readonly hp: number; readonly fire: number
   readonly destroyedTick: number | null; readonly attacker: string | null
   readonly sinkingFraction: number
+  /** M4: mounts a shell has knocked out, by name (`Turret2`, `LightAA5`). Absent: none. */
+  readonly mountsOut?: readonly string[]
 } & FloodState
 export const healthyShipDamage = (hp: number): ShipDamage =>
   ({ hp, fire: 0, destroyedTick: null, attacker: null, sinkingFraction: 0 })
@@ -134,6 +141,9 @@ export type CombatState = {
   readonly aa: AaState
   /** E3: the defensive gunners' timers, absent until a gunner first sees a target. */
   readonly gunners?: GunnerState
+  /** M4: main-battery fire control. Present only where main batteries are on (scenario
+   *  `mainBatteries`); absent, no turret fires and nothing below changes. */
+  readonly mainBattery?: MainBatteryState
 }
 export function createCombat(
   aircraft: readonly CombatAircraft[],
@@ -831,6 +841,7 @@ export function stepCombat(
   // M2: anti-aircraft fire. Bursts that are due go off first, then the ships and batteries pick targets.
   // Needs both side tables: with either missing (every caller that predates friendly fire) there is no AA.
   let aaState = before.aa
+  let mainBattery = before.mainBattery
   const hostileTo = new Map<Side, CombatAircraft[]>()
   const hostileAircraft = (side: Side | undefined): readonly CombatAircraft[] => {
     if (side === undefined || sides === null) return []
@@ -855,6 +866,7 @@ export function stepCombat(
     const owners = aaOwnersOf(
       afloat, structures, targetSides.ships, targetSides.structures,
       (id) => shipDamage[id]?.destroyedTick != null, (id) => structureDamage[id]?.destroyedTick != null,
+      (id) => shipDamage[id]?.mountsOut,
     )
     const targets = aaTargetsOf(aircraft, dt, sides, (id) => {
       const d = records[id]?.damage
@@ -868,10 +880,25 @@ export function stepCombat(
     for (const f of flying) if (f.p.aa !== undefined) live++
     // M3 runs even with no current target/owner so a stale rendered pose is cleared to rest.
     const stepped = stepAa(aaState, owners, targets, tick, dt, live, surfaceTargets)
+    const previousLaying = aaState.laying
     aaState = stepped.aa
     for (const r of stepped.rounds) {
       if (flying.length >= MAX_PROJECTILES) break
       flying.push({ p: { ...r, id: nextId++ }, dt, start: 0 })
+    }
+    // M4: main batteries fire at the surface targets M3 laid them on.
+    if (mainBattery !== undefined) {
+      let shells = 0
+      for (const f of flying) if (f.p.shell !== undefined) shells++
+      const fired = stepMainBattery(mainBattery, aaState.seed, owners, aaState.laying, previousLaying, surfaceTargets,
+        (id) => shipDamage[id]?.mountsOut ?? [], tick, dt, shells)
+      mainBattery = fired.mainBattery
+      if (fired.laying !== aaState.laying) aaState = { ...aaState, laying: fired.laying }
+      for (const sh of fired.shells) {
+        if (flying.length >= MAX_PROJECTILES) { poolSaturated++; break }
+        flying.push({ p: { ...sh, id: nextId++ }, dt, start: 0 })
+      }
+      for (const v of fired.salvos) impacts.push({ tick, cause: 'shell', outcome: 'fired', surface: 'air', point: v.point, shellKg: v.shellKg, mount: { ship: v.ship, name: v.mount } })
     }
   }
 
@@ -919,7 +946,40 @@ export function stepCombat(
     damageAircraftAt(contact.aircraft, 0, contact.system, p.owner, point, p.aa!, contact.engine)
   }
 
+  /** M4: a shell's tick. It meets a hull (not its own ship's), a structure, a deck, land or the sea; it
+   *  never hits an airplane (ruling R3). A burst takes `hullHp` or structure points by the shell's weight,
+   *  blasts what is near, and can knock out a mount near it. */
+  const flyShell = (shot: { p: Projectile; dt: number; start: number }): void => {
+    const kit = shot.p.shell!
+    const spec = SHELLS[kit]
+    if (spec === undefined || shot.dt <= 0) return
+    const flown = flyProjectile(shot.p, shot.dt, wind, shellDragPerM(kit, dt))
+    const p: Projectile = { ...flown, ageS: shot.p.ageS + shot.dt }
+    const contact = nearestContact(p, shot.start, [], afloat.filter((s) => s.id !== p.owner), structures, terrain, decks)
+    if (contact === null) {
+      if (p.lifeS > 1e-12) alive.push(p)
+      return
+    }
+    const point = add(p.previous, scale(sub(p.position, p.previous), contact.t))
+    const damage = shellDamage(spec)
+    impacts.push({ tick, cause: 'shell', outcome: 'detonated', surface: contactSurface(contact, point, terrain, decks), point, shellKg: spec.shellKg })
+    if (contact.kind === 'ship') damageShipAt(contact.ship, damage, p.owner)
+    else if (contact.kind === 'structure') damageStructureAt(contact.structure, damage, p.owner)
+    applyBlast(point, damage, spec.knockOutM * MAIN_BATTERY.blastRadiusFactor, contact, p.owner)
+    for (const ship of afloat) {
+      const d = shipDamage[ship.id]
+      const armament = ship.spec.armament
+      if (d === undefined || armament === undefined || d.destroyedTick !== null) continue
+      const reach = spec.knockOutM + ship.spec.lengthM / 2
+      if (Math.abs(ship.state.position.x - point.x) > reach || Math.abs(ship.state.position.z - point.z) > reach) continue
+      const lost = d.mountsOut ?? []
+      const hit = knockOuts(armament, ship.state.position, ship.state.headingRad, point, kit, lost, aaState.seed, p.id)
+      if (hit.length > 0) shipDamage[ship.id] = { ...shipDamage[ship.id]!, mountsOut: [...lost, ...hit] }
+    }
+  }
+
   for (const shot of flying) {
+    if (shot.p.shell !== undefined) { flyShell(shot); continue }
     if (shot.p.aa !== undefined) { flyAaRound(shot); continue }
     const ownerSpec = specs.get(shot.p.owner)
     if (ownerSpec === undefined || shot.dt <= 0) continue
@@ -1005,7 +1065,7 @@ export function stepCombat(
     }
   }
 
-  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState, ...(gunnerState === undefined ? {} : { gunners: gunnerState }) }
+  return { aircraft: records, projectiles: alive, nextId, rngState, poolSaturated, ships: shipDamage, structures: structureDamage, impacts: appendImpacts(before.impacts, impacts), aa: aaState, ...(gunnerState === undefined ? {} : { gunners: gunnerState }), ...(mainBattery === undefined ? {} : { mainBattery }) }
 }
 
 /** Down for good: destroyed by damage, or crashed/ditched. The same

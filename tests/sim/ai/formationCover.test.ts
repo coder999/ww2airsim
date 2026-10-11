@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { aircraftById, type World } from '../../../src/sim/loop.js'
 import { length, sub } from '../../../src/sim/math/vec3.js'
 import { stationErrorM, stationPoint, TRAIL_COVER } from '../../../src/sim/ai/formation.js'
+import { AI_GUN_RANGE_M } from '../../../src/sim/ai/pursuit.js'
 import { chase, runCanned, straight } from './maneuverWorlds.js'
 import { buildFormation, formationLeader, PLAYER_EAST, PLAYER_FAR, wingman } from './formationWorlds.js'
 
@@ -18,13 +19,15 @@ const range = (w: World<undefined>, a: string, b: string) => length(sub(aircraft
  *  same "entered", "targeted" and "defended" facts the same way. */
 function runEscort(
   attackerPosition: readonly [number, number, number], headingDeg: number, seconds = 120,
-): { enteredAt: number | null; targetedAt: number | null; minRange: number; maneuvers: ReadonlySet<string>; world: World<undefined> } {
+): { enteredAt: number | null; targetedAt: number | null; minRange: number; maneuvers: ReadonlySet<string>; fired: number; firedOutsideSolution: number; world: World<undefined> } {
   const attacker = { ...PLAYER_EAST, airborneAt: { position: attackerPosition, headingDeg, speedMps: 150 } }
   let w = buildFormation([attacker, LEAD, WING])
   let enteredAt: number | null = null
   let targetedAt: number | null = null
   let minRange = Infinity
   const maneuvers = new Set<string>()
+  let fired = 0
+  let firedOutsideSolution = 0
   let t = 0
   w = runCanned(w, { 'f6f-1': chase('lead-1') }, seconds, (x) => {
     t += 1 / 60
@@ -39,8 +42,14 @@ function runEscort(
       minRange = Math.min(minRange, range(x, 'wing-1', 'f6f-1'))
       maneuvers.add(d.maneuver)
     }
+    const me = aircraftById(x, 'wing-1')!
+    if (me.controls.fire === true) {
+      fired++
+      // The gate reads the target as perceived at the last rescore, so the live check gets a tick of slack.
+      if (d.targetId !== 'f6f-1' || range(x, 'wing-1', 'f6f-1') > AI_GUN_RANGE_M + 50) firedOutsideSolution++
+    }
   })
-  return { enteredAt, targetedAt, minRange, maneuvers, world: w }
+  return { enteredAt, targetedAt, minRange, maneuvers, fired, firedOutsideSolution, world: w }
 }
 
 describe('escort: a leader that never engages is still covered (7f spec §4)', () => {
@@ -63,26 +72,19 @@ describe('escort: a leader that never engages is still covered (7f spec §4)', (
     expect(minRange).toBeLessThan(600)
   })
 
-  // Why this is skipped (final review I3, measured 2026-09-27 by a throwaway
-  // probe re-running deriveFacts and decideManeuver on this same world,
-  // every tick wing-1 held the attacker as target): the wingman never
-  // chooses Pursue, and only Pursue's gun gate in pursuitControls ever sets
-  // `fire`, so there are 0 shots and 0 hits. The cause is NOT threat-astern:
-  // `threatAstern` was true on 0 of 4,947 ticks. It is energy and angle. The
-  // escort flies at the leader's 110 m/s against a 150 m/s attacker, so the
-  // mean relative energy was about -4,900 J/kg (-4,917), and
-  // decideManeuver's energy term makes Extend win on 3,219 ticks (65%); the
-  // attacker's angle-off was under 90 degrees (nose toward the wingman) on
-  // 3,115 ticks and the angle term makes Break win the other 1,728. With the
-  // energy term zeroed Pursue would win 1,566 ticks. With the attacker
-  // slowed to 110 m/s the wingman does pick Pursue (360 of 3,777 ticks) and
-  // still scores no hits. Do not tune decision.ts, the targeting weights or
-  // AI gunnery to force this: Mark decides whether the spec's "takes hits"
-  // becomes "fires within gun solution" for an escort out-energied by its
-  // attacker.
-  it.skip('the attacker takes hits from wing-1 after closing from the leader’s left quarter', () => {
-    const { world } = runEscort(QUARTER_ATTACKER_POSITION, QUARTER_ATTACKER_HEADING_DEG)
-    expect(world.combat.aircraft['f6f-1']!.lastHitBy).toBe('wing-1')
+  // Escort pursuit (MASTER_PLAN §4 decision 11, 2026-10-10): the spec's "the attacker takes hits" became
+  // "the escort fires within gun solution". Until then this was an it.skip: measured 2026-09-27 (final review
+  // I3), the wingman never chose Pursue against this attacker, because the escort at 110 m/s against a
+  // 150 m/s attacker is out-energized (about -4,900 J/kg) and 7b's energy term picked Extend on 65% of ticks
+  // and Break on the rest; only Pursue's gun gate ever sets `fire`, so it never fired. Now a wingman pursues a
+  // hostile pointed at its leader (`threatensLeader`, `pilotTick`). Seen red 2026-10-10 with that override
+  // removed: 0 rounds fired. Hits are not asserted (Mark's decision): a 3-degree gun cone on a faster target.
+  it('wing-1 fires on the attacker, and only within gun solution, after it closes from the leader’s left quarter', () => {
+    // 240 s: the first pass is a crossing one (no solution), and the escort fires on a later one.
+    const { fired, firedOutsideSolution, maneuvers } = runEscort(QUARTER_ATTACKER_POSITION, QUARTER_ATTACKER_HEADING_DEG, 240)
+    expect(maneuvers.has('pursue')).toBe(true)
+    expect(fired).toBeGreaterThan(0)
+    expect(firedOutsideSolution).toBe(0)
   })
 
   it('does not leave station for hostiles 6 km off (Review Focus 3)', () => {

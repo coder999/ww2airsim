@@ -10,7 +10,7 @@ import type { CombatImpact } from '../../src/sim/weapons/impacts.js'
 import type { Impact } from '../../src/sim/loop.js'
 import {
   COLLAPSE_SMOKE_S, crashRecipe, impactRecipe, KILL_TRAIL_S, NO_FX_MEMORY, nextFxEvents,
-  ROCKET_BURN_S, ROCKET_NOZZLE_AFT_M, SMOKE_BLACK_FROM,
+  MUZZLE_BLAST_MPS, ROCKET_BURN_S, ROCKET_NOZZLE_AFT_M, SMOKE_BLACK_FROM,
   type FxMemory, type FxWorldView,
 } from '../../src/render/fx/events.js'
 import { readFileSync } from 'node:fs'
@@ -58,6 +58,28 @@ describe('fx events (effects design §3.2)', () => {
     const f1 = nextFxEvents(NO_FX_MEMORY, view(3, c1, aircraft))
     expect(f1.triggers).toEqual([{ recipe: 'flak.burst', position: v3(7, 800, 9), velocity: ZERO }])
     expect(nextFxEvents(f1.memory, view(4, c1, aircraft)).triggers).toEqual([])
+  })
+
+  // M4: a main-battery salvo flashes and smokes at the drawn muzzle, thrown down the barrel; its shells burst
+  // as a bomb (8-inch and up) or a rocket (smaller).
+  it('a salvo emits the muzzle blast at the drawn muzzle, along the barrel, once (M4)', () => {
+    const { combat, aircraft } = base()
+    const fired = hit(5, { cause: 'shell', outcome: 'fired', surface: 'air', point: v3(1, 2, 3), shellKg: 635, mount: { ship: 'bb', name: 'Turret2' } })
+    const asked: string[] = []
+    const muzzles = (ship: string, mount: string): { position: Vec3; direction: Vec3 } | null => {
+      asked.push(`${ship}/${mount}`)
+      return { position: v3(100, 20, -40), direction: v3(0.6, 0.8, 0) }
+    }
+    const c1 = withImpacts(combat, [fired])
+    const f1 = nextFxEvents(NO_FX_MEMORY, view(5, c1, aircraft, { muzzles }))
+    expect(asked).toEqual(['bb/Turret2'])
+    expect(f1.triggers).toEqual([{ recipe: 'muzzle.heavy', position: v3(100, 20, -40), velocity: v3(0.6 * MUZZLE_BLAST_MPS, 0.8 * MUZZLE_BLAST_MPS, 0) }])
+    expect(nextFxEvents(f1.memory, view(6, c1, aircraft, { muzzles })).triggers).toEqual([])
+    // A 5-inch salvo is the light blast; with no muzzle known it leaves the turret's own point, straight up.
+    const c2 = withImpacts(combat, [{ ...fired, shellKg: 25 }])
+    expect(nextFxEvents(NO_FX_MEMORY, view(5, c2, aircraft)).triggers).toEqual([{ recipe: 'muzzle.light', position: v3(1, 2, 3), velocity: v3(0, MUZZLE_BLAST_MPS, 0) }])
+    expect(impactRecipe({ cause: 'shell', outcome: 'detonated', surface: 'water', shellKg: 635 })).toBe('bomb.water')
+    expect(impactRecipe({ cause: 'shell', outcome: 'detonated', surface: 'ship', shellKg: 25 })).toBe('rocket.land')
   })
 
   it('emits each new impact once, and none twice across frames', () => {

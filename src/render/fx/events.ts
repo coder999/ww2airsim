@@ -42,7 +42,18 @@ export type FxWorldView = {
   readonly shipSmokeOrigins: ReadonlyMap<string, Vec3>
   /** World metres, per structure id: the rendered building's smoke anchor (Ruling R13). */
   readonly structureAnchors: ReadonlyMap<string, Vec3>
+  /** M4: a drawn mount's muzzle and the way its guns point, this frame. Absent (or null for a
+   *  mount it cannot find), a salvo's flash leaves the turret's own point, straight up. */
+  readonly muzzles?: (ship: string, mount: string) => Muzzle | null
 }
+/** World metres, and a unit vector down the barrels. */
+export type Muzzle = { readonly position: Vec3; readonly direction: Vec3 }
+
+/** M4: a muzzle blast's particles inherit this velocity down the barrel (the recipes' `inheritVelocity`
+ *  scales it). Estimate: the cloud is thrown a ship's beam or two out before it hangs. */
+export const MUZZLE_BLAST_MPS = 60
+/** M4: shells at least this heavy (8-inch and up) throw the heavy muzzle blast, splash and burst. */
+export const HEAVY_SHELL_KG = 100
 
 /** Seconds the kill trail rises from the wreck, fading (Ruling R6). Estimate. */
 export const KILL_TRAIL_S = 20
@@ -77,10 +88,18 @@ export const ROCKET_BURN_S = 1.0
  *  0.09 m below the origin; ignored, against a 0.7-1.1 m flame (plan E2 Ruling R8). */
 export const ROCKET_NOZZLE_AFT_M = 0.76
 
-export function impactRecipe(i: Pick<CombatImpact, 'cause' | 'outcome' | 'surface'>): RecipeId | null {
+export const muzzleRecipe = (shellKg: number): RecipeId => (shellKg >= HEAVY_SHELL_KG ? 'muzzle.heavy' : 'muzzle.light')
+
+export function impactRecipe(i: Pick<CombatImpact, 'cause' | 'outcome' | 'surface' | 'shellKg'>): RecipeId | null {
   // A flak burst goes off in the air (M2): the one cause whose 'air' impact is drawn.
   if (i.cause === 'flak') return 'flak.burst'
   if (i.outcome === 'expired' || i.surface === 'air') return null
+  // M4: a shell burst is a bomb's (8-inch and up) or a rocket's (smaller); the salvo leaving is `muzzleRecipe`'s.
+  if (i.cause === 'shell') {
+    if (i.outcome !== 'detonated') return null
+    const heavy = (i.shellKg ?? 0) >= HEAVY_SHELL_KG
+    return i.surface === 'water' ? (heavy ? 'bomb.water' : 'rocket.water') : heavy ? 'bomb.land' : 'rocket.land'
+  }
   if (i.cause === 'round') return `round.${i.surface}` as RecipeId
   // A torpedo's hit throws up the water column a near miss in the sea does; its water entry and a
   // break-up are the smaller rocket splash.
@@ -105,6 +124,12 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
   for (const i of w.combat.impacts) {
     if (i.tick <= from.lastImpactTick) continue
     lastImpactTick = Math.max(lastImpactTick, i.tick)
+    if (i.cause === 'shell' && i.outcome === 'fired') {
+      // M4: the flash and smoke at the drawn muzzle, thrown down the barrel.
+      const m = i.mount === undefined ? null : w.muzzles?.(i.mount.ship, i.mount.name) ?? null
+      triggers.push({ recipe: muzzleRecipe(i.shellKg ?? 0), position: m?.position ?? i.point, velocity: scale(m?.direction ?? v3(0, 1, 0), MUZZLE_BLAST_MPS) })
+      continue
+    }
     const recipe = impactRecipe(i)
     if (recipe !== null) triggers.push({ recipe, position: i.point, velocity: ZERO })
   }

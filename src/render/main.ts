@@ -30,11 +30,12 @@ import { createPauseBadge } from './pauseBadge.js'
 import { createPauseScreen, type PauseScreenHandle } from './pauseScreen.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
+import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
-import { CLOSED_NAVIGATION_MAP, closeNavigationMap, createMissionMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
+import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -121,7 +122,7 @@ import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerSho
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
-import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { withMainBatteries, withoutMainBatteries, worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
@@ -564,7 +565,7 @@ async function boot(): Promise<void> {
     }
     // M5: the Settings dialog's Difficulty, baked into the world this sortie starts from (so a pick takes
     // effect at the next launch or Restart; `sim/difficulty.ts` says why). Veteran returns it unchanged.
-    const built = override
+    const spawned = override
       ? withAircraftState(
           {
             ...withTerrainField,
@@ -574,6 +575,10 @@ async function boot(): Promise<void> {
           initialAircraftState(spawnedAt!, false),
         )
       : withTerrainField
+    // M4, DEV only: `?mainBatteries=all` frees every warship's main battery in any scenario (ruling R1's
+    // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
+    const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
+    const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
     return applyDifficulty(built, quality.difficulty())
   }
 
@@ -2069,19 +2074,13 @@ async function boot(): Promise<void> {
     pendingFireRockets = false
     pendingWingmanKey = null
   }
-  const navigationMap = createMissionMap(root, {
-    onClose: () => closeNavigationChart(),
-    onSelect: (id) => {
-      navigationMapState = selectNavigationDestination(navigationMapState, id)
-    },
-  })
   const closeNavigationChart = (): void => {
     if (!navigationMapState.open) return
     const closed = closeNavigationMap(navigationMapState)
     navigationMapState = closed.state
     frame = withPaused(frame!, closed.restorePaused)
     clearMapInput()
-    navigationMap.hide()
+    pauseScreen?.hide()
     if (closed.restorePaused) pauseScreen?.show()
   }
   const openNavigationChart = (): void => {
@@ -2093,19 +2092,45 @@ async function boot(): Promise<void> {
       navigationMapState.open || player.impact !== null
       || frame!.world.combat.aircraft[player.id]!.damage.destroyedAt !== null || landingShown
     ) return
-    pauseScreen?.hide()
     navigationMapState = openNavigationMap(navigationMapState, frame!.paused)
     frame = withPaused(frame!, true)
     clearMapInput()
-    navigationMap.show(frame!.world, navigationMapState.selectedId)
+    pauseScreen?.show('map')
   }
   pauseScreen = createPauseScreen(root, quality.settings, {
+    snapshot: () => {
+      if (bundle === null) throw new Error('Pause dossier requires a loaded scenario')
+      const pilot = currentPilotId === null ? null : roster.find((candidate) => candidate.id === currentPilotId) ?? null
+      return {
+        pilotName: pilot?.name ?? 'Unassigned pilot',
+        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.killsByType,
+        careerKills: pilot?.killsByType ?? zeroKillsByType(),
+        world: frame!.world,
+        selectedNavigationId: navigationMapState.selectedId,
+        briefing: briefingModel(bundle.scenario, pilot?.badges ?? []),
+      }
+    },
     onResume: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
       frame = withPaused(frame!, false)
       clearMapInput()
     },
-    onRestart: restartMission,
-    onViewMap: openNavigationChart,
+    onRestart: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
+      restartMission()
+    },
+    onSelectNavigation: (id) => {
+      navigationMapState = selectNavigationDestination(navigationMapState, id)
+    },
+    onAbort: () => {
+      if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
+      // Unlike a debrief return, aborting an active sortie banks nothing. Drop
+      // every flight-only surface and recording before showing the roster;
+      // the next New game rebuild supplies a fresh world.
+      resetFlightUi()
+      clearMapInput()
+      title.show(requestedScenarioId)
+    },
   })
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
@@ -2230,8 +2255,8 @@ async function boot(): Promise<void> {
     // toggle (L, R, Q, P, Tab, I, /, T) -- sees a key while one is up.
     if (replay !== null) { e.preventDefault(); onReplayKey(e); return }
     // Preserve the two existing paused-flight shortcuts before the pause
-    // sheet's general keyboard gate. Both replace the sheet with their own
-    // full-screen surface and return to it when appropriate.
+    // sheet's general keyboard gate. Replay replaces the sheet; P deep-links
+    // into its Map tab and owns the resume toggle only when opened from flight.
     if (
       BINDINGS.replay.includes(e.code as never) && !e.repeat && frame!.paused && !navigationMapState.open
       && !debriefOrHoldUp() && manualReplayAvailable(recorder.snapshot())
@@ -2244,6 +2269,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleMissionMap.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       if (navigationMapState.open) closeNavigationChart()
+      else if (pauseScreen?.isOpen() === true) pauseScreen.show('map')
       else openNavigationChart()
       return
     }
@@ -2255,9 +2281,12 @@ async function boot(): Promise<void> {
     if (pauseScreen?.isOpen() === true) {
       if (BINDINGS.pause.includes(e.code as never) && !e.repeat) {
         e.preventDefault()
-        pauseScreen.hide()
-        frame = withPaused(frame!, false)
-        clearMapInput()
+        if (navigationMapState.open) closeNavigationChart()
+        else {
+          pauseScreen.hide()
+          frame = withPaused(frame!, false)
+          clearMapInput()
+        }
       }
       return
     }
@@ -2396,15 +2425,15 @@ async function boot(): Promise<void> {
     // every read.
     // A latched tap is injected as a held key for one frame, with that key's
     // "was down last frame" flag cleared so the edge actually fires.
-    // While the navigation chart is open no key reaches the frame at all:
+    // While the P-key Map deep link is open no key reaches the frame at all:
     // the hold zeroes the sim clock so axes cannot ramp, but the edge-triggered
     // toggles (gear, flaps, throttle cut, camera, pause) fire on a keypress
     // regardless of the clock, and a G pressed while reading the chart must
     // not drop the gear (Plan 14 Task 4). `clearMapInput` drains the latches
     // and `pressed` at both transitions; this keeps the frames in between
     // deaf too.
-    // The open chart and the title screen hold the world the same way: no
-    // keys reach the frame and the frame is paused (the chart's comment
+    // The Map deep link and the title screen hold the world the same way: no
+    // keys reach the frame and the frame is paused (the comment
     // above). The title's release path is its New game handler in `boot`.
     // A replay holds the live world the same way (R-9): no key and no mouse
     // reaches the flight while one is up; the replay reads its own.
@@ -2463,10 +2492,9 @@ async function boot(): Promise<void> {
     if (replay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
-      navigationMap.show(current.world, navigationMapState.selectedId)
     }
-    // Only the manual Esc edge raises the pause sheet. Other held states
-    // (title, navigation chart, replay, landing/debrief) keep their own UI.
+    // Only the manual Esc edge raises the pause sheet. The P-key path raises
+    // it synchronously on the Map tab; the other held states keep their UI.
     if (pendingPause && current.paused) pauseScreen?.show()
     else if (!current.paused) pauseScreen?.hide()
     pendingCameraCycle = false
@@ -2781,11 +2809,16 @@ async function boot(): Promise<void> {
       const started = performance.now()
       const shipSmokeOrigins = new Map(view.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
       const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
-      const anchors = { shipSmokeOrigins, structureAnchors }
+      // M4: a salvo's flash leaves the drawn muzzle (asked only on a `fired` impact).
+      const muzzles = (ship: string, mount: string): { position: Vec3; direction: Vec3 } | null => {
+        const m = shipHandles[view.world.ships.findIndex((s) => s.id === ship)]?.mounts.find((x) => x.name === mount)?.muzzle?.()
+        return m === undefined ? null : { position: { x: m.position.x - worldOffset.x, y: m.position.y - worldOffset.y, z: m.position.z - worldOffset.z }, direction: m.direction }
+      }
+      const anchors = { shipSmokeOrigins, structureAnchors, muzzles }
       if (replay === null) {
         const events = nextFxEvents(fxMemory, {
           tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
-          shipSmokeOrigins, structureAnchors,
+          shipSmokeOrigins, structureAnchors, muzzles,
         })
         fxMemory = events.memory
         for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)

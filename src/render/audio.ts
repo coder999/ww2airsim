@@ -168,8 +168,10 @@ export function spatialInputsFrom(
       })),
     decks: decksOf(world.ships).map((d, i) => ({ id: `deck${i}`, center: d.center, lengthM: d.lengthM })),
     blasts: world.combat.impacts
-      .filter((h) => h.cause !== 'round' && (h.outcome === 'detonated' || torpedoSplash(h)))
-      .map((h) => h.cause === 'torpedo'
+      .filter((h) => h.cause !== 'round' && (h.outcome === 'detonated' || torpedoSplash(h) || h.outcome === 'fired'))
+      .map((h) => h.outcome === 'fired'
+        ? { tick: h.tick, surface: h.surface, position: h.point, gun: true as const }
+        : h.cause === 'torpedo'
         ? { tick: h.tick, surface: h.surface, position: h.point, torpedo: h.outcome === 'detonated' ? 'hit' as const : 'splash' as const }
         : h.cause === 'flak'
           ? { tick: h.tick, surface: h.surface, position: h.point, flak: true as const }

@@ -117,6 +117,15 @@ describe('nextSpatial one-shots', () => {
     expect(nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [{ ...burst(150), flak: undefined as never }] })).memory.pending[0]!.clip).toBe('explosion')
   })
 
+  // M4 (Track I, I3): a main-battery salvo is the big gun's report, near or far, delayed by distance.
+  it('plays ship_gun_heavy for a salvo at any range', () => {
+    for (const x of [300, 6000]) {
+      const p = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [{ tick: 100, surface: 'air', position: { x, y: 10, z: 0 }, gun: true as const }] })).memory.pending[0]!
+      expect(p.clip).toBe('ship_gun_heavy')
+      expect(p.dueTick).toBeGreaterThan(100 + Math.floor((x / 343) * 60) - 2)
+    }
+  })
+
   it('does not replay a detonation it has already seen, nor hear one beyond earshot', () => {
     const b = blast(100, 500)
     const a = nextSpatial(NO_SPATIAL_MEMORY, inputs({ blasts: [b] }))

@@ -20,6 +20,7 @@ import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObj
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
+import { initialMainBattery } from './weapons/mainBattery.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
  *  must name the same four values; a mismatch here is a compile error. */
@@ -66,7 +67,9 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
  *  altitude and speed of the leg flown TO it. */
 const IngressObject = z.object({
   route: z.array(z.object({ x: finite, z: finite, altitudeM: positive, speedMps: positive }).strict()).min(1),
-  destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id }).strict()]).optional(),
+  /** An airfield destination is its runway center, or with `aim` (Escort plan, 2026-10-10) the middle of the
+   *  airfield's buildings with that id or tag, so a level-bombing formation can be sent at its hangars. */
+  destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id, aim: id.optional() }).strict()]).optional(),
   /** E2: what the raider does on arrival at its destination: a dive-bombing, torpedo or level-bombing
    *  run on it (the airplane is armed with its full racks). Absent: orbit it, as every raider before E2. */
   attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb']).optional(),
@@ -145,7 +148,7 @@ function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly
     : 'ship' in d
       ? { kind: 'ship', id: d.ship }
       : {
-          kind: 'point', x: lookup(airfields, d.airfield, 'airfield').runway.center.x, z: lookup(airfields, d.airfield, 'airfield').runway.center.z,
+          kind: 'point', ...airfieldAim(lookup(airfields, d.airfield, 'airfield'), d.aim),
           // E2: an attacker must know whose strip it is, so it never bombs its own. Present only on an attacker's orders.
           ...(i.attack === undefined ? {} : { side: airfieldSideOf(lookup(airfields, d.airfield, 'airfield'), airfieldSides) }),
         }
@@ -204,6 +207,8 @@ const ScenarioShipObject = z.object({
   /** Friendly fire (spec 2026-09-26 §2): absent means axis, through
    *  `sideOf`, the same default 7e gave every aircraft but the player. */
   side: SideField,
+  /** M4: what its main batteries engage first (`ShipOrders.fireAt`). */
+  fireAt: z.array(id).min(1).optional(),
 }).strict().refine((s) => s.speedMps === 0 || s.waypoints.length >= 2, {
   message: 'waypoints must have at least 2 entries unless speedMps is 0', path: ['waypoints'],
 })
@@ -234,6 +239,9 @@ const ScenarioShape = z.object({
   airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
+  /** M4: warships' main batteries fire at hostile ships and batteries in reach. Absent: they lay
+   *  (M3) but hold fire, as every scenario before M4 (ruling R1 of the M4 plan). */
+  mainBatteries: z.boolean().optional(),
   /** Steady wind, meteorological convention: the true bearing it blows FROM,
    *  and its speed. Plan 8. `windMps: 0` is calm, which `worldFromScenario`
    *  turns into a `null` world wind so the calm code path is selected. */
@@ -576,6 +584,16 @@ export function windVectorFrom(windFromDeg: number, windMps: number): Vec3 {
   return v3(-Math.sin(rad) * windMps, 0, Math.cos(rad) * windMps)
 }
 
+/** Where an airfield destination points: its runway center, or the middle of the buildings `aim` names (an id or
+ *  a tag). An `aim` that names none is a content error, thrown like an unknown id. */
+function airfieldAim(a: Airfield, aim: string | undefined): { x: number; z: number } {
+  if (aim === undefined) return { x: a.runway.center.x, z: a.runway.center.z }
+  const hit = a.buildings.filter((b) => b.id === aim || (b.tags ?? []).includes(aim))
+  if (hit.length === 0) throw new Error(`scenario aims at "${aim}", which names no building at airfield "${a.id}"`)
+  const n = hit.length
+  return localToWorld(a, hit.reduce((s, b) => s + b.x, 0) / n, hit.reduce((s, b) => s + b.z, 0) / n)
+}
+
 function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string): T {
   const v = table[key]
   if (v === undefined) throw new Error(`scenario refers to ${kind} "${key}", which is not in the bundle`)
@@ -587,7 +605,7 @@ function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string
  *  verbatim. */
 function buildShip(bundle: ScenarioBundle, sh: ScenarioShip, terrain: TerrainField | null): ShipEntity {
   const spec = lookup(bundle.shipSpecs, sh.spec, 'ship spec')
-  const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps }
+  const orders = { waypoints: sh.waypoints.map(([x, z]) => ({ x, z })), speedMps: sh.speedMps, ...(sh.fireAt === undefined ? {} : { fireAt: sh.fireAt }) }
   if (terrain !== null) assertLoopOverWater(sh.id, orders, terrain)
   const first = orders.waypoints[0]!
   // A moving ship's heading comes from its first two waypoints, same as
@@ -789,6 +807,16 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
  * `storesFromLoadout`'s zero-stores case, so an omitted third argument is
  * bit-identical to the pre-Task-7 hardcode it replaces.
  */
+/** M4: the same world with its warships' main batteries free to fire (scenario `mainBatteries`, or
+ *  the DEV `?mainBatteries=all` alternative to ruling R1). */
+export const withMainBatteries = <M>(w: World<M>): World<M> =>
+  w.combat.mainBattery !== undefined ? w : { ...w, combat: { ...w.combat, mainBattery: initialMainBattery() } }
+/** M4: the same world with every main battery holding fire (DEV `?mainBatteries=off`). */
+export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
+  const { mainBattery, ...combat } = w.combat
+  return mainBattery === undefined ? w : { ...w, combat }
+}
+
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
@@ -846,5 +874,6 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     })
   }
   checkSides(s, airfields)
-  return createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  const world = createWorldOf({ aircraft, ships, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  return s.mainBatteries === true ? withMainBatteries(world) : world
 }
