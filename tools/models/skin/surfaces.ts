@@ -28,6 +28,8 @@ export interface Surface {
 
 export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   ijaGreen: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
+  // U.S. Army olive drab: matte, weathered ground-vehicle paint (ESTIMATE, M4 Sherman 2026-10-11).
+  oliveDrab: { scan: 'painted-metal', roughness: 0.7, metallic: 0, fade: 0.14, chip: 0.012, rivets: false, scanNormal: 0.65 },
   // The Navy's 1941-43 non-specular blue-gray: a matte camouflage paint like ijaGreen (ESTIMATE).
   blueGray: { scan: 'painted-metal', roughness: 0.62, metallic: 0, fade: 0.18, chip: 0.01, rivets: true, scanNormal: 0.6 },
   underside: { scan: 'painted-metal', roughness: 0.58, metallic: 0, fade: 0.04, chip: 0.005, rivets: true, scanNormal: 0.6 },

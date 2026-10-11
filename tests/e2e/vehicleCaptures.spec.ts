@@ -5,8 +5,8 @@ import type { HangarWindow } from '../../src/render/hangar/hooks.js'
 
 /**
  * Capture tool, not a test (docs/testing.md): the V1/V2 handoff frames. The two torpedoes and the
- * Type 98 bomb, the Type 98 on the Zero's racks, the Chi-Ha mid-traverse with its tracks run on
- * between two frames, and both scout cars steered left and right. Skipped unless E2E_CAPTURE=1;
+ * Type 98 bomb, the Type 98 on the Zero's racks, the Sherman and Chi-Ha mid-traverse, the Chi-Ha's
+ * tracks run on between two frames, and both scout cars steered left and right. Skipped unless E2E_CAPTURE=1;
  * writes to E2E_CAPTURE_DIR (default test-results/vehicle-captures).
  */
 test.skip(process.env['E2E_CAPTURE'] !== '1', 'capture tool: set E2E_CAPTURE=1')
@@ -18,6 +18,8 @@ const SHOTS: readonly (readonly [string, readonly View[], (h: NonNullable<Hangar
   ['type91', [['side', [-0.2, 1.3, 10.5], [-0.2, 0.5, 0]], ['tail', [-4.1, 1.0, 1.4], [-2.6, 0.5, 0]]], () => {}],
   ['type98-no25', [['side', [0.8, 1.0, 2.8], [-0.2, 0.4, 0]]], () => {}],
   ['a6m-zero', [['racks', [2.5, -0.4, 6.5], [-0.4, 0.9, 1.5]]], () => {}],
+  ['m4-sherman', [['traverse', [6.1, 3.5, 6.1], [0, 1.2, 0]], ['side', [0.2, 2.3, 9.5], [0, 1.2, 0]]],
+    (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 18 })],
   ['type97-chi-ha', [['traverse', [5.5, 3.2, 5.5], [0, 1.1, 0]], ['tracks', [0.5, 0.8, 5.0], [0, 0.5, 0]]],
     (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 12, speedMph: 6 })],
   ['willys-mb-jeep', [['left', [3.6, 2.0, -3.6], [0, 0.7, 0]], ['right', [3.6, 2.0, 3.6], [0, 0.7, 0]], ['driver', [1.6, 1.7, -1.9], [-0.2, 1.0, -0.3]]],
@@ -26,7 +28,7 @@ const SHOTS: readonly (readonly [string, readonly View[], (h: NonNullable<Hangar
     (h) => h.pose({ steer: -1 })],
 ]
 
-test('vehicle captures: ordnance, the Zero\'s Type 98s, the Chi-Ha, the jeep and the Kurogane', async ({ page }) => {
+test('vehicle captures: ordnance, the Zero\'s Type 98s, both tanks and both scout cars', async ({ page }) => {
   test.setTimeout(300_000)
   const out = process.env['E2E_CAPTURE_DIR'] ?? 'test-results/vehicle-captures'
   mkdirSync(out, { recursive: true })

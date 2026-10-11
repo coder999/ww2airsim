@@ -43,6 +43,8 @@ PALETTE = {
     'fitting': (0x4B / 255, 0x53 / 255, 0x5B / 255),
     # Aircraft (R3): flat period finishes, each an ESTIMATE named in the model script's header.
     'ijaGreen': (0x4B / 255, 0x55 / 255, 0x35 / 255),
+    # U.S. Army ground vehicles (ESTIMATE: weathered olive drab, no chip read).
+    'oliveDrab': (0x4D / 255, 0x4B / 255, 0x32 / 255),
     'underside': (0xA3 / 255, 0xA8 / 255, 0x9A / 255),
     'naturalMetal': (0xB4 / 255, 0xB8 / 255, 0xBC / 255),
     # D1: the US Navy's 1944-45 overall Glossy Sea Blue, weathered (ESTIMATE: no chip read).

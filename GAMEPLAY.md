@@ -472,6 +472,7 @@ ground AI.
 
 | Vehicle | Role |
 | --- | --- |
+| M4 Composite Sherman medium tank | Allied 75 mm tank used in the Philippines; Library/Hangar model with trainable turret and elevating gun |
 | Type 97 Chi-Ha medium tank | Hostile 48-HP ground target in Tank Buster; temporary visual stand-in for the Type 89 and Type 95 tanks better documented on Leyte |
 | Willys MB jeep | Friendly airfield scenery |
 | Type 95 Kurogane scout car | Japanese command/reconnaissance counterpart to the Willys; moving hostile target in Gunnery Range |

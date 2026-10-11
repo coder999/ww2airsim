@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { Box3, Vector3, type Mesh } from 'three'
-import { CHI_HA_GUN, HAND_FOLLOW_RAD, JEEP_STEERING, VEHICLE_RIDERS, VEHICLE_RIGS, treadUPerMeter, wheelShells } from '../../src/render/scene/vehicleRig.js'
+import { CHI_HA_GUN, HAND_FOLLOW_RAD, JEEP_STEERING, M4_75_GUN, VEHICLE_RIDERS, VEHICLE_RIGS, treadUPerMeter, wheelShells } from '../../src/render/scene/vehicleRig.js'
 import { glbScene } from './_wildcatCache.js'
 
 /**
@@ -11,6 +11,7 @@ import { glbScene } from './_wildcatCache.js'
  * which shells the shader turns and how far, how far the tread moves, and every node the rigs pose.
  */
 const chiHa = async () => { const root = await glbScene('content/vehicles/type97-chi-ha.glb'); return { root, rig: VEHICLE_RIGS['type97-chi-ha']!(root) } }
+const sherman = async () => { const root = await glbScene('content/vehicles/m4-sherman.glb'); return { root, rig: VEHICLE_RIGS['m4-sherman']!(root) } }
 const jeep = async () => {
   const root = await glbScene('content/vehicles/willys-mb-jeep.glb')
   for (const id of VEHICLE_RIDERS['willys-mb-jeep']!) root.add(await glbScene(`content/figures/${id}.glb`))
@@ -20,10 +21,10 @@ const jeep = async () => {
 const sameTurn = (a: number, b: number): number => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)))
 
 describe('vehicle rigs (V1)', () => {
-  it('every rigged vehicle is a committed vehicle model, and both are rigged', () => {
+  it('every committed vehicle model is rigged', () => {
     const models = readdirSync('content/vehicles').filter((f) => f.endsWith('.glb')).map((f) => f.slice(0, -4)).sort()
     expect(Object.keys(VEHICLE_RIGS).sort()).toEqual(models)
-    expect(models).toEqual(['type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
+    expect(models).toEqual(['m4-sherman', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
   })
 })
 
@@ -78,6 +79,25 @@ describe('Type 97 Chi-Ha', () => {
     expect(rig.state()['gunElevationRad']).toBeCloseTo(CHI_HA_GUN.maxElevationRad, 9)
     mount!.setElevation(-1)
     expect(rig.state()['gunElevationRad']).toBeCloseTo(CHI_HA_GUN.minElevationRad, 9)
+  })
+})
+
+describe('M4 Composite Sherman', () => {
+  it('trains the 75 mm turret with its gun and clamps gun elevation to -10 through +25 degrees', async () => {
+    const { root, rig } = await sherman()
+    const hull = root.children.find((o) => o.name !== 'Turret1' && o.name !== 'Gun1')!
+    const gun = root.getObjectByName('Gun1')!
+    const hullAt = hull.getWorldPosition(new Vector3()), gunAt = gun.getWorldPosition(new Vector3())
+    const [mount] = rig.mounts
+    mount!.setTraining(Math.PI * 0.75)
+    root.updateMatrixWorld(true)
+    expect(rig.state()['turretYawRad']).toBeCloseTo(Math.PI * 0.75, 9)
+    expect(hull.getWorldPosition(new Vector3()).distanceTo(hullAt)).toBe(0)
+    expect(gun.getWorldPosition(new Vector3()).distanceTo(gunAt), 'the gun went round with the turret').toBeGreaterThan(0.3)
+    mount!.setElevation(1)
+    expect(rig.state()['gunElevationRad']).toBeCloseTo(M4_75_GUN.maxElevationRad, 9)
+    mount!.setElevation(-1)
+    expect(rig.state()['gunElevationRad']).toBeCloseTo(M4_75_GUN.minElevationRad, 9)
   })
 })
 

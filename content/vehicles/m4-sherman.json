@@ -1,0 +1,12 @@
+{
+  "id": "m4-sherman",
+  "name": "M4 Composite Sherman",
+  "lengthM": 5.8938,
+  "widthM": 2.6162,
+  "heightM": 2.7432,
+  "maxSpeedMps": 10.7,
+  "turnRateRadPerS": 0.3,
+  "hp": 220,
+  "targetType": "tank",
+  "view": { "model": "m4-sherman" }
+}

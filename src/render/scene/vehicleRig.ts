@@ -5,9 +5,9 @@ import { attribute, cos, positionLocal, sin, uniform, vec3 } from 'three/tsl'
 import type { ShipMountView } from './ship.js'
 
 /**
- * The two ground vehicles come alive (V1, Mark 2026-10-09): the Chi-Ha's turret trains and its gun
- * elevates, its tracks run and its wheels turn; the jeep's wheels turn and its front wheels steer,
- * with the steering wheel turning to match. Render only: no vehicle is in the sim, so the Hangar's
+ * The ground vehicles come alive (V1, Mark 2026-10-09): both tanks' turrets train and guns elevate;
+ * the Chi-Ha's tracks run and wheels turn; the wheeled vehicles' wheels turn and steer, with the
+ * jeep's steering wheel turning to match. Render only: no vehicle is in the sim, so the Hangar's
  * bench drives a rig with a distance travelled and a steer fraction.
  *
  * Frame: the vehicles' glb frame, +x forward, +y up, +z starboard (the airframes' and ships').
@@ -36,6 +36,10 @@ const angleAbout = (q: Quaternion, axis: Vector3): number => 2 * Math.atan2(q.x 
  * vehicle, "Type 97 Chi-Ha"); the gun's own 10 degree traverse in its mantlet is not modeled.
  */
 export const CHI_HA_GUN = { minElevationRad: (-15 * Math.PI) / 180, maxElevationRad: (20 * Math.PI) / 180 } as const
+
+/** 75 mm M3 in the M34/M34A1 mount: +25 to -10 degrees, Kevin Townsend's
+ * M4 Sherman reference sheet, read 2026-10-11. The turret traverses 360 degrees. */
+export const M4_75_GUN = { minElevationRad: (-10 * Math.PI) / 180, maxElevationRad: (25 * Math.PI) / 180 } as const
 
 /**
  * The Willys MB's steering. SECONDARY: kaiserwillys.com's MB steering listing gives a Ross cam and
@@ -224,6 +228,36 @@ function rigChiHa(root: Object3D): VehicleRig {
   }
 }
 
+/** The original M4 model authors the same two pivots as the Chi-Ha: a full-yaw
+ * Turret1 and its Gun1 child, elevated about +z. */
+function rigSherman(root: Object3D): VehicleRig {
+  const turret = need(root.getObjectByName('Turret1'), 'Turret1')
+  const gun = need(root.getObjectByName('Gun1'), 'Gun1')
+  turret.attach(gun)
+  const rest = { turret: turret.quaternion.clone(), gun: gun.quaternion.clone() }
+  const Y = new Vector3(0, 1, 0), Z = new Vector3(0, 0, 1), q = new Quaternion()
+  const mount: ShipMountView = {
+    name: 'Turret1',
+    kit: 'm4-75mm',
+    maxElevationRad: M4_75_GUN.maxElevationRad,
+    setTraining(rad) { turret.quaternion.copy(rest.turret).multiply(q.setFromAxisAngle(Y, rad)) },
+    setElevation(rad) {
+      const e = Math.min(Math.max(rad, M4_75_GUN.minElevationRad), M4_75_GUN.maxElevationRad)
+      gun.quaternion.copy(rest.gun).multiply(q.setFromAxisAngle(Z, e))
+    },
+  }
+  return {
+    parts: ['turrets'],
+    mounts: [mount],
+    drive() {},
+    state: () => ({
+      turretYawRad: angleAbout(turret.quaternion, Y),
+      gunElevationRad: angleAbout(gun.quaternion, Z),
+    }),
+    dispose() {},
+  }
+}
+
 /** The jeep: four wheel nodes spin about their axles, the front pair also steer, and the steering
  *  wheel turns about its column by the gear ratio. A driver riding in it (VEHICLE_RIDERS) keeps
  *  his hands on the rim: each arm swings about its shoulder after its grip point. */
@@ -296,6 +330,7 @@ function rigJeep(root: Object3D): VehicleRig {
 
 /** Each animated vehicle's rig, by its model id (STATIC_MODELS.vehicle). */
 export const VEHICLE_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
+  'm4-sherman': rigSherman,
   'type97-chi-ha': rigChiHa,
   'type95-kurogane': rigJeep,
   'willys-mb-jeep': rigJeep,

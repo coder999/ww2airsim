@@ -345,7 +345,7 @@ test.describe('the Hangar', () => {
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
     // R1-R5: every Library building and vehicle is drawn from its own model, with its manifest budget.
-    for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ['type97-chi-ha', 'vehicles'] as const, ['willys-mb-jeep', 'vehicles'] as const]) {
+    for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ...['m4-sherman', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'].map((v) => [v, 'vehicles'] as const)]) {
       await select(page, id)
       const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
       expect(r?.budget, id).not.toBeNull()
@@ -489,8 +489,16 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test('18. the ground vehicles move: the Chi-Ha trains, elevates and runs its wheels and tread on screen; the jeep steers with its driver\'s hands on the wheel (V1)', async ({ page }) => {
+  test('18. the ground vehicles move: both tanks train and elevate; the Chi-Ha drives; the jeep steers with its driver\'s hands on the wheel (V1, M4)', async ({ page }) => {
     const state = () => page.evaluate(() => (window as HangarWindow).__hangar!.vehicle())
+    await select(page, 'm4-sherman')
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets'])
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])
+    await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
+    const shermanAimed = (await state())!
+    expect(shermanAimed['turretYawRad']).toBeCloseTo(-Math.PI / 2, 6)
+    expect(shermanAimed['gunElevationRad']).toBeCloseTo((25 * Math.PI) / 180, 6)
+
     await select(page, 'type97-chi-ha')
     expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])

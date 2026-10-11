@@ -1,0 +1,14 @@
+{
+  "id": "m4-sherman",
+  "name": "M4 Composite Sherman medium tank",
+  "kind": "vehicle",
+  "side": "allied",
+  "model": { "kind": "vehicle", "id": "m4-sherman" },
+  "blurb": "The U.S. Army's principal medium tank, represented by a 75 mm composite-hull M4 of the kind photographed with American tank battalions in the Philippines. Its turret and gun can be posed in the Hangar.",
+  "history": "The M4 mounted its main gun in a fully traversing turret and combined reliable automotive components with a hull designed for mass production. This model represents a late 75 mm M4 with a cast front joined to a welded rear hull, usually called the M4 Composite. U.S. Army tank battalions brought Shermans ashore on Leyte in October 1944 and used them in close support through the campaign, including the fighting around Breakneck Ridge.",
+  "sources": [
+    { "title": "Standard Ordnance Items Catalog, Volume 1 (1944): Medium Tank M4 Series", "url": "https://www.ibiblio.org/hyperwar/NHC/NewPDFs/USArmy/US%20military%20Technical%20and%20Field%20manuals/Standard.Ordnance.Items.Catalog.Vol.1.1944.pdf", "read": "2026-10-11" },
+    { "title": "Leyte: The Return to the Philippines", "url": "https://history.army.mil/portals/143/Images/Publications/catalog/5-9.pdf", "read": "2026-10-11" },
+    { "title": "Leyte Island: Sherman tanks near Breakneck Ridge, 19 November 1944", "url": "https://www.awm.gov.au/collection/C361262", "read": "2026-10-11" }
+  ]
+}
