@@ -150,9 +150,14 @@ export function wholeLabel(label: string): RegExp {
   return new RegExp(`(^|\\s)${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|\\s)`)
 }
 
+/** Exact ballot-row label, allowing the checked row's leading pencil mark. */
+export function exactBallotLabel(label: string): RegExp {
+  return new RegExp(`^(?:✕\\s*)?${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+}
+
 export async function startGame(
   page: Page,
-  options: { readonly scenario?: string; readonly aircraft?: string; readonly loadout?: string; readonly dev?: boolean } = {},
+  options: { readonly scenario?: string; readonly cloudiness?: string; readonly aircraft?: string; readonly loadout?: string; readonly dev?: boolean } = {},
 ): Promise<void> {
   const title = page.getByRole('dialog', { name: 'Title' })
   const newGame = title.getByRole('button', { name: 'New game' })
@@ -173,14 +178,15 @@ export async function startGame(
   }
 
   // Four sequential forms (sortie spec): Dev on Form 1, then New game to the
-  // mission, Next to the aircraft, Next to the armament, Launch. Every form
-  // opens on its default, so with no options this flies exactly the sortie a
-  // bare Launch did before the forms. `scenario` is the row's WHOLE label
+  // mission/weather, Next to the aircraft, Next to the armament, Launch.
+  // Every form opens on its default, including Form 2's random cloudiness
+  // roll. `scenario` is the row's WHOLE label
   // (AD-1: "Air Combat" is part of "Air Combat: Veteran"); `aircraft` and
   // `loadout` may be a distinctive part of one ('Zero'; 'Both' for "Both (recommended)").
   if (options.dev === true) await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
   await newGame.click()
   if (options.scenario !== undefined) await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: wholeLabel(options.scenario) }).check()
+  if (options.cloudiness !== undefined) await title.getByRole('radiogroup', { name: 'Cloudiness' }).getByRole('radio', { name: exactBallotLabel(options.cloudiness) }).check()
   await title.getByRole('button', { name: 'Next' }).click()
   if (options.aircraft !== undefined) await title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio', { name: options.aircraft }).check()
   await title.getByRole('button', { name: 'Next' }).click()

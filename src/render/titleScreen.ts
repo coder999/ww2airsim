@@ -16,6 +16,7 @@ import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor,
 import { aircraftRowLabel, storesLine, type FlyableAircraft } from './sortie/flyable.js'
 import { sortieIsDev } from './devRecord.js'
 import { SCENARIO_ID } from './content.js'
+import { CLOUDINESS_OPTIONS, randomCloudiness } from './cloudiness.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -773,6 +774,23 @@ export function createTitleScreen(
       renderTakeoff()
       orders.left.append(sectionTitle('Takeoff time'), takeoffGroup)
     }
+    // Each new title-screen build rolls one of the four player-facing
+    // weather reports. The roll is only an initial selection: Back/Next keep
+    // the player's pick for this sortie, and clicking a row replaces it.
+    let cloudiness = randomCloudiness()
+    const cloudinessGroup = radioGroup('Cloudiness')
+    const renderCloudiness = (): void => {
+      cloudinessGroup.replaceChildren()
+      const rows = new Map<typeof cloudiness, HTMLDivElement>()
+      for (const option of CLOUDINESS_OPTIONS) {
+        const el = ballotOption(option.label, '', () => { cloudiness = option.value; renderCloudiness() })
+        rows.set(option.value, el)
+        cloudinessGroup.appendChild(el)
+      }
+      markGroup(rows, cloudiness)
+    }
+    renderCloudiness()
+    orders.left.append(sectionTitle('Cloudiness'), cloudinessGroup)
     const selectScenario = (id: string): void => {
       draft = flowReady ? withScenario(ctx(), id) : { ...draft, scenarioId: id }
       markGroup(scenarioRows, draft.scenarioId)
@@ -1279,7 +1297,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
     }
     newGame.addEventListener('click', advance)
     launchButton.addEventListener('click', start)

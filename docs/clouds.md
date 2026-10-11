@@ -5,8 +5,8 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-10-11 for the opt-in Takram game integration and experimental full TSL
-port; §3.10 records the effects
+on 2026-10-11 for the opt-in Takram integrations, the full TSL merge and the
+Form 2 cloudiness selector; §3.10 records the effects
 dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
@@ -17,6 +17,13 @@ relevant section here in the same commit.
   the fraction of the **sky** it covers, seen from above
   (`src/sim/scenario.ts`). Free-flight uses 0.45 and deck-quals 0.55; the
   most any layer can reach is 0.636.
+- **Player weather:** Form 2 rolls one of four equally likely initial reports:
+  Sunny (0.10 combined cumulus coverage), Partly Cloudy (0.25), Cloudy (0.42)
+  or Overcast (0.58). The pilot may change the roll. The adjustment preserves
+  authored bases, thicknesses and cirrus, and reweights multiple cumulus
+  layers to the selected combined coverage. A historically clear scenario
+  receives a 1,200 m-base, 700 m-thick cumulus layer. Quick launches omit the
+  choice and keep scenario weather unchanged (`render/cloudiness.ts`).
 - **Cumulus shape:** every cloud is carved from one baked procedural cumulus
   (`content/sky/cumulus.bin.gz`, built by `tools/sky/cumulus.py`). Each copy
   is placed, rotated and scaled by a 1024², two-plane weather map
@@ -84,7 +91,7 @@ clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
 
 ### 1.2 Full TSL port experiment (2026-10-11)
 
-Branch `clouds-v3-tsl-port` adds a second DEV-only selector,
+Merged main commit `1c654889` adds a second DEV-only selector,
 `?cloudRenderer=takram-tsl`. It is a complete Three Shader Language port of
 the accepted Takram-derived path: native Three textures (including the
 averaged 3D shape mip chain), weather and density, ray march and lighting,
@@ -104,15 +111,16 @@ An optimization pass restored R8 volumes and native WGSL's conditional
 put TSL whole-frame p95 at 5.746 and 5.772 ms versus same-scene native estimates
 of 5.890 and 5.915 ms. The TSL march itself fell from 2.820–2.839 to
 1.537–1.542 ms p95; temporal stayed 0.228–0.230 ms. It now clears both the
-8.33 ms game gate and the plan's at-most-15% promotion criterion. Keep it on
-the working research branch until Mark separately decides whether the
-maintenance benefit warrants replacing native WGSL. See
+8.33 ms game gate and the plan's at-most-15% promotion criterion. The accepted
+`54fd91f7` branch state was merged for continued use and comparison; legacy
+remains the default, and replacing native WGSL remains a separate decision. See
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 
 ## 2. Where it lives
 
 | Concern | File |
 | --- | --- |
+| Form 2 cloudiness roll and scenario-layer adjustment | `src/render/cloudiness.ts`, `titleScreen.ts` |
 | Tiers, the march, light march, early-outs | `src/render/scene/clouds.ts` |
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |

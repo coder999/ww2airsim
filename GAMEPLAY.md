@@ -120,9 +120,12 @@ the coupling now.
 
 ### Mission selector
 
-Scenario choice plus pre-flight loadout: fuel fraction and bomb count, both
-feeding mass and drag into the flight model. The loadout screen is a
-performance decision, not decoration.
+Sortie Orders chooses the mission, takeoff time and cloudiness. Cloudiness is
+rolled when the New Game screen opens, with Sunny, Partly Cloudy, Cloudy and
+Overcast equally likely; the pilot may keep the roll or select another report.
+The following forms assign the aircraft and its available clean, bomb, rocket
+or combined loadout. Stores feed their real mass and drag into the flight
+model, so the loadout screen is a performance decision, not decoration.
 
 ### In-flight guidance
 

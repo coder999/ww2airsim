@@ -2,8 +2,9 @@ import { test, expect } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { seaStateFor } from '../../src/render/ocean/weather.js'
+import { CLOUDINESS_OPTIONS } from '../../src/render/cloudiness.js'
 import { TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours } from '../../src/render/sky/sun.js'
-import { debriefDialog, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, exactBallotLabel, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
 
 /**
  * E2E, the title screen's scenario picker. Plan 9 Task 7: picking a
@@ -105,6 +106,9 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   await title.getByRole('button', { name: 'New game' }).click()
 
   // Free Flight is already checked (the production default).
+  const selectedCloudiness = CLOUDINESS_OPTIONS.find((option) => option.value === 'cloudy')!
+  await title.getByRole('radiogroup', { name: 'Cloudiness' })
+    .getByRole('radio', { name: exactBallotLabel(selectedCloudiness.label) }).check()
   await launchFromOrders(title)
   await expect(title).toBeHidden()
   // This branch never calls `loadScenario` (main.ts: `scenarioId ===
@@ -119,6 +123,9 @@ test('picking the already-loaded scenario also stays in place (the same code pat
 
   const ids = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
   expect(ids.sort()).toEqual(['f6f-1', 'f6f-2'])
+  const coverage = await page.evaluate(() => 1 - (window as DiagWindow).__ww2!.clouds().layers
+    .filter((layer) => layer.kind === 'cumulus').reduce((clear, layer) => clear * (1 - layer.coverage), 1))
+  expect(coverage).toBeCloseTo(selectedCloudiness.coverage, 5)
 })
 
 test('return to title after an in-place scenario switch preselects the scenario actually loaded, not the one this boot started with', async ({ page }) => {
@@ -205,24 +212,23 @@ test('return to title after an in-place scenario switch preselects the scenario 
 })
 
 /**
- * A2 (MASTER_PLAN, 2026-10-08): a scenario launched from the title flies its
- * OWN weather, not the boot scenario's (clouds.md #10). Both directions,
- * because the code paths differ: a cloudy boot switching to a clear sky must
- * route the cloud pass out of the frame, and a clear boot switching to a
- * deck must route it in. The expected values are read from the scenario
- * JSON, not restated here.
+ * A2 plus Form 2 cloudiness: a title launch takes its hour and sea state from
+ * the selected scenario, while the player's cloudiness selection overrides
+ * that scenario's cumulus coverage. Both switch directions are enrolled
+ * because their code paths differ, including adding a deck to historically
+ * clear weather.
  */
 type WeatherJson = { timeOfDay: number; clouds?: unknown[]; windMps: number }
 const weatherOf = (id: string): WeatherJson =>
   (JSON.parse(readFileSync(fileURLToPath(new URL(`../../content/scenarios/${id}.json`, import.meta.url)), 'utf8')) as { weather: WeatherJson }).weather
 
 const SWITCHES = [
-  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range' },
-  { boot: '/?scenario=gunnery-range', from: 'gunnery-range', to: 'airfield-strike', label: 'Airfield Strike' },
+  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range', cloudiness: 'Sunny' },
+  { boot: '/?scenario=gunnery-range', from: 'gunnery-range', to: 'airfield-strike', label: 'Airfield Strike', cloudiness: 'Overcast' },
 ] as const
 
 for (const s of SWITCHES) {
-  test(`a title launch from ${s.from} to ${s.to} flies ${s.to}'s own weather`, async ({ page }) => {
+  test(`a title launch from ${s.from} to ${s.to} applies scenario conditions and ${s.cloudiness} clouds`, async ({ page }) => {
     const from = weatherOf(s.from)
     const to = weatherOf(s.to)
     // Not vacuous: each pair differs in hour and in whether there is a deck,
@@ -233,16 +239,19 @@ for (const s of SWITCHES) {
 
     await page.goto(s.boot)
     await waitForScenario(page, s.from)
-    const diag = (): Promise<{ hour: number; layers: number; composited: boolean; sea: number }> => page.evaluate(() => {
+    const diag = (): Promise<{ hour: number; layers: number; cumulusCoverage: number; composited: boolean; sea: number }> => page.evaluate(() => {
       const w = (window as DiagWindow).__ww2!
-      return { hour: w.sun().timeOfDay, layers: w.clouds().layers.length, composited: w.clouds().composited, sea: w.seaState() }
+      const layers = w.clouds().layers
+      const cumulusCoverage = 1 - layers.filter((layer) => layer.kind === 'cumulus')
+        .reduce((clear, layer) => clear * (1 - layer.coverage), 1)
+      return { hour: w.sun().timeOfDay, layers: layers.length, cumulusCoverage, composited: w.clouds().composited, sea: w.seaState() }
     })
     await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
     const before = await diag()
     expect(before.layers).toBe((from.clouds ?? []).length)
     expect(before.composited).toBe(before.layers > 0)
 
-    await startGame(page, { scenario: s.label })
+    await startGame(page, { scenario: s.label, cloudiness: s.cloudiness })
     await waitForScenario(page, s.to)
     // A title launch flies the takeoff time A3 preselects (94866345): the Morning,
     // Midday or Dusk nearest the scenario's own hour, so airfield-strike's 0730 flies at 0740.
@@ -254,8 +263,10 @@ for (const s of SWITCHES) {
     // The sun creeps with the sim clock: a few seconds of flight is well under 0.1 h.
     expect(after.hour).toBeGreaterThanOrEqual(hour)
     expect(after.hour).toBeLessThan(hour + 0.1)
-    expect(after.layers).toBe((to.clouds ?? []).length)
-    expect(after.composited).toBe(after.layers > 0)
+    const cloudiness = CLOUDINESS_OPTIONS.find((option) => option.label === s.cloudiness)!
+    expect(after.layers).toBeGreaterThan(0)
+    expect(after.cumulusCoverage).toBeCloseTo(cloudiness.coverage, 5)
+    expect(after.composited).toBe(true)
     expect(after.sea).toBe(seaStateFor(to.windMps, undefined))
     expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
   })

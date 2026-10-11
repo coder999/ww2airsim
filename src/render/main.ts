@@ -69,6 +69,7 @@ import { FX_TIERS } from './fx/tiers.js'
 import { shouldResetHistory } from './scene/cloudHistory.js'
 import { createCloudField } from './scene/cloudField.js'
 import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/cloudShadow.js'
+import { cloudLayersForCloudiness } from './cloudiness.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
 import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
@@ -135,7 +136,7 @@ import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenar
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
-import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
+import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type Cloudiness, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { rebuildStructures } from '../sim/weapons/structures.js'
@@ -284,6 +285,8 @@ async function boot(): Promise<void> {
   let scenarioTimeOfDay = DEFAULT_TIME_OF_DAY
   /** A3: Form 2's takeoff hour for the sortie being launched; undefined flies the scenario's own. */
   let pickedTimeOfDay: number | undefined
+  /** Form 2's rolled cloud cover; undefined preserves scenario weather for quick launch and boot. */
+  let pickedCloudiness: Cloudiness | undefined
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
@@ -730,7 +733,13 @@ async function boot(): Promise<void> {
   const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
     chosen = choice
     pickedTimeOfDay = choice.timeOfDay
-    track('sortie_launched', { mission: choice.scenarioId, aircraft: choice.aircraftSpec, loadout: choice.loadout })
+    pickedCloudiness = choice.cloudiness
+    track('sortie_launched', {
+      mission: choice.scenarioId,
+      aircraft: choice.aircraftSpec,
+      loadout: choice.loadout,
+      ...(choice.cloudiness === undefined ? {} : { cloudiness: choice.cloudiness }),
+    })
     // Reload fresh rather than trust whatever boot-time (or previous-flight)
     // `roster` this closure already held: `titleScreen.ts`'s own `start()`
     // already called `startSortie` and `saveRoster` for exactly this pilot
@@ -824,8 +833,11 @@ async function boot(): Promise<void> {
       return
     }
     devSortie = sortieNeededDev(choice)
-    // Same scenario, so no `applyScenarioWeather`: only the hour can have changed (A3).
-    scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
+    // The scenario stayed put, but both Form 2 weather choices can have
+    // changed. Reapply its authored geometry/sea state with the selected
+    // hour and cloud coverage rather than rebuilding the world.
+    if (bundle !== null && applyScenarioWeather !== null) applyScenarioWeather(bundle.scenario.weather)
+    else scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     rebuildFrame()
   }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
   // A quick launch (A6, SF-R9) builds the title and hides it at once rather
@@ -1416,7 +1428,9 @@ async function boot(): Promise<void> {
   const forcedCloudTier = import.meta.env.DEV ? cloudTierFromQuery(location.search) : undefined
   const cloudRenderer: CloudRendererName = import.meta.env.DEV ? cloudRendererFromQuery(location.search) ?? 'legacy' : 'legacy'
   if (import.meta.env.DEV) applyCloudTune(location.search) // H0 lever pricing, before any tier is read
-  cloudLayers = forcedCloudTier === 'off' ? [] : bundle!.scenario.weather.clouds ?? []
+  cloudLayers = forcedCloudTier === 'off'
+    ? []
+    : cloudLayersForCloudiness(bundle!.scenario.weather.clouds ?? [], pickedCloudiness)
   // The saved clouds tier, not the ocean's (spec §4: Advanced lets the three
   // diverge). With nothing saved both read `high`, which is what this line
   // resolved to before this plan existed. `?cloudTier=` still wins.
@@ -1830,7 +1844,7 @@ async function boot(): Promise<void> {
   applyScenarioWeather = (weather): void => {
     scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     if (forcedCloudTier !== 'off') {
-      cloudLayers = weather.clouds ?? []
+      cloudLayers = cloudLayersForCloudiness(weather.clouds ?? [], pickedCloudiness)
       cloudField.setLayers(cloudLayers)
       shadow.refresh()
       routeOutput()
