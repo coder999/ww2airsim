@@ -359,6 +359,19 @@ export function stepAa(
         ) as AaTarget | null
         if (best === null) continue
         const c = L[m.caliber]
+        const salvosPerS = heavy ? (H.roundsPerMinutePerBarrel * Math.min(m.barrels, H.maxBarrels)) / 60 : L[m.caliber].salvosPerS
+        const intervalTicks = Math.max(1, Math.round(1 / (salvosPerS * dt)))
+        let due = (nextFire ?? aa.nextFire)[key]
+        const firstSight = due === undefined
+        if (firstSight) {
+          // Start reaction and ranging as soon as an in-envelope target is acquired. A light target
+          // can be temporarily unsolvable at the muzzle; that must not restart the crew every tick.
+          nextFire ??= { ...aa.nextFire }
+          due = tick + 1 + (mh % intervalTicks)
+          nextFire[key] = due
+          engagedSince ??= { ...aa.engagedSince }
+          engagedSince[key] = tick
+        }
         const nominal = heavy
           ? constantSpeedLead(origin, best, H.shellSpeedMps)?.direction ?? null
           : ballisticGunLead(origin, ownVel, best, c.muzzleMps, L.dragPerM, (c.rangeM / c.muzzleMps) * L.lifeMargin)
@@ -367,17 +380,7 @@ export function stepAa(
           const pose = gunLayingPose(m.name, best, nominal, o.headingRad, m.bearingRad)
           if (pose !== null) poses.push(pose)
         }
-        const salvosPerS = heavy ? (H.roundsPerMinutePerBarrel * Math.min(m.barrels, H.maxBarrels)) / 60 : L[m.caliber].salvosPerS
-        const intervalTicks = Math.max(1, Math.round(1 / (salvosPerS * dt)))
-        const due = (nextFire ?? aa.nextFire)[key]
-        if (due === undefined) {
-          // First sight of a target: a reaction delay, different for every mount.
-          nextFire ??= { ...aa.nextFire }
-          nextFire[key] = tick + 1 + (mh % intervalTicks)
-          engagedSince ??= { ...aa.engagedSince }
-          engagedSince[key] = tick
-          continue
-        }
+        if (firstSight || due === undefined) continue
         if (due > tick) continue
         const rate = losRate(origin, ownVel, best)
         let since = (engagedSince ?? aa.engagedSince)[key] ?? tick
@@ -432,7 +435,7 @@ export function stepAa(
         const structures = surfaceTargets.filter((t) => t.kind === 'structure')
         const best = nearestGunTarget(origin, ships, accepts) ?? nearestGunTarget(origin, structures, accepts)
         if (best === null) return
-        const lead = constantSpeedLead(origin, best, MAIN_BATTERY_LAYING.shellSpeedMps)
+        const lead = constantSpeedLead(origin, best, MAIN_BATTERY_LAYING.shellSpeedMps, ownVel)
         if (lead === null) return
         const pose = gunLayingPose(name, best, lead.direction, o.headingRad, pseudo.bearingRad)
         if (pose !== null) poses.push(pose)

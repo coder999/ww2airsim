@@ -18,8 +18,12 @@ ship-relative mount pose:
 - light AA uses the existing muzzle-lead solver, while heavy AA keeps M2's
   constant-speed/acceleration intercept; M2's ranging error, reaction delay,
   cadence, caps, damage and hash keys did not change;
+- reaction and ranging timers now begin when an in-envelope light-AA target is
+  acquired, even while the muzzle solver cannot yet reach it, so a temporary
+  null solution cannot restart calibration on every tick;
 - a main turret not occupied as dual-purpose AA selects the nearest hostile live
-  ship, then a hostile standing structure, and lays onto a visual ballistic lead;
+  ship, then a hostile standing structure, and lays onto a visual ballistic lead
+  using target velocity relative to its own moving ship;
 - main turrets do **not** fire, create impacts or sounds, or change hull points.
   The named 760 m/s main-battery director speed is a visual-only placeholder for
   M4 to replace when its ammunition is specified;
@@ -53,7 +57,9 @@ All CPU-heavy work ran through Ryzen with `REMOTE_RUN_OVERFLOW=0 remote-run`.
 - focused M3 integration: 6 files, **67/67 passed**;
 - M2 lethality and M5 difficulty regressions: 5 files, **51/51 passed**;
 - TypeScript, touched-file ESLint and dependency-cruiser: passed;
-- full `npm run verify`: **401 files passed, 5,578 tests passed, 12 skipped**;
+- post-review relative-lead/timer gate: `gunLaying`, `aaFire` and pinned
+  `aaLethality`, **39/39 passed**;
+- post-review full `npm run verify`: **401 files passed, 5,580 tests passed, 12 skipped**;
 - the existing crowded Range Test cost/cap gate passed with M3 poses enabled.
   The previously recorded 0.27 ms/tick is explicitly retained as an M2 baseline,
   not relabeled as a new M3 timing. M3 adds no draw call, shader or GPU resource;

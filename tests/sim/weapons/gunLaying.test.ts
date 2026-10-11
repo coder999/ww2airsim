@@ -45,6 +45,15 @@ describe('gun-laying lead', () => {
     expect(turning.direction.x).toBeGreaterThan(straight.direction.x)
   })
 
+  it('main-battery lead uses target velocity relative to a co-moving ship', () => {
+    const velocity = v3(100, 0, 0)
+    const coMoving = target('dd', 'allied', 'ship', v3(0, 0, -1000), velocity)
+    const lead = constantSpeedLead(v3(0, 0, 0), coMoving, 500, velocity)!
+    expect(lead.direction.x).toBeCloseTo(0, 12)
+    expect(lead.direction.z).toBeCloseTo(-1, 12)
+    expect(lead.timeS).toBeCloseTo(2, 12)
+  })
+
   it('light-AA lead compensates for crossing velocity and projectile drop', () => {
     const crossing = target('p', 'allied', 'aircraft', v3(0, 100, -600), v3(100, 0, 0))
     const direction = ballisticGunLead(v3(0, 0, 0), v3(0, 0, 0), crossing, 840, 0.0004, 2)!
