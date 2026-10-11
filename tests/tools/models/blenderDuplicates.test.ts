@@ -14,11 +14,23 @@ import { drawnPoints } from './_drawnPoints.js'
 
 /** `eye`: where the pilot's eye sits in the real cockpit, read off the three-view drawing on Wikimedia Commons (docs/blender-aircraft.md, "Measure the real airplane"). The specs' eye points were fitted to the downloads, whose canopies sit 0.1 to 1.0 m aft of and 0.2 to 0.6 m lower than the real ones; promoting a duplicate moves the spec's `view.eyePointM` here (Mark, 2026-10-11).
  *  `skin`: the duplicate's whole-airframe node (the build merges the glass into it, as the Ki-84's and the TBM's are; kit.py names it <NAME>_dark). */
-const DUPLICATES: readonly { spec: string; model: string; skin: string; station?: number; eye: readonly [number, number] }[] = [
+const DUPLICATES: readonly {
+  spec: string
+  model: string
+  skin: string
+  station?: number
+  eye: readonly [number, number]
+  /** A transverse likeness check where the source front view makes a narrow bubble visibly wrong. */
+  canopyRoof?: { x: number; minY: number; halfWidth: readonly [number, number] }
+}[] = [
   { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.88, 0.70] },
   { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-1.75, 1.03] },
   { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.75, 0.65] },
-  { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17] },
+  {
+    spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17],
+    // ESTIMATE checked against the Commons drawing's front view and NACA EL-2000-00243, 2026-10-11.
+    canopyRoof: { x: -0.88, minY: 1.45, halfWidth: [0.30, 0.37] },
+  },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.82, 0.95] },
   { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [4.65, 1.66] },
@@ -39,7 +51,7 @@ it('the A6M2 outer aft fuselage keeps the drawing-measured depth and width six m
   expect(Math.max(...section.map((p) => Math.abs(p[2]))), 'aft half-width').toBeGreaterThanOrEqual(0.32)
 })
 
-describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye }) => {
+describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye, canopyRoof }) => {
   const spec = loadAircraftSpec(specId)
 
   it('mains on gear.heightM at the stance x, tail on the ground at the stance pitch', async () => {
@@ -77,9 +89,20 @@ describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, mode
     const [ex, ey] = eye
     expect(ex).toBeGreaterThanOrEqual(Math.min(...pts.map((p) => p[0]!)))
     expect(ex).toBeLessThanOrEqual(Math.max(...pts.map((p) => p[0]!)))
-        const top = Math.max(...pts.filter((p) => Math.abs(p[0]! - ex) <= 0.2).map((p) => p[1]!))
+    const top = Math.max(...pts.filter((p) => Math.abs(p[0]! - ex) <= 0.2).map((p) => p[1]!))
     expect(top - ey, `eye ${(top - ey).toFixed(2)} m below the crown ${top.toFixed(2)}`).toBeGreaterThanOrEqual(0.15)
     expect(top - ey, `eye ${(top - ey).toFixed(2)} m below the crown ${top.toFixed(2)}`).toBeLessThanOrEqual(0.45)
+  })
+
+  it('keeps a source-checked canopy roof broad instead of pinching into a bubble', async () => {
+    if (canopyRoof === undefined) return
+    const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/aircraft/${model}.glb`)))
+    const pts = doc.getRoot().listNodes().filter((n) => n.getName() === skin).flatMap((n) => worldPositions(n))
+      .filter((p) => Math.abs(p[0]! - canopyRoof.x) <= 0.04 && p[1]! >= canopyRoof.minY)
+    expect(pts.length, `${model}: no canopy roof points at x ${canopyRoof.x}`).toBeGreaterThan(0)
+    const halfWidth = Math.max(...pts.map((p) => Math.abs(p[2]!)))
+    expect(halfWidth, `${model}: canopy roof half-width`).toBeGreaterThanOrEqual(canopyRoof.halfWidth[0])
+    expect(halfWidth, `${model}: canopy roof half-width`).toBeLessThanOrEqual(canopyRoof.halfWidth[1])
   })
 
   it('every rack and rail hangs on the wing inside the chord, clear of the skin (offsets are re-measured on promotion)', async () => {

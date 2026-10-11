@@ -16,8 +16,14 @@ Figures (read 2026-10-11):
                                                         aft and leaves the wheel upright: one hinge, ESTIMATE
   six .50 in wings guns, three a side                    CITED (same page, Specifications)
   taper 0.42, an unswept quarter chord, dihedral 2.5 deg    ESTIMATE, period three-view proportions
-  fuselage sections, the turtleback and canopy, cowl, tail surfaces
-                                                        ESTIMATE (fractions below)
+  fuselage sections, turtleback, canopy side and plan outline, cowl, tail surfaces
+                                                        MEASURED from Wikimedia Commons
+                                                        "Grumman F6F Hellcat 3-view line drawing.svg",
+                                                        fetched 2026-10-11 as a 1,920 x 2,334 PNG
+  canopy transverse rail / shoulder / roof sections     ESTIMATE, checked 2026-10-11 against the
+                                                        same drawing's front view, NACA Langley
+                                                        photo EL-2000-00243 (XF6F-4, 5 May 1944),
+                                                        and Mark's three review views
   main wheels 0.69 m (27 in) diameter                   ESTIMATE
   stance: wheels 2.42 m below the origin at x 0.62, tailwheel at x -6.0, 1.318 m below
                                                         FITTED to f6f-hellcat.json gear.heightM / mainX /
@@ -56,8 +62,9 @@ UPPER = 'seaBlue'
 NOSE_X = 0.2959                # spinner tip ahead of the origin, of LENGTH
 WING_Y = -0.050               # wing root chord line below the thrust line, of LENGTH
 # (x aft of the spinner tip, half-width, half-height, center y, exponent), tail to nose; of LENGTH
-# Read off the real airplane's three-view (English Wikipedia, Commons 'Grumman F6F Hellcat 3-view line drawing', 'Vought F4U-1 Corsair 3-view',
-# 'Grumman F4F Wildcat 3-view line drawing', measured 2026-10-11): (d aft of the spinner tip, half-width, half-height, center y), all of LENGTH.
+# Read off the real airplane's Commons "Grumman F6F Hellcat 3-view line drawing.svg",
+# fetched at width 1600 (returned 1,920 x 2,334), measured 2026-10-11:
+# (distance aft of spinner tip, half-width, half-height, center y), all of LENGTH.
 FUSELAGE = [
     (1.0000, 0.0039, 0.0171, 0.0024, 2.2),
     (0.9766, 0.0088, 0.0283, 0.0010, 2.2),
@@ -76,23 +83,23 @@ FUSELAGE = [
     (0.0781, 0.0723, 0.0723, 0.0000, 2.0),
     (0.0537, 0.0488, 0.0537, 0.0000, 2.0),
 ]
-# Side silhouette corrected from Mark's 2026-10-11 photograph: a steep,
-# almost triangular windscreen rises to a high forward bow, then the straight
-# roof descends aft into the turtledeck. The earlier download-derived crown
-# was a low symmetric bubble. Stations are (x, lower-edge half-width, crown
-# y), tail to nose, in meters. Each lower edge is placed on the fuselage skin
-# at that width so the glass continues the hull side instead of pinching into
-# it like a closed oval.
+# The measured side silhouette has a blunt raked windscreen rising to a high
+# forward bow, then a nearly straight roof descending aft into the turtledeck.
+# The drawing's top/front views and NACA EL-2000-00243 show broad straight panes,
+# not an oval bubble. Transverse ordinates remain ESTIMATE because neither source
+# provides factory cross-sections. Each tuple is (x, rail half-width, shoulder
+# half-width, shoulder rise above the rail, roof half-width, roof drop below the
+# crown, crown y), in meters. The rail y is fitted to the local fuselage skin.
 CANOPY = [
-    (-2.12, 0.10, 1.12),
-    (-1.84, 0.24, 1.24),
-    (-1.52, 0.35, 1.34),
-    (-1.22, 0.40, 1.43),
-    (-0.88, 0.40, 1.51),
-    (-0.62, 0.36, 1.55),
-    (-0.29, 0.18, 1.01),
+    (-2.12, 0.10, 0.095, 0.006, 0.075, 0.004, 1.12),
+    (-1.84, 0.24, 0.230, 0.025, 0.180, 0.015, 1.24),
+    (-1.52, 0.35, 0.340, 0.060, 0.280, 0.025, 1.34),
+    (-1.22, 0.40, 0.390, 0.090, 0.320, 0.025, 1.43),
+    (-0.88, 0.40, 0.390, 0.105, 0.320, 0.025, 1.51),
+    (-0.62, 0.36, 0.350, 0.110, 0.290, 0.025, 1.55),
+    (-0.29, 0.30, 0.285, 0.006, 0.220, 0.004, 1.01),
 ]
-CANOPY_FRAMES = (-1.48, -1.18, -0.88, -0.60)
+CANOPY_FRAMES = (-1.82, -1.48, -1.18, -0.88, -0.60)
 TAILPLANE = dict(span=0.45, le=0.8105, root=0.166, taper=0.56, y=0.011, sweep=13.6)  # span of SPAN; the rest of LENGTH
 FIN = dict(root=0.195, taper=0.4, height=0.137, y=0.049)                           # trailing edge at the tail
 PROP = dict(hub=0.030, chord=0.023, spinner_r=0.026, spinner_len=0.040)             # hub = 0.75 x spinner_len
@@ -174,13 +181,16 @@ with m.tagged('fuselage'):
                    segments=24, center_z=side * fz, subdivide=4)
 with m.tagged('canopy'), m.shared_chart():
     canopy_stations = []
-    for x, width, crown in CANOPY:
+    for x, rail_width, shoulder_width, shoulder_rise, roof_width, roof_drop, crown in CANOPY:
         f = NOSE_X - x / L
-        # Sink the seam by DP0's standard 0.02 m. At the narrow end caps the
-        # fuselage can already stand above the crown, so retain a thin hidden
-        # wedge rather than inverting the section.
-        base = min(crown - EMBED_M, fus_top_y(f, width) - EMBED_M)
-        canopy_stations.append((x, width, base, crown))
+        # Sink the rail into the fuselage shoulder by DP0's standard 0.02 m.
+        # At the end caps the hull can already stand above the crown, so keep a
+        # thin buried wedge instead of inverting the section.
+        rail_y = min(crown - EMBED_M, fus_top_y(f, rail_width) - EMBED_M)
+        shoulder_y = rail_y + shoulder_rise
+        roof_y = crown - roof_drop
+        canopy_stations.append((x, rail_width, rail_y, shoulder_width,
+                                shoulder_y, roof_width, roof_y, crown))
     m.faired_canopy('glazing', UPPER, canopy_stations, list(CANOPY_FRAMES), bar=0.022)
 controls = [(a * S / 2, b * S / 2, h, n) for (a, b, h), n in ((FLAP, 'Flap1'), (AILERON, 'Aileron'))]
 gear_z = GEAR['z'] * S
