@@ -1,5 +1,7 @@
 # B-17G Blender geometry repair handoff
 
+> **Superseded 2026-10-11** by [2026-10-11-b17-val-remeasure.md](2026-10-11-b17-val-remeasure.md): this pass misread the drawing (see that handoff); its measurements and images no longer describe the model.
+
 Date: 2026-10-11
 
 Worktree: `/home/mark/projects/ww2airsim-repair-b17`

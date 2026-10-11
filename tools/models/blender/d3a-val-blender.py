@@ -21,7 +21,8 @@ Francillon, Japanese Aircraft of the Pacific War, 1979, pp. 271-276):
   stance: main wheel bottoms 1.850 m below the origin at x 0.257; tail contact x -6.577, 0.457 m below
                                                          FITTED to content/aircraft/d3a-val.json gear.heightM /
                                                          mainX / thirdX / thirdHeightM, so a swap needs no flight-model change
-  proposed real-cockpit eye (-1.75, 1.03) m              MEASURED from the drawing; the existing spec's (-0.8, 0.75)
+  proposed real-cockpit eye (-0.60, 0.82) m              MEASURED from the drawing: 3.15 m aft of the spinner,
+                                                         0.20 m under the roof; the existing spec's (-0.8, 0.75)
                                                          was fitted to the downloaded canopy
   control surfaces, dive-brake panels, cowl/exhaust, pitot, antenna mast, markings and colors
                                                          ESTIMATE except their drawing-measured positions below
@@ -29,43 +30,39 @@ Francillon, Japanese Aircraft of the Pacific War, 1979, pp. 271-276):
                                                          ESTIMATE scheme, positions and sizes (no paint chip read)
   additions sink at least 0.02 m into what they sit on   modeling choice: no coplanar faces (DP0)
 
-REAL-AIRPLANE MEASUREMENT (2026-10-11): Wikimedia Commons "Aichi D3A1 Val.svg", linked from the
-English article's image list and fetched through Special:FilePath at width 1600 (returned 1920 x 2447).
-It is explicitly a D3A1 drawing; no D3A2 three-view was present in Commons' Aichi D3A file list. The
-D3A1 and cited D3A2 share the 10.195 m published length used to scale it, but cowling details are a
-variant limitation. Each view was scaled separately by spinner-tip-to-tail pixels. Side-view stations
-below are meters aft of the spinner tip and meters above/below the propeller axis. Top-view half-widths
-are independent measurements. The wing chord at 30% semispan measured 1.83-4.73 m aft of the nose, so
-its quarter chord is 2.55 m aft of the spinner tip: that is the model origin. The wing, tailplane, fin,
-canopy and fuselage stations follow those lines; a rendered centerline silhouette was overlaid on the
-drawing after the first build (docs/handoff/2026-10-11-d3a-val-blender.md).
+REAL-AIRPLANE MEASUREMENT (re-read 2026-10-11, second pass): Wikimedia Commons "Aichi D3A1 Val.svg"
+(Kaboldy), linked from the English article's image list, rasterized through Special:FilePath at
+3,840 px. It is explicitly a D3A1 drawing; no D3A2 three-view was present in Commons' Aichi D3A file
+list. The D3A1 and cited D3A2 share the 10.195 m published length. Side and top views share one scale:
+spinner tip x=55 to tail x=2,670, 256.5 px/m; the top view's wingtips then span 14.30 m against the
+cited 14.365 m, so the drawing is self-consistent. Side-view heights are meters above the propeller axis
+(row 584, the spinner's center). The first pass (same date) read the side view about 1.35x too large:
+cowl 1.72 m deep instead of 1.25 m, canopy 1.1 m too far aft and 0.29 m too high, fin 0.35 m too tall,
+tailplane span 5.31 m instead of 4.40 m, spats twice as deep. Every side-view table below replaces it;
+its top-view wing planform and the 2.55 m origin were right and are kept.
 
-GEOMETRY RECHECK (2026-10-11): the side drawing's wing hides the true belly between 2.18 and
-3.74 m aft of the nose. The first model accidentally treated the visible wing/fuselage seam there
-as the belly and also treated the windscreen outline at 3.51 m as fuselage deck. Those ordinates are
-corrected below: visible drawing outline owns the cowl/deck and both ends of the hidden run; a smooth
-belly through the hidden run is ESTIMATE, checked against the exact-variant D3A2 survivor, c/n 3179,
-in Alan Wilson's Wikimedia Commons photograph "Aichi D3A2 model 22 'Val' (3179 - N3131G)", and three
-period SDASM archive photographs (Commons "Aichi D3A Type 99", "... 2" and "... 3"). The survivor
-also shows the greenhouse rails buried in the broad upper fuselage. The period photographs show a
-short exposed fixed-leg/root fairing between each spat and wing; widths and brace diameters remain
-ESTIMATE because no dimensioned D3A2 gear installation drawing was found.
-
-Side fuselage top/bottom (m aft nose: top, bottom), DRAWING-MEASURED except the explicitly hidden
-belly run: 0.18:+0.20/-0.20, 0.54:+0.88/-0.84, 0.86:+0.82/-0.88,
-1.39:+0.85/-0.92, 1.92:+0.85/-0.94, 2.18:+0.88/-0.82, 2.45:+0.84/-0.72,
-2.96:+0.78/-0.58, 3.51:+0.74/-0.50, 3.74:+0.72/-0.48
-(2.18-3.74 bottoms ESTIMATE: wing-occluded), 4.52:+0.70/-0.40, 5.29:+0.70/-0.38,
-6.17:+0.70/-0.36, 6.84:+0.78/-0.34, 7.62:+0.72/-0.32, 8.39:+0.61/-0.30,
-8.82:+0.55/-0.28, 9.17:+0.50/-0.25, 9.88:+0.30/-0.18, 10.19:+0.02/-0.02.
-Top-view half-widths (m aft nose: half-width), MEASURED:
-0.63:0.58, 1.41:0.58, 2.18:0.56, 2.96:0.44, 3.74:0.43, 4.52:0.42,
-5.29:0.42, 6.07:0.41, 6.84:0.38, 7.62:0.34, 8.39:0.28, 9.17:0.20,
-9.94:0.08, 10.19:0.01. Canopy: windscreen front 3.51 m, crown 4.05-5.11 m at 1.31-1.25 m,
-rear 6.70 m; fin begins 7.6 m; tailplane leading edge about 8.3 m. MEASURED.
+  wing quarter chord at 30% semispan 2.55 m aft of the spinner tip (leading edge 1.85 m, trailing edge
+    4.69 m): the model origin                                            DRAWING-MEASURED
+  fuselage side silhouette and top-view half-widths: FUSELAGE_M below (+/-0.02 m). The wing hides the
+    belly from 1.6 to 4.8 m; the drawn wing-root fillet's lower line (-0.69 to -0.71 m) is used there
+                                                                         DRAWING-MEASURED
+  greenhouse: windscreen base 2.44 m at +0.76 m, roof +1.02 m from 2.75 to 4.73 m, rear end 4.97 m on
+    the deck; 0.39 m half-width; sills buried in the deck                DRAWING-MEASURED
+  vertical tail: FIN_LE / FIN_TE below, traced from the outer outline. The dorsal fillet leaves the
+    deck at 6.37 m and rises gently to 8.13 m, then the leading edge curves up to a rounded crown,
+    +1.96 m at 9.37 m; the rudder trailing edge is near-vertical at 9.95-9.99 m and its hinge 9.35 m
+                                                                         DRAWING-MEASURED
+  tailplane: TAILPLANE below, elliptical tips, 4.40 m span, elevator hinge straight at 9.45 m, chord
+    line +0.06 m                                                         DRAWING-MEASURED
+  spat: SPAT below, blunt nose 1.54 m, deepest at 1.9-2.2 m, tail 3.16 m; faired leg 1.95-2.36 m.
+    The drawing's tire is 0.26 m lower than the spec stance, so the spat is raised by that much
+                                                                         DRAWING-MEASURED, FITTED
+  telescopic gunsight 1.95-2.62 m at +0.85 m; antenna mast 3.9 m from the roof to +1.46 m
+                                                                         DRAWING-MEASURED
 
 Frame: glTF, +x forward, +y up, +z right, meters. Origin: drawing-measured wing quarter chord at
 30% semispan, on the thrust line. Pose: fixed gear down, thrust line level.
+Fixed main gear: one faired leg per side into the wing (the drawing's), no braces.
 Leaves out: cockpit interior, bomb trapeze/racks/stores, wing-fold detail and tail codes. The dive brakes
 are static perforated-looking panels because the renderer has no dive-brake input or part-name contract.
 """
@@ -92,39 +89,66 @@ NOSE_M = 2.55                    # MEASURED: spinner tip to the wing quarter cho
 NOSE_X = NOSE_M / LENGTH
 WING_Y = -0.018                  # ESTIMATE: puts the low-wing section through the drawing
 # (distance aft nose, half-width, top, bottom, exponent), tail to nose after conversion below; meters.
-# The 2.18-3.74 m bottoms are the photo-constrained estimate documented above, not drawing lines.
+# The 1.6-4.8 m bottoms follow the drawn wing-root fillet line (see above); 0.30-0.45 m is the engine face.
 FUSELAGE_M = [
-    (10.19, 0.01, 0.02, -0.02, 2.0), (9.88, 0.08, 0.30, -0.18, 2.0),
-    (9.17, 0.20, 0.50, -0.25, 2.1), (8.82, 0.24, 0.55, -0.28, 2.1),
-    (8.39, 0.28, 0.61, -0.30, 2.2), (7.62, 0.34, 0.72, -0.32, 2.2),
-    (6.84, 0.38, 0.78, -0.34, 2.4), (6.17, 0.41, 0.70, -0.36, 2.6),
-    (5.29, 0.42, 0.70, -0.38, 2.8), (4.52, 0.42, 0.70, -0.40, 2.8),
-    (3.74, 0.43, 0.72, -0.48, 2.8), (3.51, 0.44, 0.74, -0.50, 2.8),
-    (2.96, 0.44, 0.78, -0.58, 2.6), (2.45, 0.56, 0.84, -0.72, 2.4),
-    (2.18, 0.56, 0.88, -0.82, 2.2), (1.92, 0.58, 0.85, -0.94, 2.1),
-    (1.39, 0.58, 0.85, -0.92, 2.0), (0.86, 0.58, 0.82, -0.88, 2.0),
-    (0.54, 0.50, 0.88, -0.84, 2.0), (0.18, 0.08, 0.20, -0.20, 2.0),
+    (10.195, 0.01, 0.07, 0.03, 2.0), (10.00, 0.05, 0.10, -0.01, 2.0),
+    (9.80, 0.09, 0.16, -0.06, 2.0), (9.40, 0.14, 0.22, -0.16, 2.1),
+    (9.00, 0.19, 0.25, -0.27, 2.1), (8.60, 0.24, 0.31, -0.33, 2.2),
+    (8.20, 0.274, 0.35, -0.40, 2.2), (7.50, 0.345, 0.42, -0.49, 2.3),
+    (7.00, 0.39, 0.48, -0.54, 2.4), (6.40, 0.422, 0.54, -0.60, 2.5),
+    (6.00, 0.441, 0.59, -0.624, 2.6), (5.50, 0.46, 0.62, -0.65, 2.7),
+    (5.00, 0.478, 0.65, -0.67, 2.8), (4.50, 0.49, 0.67, -0.69, 2.8),
+    (4.00, 0.505, 0.68, -0.70, 2.8), (3.50, 0.515, 0.69, -0.705, 2.8),
+    (3.00, 0.53, 0.70, -0.706, 2.7), (2.50, 0.545, 0.72, -0.70, 2.5),
+    (2.00, 0.555, 0.72, -0.69, 2.3), (1.60, 0.552, 0.69, -0.68, 2.2),
+    (1.40, 0.546, 0.66, -0.67, 2.1), (1.36, 0.58, 0.66, -0.67, 2.0),
+    (1.00, 0.58, 0.66, -0.66, 2.0), (0.80, 0.58, 0.647, -0.647, 2.0),
+    (0.60, 0.56, 0.604, -0.604, 2.0), (0.51, 0.50, 0.52, -0.51, 2.0),
+    (0.45, 0.30, 0.30, -0.30, 2.0), (0.30, 0.15, 0.15, -0.15, 2.0),
 ]
 # Explicit fitted greenhouse sections, tail to nose, meters:
 # (x, rail half-width, rail y, shoulder half-width, shoulder y, roof half-width, roof y, crown y).
-# The rail ordinates sit 0.03-0.12 m inside the local shape-preserved fuselage skin; unlike the first
-# four-value canopy, its underside cannot expose a daylight wedge along either side.
+# The rails sit below the deck, inside the local shape-preserved fuselage skin (checked against
+# fus_side_z at each row), so the underside cannot expose a daylight wedge along either side.
 CANOPY = [
-    (-4.15, 0.08, 0.69, 0.07, 0.75, 0.05, 0.82, 0.86),
-    (-3.75, 0.30, 0.50, 0.27, 0.69, 0.18, 0.94, 1.02),
-    (-3.10, 0.36, 0.43, 0.32, 0.67, 0.22, 1.09, 1.18),
-    (-2.56, 0.38, 0.40, 0.34, 0.68, 0.23, 1.15, 1.25),
-    (-1.95, 0.37, 0.42, 0.33, 0.72, 0.22, 1.20, 1.31),
-    (-1.35, 0.31, 0.51, 0.28, 0.72, 0.19, 1.09, 1.18),
-    (-0.96, 0.16, 0.66, 0.14, 0.78, 0.09, 0.97, 1.02),
+    (-2.42, 0.08, 0.56, 0.07, 0.62, 0.05, 0.66, 0.70),
+    (-2.25, 0.30, 0.50, 0.27, 0.80, 0.18, 0.90, 0.93),
+    (-2.00, 0.39, 0.50, 0.36, 0.92, 0.25, 1.00, 1.02),
+    (-1.25, 0.39, 0.50, 0.37, 0.93, 0.26, 1.01, 1.02),
+    (-0.55, 0.39, 0.52, 0.37, 0.93, 0.26, 1.01, 1.02),
+    (-0.17, 0.36, 0.55, 0.33, 0.92, 0.22, 0.99, 1.00),
+    (0.09, 0.17, 0.62, 0.15, 0.74, 0.10, 0.78, 0.79),
 ]
-CANOPY_FRAMES = (-3.72, -3.30, -2.86, -2.42, -1.98, -1.55, -1.20)
-TAILPLANE = dict(span=0.37, le=8.30, root=1.72, tip=0.28, y=0.13, sweep=8.0)
-FIN = dict(le=7.65, root=2.45, tip=0.40, height=1.92, y=0.42)
+CANOPY_FRAMES = (-2.22, -1.95, -1.60, -1.25, -0.88, -0.55, -0.17)
+# Tailplane (top view): (spanwise z, leading station, trailing station, thickness m); chord line +0.06 m.
+TAILPLANE = [(0.00, 8.34, 10.14, 0.18), (0.40, 8.384, 10.133, 0.175), (0.80, 8.495, 10.123, 0.163),
+             (1.20, 8.63, 10.066, 0.144), (1.52, 8.782, 10.012, 0.123), (1.76, 8.922, 9.94, 0.10),
+             (1.92, 9.033, 9.862, 0.083), (2.00, 9.103, 9.809, 0.07), (2.08, 9.191, 9.735, 0.054),
+             (2.16, 9.314, 9.604, 0.029), (2.20, 9.40, 9.52, 0.012)]
+TAILPLANE_Y = 0.06
+ELEVATOR_HINGE = (0.42, 1.92, 9.45)     # spanwise extent and its straight unswept hinge station
+# Vertical tail outer outline (side view): (height above the thrust line, station).
+FIN_LE = [(0.05, 6.37), (0.54, 6.37), (0.60, 6.68), (0.63, 7.00), (0.67, 7.60), (0.70, 8.00), (0.735, 8.20),
+          (0.809, 8.30), (0.873, 8.35), (0.969, 8.40), (1.062, 8.45), (1.154, 8.50), (1.238, 8.55), (1.314, 8.60),
+          (1.388, 8.65), (1.456, 8.70), (1.517, 8.75), (1.577, 8.80), (1.635, 8.85), (1.692, 8.90), (1.745, 8.95),
+          (1.789, 9.00), (1.836, 9.05), (1.873, 9.10), (1.904, 9.15), (1.928, 9.20), (1.943, 9.25), (1.951, 9.30)]
+FIN_TE = [(0.05, 10.00), (0.29, 9.99), (0.71, 9.977), (0.99, 9.969), (1.20, 9.953), (1.34, 9.930), (1.48, 9.895),
+          (1.55, 9.871), (1.604, 9.85), (1.69, 9.815), (1.76, 9.772), (1.83, 9.708), (1.904, 9.60), (1.942, 9.50),
+          (1.951, 9.46)]
+FIN_THICKNESS = [(0.05, 0.13), (1.50, 0.12), (1.80, 0.08), (1.90, 0.05), (1.951, 0.03)]
+RUDDER_HINGE = ((0.31, 9.351), (1.62, 9.36))
 PROP = dict(hub=0.28, chord=0.25, spinner_r=0.18, spinner_len=0.28)  # meters; spinner tip is d=0
 GEAR = dict(x=0.257, z=1.62, bottom=1.850, wheel_r=0.39, wheel_w=0.20)
 TAILWHEEL = dict(x=-6.577, y=-0.10, bottom=0.457, wheel_r=0.12, wheel_w=0.07)
-REAR_GUN = dict(x=-3.45, y=0.93, length=0.75)
+REAR_GUN = dict(x=-2.10, y=0.86, length=0.75)
+# Spat side outline (drawing, raised SPAT_RAISE so the tire meets the spec stance): (x, half-width,
+# half-height, center y); the drawing's tire bottom is 0.26 m below the spec's.
+SPAT_RAISE = 0.26
+SPAT = [(-0.61, 0.02, 0.03, -1.50), (-0.45, 0.08, 0.145, -1.515), (-0.20, 0.14, 0.245, -1.515),
+        (0.05, 0.19, 0.335, -1.505), (0.35, 0.21, 0.385, -1.485), (0.60, 0.21, 0.385, -1.495),
+        (0.75, 0.19, 0.34, -1.51), (0.89, 0.15, 0.255, -1.525), (0.95, 0.10, 0.17, -1.53), (1.01, 0.02, 0.04, -1.52)]
+# The faired main leg between spat and wing (side view): leading and trailing stations, thickness m.
+GEAR_LEG = dict(le=1.95, te=2.36, thickness=0.09)
 
 SEGMENTS = 96
 SUBDIVIDE = 4
@@ -133,8 +157,6 @@ STATIONS = tuple(sorted(set(kit.AIRFOIL_STATIONS_FINE) | {0.0375, 0.0625, 0.125,
 AILERON = (0.61, 0.84, 0.70)
 FLAP1 = (0.13, 0.29, 0.73)
 FLAP2 = (0.31, 0.59, 0.73)
-ELEVATOR = (0.08, 0.96, 0.66)
-RUDDER = (0.08, 0.94, 0.64)
 EXHAUSTS = dict(count=4, d0=1.10, d1=1.55, y=-0.35, r=0.030, length=0.20)
 HINOMARU = dict(wing_z=0.66, wing_chord=0.48, wing_red=0.58, fus_d=7.15, fus_depth=0.72)
 EMBED_M = 0.02
@@ -219,16 +241,27 @@ with m.tagged('wing'), m.shared_chart():
         m.wing(UPPER, le0, wing_y(z0), c0, c1, 2 * z1, sweep_deg=sweep,
                dihedral_deg=DIHEDRAL_DEG, thickness=t0, tip_thickness=t1, root_z=z0, lower_role=LOWER,
                stations=STATIONS, span_segments=SPAN_SEGMENTS, controls=controls)
-tp = TAILPLANE
+
+def lerp(table, h):
+    """Linear interpolation in a [(key, value)] table, keys increasing."""
+    for (h0, v0), (h1, v1) in zip(table, table[1:]):
+        if h <= h1:
+            return v0 + (v1 - v0) * (h - h0) / (h1 - h0)
+    return table[-1][1]
+
+
+eh = ELEVATOR_HINGE
 with m.tagged('tailplane'), m.shared_chart():
-    m.wing(UPPER, XD(tp['le']), tp['y'], tp['root'], tp['tip'], tp['span'] * S,
-           sweep_deg=tp['sweep'], thickness=0.10, lower_role=LOWER, stations=STATIONS, span_segments=SPAN_SEGMENTS,
-           controls=[(ELEVATOR[0] * tp['span'] * S / 2, ELEVATOR[1] * tp['span'] * S / 2, ELEVATOR[2], 'Elevator')])
-fin_root, fin_h, fin_tip = FIN['root'], FIN['height'], FIN['tip']
+    m.wing_outline(UPPER, [(z, XD(le), XD(te), TAILPLANE_Y, t) for z, le, te, t in TAILPLANE], lower_role=LOWER,
+                   stations=STATIONS, span_segments=1,
+                   controls=[(eh[0], eh[1], ((eh[0], XD(eh[2])), (eh[1], XD(eh[2]))), 'Elevator')])
 with m.tagged('fin'), m.shared_chart():
-    m.fin(UPPER, XD(FIN['le']), FIN['y'], fin_root, fin_tip, fin_h,
-          sweep_deg=math.degrees(math.atan((fin_root - fin_tip) / fin_h)), stations=STATIONS, span_segments=SPAN_SEGMENTS,
-          controls=[(RUDDER[0] * fin_h, RUDDER[1] * fin_h, RUDDER[2], 'Rudder')])
+    root = FIN_LE[0][0]
+    heights = sorted({h for h, _ in FIN_LE} | {h for h, _ in FIN_TE} | {h for h, _ in FIN_THICKNESS})
+    (h_a, s_a), (h_b, s_b) = RUDDER_HINGE
+    m.fin_outline(UPPER, root, [(h - root, XD(lerp(FIN_LE, h)), XD(lerp(FIN_TE, h)), lerp(FIN_THICKNESS, h)) for h in heights],
+                  stations=STATIONS, span_segments=1,
+                  controls=[(h_a - root, h_b - root, ((h_a - root, XD(s_a)), (h_b - root, XD(s_b))), 'Rudder')])
 pr = PROP
 with m.tagged('prop'), m.shared_chart():
     m.propeller('dark', (XD(pr['hub']), 0.0, 0.0), PROP_DIAMETER, BLADES, pr['chord'], pr['spinner_r'], pr['spinner_len'],
@@ -241,15 +274,14 @@ with m.tagged('gear'), m.shared_chart():
     # supporting surfaces. The earlier spat stopped 0.08 m below the wing and visibly floated.
     for side in (-1, 1):
         z = side * g['z']
-        m.fuselage(UPPER, [(-0.82, 0.04, 0.10, -0.72), (-0.50, 0.13, 0.42, -1.10),
-                           (-0.18, 0.20, 0.68, -1.08), (g['x'], 0.24, 0.78, -1.07),
-                           (0.48, 0.20, 0.68, -1.08), (0.78, 0.12, 0.40, -1.02),
-                           (1.02, 0.04, 0.10, -0.64)], segments=48, center_z=z,
+        m.fuselage(UPPER, [(x, w, h, y + SPAT_RAISE) for x, w, h, y in SPAT], segments=48, center_z=z,
                    lower_role=LOWER, subdivide=4, refinement='shape')
         root_y = wing_y(z) - 0.06
-        m.strut(UPPER, (g['x'], -0.34, z), (g['x'], root_y, z), 0.11, 0.08, sides=12)
-        m.strut('dark', (g['x'] - 0.30, -0.40, z), (g['x'] - 0.18, root_y, z), 0.035, sides=8)
-        m.strut('dark', (g['x'] + 0.30, -0.40, z), (g['x'] + 0.18, root_y, z), 0.035, sides=8)
+        spat_top = max(y + h for _x, _w, h, y in SPAT) + SPAT_RAISE
+        leg = GEAR_LEG
+        m.fin_outline(UPPER, spat_top - 0.10, [(0.0, XD(leg['le']), XD(leg['te']), leg['thickness']),
+                                               (root_y - spat_top + 0.10, XD(leg['le']) + 0.02, XD(leg['te']), leg['thickness'])],
+                      center_z=z, stations=STATIONS)
         m.revolve('dark', (g['x'], -g['bottom'] + g['wheel_r'], z), (0.0, 0.0, float(side)),
                   [(-g['wheel_w'] / 2, 0.85 * g['wheel_r']), (-0.45 * g['wheel_w'], g['wheel_r']),
                    (0.45 * g['wheel_w'], g['wheel_r']), (g['wheel_w'] / 2, 0.85 * g['wheel_r'])], 24)
@@ -267,7 +299,9 @@ with m.tagged('fittings'), m.shared_chart():
         m.gun_barrel('dark', (1.9, 0.45, side * 0.25), 0.0, 0.0, 0.55, 0.015)
     pz = -6.0
     m.strut('dark', (le_x(pz) - 0.10, wing_y(pz), pz), (le_x(pz) + 0.38, wing_y(pz), pz), 0.008, sides=6)
-    m.strut('dark', (XD(4.45), 1.20, 0.0), (XD(4.68), 1.67, 0.0), 0.012, 0.006, sides=6)
+    m.strut('dark', (XD(3.92), 0.98, 0.0), (XD(3.87), 1.46, 0.0), 0.012, 0.006, sides=6)
+    # The long telescopic gunsight ahead of the windscreen.
+    m.strut('dark', (XD(1.95), 0.86, 0.0), (XD(2.62), 0.83, 0.0), 0.028, sides=8)
     m.strut('dark', (tw['x'] - 0.02, tw['y'] + 0.02, 0.0), (tw['x'] + 0.30, tw['y'] - 0.25, 0.0), 0.020, sides=6)
     # Static, slotted-looking dive brakes under both outer wings: the renderer has no dive-brake control input.
     for side in (-1, 1):

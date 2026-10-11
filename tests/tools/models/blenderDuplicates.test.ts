@@ -24,7 +24,7 @@ const DUPLICATES: readonly {
   canopyRoof?: { x: number; minY: number; halfWidth: readonly [number, number] }
 }[] = [
   { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.88, 0.70] },
-  { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-1.75, 1.03] },
+  { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-0.60, 0.82] },
   { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.75, 0.65] },
   {
     spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17],
