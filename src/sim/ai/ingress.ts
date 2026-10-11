@@ -85,10 +85,12 @@ export function ingressGoal(orders: IngressOrders, legIndex: number, ships: read
 const horizontalRange = (p: Vec3, g: { x: number; z: number }): number => Math.hypot(g.x - p.x, g.z - p.z)
 
 /** The leg after this tick's progress check. The orbit (`n + 1`) is terminal. */
-export function nextLegIndex<M>(self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[]): number {
+export function nextLegIndex<M>(
+  self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[], reachedM = WAYPOINT_REACHED_M,
+): number {
   const n = orders.route.length
   if (legIndex > n) return legIndex
-  if (horizontalRange(self.state.position, ingressGoal(orders, legIndex, ships)) > WAYPOINT_REACHED_M) return legIndex
+  if (horizontalRange(self.state.position, ingressGoal(orders, legIndex, ships)) > reachedM) return legIndex
   // The last waypoint with nowhere to go next, or a destination that is
   // gone, is orbited where it is.
   if (legIndex === n - 1 && destinationPoint(orders, ships) === null) return n + 1
@@ -142,22 +144,44 @@ const G_MPS2 = 9.80665
  * the climb-rate error asks for, flown by `controlsForLiftVector` (7c).
  */
 export function ingressOrbitControls<M>(
-  self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[],
+  self: AircraftEntity<M>, orders: IngressOrders, legIndex: number, ships: readonly ShipEntity[], maxBankRad?: number,
 ): Controls {
-  return orbitControls(self, ingressGoal(orders, legIndex, ships), ORBIT_RADIUS_M)
+  return orbitControls(self, ingressGoal(orders, legIndex, ships), ORBIT_RADIUS_M, maxBankRad)
 }
 
 /** `ingressOrbitControls` for any goal and radius: the left-hand orbit flown
  *  by the lift vector. Shared with 7g's hold (`recovery.ts`). */
-export function orbitControls<M>(self: AircraftEntity<M>, goal: Goal, radiusM: number): Controls {
-  return liftTowardControls(self, goalDesiredVelocity(self, goal, radiusM), goalThrottle(self, goal.speedMps))
+export function orbitControls<M>(self: AircraftEntity<M>, goal: Goal, radiusM: number, maxBankRad?: number): Controls {
+  return liftTowardControls(self, goalDesiredVelocity(self, goal, radiusM), goalThrottle(self, goal.speedMps), maxBankRad)
+}
+
+/** A bomber formation leader's bank limit on its route, its orbit and its bomb run (Escort plan, 2026-10-10).
+ *  Unlimited, the velocity controller banked a B-17 leader to 83 degrees at a 90-degree waypoint and its inside
+ *  wingmen, flying a tighter circle at the leader's turn rate, bled to 33 m/s (a Ki-21 stalls at 42). Bomber
+ *  formations turned gently for exactly this reason. Measured 2026-10-10 on `formationBombing.test.ts`'s
+ *  "turns a corner" route (slowest wingman / worst station error): 20 deg 84 m/s / 40 m, 25 deg 82 / 82 m,
+ *  30 deg 80 / 97 m, 35 deg 77 / 110 m. 20 keeps every wingman closest to station. */
+export const FORMATION_LEADER_MAX_BANK_RAD = (20 * Math.PI) / 180
+
+/** The bank limit a leader flies under, or undefined for none: a leader with wingmen and no fixed guns (a
+ *  bomber; `hasFixedGuns`, `pilotTick.ts`). A fighter leader keeps its full bank: 7f tuned the station law on
+ *  Hellcats at 110-130 m/s (7f handoff §1b), where a 20-degree turn is 4.7 km wide and overshoots its route. */
+export const formationLeaderBankRad = <M>(a: AircraftEntity<M>, leadsFormation: boolean): number | undefined =>
+  leadsFormation && (a.spec.combat?.guns.length ?? 0) === 0 ? FORMATION_LEADER_MAX_BANK_RAD : undefined
+
+/** A bomber formation leader's waypoint counts as reached within its own turn radius at that bank (and never less
+ *  than WAYPOINT_REACHED_M): at 20 degrees a 200 mph bomber turns on a 2.3 km circle, which can orbit a 1 km
+ *  capture ring forever. So it starts the next leg's turn early and cuts the corner, as a leader leads a turn. */
+export function formationLeaderReachM<M>(self: AircraftEntity<M>): number {
+  const v = self.state.velocity
+  return Math.max(WAYPOINT_REACHED_M, (v.x * v.x + v.z * v.z) / (G_MPS2 * Math.tan(FORMATION_LEADER_MAX_BANK_RAD)))
 }
 
 /** The orbit's law for any desired velocity: the horizontal turn its heading
  *  error asks for plus the vertical its climb-rate error asks for, flown by
  *  the lift vector. Shared with 7g's join (`recovery.ts`), which turns onto
  *  the centerline from any heading. */
-export function liftTowardControls<M>(self: AircraftEntity<M>, desired: Vec3, throttle: number): Controls {
+export function liftTowardControls<M>(self: AircraftEntity<M>, desired: Vec3, throttle: number, maxBankRad?: number): Controls {
   const v = self.state.velocity
   const speedH = Math.hypot(v.x, v.z)
   if (speedH < 1) return controlsForLiftVector(self.state, self.spec, v3(0, 1, 0), 1, throttle)
@@ -167,8 +191,10 @@ export function liftTowardControls<M>(self: AircraftEntity<M>, desired: Vec3, th
   const rx = -fz
   const rz = fx
   const heading = Math.atan2(desired.x * rx + desired.z * rz, desired.x * fx + desired.z * fz)
-  const lateral = speedH * ORBIT_TURN_GAIN_PER_S * heading
   const vertical = G_MPS2 + ORBIT_CLIMB_GAIN_PER_S * (desired.y - v.y)
+  // With `maxBankRad`, the turn is held to that bank: lateral over vertical lift is tan(bank).
+  const turnCap = maxBankRad === undefined ? Infinity : Math.max(0, vertical) * Math.tan(maxBankRad)
+  const lateral = clamp(speedH * ORBIT_TURN_GAIN_PER_S * heading, -turnCap, turnCap)
   const lift = v3(rx * lateral, vertical, rz * lateral)
   const n = clamp(length(lift) / G_MPS2, 0.5, 0.8 * self.spec.limits.gLimit)
   return controlsForLiftVector(self.state, self.spec, lift, n, throttle)

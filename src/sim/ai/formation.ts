@@ -2,7 +2,7 @@ import type { AircraftEntity } from '../loop.js'
 import type { Controls } from '../flight/state.js'
 import { DT } from '../flight/model.js'
 import { qRotate } from '../math/quat.js'
-import { add, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
+import { add, dot, length, scale, sub, v3, type Vec3 } from '../math/vec3.js'
 import type { AircraftCombat } from '../weapons/combat.js'
 import { controlsForDesiredVelocity } from './controller.js'
 import { RECENT_HIT_S } from './ingress.js'
@@ -226,6 +226,22 @@ export function wingmanAccepts<M>(
     if (leader.pilot?.decision.targetId === c.id) return true
     return record.lastHitBy === c.id && record.lastHit !== null && nowS - record.lastHit.tick * DT <= RECENT_HIT_S
   }
+}
+
+/** Escort pursuit (MASTER_PLAN §4 decision 11; Escort plan, 2026-10-10): a hostile whose flight path points
+ *  within this of the leader, inside COVER_RANGE_M of it, is attacking the leader. ESTIMATE: wide enough for a
+ *  lead-pursuit curve (which points ahead of its target, not at it), narrow enough to leave a crossing contact. */
+export const ESCORT_THREAT_CONE_RAD = (30 * Math.PI) / 180
+
+/** Whether `contact` is attacking `leader`: inside COVER_RANGE_M of it, its velocity pointed at it within
+ *  ESCORT_THREAT_CONE_RAD. A wingman's 7b decision picks Extend against an attacker with more energy (7f
+ *  handoff §4.2: 65% of ticks for a 110 m/s escort against a 150 m/s attacker), which leaves the leader to
+ *  it; an escort's job is the leader, so `pilotTick` makes this one Pursue. */
+export function threatensLeader<M>(contact: AircraftEntity<M>, leader: AircraftEntity<M>): boolean {
+  const to = sub(leader.state.position, contact.state.position)
+  const r = length(to), v = length(contact.state.velocity)
+  if (r > COVER_RANGE_M || r < 1e-6 || v < 1) return false
+  return dot(contact.state.velocity, to) / (r * v) >= Math.cos(ESCORT_THREAT_CONE_RAD)
 }
 
 /**

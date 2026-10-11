@@ -56,7 +56,6 @@ Things nothing automated covers, recorded here rather than as skipped tests:
 - **A first-time visitor's audio context.** Nothing automated proves it starts suspended and resumes on the first gesture.
   - On the reference desktop the context is already `running` at boot. The likely cause, unverified, is Chrome's Media Engagement Index for an origin Mark flies on often. So the assertion would pass on a fresh profile and fail on the runner.
   - `void audio.resume()` in `main.ts`'s keydown listener is exercised by `audio.spec.ts`. That it runs before the first sound is wanted has to be checked by hand, once, in a fresh profile. Measured 2026-09-18.
-- **An escort wingman pursuing an attacker on its leader.** `tests/sim/ai/formationCover.test.ts` keeps this as an `it.skip`, waiting on Mark's ruling (7f handoff §4.2): an escort out-energized by its attacker never chooses Pursue.
 
 
 ## The layers, and what each one is for

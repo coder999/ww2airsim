@@ -7,7 +7,7 @@ import { SEA_LEVEL_M } from '../world/terrain.js'
 import { storeTypeOf } from '../weapons/combat.js'
 import { predictImpact } from '../weapons/impactPrediction.js'
 import { controlsForDesiredVelocity } from './controller.js'
-import { goalDesiredVelocity, goalThrottle, liftTowardControls } from './ingress.js'
+import { formationLeaderBankRad, goalDesiredVelocity, goalThrottle, liftTowardControls } from './ingress.js'
 import { loiterDesiredVelocity, loiterReference } from './loiter.js'
 import { controlsForLiftVector } from './liftVector.js'
 import { aimErrorDraw } from './noise.js'
@@ -222,7 +222,9 @@ export function attackFlight<M>(
   // The dive follows the nose (the velocity controller); every other phase turns on the lift vector,
   // which never trades its speed for a climb on a long turn (ingress.ts orbit, measured 2026-09-26).
   const dive = (desired: Vec3, throttle: number): Controls => ({ ...controlsForDesiredVelocity(a.state, a.spec, desired), throttle })
-  const fly = (desired: Vec3, throttle: number): Controls => liftTowardControls(a, desired, throttle)
+  // A bomber formation leader turns gently, so its wingmen can stay with it (FORMATION_LEADER_MAX_BANK_RAD).
+  const bankCap = formationLeaderBankRad(a, train)
+  const fly = (desired: Vec3, throttle: number): Controls => liftTowardControls(a, desired, throttle, bankCap)
   const hold = (): Controls => fly(loiterDesiredVelocity(a, loiterReference(a)), goalThrottle(a, Math.max(speed, 1.3 * stall)))
 
   if (st.phase === 'done') return { controls: hold(), attack: st }
@@ -256,20 +258,20 @@ export function attackFlight<M>(
     if (kind === 'dive-bomb') {
       const alt = Math.max(cruise.altitudeM, target.y + DIVE_ENTRY_ABOVE_TARGET_M)
       if (heightT >= MIN_DIVE_HEIGHT_M && closing && rangeH <= heightT / Math.tan(DIVE_ANGLE_RAD) + ROLL_IN_ALLOWANCE_M) {
-        return attackFlight(a, orders, { ...decision, attack: enter(st, 'dive', nowS) }, ctx)
+        return attackFlight(a, orders, { ...decision, attack: enter(st, 'dive', nowS) }, ctx, train)
       }
       const goal = { x: target.x, z: target.z, altitudeM: alt, speedMps: cruise.speedMps }
       return { controls: fly(goalDesiredVelocity(a, goal, null), goalThrottle(a, cruise.speedMps)), attack: st }
     }
     if (kind === 'level-bomb') {
-      if (rangeH <= LEVEL_RUN_IN_M && closing) return attackFlight(a, orders, { ...decision, attack: enter(st, 'run', nowS) }, ctx)
+      if (rangeH <= LEVEL_RUN_IN_M && closing) return attackFlight(a, orders, { ...decision, attack: enter(st, 'run', nowS) }, ctx, train)
       const goal = { x: target.x, z: target.z, altitudeM: cruise.altitudeM, speedMps: cruise.speedMps }
       return { controls: fly(goalDesiredVelocity(a, goal, null), goalThrottle(a, cruise.speedMps)), attack: st }
     }
     // torpedo
     const runH = RUN_HEIGHT_M + RUN_HEIGHT_PER_NOISE_M * skill.controlNoise
     const descentRange = Math.max(0, cruise.altitudeM - runH) / RUN_DESCENT_MPS * cruise.speedMps + 3500
-    if (rangeH <= descentRange && closing) return attackFlight(a, orders, { ...decision, attack: enter(st, 'run', nowS) }, ctx)
+    if (rangeH <= descentRange && closing) return attackFlight(a, orders, { ...decision, attack: enter(st, 'run', nowS) }, ctx, train)
     const goal = { x: target.x, z: target.z, altitudeM: cruise.altitudeM, speedMps: cruise.speedMps }
     return { controls: fly(goalDesiredVelocity(a, goal, null), goalThrottle(a, cruise.speedMps)), attack: st }
   }
