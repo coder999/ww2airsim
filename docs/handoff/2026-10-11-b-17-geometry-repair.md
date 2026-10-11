@@ -1,8 +1,10 @@
 # B-17G Blender geometry repair handoff
 
-Date: 2026-10-11  
-Worktree: `/home/mark/projects/ww2airsim-repair-b17`  
-Branch: `repair-b17-geometry` from shared geometry foundation `de80aa1e`  
+Date: 2026-10-11
+
+Worktree: `/home/mark/projects/ww2airsim-repair-b17`
+
+Branch: `repair-b17-geometry` from shared geometry foundation `de80aa1e`
 Status: committed in its own worktree; not pushed or merged
 
 ## Result
