@@ -122,7 +122,7 @@ import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerSho
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
-import { worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { withMainBatteries, withoutMainBatteries, worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
@@ -565,7 +565,7 @@ async function boot(): Promise<void> {
     }
     // M5: the Settings dialog's Difficulty, baked into the world this sortie starts from (so a pick takes
     // effect at the next launch or Restart; `sim/difficulty.ts` says why). Veteran returns it unchanged.
-    const built = override
+    const spawned = override
       ? withAircraftState(
           {
             ...withTerrainField,
@@ -575,6 +575,10 @@ async function boot(): Promise<void> {
           initialAircraftState(spawnedAt!, false),
         )
       : withTerrainField
+    // M4, DEV only: `?mainBatteries=all` frees every warship's main battery in any scenario (ruling R1's
+    // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
+    const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
+    const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
     return applyDifficulty(built, quality.difficulty())
   }
 
@@ -2796,11 +2800,16 @@ async function boot(): Promise<void> {
       const started = performance.now()
       const shipSmokeOrigins = new Map(view.world.ships.map((s, i) => [s.id, smokeOriginWorld(shipHandles[i]!, worldOffset)] as const))
       const structureAnchors = new Map(airfieldHandles.flatMap((h) => [...h.smokeAnchors]))
-      const anchors = { shipSmokeOrigins, structureAnchors }
+      // M4: a salvo's flash leaves the drawn muzzle (asked only on a `fired` impact).
+      const muzzles = (ship: string, mount: string): { position: Vec3; direction: Vec3 } | null => {
+        const m = shipHandles[view.world.ships.findIndex((s) => s.id === ship)]?.mounts.find((x) => x.name === mount)?.muzzle?.()
+        return m === undefined ? null : { position: { x: m.position.x - worldOffset.x, y: m.position.y - worldOffset.y, z: m.position.z - worldOffset.z }, direction: m.direction }
+      }
+      const anchors = { shipSmokeOrigins, structureAnchors, muzzles }
       if (replay === null) {
         const events = nextFxEvents(fxMemory, {
           tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
-          shipSmokeOrigins, structureAnchors,
+          shipSmokeOrigins, structureAnchors, muzzles,
         })
         fxMemory = events.memory
         for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)

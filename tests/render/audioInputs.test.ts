@@ -319,6 +319,9 @@ describe('spatialInputsFrom (spatial audio)', () => {
     }
     const out = spatialInputsFrom({ world }, { position: v3(0, 0, 0), attitude: qIdentity() })
     expect(out.blasts).toEqual([{ tick: 7, surface: 'air', position: v3(4, 5, 6), flak: true }])
+    // M4: a salvo leaving a turret is a blast the reducer plays as the big gun.
+    const salvo = { ...world, combat: { ...world.combat, impacts: [{ tick: 8, cause: 'shell', outcome: 'fired', surface: 'air', point: v3(1, 2, 3), shellKg: 635, mount: { ship: 'bb', name: 'Turret1' } } as CombatImpact] } }
+    expect(spatialInputsFrom({ world: salvo }, { position: v3(0, 0, 0), attitude: qIdentity() }).blasts).toEqual([{ tick: 8, surface: 'air', position: v3(1, 2, 3), gun: true }])
     expect(out.aaGuns).toEqual([{ id: 'dd-1', position: v3(10, 11, 12) }])
   })
 })

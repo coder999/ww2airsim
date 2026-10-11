@@ -154,6 +154,9 @@ export type ShipOrders = {
   /** A closed loop, visited in order, repeated. At least two points. */
   readonly waypoints: readonly { readonly x: number; readonly z: number }[]
   readonly speedMps: number
+  /** M4: the targets its main batteries engage, in priority (ship or structure ids); the first live
+   *  hostile one is taken. Absent, M3's choice: the nearest hostile ship, then battery, then building. */
+  readonly fireAt?: readonly string[]
 }
 
 export const createShipState = (init: Partial<ShipState> = {}): ShipState => ({

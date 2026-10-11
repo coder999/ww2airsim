@@ -13,12 +13,17 @@ export type ImpactSurface = 'water' | 'land' | 'deck' | 'aircraft' | 'ship' | 's
  *  projectile was), in world metres. */
 export type CombatImpact = {
   readonly tick: number
-  readonly cause: 'round' | 'bomb' | 'rocket' | 'torpedo' | 'flak'
+  readonly cause: 'round' | 'bomb' | 'rocket' | 'torpedo' | 'flak' | 'shell'
   /** `entered` and `broke-up` are a torpedo's only: it reached the water and began its run, or it
-   *  met the water outside its drop envelope (or met anything else first) and broke up. */
-  readonly outcome: 'detonated' | 'expired' | 'entered' | 'broke-up'
+   *  met the water outside its drop envelope (or met anything else first) and broke up. `fired` is a
+   *  main-battery salvo leaving its turret (M4): `point` is the turret, `mount` names it. */
+  readonly outcome: 'detonated' | 'expired' | 'entered' | 'broke-up' | 'fired'
   readonly surface: ImpactSurface
   readonly point: Vec3
+  /** M4: a shell's weight, which sizes its splash, burst and muzzle blast. */
+  readonly shellKg?: number
+  /** M4: the ship and mount a `fired` salvo left. */
+  readonly mount?: { readonly ship: string; readonly name: string }
 }
 
 /** Oldest entries fall off past this. `MAX_STEPS_PER_FRAME` (5) ticks of

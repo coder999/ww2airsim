@@ -241,6 +241,12 @@ describe('ship models (ship-models spec §3, §6)', () => {
     expect(view.mounts[0]!.maxElevationRad).toBeCloseTo(Math.PI / 2, 12)
     view.mounts[0]!.setElevation(Math.PI) // clamped to the kit's top, 90 degrees
     expect([muzzle(0), muzzle(4), tip(0)]).toEqual([[41, 11, 0], [0, 7, 10], [44, 6.5, 0]])
+    // M4: the muzzle the salvo's flash leaves from is the drawn guns' front face, under the current pose.
+    const round = (v: { x: number; y: number; z: number }): number[] => [v.x, v.y, v.z].map((n) => Math.round(n * 1e6) / 1e6 + 0)
+    const elevated = view.mounts[0]!.muzzle!()
+    expect([round(elevated.position), round(elevated.direction)]).toEqual([[41, 11, 0], [0, 1, 0]])
+    const trained = view.mounts[1]!.muzzle!()
+    expect([round(trained.position), round(trained.direction)]).toEqual([[-40, 7, 5], [0, 0, 1]])
   })
 
   it('the boxes still sink by their own top plus 2 m, and carry no model id', () => {

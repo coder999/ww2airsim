@@ -323,6 +323,7 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
   4. **M4 Main batteries (M-L).** Ship against ship and against ground targets. The firing sound is `ship_gun_heavy` (Track I, I3).
      - Shells take `hullHp`, and a hit near a turret or AA mount can knock it out.
      - Waterline damage and flooding stay with Track D.
+     - **Built on branch `worktree-agent-ad21505b9051bdcd7`, not merged (2026-10-10)** (plan `docs/superpowers/plans/2026-10-10-m4-main-batteries.md`, handoff `docs/handoff/2026-10-10-m4-main-batteries.md`). Real shells on M3's targets, damage by shell weight, mount knock-out, muzzle flash and smoke, `ship_gun_heavy`; on only where a scenario says `"mainBatteries": true`. Item 6's test range is the Dev scenario `gunnery-duel`. Duel tables in the handoff.
   5. **M5 Global difficulty (S-M).** A Settings option that scales AA accuracy, AI pilot skill and the damage the player's aircraft takes. Scenario `skill` values stay as the baseline it shifts.
      - **Done and merged 2026-10-10** ( plan `docs/superpowers/plans/2026-10-10-m5-difficulty.md`, handoff `docs/handoff/2026-10-10-m5-difficulty.md`). Recruit / Veteran / Ace in the Settings dialog, Veteran the default and today's game exactly; applied at launch (`src/sim/difficulty.ts`), measured and pinned (`tests/sim/difficultyLethality.test.ts`).
   6. **Content.** First, a test range where two ships duel and one shells a shore battery. Then Surigao Strait (Track F).
