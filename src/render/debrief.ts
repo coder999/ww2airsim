@@ -6,6 +6,18 @@ import { length } from '../sim/math/vec3.js'
 import type { LandingReport } from '../sim/landing.js'
 import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
 import type { DebriefMission } from './mission/debriefMission.js'
+import { insigniaElement, ribbonElement } from './insignia.js'
+import { RANK_LADDER } from './roster.js'
+
+/** A stamp with a ribbon or insignia next to it, outside the stamp so its
+ *  rough-ink filter and multiply blend leave the colors alone. */
+function beside(stamp: HTMLElement, art: SVGSVGElement | null): HTMLElement {
+  if (art === null) return stamp
+  const row = document.createElement('div')
+  row.style.cssText = 'display:flex;align-items:center;gap:14px'
+  row.append(stamp, art)
+  return row
+}
 
 export type ScoreRow = {
   readonly target: string
@@ -582,7 +594,8 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         promoted.className = 'stamp stamp--violet stamp--md stamp--rotate-3'
         promoted.style.marginTop = '10px'
         promoted.textContent = `Promoted to ${model.promotedTo}!`
-        sheet.appendChild(promoted)
+        const rank = RANK_LADDER.find((r) => r.name === model.promotedTo)
+        sheet.appendChild(beside(promoted, rank === undefined ? null : insigniaElement(rank, 40)))
       }
 
       // ---- Targets Destroyed ----
@@ -635,7 +648,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
           const verdictStamp = document.createElement('div')
           verdictStamp.className = 'stamp stamp--md stamp--blue stamp--rotate-1'
           verdictStamp.textContent = mission.verdict
-          sheet.appendChild(verdictStamp)
+          sheet.appendChild(beside(verdictStamp, mission.badge === null ? null : ribbonElement(mission.badge.id, mission.badge.name, 26)))
         } else {
           sheet.appendChild(figureRow('Badge', mission.verdict))
           for (const reason of mission.more) sheet.appendChild(plainRow(reason))

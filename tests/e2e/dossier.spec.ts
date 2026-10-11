@@ -38,6 +38,7 @@ test('a landed sortie appears in the dossier; the title does not re-lock', async
   await title.getByRole('button', { name: 'Dossier: <b>Ace</b>' }).click()
   const dossier = page.getByRole('dialog', { name: 'Dossier: <b>Ace</b>' })
   await expect(dossier).toBeVisible()
+  await expect(dossier.getByRole('img', { name: 'Ensign insignia' })).toBeVisible()
   const firstLog = dossier.locator('table').last().locator('tbody tr').first()
   await expect(firstLog).toContainText('Gunnery Range')
   await expect(firstLog).toContainText('Field landing')

@@ -80,6 +80,14 @@ completing them and then landing awards that scenario's badge; a ditching or a
 death earns none (`src/sim/mission/outcome.ts`). This deliberately rewards
 flying the brief, and bringing the airplane home, over farming kills.
 
+Each badge is shown as a ribbon: invented, not a real decoration, one design
+per mission in the WWII USN palette (Mark, 2026-10-10). The designs are
+`RIBBONS` in `src/render/insignia.ts`; a mission without one fails
+`tests/render/insignia.test.ts`. Ribbons show in the Dossier's rack, on the
+debrief beside BADGE AWARDED, and on each mission row of the picker, faded
+until earned. Each rank is shown as its 1944 USN collar device (same file),
+in the roster, the Dossier header and beside a debrief promotion.
+
 ### Pilot roster
 
 The main menu is a roster of pilot records:

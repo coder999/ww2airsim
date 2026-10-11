@@ -4,6 +4,7 @@ import { TITLE_ART_URL } from './content.js'
 import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
+import { insigniaElement, ribbonElement } from './insignia.js'
 import { RENDER_QUALITY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import type { QualityTierName } from './quality.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
@@ -772,11 +773,17 @@ export function createTitleScreen(
       showDescription()
       suggestHour()
     }
-    // AWARDED on each mission row whose badge the selected pilot holds (PF4).
+    // Each mission row shows its ribbon, faded until the selected pilot holds
+    // the badge, and then AWARDED beside it (PF4).
     const refreshAwarded = (): void => {
       for (const option of visibleScenarios(ctx())) {
-        if (option.badge === undefined || !heldBadges.includes(option.badge.id)) continue
-        scenarioRows.get(option.value)?.appendChild(awardedStamp())
+        const row = option.badge === undefined ? undefined : scenarioRows.get(option.value)
+        if (option.badge === undefined || row === undefined) continue
+        const held = heldBadges.includes(option.badge.id)
+        const ribbon = ribbonElement(option.badge.id, option.badge.name, 14)
+        ribbon.style.cssText += `;margin-left:auto;opacity:${held ? 1 : 0.3}`
+        row.appendChild(ribbon)
+        if (held) row.appendChild(awardedStamp())
       }
     }
     // Missions first, then ranges, each under its own subheading -- but only
@@ -1072,6 +1079,8 @@ export function createTitleScreen(
 
       const rankCell = document.createElement('td')
       rankCell.textContent = `${pilot.rank.abbrev}, ${pilot.rank.name}`
+      const device = insigniaElement(pilot.rank, 18)
+      if (device !== null) { device.style.marginRight = '8px'; rankCell.prepend(device) }
 
       const scoreCell = document.createElement('td')
       scoreCell.className = 'num'

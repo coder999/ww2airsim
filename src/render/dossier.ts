@@ -1,6 +1,7 @@
 import { ensureStampFilter } from './ui/navalComms.js'
 import { RANK_LADDER, type PilotRecord, type Rank } from './roster.js'
 import { TARGET_TYPES } from '../sim/weapons/targetType.js'
+import { insigniaElement, ribbonElement } from './insignia.js'
 
 /**
  * The pilot Dossier (dossier spec §B.4): a pure model for Deterministic and a thin
@@ -166,7 +167,10 @@ export function openDossier(
   // 1. Header
   sheet.appendChild(el('div', 'Pilot Dossier', 'letterhead-kicker'))
   sheet.appendChild(el('div', m.header.name, 'letterhead-title'))
-  sheet.appendChild(el('p', `${m.header.rank} · ${m.header.status} · ${m.header.score.toLocaleString('en-US')} points`))
+  const rankLine = el('p', `${m.header.rank} · ${m.header.status} · ${m.header.score.toLocaleString('en-US')} points`)
+  const device = insigniaElement(pilot.rank, 28)
+  if (device !== null) { device.style.marginRight = '10px'; rankLine.prepend(device) }
+  sheet.appendChild(rankLine)
   const bar = el('div')
   bar.setAttribute('role', 'progressbar')
   bar.setAttribute('aria-valuenow', String(Math.round(m.header.fraction * 100)))
@@ -181,7 +185,17 @@ export function openDossier(
   // 4. Badges
   sheet.appendChild(heading('Badges'))
   if (m.badges.length === 0) sheet.appendChild(el('p', m.badgesEmpty))
-  else { const row = el('div'); for (const b of m.badges) row.appendChild(el('span', b, 'stamp-chip')); sheet.appendChild(row) }
+  else {
+    // The ribbon rack: each ribbon over its name, in the order earned.
+    const rack = el('div'); rack.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px 18px'
+    pilot.badges.forEach((id, i) => {
+      const cell = el('div'); cell.dataset.ww2Ribbon = id
+      cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px'
+      cell.append(ribbonElement(id, m.badges[i]!, 22), el('span', m.badges[i]))
+      rack.appendChild(cell)
+    })
+    sheet.appendChild(rack)
+  }
   // 5. Mission log
   sheet.append(heading('Mission Log'), el('p', m.since))
   const logScroll = el('div'); logScroll.style.cssText = 'max-height:40vh;overflow-y:auto'
