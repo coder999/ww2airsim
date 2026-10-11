@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { percentile, waitForTerrain, type DiagWindow, recordFrameTime } from './harness.js'
 import { PILOT_SKILL_PARAM, SCENARIO_PARAM } from '../../src/render/spawn.js'
 import { isBehind } from './pursuitGeometry.js'
+import { DT } from '../../src/sim/flight/model.js'
 
 /**
  * E2E, Plan 7d. The actual acceptance bar Mark's complaint sets: not
@@ -47,9 +48,11 @@ import { isBehind } from './pursuitGeometry.js'
  * alive). Result of this spec on the reference GPU after 7c: GREEN
  * (2026-09-26, `ww2airsim-3` slot, 2560x1440: the post-poll screenshot is at
  * tick 734, 12.2 s, in a 57-degree dive; player alive, 0 validation errors,
- * gpu p95 3.563 ms over 968 samples). The two tiers still disagree, for the
- * reason above: the browser flies the airborne world during the terrain load
- * before any key.
+ * gpu p95 3.563 ms over 968 samples).
+ *
+ * **2026-10-11.** The keys now start at a fixed sim time, 3 s after Launch,
+ * which is what `aiLethality.test.ts`'s head-on replica flies; see the key
+ * block below.
  */
 const RANGE = `/?${SCENARIO_PARAM}=pursuit-range&${PILOT_SKILL_PARAM}=green`
 
@@ -76,12 +79,26 @@ test('a scripted evasion-and-reversal lets the player get behind a green pursuer
   // across its turn circle onto its tail. Held via keyboard.down/up, this
   // repo's existing e2e input-simulation convention (tests/e2e/gunnery.spec.ts,
   // approach.spec.ts).
+  //
+  // Timed in sim ticks, not wall time (2026-10-11). The title holds the world
+  // until Launch, so tick 0 is Launch, and the outcome turns on how long the
+  // world flies hands-off before the first key: behind for 0.75-5 s, never
+  // below 0.75 s (headless sweep, `aiLethality.test.ts`'s "the 7d bar on the
+  // shipped head-on merge"). The old wall-clock keys started at tick 7-11 on
+  // nexus, right under that floor, so the spec flaked on Launch-to-keypress
+  // latency, and `waitForTimeout`'s holds drifted against sim time on top.
+  // 3 s sits mid-window; every start, break and reversal edge shifted ±0.1 s
+  // around it still gets behind headless (125 of 125, 2026-10-11).
+  const atTick = (tick: number) =>
+    page.waitForFunction((t) => (window as DiagWindow).__ww2!.tick() >= t, tick, { timeout: 30_000 })
+  const keysAt = Math.round(3 / DT)
+  await atTick(keysAt)
   await page.keyboard.down('ArrowLeft')
   await page.keyboard.down('ArrowDown') // pitchUp binding is ArrowDown (src/input/bindings.ts)
-  await page.waitForTimeout(4000)
+  await atTick(keysAt + Math.round(4 / DT))
   await page.keyboard.up('ArrowLeft')
   await page.keyboard.down('ArrowRight')
-  await page.waitForTimeout(3000)
+  await atTick(keysAt + Math.round(7 / DT))
   await page.keyboard.up('ArrowRight')
   await page.keyboard.up('ArrowDown')
 

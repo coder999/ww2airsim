@@ -128,8 +128,13 @@ describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', 
  * 5.25 s; identical at 60, 120 and 144 frames a second, and identical on
  * `main` before Escort (`cbc7d5ff`), after it (`bd7c8661`) and on E4, with
  * E4's stall guard, stall-speed unload and rudder limit each switched off:
- * none of them reaches this green. So the E2E passes or fails on how long the
- * terrain takes to load. Pinned: every whole D from 1 to 5 s.
+ * none of them reaches this green. Pinned: every whole D from 1 to 5 s.
+ *
+ * 2026-10-11: what decides it is the hands-off time D, not the terrain. With
+ * the terrain present from tick 0 the window is the same 0.75-5 s, and the
+ * title now holds the world until Launch, so the browser never flew during
+ * the load: its keys landed at tick 7-11 after Launch, under the floor. The
+ * E2E now waits for tick 3 s before its keys (that spec's key block).
  */
 const terrain = terrainOrSkip()
 describe.skipIf(terrain === null)('the 7d bar on the shipped head-on merge, as the E2E flies it (E4)', () => {
