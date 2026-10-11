@@ -363,6 +363,18 @@ the DP0 to DP3 plans' Deterministic runs and their reference-GPU E2E runs
   (`tools/models/skin/boxProject.ts`), and
   `tests/tools/models/shipEntries.test.ts` rebuilds the downloads from their
   raw inputs and pins their geometry.
+- **Replacing a downloaded ship with original Blender work (Zuikaku, 2026-10-11).** Before
+  modeling, fetch a public profile/plan or general-arrangement drawing through its source API and
+  canonical file path, record its scale and variant, and measure a station table in the script
+  header: hull waterline/deck half-widths, draft and sheer; flight-deck outline; island, elevators,
+  funnel, masts and gun galleries. Label every number CITED, MEASURED, FITTED or ESTIMATE. The live
+  ShipSpec remains authoritative for the collision hull, `FlightDeck`, trap zone and deliberately
+  balanced armament. Put every spec mount on modeled geometry within `MOUNT_SLACK_M`; the build turns
+  its first named donor into `Kit_<kit>` and the existing renderer trains/elevates every locator.
+  Render the old and new GLBs from identical side/top cameras and overlay the new silhouettes on the
+  drawing before accepting the replacement. Change the same-id entry to `source.kind: blender`,
+  retire but retain attribution for a former external reference in `ASSETS.md`, enroll the id in
+  `tests/tools/models/blender/ships.test.ts`, and reduce the pinned download count.
 - **The look** lives in `tools/models/skin/surfaces.ts` (per-role scan,
   finish, chips, rivets) and `tools/models/skin/layers.ts` (paint, markings,
   panel lines, height). A change there re-skins every skinned model and moves

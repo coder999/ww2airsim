@@ -16,6 +16,7 @@ const MODELS: Record<string, readonly (string | null)[]> = {
   'free-flight': ['essex-cv', 'fletcher-dd', 'fletcher-dd'],
   'deck-quals': ['essex-cv', 'fletcher-dd', 'fletcher-dd'],
   'strike-range': ['type-b-maru'],
+  'flattop-hunt': ['essex-cv', 'zuikaku-cv', 'kagero-dd', 'kagero-dd'],
 }
 
 for (const [scenario, models] of Object.entries(MODELS)) {

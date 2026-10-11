@@ -1,29 +1,25 @@
 {
  "version": 1,
  "model": "zuikaku-cv",
- "rawSha256": "72f72dbdcd8720e6b79fceb880f4aea2ad4c0d3823db8b2ed4066e046cba913c",
- "detailSha256": "0ffa9690aa40e2cb94de23c21d9f32354677ede88887403f797c8941635a9e2d",
+ "rawSha256": "062fa6bb08bbf66aafea70365a43d7223bbcb0110e9fb8f28615d624d007ab84",
+ "detailSha256": "664548c12e232051fb6f7bc1b3ac42e2abc68dc5e08dd96a297373b1e34e5d12",
  "size": 2048,
  "info": {
   "aoDistanceM": 4,
   "aoSamples": 128,
-  "details": 190,
+  "details": 177,
   "device": "AMD Radeon RX 6700 XT",
-  "missed": [
-   134,
-   163
-  ],
+  "missed": [],
   "normalSamples": 16,
   "seconds": {
-   "ao": 3.4,
-   "aoBack": 3.1,
-   "normal": 0.8
+   "ao": 2.9,
+   "normal": 0.9
   },
   "size": 2048,
-  "totalSeconds": 13.7,
-  "twoSided": true,
+  "totalSeconds": 5.2,
+  "twoSided": false,
   "host": "ryzen",
-  "wallSeconds": 16.7
+  "wallSeconds": 7.7
  },
- "date": "2026-10-09"
+ "date": "2026-10-11"
 }
