@@ -27,6 +27,7 @@ import { createFlightData } from './flightData.js'
 import { createTimeBadge } from './timeBadge.js'
 import { createAutopilotBadge } from './autopilotBadge.js'
 import { createPauseBadge } from './pauseBadge.js'
+import { createPauseScreen, type PauseScreenHandle } from './pauseScreen.js'
 import { createPaddlesBadge } from './paddlesBadge.js'
 import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { landingDisposition } from './mission/landingFlow.js'
@@ -1718,12 +1719,16 @@ async function boot(): Promise<void> {
   // Ships in production, in both camera modes (Plan 6): ammunition and
   // damage are things the pilot needs whichever way they are looking.
   const combatReadout = createCombatReadout(root)
+  // Created after the navigation-chart callbacks below, because each modal
+  // hands control back to the other. Hoisted here so the shared Restart path
+  // and resetFlightUi can dismiss it without duplicating restart behavior.
+  let pauseScreen: PauseScreenHandle | null = null
   // Restart rebuilds the frame from the scenario rather than tearing anything
   // down: `worldFromScenario` and `initialFrameStateFor` are both pure, so the
   // renderer, the terrain and the ocean cascades all survive untouched -- and
   // so does the wingman and the task force's position on its loop, which are
   // rebuilt at their scenario start along with the player.
-  const debrief = createDebrief(root, () => {
+  const restartMission = (): void => {
     // `frame!.world.terrain` rather than a stored field: the heightfield
     // arrives over the network seconds after the first frame and is upgraded
     // again as finer levels load (`applyTerrainLevel`, further down this
@@ -1758,7 +1763,8 @@ async function boot(): Promise<void> {
     // sortie already counted, not a new one.
     scoredThroughKillsByType = zeroKillsByType()
     segment = EMPTY_SEGMENT
-  })
+  }
+  const debrief = createDebrief(root, restartMission)
   /** Passed to every `debrief.show(...)` call below as the "Return to title"
    *  handler (design §1) -- constant across all three outcomes, unlike
    *  `onContinue` which only the landing model supplies, so it is threaded
@@ -1966,6 +1972,7 @@ async function boot(): Promise<void> {
     if (replay !== null) teardownReplay()
     dispatch({ kind: 'reset' })
     debrief.hide()
+    pauseScreen?.hide()
     shownImpactTick = null
     shownDestructionTick = null
     pendingDebrief = null
@@ -2071,6 +2078,7 @@ async function boot(): Promise<void> {
     frame = withPaused(frame!, closed.restorePaused)
     clearMapInput()
     navigationMap.hide()
+    if (closed.restorePaused) pauseScreen?.show()
   }
   const openNavigationChart = (): void => {
     const player = playerAircraft(frame!.world)
@@ -2081,11 +2089,20 @@ async function boot(): Promise<void> {
       navigationMapState.open || player.impact !== null
       || frame!.world.combat.aircraft[player.id]!.damage.destroyedAt !== null || landingShown
     ) return
+    pauseScreen?.hide()
     navigationMapState = openNavigationMap(navigationMapState, frame!.paused)
     frame = withPaused(frame!, true)
     clearMapInput()
     navigationMap.show(frame!.world, navigationMapState.selectedId)
   }
+  pauseScreen = createPauseScreen(root, quality.settings, {
+    onResume: () => {
+      frame = withPaused(frame!, false)
+      clearMapInput()
+    },
+    onRestart: restartMission,
+    onViewMap: openNavigationChart,
+  })
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
    *  automatic replay, spec §4). */
@@ -2208,13 +2225,15 @@ async function boot(): Promise<void> {
     // A replay owns the keyboard: nothing below -- no flight latch, no page
     // toggle (L, R, Q, P, Tab, I, /, T) -- sees a key while one is up.
     if (replay !== null) { e.preventDefault(); onReplayKey(e); return }
-    // K while paused (spec §4, IR-6): only with 3 s recorded, never over a
-    // debrief or a crash hold (those have their own replay) or the chart.
+    // Preserve the two existing paused-flight shortcuts before the pause
+    // sheet's general keyboard gate. Both replace the sheet with their own
+    // full-screen surface and return to it when appropriate.
     if (
       BINDINGS.replay.includes(e.code as never) && !e.repeat && frame!.paused && !navigationMapState.open
       && !debriefOrHoldUp() && manualReplayAvailable(recorder.snapshot())
     ) {
       e.preventDefault()
+      pauseScreen?.hide()
       dispatch({ kind: 'manual' })
       return
     }
@@ -2222,6 +2241,21 @@ async function boot(): Promise<void> {
       e.preventDefault()
       if (navigationMapState.open) closeNavigationChart()
       else openNavigationChart()
+      return
+    }
+    // The pause sheet owns every key while it is up. Native Tab/Enter still
+    // reach its buttons because this branch does not prevent them; Esc is the
+    // one direct flight action, resuming immediately rather than waiting for
+    // another frame to toggle the state behind the modal. A nested Settings
+    // dialog captures Esc first and closes back to this sheet.
+    if (pauseScreen?.isOpen() === true) {
+      if (BINDINGS.pause.includes(e.code as never) && !e.repeat) {
+        e.preventDefault()
+        pauseScreen.hide()
+        frame = withPaused(frame!, false)
+        clearMapInput()
+      }
+      return
     }
     if (BINDINGS.cycleCamera.includes(e.code as never) && !e.repeat) pendingCameraCycle = true
     if (BINDINGS.toggleTripleTime.includes(e.code as never) && !e.repeat) pendingTripleTime = true
@@ -2405,7 +2439,7 @@ async function boot(): Promise<void> {
     // the title/chart (`chartOpen`), an impact or shoot-down (its hold and
     // debrief), a landing debrief. Cleared every frame, blocked or not, so a
     // drag made under a dialog is never applied later.
-    const mouseBlocked = chartOpen || debriefOrHoldUp()
+    const mouseBlocked = chartOpen || debriefOrHoldUp() || pauseScreen?.isOpen() === true
     const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta
     // The replay cameras read the same drag and wheel (spec §5), captured
     // before the clear below.
@@ -2423,6 +2457,10 @@ async function boot(): Promise<void> {
       current = withPaused(current, true)
       navigationMap.show(current.world, navigationMapState.selectedId)
     }
+    // Only the manual Esc edge raises the pause sheet. Other held states
+    // (title, navigation chart, replay, landing/debrief) keep their own UI.
+    if (pendingPause && current.paused) pauseScreen?.show()
+    else if (!current.paused) pauseScreen?.hide()
     pendingCameraCycle = false
     pendingTripleTime = false
     pendingPause = false
