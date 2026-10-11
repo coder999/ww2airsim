@@ -1186,6 +1186,7 @@ async function boot(): Promise<void> {
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
         takramGpuMs: takramCloudPass?.gpuTimesMs() ?? [],
+        takramPassGpuMs: takramCloudPass?.gpuPassTimesMs() ?? { march: [], temporal: [] },
         composited: cloudPass !== null && routedOutput === cloudPass.composite,
       }),
       // Visual realism §2.1: read through the same closure-after-boot shape as
@@ -3202,6 +3203,7 @@ async function boot(): Promise<void> {
       // dispatch is the same work every frame, so the latest is that frame's.
       void Promise.all([renderer.resolveTimestampsAsync('render'), renderer.resolveTimestampsAsync('compute')])
         .then(([ms, computeMs]: [number | undefined, number | undefined]) => {
+          takramCloudPass?.captureGpuTimes()
           // `undefined` when tracking is off (three warns once and returns
           // nothing); 0 when the pool had nothing pending. Neither is a frame.
           if (typeof ms !== 'number' || ms <= 0) return

@@ -88,3 +88,34 @@ Port the accepted Takram-derived cloud renderer from hand-written WGSL to Three.
 ## Stop conditions
 
 Keep a partial port rather than disguising a dead end if Three r186 cannot express a required texture, multi-render-target, temporal-history, or render-graph operation without embedding WGSL. Record the exact limitation and leave the native renderer intact. A hybrid that still embeds the cloud stages as WGSL does not satisfy this plan's full-port goal.
+
+## Optimization addendum — 2026-10-11
+
+**Run:** unattended; Mark approved proceeding on the existing research branch
+
+**Viewing checkpoint:** final native/TSL comparison only; automated image and GPU evidence remain the gates
+
+The first complete port established visual parity but not cost parity. Optimize
+the TSL implementation without changing either default or the accepted native
+renderer:
+
+1. Read Three's per-render-context timestamp results so the TSL march and
+   temporal pass have direct GPU samples; retain whole-frame timing for the
+   fused composite.
+2. Change the shape, detail and STBN volumes from expanded RGBA8 back to their
+   source R8 representation while keeping Three ownership and the averaged
+   shape mip chain.
+3. Restore the native shader's conditional 1/2/4-sample weather-tile path.
+   These are explicit-LOD samples, so they do not rely on implicit derivatives
+   inside non-uniform control flow.
+4. Measure the baseline and each retained lever at 2560x1440 High under
+   `hwlock ryzen-budget`, interleaving native and TSL where practical. Reject a
+   lever that causes validation errors, visible placement/edge regressions, or
+   no repeatable gain.
+5. If those parity fixes do not reach the original <=15% promotion criterion,
+   inspect generated WGSL and pass scheduling before considering visible
+   approximations. Do not weaken the accepted soft edge merely to hit a number.
+
+No merge, deployment, upstream publication or production-default change is in
+scope. Update the existing handoff and standing cloud reference with measured
+results, then commit and push the research branch.

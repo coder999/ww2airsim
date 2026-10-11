@@ -23,6 +23,16 @@ type V2 = Node<'vec2'>
 type V3 = Node<'vec3'>
 type V4 = Node<'vec4'>
 
+type TimestampBackend = {
+  get(value: object): { timestampUID?: string }
+  timestampQueryPool?: { render?: { timestamps?: Map<string, number> } }
+}
+
+type TimingRenderer = WebGPURenderer & {
+  _callDepth: number
+  _renderContexts: { get(target: RenderTarget, mrt: unknown, callDepth: number): object }
+}
+
 const PI = Math.PI
 const FAR_M = 200_000
 const LAYER_LOW_M = 750
@@ -128,13 +138,23 @@ function makeDensity(assets: TakramTslAssets) {
     }).ElseIf(local.y.lessThan(-0.4), () => {
       low.y.subAssign(1); weight.y.assign(float(0.5).add(smoothstep(-0.5, -0.4, local.y).mul(0.5)))
     })
-    // Samples remain unconditional: derivative-based texture sampling must
-    // not be placed under per-fragment control flow.
-    const lowLow = weatherTile(position, low as unknown as Node<'ivec2'>, mip)
-    const highLow = weatherTile(position, ivec2(high.x, low.y), mip)
-    const lowHigh = weatherTile(position, ivec2(low.x, high.y), mip)
-    const highHigh = weatherTile(position, high as unknown as Node<'ivec2'>, mip)
-    return mix(mix(lowLow, highLow, weight.x), mix(lowHigh, highHigh, weight.x), weight.y) as unknown as V4
+    const result = weatherTile(position, low as unknown as Node<'ivec2'>, mip).toVar()
+    // Every fetch has an explicit LOD, so unlike derivative-based sampling it
+    // is valid inside non-uniform control flow. Match the native shader's hot
+    // path: one sample in a tile interior, two on an edge and four at a corner.
+    If(low.x.equal(high.x), () => {
+      If(low.y.equal(high.y).not(), () => {
+        result.assign(mix(result, weatherTile(position, ivec2(low.x, high.y), mip), weight.y))
+      })
+    }).ElseIf(low.y.equal(high.y), () => {
+      result.assign(mix(result, weatherTile(position, ivec2(high.x, low.y), mip), weight.x))
+    }).Else(() => {
+      const highLow = weatherTile(position, ivec2(high.x, low.y), mip)
+      const lowHigh = weatherTile(position, ivec2(low.x, high.y), mip)
+      const highHigh = weatherTile(position, high as unknown as Node<'ivec2'>, mip)
+      result.assign(mix(mix(result, highLow, weight.x), mix(lowHigh, highHigh, weight.x), weight.y))
+    })
+    return result as unknown as V4
   }
 
   const heightShape = (heightFraction: F): F => {
@@ -232,6 +252,10 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   private current = 0
   private frameIndex = 0
   private resetPending = true
+  private timingBackend: TimestampBackend | null = null
+  private pendingTimestampUids: { readonly march: string; readonly temporal: string } | null = null
+  private readonly marchGpuTimes: number[] = []
+  private readonly temporalGpuTimes: number[] = []
   private eye: Vec3 = { x: 0, y: 0, z: 0 }
   private coverage = 0.45
   private layerOffsetM = 0
@@ -395,6 +419,32 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   }
   resetHistory(): void { this.resetPending = true }
 
+  gpuPassTimesMs(): { readonly march: readonly number[]; readonly temporal: readonly number[] } {
+    return { march: this.marchGpuTimes, temporal: this.temporalGpuTimes }
+  }
+
+  captureGpuTimes(): void {
+    const uids = this.pendingTimestampUids
+    const timestamps = this.timingBackend?.timestampQueryPool?.render?.timestamps
+    if (uids === null || timestamps === undefined) return
+    const march = timestamps.get(uids.march)
+    const temporal = timestamps.get(uids.temporal)
+    if (march === undefined || temporal === undefined) return
+    this.marchGpuTimes.push(march)
+    this.temporalGpuTimes.push(temporal)
+    if (this.marchGpuTimes.length > 4096) this.marchGpuTimes.shift()
+    if (this.temporalGpuTimes.length > 4096) this.temporalGpuTimes.shift()
+    this.pendingTimestampUids = null
+  }
+
+  private timestampUid(renderer: WebGPURenderer, target: RenderTarget, callDepth: number): string | undefined {
+    const timingRenderer = renderer as unknown as TimingRenderer
+    const backend = renderer.backend as unknown as TimestampBackend
+    this.timingBackend = backend
+    const context = timingRenderer._renderContexts.get(target, renderer.getMRT(), callDepth)
+    return backend.get(context).timestampUID
+  }
+
   override updateBefore(frame: NodeFrame): undefined {
     const renderer = frame.renderer as unknown as WebGPURenderer
     rendererState = RendererUtils.resetRendererState(renderer, rendererState as ReturnType<typeof RendererUtils.resetRendererState>)
@@ -422,11 +472,17 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
     ;(this.historyValid as unknown as { value: number }).value = this.resetPending ? 0 : 1
     this.historyColor.value = this.history[this.current]!.textures[0]!
     this.historyDepth.value = this.history[this.current]!.textures[1]!
+    const callDepth = (renderer as unknown as TimingRenderer)._callDepth + 1
     renderer.setRenderTarget(this.low)
     this.marchQuad.render(renderer)
+    const marchTimestampUid = this.timestampUid(renderer, this.low, callDepth)
     const next = 1 - this.current
     renderer.setRenderTarget(this.history[next]!)
     this.temporalQuad.render(renderer)
+    const temporalTimestampUid = this.timestampUid(renderer, this.history[next]!, callDepth)
+    if (marchTimestampUid !== undefined && temporalTimestampUid !== undefined) {
+      this.pendingTimestampUids = { march: marchTimestampUid, temporal: temporalTimestampUid }
+    }
     this.resolvedColor.value = this.history[next]!.textures[0]!
     this.resolvedDepth.value = this.history[next]!.textures[1]!
     if (this.resetPending) this.resets += 1
@@ -507,6 +563,8 @@ export function createTakramTslCloudPass(options: {
     setEnvironment(timeS, sun, coverage, baseM) { node.setEnvironment(timeS, sun, coverage, baseM) },
     resetHistory() { node.resetHistory() }, historyResets() { return node.resets },
     gpuTimesMs() { return [] },
+    gpuPassTimesMs() { return node.gpuPassTimesMs() },
+    captureGpuTimes() { node.captureGpuTimes() },
     measureReprojectionResidual(): Promise<ReprojectionResidual | null> { return Promise.resolve(null) },
     dispose() { node.dispose() },
   }

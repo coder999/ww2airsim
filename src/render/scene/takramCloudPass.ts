@@ -161,6 +161,8 @@ export type TakramCloudPass = {
   resetHistory(): void
   historyResets(): number
   gpuTimesMs(): readonly number[]
+  gpuPassTimesMs(): { readonly march: readonly number[]; readonly temporal: readonly number[] }
+  captureGpuTimes(): void
   measureReprojectionResidual(): Promise<ReprojectionResidual | null>
   dispose(): void
 }
@@ -421,6 +423,8 @@ export function createTakramCloudPass(options: {
     resetHistory() { node.resetHistory() },
     historyResets() { return node.resets },
     gpuTimesMs() { return node.gpuTimesMs() },
+    gpuPassTimesMs() { return { march: [], temporal: [] } },
+    captureGpuTimes() {},
     measureReprojectionResidual() { return Promise.resolve(null) },
     dispose() { node.dispose() },
   }

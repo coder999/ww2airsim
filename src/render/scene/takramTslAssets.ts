@@ -1,5 +1,5 @@
 import {
-  Data3DTexture, LinearFilter, LinearMipmapLinearFilter, NoColorSpace, RGBAFormat,
+  Data3DTexture, LinearFilter, LinearMipmapLinearFilter, NoColorSpace, RedFormat,
   RepeatWrapping, TextureLoader, UnsignedByteType, type Texture,
 } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
@@ -44,22 +44,12 @@ async function fetchBytes(path: string): Promise<Uint8Array<ArrayBuffer>> {
   return new Uint8Array(await response.arrayBuffer())
 }
 
-function rgbaFromRed(source: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
-  const result = new Uint8Array(source.byteLength * 4)
-  for (let i = 0; i < source.byteLength; i += 1) {
-    const at = i * 4
-    result[at] = source[i]!
-    result[at + 3] = 255
-  }
-  return result
-}
-
 function volume(source: Uint8Array<ArrayBuffer>, size: readonly [number, number, number], name: string): Data3DTexture {
   const expected = size[0] * size[1] * size[2]
   if (source.byteLength !== expected) throw new Error(`${name}: expected ${expected} bytes, got ${source.byteLength}`)
-  const texture = new Data3DTexture(rgbaFromRed(source), ...size)
+  const texture = new Data3DTexture(source, ...size)
   texture.name = name
-  texture.format = RGBAFormat
+  texture.format = RedFormat
   texture.type = UnsignedByteType
   texture.colorSpace = NoColorSpace
   texture.wrapS = texture.wrapT = texture.wrapR = RepeatWrapping
@@ -70,16 +60,15 @@ function volume(source: Uint8Array<ArrayBuffer>, size: readonly [number, number,
   return texture
 }
 
-function paddedRgba(source: Uint8Array<ArrayBuffer>, size: number): { readonly data: Uint8Array<ArrayBuffer>; readonly bytesPerRow: number } {
-  const rgba = rgbaFromRed(source)
-  const rowBytes = size * 4
+function paddedRed(source: Uint8Array<ArrayBuffer>, size: number): { readonly data: Uint8Array<ArrayBuffer>; readonly bytesPerRow: number } {
+  const rowBytes = size
   const bytesPerRow = Math.ceil(rowBytes / 256) * 256
-  if (bytesPerRow === rowBytes) return { data: rgba, bytesPerRow }
+  if (bytesPerRow === rowBytes) return { data: source, bytesPerRow }
   const result = new Uint8Array(bytesPerRow * size * size)
   for (let z = 0; z < size; z += 1) {
     for (let y = 0; y < size; y += 1) {
       const sourceOffset = rowBytes * (y + size * z)
-      result.set(rgba.subarray(sourceOffset, sourceOffset + rowBytes), bytesPerRow * (y + size * z))
+      result.set(source.subarray(sourceOffset, sourceOffset + rowBytes), bytesPerRow * (y + size * z))
     }
   }
   return { data: result, bytesPerRow }
@@ -95,7 +84,7 @@ function shapeTexture(renderer: WebGPURenderer, source: Uint8Array<ArrayBuffer>,
   // Three r186 allocates a mip level for every entry, but does not upload a
   // Data3DTexture's custom mip array. Allocate through Three so TSL owns the
   // binding, then fill the accepted averaged levels through the same backend.
-  texture.mipmaps = layout.map(mip => ({ data: new Uint8Array(4), width: mip.size, height: mip.size, depth: mip.size }))
+  texture.mipmaps = layout.map(mip => ({ data: new Uint8Array(1), width: mip.size, height: mip.size, depth: mip.size }))
   renderer.initTexture(texture)
   const backend = renderer.backend as unknown as NativeBackend
   const device = backend.device
@@ -103,7 +92,7 @@ function shapeTexture(renderer: WebGPURenderer, source: Uint8Array<ArrayBuffer>,
   if (device === undefined || native === undefined) throw new Error('Takram TSL shape texture requires the native WebGPU backend')
   for (const mip of layout) {
     const bytes = source.subarray(mip.offset, mip.offset + mip.length)
-    const padded = paddedRgba(bytes, mip.size)
+    const padded = paddedRed(bytes, mip.size)
     device.queue.writeTexture(
       { texture: native, mipLevel: mip.level }, padded.data,
       { bytesPerRow: padded.bytesPerRow, rowsPerImage: mip.size },

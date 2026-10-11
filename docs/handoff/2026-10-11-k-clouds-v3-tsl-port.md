@@ -15,12 +15,16 @@ lighting, 2×3 temporal reconstruction, broad soft-edge resolve and
 reversed-depth scene composite are all TSL-generated. No cloud rendering stage
 embeds hand-written WGSL.
 
-The experiment succeeded technically and visually. It did not earn promotion:
-the TSL implementation is 32–46% slower at p95 than the conservative native
-whole-frame estimate, beyond the plan's 15% allowance. It remains under the
-8.33 ms game gate, so it is useful, flyable research code. `legacy` remains the
-default; `takram` remains the preferred Takram renderer. Main, production and
-deployment are unchanged.
+The experiment succeeded technically, visually, and after a focused
+optimization pass, in budget. Two clean interleaved reference-GPU runs put the
+optimized TSL whole frame at 5.746–5.772 ms p95 versus a same-scene native
+estimate of 5.890–5.915 ms. It therefore clears both the 8.33 ms game gate and
+the plan's no-more-than-15%-slower promotion criterion.
+
+This is still a research branch by Mark's ruling, not a replacement decision.
+`legacy` remains the default; `takram` remains the preferred production
+candidate until a separate promotion decision. Main, production and deployment
+are unchanged.
 
 ## How to view it
 
@@ -42,8 +46,8 @@ artifact, not a regression introduced by TSL.
 ## Architecture
 
 - `takramTslAssets.ts` loads the weather and turbulence maps as Three textures,
-  expands the R8 volume assets to portable RGBA8 `Data3DTexture`s, and uploads
-  the accepted averaged 3D shape mip chain.
+  keeps the shape, detail and STBN volumes in their source single-channel R8
+  representation, and uploads the accepted averaged 3D shape mip chain.
 - `takramTslCloudPass.ts` builds one laid-out density function per material,
   renders radiance/opacity plus representative depth into an MRT at one-sixth
   resolution, resolves into full-resolution ping-pong history, and composites
@@ -61,6 +65,10 @@ artifact, not a regression introduced by TSL.
 - Focused real-game TSL flight on the Ryzen WebGPU browser — passed in 12.1 s.
   It rendered clouds, composited into the game, reset history on a camera cut,
   and reported no console, page or WebGPU validation errors.
+- The optimized path repeated that focused flight on nexus's real WebGPU in
+  12.2 s with no console, page or validation errors. A focused timing-seam test
+  also proved that direct march and temporal samples are present, finite and
+  positive.
 - Final native and TSL capture runs — one passed each, with no validation
   errors.
 
@@ -75,22 +83,45 @@ load-sensitive full-suite timeout rather than claimed as a green `verify`
 exit. The repository-wide Playwright suite was not run; it was not authorized
 or needed for this isolated renderer experiment.
 
-## Reference-GPU cost
+## Optimization and reference-GPU cost
 
-RX 6700 XT, 2560×1440, High, under `hwlock ryzen-budget`. Native runs through
-its directly timestamped raw-WebGPU pass, so its conservative whole-frame
-estimate is clouds-off Three p95 plus native cloud-pass p95. TSL is owned by
-Three and appears directly in the whole-frame timestamp.
+The first port had two avoidable differences from native WGSL:
 
-| Locked run | Three off p95 | Native cloud p95 | Native estimated total p95 | TSL total p95 | TSL/native |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 2.788 ms | 2.032 ms | 4.820 ms | 7.042 ms | 1.461× |
-| 2 (final passing budget test) | 3.320 ms | 2.054 ms | 5.373 ms | 7.100 ms | 1.321× |
+1. Three-owned shape, detail and STBN volumes expanded source R8 data to
+   RGBA8. Keeping them as `RedFormat`/`UnsignedByteType` reduces those volumes
+   from about 13.3 MiB to 3.3 MiB and improves texture-cache residency.
+2. TSL always fetched four weather tiles. All those reads use an explicit LOD,
+   so the optimized shader legally follows native WGSL's branch: one fetch in
+   a tile interior, two at an edge and four at a corner (1.44 expected fetches
+   for uniformly distributed positions versus 4 before).
 
-The final TSL p50/p95 was 6.904/7.100 ms over 409 samples. Its absolute p95
-passes the 8.33 ms game gate, but both comparisons miss the no-more-than-15%
-promotion criterion. This is why the branch is retained as research rather
-than proposed for `main`.
+Three's render-context timestamps now expose the TSL march and temporal passes
+separately. The composite remains fused into the game's final Three pass.
+
+RX 6700 XT, 2560×1440, High, under `hwlock ryzen-budget`:
+
+| Variant/run | Three with native p95 | Native raw pass p95 | Native estimated total p95 | TSL total p95 | TSL march p95 | TSL temporal p95 | TSL/native |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Before 1 | 3.881 ms | 2.010 ms | 5.891 ms | 7.001 ms | 2.839 ms | 0.228 ms | 1.188× |
+| Before 2 | 3.902 ms | 2.020 ms | 5.922 ms | 7.016 ms | 2.820 ms | 0.229 ms | 1.185× |
+| Optimized 1 | 3.864 ms | 2.026 ms | 5.890 ms | 5.746 ms | 1.537 ms | 0.230 ms | 0.976× |
+| Optimized 2 | 3.883 ms | 2.032 ms | 5.915 ms | 5.772 ms | 1.542 ms | 0.229 ms | 0.976× |
+
+The same-scene native estimate adds the native-cloud scene's Three p95 to the
+raw pass's direct p95, because raw WebGPU work is outside Three's timestamp
+pool. The earlier handoff added the raw pass to the clouds-off scene instead;
+that omitted cloud-shadow and graph work shared by both real renderers and
+overstated the TSL penalty. Clouds-off remains recorded as a stability control,
+not the comparator.
+
+The two fixes together cut march p95 by 45–46% and whole-frame TSL p95 by about
+18%. P50 tells the same story: before TSL was 18.9–19.2% slower; after it was
+1.8–2.0% faster. One additional optimized attempt was rejected rather than
+averaged in: an unrelated `remote-run npm run verify` started during the run,
+native raw p95 jumped from about 2.02 to 7.04 ms, and the existing 4 ms native
+sanity gate failed. This directly confirms that concurrent Ryzen work can
+contaminate budget tests even though `hwlock ryzen-budget` excludes other
+budget tests.
 
 ## TSL traps found
 
@@ -102,6 +133,11 @@ than proposed for `main`.
 3. The averaged shape mip chain can remain byte-identical to the native source:
    let Three allocate and bind the 3D texture, then upload every prepared mip
    explicitly through the native device queue.
+4. Explicit-LOD texture reads may be placed in non-uniform control flow. The
+   implicit-derivative restriction does not require unconditional
+   `textureSampleLevel` reads.
+5. Compare split native timing against the same cloud-on scene. Clouds-off is
+   not an equivalent base because it also removes shadow and graph work.
 
 ## Deliberately unchanged
 

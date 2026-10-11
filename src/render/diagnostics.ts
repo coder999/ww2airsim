@@ -450,6 +450,8 @@ export type Ww2Diagnostics = {
     readonly historyResets: number
     /** Native Takram march + temporal reconstruction + composite GPU samples. */
     readonly takramGpuMs: readonly number[]
+    /** Full-TSL direct GPU samples for the separately rendered march and temporal passes. */
+    readonly takramPassGpuMs: { readonly march: readonly number[]; readonly temporal: readonly number[] }
     /** A2: whether the cloud pass is in the frame output (a clear sky routes it out). */
     readonly composited: boolean
   }

@@ -98,13 +98,16 @@ ordering and the accepted soft-edge treatment match. The residual stippling
 at thin near-cloud edges appears in both implementations; it was not added by
 TSL.
 
-The TSL port is technically successful but is **not a replacement candidate**.
-Two exclusive RX 6700 XT measurements put its whole-frame p95 at 7.042 and
-7.100 ms, still inside the 8.33 ms game gate. The conservative native totals
-were 4.820 and 5.373 ms, so TSL was 46% and 32% slower, respectively, missing
-the plan's at-most-15% promotion criterion. Keep the branch as a working
-research implementation and leave native WGSL selected for Takram flight.
-See `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
+The first TSL port was about 19% slower on a corrected same-scene comparison.
+An optimization pass restored R8 volumes and native WGSL's conditional
+1/2/4-sample explicit-LOD weather fetch. Two clean locked RX 6700 XT runs then
+put TSL whole-frame p95 at 5.746 and 5.772 ms versus same-scene native estimates
+of 5.890 and 5.915 ms. The TSL march itself fell from 2.820–2.839 to
+1.537–1.542 ms p95; temporal stayed 0.228–0.230 ms. It now clears both the
+8.33 ms game gate and the plan's at-most-15% promotion criterion. Keep it on
+the working research branch until Mark separately decides whether the
+maintenance benefit warrants replacing native WGSL. See
+`docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 
 ## 2. Where it lives
 
@@ -124,7 +127,7 @@ See `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 | Cumulus archetype generator (Python, numpy) | `tools/sky/cumulus.py` |
 | Asset provenance | `content/sky/NOTICE.md` |
 | GPU gates | `tests/e2e/budget.spec.ts`, `clouds.spec.ts`, `cloudTemporal.spec.ts`, `cloudShadow.spec.ts`, `motionBudget.spec.ts` |
-| DEV probes | `?cloudRenderer=legacy\|takram\|takram-tsl`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes renderer and native Takram GPU time), `__ww2.cloudShadowAt(x,z)` |
+| DEV probes | `?cloudRenderer=legacy\|takram\|takram-tsl`, `?cloudTier=off\|low\|medium\|high`, `?cloudDebug=` (depth, layer, shape, density, slab, point, eye, nodepth), `?cloudShadow=off\|show`, `?timeOfDay=`, `?look=yaw,pitch`, `?fx=off\|low\|medium\|high`, `?fxCloudLimit=off`, `__ww2.clouds()` (includes native total and TSL march/temporal GPU samples), `__ww2.cloudShadowAt(x,z)` |
 
 ## 3. History: what was tried and what it did
 
@@ -335,9 +338,14 @@ Two traps mattered:
 The first complete Ryzen/WebGPU flight passed with no console, page or WebGPU
 validation errors, including camera-cut history invalidation. Matched captures
 then showed that its remaining thin-edge breakup is the same accepted native
-artifact. Cost, not fidelity, stopped promotion: TSL whole-frame p95 was
-7.042–7.100 ms, against conservative native totals of 4.820–5.373 ms. The
-experiment remains useful source, but the native renderer stays authoritative.
+artifact. The first complete path was about 19% slower than native when
+compared against the same cloud-on scene. Keeping the 3D volumes in R8 and
+making the explicit-LOD weather-tile fetches conditional cut march p95 by
+45–46% and whole-frame p95 by about 18%. Optimized TSL measured
+5.746–5.772 ms versus same-scene native estimates of 5.890–5.915 ms and
+therefore passed the plan's performance criterion. The native renderer remains
+authoritative because the work intentionally stays on a research branch, not
+because TSL missed budget.
 
 ## 4. Traps
 
@@ -351,13 +359,16 @@ experiment remains useful source, but the native renderer stays authoritative.
   counters all default to `i`. Capture with `.toVar()` and pass `name:`.
 - Hoist int→float conversions into vars: a second inline `toFloat()`
   emits `f32 / i32`.
-- `textureSample` must stay in uniform control flow: sample
-  unconditionally, then select.
+- Implicit-LOD `textureSample` must stay in uniform control flow. Explicit-LOD
+  reads may be conditional; this distinction removed most of the full TSL
+  port's original march penalty.
 - **A render target written from `uv()` reads back flipped.** Write
   `1 - uv.y`.
 - The weather map must be sampled **NEAREST**; filtering blends two
   clouds' frames.
-- Portable 3D textures need RGBA8, so detail keeps a padding channel.
+- Three's WebGPU backend maps `RedFormat` plus `UnsignedByteType` to `r8unorm`
+  for 3D textures. Expanding source R8 volumes to RGBA8 wastes 4× the storage
+  and hurt the full TSL port's hot march.
 - `Math.round` yields `-0`; add `+ 0`.
 - A layout-less `Fn` is inlined at every call site. The light march's
   copies caused a ~39 s boot freeze (§3.9).
