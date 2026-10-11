@@ -57,6 +57,11 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   // Flattop Hunt has no recorded lines yet; keep both messages deliberately text-only.
   'Strike lead: flattop bearing two-two-five, twelve miles. Avengers take the carrier.': null,
   'Strike lead: Zuikaku is going down. Reform east and recover aboard Essex.': null,
+  // Escort (2026-10-10): the bomber lead is text-only too, no recordings yet.
+  'Bomber lead: little friend, glad to have you. Dulag strip, angels ten, seven minutes.': null,
+  "Bomber lead: bandits, eleven o'clock high, fifteen miles. Four Zeros.": null,
+  'Bomber lead: bombs away, hangars burning. Thanks for the ride, little friend.': null,
+  "Bomber lead: we've lost two ships.": null,
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

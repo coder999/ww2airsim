@@ -66,7 +66,9 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
  *  altitude and speed of the leg flown TO it. */
 const IngressObject = z.object({
   route: z.array(z.object({ x: finite, z: finite, altitudeM: positive, speedMps: positive }).strict()).min(1),
-  destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id }).strict()]).optional(),
+  /** An airfield destination is its runway center, or with `aim` (Escort plan, 2026-10-10) the middle of the
+   *  airfield's buildings with that id or tag, so a level-bombing formation can be sent at its hangars. */
+  destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id, aim: id.optional() }).strict()]).optional(),
   /** E2: what the raider does on arrival at its destination: a dive-bombing, torpedo or level-bombing
    *  run on it (the airplane is armed with its full racks). Absent: orbit it, as every raider before E2. */
   attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb']).optional(),
@@ -145,7 +147,7 @@ function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly
     : 'ship' in d
       ? { kind: 'ship', id: d.ship }
       : {
-          kind: 'point', x: lookup(airfields, d.airfield, 'airfield').runway.center.x, z: lookup(airfields, d.airfield, 'airfield').runway.center.z,
+          kind: 'point', ...airfieldAim(lookup(airfields, d.airfield, 'airfield'), d.aim),
           // E2: an attacker must know whose strip it is, so it never bombs its own. Present only on an attacker's orders.
           ...(i.attack === undefined ? {} : { side: airfieldSideOf(lookup(airfields, d.airfield, 'airfield'), airfieldSides) }),
         }
@@ -574,6 +576,16 @@ export const AIRBORNE_SPAWN_THROTTLE = 0.7
 export function windVectorFrom(windFromDeg: number, windMps: number): Vec3 {
   const rad = (windFromDeg * Math.PI) / 180
   return v3(-Math.sin(rad) * windMps, 0, Math.cos(rad) * windMps)
+}
+
+/** Where an airfield destination points: its runway center, or the middle of the buildings `aim` names (an id or
+ *  a tag). An `aim` that names none is a content error, thrown like an unknown id. */
+function airfieldAim(a: Airfield, aim: string | undefined): { x: number; z: number } {
+  if (aim === undefined) return { x: a.runway.center.x, z: a.runway.center.z }
+  const hit = a.buildings.filter((b) => b.id === aim || (b.tags ?? []).includes(aim))
+  if (hit.length === 0) throw new Error(`scenario aims at "${aim}", which names no building at airfield "${a.id}"`)
+  const n = hit.length
+  return localToWorld(a, hit.reduce((s, b) => s + b.x, 0) / n, hit.reduce((s, b) => s + b.z, 0) / n)
 }
 
 function lookup<T>(table: Readonly<Record<string, T>>, key: string, kind: string): T {

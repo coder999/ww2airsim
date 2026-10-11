@@ -221,6 +221,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'single-combat', label: 'Single Combat', kind: 'mission', badge: { id: 'single-combat', name: 'Single Combat' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // Track F (2026-10-10): the first shipped mission to use E2 torpedo-attack pilots and the Japanese carrier.
   { value: 'flattop-hunt', label: 'Flattop Hunt', kind: 'mission', badge: { id: 'flattop-hunt', name: 'Flattop Hunt' }, dev: false, start: 'airborne', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
+  // Track F (2026-10-10): escort four E3 B-17s to Dulag's hangars against Zeros. "Escort" is a substring of no other label.
+  { value: 'escort', label: 'Escort', kind: 'mission', badge: { id: 'escort', name: 'Escort' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // M2's two fixture missions, Dev-only like every test bed (A1).
   { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },

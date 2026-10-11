@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt' | 'escort'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -78,6 +78,7 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
   if (id === 'scramble' || id === 'single-combat') return `f2-${id}-${what}.png`
   if (id === 'tutorial') return `b4-tutorial-${what}.png`
   if (id === 'flattop-hunt') return `f-flattop-hunt-${what}.png`
+  if (id === 'escort') return `f-escort-${what}.png`
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
@@ -204,6 +205,34 @@ test('Flattop Hunt: briefing, FLATTOP 0/1, strike call, chart; into the sea earn
   await debriefShows(page, id, [
     ['Flattop', 'INCOMPLETE'],
     ['Screen (secondary)', 'INCOMPLETE'],
+    ['Recover', 'INCOMPLETE'],
+    ['Badge', 'Killed — no badge'],
+  ])
+})
+
+test('Escort: briefing, HANGARS 0/1, bomber lead call, chart; into the sea earns no badge', async ({ page }) => {
+  const id = 'escort'
+  const title = await orders(page, 'Escort Pilot')
+  const s = await briefingFor(page, title, id, 'Escort')
+  await launched(page, title, id, async (t) => {
+    await expect(t.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Clean' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  // `protect` is a standing order, never on the line (src/render/mission/hud.ts).
+  await expect(objectiveLine(page)).toHaveText('HANGARS 0/1')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+  // The formation is in the air with the player.
+  const bombers = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().filter((a) => a.id.startsWith('fort-')))
+  expect(bombers.map((a) => a.id).sort()).toEqual(['fort-1', 'fort-2', 'fort-3', 'fort-4'])
+
+  // From 11,500 ft, 1,600 ft higher than Convoy Strike's start: on the nexus 680M (2026-10-10) the default
+  // 120 s ran out at 1,000 ft.
+  await diveToSea(page, 180_000)
+  await debriefShows(page, id, [
+    ['Bombers', 'COMPLETE'],
+    ['Zeros (secondary)', 'INCOMPLETE'],
+    ['Hangars', 'INCOMPLETE'],
     ['Recover', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
