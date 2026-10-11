@@ -110,6 +110,47 @@ describe('the free-flight scenario', () => {
   })
 })
 
+describe('the Tank Buster mission', () => {
+  const tankBundle = loadScenarioBundle('tank-buster')
+  const world = worldFromScenario(tankBundle, terrain, 'both')
+  const tanks = world.structures.filter((s) => s.kind === 'tank')
+
+  it('places six hostile 48 HP Chi-Ha stand-ins on Leyte terrain', () => {
+    expect(tanks).toHaveLength(6)
+    expect(tanks.every((tank) => tank.model === 'type97-chi-ha' && tank.hp === 48 && tank.side === 'axis')).toBe(true)
+    expect(tanks.every((tank) => Math.abs(tank.position.y - tank.halfSize.y - heightAt(terrain, tank.position.x, tank.position.z)) < 1e-6)).toBe(true)
+  })
+
+  it('starts six miles north of the column and pointed south down the attack run', () => {
+    const aircraft = tankBundle.scenario.aircraft[0]!
+    expect('airborneAt' in aircraft).toBe(true)
+    if (!('airborneAt' in aircraft)) throw new Error('Tank Buster player must start airborne')
+    const spawn = aircraft.airborneAt
+    const [x, , z] = spawn.position
+    const [targetX, targetZ] = tankBundle.scenario.vehicles![0]!.position
+    expect(Math.hypot(x - targetX, z - targetZ) / 1609.344).toBeCloseTo(6, 1)
+    expect(z).toBeLessThan(targetZ)
+    expect(spawn.headingDeg).toBe(180)
+    const velocity = world.aircraft.find((aircraft) => aircraft.id === tankBundle.scenario.player)!.state.velocity
+    expect(Math.abs(velocity.x)).toBeLessThan(1e-9)
+    expect(velocity.z).toBeGreaterThan(0)
+  })
+
+  it('groups targets into three bombable pairs without bunching the whole column', () => {
+    const distance = (a: typeof tanks[number], b: typeof tanks[number]): number => Math.hypot(a.position.x - b.position.x, a.position.z - b.position.z)
+    expect([distance(tanks[0]!, tanks[1]!), distance(tanks[2]!, tanks[3]!), distance(tanks[4]!, tanks[5]!)]
+      .every((meters) => meters < 18)).toBe(true)
+    expect(distance(tanks[1]!, tanks[2]!)).toBeGreaterThan(100)
+  })
+
+  it('requires four tank kills before recovery and all six for the secondary objective', () => {
+    const objectives = world.mission!.objectives
+    expect(objectives.find((o) => o.id === 'armor')).toMatchObject({ kind: 'destroy', count: 4, resolved: tanks.map((tank) => tank.id) })
+    expect(objectives.find((o) => o.id === 'column')).toMatchObject({ kind: 'destroy', resolved: tanks.map((tank) => tank.id) })
+    expect(objectives.find((o) => o.id === 'home')).toMatchObject({ kind: 'land', at: 'tacloban', after: 'armor' })
+  })
+})
+
 /**
  * Plans 7a, 7b and 7d measured the AI against ONE geometry: the pursuer 500 m
  * astern of the player, 5 m/s faster, both due east at 3,000 m, the player's

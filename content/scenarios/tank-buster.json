@@ -1,0 +1,87 @@
+{
+  "id": "tank-buster",
+  "player": "f6f-1",
+  "airfields": ["tacloban", "dulag"],
+  "aircraft": [
+    {
+      "id": "f6f-1",
+      "spec": "f6f-hellcat",
+      "airborneAt": {
+        "position": [-33500, 915, -28156],
+        "headingDeg": 180,
+        "speedMps": 70,
+        "throttle": 0.82
+      }
+    }
+  ],
+  "ships": [],
+  "vehicles": [
+    { "id": "tank-1", "model": "type97-chi-ha", "position": [-33500, -18500], "headingDeg": 222, "hp": 48, "tags": ["tank-column"] },
+    { "id": "tank-2", "model": "type97-chi-ha", "position": [-33510, -18514], "headingDeg": 222, "hp": 48, "tags": ["tank-column"] },
+    { "id": "tank-3", "model": "type97-chi-ha", "position": [-33620, -18640], "headingDeg": 224, "hp": 48, "tags": ["tank-column"] },
+    { "id": "tank-4", "model": "type97-chi-ha", "position": [-33631, -18653], "headingDeg": 224, "hp": 48, "tags": ["tank-column"] },
+    { "id": "tank-5", "model": "type97-chi-ha", "position": [-33740, -18780], "headingDeg": 226, "hp": 48, "tags": ["tank-column"] },
+    { "id": "tank-6", "model": "type97-chi-ha", "position": [-33750, -18794], "headingDeg": 226, "hp": 48, "tags": ["tank-column"] }
+  ],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 3,
+    "timeOfDay": 9.25,
+    "clouds": [
+      { "kind": "cumulus", "baseM": 1250, "thicknessM": 500, "coverage": 0.25 }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "armor",
+      "label": "Break the tank column",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": ["tank-column"],
+      "count": 4
+    },
+    {
+      "id": "column",
+      "label": "Destroy every tank",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": ["tank-column"]
+    },
+    {
+      "id": "home",
+      "label": "Recover at Tacloban",
+      "priority": "primary",
+      "kind": "land",
+      "at": "tacloban",
+      "after": "armor"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "vector",
+      "when": { "at": 1 },
+      "then": [
+        { "message": "Forward air control: Japanese armor is moving southwest of Dulag. Three pairs along the road." }
+      ]
+    },
+    {
+      "id": "egress",
+      "when": { "completed": "armor" },
+      "then": [
+        { "message": "Forward air control: column broken. Return to Tacloban, or finish the remaining tanks." }
+      ]
+    }
+  ],
+  "badge": { "id": "tank-buster", "name": "Tank Buster" },
+  "briefing": {
+    "situation": "A Japanese tank column is moving inland southwest of Dulag. You are airborne six miles north of the column with six rockets and two 1,000 lb bombs, already pointed down the attack run. Destroy at least four of the six tanks, then recover at Tacloban. The vehicles travel in three close pairs: a precise bomb can catch a pair, while rockets and .50-caliber fire can finish damaged armor.",
+    "loadout": "both"
+  },
+  "history": {
+    "text": "Japanese tanks fought on Leyte after the October 1944 landings, including armor of the 7th Independent Tank Company along the Dulag-Burauen road and later actions around the airfields. American aircraft repeatedly attacked Japanese movement and reinforcements during the campaign. This sortie is a playable composite, not a reconstruction of one recorded attack. The game's Type 97 Chi-Ha is authentic to the Philippines theater but is a temporary visual stand-in here: Type 89 medium tanks and Type 95 Ha-Go light tanks are better documented with the Japanese armored force on Leyte.",
+    "sources": [
+      "M. Hamlin Cannon, Leyte: The Return to the Philippines (Washington: Office of the Chief of Military History, 1954; CMH Pub 5-9-1), U.S. Army Center of Military History: https://www.govinfo.gov/content/pkg/GOVPUB-D114-PURL-gpo107815/pdf/GOVPUB-D114-PURL-gpo107815.pdf",
+      "Louis Morton, The Fall of the Philippines (Washington: Office of the Chief of Military History, 1953; CMH Pub 5-2), U.S. Army Center of Military History: https://history.army.mil/portals/143/Images/Publications/catalog/5-2.pdf"
+    ]
+  }
+}

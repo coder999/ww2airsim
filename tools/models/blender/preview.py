@@ -1,7 +1,7 @@
 # tools/models/blender/preview.py
 """Renders a glb to a PNG for a handoff: Cycles on the CPU (nexus is headless; 0.3 s for a
 cube at 16 samples, measured 2026-09-26). Not a gate; the Hangar's Tier 2 is the gate from M1 on.
-Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb> [--view front|rear|below]
+Usage: blender -b --factory-startup --python-exit-code 1 -P preview.py -- <out.png> --glb <in.glb> [--view front|rear|below|side|top]
 """
 import math
 import os
@@ -14,8 +14,8 @@ from mathutils import Vector  # noqa: E402
 
 out, opts = kit.cli_args()
 view = opts.get('view', 'front')
-if view not in ('front', 'rear', 'below'):
-    raise ValueError(f'--view must be front, rear or below, got {view!r}')
+if view not in ('front', 'rear', 'below', 'side', 'top'):
+    raise ValueError(f'--view must be front, rear, below, side or top, got {view!r}')
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=opts['glb'])
@@ -54,6 +54,11 @@ cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam'))
 if view == 'below':
     # Beneath and a little forward and aside, looking up at the belly (R3: the Zero's drop-tank cut).
     cam.location = center + Vector((radius * 1.2, -radius * 1.6, -radius * 3.0))
+elif view == 'side':
+    # Square on to the left side (glTF +z is Blender -y, so the camera sits at +y looking at -y), for profile checks.
+    cam.location = center + Vector((0.0, radius * 3.2, 0.0))
+elif view == 'top':
+    cam.location = center + Vector((0.0, 0.0, radius * 3.2))
 else:
     cam.location = center + Vector((radius * 1.8, side * radius * 2.8, radius * 1.3))
 scene.collection.objects.link(cam)

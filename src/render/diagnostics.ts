@@ -22,6 +22,7 @@ import type { TakeoffPhase } from '../sim/ai/takeoff.js'
 import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { MissionDiagnostics } from './mission/hud.js'
 import type { ReplayCameraId } from '../replay/cameras.js'
+import type { GraphicsCheckRecord, GraphicsCheckSnapshot } from './graphicsCheck.js'
 
 export type ImpactMarkerDiagnostics = {
   readonly on: boolean
@@ -373,6 +374,13 @@ export type Ww2Diagnostics = {
    * ~3 s a fresh profile takes to flip it.
    */
   readonly qualityProbeChecked: () => boolean
+  /** Preflight check state and the persisted recommendation used by the
+   * running page. The session is null when a custom choice or current record
+   * skipped measurement. */
+  readonly graphicsCheck: () => {
+    readonly session: GraphicsCheckSnapshot | null
+    readonly record: GraphicsCheckRecord | null
+  }
   /** `landWeightFromTerrain` at world (x, z), read on the CPU from the SAME
    *  terrain texture the ocean mesh samples for its land weight. 1 over
    *  open water, 0 on land, `null` before the ocean exists. Added
@@ -385,6 +393,8 @@ export type Ww2Diagnostics = {
   readonly deck: () => { readonly shipId: string; readonly heightM: number; readonly velocity: Vec3 } | null
   /** Each ship's drawn model id, in world order, or null where the procedural boxes are drawn (ship-models spec §9). */
   readonly shipModels: () => readonly (string | null)[]
+  /** Number of scenario-authored ground-vehicle models owned by the live scene. */
+  readonly vehicleModelCount: () => number
   /**
    * The world height of the topmost rendered surface of ship `shipId` straight
    * below each point, read from the loaded, posed view (`probeShipSurface`,

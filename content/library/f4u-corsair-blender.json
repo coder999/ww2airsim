@@ -1,0 +1,29 @@
+{
+  "id": "f4u-corsair-blender",
+  "name": "Vought F4U-1D Corsair (Blender model)",
+  "kind": "aircraft",
+  "side": "allied",
+  "model": {
+    "kind": "aircraft",
+    "id": "f4u-corsair-blender"
+  },
+  "blurb": "A second Corsair model, built in Blender from the cited dimensions and kept beside the downloaded one for comparison: inverted gull wing, moving gear, propeller and control surfaces, the same stance as the flying Corsair. Not flown yet.",
+  "history": "The Vought F4U Corsair was designed as a carrier fighter and entered service in large numbers with the U.S. Navy and Marine Corps. Early trouble with carrier landings sent it first to land-based Marine and Navy squadrons, and the Grumman F6F Hellcat, which used the same Double Wasp engine, became the dominant carrier fighter instead.\n\nWhat this entry models: an original Blender model of the F4U-1D (span 41 ft 0 in, length 33 ft 8 in, 3-bladed propeller), with every figure the sources do not give labeled as an estimate in its script. The flying Corsair still draws the downloaded model.",
+  "sources": [
+    {
+      "title": "Vought F4U Corsair",
+      "url": "https://en.wikipedia.org/wiki/Vought_F4U_Corsair",
+      "read": "2026-09-25"
+    },
+    {
+      "title": "F4U-1D Detail Specification, Report No. 6756 (Chance Vought, 15 Feb 1945)",
+      "url": "https://www.wwiiaircraftperformance.org/f4u/f4u.html",
+      "read": "2026-09-29"
+    },
+    {
+      "title": "FG-1A Production Inspection Trials, TED BIS 2122 (NAS Patuxent River, 1944)",
+      "url": "https://www.wwiiaircraftperformance.org/f4u/f4u.html",
+      "read": "2026-09-29"
+    }
+  ]
+}

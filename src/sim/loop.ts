@@ -547,6 +547,8 @@ export function createWorldOf<M>(parts: {
   readonly airfields?: readonly Airfield[]
   readonly terrain?: TerrainField | null
   readonly wind?: Vec3 | null
+  /** Scenario-authored stationary ground targets, already in world coordinates. */
+  readonly structures?: readonly StructureEntity[]
   /** Per-aircraft starting stores, by id (Task 7). An aircraft with no entry
    *  here gets `emptyStores`, matching every call site's behavior before
    *  this parameter existed -- `worldFromScenario` is the only caller that
@@ -605,8 +607,11 @@ export function createWorldOf<M>(parts: {
   // and an enemy airfield on the player's own side is a content error --
   // its structures would count toward RAZED and discharge the pilot at once.
   const airfieldSide = new Map((parts.airfields ?? []).map((a) => [a.id, airfieldSideOf(a, parts.airfieldSides)]))
-  const structures = buildStructures(parts.airfields ?? [], parts.terrain ?? null)
-    .map((s) => ({ ...s, side: airfieldSide.get(s.airfield) ?? 'axis' }))
+  const structures = [
+    ...buildStructures(parts.airfields ?? [], parts.terrain ?? null)
+      .map((s) => ({ ...s, side: airfieldSide.get(s.airfield!) ?? 'axis' })),
+    ...(parts.structures ?? []),
+  ]
   const enemyAirfields = parts.enemyAirfields ?? []
   const playerSide = sideOf(parts, parts.aircraft.find((a) => a.id === parts.player)!)
   for (const e of enemyAirfields) {
@@ -614,7 +619,10 @@ export function createWorldOf<M>(parts: {
       throw new Error(`createWorldOf: enemy airfield "${e}" is on the player's own side (${playerSide})`)
     }
   }
-  const enemyStructureIds = new Set(structures.filter(s => enemyAirfields.includes(s.airfield)).map(s => s.id))
+  const authoredIds = new Set((parts.structures ?? []).map((s) => s.id))
+  const enemyStructureIds = new Set(structures
+    .filter((s) => authoredIds.has(s.id) || (s.airfield !== undefined && enemyAirfields.includes(s.airfield)))
+    .map((s) => s.id))
   return {
     tick: 0,
     combat: createCombat(
