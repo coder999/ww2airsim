@@ -6,6 +6,11 @@ import {
 import { GREEN_SKILL } from '../../src/sim/ai/pilot.js'
 import { MIN_ENGAGEMENT_RANGE_M } from '../../src/sim/ai/decision.js'
 import { isBehind } from '../e2e/pursuitGeometry.js'
+import { worldFromScenario } from '../../src/sim/scenario.js'
+import { applyDifficulty } from '../../src/sim/difficulty.js'
+import { initialFrameStateFor, nextFrameState, withTerrain } from '../../src/render/frame.js'
+import { loadScenarioBundle } from '../../tools/content/load.js'
+import { terrainOrSkip } from '../sim/mission/fly.js'
 
 /**
  * 7c spec §3.1: the lethality instrument, and the regression gate for every
@@ -109,4 +114,39 @@ describe('the 7d bar: a scripted evasion gets behind a green pursuer (item 3)', 
       expect(m.structure, `${loadout}, cursor ${cursor}: pursuer structure`).toBeGreaterThan(0)
     }
   })
+})
+
+/**
+ * `ai-pursuit-difficulty.spec.ts` itself, headless (E4, 2026-10-10): the
+ * shipped `pursuit-range` head-on merge, green, the `both` loadout, Normal. The
+ * browser flies the world hands-off until the terrain has loaded, then the
+ * spec holds the keys; here the terrain arrives at `D` s and EVASION starts
+ * then, and `isBehind` is read every second after the 7 s of keys, for 40 s.
+ *
+ * Measured 2026-10-10, D swept 0-7 s in 0.25 s steps: behind (at 7-11 s
+ * after the keys) for every D from 0.75 to 5 s, never at 0-0.5 s or from
+ * 5.25 s; identical at 60, 120 and 144 frames a second, and identical on
+ * `main` before Escort (`cbc7d5ff`), after it (`bd7c8661`) and on E4, with
+ * E4's stall guard, stall-speed unload and rudder limit each switched off:
+ * none of them reaches this green. So the E2E passes or fails on how long the
+ * terrain takes to load. Pinned: every whole D from 1 to 5 s.
+ */
+const terrain = terrainOrSkip()
+describe.skipIf(terrain === null)('the 7d bar on the shipped head-on merge, as the E2E flies it (E4)', () => {
+  it('behind a green pursuer within 40 s of the keys, for a terrain load of 1-5 s', () => {
+    const base = worldFromScenario(loadScenarioBundle('pursuit-range'), null, 'both')
+    const world = applyDifficulty({ ...base, aircraft: base.aircraft.map((a) => a.pilot == null ? a : { ...a, pilot: { ...a.pilot, skill: GREEN_SKILL } }) }, 'normal')
+    for (const d of [1, 2, 3, 4, 5]) {
+      let f = initialFrameStateFor(world)
+      let behindS: number | null = null
+      for (let i = 1; i <= (d + 47) * 60 && behindS === null; i++) {
+        const t = i / 60
+        if (f.world.terrain === null && t >= d) f = withTerrain(f, terrain)
+        f = nextFrameState(f, 1 / 60, t < d ? new Set() : EVASION(t - d))
+        if (playerDestroyed(f)) throw new Error(`D ${d}: player destroyed at tick ${f.world.tick}`)
+        if (t >= d + 7 && i % 60 === 0 && isBehind(diagOf(aircraftOf(f, f.world.player)), diagOf(aircraftOf(f, PURSUER)), 400, 45)) behindS = t - d
+      }
+      expect(behindS, `terrain at ${d} s: never behind`).not.toBeNull()
+    }
+  }, 60_000)
 })
