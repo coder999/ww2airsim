@@ -40,6 +40,13 @@ Everything the download it may replace has, because the game draws a flyable air
    2.58 m aft of the spinner tip for the Hellcat, Corsair and Wildcat). Scale each drawing by its own spinner-tip-to-tail pixels over the cited length. Put
    the tables in the script as meters aft of the nose, with the drawing named in the header. Check by overlaying the
    model's centerline silhouette on the drawing: the three fighters' tops, canopies and bellies sit within a few cm of it.
+   Before accepting those measurements, search public factory-drawing catalogs for master lines, loft ordinates and
+   installation drawings. Record useful drawing numbers, titles and access status even when the sheets are gated, but
+   never treat an index title as numerical validation or bypass membership controls. The B-17 pass found useful public
+   AirCorps Library metadata for cockpit, inboard-wing, wing-rib, fin, rear-gun and stabilizer contour sets; the sheets
+   themselves require sign-in, so they remain a recommended refinement rather than a source used by the model.
+   A blank field in an otherwise cited specification is still an **ESTIMATE**: for example, the B-17G Wikipedia table
+   names three-blade propellers but leaves diameter blank, so the script labels its drawing-measured diameter accordingly.
 2. **Pick the nearest template and copy it.** Do not start from `kit.py`.
    - one engine, tractor, tail dragger: `f6f-hellcat-blender.py` (fighters; also `ki-84-frank.py`, `tbm-3-avenger.py`)
    - bent (gull) wing: `f4u-corsair-blender.py`
@@ -85,6 +92,10 @@ Everything the download it may replace has, because the game draws a flyable air
    - `tests/tools/models/aircraftDimensions.test.ts` (`CITED`), and `aircraftRigs.test.ts` (the pinned list of
      airframes with surfaces).
    - `tests/tools/models/blenderDuplicates.test.ts`: one row pairing the duplicate with the spec it copies.
+   - A turreted Hangar-only duplicate also belongs in the pinned `turreted` list in
+     `tests/tools/models/gunnerMounts.test.ts`; keep its no-spec id out of the flyable gunner/content comparison.
+   - A Hangar-only duplicate with bay doors has no spec travel time and thus no Cycle button. In Hangar check 7b,
+     drive its `bayDoorFraction` directly while keeping the timed Cycle assertion for flyable bay aircraft.
    - `tests/e2e/hangar.spec.ts`: the id in checks 10 and 16.
    - A new paint role needs a `PALETTE` entry in `kit.py` and a surface entry in `tools/models/skin/surfaces.ts`
      (the build fails by name without the second).

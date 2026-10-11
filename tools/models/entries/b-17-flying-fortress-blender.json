@@ -1,0 +1,49 @@
+{
+  "id": "b-17-flying-fortress-blender",
+  "output": "content/aircraft/b-17-flying-fortress-blender.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/b-17-flying-fortress-blender.py",
+    "dimensions": "span 31.62 m, length 22.66 m, wing area 131.92 m2, NACA 0018 / NACA 0010 airfoils, 3-bladed Hamilton-Standard propellers and thirteen .50 in M2 guns: English Wikipedia 'Boeing B-17 Flying Fortress', Specifications (B-17G), read 2026-10-11; propeller diameter and every other figure not supplied there are ESTIMATE or drawing-measured as labeled in the script header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "normalize": {
+    "forward": "+x",
+    "up": "+y",
+    "origin": [0, 0, 0],
+    "fit": { "extent": "span", "meters": 31.62 }
+  },
+  "keep": [
+    { "node": "Prop1", "pivot": { "point": [2.42, 0.094, -6.53], "axis": "+x" } },
+    { "node": "Prop2", "pivot": { "point": [2.88, -0.1815, -3.03], "axis": "+x" } },
+    { "node": "Prop3", "pivot": { "point": [2.88, -0.1815, 3.03], "axis": "+x" } },
+    { "node": "Prop4", "pivot": { "point": [2.42, 0.094, 6.53], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.852, -0.42, -3.03], "axis": "+z" } },
+    { "node": "GearR", "pivot": { "point": [0.852, -0.42, 3.03], "axis": "+z" } },
+    { "node": "Tailwheel", "pivot": { "point": [-10.623, -0.45, 0], "axis": "+z" } },
+    { "node": "Turret1", "pivot": { "point": [7.15, -0.76, 0], "axis": "-y" } },
+    { "node": "Turret1Guns" },
+    { "node": "Turret2", "pivot": { "point": [6.15, 0.15, -1.34], "axis": "+y" } },
+    { "node": "Turret2Guns" },
+    { "node": "Turret3", "pivot": { "point": [6.15, 0.15, 1.34], "axis": "+y" } },
+    { "node": "Turret3Guns" },
+    { "node": "Turret4", "pivot": { "point": [3.25, 1.9, 0], "axis": "+y" } },
+    { "node": "Turret4Guns" },
+    { "node": "Turret5", "pivot": { "point": [-1.25, -1.72, 0], "axis": "-y" } },
+    { "node": "Turret5Guns" },
+    { "node": "Turret6", "pivot": { "point": [-13.76, 0.61, 0], "axis": "+y" } },
+    { "node": "Turret6Guns" },
+    { "node": "AileronL" },
+    { "node": "AileronR" },
+    { "node": "Flap1L" },
+    { "node": "Flap1R" },
+    { "node": "ElevatorL" },
+    { "node": "ElevatorR" },
+    { "node": "Rudder" },
+    { "node": "BayDoor1L" },
+    { "node": "BayDoor1R" }
+  ],
+  "skin": true,
+  "textures": { "maxSize": 1024, "format": "webp" },
+  "budget": { "maxBytes": 5000000, "maxTriangles": 100000, "maxDrawCalls": 47 }
+}

@@ -14,14 +14,17 @@ import { modelIO } from '../../../tools/models/document.js'
  */
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.slice(0, -5)))
 const turreted = Object.entries(AIRFRAME_RIGS).filter(([, r]) => Object.keys(r.turretArcs ?? {}).length > 0).map(([id]) => id).sort()
+// A Hangar-only duplicate deliberately has no aircraft spec. Its moving turret geometry is still
+// pinned above, but it cannot have sim gunners until promotion supplies combat content.
+const flyableTurreted = turreted.filter((id) => specs.some((s) => s.id === id))
 
 describe('gunners match the drawn turrets', () => {
   it('every airframe with turret arcs has gunners, and only those (pinned)', () => {
-    expect(turreted).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger'])
-    expect(specs.filter((s) => (s.combat?.gunners ?? []).length > 0).map((s) => s.id).sort()).toEqual(turreted)
+    expect(turreted).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger'])
+    expect(specs.filter((s) => (s.combat?.gunners ?? []).length > 0).map((s) => s.id).sort()).toEqual(flyableTurreted)
   })
 
-  it.each(turreted)('%s: each gunner is its turret: arc, pivot and rest heading', async (id) => {
+  it.each(flyableTurreted)('%s: each gunner is its turret: arc, pivot and rest heading', async (id) => {
     const arcs = AIRFRAME_RIGS[id]!.turretArcs!
     const gunners = specs.find((s) => s.id === id)!.combat!.gunners!
     expect(gunners.map((g) => g.mount).sort()).toEqual(Object.keys(arcs).sort())

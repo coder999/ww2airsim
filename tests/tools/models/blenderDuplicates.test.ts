@@ -19,6 +19,7 @@ const DUPLICATES: readonly { spec: string; model: string; skin: string; station?
   { spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17] },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.82, 0.95] },
+  { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [4.65, 1.66] },
 ]
 const TOLERANCE_M = 0.05
 
