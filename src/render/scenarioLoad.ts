@@ -32,15 +32,18 @@ export async function loadScenarioFile(id: string, fetchImpl: typeof fetch = fet
 
 /** `playerSpec` (sortie forms) flies the scenario's player as that spec: the
  *  entry is rewritten BEFORE the spec table is built, so the chosen spec is
- *  fetched and parsed like any other the scenario names. */
-export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string): Promise<ScenarioBundle> {
+ *  fetched and parsed like any other the scenario names. `extend` (DEV only,
+ *  the entity-scaling swarm) rewrites the scenario at the same point, for the
+ *  same reason. */
+export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string, extend?: (s: Scenario) => Scenario): Promise<ScenarioBundle> {
   const json = async (url: string): Promise<unknown> => {
     const res = await fetchImpl(url)
     if (!res.ok) throw new Error(`Failed to fetch content ${url}: ${res.status} ${res.statusText}`)
     return res.json() as Promise<unknown>
   }
   const parsed = await loadScenarioFile(id, fetchImpl)
-  const scenario = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)
+  const chosen = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)
+  const scenario = extend === undefined ? chosen : extend(chosen)
   // Deduplicated and fetched in parallel: the free-flight scenario names one
   // aircraft spec twice (two Hellcats) and Tacloban twice (the strip and both
   // parked airplanes), so the naive form would ask for the same file four

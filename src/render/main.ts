@@ -1,4 +1,4 @@
-import { Group, PerspectiveCamera, Scene, Vector2, Vector3 } from 'three'
+import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type Object3D } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
 import { applyRenderScale, initRenderer, normalizeGpuError, renderScaleFromQuery } from './renderer.js'
@@ -122,7 +122,8 @@ import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerSho
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
-import { withMainBatteries, withoutMainBatteries, worldFromScenario, type ScenarioBundle } from '../sim/scenario.js'
+import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
+import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type SortieChoice } from '../sim/sortie.js'
@@ -153,7 +154,7 @@ import {
 import { GREEN_SKILL, VETERAN_SKILL } from '../sim/ai/pilot.js'
 import { length, v3, type Vec3 } from '../sim/math/vec3.js'
 import { qFromAxisAngle, qRotate } from '../sim/math/quat.js'
-import { FRAME_TIME_CAPACITY, type ImpactMarkerDiagnostics, type Ww2Diagnostics } from './diagnostics.js'
+import { FRAME_TIME_CAPACITY, type CpuFrameSample, type ImpactMarkerDiagnostics, type Ww2Diagnostics } from './diagnostics.js'
 import { antiAliasingFromQuery, createFramePipeline, sharpenFromQuery } from './pipeline.js'
 import { exposureFor, toneMapFromQuery } from './exposure.js'
 import { coverFieldFor, loadCover } from './landcover/load.js'
@@ -227,6 +228,19 @@ const gpuFrameTimesMs: number[] = []
  * a combined sample can be skipped (see the resolve below), this one cannot.
  */
 const gpuRenderTimesMs: number[] = []
+
+/**
+ * DEV only (entity-scaling plan, 2026-10-10): one sample per frame of the main thread's own cost --
+ * `frameFn` start to end, the `nextFrameState` part of it (the sim) and the ticks that ran -- and the
+ * draw calls and triangles the frame submitted (three's `renderer.info` counters, read as deltas across
+ * `frameFn`; three resets them in its own rAF callback). `rendered` is false for a frame skipped while a
+ * GPU timestamp resolve was pending (see the sampling comment in `frameFn`). Same window and capacity as
+ * `frameTimesMs`.
+ */
+const cpuFrameSamples: CpuFrameSample[] = []
+/** DEV: `__ww2.setGpuSampling(false)` stops timestamp sampling, and with it the frame serialization that
+ *  sampling forces, so a CPU window measures frames as a player gets them. Always true in production. */
+let gpuSamplingOn = true
 
 async function boot(): Promise<void> {
   /**
@@ -375,6 +389,23 @@ async function boot(): Promise<void> {
   // every `loadScenario` call" reasoning as `override` above, since it too
   // is a pure function of the URL rather than of the scenario just fetched.
   const forcedPilotSkill = import.meta.env.DEV ? pilotSkillFromQuery(window.location.search) : undefined
+  // DEV `?swarmAircraft=N&swarmShips=M&swarmLayout=tight|mission` (sim/swarm.ts, entity-scaling plan
+  // 2026-10-10): N AI aircraft and M ships added to whatever scenario loads, around the spawn override
+  // (heading east, as the override flies) or the player's airborne start.
+  const swarm = import.meta.env.DEV ? swarmFromQuery(window.location.search) : null
+  const extendScenario = import.meta.env.DEV && swarm !== null
+    ? (s: Scenario): Scenario => {
+        const start = s.aircraft.find((a) => a.id === s.player)
+        const airborne = start !== undefined && 'airborneAt' in start ? start.airborneAt : null
+        if (!override && airborne === null) throw new Error('swarm: needs ?spawnX/Y/Z or a scenario whose player starts airborne')
+        const fallback = airborne === null ? v3(0, 0, 0) : v3(...airborne.position)
+        const at = override ? spawnPositionFromQuery(window.location.search, fallback) : fallback
+        return withSwarm(s, swarm, { x: at.x, y: at.y, z: at.z, headingDeg: override ? 90 : airborne!.headingDeg })
+      }
+    : undefined
+  // `?swarmHide=1` (DEV) keeps the swarm flying but draws none of it: the render cost of its meshes,
+  // by difference, i.e. the most any level-of-detail scheme for them could buy back.
+  const swarmHidden = import.meta.env.DEV && swarm !== null && new URLSearchParams(window.location.search).get('swarmHide') === '1'
   /**
    * Fetches one scenario's content bundle and rebuilds everything sized to
    * its entity lists: `scenarioWorld` (read once, below, for the player's
@@ -430,7 +461,7 @@ async function boot(): Promise<void> {
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
       scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
     }
-    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec)
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev })
@@ -459,6 +490,7 @@ async function boot(): Promise<void> {
     spawnPosition = nextSpawnedAt
     loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
+    if (swarmHidden) nextScenarioWorld.ships.forEach((s, i) => { if (s.id.startsWith('swarm-')) scenarioEntities!.shipHandles[i]!.root.visible = false })
     applyScenarioWeather?.(nextBundle.scenario.weather)
   }
   /**
@@ -1181,9 +1213,33 @@ async function boot(): Promise<void> {
       // Plan 17: the radar scope's live state, same `frame`-guard as `combat`
       // above -- the hook is installed before the first frame exists.
       radar: () => (frame ? { rangeMi: selectedRadarRangeMi, sweepRad: radarSweepRad, contacts: radarContactList } : null),
+      cpuFrameSamples: () => cpuFrameSamples.slice(),
+      setGpuSampling: (on: boolean) => { gpuSamplingOn = on },
+      entityCounts: () => {
+        // Entity-scaling plan: how many hulls and airframes the camera has in front of it, by origin.
+        const tanY = Math.tan((camera.fov * Math.PI) / 360)
+        const tanX = tanY * camera.aspect
+        const v = new Vector3()
+        const inView = (o: Object3D): boolean => {
+          v.setFromMatrixPosition(o.matrixWorld).applyMatrix4(camera.matrixWorldInverse)
+          return o.visible && v.z < 0 && Math.abs(v.x) <= -v.z * tanX && Math.abs(v.y) <= -v.z * tanY
+        }
+        const airframes = scenarioEntities?.airframes ?? []
+        const ships = scenarioEntities?.shipHandles ?? []
+        const combat = frame?.world.combat
+        return {
+          aircraft: airframes.length,
+          ships: ships.length,
+          aircraftInView: airframes.filter((a) => inView(a.root)).length,
+          shipsInView: ships.filter((h) => inView(h.root)).length,
+          aircraftDown: combat === undefined ? 0 : Object.values(combat.aircraft).filter((r) => r.damage.destroyedAt !== null).length,
+          projectiles: combat?.projectiles.length ?? 0,
+        }
+      },
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
         frameTimesMs.length = 0
+        cpuFrameSamples.length = 0
         gpuFrameTimesMs.length = 0
         gpuRenderTimesMs.length = 0
       },
@@ -2388,7 +2444,9 @@ async function boot(): Promise<void> {
   // stepChecked runs Plan 1's invariants every tick in development, turning
   // "the airplane teleported" into "a NaN entered at tick 4,102"; step is
   // the production path with no per-step assertion cost.
-  const stepper = import.meta.env.DEV ? stepChecked : step
+  // `?invariants=off` (DEV, entity-scaling plan) runs the production `step`, so a frame-cost measurement
+  // does not include the per-tick invariant checks.
+  const stepper = import.meta.env.DEV && new URLSearchParams(location.search).get('invariants') !== 'off' ? stepChecked : step
 
   // DEV only, matching `__ww2` and `stepChecked` a few lines above. It was
   // unconditional until 2026-09-13, and its "dropped N <-- replay invalid"
@@ -2407,6 +2465,9 @@ async function boot(): Promise<void> {
   // Whether a timestamp resolve is outstanding; see the call site below.
   let gpuResolvePending = false
   const frameFn = (now: number): void => {
+    const workStart = import.meta.env.DEV ? performance.now() : 0
+    const drawCallsAtStart = import.meta.env.DEV ? renderer.info.render.drawCalls : 0
+    const trianglesAtStart = import.meta.env.DEV ? renderer.info.render.triangles : 0
     const frameMs = now - last
     last = now
 
@@ -2482,7 +2543,9 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
+    const simStart = import.meta.env.DEV ? performance.now() : 0
     let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode)
+    const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
     if (forcedLook !== undefined && current.look.yawRad === 0 && current.look.pitchRad === 0) {
@@ -2785,7 +2848,7 @@ async function boot(): Promise<void> {
       airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000, damage, view.world.tick, a.id), aim: turretAimFor(view.world, view.poses, i) })
       // An airframe that exploded in the air is gone once its wreck reaches the surface: the crash
       // effect covers the spot (damage stages, 2026-10-09). The player's own is the debrief's.
-      if (a.id !== view.world.player) airframes[i]!.root.visible = !(damage?.destroyedAt != null && a.impact !== null)
+      if (a.id !== view.world.player) airframes[i]!.root.visible = !(damage?.destroyedAt != null && a.impact !== null) && !(swarmHidden && a.id.startsWith('swarm-'))
     })
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
@@ -2997,8 +3060,9 @@ async function boot(): Promise<void> {
     // previous frame's timestamp resolve has landed. The paragraph after the
     // next explains why the guard alone stopped being enough on 2026-09-17.
     const inFlight = !title.up() && !swapPending && !navigationMapState.open && replay === null
-    const sampling = renderer.hasFeature('timestamp-query') && gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
-    if (!(sampling && gpuResolvePending)) {
+    const sampling = gpuSamplingOn && renderer.hasFeature('timestamp-query') && gpuRenderTimesMs.length < FRAME_TIME_CAPACITY
+    const rendered = !(sampling && gpuResolvePending)
+    if (rendered) {
       // Plan 16b: the shadow map first, inside the same frame and the same
       // timestamp pool ('render'), so the budget below includes it.
       // Photoreal Task 8: the per-frame sky-view and aerial-perspective LUTs
@@ -3130,6 +3194,12 @@ async function boot(): Promise<void> {
       adapter: adapterVerdict.summary,
       position: playerAircraft(current.world).state.position,
     })
+    if (import.meta.env.DEV && cpuFrameSamples.length < FRAME_TIME_CAPACITY) {
+      cpuFrameSamples.push({
+        workMs: performance.now() - workStart, simMs, ticks: current.stepsRun, rendered,
+        drawCalls: renderer.info.render.drawCalls - drawCallsAtStart, triangles: renderer.info.render.triangles - trianglesAtStart,
+      })
+    }
     // The first frame built every material; the title can unlock.
     if (!boot.ready) {
       boot.end('shaders')
