@@ -169,10 +169,11 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 6 missions and 6 ranges ship.
+  - 8 missions and 6 ranges ship.
   - A new mission is a JSON file plus one `SCENARIO_OPTIONS` row, unless it needs a new objective kind, AI behavior or model.
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
-  - Three more missions are designed in GAMEPLAY.md and not built: Escort, Flattop Hunt, Kamikaze Watch (deferred: it needs the dropped kamikaze run).
+  - **Flattop Hunt done 2026-10-10:** a TBM strike on Zuikaku with three E2 AI torpedo attackers, a destroyer-screen secondary and recovery aboard Essex (plan `docs/superpowers/plans/2026-10-10-flattop-hunt.md`, handoff `docs/handoff/2026-10-10-flattop-hunt.md`).
+  - Two more missions are designed in GAMEPLAY.md and not built: Escort and Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 
   | Mission | Needs |
@@ -181,7 +182,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | ~~Scramble~~ | done 2026-10-09 (F2) |
   | Escort | E1, E3 (bombers to escort) |
   | Kamikaze Watch | deferred: needs an intentional kamikaze run, which Mark dropped 2026-10-10 |
-  | Flattop Hunt | a Japanese carrier model; D for the full version |
+  | ~~Flattop Hunt~~ | done 2026-10-10: Japanese carrier, D torpedoes/flooding and E2 attack AI |
   | Surigao Strait (dawn aftermath, 25 Oct 1944: the battle line finishes the column, aircraft pursue Mogami) | M2-M4; first light keeps it inside the §3 no-night rule |
 
 - **Campaign by day** (missions spec §6.2): needs per-day airfield ownership plus the above. Build it after the missions, not before.

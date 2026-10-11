@@ -119,7 +119,7 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'attack-range', 'tutorial', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'combat-air-patrol', 'scramble', 'single-combat',
-      'dev-mission-ui', 'dev-mission-circuit',
+      'flattop-hunt', 'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -145,6 +145,7 @@ describe('the title screen scenario picker', () => {
     expect(labels.tutorial).toBe('Basic Flying')
     expect(labels.scramble).toBe('Scramble')
     expect(labels['single-combat']).toBe('Single Combat')
+    expect(labels['flattop-hunt']).toBe('Flattop Hunt')
   })
 
   it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
@@ -161,6 +162,7 @@ describe('the title screen scenario picker', () => {
         ['combat-air-patrol', { id: 'combat-air-patrol', name: 'Combat Air Patrol' }],
         ['scramble', { id: 'scramble', name: 'Scramble' }],
         ['single-combat', { id: 'single-combat', name: 'Single Combat' }],
+        ['flattop-hunt', { id: 'flattop-hunt', name: 'Flattop Hunt' }],
       ])
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })

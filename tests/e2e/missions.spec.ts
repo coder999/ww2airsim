@@ -23,7 +23,7 @@ import { BINDINGS } from '../../src/input/bindings.js'
  */
 test.setTimeout(300_000)
 
-type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial'
+type Id = 'deck-quals-mission' | 'airfield-strike' | 'convoy-strike' | 'combat-air-patrol' | 'scramble' | 'single-combat' | 'tutorial' | 'flattop-hunt'
 
 const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true })
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
@@ -77,6 +77,7 @@ async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
 function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
   if (id === 'scramble' || id === 'single-combat') return `f2-${id}-${what}.png`
   if (id === 'tutorial') return `b4-tutorial-${what}.png`
+  if (id === 'flattop-hunt') return `f-flattop-hunt-${what}.png`
   return id === 'combat-air-patrol' ? `m4-cap-${what}.png` : `m3-${id}-${what}.png`
 }
 
@@ -183,6 +184,27 @@ test('Convoy Strike: briefing, CONVOY 0/2, the vector call, chart; into the sea 
     ['Whole convoy (secondary)', 'INCOMPLETE'],
     ['Recover', 'INCOMPLETE'],
     // A steep dive is a crash, not a ditching (harness.ts, diveToSea).
+    ['Badge', 'Killed — no badge'],
+  ])
+})
+
+test('Flattop Hunt: briefing, FLATTOP 0/1, strike call, chart; into the sea earns no badge', async ({ page }) => {
+  const id = 'flattop-hunt'
+  const title = await orders(page, 'Flattop Hunt Pilot')
+  const s = await briefingFor(page, title, id, 'Flattop Hunt')
+  await launched(page, title, id, async (t) => {
+    await expect(t.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  await expect(objectiveLine(page)).toHaveText('FLATTOP 0/1')
+  await expect(radioLine(page)).toHaveText(openingCall(s), { timeout: 10_000 })
+  await chartListsObjectives(page, s, id)
+
+  await diveToSea(page)
+  await debriefShows(page, id, [
+    ['Flattop', 'INCOMPLETE'],
+    ['Screen (secondary)', 'INCOMPLETE'],
+    ['Recover', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
 })
