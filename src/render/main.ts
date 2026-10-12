@@ -11,7 +11,7 @@ import { applyShipGunLaying } from './scene/shipGunLaying.js'
 import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
-import { makeTextTexture } from './scene/text.js'
+import { ensureCockpitTextFont, makeTextTexture } from './scene/text.js'
 import { aircraftUrl, BEACHES_URL, finestFetchedLevelFor, SCENARIO_ID } from './content.js'
 import { createBootQuality } from './bootQuality.js'
 import {
@@ -1732,6 +1732,7 @@ async function boot(): Promise<void> {
   // cockpit.visible/playerAirframe.root.visible swap below), not because
   // they move differently -- both are posed from the
   // same `frame.render` pose each frame.
+  await ensureCockpitTextFont()
   const panel = createPanel(spec)
   resizePanel(panel, window.innerWidth / window.innerHeight)
   const radarScope = createRadarScope()
@@ -2878,7 +2879,16 @@ async function boot(): Promise<void> {
     // `aircraft()` diagnostics already reads.
     radarSweepRad = radarSweepAngle(view.world.tick * DT + view.world.accumulatorSeconds)
     radarContactList = radarContacts(viewPlayer, view.world.aircraft, selectedRadarRangeMi, view.world.combat.aircraft)
-    updatePanel(panel, spec, viewPlayer.state, view.controls, makeTextTexture, view.render.attitude, view.world.wind)
+    updatePanel(
+      panel,
+      spec,
+      viewPlayer.state,
+      view.controls,
+      makeTextTexture,
+      view.render.attitude,
+      view.world.wind,
+      view.world.combat.aircraft[viewPlayer.id] ?? null,
+    )
     audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     audio.setCameraZoom(view.cameraMode === 'cockpit' ? 1 : current.orbit.zoom)
     if (replay === null) {

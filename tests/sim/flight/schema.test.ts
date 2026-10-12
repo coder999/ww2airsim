@@ -12,6 +12,7 @@ const valid = {
   mass: { emptyKg: 4000, fuelCapacityKg: 600, maxTakeoffKg: 6000 },
   aero: { clSlopePerRad: 4.6, clMax: 1.4, alphaCritDeg: 15.5, clAtZeroAlpha: 0.1, cySlopePerRad: 0.5, cd0: 0.021, oswaldE: 0.85 },
   engine: {
+    count: 1, idleRpm: 600, ratedRpm: 2700,
     maxPowerW: 1_491_000, propEfficiency: 0.8,
     windmillCd0: 0.0422, staticThrustN: 20_000,
     powerFractionByAltitudeM: [[0, 1], [7132, 1], [11400, 0.6]],
@@ -99,6 +100,12 @@ describe('AircraftSpec validation (spec §9)', () => {
   it('rejects an empty power curve with the field named, not a raw TypeError', () => {
     const bad = { ...valid, engine: { ...valid.engine, powerFractionByAltitudeM: [] } }
     expect(() => parseAircraftSpec(bad)).toThrow(/powerFractionByAltitudeM/)
+  })
+
+  it('requires a plausible engine count and an idle RPM below rated RPM', () => {
+    expect(() => parseAircraftSpec({ ...valid, engine: { ...valid.engine, count: 0 } })).toThrow(/count/)
+    expect(() => parseAircraftSpec({ ...valid, engine: { ...valid.engine, count: 5 } })).toThrow(/count/)
+    expect(() => parseAircraftSpec({ ...valid, engine: { ...valid.engine, idleRpm: 2700 } })).toThrow(/idleRpm.*ratedRpm/)
   })
 
   it('rejects a testMassKg above mass.maxTakeoffKg, naming both values', () => {

@@ -42,3 +42,18 @@ Neither font is re-encoded from what Google Fonts serves; each file is the
 `.woff2` Google's own CDN returns for the regular weight. If a byte count in
 `ASSETS.md` ever changes, something re-encoded a committed asset and that is
 a defect, not an optimization.
+
+## `noto-sans-jp-cockpit.ttf`
+
+- **Font:** Noto Sans JP SemiBold, by the Noto Project Authors.
+- **Source:** Google Fonts' official CSS API with `text=` restricted to the
+  Japanese characters used by the four C3 cockpit families; the resolved
+  `fonts.gstatic.com/l/font` response is committed unchanged.
+- **Subset:** `速度高度昇降方位燃料横滑回転出力脚翼鉤扉満空弾薬爆噴進魚雷`; Latin letters, digits and
+  punctuation continue through the existing monospace fallback.
+- **Retrieved:** 2026-10-11; 12,492 bytes; SHA-256
+  `bca2db0f159d8969c13ce913714eb10c3eba2c8295720c54eccd56fa58aacad4`.
+- **License: SIL Open Font License 1.1** — confirmed against the Noto CJK
+  project and Google Fonts metadata. The subset is loaded explicitly before
+  canvas rasterization so panel labels do not depend on an operating-system
+  CJK font.

@@ -115,12 +115,27 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - Sound in C2: a synthesized door motor plus a lock clunk (`hook_clunk.wav`), the first of I1's mechanicals, which I1 reuses for gear and flaps.
   - Worktree, unattended. Checkpoint: B-29 doors cycling in the Hangar plus a flown drop, captures in the handoff.
 
-**C3. Per-plane cockpits (L, staged).**
-- **Today:** one shared procedural 3D panel for every airframe, placed per spec's eye point (`panel.ts`). It has an airspeed indicator, altimeter, rate of climb, attitude ball, heading tape, throttle, fuel, gear and flap lights, radar scope and reflector sight. Per-plane cockpits are deferred by Mark's ruling D12 (2026-09-28).
-- **Proposal, in two stages:**
-  1. Per-airframe panel layouts on the existing procedural panel: which instruments, where, in what units (Japanese gauges in metric would be period-correct), plus the frame and canopy bow as simple geometry. This is about one plan and covers all 12.
-  2. Modeled 3D cockpits for one flagship airframe first (F6F or F4F), to measure what one costs before committing to 12.
-- **Decided (§4 Q4):** stage 1 only; stage 2 is dropped.
+**C3. Four-family game cockpits (L). Completed 2026-10-12.**
+- Four stable, game-readable layouts now cover all fourteen flyable aircraft: American fighter,
+  American bomber, Japanese fighter and Japanese bomber. Enrollment is explicit and tested, so a
+  new aircraft cannot silently inherit a cockpit.
+- Each family keeps the same instrument zones while aircraft capability swaps reserved cells:
+  retractable gear, arrestor hook, bomb bay and pilot-fired forward-gun sight. The common radar
+  remains a visibly separate game aid.
+- American faces use imperial units. Japanese faces use metric units and bundled Japanese labels.
+  RPM is deterministic indicated state with a short lag and one/two/four needles following actual
+  engine-output channels; it has no path back into flight physics. The P-38 repeats its aggregate
+  output on two needles until it has separate engine hit zones.
+- The user-approved polished American-fighter checkpoint is now a literal powered-off fascia asset,
+  not a procedural approximation. Three aligned derivatives give American bombers, Japanese fighters
+  and Japanese bombers genuinely different silhouettes, materials, trim and national plaques while
+  the simulation draws only the changing needles, bars, scope, attitude ball, heading tape, lamps and
+  armament counts over them. Indicator colours describe state consistently: dark retracted, amber in
+  transit, green deployed/locked; red is reserved for a real unsafe/fault signal not yet modeled.
+- Modeled seats, controls, sidewalls, clickable systems and literal fourteen-airframe interiors remain dropped.
+- Design `docs/superpowers/specs/2026-10-11-c3-per-airframe-cockpit-design.md`; plan
+  `docs/superpowers/plans/2026-10-11-c3-cockpit-families.md`; handoff
+  `docs/handoff/2026-10-11-c3-cockpit-families.md`.
 
 **C4. Damage stages (M). Damage merged 2026-10-10; asymmetric engine-loss yaw completed 2026-10-11.**
 - **Mark's report (2026-10-09):** a shot Zero froze in mid-air.

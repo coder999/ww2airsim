@@ -200,6 +200,7 @@ export function damagedSpec(spec: AircraftSpec, damage: Damage, engine: number |
       maxPitchRateDegPerSec: spec.rates.maxPitchRateDegPerSec * damage.pitch,
       maxYawRateDegPerSec: spec.rates.maxYawRateDegPerSec * damage.yaw,
     },
+    ...(outputs === null ? {} : { engineOutputs: outputs }),
     // Capture both values before `damage.yaw` scales rudder authority above.
     // Engine-out thrust exists independently of damage to the yaw-control
     // system, while the healthy airframe's rate remains the combined cap.

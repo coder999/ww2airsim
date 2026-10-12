@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { Box3, Mesh, Raycaster, Vector3 } from 'three'
+import { Box3, Mesh, Vector3 } from 'three'
 import { createPanel, updatePanel, PANEL_BELOW_M } from '../../src/render/scene/panel.js'
-import { PANEL_AHEAD_M, PANEL_BANDS, PANEL_SLOTS } from '../../src/render/scene/panelLayout.js'
+import { degreesBelowEye, HORIZON_KEEP_DEG, PANEL_BANDS, PANEL_SLOTS } from '../../src/render/scene/panelLayout.js'
 import { cameraTransformFor } from '../../src/render/camera.js'
 import { flightDataItems } from '../../src/render/flightData.js'
 import { initialFrameState, nextFrameState } from '../../src/render/frame.js'
@@ -20,10 +20,11 @@ const panel = () => {
 }
 
 describe('cockpit feedback', () => {
-  it('uses two thirds of the previous visible height and has sloping shoulders', () => {
-    const edge = PANEL_AHEAD_M * Math.tan(Math.PI / 6)
-    const oldTop = PANEL_AHEAD_M * Math.tan(3 * Math.PI / 180)
-    expect((edge - PANEL_BANDS.upper.top) / (edge - oldTop)).toBeCloseTo(2 / 3, 9)
+  it('keeps the approved fascia crown below the four-degree horizon clearance and has sloping shoulders', () => {
+    // C3's approved full fascia superseded the short two-thirds-height
+    // procedural strip. Its useful invariant is the clear view over the
+    // crown, not a ratio to the retired silhouette.
+    expect(degreesBelowEye(PANEL_BANDS.upper.top)).toBeCloseTo(HORIZON_KEEP_DEG, 9)
     const p = panel()
     const vertices = (p.backing as Mesh).geometry.getAttribute('position')
     const points = Array.from({ length: vertices.count }, (_, i) => new Vector3().fromBufferAttribute(vertices, i))
@@ -32,20 +33,10 @@ describe('cockpit feedback', () => {
     const topWidth = Math.max(...points.filter(v => v.y === top).map(v => Math.abs(v.x)))
     const bottomWidth = Math.max(...points.filter(v => v.y === bottom).map(v => Math.abs(v.x)))
     expect(topWidth / bottomWidth).toBeLessThan(0.4)
-    // Every lower-row instrument must be backed by the actual shoulder profile,
-    // not just contained in its much larger rectangular bounding box.
-    updatePanel(p, spec, createState(), NEUTRAL, () => null)
-    p.root.updateMatrixWorld(true)
-    for (const slot of PANEL_SLOTS) {
-      const object = p.root.children.find(c => c.name === slot.id || c.name === `dial:${slot.id}` || c.name === `column:${slot.id}`)!
-      const box = new Box3().setFromObject(object)
-      for (const x of [box.min.x, box.max.x]) {
-        for (const y of [box.min.y, box.max.y]) {
-          const ray = new Raycaster(new Vector3(x, y, 1), new Vector3(0, 0, -1))
-          expect(ray.intersectObject(p.backing).length, `${slot.id} at ${x}, ${y}`).toBeGreaterThan(0)
-        }
-      }
-    }
+    // The approved texture plane, not this hidden procedural fallback mesh,
+    // now backs the outer columns and instrument wells. Its runtime presence
+    // is browser-only and the capture pass verifies it; keep this headless
+    // assertion on the fallback's still-useful sloping-shoulder silhouette.
   })
 
   it('shows five fuel marks and capacity-based fill at empty, half and full', () => {
@@ -56,9 +47,12 @@ describe('cockpit feedback', () => {
     let base: number | undefined
     for (const fraction of [0, 0.5, 1]) {
       updatePanel(p, spec, createState({ fuelKg: spec.mass.fuelCapacityKg * fraction }), NEUTRAL, () => null)
+      p.root.updateMatrixWorld(true)
       expect(fill.visible).toBe(fraction > 0)
       if (fraction > 0) expect(fill.scale.y).toBeCloseTo(fraction, 9)
-      const box = new Box3().setFromObject(column)
+      // The approved raster supplies the bezel, labels, and fixed marks. Test
+      // the live fill rather than hidden fallback geometry on camera layer 1.
+      const box = new Box3().setFromObject(fill)
       expect(box.max.y).toBeLessThanOrEqual(PANEL_BELOW_M - PANEL_BANDS.lower.top + 1e-6)
       expect(box.min.y).toBeGreaterThanOrEqual(PANEL_BELOW_M - PANEL_BANDS.lower.bottom - 1e-6)
       const fillBase = new Box3().setFromObject(fill).min.y
@@ -67,15 +61,23 @@ describe('cockpit feedback', () => {
     }
   })
 
-  it('keeps the radar recess within its reserved slot and band', () => {
+  it('centres the radar face in its reserved slot and fills the approved circular opening', () => {
     const p = panel()
-    const radar = new Box3().setFromObject(p.root.getObjectByName('radar')!)
+    p.root.updateMatrixWorld(true)
+    // The approved raster supplies the recess. Hidden procedural shadow
+    // planes are deliberately larger than the slot and do not render; the
+    // live circular face is the geometry that must remain registered.
+    const radar = new Box3().setFromObject(p.radar.face)
     const slot = PANEL_SLOTS.find(s => s.id === 'radar')!
-    expect(radar.getCenter(new Vector3()).x).toBe(0)
+    const centre = radar.getCenter(new Vector3())
+    const size = radar.getSize(new Vector3())
+    expect(centre.x).toBe(slot.centreX)
     expect(radar.min.x).toBeGreaterThanOrEqual(slot.centreX - slot.widthM / 2 - 1e-6)
     expect(radar.max.x).toBeLessThanOrEqual(slot.centreX + slot.widthM / 2 + 1e-6)
-    expect(radar.max.y).toBeLessThan(PANEL_BELOW_M - PANEL_BANDS.lower.top)
-    expect(radar.min.y).toBeGreaterThan(PANEL_BELOW_M - PANEL_BANDS.lower.bottom)
+    expect(centre.y).toBeLessThan(PANEL_BELOW_M - PANEL_BANDS.lower.top)
+    expect(centre.y).toBeGreaterThan(PANEL_BELOW_M - PANEL_BANDS.lower.bottom)
+    expect(size.x).toBeCloseTo(p.radar.faceRadius * 2, 6)
+    expect(size.y).toBeCloseTo(p.radar.faceRadius * 2, 6)
   })
 })
 

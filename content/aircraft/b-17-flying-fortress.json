@@ -23,6 +23,9 @@
     "oswaldE": 0.85
   },
   "engine": {
+    "count": 4,
+    "idleRpm": 600,
+    "ratedRpm": 2500,
     "maxPowerW": 3579360,
     "propEfficiency": 0.68,
     "staticThrustN": 48000,

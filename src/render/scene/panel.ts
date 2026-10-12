@@ -1,20 +1,23 @@
 import {
   BoxGeometry,
   BufferGeometry,
+  CanvasTexture,
   CircleGeometry,
   Group,
+  LinearFilter,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
   RingGeometry,
   Shape,
   ShapeGeometry,
+  SRGBColorSpace,
+  TextureLoader,
   type Object3D,
   type Texture,
 } from 'three'
 import {
-  GAUGES,
-  COCKPIT_GAUGES,
+  gaugesFor,
   fuelFraction,
   needleAngleFor,
   attitudeAngles,
@@ -24,6 +27,7 @@ import {
   gaugeValue,
   fractionForValue,
   tapeOffsetFor,
+  angleForValue,
   type GaugeId,
   type Wind,
   type DialSpec,
@@ -44,15 +48,21 @@ import { CAMERA_VFOV_DEG } from '../camera.js'
 import { gearDisplay, flapDisplay } from '../flightData.js'
 import type { AircraftState, Controls } from '../../sim/flight/state.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
+import type { AircraftCombat } from '../../sim/weapons/combat.js'
 import { gunHarmonization } from '../../sim/weapons/harmonization.js'
+import { cockpitFor, type CockpitConfig } from './cockpitLayouts.js'
 
 export type Panel = {
+  readonly config: CockpitConfig
   readonly root: Object3D
   /** The reflector gunsight's reticle, depressed below the eye's boresight
    *  by the guns' harmonization angle (`gunHarmonization`): it marks where
    *  the rounds pass at convergence range, not where the eye looks. */
   readonly reticle: Object3D
   readonly needles: Map<GaugeId, Object3D>
+  /** One RPM needle per physical engine. Multi-engine aircraft put each one
+   *  on its own small face instead of stacking colored pointers on one dial. */
+  readonly rpmNeedles: readonly Object3D[]
   /** The digital readout plate inside each dial, and the string it currently
    *  shows -- kept so `updatePanel` can skip re-rasterising an unchanged one. */
   readonly readouts: Map<GaugeId, Readout>
@@ -89,6 +99,7 @@ export type Panel = {
   readonly attitude: {
     readonly ball: Object3D
     readonly ring: Object3D
+    readonly faceRadius: number
   }
   /** The radar scope's physical face mesh (Plan 17). `createPanel` gives it
    *  a plain, headless-safe fallback material (matching the old placeholder
@@ -97,7 +108,7 @@ export type Panel = {
    *  replaces it with the live scope texture at startup, the same
    *  construction-vs-browser-enhancement split `TextTextureFactory`
    *  already establishes for text. */
-  readonly radar: { readonly face: Object3D }
+  readonly radar: { readonly face: Object3D; readonly faceRadius: number }
   /** The trapezoidal coaming plate. Runs past the bottom of the frame on
    *  purpose (see `createPanel`), so it reads as clipped rather than
    *  floating with sky visible beneath it. */
@@ -133,7 +144,14 @@ export type Panel = {
   readonly lights: {
     readonly gear: Mesh
     readonly flap: Mesh
+    readonly hook: Mesh
+    readonly bay: Mesh
   }
+  /** Remaining pilot-operated ammunition and stores. Unsupported store
+   *  classes display an em dash so the four-cell bank never reflows. */
+  readonly armament: ReadonlyMap<ArmamentId, Readout>
+  /** Small family identifier embedded in unused fascia space. */
+  readonly badge: Object3D
 }
 
 /** Indicator light colours. Exported so the test asserts the state each one
@@ -141,10 +159,66 @@ export type Panel = {
 export const LIGHT_OFF = 0x1a1f24
 export const LIGHT_TRANSIT = 0xffb020
 export const LIGHT_DOWN = 0x3ddc84
-/** Where the two lights sit: upper band, left of the tape window, x in
- *  panel metres. The tape window is `TAPE_W` wide about 0. */
-const LIGHT_X = { gear: -0.19, flap: -0.145 } as const
-const LIGHT_RADIUS = 0.009
+/** Red is deliberately not a system/category colour. It is reserved for a
+ * genuine unsafe or failed state once the simulation exposes one. */
+export const LIGHT_WARNING = 0xd7352f
+/** The concept-approved two-row equipment bank: status lamps on top,
+ *  armament counts below. It is one inset dashboard component, never a set
+ *  of lights perched on the coaming edge. */
+const EQUIPMENT_BANK_X = -0.270
+const EQUIPMENT_BANK_Y = 0.065
+const EQUIPMENT_BANK_W = 0.170
+const EQUIPMENT_BANK_H = 0.064
+const EQUIPMENT_CELL_W = EQUIPMENT_BANK_W / 4
+const EQUIPMENT_CELL_X = (i: number): number =>
+  EQUIPMENT_BANK_X - EQUIPMENT_BANK_W / 2 + EQUIPMENT_CELL_W * (i + 0.5)
+export type ArmamentId = 'ammo' | 'bomb' | 'rocket' | 'torpedo'
+const ARMAMENT_IDS: readonly ArmamentId[] = ['ammo', 'bomb', 'rocket', 'torpedo']
+
+const APPROVED_FASCIA_ASPECT = 1672 / 941
+const APPROVED_FASCIA_FAMILIES = new Set<CockpitConfig['layout']['id']>([
+  'american-fighter',
+  'american-bomber',
+  'japanese-fighter',
+  'japanese-bomber',
+])
+
+/**
+ * The approved US-fighter checkpoint is the literal fascia source, not a
+ * loose procedural re-interpretation. It supplies the silhouette, painted
+ * metal, recessed housings, fasteners, and USN marking. Live meshes remain
+ * above it for every value that can change in flight.
+ *
+ * Loading stays a browser enhancement like text and radar textures: headless
+ * construction/tests never need an Image implementation or network access.
+ */
+function makeApprovedFascia(family: CockpitConfig['layout']['id']): Mesh | null {
+  if (typeof document === 'undefined' || typeof Image === 'undefined') return null
+
+  const material = new MeshBasicMaterial({ transparent: true, opacity: 0, alphaTest: 0.02 })
+  const path = `${import.meta.env.BASE_URL}content/cockpit/${family}-fascia.png`
+  new TextureLoader().load(path, (texture) => {
+    texture.colorSpace = SRGBColorSpace
+    texture.minFilter = LinearFilter
+    texture.magFilter = LinearFilter
+    texture.generateMipmaps = false
+    material.map = texture
+    material.opacity = 1
+    material.needsUpdate = true
+  })
+
+  const viewHeight = 2 * Math.tan((CAMERA_VFOV_DEG * Math.PI) / 360) * PANEL_AHEAD_M
+  const fascia = new Mesh(
+    new PlaneGeometry(viewHeight * APPROVED_FASCIA_ASPECT, viewHeight),
+    material,
+  )
+  fascia.name = 'panel:approved-fascia'
+  // Give the live masks real depth separation. Keeping this almost coplanar
+  // with them lets the transparent fascia win depth ties on some WebGPU
+  // drivers, which re-exposes the powered-off placeholder readings.
+  fascia.position.set(0, PANEL_BELOW_M, BACKING_Z - 0.001)
+  return fascia
+}
 
 export type Readout = {
   readonly mesh: Mesh
@@ -193,6 +267,16 @@ const Z_NEEDLE = 0.005
  */
 const DIAL_TEXT_OFFSET_M = 0.08 * S
 
+// The approved raster fascia has deliberately larger openings for its two
+// display instruments than the old procedural row did. The live layers used
+// the procedural dial radius, leaving a dark crescent around both screens and
+// making their slightly high placement obvious. These radii and the shared
+// correction register the live displays to the literal openings in all four
+// approved family fascias.
+const APPROVED_ATTITUDE_FACE_RADIUS = DIAL_RADIUS * 1.24
+const APPROVED_RADAR_FACE_RADIUS = 0.066
+const APPROVED_DISPLAY_Y_OFFSET = -0.0045
+
 /**
  * The attitude ball's sky/ground split, rebuilt fresh every `updatePanel`
  * call rather than moved as a rigid transform on an oversized mesh.
@@ -232,8 +316,8 @@ const ATTITUDE_BALL_SEGMENTS = 24
 function attitudeBallGeometry(
   rollRad: number,
   pitchRad: number,
+  r = DIAL_RADIUS,
 ): { readonly sky: BufferGeometry; readonly ground: BufferGeometry } {
-  const r = DIAL_RADIUS
   const t = -(pitchRad / (Math.PI / 6)) * r * 0.8
   const d = Math.max(-r, Math.min(r, t * Math.cos(rollRad)))
   const beta = Math.asin(d / r)
@@ -361,29 +445,262 @@ function setPlateText(mesh: Mesh, text: string, makeText: TextTextureFactory): v
   previous?.dispose()
 }
 
+function armamentValues(
+  spec: AircraftSpec,
+  combat: AircraftCombat | null,
+): Readonly<Record<ArmamentId, string>> {
+  const stores = spec.stores
+  const rack = stores?.racks[0]
+  const rackKind = rack === undefined ? undefined : stores?.types[rack.store]?.kind
+  const hasBombs = rackKind === 'bomb'
+  const hasTorpedoes = rackKind === 'torpedo'
+  const hasRockets = (stores?.rails.length ?? 0) > 0
+  const hasGuns = (spec.combat?.guns.length ?? 0) > 0
+  return {
+    ammo: hasGuns ? String(combat?.guns.reduce((sum, gun) => sum + gun.ammo, 0) ?? 0) : '—',
+    bomb: hasBombs ? String(combat?.stores.bombs ?? 0) : '—',
+    rocket: hasRockets ? String(combat?.stores.rockets ?? 0) : '—',
+    torpedo: hasTorpedoes ? String(combat?.stores.bombs ?? 0) : '—',
+  }
+}
+
+function starShape(points = 5, outer = 0.0115, inner = 0.005): Shape {
+  const shape = new Shape()
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? outer : inner
+    const angle = -Math.PI / 2 + i * Math.PI / points
+    const x = radius * Math.cos(angle)
+    const y = radius * Math.sin(angle)
+    if (i === 0) shape.moveTo(x, y)
+    else shape.lineTo(x, y)
+  }
+  shape.closePath()
+  return shape
+}
+
+/** Family badge, intentionally small and stylised rather than a claim that
+ *  every real aircraft carried this exact dashboard plaque. */
+function makeFamilyBadge(kind: CockpitConfig['layout']['badge']): Group {
+  const badge = new Group()
+  badge.name = `cockpit:badge:${kind}`
+  if (kind === 'usn') {
+    const navy = new MeshBasicMaterial({ color: 0x244f7b })
+    const white = new MeshBasicMaterial({ color: 0xf1eee2 })
+    const wing = new Mesh(new PlaneGeometry(0.054, 0.009), white)
+    wing.position.z = Z_MARKS
+    badge.add(wing)
+    const disc = new Mesh(new CircleGeometry(0.018, 32), navy)
+    disc.position.z = Z_MARKS + 0.0002
+    badge.add(disc)
+    const star = new Mesh(new ShapeGeometry(starShape()), white)
+    star.position.z = Z_MARKS + 0.0004
+    badge.add(star)
+  } else {
+    const red = new MeshBasicMaterial({ color: 0xb52b25 })
+    const gold = new MeshBasicMaterial({ color: 0xc7a45a })
+    const sun = new Mesh(new CircleGeometry(0.016, 32), red)
+    sun.position.z = Z_MARKS
+    badge.add(sun)
+    const shank = new Mesh(new PlaneGeometry(0.0035, 0.028), gold)
+    shank.position.z = Z_MARKS + 0.0002
+    badge.add(shank)
+    const stock = new Mesh(new PlaneGeometry(0.020, 0.0035), gold)
+    stock.position.set(0, 0.0045, Z_MARKS + 0.0002)
+    badge.add(stock)
+    const crown = new Mesh(new RingGeometry(0.004, 0.006, 20), gold)
+    crown.position.set(0, 0.0145, Z_MARKS + 0.0002)
+    badge.add(crown)
+    const arms = new Mesh(new RingGeometry(0.0085, 0.011, 24, 1, Math.PI, Math.PI), gold)
+    arms.position.set(0, -0.010, Z_MARKS + 0.0002)
+    badge.add(arms)
+  }
+  return badge
+}
+
+/** Small two-layer fastener used on the fascia and instrument sub-panels.
+ * The slot is deliberately visible at normal cockpit distance: the approved
+ * reference reads as assembled hardware, not a collection of flat UI cards. */
+function makeScrew(radius = 0.0042, angle = Math.PI / 4): Group {
+  const screw = new Group()
+  const rim = new Mesh(
+    new CircleGeometry(radius, 20),
+    new MeshBasicMaterial({ color: 0x070b0e }),
+  )
+  rim.position.z = Z_MARKS
+  screw.add(rim)
+  const head = new Mesh(
+    new CircleGeometry(radius * 0.72, 20),
+    new MeshBasicMaterial({ color: 0x53636d }),
+  )
+  head.position.z = Z_MARKS + 0.0002
+  screw.add(head)
+  const slot = new Mesh(
+    new PlaneGeometry(radius * 1.05, radius * 0.18),
+    new MeshBasicMaterial({ color: 0x10171b }),
+  )
+  slot.rotation.z = angle
+  slot.position.z = Z_MARKS + 0.0004
+  screw.add(slot)
+  return screw
+}
+
+function addScrew(parent: Group, x: number, y: number, z = 0, angle = Math.PI / 4, radius?: number): void {
+  const screw = makeScrew(radius, angle)
+  screw.position.set(x, y, z)
+  parent.add(screw)
+}
+
+/** Browser-only brushed metal paint for the large fighter fascia. Geometry,
+ * instruments, and hit-free transparent edges remain procedural meshes; this
+ * texture supplies the subtle value variation a single flat hex colour cannot. */
+function makeFasciaPaintTexture(family: CockpitConfig['layout']['id']): Texture | null {
+  if (typeof document === 'undefined' || family !== 'american-fighter') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 2048
+  canvas.height = 768
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const w = canvas.width
+  const h = canvas.height
+  ctx.clearRect(0, 0, w, h)
+  const outline = new Path2D()
+  outline.moveTo(0, h)
+  outline.lineTo(0, h * 0.48)
+  outline.quadraticCurveTo(w * 0.02, h * 0.34, w * 0.14, h * 0.23)
+  outline.quadraticCurveTo(w * 0.25, h * 0.14, w * 0.36, h * 0.16)
+  outline.lineTo(w * 0.40, h * 0.16)
+  outline.quadraticCurveTo(w * 0.43, h * 0.16, w * 0.46, h * 0.035)
+  outline.quadraticCurveTo(w * 0.47, 0, w * 0.50, 0)
+  outline.quadraticCurveTo(w * 0.53, 0, w * 0.54, h * 0.035)
+  outline.quadraticCurveTo(w * 0.57, h * 0.16, w * 0.60, h * 0.16)
+  outline.lineTo(w * 0.64, h * 0.16)
+  outline.quadraticCurveTo(w * 0.75, h * 0.14, w * 0.86, h * 0.23)
+  outline.quadraticCurveTo(w * 0.98, h * 0.34, w, h * 0.48)
+  outline.lineTo(w, h)
+  outline.closePath()
+
+  const metal = ctx.createLinearGradient(0, 0, 0, h)
+  metal.addColorStop(0, '#2e414d')
+  metal.addColorStop(0.18, '#1c303b')
+  metal.addColorStop(0.52, '#122630')
+  metal.addColorStop(1, '#071722')
+  ctx.fillStyle = metal
+  ctx.fill(outline)
+
+  ctx.save()
+  ctx.clip(outline)
+  const crownGlow = ctx.createRadialGradient(w * 0.5, h * 0.02, 0, w * 0.5, h * 0.15, w * 0.42)
+  crownGlow.addColorStop(0, 'rgba(145,174,190,0.23)')
+  crownGlow.addColorStop(0.45, 'rgba(64,91,106,0.08)')
+  crownGlow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = crownGlow
+  ctx.fillRect(0, 0, w, h)
+
+  // Fine deterministic brushing and a few broad, low-contrast wear streaks.
+  ctx.globalAlpha = 0.055
+  for (let y = 18; y < h; y += 11) {
+    ctx.strokeStyle = y % 22 === 0 ? '#d6e0e5' : '#02090d'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(w, y + ((y / 11) % 3 - 1) * 2)
+    ctx.stroke()
+  }
+  ctx.globalAlpha = 0.10
+  for (const x of [0.12, 0.31, 0.68, 0.87]) {
+    const sheen = ctx.createLinearGradient(w * (x - 0.07), 0, w * (x + 0.07), 0)
+    sheen.addColorStop(0, 'rgba(255,255,255,0)')
+    sheen.addColorStop(0.5, 'rgba(170,195,205,0.24)')
+    sheen.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = sheen
+    ctx.fillRect(w * (x - 0.07), 0, w * 0.14, h)
+  }
+  ctx.restore()
+
+  ctx.strokeStyle = '#050c11'
+  ctx.lineWidth = 18
+  ctx.stroke(outline)
+  ctx.strokeStyle = '#536773'
+  ctx.lineWidth = 7
+  ctx.stroke(outline)
+
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  texture.minFilter = LinearFilter
+  texture.magFilter = LinearFilter
+  texture.generateMipmaps = false
+  return texture
+}
+
+function makeDialFaceTexture(faceColor: number): Texture | null {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  const edge = `#${faceColor.toString(16).padStart(6, '0')}`
+  const glass = ctx.createRadialGradient(98, 78, 8, 128, 128, 126)
+  glass.addColorStop(0, '#243038')
+  glass.addColorStop(0.34, '#11191e')
+  glass.addColorStop(0.72, edge)
+  glass.addColorStop(1, '#010304')
+  ctx.fillStyle = glass
+  ctx.fillRect(0, 0, 256, 256)
+  const reflection = ctx.createLinearGradient(0, 0, 0, 160)
+  reflection.addColorStop(0, 'rgba(210,230,238,0.12)')
+  reflection.addColorStop(0.58, 'rgba(120,155,170,0.025)')
+  reflection.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = reflection
+  ctx.beginPath()
+  ctx.ellipse(100, 70, 104, 48, -0.22, 0, Math.PI * 2)
+  ctx.fill()
+  const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
+  texture.minFilter = LinearFilter
+  texture.magFilter = LinearFilter
+  texture.generateMipmaps = false
+  return texture
+}
+
 export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = makeTextTexture): Panel {
+  const config = cockpitFor(spec)
+  // C3 deliberately has four reusable cockpit families. Each now has an
+  // approved, powered-off fascia at the same live-instrument coordinates.
+  const approvedFascia = APPROVED_FASCIA_FAMILIES.has(config.layout.id)
+  const gauges = gaugesFor(config.layout.unitProfile)
   const root = new Group()
   const needles = new Map<GaugeId, Object3D>()
   const readouts = new Map<GaugeId, Readout>()
   let tape: Panel['tape']
   let attitude: Panel['attitude']
+  const armament = new Map<ArmamentId, Readout>()
 
-  const faceMat = new MeshBasicMaterial({ color: 0x101418 })
-  const needleMat = new MeshBasicMaterial({ color: 0xffd24a })
-  const bezelMat = new MeshBasicMaterial({ color: 0x2b3238 })
-  const markMajorMat = new MeshBasicMaterial({ color: 0xf2f6f8 })
-  const markMinorMat = new MeshBasicMaterial({ color: 0x8fa0ab })
+  const faceTexture = makeDialFaceTexture(config.layout.faceColor)
+  const faceMat = new MeshBasicMaterial({
+    color: faceTexture === null ? config.layout.faceColor : 0xffffff,
+    map: faceTexture,
+  })
+  const needleMat = new MeshBasicMaterial({ color: config.layout.needleColor })
+  const bezelMat = new MeshBasicMaterial({ color: config.layout.bezelColor })
+  const bezelShadowMat = new MeshBasicMaterial({ color: 0x070c0f })
+  const bezelHighlightMat = new MeshBasicMaterial({ color: config.layout.trimColor })
+  const markMajorMat = new MeshBasicMaterial({ color: config.layout.majorMarkColor })
+  const markMinorMat = new MeshBasicMaterial({ color: config.layout.minorMarkColor })
 
   // Round dials only. A column or a tape is a different shape entirely --
   // giving one a needle and a bezel here is exactly the bug this filter
   // exists to prevent. The current row has three numeric dials and a ball;
   // columns, the radar reservation, and the tape are built separately below.
-  const dialGauges = COCKPIT_GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
+  const dialGauges = gauges.filter((g): g is DialSpec => g.kind === 'dial' && g.cockpit !== false)
+  const rpmNeedles: Object3D[] = []
 
   // Layout slots are keyed by id (panelLayout.ts's PANEL_SLOTS), not by
   // position in this array -- the ball occupies its own slot, so a dial's
   // index here is not its index in the slot table.
   const slotX = (id: string): number => {
+    if (id === 'rpm' || id === 'slip') return config.layout.auxiliaryX[id]
     const slot = PANEL_SLOTS.find((s) => s.id === id)
     if (!slot) throw new Error(`no layout slot for ${id}`)
     return slot.centreX
@@ -393,20 +710,135 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   dialGauges.forEach((g) => {
     const dial = new Group()
     const x = slotX(g.id)
+    const slot = PANEL_SLOTS.find((candidate) => candidate.id === g.id)!
+    const band = PANEL_BANDS[slot.band ?? 'lower']
+    const centre = (band.top + band.bottom) / 2
 
-    const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 32), faceMat)
+    if (g.id === 'rpm' && config.rpmNeedles > 1) {
+      // One pointer per face. The previous implementation put two or four
+      // differently colored pointers on the one photographed RPM scale; the
+      // simulation was genuinely per-engine, but the presentation was not.
+      // Keep the cluster inside the existing RPM opening so the four-family
+      // fascia remains shared by single-, twin-, and four-engine aircraft.
+      const fourUp = config.rpmNeedles > 2
+      const faceRadius = DIAL_RADIUS * (fourUp ? 0.31 : 0.42)
+      const centreOffsetX = DIAL_RADIUS * (fourUp ? 0.38 : 0.43)
+      const centreOffsetY = fourUp ? DIAL_RADIUS * 0.38 : 0
+
+      const mask = new Mesh(
+        // Cover the photographed single-engine scale all the way to its inner
+        // rim; otherwise its old 0/4 numerals show through around the new
+        // engine faces and make the cluster look like one gauge laid over
+        // another.
+        new CircleGeometry(DIAL_RADIUS * 1.10, 48),
+        new MeshBasicMaterial({ color: config.layout.faceColor }),
+      )
+      mask.position.z = Z_MARKS
+      dial.add(mask)
+
+      for (let i = 0; i < config.rpmNeedles; i++) {
+        const subdial = new Group()
+        subdial.name = `rpm-engine:${i + 1}`
+        const column = fourUp ? i % 2 : i
+        const row = fourUp ? Math.floor(i / 2) : 0
+        subdial.position.set(
+          (column === 0 ? -1 : 1) * centreOffsetX,
+          fourUp ? (row === 0 ? 1 : -1) * centreOffsetY : 0,
+          0,
+        )
+
+        const face = new Mesh(new CircleGeometry(faceRadius, 32), faceMat)
+        face.position.z = Z_MARKS + 0.0002
+        subdial.add(face)
+        const rim = new Mesh(
+          new RingGeometry(faceRadius, faceRadius * 1.12, 32),
+          bezelHighlightMat,
+        )
+        rim.position.z = Z_MARKS + 0.0004
+        subdial.add(rim)
+
+        for (const mark of tickMarksFor(g).filter((candidate) => candidate.major)) {
+          const len = faceRadius * 0.18
+          const tick = new Mesh(
+            new BoxGeometry(Math.max(0.0011, faceRadius * 0.085), len, 0.002),
+            markMajorMat,
+          )
+          const tickRadius = faceRadius - len / 2 - faceRadius * 0.06
+          tick.position.set(
+            tickRadius * Math.sin(mark.angleRad),
+            tickRadius * Math.cos(mark.angleRad),
+            Z_MARKS + 0.0006,
+          )
+          tick.rotation.z = -mark.angleRad
+          subdial.add(tick)
+        }
+
+        const needle = new Mesh(
+          new BoxGeometry(Math.max(0.0014, faceRadius * 0.11), faceRadius * 1.08, 0.003),
+          needleMat,
+        )
+        needle.geometry.translate(0, faceRadius * 0.44, 0)
+        needle.position.z = Z_NEEDLE + i * 0.0002
+        needle.userData.engineIndex = i
+        subdial.add(needle)
+        rpmNeedles.push(needle)
+
+        const hub = new Mesh(
+          new CircleGeometry(Math.max(0.0017, faceRadius * 0.13), 16),
+          new MeshBasicMaterial({ color: 0xd8a72f }),
+        )
+        hub.position.z = Z_NEEDLE + 0.0005
+        subdial.add(hub)
+
+        const engineNumber = textPlate(String(i + 1), faceRadius * 0.68, faceRadius * 0.46, makeText)
+        engineNumber.position.set(0, -faceRadius * 0.53, Z_READOUT)
+        subdial.add(engineNumber)
+        dial.add(subdial)
+      }
+
+      needles.set(g.id, rpmNeedles[0]!)
+      const readoutMesh = textPlate('', DIAL_RADIUS, 0.022 * S, makeText)
+      readoutMesh.visible = false
+      dial.add(readoutMesh)
+      readouts.set(g.id, { mesh: readoutMesh, text: '' })
+      dial.name = 'dial:rpm'
+      dial.scale.setScalar(config.layout.auxiliaryScale)
+      dial.position.set(x, PANEL_BELOW_M - centre, 0)
+      root.add(dial)
+      return
+    }
+
+    const outerShadow = new Mesh(
+      new RingGeometry(DIAL_RADIUS * 1.09, DIAL_RADIUS * 1.18, 48),
+      bezelShadowMat,
+    )
+    outerShadow.position.z = Z_MARKS * 0.18
+    outerShadow.visible = !approvedFascia
+    dial.add(outerShadow)
+    const raisedLip = new Mesh(
+      new RingGeometry(DIAL_RADIUS * 1.055, DIAL_RADIUS * 1.11, 48),
+      bezelHighlightMat,
+    )
+    raisedLip.position.z = Z_MARKS * 0.42
+    raisedLip.visible = !approvedFascia
+    dial.add(raisedLip)
+
+    const face = new Mesh(new CircleGeometry(DIAL_RADIUS, 48), faceMat)
+    if (approvedFascia) face.layers.set(1)
     dial.add(face)
 
-    // A bezel, so a dial reads as an instrument rather than a hole.
-    const bezel = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.09, 32), bezelMat)
+    // A layered bezel, so the instrument reads as seated in the fascia rather
+    // than as a circle painted on top of it.
+    const bezel = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.065, 48), bezelMat)
     bezel.position.z = Z_MARKS
+    bezel.visible = !approvedFascia
     dial.add(bezel)
 
     // Scale marks. Without these the dial had no zero, which made
     // needleAngleFor's documented "clockwise from the dial's zero" a
     // reference to something that did not exist (whole-branch review, I-2).
     for (const mark of tickMarksFor(g)) {
-      const len = DIAL_RADIUS * (mark.major ? 0.16 : 0.09)
+      const len = DIAL_RADIUS * (mark.major ? 0.18 : 0.10)
       const tick = new Mesh(
         new BoxGeometry((mark.major ? 0.005 : 0.0025) * S, len, 0.002),
         mark.major ? markMajorMat : markMinorMat,
@@ -419,10 +851,13 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
       const a = mark.angleRad
       tick.position.set(r * Math.sin(a), r * Math.cos(a), Z_MARKS)
       tick.rotation.z = -a
+      tick.visible = g.id !== 'slip'
+      if (approvedFascia) tick.layers.set(1)
       dial.add(tick)
 
       if (mark.major && mark.text) {
-        const numeral = textPlate(mark.text, DIAL_RADIUS * 0.36, DIAL_RADIUS * 0.17, makeText)
+        const markText = g.id === 'rpm' ? String(Number(mark.text) / 1000) : mark.text
+        const numeral = textPlate(markText, DIAL_RADIUS * 0.36, DIAL_RADIUS * 0.17, makeText)
         // Inside the ticks, not on them. At 0.6 the numeral's own half-width
         // reached the major tick at the scale ends -- "10000" sat across the
         // 9 o'clock mark on the altimeter, which the reference platform showed
@@ -437,22 +872,78 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         // shorter major ticks and the narrower plate above.
         const nr = DIAL_RADIUS * 0.53
         numeral.position.set(nr * Math.sin(a), nr * Math.cos(a), Z_MARKS)
+        numeral.visible = g.id !== 'slip'
+        if (approvedFascia) numeral.layers.set(1)
         dial.add(numeral)
       }
     }
 
-    const needle = new Mesh(new BoxGeometry(0.006 * S, DIAL_RADIUS * 1.1, 0.004), needleMat)
-    // Offset so the mesh pivots about the dial centre rather than its own end.
-    needle.geometry.translate(0, DIAL_RADIUS * 0.45, 0)
+    const needle = new Mesh(
+      g.id === 'slip'
+        ? new BoxGeometry(0.004 * S, 0.020 * S, 0.004)
+        : new BoxGeometry(0.006 * S, DIAL_RADIUS * 1.1, 0.004),
+      needleMat,
+    )
+    // Offset ordinary pointers so they pivot about the dial centre. The slip
+    // marker instead translates along its horizontal tube in updatePanel.
+    if (g.id !== 'slip') needle.geometry.translate(0, DIAL_RADIUS * 0.45, 0)
     needle.position.z = Z_NEEDLE
     dial.add(needle)
+    if (g.id === 'slip') {
+      const tube = new Mesh(
+        new PlaneGeometry(DIAL_RADIUS * 1.35, 0.012 * S),
+        new MeshBasicMaterial({ color: 0x8d9ba1 }),
+      )
+      tube.position.z = Z_MARKS + 0.0005
+      if (approvedFascia) tube.layers.set(1)
+      dial.add(tube)
+      const tubeCore = new Mesh(
+        new PlaneGeometry(DIAL_RADIUS * 1.18, 0.006 * S),
+        new MeshBasicMaterial({ color: 0x172027 }),
+      )
+      tubeCore.position.z = Z_MARKS + 0.0008
+      if (approvedFascia) tubeCore.layers.set(1)
+      dial.add(tubeCore)
+      const sideLabels = config.layout.unitProfile === 'metric-japanese' ? ['左', '右'] : ['L', 'R']
+      for (const [i, side] of sideLabels.entries()) {
+        const plate = textPlate(side, 0.014, 0.012, makeText)
+        plate.position.set((i === 0 ? -1 : 1) * DIAL_RADIUS * 0.58, DIAL_RADIUS * 0.43, Z_READOUT)
+        if (approvedFascia) plate.layers.set(1)
+        dial.add(plate)
+      }
+    } else {
+      const hub = new Mesh(
+        new CircleGeometry(0.0055 * S, 20),
+        new MeshBasicMaterial({ color: 0xd8a72f }),
+      )
+      hub.position.z = Z_NEEDLE + 0.0004
+      dial.add(hub)
+    }
     needles.set(g.id, needle)
+    if (g.id === 'rpm') {
+      rpmNeedles.push(needle)
+      for (let i = 1; i < config.rpmNeedles; i++) {
+        const extra = new Mesh(
+          new BoxGeometry(0.0035 * S, DIAL_RADIUS * 1.05, 0.003),
+          new MeshBasicMaterial({ color: i % 2 === 0 ? 0x7fc8ff : 0xff8f70 }),
+        )
+        extra.geometry.translate(0, DIAL_RADIUS * 0.43, 0)
+        extra.position.z = Z_NEEDLE + i * 0.0003
+        extra.userData.engineIndex = i
+        dial.add(extra)
+        rpmNeedles.push(extra)
+      }
+    }
 
     // The name and unit, which GAUGES has carried since Task 10 with nothing
     // rendering them -- zero non-definition hits across src, tests and tools
     // before this (whole-branch review, I-2).
-    const label = textPlate(labelTextFor(g), DIAL_GAP * 0.79, 0.024 * S, makeText)
+    const dialLabel = g.id === 'rpm'
+      ? config.layout.unitProfile === 'metric-japanese' ? '回転  ×1000' : 'RPM  ×1000'
+      : labelTextFor(g)
+    const label = textPlate(dialLabel, DIAL_GAP * 0.79, 0.024 * S, makeText)
     label.position.set(0, -DIAL_TEXT_OFFSET_M, Z_MARKS)
+    if (approvedFascia) label.layers.set(1)
     dial.add(label)
 
     // Digital readout, ABOVE the dial rather than inside it. Inside, it
@@ -465,11 +956,20 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // exactly what the oversized-dial trade gave up.
     const readoutMesh = textPlate('', DIAL_RADIUS * 1.15, 0.022 * S, makeText)
     readoutMesh.position.set(0, DIAL_TEXT_OFFSET_M, Z_READOUT)
+    // The approved face uses the analogue scale itself; floating digital
+    // values above every dial were prototype scaffolding and visually broke
+    // the recessed instrument bays. Keep the live text cached for telemetry
+    // and tests without painting it over the fascia.
+    readoutMesh.visible = false
     dial.add(readoutMesh)
     readouts.set(g.id, { mesh: readoutMesh, text: '' })
 
     dial.name = `dial:${g.id}`
-    dial.position.set(x, PANEL_BELOW_M - lowerCentre, 0)
+    // Slip and RPM now read as real instruments, not indicator dots. Their
+    // complete faces are roughly four-fifths main-dial size and sit just
+    // below the compass line, clear of both the tape and annunciator banks.
+    if (slot.band === 'auxiliary') dial.scale.setScalar(config.layout.auxiliaryScale)
+    dial.position.set(x, PANEL_BELOW_M - centre, 0)
     root.add(dial)
   })
   // Live as of Plan 17: no longer a claim-without-backing placeholder (the
@@ -477,19 +977,42 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // reverse -- a "RESERVED" label on a working instrument would be the same
   // lie the other direction). No on-face label, matching the attitude
   // ball's precedent: a live, self-evidently-a-radar sweep needs none.
+  const radarFaceRadius = approvedFascia ? APPROVED_RADAR_FACE_RADIUS : 0.058
   const radar = new Group()
   radar.name = 'radar'
-  radar.position.set(slotX('radar'), PANEL_BELOW_M - lowerCentre, 0)
-  radar.add(new Mesh(new PlaneGeometry(0.14, 0.12), bezelMat))
-  const radarFace = new Mesh(new PlaneGeometry(0.131, 0.111), new MeshBasicMaterial({ color: 0x101c17 }))
+  radar.position.set(
+    slotX('radar'),
+    PANEL_BELOW_M - lowerCentre + (approvedFascia ? APPROVED_DISPLAY_Y_OFFSET : 0),
+    0,
+  )
+  const radarShadow = new Mesh(new PlaneGeometry(0.152, 0.140), bezelShadowMat)
+  radarShadow.position.z = Z_MARKS * 0.12
+    radarShadow.visible = !approvedFascia
+  radar.add(radarShadow)
+  const radarTrim = new Mesh(new PlaneGeometry(0.144, 0.132), bezelHighlightMat)
+  radarTrim.position.z = Z_MARKS * 0.28
+    radarTrim.visible = !approvedFascia
+  radar.add(radarTrim)
+  const radarBezel = new Mesh(new PlaneGeometry(0.136, 0.124), bezelMat)
+  radarBezel.position.z = Z_MARKS * 0.42
+    radarBezel.visible = !approvedFascia
+  radar.add(radarBezel)
+  const radarFace = new Mesh(
+    approvedFascia ? new CircleGeometry(radarFaceRadius, 48) : new PlaneGeometry(0.131, 0.111),
+    new MeshBasicMaterial({ color: 0x101c17 }),
+  )
   radarFace.position.z = Z_MARKS
   radar.add(radarFace)
+  const radarRing = new Mesh(new RingGeometry(radarFaceRadius, 0.066, 48), bezelShadowMat)
+  radarRing.position.z = Z_MARKS + 0.0004
+  radarRing.visible = !approvedFascia
+  radar.add(radarRing)
   root.add(radar)
 
   // Column gauges: a vertical light bar, not a needle -- Mark asked for this
   // throttle after pressing the key and seeing nothing on the panel move.
   // Fuel uses the same construction with five marks and capacity-based fill.
-  const columnGauges = GAUGES.filter((g): g is ColumnSpec => g.kind === 'column')
+  const columnGauges = gauges.filter((g): g is ColumnSpec => g.kind === 'column')
   const columns = new Map<GaugeId, { readonly fill: Object3D }>()
 
   // A band's local y is `PANEL_BELOW_M - band` (panelLayout.ts's doc
@@ -516,7 +1039,17 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // overhanging it -- the brief's stop condition ("if anything you draw
     // would exceed the slot width, STOP") is met by construction: nothing
     // below is wider than this plate.
+    const shadow = new Mesh(new PlaneGeometry(widthM + 0.012, columnH + 0.012), bezelShadowMat)
+    shadow.position.z = Z_MARKS * 0.15
+    shadow.visible = !approvedFascia
+    column.add(shadow)
+    const lip = new Mesh(new PlaneGeometry(widthM + 0.006, columnH + 0.006), bezelHighlightMat)
+    lip.position.z = Z_MARKS * 0.35
+    lip.visible = !approvedFascia
+    column.add(lip)
     const bezel = new Mesh(new PlaneGeometry(widthM, columnH), bezelMat)
+    bezel.position.z = Z_MARKS * 0.55
+    bezel.visible = !approvedFascia
     column.add(bezel)
 
     const faceW = widthM - COLUMN_BEZEL_T * 2
@@ -524,15 +1057,23 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     const fullH = columnH - 0.028
     const face = new Mesh(new PlaneGeometry(faceW, fullH), faceMat)
     face.position.z = Z_MARKS / 2
+    if (approvedFascia) face.layers.set(1)
     column.add(face)
-    const columnLabel = textPlate(g.id === 'fuel' ? 'FUEL' : 'THR', widthM * 0.9, 0.010, makeText)
+    const japanese = config.layout.unitProfile === 'metric-japanese'
+    const columnLabel = textPlate(
+      japanese ? g.label : g.id === 'fuel' ? 'FUEL' : 'ENGINE',
+      widthM * 0.9,
+      0.010,
+      makeText,
+    )
     columnLabel.position.set(0, columnH / 2 - 0.006, Z_READOUT)
+    columnLabel.visible = !approvedFascia
     column.add(columnLabel)
 
     // Ticks and numerals live in the left part of the face; the fill bar
     // occupies the right part, so a full-throttle bar never runs under its
     // own "100" numeral (brief step 3: "a fill plane on the right").
-    const fillW = faceW * 0.34
+    const fillW = faceW * (approvedFascia ? 0.24 : 0.34)
     const tickZoneW = faceW - fillW
     const fillX = faceW / 2 - fillW / 2
     const tickLeftX = -faceW / 2
@@ -548,20 +1089,29 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
       tick.position.set(tickLeftX + len / 2, y, Z_MARKS)
       tick.name = 'column:tick'
       tick.userData.fraction = mark.fraction
+      if (approvedFascia) tick.layers.set(1)
       column.add(tick)
 
-      if (mark.major && mark.text && (g.id !== 'fuel' || mark.fraction === 0 || mark.fraction === 1)) {
-        const text = g.id === 'fuel' ? (mark.fraction === 1 ? 'FULL' : 'EMPTY') : mark.text
+      if (mark.major && mark.text && (g.id !== 'fuel' || mark.fraction === 0 || mark.fraction === 0.5 || mark.fraction === 1)) {
+        const text = g.id === 'fuel'
+          ? japanese
+            ? mark.fraction === 1 ? '満' : mark.fraction === 0.5 ? '半' : '空'
+            : mark.fraction === 1 ? 'F' : mark.fraction === 0.5 ? '1/2' : 'E'
+          : mark.text
         const numeral = textPlate(text, tickZoneW * 0.94, 0.018 * S, makeText)
         // Nudged inward from the very top/bottom edge so the 0 and 100
         // numerals do not print half off the top or bottom of the face.
         const ny = mark.fraction === 0 ? y + 0.011 * S : mark.fraction === 1 ? y - 0.011 * S : y
         numeral.position.set(tickLeftX + tickZoneW * 0.42, ny, Z_MARKS)
+        if (approvedFascia) numeral.layers.set(1)
         column.add(numeral)
       }
     }
 
-    const fill = new Mesh(new PlaneGeometry(fillW, fullH), new MeshBasicMaterial({ color: 0xc8ccd2 }))
+    const fill = new Mesh(
+      new PlaneGeometry(fillW, fullH),
+      new MeshBasicMaterial({ color: approvedFascia ? 0xe4d3a9 : 0xc8ccd2 }),
+    )
     // A PlaneGeometry is centred on its own origin, so scaling it on Y grows
     // it in BOTH directions and the bar creeps downward out of its own
     // bezel. Move the origin to the bar's BASE first, so `scale.y` only
@@ -588,23 +1138,76 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const backingBottom = metresBelowEye(CAMERA_VFOV_DEG / 2) * 1.15
   const backingTop = PANEL_BANDS.upper.top
 
-  // The reference has a narrow raised crown, shallow shoulders and a dark
-  // rim around a grey fascia. Construct the rim as a hole, so the two material
-  // regions never overlap and need neither clipping nor depth offsets.
+  // Four deliberately different dashboard silhouettes. They share the same
+  // readable instrument vocabulary, but not the 2026 draft's single grey
+  // trapezoid with a slightly different crown width.
   const profile = (inset: number): Shape => {
+    const topY = PANEL_BELOW_M - backingTop
+    const shoulderY = PANEL_BELOW_M - 0.228
+    const bottomY = PANEL_BELOW_M - backingBottom
+    const inwardX = (x: number): number => x < 0 ? x + inset : x - inset
+    const inwardY = (y: number, upper: boolean): number => y + (upper ? -inset : inset)
+    if (config.layout.panelProfile === 'us-fighter-cowl') {
+      const s = new Shape()
+      const edge = backingHalfW - inset
+      const bottom = bottomY + inset
+      const shoulder = shoulderY + inset * 0.35
+      const sideTop = 0.064 - inset
+      const shelfTop = 0.086 - inset
+      const crownTop = topY - inset
+      s.moveTo(-edge, bottom)
+      s.lineTo(-edge, shoulder)
+      s.quadraticCurveTo(-edge * 0.98, 0.008, -edge * 0.84, sideTop)
+      s.quadraticCurveTo(-edge * 0.70, shelfTop, -0.29 + inset, shelfTop)
+      s.lineTo(-0.245 + inset, shelfTop)
+      s.quadraticCurveTo(-0.205 + inset, shelfTop, -0.165 + inset, crownTop - 0.018)
+      s.quadraticCurveTo(-0.145 + inset, crownTop, -0.105 + inset, crownTop)
+      s.lineTo(0.105 - inset, crownTop)
+      s.quadraticCurveTo(0.145 - inset, crownTop, 0.165 - inset, crownTop - 0.018)
+      s.quadraticCurveTo(0.205 - inset, shelfTop, 0.245 - inset, shelfTop)
+      s.lineTo(0.29 - inset, shelfTop)
+      s.quadraticCurveTo(edge * 0.70, shelfTop, edge * 0.84, sideTop)
+      s.quadraticCurveTo(edge * 0.98, 0.008, edge, shoulder)
+      s.lineTo(edge, bottom)
+      s.closePath()
+      return s
+    }
+    let points: readonly (readonly [number, number, boolean])[]
+    switch (config.layout.panelProfile) {
+      case 'us-bomber-desk':
+        points = [
+          [-backingHalfW, bottomY, false], [-backingHalfW * 0.98, shoulderY, true],
+          [-backingHalfW * 0.91, topY - 0.004, true], [backingHalfW * 0.91, topY - 0.004, true],
+          [backingHalfW * 0.98, shoulderY, true], [backingHalfW, bottomY, false],
+        ]
+        break
+      case 'jp-fighter-hood':
+        points = [
+          [-backingHalfW, bottomY, false], [-backingHalfW * 0.96, shoulderY, true],
+          [-backingHalfW * 0.78, topY - 0.020, true], [-0.24, topY - 0.016, true],
+          [-0.14, topY, true], [0.14, topY, true], [0.24, topY - 0.016, true],
+          [backingHalfW * 0.78, topY - 0.020, true], [backingHalfW * 0.96, shoulderY, true],
+          [backingHalfW, bottomY, false],
+        ]
+        break
+      case 'jp-bomber-twin':
+        points = [
+          [-backingHalfW, bottomY, false], [-backingHalfW * 0.97, shoulderY, true],
+          [-backingHalfW * 0.82, topY - 0.018, true], [-0.35, topY - 0.004, true],
+          [-0.13, topY - 0.004, true], [-0.08, topY - 0.020, true],
+          [0.08, topY - 0.020, true], [0.13, topY - 0.004, true],
+          [0.35, topY - 0.004, true], [backingHalfW * 0.82, topY - 0.018, true],
+          [backingHalfW * 0.97, shoulderY, true], [backingHalfW, bottomY, false],
+        ]
+        break
+    }
     const shape = new Shape()
-    const crown = 0.18 - inset
-    const shoulder = backingHalfW * 0.92 - inset
-    const bottom = backingHalfW - inset
-    const topY = PANEL_BELOW_M - backingTop - inset
-    const shoulderY = PANEL_BELOW_M - 0.228 - inset
-    const bottomY = PANEL_BELOW_M - backingBottom + inset
-    shape.moveTo(-crown, topY)
-    shape.lineTo(-shoulder, shoulderY)
-    shape.lineTo(-bottom, bottomY)
-    shape.lineTo(bottom, bottomY)
-    shape.lineTo(shoulder, shoulderY)
-    shape.lineTo(crown, topY)
+    points.forEach(([x, y, upper], i) => {
+      const px = inwardX(x)
+      const py = inwardY(y, upper)
+      if (i === 0) shape.moveTo(px, py)
+      else shape.lineTo(px, py)
+    })
     shape.closePath()
     return shape
   }
@@ -612,12 +1215,123 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   const fascia = profile(0.004)
   outline.holes.push(fascia)
   const backing = new Mesh(new ShapeGeometry([outline, fascia]), [
-    new MeshBasicMaterial({ color: 0x101518 }),
-    new MeshBasicMaterial({ color: 0x555956 }),
+    new MeshBasicMaterial({ color: config.layout.rimColor }),
+    new MeshBasicMaterial({ color: config.layout.fasciaColor }),
   ])
   backing.name = 'backing'
   backing.position.set(0, 0, BACKING_Z)
+  if (approvedFascia) backing.layers.set(1)
   root.add(backing)
+  const approvedFasciaMesh = approvedFascia ? makeApprovedFascia(config.layout.id) : null
+  if (approvedFasciaMesh !== null) root.add(approvedFasciaMesh)
+  const fasciaPaintTexture = approvedFascia ? null : makeFasciaPaintTexture(config.layout.id)
+  if (fasciaPaintTexture !== null) {
+    const paintTop = PANEL_BELOW_M - backingTop
+    const paintBottom = PANEL_BELOW_M - backingBottom
+    const paint = new Mesh(
+      new PlaneGeometry(backingHalfW * 2, paintTop - paintBottom),
+      new MeshBasicMaterial({ map: fasciaPaintTexture, transparent: true }),
+    )
+    paint.name = 'panel:fascia-paint'
+    paint.position.set(0, (paintTop + paintBottom) / 2, BACKING_Z + 0.0001)
+    root.add(paint)
+  }
+  const innerBevelOuter = profile(0.005)
+  const innerBevelInner = profile(0.011)
+  innerBevelOuter.holes.push(innerBevelInner)
+  const fasciaBevel = new Mesh(
+    new ShapeGeometry(innerBevelOuter),
+    new MeshBasicMaterial({ color: config.layout.trimColor }),
+  )
+  fasciaBevel.name = 'panel:fascia-bevel'
+  fasciaBevel.position.z = BACKING_Z + 0.0002
+  if (approvedFascia) fasciaBevel.layers.set(1)
+  root.add(fasciaBevel)
+
+  if (config.layout.panelProfile === 'us-fighter-cowl' && !approvedFascia) {
+    const fasciaScrews: readonly (readonly [number, number])[] = [
+      [-0.52, 0.041], [-0.41, 0.076], [-0.30, 0.079], [-0.205, 0.106],
+      [-0.105, 0.143], [0, 0.143], [0.105, 0.143], [0.205, 0.106],
+      [0.30, 0.079], [0.41, 0.076], [0.52, 0.041],
+      [-0.57, -0.058], [0.57, -0.058], [-0.53, -0.155], [0.53, -0.155],
+    ]
+    for (const [i, [x, y]] of fasciaScrews.entries()) {
+      addScrew(root, x, y, 0, i % 2 === 0 ? Math.PI / 4 : -Math.PI / 5, 0.0044)
+    }
+  }
+
+  // Inset instrument structure is the other large family cue: a fighter's
+  // three compact bays, a bomber desk, or Japanese pod/binnacle groupings.
+  // These plates are dashboard-mounted and always remain behind instruments.
+  const clusterY = PANEL_BELOW_M - lowerCentre
+  const chamfered = (w: number, h: number, cut: number): Shape => {
+    const shape = new Shape()
+    shape.moveTo(-w / 2 + cut, h / 2)
+    shape.lineTo(w / 2 - cut, h / 2)
+    shape.lineTo(w / 2, h / 2 - cut)
+    shape.lineTo(w / 2, -h / 2 + cut)
+    shape.lineTo(w / 2 - cut, -h / 2)
+    shape.lineTo(-w / 2 + cut, -h / 2)
+    shape.lineTo(-w / 2, -h / 2 + cut)
+    shape.lineTo(-w / 2, h / 2 - cut)
+    shape.closePath()
+    return shape
+  }
+  const addCluster = (name: string, x: number, w: number, h: number, cut: number): void => {
+    const shadow = new Mesh(
+      new ShapeGeometry(chamfered(w + 0.020, h + 0.020, cut + 0.006)),
+      new MeshBasicMaterial({ color: 0x070c0f }),
+    )
+    shadow.name = `panel:cluster-shadow:${name}`
+    shadow.position.set(x, clusterY - 0.002, BACKING_Z + 0.00015)
+    root.add(shadow)
+    const trim = new Mesh(
+      new ShapeGeometry(chamfered(w + 0.013, h + 0.013, cut + 0.004)),
+      new MeshBasicMaterial({ color: config.layout.trimColor }),
+    )
+    trim.name = `panel:cluster-trim:${name}`
+    trim.position.set(x, clusterY, BACKING_Z + 0.0002)
+    root.add(trim)
+    const face = new Mesh(
+      new ShapeGeometry(chamfered(w, h, cut)),
+      new MeshBasicMaterial({ color: config.layout.clusterColor }),
+    )
+    face.name = `panel:cluster:${name}`
+    face.position.set(x, clusterY, BACKING_Z + 0.0004)
+    root.add(face)
+    const sx = w / 2 - Math.max(0.011, cut * 0.55)
+    const sy = h / 2 - 0.012
+    addScrew(root, x - sx, clusterY + sy, 0, Math.PI / 4, 0.0038)
+    addScrew(root, x + sx, clusterY + sy, 0, -Math.PI / 4, 0.0038)
+    addScrew(root, x - sx, clusterY - sy, 0, -Math.PI / 5, 0.0038)
+    addScrew(root, x + sx, clusterY - sy, 0, Math.PI / 5, 0.0038)
+  }
+  if (!approvedFascia) switch (config.layout.clusterPattern) {
+    case 'single-well':
+      addCluster('left', -0.275, 0.310, 0.136, 0.018)
+      addCluster('centre', 0, 0.150, 0.140, 0.018)
+      addCluster('right', 0.255, 0.310, 0.136, 0.018)
+      break
+    case 'split-console':
+      addCluster('left', -0.235, 0.390, 0.140, 0.008)
+      addCluster('right', 0.235, 0.390, 0.140, 0.008)
+      break
+    case 'three-pod':
+      addCluster('left', -0.275, 0.205, 0.134, 0.028)
+      addCluster('centre', 0, 0.315, 0.140, 0.034)
+      addCluster('right', 0.285, 0.185, 0.134, 0.028)
+      break
+    case 'twin-binnacle':
+      addCluster('left', -0.225, 0.380, 0.140, 0.025)
+      addCluster('right', 0.225, 0.380, 0.140, 0.025)
+      break
+  }
+
+  const badge = makeFamilyBadge(config.layout.badge)
+  badge.position.set(0.430, 0.045, 0)
+  badge.scale.setScalar(0.75)
+  badge.visible = !approvedFascia
+  root.add(badge)
 
   // The attitude ball occupies its own lower-row slot. Ruling
   // R1: this is panel geometry, not a `GAUGES` entry -- driven by
@@ -630,9 +1344,14 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   {
     const attitudeSlot = PANEL_SLOTS.find((s) => s.id === 'attitude')
     if (!attitudeSlot) throw new Error('no layout slot for attitude')
+    const attitudeFaceRadius = approvedFascia ? APPROVED_ATTITUDE_FACE_RADIUS : DIAL_RADIUS
     const attitudeGroup = new Group()
     attitudeGroup.name = 'attitude'
-    attitudeGroup.position.set(attitudeSlot.centreX, PANEL_BELOW_M - lowerCentre, 0)
+    attitudeGroup.position.set(
+      attitudeSlot.centreX,
+      PANEL_BELOW_M - lowerCentre + (approvedFascia ? APPROVED_DISPLAY_Y_OFFSET : 0),
+      0,
+    )
     root.add(attitudeGroup)
 
     // The ball: two meshes, sky over ground, whose GEOMETRY `updatePanel`
@@ -645,7 +1364,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // block) is this ball's own version of that check.
     const ball = new Group()
     ball.name = 'attitude:ball'
-    const initial = attitudeBallGeometry(0, 0)
+    const initial = attitudeBallGeometry(0, 0, attitudeFaceRadius)
     const sky = new Mesh(initial.sky, new MeshBasicMaterial({ color: 0x3f7fbf }))
     const ground = new Mesh(initial.ground, new MeshBasicMaterial({ color: 0x6b4f2a }))
     // Fixed order (sky then ground), relied on by `updatePanel` below --
@@ -659,12 +1378,42 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     // longer does any clipping work itself -- the ball's own geometry now
     // never exceeds `DIAL_RADIUS`, the ring's own inner radius -- so this is
     // purely the same decorative rim every other dial has.
-    const ring = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.09, 32), bezelMat)
+    const attitudeShadow = new Mesh(
+      new RingGeometry(DIAL_RADIUS * 1.09, DIAL_RADIUS * 1.18, 48),
+      bezelShadowMat,
+    )
+    attitudeShadow.position.z = Z_MARKS * 0.18
+    attitudeShadow.visible = !approvedFascia
+    attitudeGroup.add(attitudeShadow)
+    const attitudeLip = new Mesh(
+      new RingGeometry(DIAL_RADIUS * 1.055, DIAL_RADIUS * 1.11, 48),
+      bezelHighlightMat,
+    )
+    attitudeLip.position.z = Z_MARKS * 0.42
+    attitudeLip.visible = !approvedFascia
+    attitudeGroup.add(attitudeLip)
+    const ring = new Mesh(new RingGeometry(DIAL_RADIUS, DIAL_RADIUS * 1.065, 48), bezelMat)
     ring.name = 'attitude:ring'
     ring.position.z = Z_MARKS
+    ring.visible = !approvedFascia
     attitudeGroup.add(ring)
+    const horizonMat = new MeshBasicMaterial({ color: 0xf2efe3 })
+    const horizonLeft = new Mesh(new PlaneGeometry(0.022, 0.0018), horizonMat)
+    horizonLeft.position.set(-0.017, 0, Z_NEEDLE)
+    attitudeGroup.add(horizonLeft)
+    const horizonRight = new Mesh(new PlaneGeometry(0.022, 0.0018), horizonMat)
+    horizonRight.position.set(0.017, 0, Z_NEEDLE)
+    attitudeGroup.add(horizonRight)
+    const centreDot = new Mesh(new CircleGeometry(0.003, 16), horizonMat)
+    centreDot.position.z = Z_NEEDLE
+    attitudeGroup.add(centreDot)
+    for (const y of [-0.012, 0.012]) {
+      const pitchMark = new Mesh(new PlaneGeometry(0.016, 0.0012), horizonMat)
+      pitchMark.position.set(0, y, Z_NEEDLE)
+      attitudeGroup.add(pitchMark)
+    }
 
-    attitude = { ball, ring }
+    attitude = { ball, ring, faceRadius: attitudeFaceRadius }
   }
 
   // The sight's center sits on the line from the eye to where the rounds
@@ -701,6 +1450,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   dot.name = 'reticle:dot'
   reticle.add(dot)
   reticle.position.set(0, PANEL_BELOW_M - sightDistance * Math.tan(depressionRad), RETICLE_Z)
+  reticle.visible = config.sight
   root.add(reticle)
 
   // The heading tape: a sliding compass strip across the upper band,
@@ -709,10 +1459,34 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // `heading` entry (deliberate: F4/context point 4), because the tape spans
   // the band's own width rather than a row slot.
   {
-    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const tapeGauge = gauges.find((g): g is TapeSpec => g.id === 'heading')!
     const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
     const upperCentreY = (PANEL_BANDS.upper.top + PANEL_BANDS.upper.bottom) / 2
     const tapeY = PANEL_BELOW_M - upperCentreY
+
+    const tapeShadow = new Mesh(new PlaneGeometry(TAPE_W + 0.030, 0.052), bezelShadowMat)
+    tapeShadow.name = 'tape:housing-shadow'
+    tapeShadow.position.set(0, tapeY, BACKING_Z + 0.0004)
+    tapeShadow.visible = !approvedFascia
+    root.add(tapeShadow)
+    const tapeLip = new Mesh(new PlaneGeometry(TAPE_W + 0.020, 0.044), bezelHighlightMat)
+    tapeLip.name = 'tape:housing-lip'
+    tapeLip.position.set(0, tapeY, BACKING_Z + 0.0006)
+    tapeLip.visible = !approvedFascia
+    root.add(tapeLip)
+    const tapeFace = new Mesh(
+      new PlaneGeometry(TAPE_W + (approvedFascia ? 0.020 : 0.010), approvedFascia ? 0.060 : 0.036),
+      approvedFascia ? new MeshBasicMaterial({ color: config.layout.faceColor }) : faceMat,
+    )
+    tapeFace.name = 'tape:housing-face'
+    tapeFace.position.set(0, tapeY - (approvedFascia ? 0.006 : 0), approvedFascia ? 0.0004 : BACKING_Z + 0.0008)
+    root.add(tapeFace)
+    for (const [x, y, angle] of approvedFascia ? [] : [
+      [-(TAPE_W + 0.020) / 2 + 0.008, tapeY + 0.015, Math.PI / 4],
+      [(TAPE_W + 0.020) / 2 - 0.008, tapeY + 0.015, -Math.PI / 4],
+      [-(TAPE_W + 0.020) / 2 + 0.008, tapeY - 0.015, -Math.PI / 5],
+      [(TAPE_W + 0.020) / 2 - 0.008, tapeY - 0.015, Math.PI / 5],
+    ] as const) addScrew(root, x, y, 0, angle, 0.0035)
 
     // The rose, drawn THREE copies end to end (copy in [-1, 0, 1]). Sliding
     // within the middle copy then always has a neighbour rendered on both
@@ -755,7 +1529,12 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         tick.userData.value = mark.value
         strip.add(tick)
         if (mark.major) {
-          const numeral = textPlate(mark.text, 0.022 * S, 0.011 * S, makeText)
+          const numeral = textPlate(
+            mark.text,
+            approvedFascia ? 0.026 : 0.022 * S,
+            approvedFascia ? 0.014 : 0.011 * S,
+            makeText,
+          )
           numeral.position.set(x, -0.006 * S, Z_MARKS)
           numeral.userData.localX = x
           numeral.userData.value = mark.value
@@ -781,30 +1560,110 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     const tapeReadout = textPlate('', 0.05 * S, 0.020 * S, makeText)
     tapeReadout.name = 'tape:readout'
     tapeReadout.position.set(0, tapeY - 0.028 * S, Z_READOUT)
+    if (approvedFascia) tapeReadout.layers.set(1)
     root.add(tapeReadout)
 
     tape = { strip, readout: tapeReadout }
   }
 
-  // Gear and flap lights, in the upper band beside the tape -- see
-  // `Panel.lights`. Each is a bezel ring, a lit disc and a label plate.
-  const lightMeshes = {} as { gear: Mesh; flap: Mesh }
+  // One integrated equipment bank: flight-configuration lamps on the upper
+  // row and live armament counts below. This replaces the preview's four
+  // loose lamps outside the apparent dashboard edge.
+  const lightMeshes = {} as { gear: Mesh; flap: Mesh; hook: Mesh; bay: Mesh }
   {
-    const upperCentreY = (PANEL_BANDS.upper.top + PANEL_BANDS.upper.bottom) / 2
-    const lightY = PANEL_BELOW_M - upperCentreY + 0.006 * S
-    for (const [id, label] of [['gear', 'GEAR'], ['flap', 'FLAP']] as const) {
-      const bezel = new Mesh(new CircleGeometry(LIGHT_RADIUS * 1.35, 24), bezelMat)
-      bezel.position.set(LIGHT_X[id], lightY, 0)
+    const shadow = new Mesh(
+      new PlaneGeometry(EQUIPMENT_BANK_W + 0.018, EQUIPMENT_BANK_H + 0.018),
+      bezelShadowMat,
+    )
+    shadow.name = 'equipment:shadow'
+    shadow.position.set(EQUIPMENT_BANK_X, EQUIPMENT_BANK_Y - 0.002, BACKING_Z + 0.0004)
+    shadow.visible = !approvedFascia
+    root.add(shadow)
+    const trim = new Mesh(
+      new PlaneGeometry(EQUIPMENT_BANK_W + 0.010, EQUIPMENT_BANK_H + 0.010),
+      bezelHighlightMat,
+    )
+    trim.name = 'equipment:trim'
+    trim.position.set(EQUIPMENT_BANK_X, EQUIPMENT_BANK_Y, BACKING_Z + 0.0006)
+    trim.visible = !approvedFascia
+    root.add(trim)
+    const bank = new Mesh(
+      new PlaneGeometry(EQUIPMENT_BANK_W, EQUIPMENT_BANK_H + (approvedFascia ? 0.016 : 0)),
+      new MeshBasicMaterial({ color: config.layout.clusterColor }),
+    )
+    bank.name = 'equipment:bank'
+    bank.position.set(
+      EQUIPMENT_BANK_X,
+      EQUIPMENT_BANK_Y - (approvedFascia ? 0.007 : 0),
+      approvedFascia ? 0.0004 : BACKING_Z + 0.0008,
+    )
+    root.add(bank)
+    if (!approvedFascia) {
+      addScrew(root, EQUIPMENT_BANK_X - EQUIPMENT_BANK_W / 2 - 0.002, EQUIPMENT_BANK_Y + EQUIPMENT_BANK_H / 2, 0, Math.PI / 4, 0.0034)
+      addScrew(root, EQUIPMENT_BANK_X + EQUIPMENT_BANK_W / 2 + 0.002, EQUIPMENT_BANK_Y + EQUIPMENT_BANK_H / 2, 0, -Math.PI / 4, 0.0034)
+      addScrew(root, EQUIPMENT_BANK_X - EQUIPMENT_BANK_W / 2 - 0.002, EQUIPMENT_BANK_Y - EQUIPMENT_BANK_H / 2, 0, -Math.PI / 5, 0.0034)
+      addScrew(root, EQUIPMENT_BANK_X + EQUIPMENT_BANK_W / 2 + 0.002, EQUIPMENT_BANK_Y - EQUIPMENT_BANK_H / 2, 0, Math.PI / 5, 0.0034)
+    }
+    const dividerMat = new MeshBasicMaterial({ color: config.layout.trimColor })
+    const rowDivider = new Mesh(new PlaneGeometry(EQUIPMENT_BANK_W - 0.006, 0.0015), dividerMat)
+    rowDivider.position.set(EQUIPMENT_BANK_X, EQUIPMENT_BANK_Y, Z_MARKS)
+    root.add(rowDivider)
+    for (let i = 1; i < 4; i++) {
+      const divider = new Mesh(new PlaneGeometry(0.0012, EQUIPMENT_BANK_H / 2 - 0.004), dividerMat)
+      divider.position.set(
+        EQUIPMENT_BANK_X - EQUIPMENT_BANK_W / 2 + EQUIPMENT_CELL_W * i,
+        EQUIPMENT_BANK_Y - EQUIPMENT_BANK_H / 4,
+        Z_MARKS,
+      )
+      root.add(divider)
+    }
+
+    const japanese = config.layout.unitProfile === 'metric-japanese'
+    const lightY = EQUIPMENT_BANK_Y + 0.009
+    const status = [
+      ['gear', japanese ? '脚' : 'GEAR', config.gear],
+      ['flap', japanese ? '翼' : 'FLAP', config.flap],
+      ['hook', japanese ? '鉤' : 'HOOK', config.hook],
+      ['bay', japanese ? '扉' : 'BAY', config.bay],
+    ] as const
+    const activeStatus = status.filter((entry) => entry[2])
+    for (const [id, label, active] of status) {
+      const activeIndex = activeStatus.findIndex((entry) => entry[0] === id)
+      const cellW = EQUIPMENT_BANK_W / Math.max(1, activeStatus.length)
+      const x = active
+        ? EQUIPMENT_BANK_X - EQUIPMENT_BANK_W / 2 + cellW * (activeIndex + 0.5)
+        : EQUIPMENT_BANK_X
+      const bezel = new Mesh(new PlaneGeometry(cellW * 0.64, 0.015), bezelMat)
+      bezel.position.set(x, lightY, Z_MARKS * 0.75)
+      bezel.visible = active
       root.add(bezel)
-      const light = new Mesh(new CircleGeometry(LIGHT_RADIUS, 24), new MeshBasicMaterial({ color: LIGHT_OFF }))
+      const light = new Mesh(new PlaneGeometry(cellW * 0.53, 0.010), new MeshBasicMaterial({ color: LIGHT_OFF }))
       light.name = `light:${id}`
-      light.position.set(LIGHT_X[id], lightY, Z_MARKS)
+      light.position.set(x, lightY, Z_MARKS + 0.0003)
+      light.visible = active
       root.add(light)
-      const plate = textPlate(label, 0.036 * S, 0.012 * S, makeText)
-      plate.position.set(LIGHT_X[id], lightY - LIGHT_RADIUS - 0.010 * S, Z_MARKS)
+      const plate = textPlate(label, cellW * 0.86, 0.009, makeText)
+      plate.position.set(x, EQUIPMENT_BANK_Y + 0.024, Z_READOUT)
+      plate.visible = active
       root.add(plate)
       lightMeshes[id] = light
     }
+
+    const labels: Readonly<Record<ArmamentId, string>> = japanese
+      ? { ammo: '弾薬', bomb: '爆弾', rocket: '噴進', torpedo: '魚雷' }
+      : { ammo: 'AMMO', bomb: 'BOMB', rocket: 'RKT', torpedo: 'TORP' }
+    ARMAMENT_IDS.forEach((id, i) => {
+      const x = EQUIPMENT_CELL_X(i)
+      const label = textPlate(labels[id], EQUIPMENT_CELL_W * 0.88, 0.008, makeText)
+      label.name = `armament:label:${id}`
+      label.position.set(x, EQUIPMENT_BANK_Y - 0.007, Z_READOUT)
+      root.add(label)
+      const value = textPlate('', EQUIPMENT_CELL_W * 0.88, 0.012, makeText)
+      value.name = `armament:value:${id}`
+      value.position.set(x, EQUIPMENT_BANK_Y - 0.019, Z_READOUT)
+      root.add(value)
+      armament.set(id, { mesh: value, text: '' })
+    })
   }
 
   // Positioned in the SAME body frame the cockpit group is posed in (sim
@@ -824,22 +1683,29 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   root.position.set(ex + PANEL_AHEAD_M, ey - PANEL_BELOW_M, ez)
   root.rotation.y = -Math.PI / 2
   return {
+    config,
     root,
     needles,
+    rpmNeedles,
     readouts,
     columns,
     attitude: attitude!,
-    radar: { face: radarFace },
+    radar: { face: radarFace, faceRadius: radarFaceRadius },
     reticle,
     backing,
     tape: tape!,
     lights: lightMeshes,
+    armament,
+    badge,
   }
 }
 
 /** Keep the coaming clipped at both screen edges as the viewport changes. */
 export function resizePanel(panel: Panel, aspect: number): void {
-  panel.backing.scale.x = Math.max(1, aspect / PANEL_MIN_ASPECT)
+  const scaleX = Math.max(1, aspect / PANEL_MIN_ASPECT)
+  panel.backing.scale.x = scaleX
+  const paint = panel.root.getObjectByName('panel:fascia-paint')
+  if (paint) paint.scale.x = scaleX
 }
 
 export function updatePanel(
@@ -878,11 +1744,15 @@ export function updatePanel(
   /** The velocity of the air, for the AIRSPEED dial: `World.wind`, threaded
    *  from main.ts. See `Wind` in ../gauges.ts for why it is defaulted. */
   wind: Wind = null,
+  /** The player's live combat record. Optional keeps headless layout tests
+   *  simple; production always supplies it so the equipment bank is live. */
+  combat: AircraftCombat | null = null,
 ): void {
-  for (const g of GAUGES) {
+  const gauges = gaugesFor(panel.config.layout.unitProfile)
+  for (const g of gauges) {
     const readout = panel.readouts.get(g.id)
     if (readout) {
-      const text = readoutTextFor(g.id, spec, state, controls, wind)
+      const text = readoutTextFor(g.id, spec, state, controls, wind, panel.config.layout.unitProfile)
       // Re-rasterise only on a real change. Measured over 600 ticks of the
       // real flight model: about 0.07 redraws per frame in gentle flight but
       // 1.44 per frame under active manoeuvring, driven mostly by the climb
@@ -900,27 +1770,38 @@ export function updatePanel(
       // `gaugeValue`/`fractionForValue`, not `needleAngleFor`: a column has
       // no angle, and `throttle` is the one gauge that reads `controls`
       // rather than `state` (gauges.ts's `NEUTRAL_CONTROLS` doc comment).
-      const value = gaugeValue(g.id, spec, state, controls, wind)
+      const value = gaugeValue(g.id, spec, state, controls, wind, panel.config.layout.unitProfile)
       const fraction = g.id === 'fuel' ? fuelFraction(spec, state) : fractionForValue(g, value)
       column.fill.scale.y = Math.max(1e-4, fraction)
       column.fill.visible = fraction > 0
     }
     const needle = panel.needles.get(g.id)
     if (!needle) continue
-    const angle = needleAngleFor(g.id, spec, state, wind)
+    if (g.id === 'slip') {
+      const value = gaugeValue(g.id, spec, state, controls, wind, panel.config.layout.unitProfile)
+      const fraction = fractionForValue(g, value)
+      needle.position.x = (fraction - 0.5) * DIAL_RADIUS * 1.18
+      needle.rotation.z = 0
+      continue
+    }
+    const angle = needleAngleFor(g.id, spec, state, wind, panel.config.layout.unitProfile)
     // Negative: needle angles are clockwise from the dial's zero (gauges.ts),
     // and a positive rotation about +Z in this frame is anticlockwise.
     needle.rotation.z = -angle
   }
+  const rpmGauge = gauges.find((g): g is DialSpec => g.id === 'rpm')!
+  panel.rpmNeedles.forEach((needle, i) => {
+    needle.rotation.z = -angleForValue(rpmGauge, state.engineRpm[i] ?? state.engineRpm[0] ?? 0)
+  })
 
   // The heading tape: slide the rose under the fixed index, and print the
   // digits on the fixed readout. Not reached through `panel.readouts` above
   // -- `heading` is a `TapeSpec`, not a dial, so `createPanel` never put it
   // in that map (it filters to `kind === 'dial'`).
   {
-    const tapeGauge = GAUGES.find((g): g is TapeSpec => g.id === 'heading')!
+    const tapeGauge = gauges.find((g): g is TapeSpec => g.id === 'heading')!
     const stripW = TAPE_W * (360 / tapeGauge.windowSpan)
-    const headingDeg = gaugeValue('heading', spec, state, controls, wind)
+    const headingDeg = gaugeValue('heading', spec, state, controls, wind, panel.config.layout.unitProfile)
     const stripX = -tapeOffsetFor(tapeGauge, headingDeg) * stripW
     panel.tape.strip.position.x = stripX
     // Cull to the visible window, per frame (Ruling R8, review round 2):
@@ -941,7 +1822,7 @@ export function updatePanel(
     // dial readouts get from `panel.readouts`' own `Readout.text` field --
     // `Panel.tape.readout` is a bare `Mesh` (the interface this task was
     // handed), so there is no sibling wrapper to hold the last string.
-    const text = readoutTextFor('heading', spec, state, controls, wind)
+    const text = readoutTextFor('heading', spec, state, controls, wind, panel.config.layout.unitProfile)
     if (panel.tape.readout.userData.text !== text) {
       setPlateText(panel.tape.readout, text, makeText)
       panel.tape.readout.userData.text = text
@@ -953,6 +1834,18 @@ export function updatePanel(
     display === 'DOWN' ? LIGHT_DOWN : display === 'UP' ? LIGHT_OFF : LIGHT_TRANSIT
   ;(panel.lights.gear.material as MeshBasicMaterial).color.setHex(lightColour(gearDisplay(state.gearFraction)))
   ;(panel.lights.flap.material as MeshBasicMaterial).color.setHex(lightColour(flapDisplay(state.flapFraction)))
+  ;(panel.lights.hook.material as MeshBasicMaterial).color.setHex(controls.hookDown === true ? LIGHT_DOWN : LIGHT_OFF)
+  ;(panel.lights.bay.material as MeshBasicMaterial).color.setHex(lightColour(flapDisplay(state.bayDoorFraction)))
+
+  const armament = armamentValues(spec, combat)
+  for (const id of ARMAMENT_IDS) {
+    const readout = panel.armament.get(id)!
+    const text = armament[id]
+    if (text !== readout.text) {
+      setPlateText(readout.mesh, text, makeText)
+      readout.text = text
+    }
+  }
 
   const { rollRad, pitchRad } = attitudeAngles({ ...state, attitude: renderAttitude })
 
@@ -993,7 +1886,7 @@ export function updatePanel(
   // old geometries are disposed -- the same "don't leak one GPU resource per
   // change" rule `setPlateText` follows for readout textures above.
   const [sky, ground] = panel.attitude.ball.children as [Mesh, Mesh]
-  const nextBall = attitudeBallGeometry(rollRad, pitchRad)
+  const nextBall = attitudeBallGeometry(rollRad, pitchRad, panel.attitude.faceRadius)
   sky.geometry.dispose()
   sky.geometry = nextBall.sky
   ground.geometry.dispose()

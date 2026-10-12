@@ -41,6 +41,10 @@ export const GAUGE_SAMPLES: Record<GaugeId, { low: AircraftState; high: Aircraft
     low: createState({ velocity: v3(100, 0, -20) }),
     high: createState({ velocity: v3(100, 0, 20) }),
   },
+  rpm: {
+    low: createState({ engineRpm: [600] }),
+    high: createState({ engineRpm: [2700] }),
+  },
   // Unread by every loop that indexes this table: those loops filter to
   // `kind === 'dial'` (needleAngleFor is dial-only), and throttle is a
   // column. Present only so this Record stays total over `GaugeId`.
