@@ -108,8 +108,31 @@ describe('the pivoted airframe (R3)', () => {
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 3, surfaceCrash: crash })
     const flown = debrisFlight(3, (19 + Math.imul(1, 0x9e3779b1)) >>> 0)
     expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0).add(flown.offset))).toBeLessThan(1e-9)
+    expect(inst.node('GearL').position.length()).toBeGreaterThan(5)
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: null })
     expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
+  })
+
+  it('a solid impact carries the fuselage through a bounded bounce, tumble, slide and crush', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
+    const crash = { mode: 'breakup' as const, seed: 29, velocity: { x: 48, y: -18, z: 3 }, massKg: 3200, surfaceLiftM: 0.25 }
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: crash })
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0.35, surfaceCrash: crash })
+    expect(Math.hypot(a.root.position.x, a.root.position.z)).toBeGreaterThan(5)
+    expect(a.root.position.y).toBeGreaterThan(0.25)
+    expect(a.root.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0.1)
+    expect(a.root.scale.x).toBeLessThan(0.98)
+    expect(a.root.scale.z).toBeGreaterThan(1)
+
+    // main.ts restores position/orientation from the simulation every frame; the airframe owns scale.
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: null })
+    expect(a.root.position.length()).toBe(0)
+    expect(a.root.scale.toArray()).toEqual([1, 1, 1])
   })
 
   it('a fatal water contact sinks the whole airframe smoothly below the surface, then a reset restores its pose', async () => {

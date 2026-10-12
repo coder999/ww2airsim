@@ -7,7 +7,7 @@ import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.
 import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
 import {
-  NO_SURFACE_CRASH_CLOCK, propAngle, stepSurfaceCrashClock, waterCrashSubmergeM,
+  applySurfaceCrashPose, NO_SURFACE_CRASH_CLOCK, propAngle, stepSurfaceCrashClock,
   type Airframe, type SurfaceCrashClock,
 } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
@@ -299,7 +299,12 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   const heliceRestZ = helice.rotation.z
   const heliceRestPosition = helice.position.clone()
   let propRad = 0
-  const loose = [helice, ...surfaces.map((s) => s.node)]
+  const loose = [
+    { node: helice, surfaceOnly: false },
+    ...surfaces.map((s) => ({ node: s.node, surfaceOnly: false })),
+    { node: gearDer, surfaceOnly: true },
+    { node: gearIzq, surfaceOnly: true },
+  ]
   const debrisScratch = new Vector3()
 
   // The basis/scale fix lives on one wrapper Group, isolating this model's
@@ -349,7 +354,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
     setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
       crashClock = stepSurfaceCrashClock(crashClock, u.surfaceCrash, u.frameS)
-      if (u.surfaceCrash?.mode === 'submerge') root.position.y -= waterCrashSubmergeM(crashClock.ageS)
+      applySurfaceCrashPose(root, u.surfaceCrash, crashClock.ageS)
       const debris = u.surfaceCrash?.mode === 'breakup'
         ? { ageS: crashClock.ageS, seed: u.surfaceCrash.seed }
         : u.debris ?? null
@@ -366,14 +371,15 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       for (const s of surfaces) turnAbout(s.node, s.rest, s.hinge, surfaceAngleRad(s.name, stick[s.input]))
       flaps.set(u.flapFraction)
       loose.forEach((l, i) => {
-        l.visible = debris === null || debris.ageS < DEBRIS_S
-        if (debris === null || l.parent === null) return
+        const active = debris !== null && (!l.surfaceOnly || u.surfaceCrash?.mode === 'breakup')
+        l.node.visible = !active || debris.ageS < DEBRIS_S
+        if (!active || l.node.parent === null) return
         const f = debrisFlight(debris.ageS, (debris.seed + Math.imul(i + 1, 0x9e3779b1)) >>> 0)
-        l.parent.updateWorldMatrix(true, false)
-        debrisScratch.copy(l.position)
-        l.parent.localToWorld(debrisScratch).add(f.offset)
-        l.position.copy(l.parent.worldToLocal(debrisScratch))
-        l.quaternion.multiply(new Quaternion().setFromAxisAngle(f.axis, f.angleRad))
+        l.node.parent.updateWorldMatrix(true, false)
+        debrisScratch.copy(l.node.position)
+        l.node.parent.localToWorld(debrisScratch).add(f.offset)
+        l.node.position.copy(l.node.parent.worldToLocal(debrisScratch))
+        l.node.quaternion.multiply(new Quaternion().setFromAxisAngle(f.axis, f.angleRad))
       })
     },
     dispose(): void {

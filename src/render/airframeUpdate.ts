@@ -32,6 +32,7 @@ export function airframeUpdateFor(
   damage: Damage | null = null,
   tick = 0,
   id = '',
+  crashMassKg = 3500,
 ): AirframeUpdate {
   const controls = playerControls ?? aircraft.controls
   const exploded = damage?.destroyedAt ?? null
@@ -48,9 +49,15 @@ export function airframeUpdateFor(
     propThrottles: outputs.length > 1 ? outputs.map(prop) : null,
     debris: exploded === null ? null : { ageS: (tick - exploded) * DT, seed: idSeed(id) },
     surfaceCrash: fatalImpact !== null
-      ? { mode: fatalImpact.surface === 'water' ? 'submerge' : 'breakup', seed: (idSeed(id) ^ fatalImpact.tick) >>> 0 }
+      ? {
+          mode: fatalImpact.surface === 'water' ? 'submerge' : 'breakup',
+          seed: (idSeed(id) ^ fatalImpact.tick) >>> 0,
+          velocity: aircraft.state.velocity,
+          massKg: crashMassKg,
+          surfaceLiftM: Math.max(0, fatalImpact.groundHeightM - aircraft.state.position.y),
+        }
       : collidedWithShip
-        ? { mode: 'breakup', seed: (idSeed(id) ^ exploded) >>> 0 }
+        ? { mode: 'breakup', seed: (idSeed(id) ^ exploded) >>> 0, velocity: aircraft.state.velocity, massKg: crashMassKg }
         : null,
     controls: { roll: controls.roll, pitch: controls.pitch, yaw: controls.yaw },
     frameS,

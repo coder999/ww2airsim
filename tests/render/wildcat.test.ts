@@ -97,15 +97,24 @@ describe('loadWildcat through the model cache (Z1)', () => {
     const prop = a.root.getObjectByName('Helice')!
     const rest = prop.position.clone()
     const base = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, cameraDistanceM: 50 }
-    const breakup = { mode: 'breakup' as const, seed: 31 }
+    const breakup = { mode: 'breakup' as const, seed: 31, velocity: { x: 42, y: -14, z: 2 }, massKg: 2900 }
     a.update({ ...base, frameS: 0, surfaceCrash: breakup })
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
     a.update({ ...base, frameS: 1, surfaceCrash: breakup })
     expect(prop.position.distanceTo(rest)).toBeGreaterThan(1)
+    expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_DOWN.der.pos)).toBeGreaterThan(1)
+    expect(Math.hypot(a.root.position.x, a.root.position.z)).toBeGreaterThan(10)
+    expect(a.root.scale.x).toBeLessThan(0.99)
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
     a.update({ ...base, frameS: 0, surfaceCrash: null })
     expect(prop.position.distanceTo(rest)).toBeLessThan(1e-9)
+    expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_DOWN.der.pos)).toBeLessThan(1e-6)
+    expect(a.root.scale.toArray()).toEqual([1, 1, 1])
 
     const submerge = { mode: 'submerge' as const, seed: 32 }
-    a.root.position.y = 0
+    a.root.position.set(0, 0, 0)
     a.update({ ...base, frameS: 0, surfaceCrash: submerge })
     a.root.position.y = 0
     a.update({ ...base, frameS: WATER_CRASH_SUBMERGE_S / 2, surfaceCrash: submerge })

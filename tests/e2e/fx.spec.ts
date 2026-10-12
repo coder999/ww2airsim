@@ -134,7 +134,7 @@ test('the sheets failing to load still boots, and effects fall back to blobs (Re
     ...consoleErrors.filter((m) => m !== 'Failed to load resource: net::ERR_FAILED'))
 })
 
-test('a fatal land contact enters the crash.land and renderer-timed breakup path', async ({ page }) => {
+test('a fatal land contact breaks up while its fuselage bounces, tumbles and slides on render time', async ({ page }) => {
   const inland = toLocal(11.244, 125.0035)
   // A broad inland run east across central Leyte, clear of the shoreline throughout the dive.
   await page.goto(spawnUrl({ x: inland.x - 1000, y: 250, z: inland.z }))
@@ -144,9 +144,14 @@ test('a fatal land contact enters the crash.land and renderer-timed breakup path
     .toMatchObject({ surface: 'land', kind: 'destroyed' })
   await page.keyboard.up('ArrowUp')
   await expect.poll(async () => (await fx(page)).live).toBeGreaterThan(10)
-  // Unit coverage measures the loose-part displacement for both the shared pivoted models and the
-  // legacy Wildcat. This headed frame is retained for human inspection of the production path.
-  await page.waitForTimeout(1000)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const impact = d.impact()
+    const drawn = d.renderedPlayerPositionM()
+    return impact === null || drawn === null ? 0 : Math.hypot(drawn.x - impact.position.x, drawn.z - impact.position.z)
+  }), { timeout: 3000 }).toBeGreaterThan(5)
+  // Unit coverage measures tumble, rebound and the small longitudinal crush for both airframe paths.
+  // This headed frame is retained for human inspection of the production choreography.
   await shot(page, 'crash-land-breakup')
 })
 

@@ -48,12 +48,13 @@ describe('airframeUpdateFor', () => {
   it('a fatal surface contact breaks up on land or deck and submerges in water; a survivable ditch does neither', () => {
     const impact = (surface: 'land' | 'deck' | 'water', kind: 'destroyed' | 'ditched') => ({
       ...alive,
+      state: createState({ position: v3(0, -0.4, 0), velocity: v3(55, -20, 4) }),
       impact: { tick: 27, position: origin, verticalSpeedMps: -20, groundHeightM: 0, surface, kind },
     })
-    const land = airframeUpdateFor(impact('land', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
+    const land = airframeUpdateFor(impact('land', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z', 4200)
     const deck = airframeUpdateFor(impact('deck', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
     const water = airframeUpdateFor(impact('water', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
-    expect(land.surfaceCrash).toMatchObject({ mode: 'breakup' })
+    expect(land.surfaceCrash).toMatchObject({ mode: 'breakup', velocity: v3(55, -20, 4), massKg: 4200, surfaceLiftM: 0.4 })
     expect(deck.surfaceCrash).toMatchObject({ mode: 'breakup' })
     expect(water.surfaceCrash).toMatchObject({ mode: 'submerge' })
     expect(airframeUpdateFor(impact('water', 'ditched'), null, origin, origin, 0.016, healthyDamage(), 27, 'z').surfaceCrash).toBeNull()

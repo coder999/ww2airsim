@@ -2978,7 +2978,13 @@ async function boot(): Promise<void> {
     view.world.aircraft.forEach((a, i) => {
       const playerControls = a.id === view.world.player ? view.controls : null
       const damage = view.world.combat.aircraft[a.id]?.damage ?? null
-      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000, damage, view.world.tick, a.id), aim: turretAimFor(view.world, view.poses, i) })
+      airframes[i]!.update({
+        ...airframeUpdateFor(
+          a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000,
+          damage, view.world.tick, a.id, a.spec.mass.emptyKg + a.state.fuelKg,
+        ),
+        aim: turretAimFor(view.world, view.poses, i),
+      })
       if (a.id === view.world.player) {
         const drawn = airframes[i]!.root.position
         renderedPlayerPosition = { x: drawn.x, y: drawn.y, z: drawn.z }
