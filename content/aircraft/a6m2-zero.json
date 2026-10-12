@@ -71,8 +71,8 @@
       "type99-20mm": { "roundsPerMinute": 520, "muzzleVelocityMps": 600, "dragPerM": 0.000125, "hitScale": 3.0 }
     },
     "guns": [
-      { "position": [2.28, 0.45, -0.25], "rounds": 500, "group": "leftGuns", "type": "type97-7.7mm" },
-      { "position": [2.28, 0.45, 0.25], "rounds": 500, "group": "rightGuns", "type": "type97-7.7mm" },
+      { "position": [2.279, 0.45, -0.25], "rounds": 500, "group": "leftGuns", "type": "type97-7.7mm" },
+      { "position": [2.279, 0.45, 0.25], "rounds": 500, "group": "rightGuns", "type": "type97-7.7mm" },
       { "position": [0.699, -0.197, -2.3], "rounds": 60, "group": "leftGuns", "type": "type99-20mm" },
       { "position": [0.699, -0.197, 2.3], "rounds": 60, "group": "rightGuns", "type": "type99-20mm" }
     ],

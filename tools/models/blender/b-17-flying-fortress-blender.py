@@ -200,7 +200,7 @@ NACELLE_SHIFT = 0.61
 NACELLE = [(x + NACELLE_SHIFT, r) for x, r in
            [(-1.65, 0.23), (-0.90, 0.62), (0.20, 0.78), (1.55, 0.80), (2.35, 0.72), (2.73, 0.56), (2.78, 0.40)]]
 PROP_X = (2.88 + NACELLE_SHIFT, 2.42 + NACELLE_SHIFT)
-GEAR = dict(x=0.480, z=3.03, hinge_y=-0.42, length=1.870, wheel_r=0.55, wheel_w=0.32)
+GEAR = dict(x=0.480, z=3.03, hinge_y=-0.40, length=1.890, wheel_r=0.55, wheel_w=0.32)
 TAILWHEEL = dict(x=-10.300, hinge_y=-0.45, length=0.810, wheel_r=0.18, wheel_w=0.14)
 BAYS = [(-2.55, 0.75, 0.48)]
 
