@@ -15,8 +15,8 @@ import type { CameraPreset } from '../../src/render/hangar/framing.js'
 
 type Frame = Buffer
 
-async function openHangar(page: Page): Promise<void> {
-  await page.goto('/hangar.html?bench')
+async function openHangar(page: Page, dev = false): Promise<void> {
+  await page.goto(`/hangar.html?bench${dev ? '&dev=1' : ''}`)
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
   await page.evaluate(() => (window as HangarWindow).__hangar!.freeze())
@@ -194,7 +194,7 @@ test.describe('the Hangar', () => {
       const [lit, unlit] = (await masks(page, v.empty, [v.model, flat])).luminance
       return lit! / unlit!
     }
-    const ref = await response('f4f-wildcat')
+    const ref = await response('f4f-wildcat-blender')
     for (const id of await entries(page)) {
       await select(page, id)
       if ((await current(page)).kind !== 'aircraft') continue
@@ -261,7 +261,7 @@ test.describe('the Hangar', () => {
       expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
     }
     // The Chi-Ha's turret joined V1 (2026-10-09); the M4 joined V2 (2026-10-11).
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'm4-sherman', 'tbm-3-avenger', 'type97-chi-ha'])
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'm4-sherman', 'tbm-3-avenger', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -290,8 +290,8 @@ test.describe('the Hangar', () => {
       // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
       expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
     }
-    // The five flyable bay aircraft plus the Hangar-only B-17 duplicate.
-    expect(bombers).toBe(6)
+    // The five flyable bay aircraft, including the promoted Blender B-17.
+    expect(bombers).toBe(5)
   })
 
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
@@ -318,7 +318,8 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test("9. the Wildcat's pivot gizmos are its two wheel groups, its propeller, the strut and wheel nodes the W1 leg stretch moves, and its five control surfaces (C1), and they draw", async ({ page }) => {
+  test("9. the archived Wildcat keeps its bespoke pivot gizmos in Dev", async ({ page }) => {
+    await openHangar(page, true)
     const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
     await setDebug(page, 'gizmos', true)
     expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['AileronL', 'AileronR', 'GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'Timon_Der', 'Timon_Izq', 'Timon_Prof', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
@@ -340,7 +341,7 @@ test.describe('the Hangar', () => {
       }
     }
     // The registered models have budgets (R3: every aircraft draws its own model).
-    for (const id of ['f4f-wildcat', 'a6m-zero', 'f6f-hellcat', 'f4u-corsair', 'p-38-lightning', 'ki-43-oscar', 'ki-43-oscar-blender', 'd3a-val', 'd3a-val-blender', 'g4m-betty', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'zuikaku-cv-blender', 'fletcher-dd', 'type-b-maru']) {
+    for (const id of ['p-38-lightning', 'ki-43-oscar-blender', 'd3a-val-blender', 'g4m-betty', 'b-17-flying-fortress-blender', 'ki-84-frank', 'ki-21-sally', 'b-29-superfortress', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'essex-cv', 'zuikaku-cv', 'zuikaku-cv-blender', 'fletcher-dd', 'type-b-maru']) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
@@ -351,8 +352,8 @@ test.describe('the Hangar', () => {
       expect(r?.budget, id).not.toBeNull()
       expect(r?.modelUrl ?? '', id).toMatch(new RegExp(`content/${folder}/${id}\\.glb$`))
     }
-    // R3: the Zero and the Hellcat draw their own glbs in the Hangar, not the Wildcat's.
-    for (const [id, glb] of [['a6m-zero', 'a6m2-zero'], ['f6f-hellcat', 'f6f-hellcat']] as const) {
+    // The active Zero and Hellcat cards draw the promoted Blender glbs.
+    for (const [id, glb] of [['a6m2-zero-blender', 'a6m2-zero-blender'], ['f6f-hellcat-blender', 'f6f-hellcat-blender']] as const) {
       await select(page, id)
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.modelUrl ?? '', id).toMatch(new RegExp(`content/aircraft/${glb}\\.glb$`))
     }
@@ -375,9 +376,9 @@ test.describe('the Hangar', () => {
    * the lug point sits one drop (about 0.05-0.12 m, 2-5 px) under the lower skin. Before O1 the
    * rack points were 1.9 m low, about 70 px, and fail.
    */
-  test("11. the Wildcat's stores hang on its wing: from above every mount lies on the airframe, from the side each meets it within 10 px (O1)", async ({ page }) => {
+  test("11. the promoted Wildcat's stores hang on its wing: from above every mount lies on the airframe, from the side each meets it within 10 px (O1)", async ({ page }) => {
     for (const [preset, reach] of [['top', 1], ['side', 10]] as const) {
-      const { empty, model } = await view(page, 'f4f-wildcat', preset, { bombs: false, rockets: false })
+      const { empty, model } = await view(page, 'f4f-wildcat-blender', preset, { bombs: false, rockets: false })
       const mounts = await page.evaluate(() => (window as HangarWindow).__hangar!.storeMounts())
       expect(mounts).toHaveLength(2) // the two bomb racks; the F4F-4 has no rails (W1 R3)
       const hits = await maskReach(page, empty, model, mounts.map((m) => m.ndc), reach)
@@ -391,7 +392,7 @@ test.describe('the Hangar', () => {
     for (const id of await entries(page)) {
       await select(page, id)
       const c = await current(page)
-      if (c.kind !== 'aircraft' || id === 'f4f-wildcat') continue
+      if (c.kind !== 'aircraft') continue
       const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
       for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/)
       expect(nodes.some((n) => n.startsWith('BayDoor')), `${id} bay door gizmos`).toBe(hasPart(c, 'doors'))
@@ -405,6 +406,7 @@ test.describe('the Hangar', () => {
   })
 
   test("14. the card's Model row says where the model came from, and the Origin filter splits ours from downloads", async ({ page }) => {
+    await openHangar(page, true)
     const row = page.getByRole('table', { name: 'Figures' }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Model', exact: true }) })
     await select(page, 'f4u-corsair')
     await expect(row).toContainText('Sketchfab download by manilov.ap (CC BY 4.0)')
@@ -590,7 +592,7 @@ test('the mobile Hangar uses a compact picker, full-width model, and collapsible
   await expect(picker).toBeVisible()
   expect((await picker.boundingBox())!.height).toBeGreaterThanOrEqual(44)
 
-  await picker.selectOption('f4f-wildcat')
+  await picker.selectOption('f4f-wildcat-blender')
   await expect(details).toBeVisible()
   await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
 
@@ -631,6 +633,7 @@ test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.select('fletcher-dd'))
   await expect(page.getByRole('row', { name: 'Asset ID fletcher-dd' })).toHaveCount(0)
+  await expect(page.locator('ul[aria-label="Objects"] button[data-id="f4f-wildcat"]')).toHaveCount(0)
 })
 
 test("the title's checked Dev box exposes the selected asset's exact id in the Hangar details", async ({ page }) => {
@@ -643,6 +646,7 @@ test("the title's checked Dev box exposes the selected asset's exact id in the H
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.select('fletcher-dd-blender'))
   await expect(page.getByRole('row', { name: 'Asset ID fletcher-dd-blender' })).toBeVisible()
+  await expect(page.locator('ul[aria-label="Objects"] button[data-id="f4f-wildcat"]')).toContainText('archived')
 })
 
 test('dragging to orbit stops the turntable, and its checkbox says so (H2 review)', async ({ page }) => {
@@ -650,7 +654,7 @@ test('dragging to orbit stops the turntable, and its checkbox says so (H2 review
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
   // Nothing is picked on load, so there is no bench until a pick (2026-10-08).
-  await page.evaluate(() => (window as HangarWindow).__hangar!.select('f4f-wildcat'))
+  await page.evaluate(() => (window as HangarWindow).__hangar!.select('f4f-wildcat-blender'))
   const box = page.getByRole('checkbox', { name: 'Turntable' })
   await expect(box).toBeChecked()
   const c = (await page.locator('#hangar-canvas').boundingBox())!

@@ -229,15 +229,15 @@ describe("an entry's own model (R1)", () => {
     expect(m!.parts.find((p) => p.id === 'prop')!.modeled).toBe(true)
   })
 
-  it("the Hellcat, with a spec and its own model, draws the model with no stores, and its card keeps the spec (R3, P3)", async () => {
-    const hellcat = byId('f6f-hellcat')
+  it("the promoted Hellcat card keeps the flight spec and draws the Blender model", async () => {
+    const hellcat = byId('f6f-hellcat-blender')
     expect(hellcat.subject?.kind).toBe('aircraft')
-    expect(hellcat.library.model).toEqual({ kind: 'aircraft', id: 'f6f-hellcat' })
+    expect(hellcat.library.model).toEqual({ kind: 'aircraft', id: 'f6f-hellcat-blender' })
     const asked: [string, unknown][] = []
     const m = await loadHangarModel(hellcat, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
-    expect(asked).toEqual([['f6f-hellcat', undefined]])
+    expect(asked).toEqual([['f6f-hellcat-blender', undefined]])
     expect(m!.mounts()).toEqual([])
-    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat') // sortie forms A4: the game now draws the same model
+    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat-blender')
   })
 
   it('a fitted ship model override keeps the spec and ship mounts; a vehicle uses the display loader', async () => {
