@@ -8,8 +8,8 @@ into one renderer defect and stale or noisy test contracts. The shipping
 honor dense FX depth in their cloud march and their final temporal composite.
 The repaired control on the RX 6700 XT reads:
 
-- TSL: limited 124-147 warm pixels, limit off 0, clear sky 348-357;
-- native: limited 152, limit off 0, clear sky 353.
+- TSL: limited 124-147 warm pixels, limit off 0, clear sky 322-357;
+- native: limited 104-152, limit off 0, clear sky 253-353.
 
 The stimulus is 1,150 m along the 39-degree-up view ray, immediately before
 the ray crosses the 750 m cloud base. The former 800 m stimulus did not meet a
@@ -54,6 +54,17 @@ was inside the cloud and therefore did not represent “effect in front.”
   threshold was converted into a performance threshold.
 - The deterministic Gunnery Range pass still requires a kill, landing and no
   friendly damage.
+
+## Verification
+
+- Full `npm run verify` on the Ryzen runner: typecheck, lint, architecture and
+  production build green; 429 test files green with 6,253 passing tests and 11
+  intentional skips.
+- Focused deterministic checks: 96 passing tests and one intentional skip
+  across the changed renderer, range-pass, ship-roster and mission contracts.
+- Reference RX 6700 XT checks: both Takram ordering paths, cloud residual,
+  cloud-shadow submissions, water impact, soft-edge FX, browser gunnery,
+  long mission landing/debrief and the Hangar luminance fixtures passed.
 
 ## Budget-lock issue
 
