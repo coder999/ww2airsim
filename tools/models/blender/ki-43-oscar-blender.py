@@ -186,8 +186,8 @@ MAST_I = dict(station=1.475, base=.62, top=1.32)
 PITOT = dict(z=4.0, ahead=.73)
 SPINNER = dict(length=.44, radius=.24)
 PROP = dict(chord=.22)
-GEAR = dict(x=.348, z=1.40, y=-.42, bottom=1.843, wheel_r=.295, wheel_w=.18)
-TAILWHEEL = dict(x=-5.375, y=-.25, bottom=.595, wheel_r=.085, wheel_w=.05)
+GEAR = dict(x=.572, z=1.40, y=-.42, bottom=1.890, wheel_r=.295, wheel_w=.18)
+TAILWHEEL = dict(x=-5.238, y=-.25, bottom=.595, wheel_r=.085, wheel_w=.05)
 
 SEGMENTS, SUBDIVIDE = 96, 5
 STATIONS = tuple(sorted(set(kit.AIRFOIL_STATIONS_FINE) | {.0375, .0625, .125, .175, .225, .275, .35, .45, .55, .65, .75, .85}))
