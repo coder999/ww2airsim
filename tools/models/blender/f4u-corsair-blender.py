@@ -162,8 +162,8 @@ FIN_THICKNESS = [(0.50, 0.13), (1.80, 0.11), (2.20, 0.07), (2.315, 0.03)]
 RUDDER_HINGE = ((0.76, 8.70), (2.22, 8.68))
 PROP = dict(hub=0.30, chord=0.26, spinner_r=0.16, spinner_len=0.40)  # meters; hub tip is d=0
 # x, z, wheel in m; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin.
-GEAR = dict(x=0.418, z=1.88, bottom=2.418, wheel_r=0.41, wheel_w=0.24)
-TAILWHEEL = dict(x=-5.722, y=0.20, bottom=1.306, wheel_r=0.16, wheel_w=0.08)       # x, hinge y, bottom: m
+GEAR = dict(x=0.558, z=1.88, bottom=2.350, wheel_r=0.41, wheel_w=0.24)
+TAILWHEEL = dict(x=-5.662, y=0.20, bottom=0.950, wheel_r=0.16, wheel_w=0.08)       # x, hinge y, bottom: m
 GUN_Z = (2.47, 2.63, 2.78)
 
 SEGMENTS = 96

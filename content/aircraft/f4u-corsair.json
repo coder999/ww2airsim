@@ -73,11 +73,11 @@
     "rollingResistanceCoeff": 0.02,
     "brakingResistanceCoeff": 0.4,
     "lateralGripSeconds": 1.5,
-    "heightM": 2.418,
+    "heightM": 2.35,
     "layout": "taildragger",
-    "mainX": 0.418,
-    "thirdX": -5.722,
-    "thirdHeightM": 1.306,
+    "mainX": 0.558,
+    "thirdX": -5.662,
+    "thirdHeightM": 0.95,
     "thirdSteering": "casterLock",
     "steerYawRateDegPerSec": 20,
     "steerLockSpeedMps": 8,
@@ -120,11 +120,11 @@
   },
   "view": {
     "eyePointM": [
-      -1.85,
-      0.78,
+      -1.8,
+      1.05,
       0
     ],
-    "model": "f4u-corsair"
+    "model": "f4u-corsair-blender"
   },
   "flap": {
     "travelSeconds": 5,
@@ -147,54 +147,54 @@
     "guns": [
       {
         "position": [
-          -0.858,
-          -0.854,
-          -2.87
+          0.711,
+          -0.749,
+          -2.473
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          -0.842,
-          -0.818,
-          -3.25
+          0.7,
+          -0.724,
+          -2.633
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          -0.825,
-          -0.784,
-          -3.63
+          0.69,
+          -0.702,
+          -2.783
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          -0.858,
-          -0.854,
-          2.87
+          0.711,
+          -0.749,
+          2.473
         ],
         "rounds": 400,
         "group": "rightGuns"
       },
       {
         "position": [
-          -0.842,
-          -0.818,
-          3.25
+          0.7,
+          -0.724,
+          2.633
         ],
         "rounds": 400,
         "group": "rightGuns"
       },
       {
         "position": [
-          -0.825,
-          -0.784,
-          3.63
+          0.69,
+          -0.702,
+          2.783
         ],
         "rounds": 400,
         "group": "rightGuns"
