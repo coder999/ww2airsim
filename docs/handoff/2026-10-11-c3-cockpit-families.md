@@ -1,9 +1,10 @@
 # Handoff: C3 four-family cockpit dashboards (2026-10-11–12)
 
-**Branch:** `c3-cockpits`; worktree `/home/mark/projects/ww2airsim-c3-cockpits`, cut from
-`main` at `ee3d73da`. **Plan:**
+**Delivery:** the `c3-cockpits` worktree, cut from `main` at `ee3d73da`, was merged to `main`
+as `77234878` on 2026-10-12; its worktree and local/remote branch were removed after verification.
+**Plan:**
 `docs/superpowers/plans/2026-10-11-c3-cockpit-families.md`. **Run:** unattended;
-final-product checkpoint only. This branch is not merged or deployed.
+final-product checkpoint only. This work was not deployed.
 
 ## Product result
 
@@ -121,26 +122,22 @@ or four-bezel arrangement described above.
   final multi-engine horizon registration and direct-mounted bezel changes.
 - Nexus's real Radeon 680M preliminary capture passed 15/15 (fourteen aircraft plus contact sheet).
 - The final, aperture-corrected and multi-engine-bezel headed Ryzen RX 6700 XT reference capture
-  passed 15/15 in 1.8 minutes, with no WebGPU
-  validation errors or captured page/console errors.
+  passed 15/15 in 1.8 minutes, with no WebGPU validation errors or captured page/console errors.
+- The post-merge Ryzen RX 6700 XT reference-GPU capture passed the same 15/15 cases in 1.8 minutes
+  from `main`.
 - `git diff --check` passes.
-- The broad `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` gate passed typecheck, lint and
-  dependency analysis. Vitest passed 6,242 tests with 11 skipped. Six assertions failed in that
-  first broad run: four were stale C3 layout expectations corrected by the final 78/78 focused
-  rerun; the remaining two are the independently reproduced baseline assertions below.
-
-Two failures in the first full-suite run were proved unrelated to C3 rather than hidden or weakened:
-
-- Escort's easy/unescorted case expects more than one bomber lost but deterministically loses one.
-  The exact failure reproduces on untouched `main` (9/10 pass in that file).
-- `ship.test.ts` has a stale hard-coded registry string that omits the three recently registered
-  `*-blender` ship models. The exact failure reproduces on untouched `main` (20/21 pass).
+- The required post-merge `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` gate is fully green:
+  typecheck, lint and dependency analysis pass; Vitest reports 430/430 files and 6,266 passed tests
+  with 11 skipped. The two independent baseline assertions seen during the preliminary branch run
+  had already been corrected on current `main`; no expectation was hidden, skipped or weakened for
+  this merge.
 
 ## Delivery and remaining boundaries
 
 The design, implementation plan and final handoff were delivered successfully through the
 repository mail tool on 2026-10-12. All three documents are also committed in-repository as the
-source of truth.
+source of truth. The feature work is merged and pushed; the dedicated worktree and local/remote
+branch are removed. Deployment remains a separate user decision.
 
 Detailed historical face layouts, manifold/oil/temperature systems, propeller controls, clickable
 switches and modeled interiors remain intentionally deferred. Japanese labels are functional,

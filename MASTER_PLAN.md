@@ -457,7 +457,7 @@ prerequisites are met.
 | 5 | ~~F missions that were unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a); ~~L1 building materials~~ done 2026-10-11; **open:** real crowns/leaf/bark after the rejected costlier pass, and default-TSL in-cloud pacing | |
 | 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; ~~F Escort~~ done 2026-10-10 (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
 | 7 | ~~D torpedoes (Avenger); M4 main batteries; F Surigao Strait~~ done by 2026-10-11; ~~K default renderer, L2 smooth shore, and L2 animated surf/shallow water~~ done; **open:** K's remaining visual steps | |
-| 8 | F campaign by day; C3 stage 1 panels | |
+| 8 | F campaign by day; ~~C3 four-family cockpit panels~~ done and merged 2026-10-12 | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
 A rough total by the size key: about 30-40 plans.
