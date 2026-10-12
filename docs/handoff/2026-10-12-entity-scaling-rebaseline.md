@@ -3,6 +3,7 @@
 This is the reference GPU re-baseline requested after the two scaling fixes merged in `0ca520d9`.
 It measures the frozen `main` revision `9aca2377` on 2026-10-12. The original measurement and its full
 methodology are in [`2026-10-10-entity-scaling.md`](2026-10-10-entity-scaling.md).
+The report and raw captures merged to `main` in `3997106d` on 2026-10-12.
 
 ## Answer
 
@@ -20,7 +21,7 @@ bars for 60 Hz at 30 extra aircraft. Adding ten ships makes a tight 30-aircraft 
 
 ## How it was measured
 
-- Frozen `main` at `9aca2377` in `/home/mark/projects/ww2airsim-entity-rebaseline`.
+- Frozen `main` at `9aca2377` in a temporary measurement worktree.
 - Ryzen RX 6700 XT, Mark's active Windows console browser through Playwright, 2560 × 1440.
 - `entityScalingCapture.spec.ts`, 24 High points in each of three repeats: 0/5/10/20/30/45/60
   extra aircraft, 5/10/20 extra ships, and 30+10/60+20 mixed, in tight and mission layouts.
