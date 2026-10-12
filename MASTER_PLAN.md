@@ -18,6 +18,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
 - **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
 - **Photoreal Task 14,** which never ran: re-filed into H0.
+- **Controls overlay and pause audio (done and merged 2026-10-11, `ab78775c`):** the redundant in-flight keyboard overlay and its `/` toggle are gone; the pause dossier remains the player-facing control reference. Required data and model attribution links moved to the title screen's About memo. Pausing now silences the master bus as well as loop state, so active radio, weapons, impacts and engines stop until play resumes. Handoff [`docs/handoff/2026-10-11-controls-overlay-pause-audio.md`](docs/handoff/2026-10-11-controls-overlay-pause-audio.md).
 
 ### Track A: First load and the launch sequence
 
