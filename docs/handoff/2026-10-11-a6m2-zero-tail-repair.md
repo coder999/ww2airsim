@@ -1,5 +1,7 @@
 # A6M2 Zero aft-fuselage repair handoff (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 ## Result
 
 `a6m2-zero-blender` keeps its stable Hangar asset id, stance, rig and flight-model fit, but no longer pinches the

@@ -1,5 +1,7 @@
 # Handoff: F4U-1D Corsair canopy repair (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 Worktree `/home/mark/projects/ww2airsim-repair-f4u`, branch `repair-f4u-canopy`, based on the shared aircraft-geometry foundation
 `de80aa1e`. This keeps the existing Hangar-only asset id `f4u-corsair-blender`; the download and flying spec are unchanged.
 

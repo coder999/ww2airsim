@@ -1,5 +1,7 @@
 # External-aircraft Blender fleet: handoff (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 ## Result
 
 The seven downloaded aircraft now each have an original, deterministic Blender-path alternative in the Hangar. The alternatives are display-only and sit beside the existing downloads for direct review; no aircraft spec, flight model, eye point, weapon, store mount, stance, or mission was changed.

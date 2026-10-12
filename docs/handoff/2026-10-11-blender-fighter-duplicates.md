@@ -1,5 +1,7 @@
 # Handoff: Blender duplicates of the Hellcat, Corsair and Wildcat (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 Built in worktree `ww2airsim-blender-fighters`, branch `blender-fighters` (Mark chose a worktree and a final-product-only viewing
 checkpoint, 2026-10-11; the run was unattended), then merged to `main` in `f2bf528d`. The photo-guided Hellcat canopy follow-up
 landed in `4ca765ed`. The process is written down in [`docs/blender-aircraft.md`](../blender-aircraft.md); this page records what was

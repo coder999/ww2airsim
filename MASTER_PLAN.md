@@ -94,6 +94,8 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   `docs/superpowers/plans/2026-10-11-fleet-blender-rebuild.md`; handoff `docs/handoff/2026-10-11-fleet-blender-rebuild.md`.
   The B-17G and D3A2 were re-measured the same day after Mark flagged the B-17's triangular fin: both first passes
   had misread their three-views (body, canopy, tail); handoff `docs/handoff/2026-10-11-b17-val-remeasure.md`.
+  The other five duplicates and the M4 Sherman were re-measured the same way (`docs/handoff/2026-10-11-fleet-remeasure.md`).
+  **Waiting on Mark:** re-fit the fighter specs' gear, tailwheel and gun positions to the drawings (table in that handoff).
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
   - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.

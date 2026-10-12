@@ -1,5 +1,7 @@
 # Handoff: F6F Hellcat canopy section repair (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 Built in `/home/mark/projects/ww2airsim-repair-f6f-hellcat`, branch
 `repair-f6f-hellcat-canopy`, from shared geometry foundation `de80aa1e`. This keeps the
 Hangar-only asset id `f6f-hellcat-blender`; the downloaded flying model is unchanged.

@@ -1,5 +1,7 @@
 # Handoff: Hellcat canopy photo correction (2026-10-11)
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 Built in worktree `/home/mark/projects/ww2airsim-hellcat-canopy`, branch `hellcat-canopy`, based on `main` at `f2bf528d`, and merged
 to `main` in `4ca765ed` after both rounds of Mark's canopy review.
 

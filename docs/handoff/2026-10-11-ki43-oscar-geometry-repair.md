@@ -1,5 +1,7 @@
 # Ki-43-IIb Oscar geometry repair handoff — 2026-10-11
 
+> **Superseded 2026-10-11** by [2026-10-11-fleet-remeasure.md](2026-10-11-fleet-remeasure.md): the models were re-measured from their drawings; the measurements and images here no longer describe them.
+
 ## Scope and base
 
 - Worktree: `/home/mark/projects/ww2airsim-repair-ki43-oscar`
