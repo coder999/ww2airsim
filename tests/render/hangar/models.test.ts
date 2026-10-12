@@ -235,7 +235,7 @@ describe("an entry's own model (R1)", () => {
     expect(hellcat.library.model).toEqual({ kind: 'aircraft', id: 'f6f-hellcat-blender' })
     const asked: [string, unknown][] = []
     const m = await loadHangarModel(hellcat, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
-    expect(asked).toEqual([['f6f-hellcat-blender', undefined]])
+    expect(asked).toEqual([['f6f-hellcat-blender', hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores : undefined]])
     expect(m!.mounts()).toEqual([])
     expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat-blender')
   })
