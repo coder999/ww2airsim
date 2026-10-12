@@ -231,14 +231,16 @@ describe("an entry's own model (R1)", () => {
 
   it("the promoted Hellcat card keeps the flight spec and draws the Blender model", async () => {
     const hellcat = byId('f6f-hellcat-blender')
-    expect(hellcat.subject?.kind).toBe('aircraft')
+    const subject = hellcat.subject
+    expect(subject?.kind).toBe('aircraft')
+    if (subject?.kind !== 'aircraft') throw new Error('promoted Hellcat has no aircraft spec')
     expect(hellcat.library.model).toEqual({ kind: 'aircraft', id: 'f6f-hellcat-blender' })
     const asked: [string, unknown][] = []
     const m = await loadHangarModel(hellcat, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
-    expect(asked).toEqual([['f6f-hellcat-blender', hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores : undefined]])
+    expect(asked).toEqual([['f6f-hellcat-blender', subject.spec.stores]])
     expect(m!.mounts().map((p) => p.id)).toEqual([
-      ...(hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores!.racks.map((r) => r.id) : []),
-      ...(hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores!.rails.map((r) => r.id) : []),
+      ...subject.spec.stores!.racks.map((r) => r.id),
+      ...subject.spec.stores!.rails.map((r) => r.id),
     ])
     expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat-blender')
   })

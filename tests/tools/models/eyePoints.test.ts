@@ -34,7 +34,7 @@ const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]
 
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
 
-async function canopyPoints(model: string): Promise<[number, number, number][]> {
+async function canopyPoints(model: string): Promise<readonly (readonly [number, number, number])[]> {
   const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/aircraft/${model}.glb`)))
   const nodes = doc.getRoot().listNodes().filter((n) => n.getName() === CANOPY[model])
   expect(nodes.length, `${model}: no canopy node ${CANOPY[model]}`).toBeGreaterThan(0)
