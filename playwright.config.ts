@@ -154,8 +154,9 @@ export default defineConfig({
   // Correctness is the safe default. The locked budget invocation selects
   // exactly the complementary title set, using the same contract as the
   // nightly report classifier (docs/testing.md, "Philosophy").
-  grep: budgetRun ? BUDGET_TITLE_RE : undefined,
-  grepInvert: budgetRun ? undefined : BUDGET_TITLE_RE,
+  ...(budgetRun
+    ? { grep: BUDGET_TITLE_RE }
+    : { grepInvert: BUDGET_TITLE_RE }),
   // Longer than the default per-action wait below (30s, left unchanged) so a
   // genuinely stalled `waitForFunction` reports its own specific timeout
   // message first, rather than the whole test being killed by the outer test
