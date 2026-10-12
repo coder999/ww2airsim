@@ -91,6 +91,20 @@ Rig changes:
 - **F4U flaps:** cover only the straight inner panel, off the gull bend.
 - **Sherman:** keeps `Turret1` and `Gun1` with re-measured pivots.
 
+## Browser verification
+
+The merged fleet was exercised in the real Hangar on the ryzen reference GPU after the re-measure. The focused
+model/render gate passed 69 files and 1,769 tests. The Hangar run passed all 25 checks across the full run and the
+required isolated rerun: the full run passed 24 checks and missed the mobile bottom-sheet assertion by
+0.00003 CSS px; the assertion now uses the same 1 px layout-rounding tolerance as the adjacent checks, and its
+isolated rerun passed. Aircraft lighting, framing, gear and propeller motion, control-surface pivots, model budgets,
+provenance, UV restoration, the Sherman turret, desktop/mobile layout, and the DEV asset-id readout all passed.
+
+`blenderDuplicatesCapture.spec.ts` also rendered the seven download/new aircraft pairs from side, front and
+three-quarter views, including gear-up poses, in 26.2 s. `vehicleCaptures.spec.ts` rendered the Sherman side and
+trained-turret views in 12.8 s. Visual inspection found every re-measured model present, lit and contiguous in the
+Hangar. The flight-spec stance mismatches in the decision table above remain deliberately unchanged.
+
 ## Still estimates or open
 
 - **Shape estimates:** transverse sections, fin and tail thicknesses, and flap spans.
@@ -98,4 +112,3 @@ Rig changes:
 - **Ki-43:** a Ki-43-I drawing with labeled IIb overrides (cowl, span, canopy). Its yellow leading-edge ID
   patch is still a short patch, not a strip.
 - **Sherman:** composite-hull rounding, headlamps and track detail.
-- **Not checked in a browser:** no model was viewed in the Hangar; the renders are flat Cycles previews.

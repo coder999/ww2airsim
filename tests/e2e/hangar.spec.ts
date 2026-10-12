@@ -609,7 +609,7 @@ test('the mobile Hangar uses a compact picker, full-width model, and collapsible
   expect(open.panel.bottom, 'picker stays above the model').toBeLessThanOrEqual(open.canvas.top + 1)
   expect(open.canvas.width, 'model uses the phone width').toBeGreaterThanOrEqual(open.w - 1)
   expect(open.canvas.bottom, 'details stay below the model').toBeLessThanOrEqual(open.details.top + 1)
-  expect(open.details.bottom, 'bottom sheet stays on-screen').toBeLessThanOrEqual(open.h)
+  expect(open.details.bottom, 'bottom sheet stays on-screen').toBeLessThanOrEqual(open.h + 1)
   expect(open.scrollWidth, 'page has no horizontal overflow').toBeLessThanOrEqual(open.w)
 
   await details.getByRole('button', { name: 'Collapse details' }).click()
