@@ -25,7 +25,7 @@ const DUPLICATES: readonly {
 }[] = [
   { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.74, 0.72] },
   { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-0.60, 0.82] },
-  { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.75, 0.65] },
+  { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.77, 0.72] },
   {
     spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17],
     // ESTIMATE checked against the Commons drawing's front view and NACA EL-2000-00243, 2026-10-11.
@@ -142,19 +142,48 @@ it('B-17G follows the Commons three-view: fillet-and-fin tail, rudder, body widt
   expect(extent(turret, 1)).toBeCloseTo(0.52, 2)
 })
 
-it('ki-43-oscar-blender keeps its 2026-10-11 Wikimedia upper-silhouette stations', async () => {
+it('Ki-43-IIb follows the Commons Ki-43-I three-view: nose, square wing, tailplane, fin and rudder, canopy, mast', async () => {
   const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/ki-43-oscar-blender.glb')))
-  const pts = doc.getRoot().listNodes().filter((n) => n.getName() === 'ki43b_dark').flatMap((n) => worldPositions(n))
-  const xOriginAftNoseM = 2.32
-  const topAt = (aftNoseM: number) => {
-    const x = xOriginAftNoseM - aftNoseM
-    const centerline = pts.filter((p) => Math.abs(p[0]! - x) <= 0.006 && Math.abs(p[2]!) <= 0.006)
-    expect(centerline.length, `no centerline vertices at ${aftNoseM.toFixed(2)} m aft nose`).toBeGreaterThan(0)
-    return Math.max(...centerline.map((p) => p[1]!))
-  }
+  const nodes = (re: RegExp) => doc.getRoot().listNodes().filter((n) => re.test(n.getName())).flatMap((n) => worldPositions(n))
+  const skin = nodes(/^ki43b_dark$/)
+  expect(skin.length, 'no ki43b_dark skin').toBeGreaterThan(1000)
+  // Kaboldy-style "Nakajima Ki 43-I.svg", re-read 2026-10-11 at 300.3 px/m (ki-43-oscar-blender.py): drawing
+  // stations aft of the cowl move 0.088 m aft for the IIb's longer cowl, and the wing quarter chord at 30%
+  // semispan, the origin, is 2.22 m aft of the spinner tip. The first pass had 2.32 m.
+  const X = (drawingStation: number) => 2.222 - (drawingStation + 0.088)
+  const top = (pts: readonly (readonly number[])[]) => Math.max(...pts.map((p) => p[1]!))
+  expect(Math.max(...nodes(/^Prop$/).map((p) => p[0]!)), 'spinner tip ahead of the origin').toBeCloseTo(2.222, 1)
 
-  // The superseded mesh followed internal cowl/wing-root lines here (.54/.48/.59/.50 m),
-  // which made the side silhouette visibly dip and hump instead of following the drawing outline.
-  for (const [aftNoseM, topM] of [[1.60, .64], [2.00, .64], [4.00, .54], [4.50, .44]] as const)
-    expect(topAt(aftNoseM), `upper silhouette at ${aftNoseM.toFixed(2)} m aft nose`).toBeCloseTo(topM, 2)
+  // A square, unswept leading edge (the taper is all in the trailing edge): 1.56 m and 1.55 m aft of the
+  // spinner at 1.2 m and 3.6 m out. The first pass's trapezoid swept it 0.2 m between those stations.
+  const wing = [...skin, ...nodes(/^(AileronR|Flap1R)$/)]
+  const leadingAt = (z: number) => Math.max(...wing.filter((p) => Math.abs(p[2]! - z) <= 0.1 && p[1]! < 0.3).map((p) => p[0]!))
+  expect(Math.abs(leadingAt(1.2) - X(1.564)), `leading edge at 1.2 m out: x ${leadingAt(1.2).toFixed(3)}`).toBeLessThanOrEqual(0.03)
+  expect(Math.abs(leadingAt(3.6) - X(1.548)), `leading edge at 3.6 m out: x ${leadingAt(3.6).toFixed(3)}`).toBeLessThanOrEqual(0.03)
+
+  // Tailplane 4.36 m across with rounded tips (the first pass: 3.45 m).
+  const tail = skin.filter((p) => p[0]! < X(7.0) && Math.abs(p[1]! - 0.04) < 0.1)
+  expect(Math.max(...tail.map((p) => Math.abs(p[2]!))), 'tailplane half-span').toBeCloseTo(2.18, 1)
+  // Fin crown 1.38 m above the thrust line at 8.17 m; the rudder hinge is vertical at 8.20 m and the rudder
+  // runs from the crown to its foot under the tail cone, 0.33 m below the thrust line.
+  const crown = skin.reduce((a, p) => (p[1]! > a[1]! ? p : a))
+  expect(crown[1]!, 'fin crown').toBeCloseTo(1.38, 1)
+  expect(Math.abs(crown[0]! - X(8.17)), `fin crown at x ${crown[0]!.toFixed(3)}`).toBeLessThanOrEqual(0.10)
+  const rudder = nodes(/^Rudder$/)
+  expect(Math.min(...rudder.map((p) => p[1]!)), 'rudder foot').toBeLessThanOrEqual(-0.30)
+  expect(top(rudder), 'rudder top').toBeGreaterThanOrEqual(1.33)
+
+  // Canopy: windscreen base on the deck at 2.24 m, roof +0.90 m drawn, +0.98 m with the II's 0.08 m raise.
+  const near = (station: number, dx = 0.03) => skin.filter((p) => Math.abs(p[0]! - X(station)) <= dx && Math.abs(p[2]!) <= 0.1)
+  expect(Math.abs(top(near(2.80)) - 0.98), 'canopy roof').toBeLessThanOrEqual(0.025)
+  expect(top(near(2.20)), 'deck ahead of the windscreen').toBeLessThanOrEqual(0.70)
+  // The aft fuselage at 6.0 m: top 0.37 m, bottom -0.52 m, half-width 0.24 m.
+  const section = skin.filter((p) => Math.abs(p[0]! - X(6.0)) <= 0.03)
+  expect(Math.abs(top(section) - 0.369), 'aft top').toBeLessThanOrEqual(0.02)
+  expect(Math.abs(Math.min(...section.map((p) => p[1]!)) + 0.519), 'aft bottom').toBeLessThanOrEqual(0.02)
+  expect(Math.abs(Math.max(...section.map((p) => Math.abs(p[2]!))) - 0.236), 'aft half-width').toBeLessThanOrEqual(0.02)
+  // The antenna mast stands ahead of the windscreen at 1.475 m (the first pass put it behind the canopy).
+  const mast = skin.filter((p) => p[1]! > 1.1 && p[0]! > X(4.0))
+  expect(mast.length, 'no mast ahead of the windscreen').toBeGreaterThan(0)
+  for (const p of mast) expect(Math.abs(p[0]! - X(1.475)), 'mast station').toBeLessThanOrEqual(0.05)
 })
