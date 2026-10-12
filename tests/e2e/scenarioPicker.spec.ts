@@ -88,7 +88,11 @@ test('picking a different scenario swaps entities and its cockpit in place, with
   // therefore moved to the Avenger pilot position with no dashboard. Read
   // the production panel family's live diagnostic rather than treating a
   // screenshot as a correctness oracle (docs/testing.md, Philosophy).
-  await page.keyboard.press('KeyC')
+  // Frame samples, rather than DOM key events, drive the camera control; hold
+  // C long enough to cross a frame exactly as the shared flight sweep does.
+  await page.keyboard.down('KeyC')
+  await page.waitForTimeout(400)
+  await page.keyboard.up('KeyC')
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())).toBe('cockpit')
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.cockpitLayout())).toBe('american-bomber')
 
