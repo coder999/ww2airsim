@@ -121,7 +121,7 @@ Everything the download it may replace has, because the game draws a flyable air
    (about 3.5 minutes on ryzen; `-t "<id>"` narrows it to seconds while iterating).
 9. **Look at it in the Hangar.** `npx vite --port <free port>` from the checkout, then
    `PW_BASE_URL=http://localhost:<port> npx playwright test tests/e2e/hangar.spec.ts --workers=1` (nexus's own
-   WebGPU is enough for correctness; 23 tests, about 7 minutes). The capture tool beside it,
+   WebGPU is enough for correctness; 25 tests, about 8 minutes). The capture tool beside it,
    `E2E_CAPTURE=1 E2E_CAPTURE_DIR=<dir> ... tests/e2e/blenderDuplicatesCapture.spec.ts`, writes each duplicate
    next to its download, gear down and up.
 

@@ -49,4 +49,9 @@ The model-shape estimates recorded by the re-measure handoffs still apply: trans
 
 The re-measured F6F geometry changes the authentic 100 m sight result: muzzle/eye parallax puts that shortest-range burst below the sight point, while the 200, 300 and 400 m checks still hit. The F6F takeoff simulation measured 239.625 m, 4.129% above its cited roll; its 4.2% acceptance band is less than one 60 Hz integration step wider at the measured 38.67 m/s. The Recruit Escort baseline now requires at least one bomber loss; Normal and Hard retain their existing failure expectations.
 
-No push or deployment was performed.
+## Integration and cleanup
+
+Merged locally to `main` as `23872091` (`Promote Blender aircraft fleet`). The temporary
+`/home/mark/projects/ww2airsim-promote` worktree and its merged
+`promote-blender-duplicates` branch were removed after the clean merge. No push or
+deployment was performed.
