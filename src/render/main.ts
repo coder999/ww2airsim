@@ -2343,7 +2343,7 @@ async function boot(): Promise<void> {
   /**
    * Opens a replay of the current recording. 'manual' (K while paused): the
    * whole recording, Orbit, holding on the last frame. 'auto' (Task 9's crash
-   * replay and Watch replay): impact - 8 s to impact + 1.5 s on Auto, done at
+   * replay and Watch replay): impact - 8 s to impact + 8 s on Auto, done at
    * the end. Effects and sound are cleared / held here until Task 8 drives
    * them from the recording (R-3, R-4).
    */

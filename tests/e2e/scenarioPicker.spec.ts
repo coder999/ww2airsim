@@ -188,7 +188,7 @@ test('return to title after an in-place scenario switch preselects the scenario 
   expect(ids.sort()).toEqual(['f6f-1', 'target-1', 'target-2'])
 
   await page.keyboard.down('ArrowUp')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
 

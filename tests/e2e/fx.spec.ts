@@ -170,7 +170,7 @@ test('a fatal sea crash raises the large crash.water splash, submerges the airfr
       : 0
   }), { timeout: 3000 }).toBeGreaterThan(8)
   await shot(page, 'crash-water')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await page.getByRole('button', { name: 'Restart' }).click()
   await expect(debriefDialog(page)).toBeHidden()

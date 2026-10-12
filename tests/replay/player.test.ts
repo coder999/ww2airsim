@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  applyReplayCommand, autoWindow, manualReplayAvailable, manualWindow, startReplay, stepReplay,
+  applyReplayCommand, AUTO_AFTER_S, autoWindow, manualReplayAvailable, manualWindow, startReplay, stepReplay,
 } from '../../src/replay/player.js'
 import { DT } from '../../src/sim/flight/model.js'
 import type { World } from '../../src/sim/loop.js'
@@ -10,8 +10,8 @@ const rec = (first: number, last: number) => ({ worlds: [w(first), w(last)] })
 const R = rec(600, 1200) // 10 s .. 20 s
 
 describe('replay player (spec §4, §6; plan R-8)', () => {
-  it('auto window: 8 s before the last tick to 1.5 s after, clamped to the recording start', () => {
-    expect(autoWindow(R)).toEqual({ startS: 12, endS: 21.5 })
+  it('auto window: 8 s before the last tick to 8 s after, clamped to the recording start', () => {
+    expect(autoWindow(R)).toEqual({ startS: 12, endS: 28 })
     expect(autoWindow(rec(600, 660)).startS).toBeCloseTo(10, 12) // Review Focus 3
   })
   it('manual window: the whole recording', () => {
@@ -39,7 +39,7 @@ describe('replay player (spec §4, §6; plan R-8)', () => {
   })
   it('finish: reaching the end is done', () => {
     const p = stepReplay(startReplay(R, autoWindow(R), 'finish'), 60_000)
-    expect(p.tS).toBe(21.5)
+    expect(p.tS).toBe(28)
     expect(p.done).toBe(true)
   })
   it('a 30 s hidden-tab frame clamps to the end rather than overshooting (Review Focus 2)', () => {
@@ -77,7 +77,7 @@ describe('replay player (spec §4, §6; plan R-8)', () => {
   })
   it('a one-world recording plays and finishes (Review Focus 3)', () => {
     const one = { worlds: [w(600)] }
-    const p = stepReplay(startReplay(one, autoWindow(one), 'finish'), 5000)
+    const p = stepReplay(startReplay(one, autoWindow(one), 'finish'), (AUTO_AFTER_S + 1) * 1000)
     expect(p.done).toBe(true)
   })
 })
