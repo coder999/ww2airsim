@@ -61,7 +61,7 @@ describe('combat guns and zones lie inside the drawn airframe (W1 Task 4, Review
     }
   })
 
-  it('the Wildcat has no allowlist entry: its zones and guns were refit in this task', () => {
-    expect(Object.keys(KNOWN_OVERSHOOT_M).some((k) => k.startsWith('f4f-wildcat/'))).toBe(false)
+  it('the promoted fleet needs no overshoot allowlist', () => {
+    expect(Object.keys(KNOWN_OVERSHOOT_M)).toEqual([])
   })
 })
