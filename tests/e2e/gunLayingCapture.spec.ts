@@ -35,7 +35,6 @@ test('aa-range: the destroyer lays its AA mounts onto the player', async ({ page
   expect(aircraftLaying.every((pose) => Number.isFinite(pose.trainingRad) && Number.isFinite(pose.elevationRad))).toBe(true)
   expect(aircraftLaying.some((pose) => pose.elevationRad > 0), 'at least one mount is elevated').toBe(true)
 
-  await page.keyboard.press('Slash')
   await page.keyboard.press('Escape')
   await page.waitForTimeout(120)
   await page.screenshot({ path: `${OUT}/aa-range-trained-mounts.png` })

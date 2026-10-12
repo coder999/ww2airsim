@@ -23,7 +23,6 @@ test('bomber-range: the formation flies together and its gunners shoot back', as
   await page.goto(withParams('/', { scenario: 'bomber-range', launch: '1', aircraft: 'f6f-hellcat', god: '1', cloudTier: 'off' }))
   await waitForTerrain(page)
   await page.waitForTimeout(8000)
-  await page.keyboard.press('Slash') // hide the controls panel
   await page.screenshot({ path: `${OUT}/formation-ahead.png` })
   let fired = 0, seenRounds = 0
   for (let k = 0; k < 40; k++) {

@@ -21,7 +21,6 @@ import {
 import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
 import { createOverlay } from './overlay.js'
-import { createLegend } from './legend.js'
 import { emptyStores, racksLabel } from '../sim/weapons/stores.js'
 import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
@@ -1871,13 +1870,9 @@ async function boot(): Promise<void> {
   const forcedLook = import.meta.env.DEV ? lookFromQuery(location.search) : undefined
   if (inspectScenery) frame = withPaused(frame, true)
 
-  // Ships in production, unlike `overlay` below: it is the pilot's only view
-  // of the key map. Mark asked for a throttle-down key on 2026-09-15 that had
-  // been bound since Plan 1 and written down nowhere.
-  const legend = createLegend(root)
   let muted = false
   const flightData = createFlightData(root)
-  // Ships in production for the same reason the legend does: compression is
+  // Ships in production because compression is
   // nearly invisible in a cruise, and a pilot who forgets it is on arrives
   // somewhere unintended.
   const timeBadge = createTimeBadge(root)
@@ -2187,9 +2182,8 @@ async function boot(): Promise<void> {
       }),
     }
   }
-  let legendOpen = true
   // Plan 17. Instrument setting, not simulation state -- same tier as
-  // `legendOpen`/`muted`, not `FrameState`: neither affects the replay or
+  // `muted`, not `FrameState`: neither affects the replay or
   // golden-trajectory contract. Defaults to the widest ring on load, like
   // every other panel state (no persistence, design doc §5).
   let selectedRadarRangeMi: RadarRangeMi = RADAR_RANGES_MI[0]
@@ -2361,7 +2355,7 @@ async function boot(): Promise<void> {
     fxSystem?.clear()
     fxMemory = session.liveFxMemory
     audio.restore(session.liveAudio)
-    audio.hold(false)
+    audio.hold(session.liveWasPaused)
     frame = withPaused(frame!, session.liveWasPaused)
     root.classList.remove(REPLAYING_CLASS)
     replayBar.hide()
@@ -2475,26 +2469,16 @@ async function boot(): Promise<void> {
       e.preventDefault()
       flightData.toggle()
     }
-    // Toggled here rather than through `nextFrameState`: the legend is a piece
-    // of page furniture, and FrameState is the deterministic simulation state
-    // that the golden trajectory and the soak both replay. `e.repeat` is what
-    // keeps a held key from flipping it at the keyboard's repeat rate.
-    if (BINDINGS.toggleLegend.includes(e.code as never) && !e.repeat) {
-      e.preventDefault()
-      legendOpen = !legendOpen
-      legend.setOpen(legendOpen)
-    }
-    // Plan 15. Page furniture, toggled here for the same reason the legend is:
+    // Plan 15. Page furniture rather than deterministic simulation state:
     // FrameState is the deterministic simulation state the golden trajectory
     // and the soak replay, and a mute belongs in neither.
     if (BINDINGS.toggleMute.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       muted = !muted
       audio.setMuted(muted)
-      legend.setMuted(muted)
     }
-    // Plan 17. Page furniture, toggled here for the same reason the legend
-    // and mute are: FrameState is the deterministic simulation state the
+    // Plan 17. Page furniture, toggled here for the same reason mute is:
+    // FrameState is the deterministic simulation state the
     // golden trajectory and the soak replay, and a display range belongs in
     // neither.
     //
@@ -2780,7 +2764,6 @@ async function boot(): Promise<void> {
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
     const viewPlayer = playerAircraft(view.world)
-    legend.setRacks(racksLabel(player.spec))
     renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
@@ -2884,7 +2867,7 @@ async function boot(): Promise<void> {
     if (replay === null) {
       // Silent behind the title and during the reload: the world is the boot
       // default's, paused, and its idle engine would play under the menu.
-      if (sortieIdle) audio.hold(true)
+      if (sortieIdle || current.paused) audio.hold(true)
       else {
         // Released every flying frame: `hold` is a latch, and nothing else on
         // this path clears it, so without this the flight after the title was

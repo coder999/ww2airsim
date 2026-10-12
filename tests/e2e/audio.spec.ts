@@ -64,6 +64,30 @@ test('the engine gain follows the throttle and falls to zero on the cut', async 
     .toBe(0)
 })
 
+test('pausing silences all audio and resuming restores the engine', async ({ page }) => {
+  await quickLaunch(page, { scenario: 'free-flight' })
+  await waitForTerrain(page)
+  await page.keyboard.down('Equal')
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().engineGain), { timeout: 15_000 })
+    .toBeGreaterThan(0.1)
+  await page.keyboard.up('Equal')
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Pause menu' })).toBeVisible()
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().masterGain), { timeout: 15_000 })
+    .toBe(0)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().engineGain)).toBe(0)
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Pause menu' })).toBeHidden()
+  await expect
+    .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.audio().engineGain), { timeout: 15_000 })
+    .toBeGreaterThan(0.1)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.audio().masterGain)).toBeGreaterThan(0)
+})
+
 test('Q mutes by taking the master gain to zero, and unmutes', async ({ page }) => {
   await page.goto('/')
   await waitForTerrain(page)

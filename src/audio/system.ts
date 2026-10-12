@@ -77,9 +77,9 @@ export type AudioSystem = {
   updateSpatial(inputs: SpatialInputs, rate?: number): void
   /** Advances the spatial memory past `inputs` without a sound and drops queued sounds. */
   primeSpatial(inputs: SpatialInputs): void
-  /** While held, the engine loop glides to gain 0 -- "paused means silent"
-   *  (design §7), for a paused replay. The next `update` call resumes it: a
-   *  hold has no inputs of its own to compute a gain from. */
+  /** While held, the master gain and every loop go to 0 -- "paused means
+   *  silent" (design §7), for the live game and paused replay. The next
+   *  `update` call restores loop gains after the hold is released. */
   hold(held: boolean): void
   /** One-shot placed in the world. Same rules as any cue: silent while held,
    *  never a failed clip, never a non-finite position. */
@@ -121,6 +121,12 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   // still rendered while a replay is paused, and nothing else about it may
   // change.
   let held = false
+  const syncMasterGain = (force = false): void => {
+    const next = isMuted || held ? 0 : MASTER_GAIN
+    if (!force && next === masterGain) return
+    masterGain = next
+    backend.setMasterGain(next)
+  }
   let radioMemory: RadioMemory = NO_RADIO_MEMORY
   const radioPlayed: VoiceId[] = []
   const voiceSeconds = new Map<VoiceId, number>()
@@ -156,8 +162,7 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
   return {
     driveLayer,
     async load(): Promise<void> {
-      masterGain = MASTER_GAIN
-      backend.setMasterGain(MASTER_GAIN)
+      syncMasterGain(true)
       // Per clip, and each failure swallowed: a 404 on one sound must not
       // take the others down with it, and must never reject the boot. A
       // flight sim with no sound is playable; a failure screen is not.
@@ -274,7 +279,12 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
     },
 
     hold(isHeld: boolean): void {
+      if (held === isHeld) return
       held = isHeld
+      // Master gain stops one-shots already in flight (radio, guns, impacts),
+      // while the loop writes below keep their own state honest for snapshots
+      // and for the first update after resume.
+      syncMasterGain()
       if (held) {
         for (const [id, handle] of handles) {
           handle.setGain(0, layers[id]!.glideTauS)
@@ -305,10 +315,10 @@ export function createAudioSystem(backend: AudioBackend, layers: LayerTable = LA
 
     setMuted(muted: boolean): void {
       isMuted = muted
-      masterGain = muted ? 0 : MASTER_GAIN
       // Master gain, not a teardown: the reducer keeps advancing while muted,
-      // so unmuting cannot resurrect a sound whose moment has passed.
-      backend.setMasterGain(muted ? 0 : MASTER_GAIN)
+      // so unmuting cannot resurrect a sound whose moment has passed. A held
+      // game remains silent even if its mute choice changes.
+      syncMasterGain()
     },
 
     muted(): boolean {

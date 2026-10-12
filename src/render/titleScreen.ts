@@ -1,5 +1,7 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
-import { creditsLine } from './legend.js'
+import { CREDITS, OSM_COPYRIGHT_URL, WORLDCOVER_LICENCE_URL, creditsLine } from './legend.js'
+import { MODEL_CREDITS } from './modelCreditsIndex.js'
+import { modelCreditParts } from './modelCredits.js'
 import { TITLE_ART_URL } from './content.js'
 import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
@@ -125,8 +127,8 @@ export const NO_AIRCRAFT = 'No aircraft on the roster can fly this mission. Chec
  * The loadout picker's options (spec §1: "clean, bombs, rockets, both
  * (default both)"), a pure array so the Node suite can pin it the same way
  * `titleModel` pins the button text -- `createTitleScreen`'s radio row is
- * built straight off this and is otherwise untested here, for the reason
- * `createLegend`'s own comment gives: the vitest environment is `node`.
+ * built straight off this and is otherwise untested here because the vitest
+ * environment is `node`.
  */
 export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label: string }[] = [
   { value: 'clean', label: 'Clean' },
@@ -1002,7 +1004,30 @@ export function createTitleScreen(
     const aboutFinePrint = document.createElement('div')
     aboutFinePrint.className = 'fine-print'
     const creditsSpan = document.createElement('span')
-    creditsSpan.textContent = m.credits
+    const creditLink = (text: string, href: string): HTMLAnchorElement => {
+      const link = document.createElement('a')
+      link.href = href
+      link.target = '_blank'
+      link.rel = 'noopener'
+      link.textContent = text
+      link.style.color = 'inherit'
+      return link
+    }
+    creditsSpan.append(
+      CREDITS.before,
+      creditLink(CREDITS.worldCover, WORLDCOVER_LICENCE_URL),
+      CREDITS.between,
+      creditLink(CREDITS.link, OSM_COPYRIGHT_URL),
+    )
+    // The flight overlay used to carry these links. Keep every CC BY work and
+    // both data attributions reachable after removing that redundant panel.
+    if (MODEL_CREDITS.length > 0) {
+      creditsSpan.append(document.createElement('br'), 'Models: ')
+      for (const part of modelCreditParts(MODEL_CREDITS)) {
+        creditsSpan.append(part.href === undefined ? part.text : creditLink(part.text, part.href))
+      }
+      creditsSpan.append(' (', creditLink('CC BY 4.0', WORLDCOVER_LICENCE_URL), ')')
+    }
     const licenceSpan = document.createElement('span')
     const repo = document.createElement('a')
     repo.href = m.repository
