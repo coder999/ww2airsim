@@ -37,8 +37,10 @@ export interface HangarHooks {
   bench(): BenchState
   /** A debug toggle, as its checkbox does (H2). */
   setDebug(which: DebugToggle, on: boolean): void
-  /** Names of the nodes carrying pivot gizmos; [] while gizmos are off (H2). */
-  gizmoNodes(): string[]
+  /** Whether the scale grid is visible. It defaults off and persists across selections. */
+  gridVisible(): boolean
+  /** The category-specific stage around the selected model. */
+  environment(): 'hangar' | 'water' | 'outside'
   /** The selected model's counts against its manifest budget; null before the first select (H2). */
   counts(): CountsReport | null
   /** Where the selected aircraft's store mounts fall on the canvas, in NDC through the stage

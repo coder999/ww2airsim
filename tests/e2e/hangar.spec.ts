@@ -29,7 +29,7 @@ const current = (page: Page) => page.evaluate(() => (window as HangarWindow).__h
 const pose = (page: Page, p: PartPose) => page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)
 const visible = (page: Page, v: boolean) => page.evaluate((x) => (window as HangarWindow).__hangar!.setModelVisible(x), v)
 const hasPart = (c: Current, id: string) => c.parts.some((p) => p.id === id && p.modeled)
-const setDebug = (page: Page, which: 'wireframe' | 'gizmos' | 'turntable' | 'checker', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
+const setDebug = (page: Page, which: 'wireframe' | 'grid' | 'turntable' | 'checker', on: boolean) => page.evaluate(([w, o]) => (window as HangarWindow).__hangar!.setDebug(w, o), [which, on] as const)
 
 /** Three animation frames, so a pose or camera change has reached the canvas. */
 const settle = (page: Page) => page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r())))))
@@ -275,13 +275,17 @@ test.describe('the Hangar', () => {
       await select(page, id)
       if (!hasPart(await current(page), 'turrets')) continue
       turreted.push(id)
-      const { model: rest } = await view(page, id, 'top', { turretBearingDeg: 0, turretElevationDeg: 0 })
+      const { empty, model: rest } = await view(page, id, 'top', { turretBearingDeg: 0, turretElevationDeg: 0 })
       await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
       const aimed = await shot(page)
       await pose(page, { turretBearingDeg: 0, turretElevationDeg: 0 })
       const back = await shot(page)
-      expect(aimed.equals(rest), `${id}: aiming moved nothing`).toBe(false)
-      expect(back.equals(rest), `${id}: stowing did not restore the frame`).toBe(true)
+      const aimedDiff = await masks(page, empty, [rest, aimed])
+      const restoredDiff = await masks(page, empty, [rest, back])
+      expect(Math.max(aimedDiff.xor01, aimedDiff.changed01), `${id}: aiming moved nothing`).toBeGreaterThan(0)
+      // Compare decoded pixels, not PNG bytes: Chromium may encode identical M4 frames into
+      // different PNG byte streams even though every rendered pixel is unchanged.
+      expect(Math.max(restoredDiff.xor01, restoredDiff.changed01), `${id}: stowing did not restore the frame`).toBe(0)
     }
     // The Chi-Ha's turret joined V1 (2026-10-09); the M4 joined V2 (2026-10-11).
     expect(turreted.sort()).toEqual(['b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'm4-sherman', 'tbm-3-avenger', 'type97-chi-ha'])
@@ -341,15 +345,17 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test("9. the archived Wildcat keeps its bespoke pivot gizmos in Dev", async ({ page }) => {
-    await openHangar(page, true)
-    const { empty, model: plain } = await view(page, 'f4f-wildcat', 'three-quarter')
-    await setDebug(page, 'gizmos', true)
-    expect((await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())).sort()).toEqual(['AileronL', 'AileronR', 'GRP_Rueda_Der', 'GRP_Rueda_Izq', 'Helice', 'Timon_Der', 'Timon_Izq', 'Timon_Prof', 'polySurface255', 'polySurface257', 'polySurface272', 'polySurface277', 'polySurface302', 'polySurface303'])
-    const withGizmos = await shot(page)
-    const m = await masks(page, empty, [plain, withGizmos])
-    expect(m.xor01).toBeGreaterThan(0)
-    await setDebug(page, 'gizmos', false)
+  test('9. the scale grid defaults off, visibly toggles, and survives a model switch', async ({ page }) => {
+    const { empty, model: plain } = await view(page, 'f4f-wildcat-blender', 'three-quarter')
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gridVisible())).toBe(false)
+    await setDebug(page, 'grid', true)
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gridVisible())).toBe(true)
+    const withGrid = await shot(page)
+    const m = await masks(page, empty, [plain, withGrid])
+    expect(Math.max(m.xor01, m.changed01)).toBeGreaterThan(0)
+    await select(page, 'fletcher-dd')
+    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gridVisible())).toBe(true)
+    await setDebug(page, 'grid', false)
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
@@ -410,22 +416,17 @@ test.describe('the Hangar', () => {
     }
   })
 
-  test("13. every rigged aircraft's pivot gizmos are its named props, gear legs and control surfaces (R3, C1)", async ({ page }) => {
-    await setDebug(page, 'gizmos', true)
-    for (const id of await entries(page)) {
+  test('13. each object class gets its intended environment', async ({ page }) => {
+    for (const [id, environment] of [
+      ['f4f-wildcat-blender', 'hangar'],
+      ['willys-mb-jeep', 'hangar'],
+      ['an-m65', 'hangar'],
+      ['fletcher-dd', 'water'],
+      ['hangar', 'outside'],
+    ] as const) {
       await select(page, id)
-      const c = await current(page)
-      if (c.kind !== 'aircraft') continue
-      const nodes = await page.evaluate(() => (window as HangarWindow).__hangar!.gizmoNodes())
-      for (const n of nodes) expect(n, id).toMatch(/^(Prop\d*|GearL|GearR|GearNose|Tailwheel|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/)
-      expect(nodes.some((n) => n.startsWith('BayDoor')), `${id} bay door gizmos`).toBe(hasPart(c, 'doors'))
-      expect(nodes.some((n) => /^(Aileron|Elevator|Rudder)/.test(n)), `${id} control surface gizmos`).toBe(hasPart(c, 'surfaces'))
-      expect(nodes.some((n) => n.startsWith('Flap')), `${id} flap gizmos`).toBe(hasPart(c, 'flaps'))
-      expect(nodes.some((n) => n.startsWith('Prop')), `${id} prop gizmo`).toBe(hasPart(c, 'prop'))
-      expect(nodes.some((n) => /^(Gear|Tailwheel)/.test(n)), `${id} gear gizmo`).toBe(hasPart(c, 'gear'))
+      expect(await page.evaluate(() => (window as HangarWindow).__hangar!.environment()), id).toBe(environment)
     }
-    await setDebug(page, 'gizmos', false)
-    expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
   test("14. the card's Model row says where the model came from, and the Origin filter splits ours from downloads", async ({ page }) => {
@@ -578,7 +579,7 @@ test('the canvas and the panel fit the window: nothing renders off-screen', asyn
   expect(r.sheetBottom, 'sheet bottom edge (the list scrolls inside it)').toBeLessThanOrEqual(r.h)
 })
 
-test('the details panel appears on the right once something is picked, and collapses to give the model the width', async ({ page }) => {
+test('desktop uses a bottom catalog rail with separate details and test-bench overlays', async ({ page }) => {
   await openHangar(page)
   const details = page.getByRole('region', { name: 'Details' })
   await expect(details).toBeHidden()
@@ -589,19 +590,36 @@ test('the details panel appears on the right once something is picked, and colla
   await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
   const edges = () => page.evaluate(() => {
     const box = (s: string) => document.querySelector(s)!.getBoundingClientRect()
-    return { canvas: box('#hangar-canvas'), details: box('.hangar-detail'), list: box('.hangar-panel'), w: innerWidth, h: innerHeight }
+    return { canvas: box('#hangar-canvas'), details: box('.hangar-detail'), bench: box('.hangar-bench'), catalog: box('.hangar-catalog-dock'), w: innerWidth, h: innerHeight }
   })
   const open = await edges()
-  // Left list, model, details: three columns side by side, nothing off-screen.
-  expect(open.list.right).toBeLessThanOrEqual(open.canvas.left + 1)
-  expect(open.canvas.right).toBeLessThanOrEqual(open.details.left + 1)
+  expect(open.catalog.top, 'catalog is below the model viewport').toBeGreaterThanOrEqual(open.canvas.bottom)
+  expect(open.catalog.right).toBeLessThanOrEqual(open.w)
+  expect(open.details.left, 'details overlay the upper-right of the model viewport').toBeGreaterThan(open.canvas.left)
   expect(open.details.right).toBeLessThanOrEqual(open.w)
-  expect(open.details.bottom).toBeLessThanOrEqual(open.h)
+  expect(open.bench.right).toBeLessThanOrEqual(open.w)
+  expect(open.bench.bottom).toBeLessThanOrEqual(open.canvas.bottom)
+  expect(open.details.bottom, 'details and bench do not overlap').toBeLessThanOrEqual(open.bench.top + 1)
   await details.getByRole('button', { name: 'Collapse details' }).click()
   await expect(details.getByRole('table', { name: 'Figures' })).toBeHidden()
-  await expect.poll(async () => (await edges()).canvas.width).toBeGreaterThan(open.canvas.width + 200)
+  await expect(page.getByRole('region', { name: 'Test bench' })).toBeVisible()
+  expect((await edges()).canvas.width).toBe(open.canvas.width)
   await details.getByRole('button', { name: 'Expand details' }).click()
   await expect(details.getByRole('table', { name: 'Figures' })).toBeVisible()
+})
+
+test('desktop previous and next arrows walk the filtered catalog and return to the same object', async ({ page }) => {
+  await openHangar(page)
+  const objects = page.getByRole('list', { name: 'Objects' }).getByRole('button')
+  await objects.first().click()
+  await expect.poll(() => page.evaluate(() => (window as HangarWindow).__hangar!.current()?.id ?? null)).not.toBeNull()
+  const first = await page.evaluate(() => (window as HangarWindow).__hangar!.current()!.id)
+  await page.getByRole('button', { name: 'Next object' }).click()
+  await expect.poll(() => page.evaluate(() => (window as HangarWindow).__hangar!.current()?.id ?? null)).not.toBe(first)
+  const second = await page.evaluate(() => (window as HangarWindow).__hangar!.current()!.id)
+  expect(second).not.toBe(first)
+  await page.getByRole('button', { name: 'Previous object' }).click()
+  await expect.poll(() => page.evaluate(() => (window as HangarWindow).__hangar!.current()?.id ?? null)).toBe(first)
 })
 
 test('the mobile Hangar uses a compact picker, full-width model, and collapsible bottom sheet', async ({ page }) => {

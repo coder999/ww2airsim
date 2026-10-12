@@ -11,8 +11,8 @@ export interface HangarPanel {
   showCard(entry: CatalogEntry, figures: readonly Figure[], modelSize: { x: number; y: number; z: number } | null, source: ModelProvenance | 'code' | null): void
   /** The element the bench (bench.ts) mounts into, under the card. */
   readonly benchSlot: HTMLElement
-  /** The detail panel holding the card and the bench: right-hand on desktop, a bottom sheet on
-   *  mobile; hidden until the first pick, then collapsible to a thin strip. */
+  /** The detail panel: an upper-right overlay on desktop and the existing bottom sheet on mobile;
+   *  hidden until the first pick, then collapsible to a thin strip. */
   readonly detail: HTMLElement
 }
 
@@ -28,10 +28,10 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 }
 
 /**
- * The list and its three filters on the left, and the info card with the bench in a matching panel
- * on the right that appears once something is picked (Hangar spec §2; split left/right by Mark,
- * 2026-10-08), in the Naval Communications style the title screen uses. `onSelect` is called with
- * a library id; main.ts loads the model and calls `showCard`.
+ * One DOM serves both layouts. Desktop lays the identity and filters over the top of the stage,
+ * puts the catalog in a cockpit-metal carousel below it, and floats details / bench separately on
+ * the right. The phone breakpoint keeps the compact picker and bottom sheet. `onSelect` is called
+ * with a library id; main.ts loads the model and calls `showCard`.
  */
 export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[], onSelect: (id: string) => void, showAssetId = false): HangarPanel {
   ensureStampFilter()
@@ -67,12 +67,25 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   )
   const list = el('ul')
   list.setAttribute('aria-label', 'Objects')
+  const catalogDock = el('div', 'hangar-catalog-dock')
+  catalogDock.setAttribute('aria-label', 'Object selector')
+  const previous = el('button', 'hangar-catalog-arrow hangar-catalog-arrow--previous', '‹')
+  previous.type = 'button'
+  previous.setAttribute('aria-label', 'Previous object')
+  const listWindow = el('div', 'hangar-catalog-window')
+  listWindow.appendChild(list)
+  const next = el('button', 'hangar-catalog-arrow hangar-catalog-arrow--next', '›')
+  next.type = 'button'
+  next.setAttribute('aria-label', 'Next object')
+  const catalogStatus = el('div', 'hangar-catalog-status', 'Choose an object')
+  catalogStatus.setAttribute('aria-live', 'polite')
+  catalogDock.append(previous, listWindow, next, catalogStatus)
   const mobilePicker = el('label', 'hangar-mobile-picker')
   mobilePicker.appendChild(el('span', undefined, 'Asset'))
   const mobileSelect = el('select')
   mobileSelect.setAttribute('aria-label', 'Asset')
   mobilePicker.appendChild(mobileSelect)
-  sheet.append(filters, mobilePicker, list)
+  sheet.append(filters, mobilePicker, catalogDock)
   root.appendChild(panel)
 
   const detail = el('div', 'naval-comms hangar-detail')
@@ -85,15 +98,21 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   toggle.classList.add('hangar-detail-toggle')
   const card = el('div', 'hangar-card')
   const benchSlot = el('div', 'hangar-bench')
-  detailSheet.append(card, benchSlot)
-  detail.append(toggle, detailSheet)
+  benchSlot.setAttribute('role', 'region')
+  benchSlot.setAttribute('aria-label', 'Test bench')
+  detailSheet.append(card)
+  detail.append(toggle, detailSheet, benchSlot)
   let collapsed = false
   const mobileLayout = window.matchMedia('(max-width: 820px)')
   const layout = (): void => {
-    // Collapsed, the panel is a strip holding only its toggle. The model gets the freed width on
-    // desktop and height on mobile; CSS owns both layouts so the breakpoint can change live.
+    // On desktop the dossier collapses independently while the fixed test bench stays available.
+    // Mobile preserves the original single bottom sheet: collapsing it hides both card and bench.
+    if (mobileLayout.matches && benchSlot.parentElement !== detailSheet) detailSheet.appendChild(benchSlot)
+    else if (!mobileLayout.matches && benchSlot.parentElement !== detail) detail.appendChild(benchSlot)
     detail.classList.toggle('is-collapsed', collapsed)
-    detailSheet.style.display = collapsed ? 'none' : ''
+    detailSheet.style.display = collapsed && mobileLayout.matches ? 'none' : ''
+    card.style.display = collapsed ? 'none' : ''
+    benchSlot.style.display = collapsed && mobileLayout.matches ? 'none' : ''
     toggle.textContent = mobileLayout.matches ? (collapsed ? '⌃' : '⌄') : (collapsed ? '‹' : '›')
     toggle.setAttribute('aria-label', collapsed ? 'Expand details' : 'Collapse details')
     toggle.setAttribute('aria-expanded', String(!collapsed))
@@ -103,6 +122,16 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
   layout()
 
   let selectedId = ''
+  let filteredEntries: readonly CatalogEntry[] = []
+  const updateCatalogControls = (): void => {
+    const index = filteredEntries.findIndex((e) => e.library.id === selectedId)
+    const available = filteredEntries.length > 0
+    previous.disabled = !available
+    next.disabled = !available
+    catalogStatus.textContent = index < 0
+      ? `${filteredEntries.length} object${filteredEntries.length === 1 ? '' : 's'}`
+      : `${index + 1} / ${filteredEntries.length} · ${filteredEntries[index]!.library.name}`
+  }
   const choose = (id: string): void => {
     selectedId = id
     mobileSelect.value = id
@@ -110,12 +139,35 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
       if (button.dataset['id'] === id) button.setAttribute('aria-current', 'true')
       else button.removeAttribute('aria-current')
     }
+    updateCatalogControls()
+    requestAnimationFrame(() => {
+      const button = list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(id)}"]`)
+      const item = button?.parentElement
+      if (!item) return
+      // Scroll only the rail. scrollIntoView also moved the document when a distant catalog item
+      // was chosen, clipping the fixed header and details panel at the viewport edges.
+      list.scrollTo({ left: item.offsetLeft + item.offsetWidth / 2 - list.clientWidth / 2, behavior: 'smooth' })
+    })
     onSelect(id)
   }
+  const chooseRelative = (delta: -1 | 1): void => {
+    if (filteredEntries.length === 0) return
+    const current = filteredEntries.findIndex((e) => e.library.id === selectedId)
+    const index = current < 0 ? (delta > 0 ? 0 : filteredEntries.length - 1) : (current + delta + filteredEntries.length) % filteredEntries.length
+    choose(filteredEntries[index]!.library.id)
+  }
+  previous.addEventListener('click', () => chooseRelative(-1))
+  next.addEventListener('click', () => chooseRelative(1))
+  catalogDock.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    chooseRelative(event.key === 'ArrowLeft' ? -1 : 1)
+  })
   mobileSelect.addEventListener('change', () => { if (mobileSelect.value) choose(mobileSelect.value) })
 
   function renderList(): void {
     const entries = filterCatalog(catalog, filter)
+    filteredEntries = entries
     const prompt = el('option', undefined, `Choose an asset (${entries.length})`)
     prompt.value = ''
     prompt.disabled = true
@@ -134,6 +186,7 @@ export function createPanel(root: HTMLElement, catalog: readonly CatalogEntry[],
       li.appendChild(b)
       return li
     }))
+    updateCatalogControls()
   }
   renderList()
 

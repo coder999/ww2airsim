@@ -70,7 +70,7 @@ async function boot(): Promise<void> {
   const showAssetId = new URLSearchParams(location.search).get('dev') === '1'
   let controller = createBenchController(null)
   let benchUi: BenchHandle | null = null
-  const debug: Record<DebugToggle, boolean> = { wireframe: false, gizmos: false, turntable: true, checker: false, mounts: false }
+  const debug: Record<DebugToggle, boolean> = { wireframe: false, grid: false, turntable: true, checker: false, mounts: false }
   // Track M, M1: the bench's Train mounts sweeps every gun mount +-90 deg about its own axis, so a
   // look shows each one turning alone, on its own pivot; M1b raises the guns from level to each kit's
   // top elevation in the same sweep. Off, they rest at their spec bearing, level.
@@ -88,7 +88,7 @@ async function boot(): Promise<void> {
     debug[which] = on
     if (which === 'wireframe') stage.setWireframe(on)
     else if (which === 'checker') stage.setChecker(on)
-    else if (which === 'gizmos') stage.setGizmos(on ? model?.articulated ?? [] : null)
+    else if (which === 'grid') stage.setGrid(on)
     else if (which === 'mounts') { sweepS = 0; trainMounts(0); elevateMounts(0) }
     else stage.setAutoRotate(on)
   }
@@ -118,7 +118,6 @@ async function boot(): Promise<void> {
     panel.showCard(entry, figuresFor(entry), stage.modelSize(), model ? modelSource(model.root, content.provenance) : null)
     // A fresh controller per model: a new model starts at rest, never mid-cycle.
     controller = createBenchController(entry.subject?.kind === 'aircraft' ? entry.subject.spec : null)
-    if (debug.gizmos) stage.setGizmos(model?.articulated ?? [])
     if (bench) {
       benchUi = mountBench(panel.benchSlot, model?.parts ?? [], entry.subject?.kind === 'aircraft', debug, {
         onPose: pose,
@@ -161,7 +160,8 @@ async function boot(): Promise<void> {
     cycle: (part) => controller.startCycle(part),
     bench: () => controller.state(),
     setDebug: onDebug,
-    gizmoNodes: () => (debug.gizmos ? (model?.articulated ?? []).map((o) => o.name) : []),
+    gridVisible: () => debug.grid,
+    environment: () => stage.environment(),
     counts: () => (model ? countsReport(model.root, content.budgets) : null),
     storeMounts: () => (model ? model.mounts().map((m) => ({ id: m.id, ndc: stage.project(m.world) })) : []),
     gunMounts: () => (model?.gunMounts ?? []).map((m) => m.name),

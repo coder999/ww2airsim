@@ -53,8 +53,6 @@ export interface PartPose {
 export interface HangarModel {
   readonly root: Object3D
   readonly parts: readonly PartSpec[]
-  /** Nodes the bench actually moves (gear legs, propeller, flaps), found by probing; [] for ships and buildings. */
-  readonly articulated: readonly Object3D[]
   /** Each hung store's mount id and world position (O1); [] for ships, buildings and ordnance. */
   mounts(): readonly { readonly id: string; readonly world: Vector3 }[]
   pose(p: PartPose): void
@@ -115,35 +113,10 @@ export function flatField(): TerrainField {
   )
 }
 
-/**
- * The nodes a pose actually moves (the bench's pivot gizmos, spec §8): every
- * node's LOCAL transform is read at rest (gear down, flaps up), again with
- * gear up, flaps down and a propeller step, and the ones that changed are
- * returned. Probing what moves, rather than trusting a name list, is the
- * point: a wrong pivot shows as a gizmo in the wrong place. Leaves gear and
- * flaps at rest; the propeller keeps its advanced angle, which is cosmetic.
- */
-export function probeArticulated(root: Object3D, drive: (u: { gearFraction: number; flapFraction: number; bayDoorFraction: number; throttle: number; controls: { roll: number; pitch: number; yaw: number }; frameS: number }) => void): Object3D[] {
-  const read = (): Map<Object3D, string> => {
-    const m = new Map<Object3D, string>()
-    root.traverse((o) => m.set(o, [...o.position.toArray(), ...o.quaternion.toArray(), ...o.scale.toArray()].map((v) => v.toFixed(6)).join(',')))
-    return m
-  }
-  const still = { roll: 0, pitch: 0, yaw: 0 }
-  drive({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0 })
-  const before = read()
-  // frameS 0 would leave the propeller still; at 0.05 s the control surfaces slew a third of the way (C1), enough to show.
-  drive({ gearFraction: 0, flapFraction: 1, bayDoorFraction: 1, throttle: 1, controls: { roll: 1, pitch: 1, yaw: 1 }, frameS: 0.05 })
-  const after = read()
-  drive({ gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, frameS: 0 })
-  return [...before].filter(([o, k]) => after.get(o) !== k).map(([o]) => o)
-}
-
 function staticModel(root: Object3D): HangarModel {
   return {
     root,
     parts: [],
-    articulated: [],
     mounts: () => [],
     pose(): void {},
     update(): void {},
@@ -174,12 +147,10 @@ function aircraftModel(airframe: Airframe, gearHeightM: number, mounts: StoreMou
   const apply = (frameS: number): void => {
     airframe.update({ gearFraction, flapFraction, bayDoorFraction, throttle, controls, frameS, cameraDistanceM: 0, aim: aimFrom(bearing, elevation) })
   }
-  const articulated = probeArticulated(airframe.root, (u) => airframe.update({ ...u, cameraDistanceM: 0 }))
   apply(0)
   return {
     root: stand,
     parts: partSpecsFor(airframe.parts),
-    articulated,
     mounts: () => [...(mounts?.racks ?? []), ...(mounts?.rails ?? [])].flatMap((m) => {
       const o = airframe.root.getObjectByName(m.id)
       return o ? [{ id: m.id, world: o.getWorldPosition(new Vector3()) }] : []

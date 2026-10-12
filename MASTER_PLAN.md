@@ -19,6 +19,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 - **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
 - **Photoreal Task 14,** which never ran: re-filed into H0.
 - **Controls overlay and pause audio (done and merged 2026-10-11, `ab78775c`):** the redundant in-flight keyboard overlay and its `/` toggle are gone; the pause dossier remains the player-facing control reference. Required data and model attribution links moved to the title screen's About memo. Pausing now silences the master bus as well as loop state, so active radio, weapons, impacts and engines stop until play resumes. Handoff [`docs/handoff/2026-10-11-controls-overlay-pause-audio.md`](docs/handoff/2026-10-11-controls-overlay-pause-audio.md).
+- **Desktop Hangar UI (done 2026-10-11):** desktop now uses a full-width inspection bay, cockpit-metal bottom carousel with previous/next controls, and separate upper-right details and lower-right test-bench overlays. Aircraft, vehicles and ordnance use a generated open-front V-roof hangar; ships remain on water and buildings outside. Pivot gizmos were replaced by an opt-in scale grid. The existing compact phone picker, plain stage and bottom sheet are retained at the mobile breakpoint. Handoff [`docs/handoff/2026-10-11-hangar-desktop-ui.md`](docs/handoff/2026-10-11-hangar-desktop-ui.md).
 
 ### Track A: First load and the launch sequence
 

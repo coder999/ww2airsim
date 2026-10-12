@@ -210,8 +210,8 @@ sources (Hangar spec §4). Deterministic checks the library against the rosters 
 `GAMEPLAY.md`.
 
 An entry may also carry an optional `model: { "kind", "id" }` (R1), where
-`kind` must equal the entry's own kind (`aircraft`, `ship`, `building` or
-`vehicle`). The Hangar draws it in place of the spec's `view.model`; with no
+`kind` must equal the entry's own kind (`aircraft`, `ship`, `building`,
+`vehicle` or `ordnance`). The Hangar draws it in place of the spec's `view.model`; with no
 spec, the entry reads "not in the game yet" instead of "not yet in service".
 Deterministic checks that every `model` resolves: it is registered (step 7), has a
 manifest entry, sits in the right output folder, and its glb is committed.
@@ -227,9 +227,12 @@ Every entry must now arrive with its model: R5 deleted the allowlist, and
   the right-side Figures table also shows the selected Library asset's exact
   **Asset ID**. The title carries that session choice as `?dev=1`; ordinary
   Hangar links omit both the flag and the developer-only row.
-  *Pivot gizmos* shows where each moving part turns; a gizmo in the wrong
-  place is a wrong pivot. *Wireframe* shows the mesh. The counts line reads
-  the model against its budget and turns red when it is over.
+  *Scale grid* overlays one-foot lines and ten-foot majors when a scale check
+  is useful; it defaults off. *Wireframe* shows the mesh. The counts line reads
+  the model against its budget and turns red when it is over. On desktop,
+  aircraft, vehicles and ordnance stand inside the generated V-roof hangar;
+  ships remain on water and buildings remain outside. Phones retain the plain
+  scale-safe stage and compact picker/bottom-sheet layout.
 - **Assert:** run `tests/e2e/hangar.spec.ts` on the reference GPU (the
   command is in `docs/testing.md`). A new library entry is
   picked up automatically. Checks 1–3, 5–10 and 12–14 cover the following:
@@ -241,7 +244,9 @@ Every entry must now arrive with its model: R5 deleted the allowlist, and
   - it is inside its manifest budget as drawn (check 10)
   - the list marks exactly the entries it cannot draw, and every other one
     is drawn (check 12, R1)
-  - every rigged aircraft's gizmos are its props and legs (check 13, R3)
+  - the scale grid defaults off, toggles visibly and survives a model switch
+  - aircraft, vehicles and ordnance use the hangar environment; ships use
+    water and buildings use the outside stage (check 13)
   - its card's Model row names where it came from, from its entry's `source`,
     and the Origin filter lists it as internal or external (check 14)
   - every Library entry is drawn: there is no allowlist (check 12, R5)

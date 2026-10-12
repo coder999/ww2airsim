@@ -11,7 +11,7 @@ import { countsText, type CountsReport } from './budgets.js'
  * model. The logic lives in benchController.ts and budgets.ts, which Node
  * tests; this file only draws it. Turrets: bearing and elevation (2026-10-09).
  */
-export type DebugToggle = 'wireframe' | 'gizmos' | 'turntable' | 'checker' | 'mounts'
+export type DebugToggle = 'wireframe' | 'grid' | 'turntable' | 'checker' | 'mounts'
 
 export interface BenchHandlers {
   onPose(p: PartPose): void
@@ -144,7 +144,7 @@ export function mountBench(
 
   const debugRow = document.createElement('div')
   debugRow.style.cssText = 'margin:8px 0 4px'
-  const toggles: readonly [DebugToggle, string][] = [['gizmos', 'Pivot gizmos'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable'], ['checker', 'UV checker'], ['mounts', 'Train mounts']]
+  const toggles: readonly [DebugToggle, string][] = [['grid', 'Scale grid'], ['wireframe', 'Wireframe'], ['turntable', 'Turntable'], ['checker', 'UV checker'], ['mounts', 'Train mounts']]
   const debugBoxes = new Map<DebugToggle, HTMLInputElement>()
   for (const [which, label] of toggles) {
     const { row, input } = checkbox(label, debug[which], (on) => h.onDebug(which, on))
