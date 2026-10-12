@@ -386,6 +386,13 @@ because TSL missed budget.
 ## 4. Traps
 
 **TSL and three r186**
+- **A render-graph node does not own textures loaded by boot.** Three may call
+  a node's `dispose()` while rebuilding `RenderPipeline.outputNode` and then
+  compile the same cloud pass into the replacement graph. The Takram passes
+  therefore dispose only their own targets, materials and buffers; boot/page
+  teardown owns the shared weather/noise textures. Destroying the borrowed
+  assets here produced the repeated `Destroyed texture ... 1024x1024 ...
+  R8Unorm` validation error in the 2026-10-12 overnight run.
 - **A graph that fails to build renders black with zero validation
   errors.** So do a TSL `Fn` returning more than one node,
   `smoothstep(0, 0, x)`, and a missing import (`saturate`). A missing

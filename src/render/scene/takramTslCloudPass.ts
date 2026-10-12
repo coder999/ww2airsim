@@ -273,7 +273,7 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   resets = 0
 
   constructor(
-    private readonly assets: TakramTslAssets,
+    assets: TakramTslAssets,
     private readonly camera: PerspectiveCamera,
     private readonly sceneColor: Node<'vec4'>,
     private readonly sceneDepth: TextureNode,
@@ -576,7 +576,13 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   override dispose(): void {
     super.dispose()
     this.low.dispose(); this.history.forEach(target => target.dispose())
-    this.marchMaterial.dispose(); this.temporalMaterial.dispose(); this.assets.dispose()
+    this.marchMaterial.dispose(); this.temporalMaterial.dispose()
+    // The pass borrows the boot-owned asset set. Three may dispose a node
+    // graph while rebuilding the frame pipeline, then compile this same pass
+    // into the replacement graph. Disposing the shared textures here left the
+    // still-live pass submitting its destroyed 1024x1024 R8 weather texture
+    // (overnight E2E, 2026-10-12). Only release resources created by this
+    // pass; renderer/page teardown owns the loaded assets.
   }
 }
 

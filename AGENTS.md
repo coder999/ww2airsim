@@ -146,6 +146,15 @@ per kind of fact; point at it, never copy it.
 
 - **Before writing or changing a test, read `docs/testing.md`, "Philosophy"**
   (enroll, don't clone; a test is a correctness test or a budget test, never both).
+- **Worktree closeout includes test reconciliation.** Before merge, diff the
+  branch against its base and name every player-facing contract or diagnostic
+  that changed. Search the existing tests for the removed labels, controls,
+  routes and diagnostics; update, replace or delete those assertions in the
+  same work. Run the focused affected tests before the full gate. Record the
+  reconciliation in the handoff as `Tests updated`, `Tests still valid`, and
+  `Known gaps`. "Update relevant testing" in Mark's closeout request means
+  this checklist, not merely adding tests for new code. The standing process
+  and examples live in `docs/testing.md`, "Worktree closeout".
 - **US spelling** in  prose and identifiers. Existing `centre`-style (e.g. UK english)
   identifiers and content JSON keys are a migration — ask before renaming.
 - A plan's own numbers are claims: run its arithmetic against the repo before

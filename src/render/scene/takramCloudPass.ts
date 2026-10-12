@@ -400,7 +400,9 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     this.querySet?.destroy()
     this.queryResolve?.destroy()
     this.queryRead?.destroy()
-    this.assets.dispose()
+    // `assets` are loaded and owned by boot. A RenderPipeline graph rebuild
+    // can dispose this node without ending the page, so destroying borrowed
+    // textures here would leave a reusable pass holding dead GPU resources.
   }
 }
 

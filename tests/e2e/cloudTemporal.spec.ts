@@ -133,7 +133,13 @@ test('look left: a look-around snap keeps history and stays clean', async ({ pag
   expect(await resets(page) - before, 'a look-around must not reset the cloud history').toBe(0)
 })
 
-// Reprojection direction, mechanically (Task 4 fix round 1). During a held
+// Reprojection direction, mechanically (Task 4 fix round 1). This diagnostic
+// belongs to the legacy renderer whose `reprojectUvNode` it tests. The
+// default Takram TSL renderer has a separate 2x3 temporal implementation and
+// deliberately returns no legacy residual; its history behavior is covered
+// by the reset and no-validation cases above.
+//
+// During a held
 // pull-up the camera pitches continuously, so last frame's clouds sit at a
 // different screen position. `cloudReprojectionResidual` measures, in one
 // pass over one frame, how far last frame's march at the reprojected position
@@ -142,7 +148,7 @@ test('look left: a look-around snap keeps history and stays clean', async ({ pag
 // closest. A sign or y-flip error in `reprojectUvNode` fails this.
 test('reprojection direction: the resolve mapping beats reversed and mirrored ones during a pull-up', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto(view('under-deck-1200'))
+  await page.goto(view('under-deck-1200') + '&cloudRenderer=legacy')
   await waitForTerrain(page)
   await page.waitForTimeout(2000)
   const still = await page.evaluate(() => (window as DiagWindow).__ww2!.cloudReprojectionResidual())
