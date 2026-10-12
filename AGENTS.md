@@ -98,6 +98,10 @@ nothing, and the adapter guard passes it all the same;
 - Since parallel agents may be doing work (and testing), this can throw off GPU testing (particularly budget tests).
   - **Every budget-spec run takes `hwlock ryzen-budget <cmd>`** (exclusive), around the budget specs only,
     never a whole suite (Mark, 2026-10-08).
+    `playwright.config.ts` excludes budget titles from an ordinary E2E run and
+    requires `E2E_BUDGET_RUN=1` plus `HWLOCK_HELD=...ryzen-budget...` for the
+    complementary budget run. `remote-run` holds `ryzen-budget` shared, so its
+    WSL CPU work cannot overlap an exclusive budget measurement.
   - **`hwlock ryzen` is a no-op**: it is listed in `~/.config/hwlock/off` (since 2026-09-27, why: `serverconfig/ryzen.md`,
     "Resource locks"). Wrapping a run in it locks nothing. Check with `hwlock status`.
   - **Leave shared Playwright plumbing up when you finish** (Mark, 2026-10-10): the nexus-side tunnels

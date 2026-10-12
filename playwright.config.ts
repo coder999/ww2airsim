@@ -132,8 +132,30 @@ const CHROMIUM_ARGS = [
  */
 const LOCAL_LINUX_ARGS = process.platform === 'linux' ? ['--use-angle=vulkan', '--enable-features=Vulkan'] : []
 
+/**
+ * Budget tests are a separate, explicitly locked suite.  A normal E2E run is
+ * correctness-only; setting E2E_BUDGET_RUN=1 selects the complementary set
+ * and is accepted only inside `hwlock ryzen-budget`.  This makes an unlocked
+ * frame-time run impossible to mistake for a trusted measurement, including
+ * when somebody invokes Playwright directly instead of using the nightly.
+ */
+const BUDGET_TITLE_RE = /budget|p95|tripwire|frame time|\bHz\b/i
+const budgetRun = process.env.E2E_BUDGET_RUN === '1'
+const heldLocks = new Set((process.env.HWLOCK_HELD ?? '').split(/\s+/).filter(Boolean))
+if (budgetRun && !heldLocks.has('ryzen-budget')) {
+  throw new Error(
+    'E2E_BUDGET_RUN=1 requires the ryzen-budget lock; run '
+    + '`hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run test:e2e`.',
+  )
+}
+
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Correctness is the safe default. The locked budget invocation selects
+  // exactly the complementary title set, using the same contract as the
+  // nightly report classifier (docs/testing.md, "Philosophy").
+  grep: budgetRun ? BUDGET_TITLE_RE : undefined,
+  grepInvert: budgetRun ? undefined : BUDGET_TITLE_RE,
   // Longer than the default per-action wait below (30s, left unchanged) so a
   // genuinely stalled `waitForFunction` reports its own specific timeout
   // message first, rather than the whole test being killed by the outer test
