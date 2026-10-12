@@ -1,4 +1,5 @@
 import { cloudsFragment, fullscreenVertex } from './takramReferenceShaders.js'
+import { CLOSENESS_SCALE_M, DENSE_ACCUMULATED_ALPHA } from '../fx/shading.js'
 
 /**
  * The accepted stand-alone march, changed only at its output boundary:
@@ -7,7 +8,7 @@ import { cloudsFragment, fullscreenVertex } from './takramReferenceShaders.js'
  * Exact replacements make an upstream edit fail loudly instead of silently
  * changing the integrated image.
  */
-export function takramGameCloudsFragment(): string {
+export function takramGameCloudsFragment(withFxLimit = false): string {
   const replace = (source: string, before: string, after: string): string => {
     if (!source.includes(before)) throw new Error(`Takram game shader anchor missing: ${before.slice(0, 60)}`)
     return source.replace(before, after)
@@ -33,6 +34,14 @@ export function takramGameCloudsFragment(): string {
   source = replace(source,
     '  let lowInterval = layerInterval(origin.y, direction.y, 750.0, 2200.0);',
     '  let layerOffset = u.sunDirectionExposure.w;\n  let lowInterval = layerInterval(origin.y, direction.y, 750.0 + layerOffset, 2200.0 + layerOffset);')
+  if (withFxLimit) {
+    source = replace(source,
+      '@group(0) @binding(6) var stbnTexture: texture_3d<f32>;',
+      '@group(0) @binding(6) var stbnTexture: texture_3d<f32>;\n@group(0) @binding(7) var fxColourTexture: texture_2d<f32>;\n@group(0) @binding(8) var fxDenseTexture: texture_2d<f32>;')
+    source = replace(source,
+      '  if (lowInterval.y > lowInterval.x) { nearDistance = min(nearDistance, lowInterval.x); farDistance = max(farDistance, lowInterval.y); }',
+      `  if (lowInterval.y > lowInterval.x) { nearDistance = min(nearDistance, lowInterval.x); farDistance = max(farDistance, lowInterval.y); }\n  let fxSpan = u.previousUp.w;\n  if (fxSpan > 0.0) {\n    let fxMax = vec2i(textureDimensions(fxColourTexture)) - 1;\n    let fxTexel = clamp(vec2i(floor(fullPixel / fxSpan)), vec2i(0), fxMax);\n    let fxAlpha = textureLoad(fxColourTexture, fxTexel, 0).a;\n    let fxCloseness = textureLoad(fxDenseTexture, fxTexel, 0).r;\n    if (fxAlpha > ${DENSE_ACCUMULATED_ALPHA} && fxCloseness > 0.0) {\n      let fxViewZ = ${CLOSENESS_SCALE_M}.0 * (1.0 / max(fxCloseness, 1e-6) - 1.0);\n      farDistance = min(farDistance, fxViewZ / max(0.001, dot(direction, u.cameraForwardFov.xyz)));\n    }\n  }`)
+  }
   source = replace(source,
     '      let inLayer = samplePosition.y > 750.0 && samplePosition.y < 2200.0;',
     '      let inLayer = samplePosition.y > 750.0 + layerOffset && samplePosition.y < 2200.0 + layerOffset;')
@@ -148,7 +157,7 @@ fn currentRay(pixel: vec2f) -> vec3f {
   return out;
 }`
 
-export const takramGameCompositeFragment = /* wgsl */ `
+const compositeFragment = /* wgsl */ `
 struct CompositeUniforms {
   resolutionNearFar: vec4f,
   cameraForwardFov: vec4f,
@@ -216,6 +225,19 @@ fn cloudTap(uv: vec2f) -> vec4f {
   if (sceneDistance + 2.0 < cloudDistance) { return scene; }
   return vec4f(cloud.rgb + scene.rgb * (1.0 - cloud.a), scene.a);
 }`
+
+export function takramGameCompositeFragment(withFxLimit = false): string {
+  if (!withFxLimit) return compositeFragment
+  return compositeFragment
+    .replace(
+      '@group(0) @binding(5) var sceneDepth: texture_depth_2d;',
+      '@group(0) @binding(5) var sceneDepth: texture_depth_2d;\n@group(0) @binding(6) var fxColourTexture: texture_2d<f32>;\n@group(0) @binding(7) var fxDenseTexture: texture_2d<f32>;',
+    )
+    .replace(
+      '  let sceneDistance = -viewZ / max(0.001, dot(ray, c.cameraForwardFov.xyz));',
+      `  let cosView = max(0.001, dot(ray, c.cameraForwardFov.xyz));\n  var sceneDistance = -viewZ / cosView;\n  let fxSpan = c.cameraUpPad.w;\n  if (fxSpan > 0.0) {\n    let fxMax = vec2i(textureDimensions(fxColourTexture)) - 1;\n    let fxTexel = clamp(vec2i(floor(position.xy / fxSpan)), vec2i(0), fxMax);\n    let fxAlpha = textureLoad(fxColourTexture, fxTexel, 0).a;\n    let fxCloseness = textureLoad(fxDenseTexture, fxTexel, 0).r;\n    if (fxAlpha > ${DENSE_ACCUMULATED_ALPHA} && fxCloseness > 0.0) {\n      let fxViewZ = ${CLOSENESS_SCALE_M}.0 * (1.0 / max(fxCloseness, 1e-6) - 1.0);\n      sceneDistance = min(sceneDistance, fxViewZ / cosView);\n    }\n  }`,
+    )
+}
 
 export function shaderModuleSource(fragment: string): string {
   return `${fullscreenVertex}\n${fragment}`

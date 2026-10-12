@@ -472,7 +472,7 @@ test.describe('the Hangar', () => {
       const v = await view(page, id, 'three-quarter')
       const [lum] = (await masks(page, v.empty, [v.model])).luminance
       const r = lum! / flat[id]!
-      console.log(`skin ${id}: ${r.toFixed(3)}x its flat predecessor's luminance`)
+      console.log(`skin ${id}: luminance ${lum!.toFixed(9)}, ${r.toFixed(3)}x its flat predecessor`)
       expect.soft(r, `${id} luminance ratio`).toBeGreaterThanOrEqual(0.6)
       expect.soft(r, `${id} luminance ratio`).toBeLessThanOrEqual(1.5)
     }

@@ -12,6 +12,7 @@ import {
   select, smoothstep, sqrt, struct, texture, texture3D, uint, uniform, vec2, vec3, vec4,
 } from 'three/tsl'
 import type { Vec3 } from '../../sim/math/vec3.js'
+import type { FxCloudLimit } from '../fx/fxPass.js'
 import type { ReprojectionResidual } from './cloudPass.js'
 import type { TakramCloudPass } from './takramCloudPass.js'
 import type { TakramTslAssets } from './takramTslAssets.js'
@@ -279,6 +280,7 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
     private readonly sceneDepth: TextureNode,
     private readonly nearNode: F,
     private readonly farNode: F,
+    private readonly fxLimit: FxCloudLimit | null,
   ) {
     super('vec4')
     this.updateBeforeType = NodeUpdateType.FRAME
@@ -333,6 +335,13 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const interval = layerInterval(origin.y, direction.y, low as unknown as F, high as unknown as F).toVar()
       const nearDistance = interval.x.toVar()
       const farDistance = interval.y.toVar()
+      // Ordnance-and-effects §4.2: an opaque effect in front of a cloud is
+      // scene geometry for the march. `denseViewZAt` is camera-forward depth;
+      // convert it to distance along this pixel's ray, as the legacy pass does.
+      if (this.fxLimit !== null) {
+        const fxViewZ = this.fxLimit.denseViewZAt(fullPixel as unknown as V2)
+        farDistance.assign(min(farDistance, fxViewZ.div(max(0.001, dot(direction, this.forwardNode)))))
+      }
       If(farDistance.greaterThan(nearDistance), () => {
         const stepSize = float(50).add(nearDistance.mul(0.01)).toVar()
         const distance = nearDistance.add(stepSize.mul(jitter).mul(2)).toVar()
@@ -566,7 +575,14 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const viewZ = perspectiveDepthToViewZ(depth, this.nearNode, this.farNode).negate().toVar()
       const ray = normalize(this.forwardNode.add(this.rightNode.mul(uv.x.mul(2).sub(1)).mul(this.aspectNode).mul(this.fovNode))
         .sub(this.upNode.mul(uv.y.mul(2).sub(1)).mul(this.fovNode))).toVar()
-      const sceneDistance = viewZ.div(max(0.001, dot(ray, this.forwardNode))).toVar()
+      const cosView = max(0.001, dot(ray, this.forwardNode)).toVar()
+      const sceneDistance = viewZ.div(cosView).toVar()
+      // The temporal resolve can still contain last frame's cloud where a
+      // dense effect has just appeared. Match the march stop in the final
+      // depth comparison so that stale history cannot cover a nearer effect.
+      if (this.fxLimit !== null) {
+        sceneDistance.assign(min(sceneDistance, this.fxLimit.denseViewZAt(position as unknown as V2).div(cosView)))
+      }
       const cloudDistance = this.resolvedDepth.sample(uv).level(float(0)).r.mul(FAR_M).toVar()
       const scene = vec4(this.sceneColor).toVar()
       return select(sceneDistance.add(2).lessThan(cloudDistance), scene, vec4(cloud.rgb.add(scene.rgb.mul(float(1).sub(cloud.a))), scene.a))
@@ -587,11 +603,13 @@ export function createTakramTslCloudPass(options: {
   camera: PerspectiveCamera
   sceneColor: Node<'vec4'>
   sceneDepth: Node<'float'>
+  fxLimit?: FxCloudLimit | null
 }): TakramCloudPass {
   const node = new TakramTslCloudPassNode(
     options.assets, options.camera, options.sceneColor, options.sceneDepth as unknown as TextureNode,
     reference('near', 'float', options.camera) as unknown as F,
     reference('far', 'float', options.camera) as unknown as F,
+    options.fxLimit ?? null,
   )
   return {
     composite: node as unknown as Node<'vec4'>,

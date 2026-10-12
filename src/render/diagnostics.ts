@@ -459,7 +459,7 @@ export type Ww2Diagnostics = {
   readonly clouds: () => {
     readonly layers: readonly CloudLayer[]; readonly tier: CloudTierName | 'off'; readonly renderer: 'legacy' | 'takram' | 'takram-tsl'; readonly steps: number
     /** Plan 16b: whether the shadow pass runs, its taps per layer, and the map's side. */
-    readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number }
+    readonly shadow: { readonly enabled: boolean; readonly taps: number; readonly mapSideM: number; readonly renderedFrames: number }
     /** Photoreal Task 4: frames the cloud pass resolved WITHOUT history since
      *  boot (first frame, resizes, every discontinuity reset); 0 with no pass. */
     readonly historyResets: number

@@ -80,7 +80,9 @@ export function rangePass(scenarioId: string, targetId: string, terrain: Terrain
 /**
  * A landing straight ahead on `airfieldId`'s runway from wherever the
  * airplane is: the aim point `aheadM` further along the runway axis than
- * `position`, on the centerline. Flown with the pilot started in its land
+ * `position`, on the centerline, capped short of the far threshold so UI
+ * assertions between takeoff and landing cannot move the touchdown beyond
+ * the strip. Flown with the pilot started in its land
  * phase (`approachControls` only); the target is unused there, so it is the
  * aim point itself. Replaces `landAndStop`'s timed key script (2026-09-29).
  */
@@ -91,7 +93,10 @@ export function landingAhead(position: { readonly x: number; readonly z: number 
   // Along-runway distance of `position` from the runway center, northbound
   // positive for heading 0 (the `ApproachTarget` convention).
   const along = (position.x - field.runway.center.x) * Math.sin(h) - (position.z - field.runway.center.z) * Math.cos(h)
-  const s = along + aheadM
+  // 120 m is the already-proven immediate-hop margin (the old target was
+  // +630 m on Tacloban's 1,500 m strip). Without the cap, time spent reading
+  // mission UI moved the target beyond the +750 m threshold.
+  const s = Math.min(along + aheadM, field.runway.lengthM / 2 - 120)
   const aim = { x: field.runway.center.x + s * Math.sin(h), z: field.runway.center.z - s * Math.cos(h) }
   const elevation = heightAt(terrain, aim.x, aim.z)
   return {
