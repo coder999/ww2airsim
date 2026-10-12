@@ -155,6 +155,24 @@ test('a fatal land contact breaks up while its fuselage bounces, tumbles and sli
   await shot(page, 'crash-land-breakup')
 })
 
+test('a solid-impact wreck that slides into the sea splashes, sinks, and loses its attached fire', async ({ page }) => {
+  // The east-facing shore here has 25 m of shallow land before open water in the committed field.
+  const shore = { x: 46_370, z: 1_000 }
+  await page.goto(spawnUrl({ x: shore.x - 320, y: 120, z: shore.z }))
+  await waitForTerrain(page)
+  await page.keyboard.down('ArrowUp')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.impact()), { timeout: 20_000 })
+    .toMatchObject({ surface: 'land', kind: 'destroyed' })
+  await page.keyboard.up('ArrowUp')
+  await expect.poll(async () => (await fx(page)).live).toBeGreaterThan(10)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const impact = d.impact()
+    const drawn = d.renderedPlayerPositionM()
+    return impact === null || drawn === null ? 0 : impact.groundHeightM - drawn.y
+  }), { timeout: 2800, intervals: [100] }).toBeGreaterThan(5)
+})
+
 test('a fatal sea crash raises the large crash.water splash, submerges the airframe, and Restart clears both (Rulings R5, Review Focus 3)', async ({ page }) => {
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
   await waitForTerrain(page)

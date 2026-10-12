@@ -17,11 +17,11 @@ export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
   'crash.land', 'crash.water', 'crash.deck',
-  'kill.air', 'flak.burst', 'muzzle.heavy', 'muzzle.light', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'structure.collapse', 'torpedo.wake',
+  'kill.air', 'flak.burst', 'muzzle.heavy', 'muzzle.light', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'wreck.smoke', 'ship.fire', 'structure.collapse', 'torpedo.wake',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
-export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor', 'torpedo.wake']
+export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'wreck.smoke', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor', 'torpedo.wake']
 
 const range = z.tuple([z.number().nonnegative(), z.number().nonnegative()]).refine(([a, b]) => a <= b, 'range must be [min, max]')
 const emitterSchema = z.object({
@@ -127,12 +127,14 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   'round.ship': { emitters: [sparks(4), { mode: 'burst', sheet: 'smoke', count: 1, lifeS: [0.6, 0.9], speedMps: [1, 3], direction: 'up', spreadDeg: 40, sizeM: [0.58, 1.7], alpha: 0.4, tint: SMOKE, dragPerS: 2, accelYMps2: 0.2 }], source: ESTIMATE },
   // Ruling R4: the pre-E1 renderer's own 'hit' flash (2.5 m, 0.25 s), deleted in E1 Task 10.
   'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1.6, 3.9], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
-  'crash.land': { emitters: [fireball(8, [28, 62], [2.8, 4]), ejecta(50), column(8, 30, [14, 46])], source: ESTIMATE },
+  // The burst remains at the immutable impact point. The long fire/smoke source belongs to the
+  // moving fuselage instead (`wreckAftermath.ts`), so there is no fixed column in this recipe.
+  'crash.land': { emitters: [fireball(8, [28, 62], [2.8, 4]), ejecta(50)], source: ESTIMATE },
   // An aircraft carries far more displaced volume and momentum into the sea than the old faint
   // treatment suggested. This is deliberately the largest water-contact recipe: the plume masks
   // the renderer-only submergence while the crown and surface surge spread beyond the airframe.
   'crash.water': { emitters: [waterColumn(10, [18, 48]), crown(48, 1.6), surge(32, 1.6)], source: ESTIMATE },
-  'crash.deck': { emitters: [fireball(6, [19, 44], [2.4, 3.6]), sparks(20), column(6, 20, [9.3, 30])], source: ESTIMATE },
+  'crash.deck': { emitters: [fireball(6, [19, 44], [2.4, 3.6]), sparks(20)], source: ESTIMATE },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the wreck, which falls since
   // damage stages (2026-10-09). The dark fragments are the airframe's skin and spars going down.
   'kill.air': { emitters: [fireball(6, [16, 41], [2.4, 3.2]), sparks(16),
@@ -168,6 +170,9 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { mode: 'stream', sheet: 'flame', ratePerS: 60, lifeS: [0.15, 0.3], speedMps: [0, 2], direction: 'sphere', spreadDeg: 180, radiusM: 0.4, sizeM: [1.6, 2.8], alpha: 0.95, tint: [1, 1, 1], emissive: 1, dragPerS: 0, accelYMps2: 0, inheritVelocity: 0.85, frameRateHz: 24 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 20, lifeS: [3, 5], speedMps: [0.5, 2], direction: 'sphere', spreadDeg: 180, sizeM: [2.5, 11], alpha: 0.75, tint: SMOKE, dragPerS: 1, accelYMps2: 0.6, inheritVelocity: 0.1 },
   ], source: 'estimate (damage stages, 2026-10-09): rocket.motor\'s flame grown to an engine fire; kill.air\'s smoke' },
+  'wreck.smoke': { emitters: [
+    { mode: 'stream', sheet: 'smoke', ratePerS: 10, lifeS: [7, 11], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 1.2, sizeM: [3.5, 18], alpha: 0.62, tint: [0.12, 0.12, 0.13], dragPerS: 0.6, accelYMps2: 0.9 },
+  ], source: 'estimate (solid-crash aftermath, 2026-10-12): cooling wreck smoke after visible flame ends' },
   'ship.fire': { emitters: [
     { mode: 'stream', sheet: 'flame', ratePerS: 20, lifeS: [0.8, 1.2], speedMps: [1, 3], direction: 'up', spreadDeg: 20, radiusM: 3, sizeM: [4.6, 7], alpha: 0.9, tint: [1, 1, 1], emissive: 1, dragPerS: 1, accelYMps2: 2, frameRateHz: 12 },
     { mode: 'stream', sheet: 'smoke', ratePerS: 8, lifeS: [10, 14], speedMps: [3, 6], direction: 'up', spreadDeg: 12, radiusM: 3, sizeM: [9.3, 46], alpha: 0.65, tint: SMOKE, dragPerS: 0.3, accelYMps2: 1.2 },
