@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { seaStateFor } from '../../src/render/ocean/weather.js'
 import { CLOUDINESS_OPTIONS } from '../../src/render/cloudiness.js'
 import { TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours } from '../../src/render/sky/sun.js'
-import { debriefDialog, exactBallotLabel, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, exactBallotLabel, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
 
 /**
  * E2E, the title screen's scenario picker. Plan 9 Task 7: picking a
@@ -30,8 +30,9 @@ test('a direct Flattop Hunt URL boots its racks-only Avenger with a legal loadou
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Direct Flattop Test')
   await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
   await expect(title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Flattop Hunt' })).toBeChecked()
+  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toBeChecked()
@@ -54,8 +55,7 @@ test('picking a different scenario swaps entities in place, with no navigation',
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
   await title.getByRole('button', { name: 'Add' }).click()
-  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
@@ -102,14 +102,16 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Same Scenario Test')
   await title.getByRole('button', { name: 'Add' }).click()
-  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
 
   // Free Flight is already checked (the production default).
   const selectedCloudiness = CLOUDINESS_OPTIONS.find((option) => option.value === 'cloudy')!
+  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('radiogroup', { name: 'Cloudiness' })
     .getByRole('radio', { name: exactBallotLabel(selectedCloudiness.label) }).check()
-  await launchFromOrders(title)
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   // This branch never calls `loadScenario` (main.ts: `scenarioId ===
   // requestedScenarioId` skips straight to a synchronous `rebuildFrame`), so
@@ -160,8 +162,7 @@ test('return to title after an in-place scenario switch preselects the scenario 
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Regression Test')
   await title.getByRole('button', { name: 'Add' }).click()
-  // Form 1 -> Form 2 (Sortie Orders): the mission rows live on Form 2.
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
@@ -203,7 +204,7 @@ test('return to title after an in-place scenario switch preselects the scenario 
   // getByRole('button', { name: /Regression Test/ }) also matches that
   // row's "Dossier: Regression Test" button and is a strict-mode violation.
   await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Regression Test' }).click()
-  await reshownTitle.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(reshownTitle, 'Training Grounds')
   const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
   // The fix: Gunnery Range, what is ACTUALLY loaded -- not Free Flight, what
   // this boot started with (the bug).

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders, recordFrameTime } from './harness.js'
+import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor, recordFrameTime } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -47,7 +47,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Meta Acceptance Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
@@ -97,7 +97,7 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   // that row's "Dossier: Meta Acceptance Pilot" button and is a strict-mode
   // violation -- the same marker `startGame` in harness.ts already uses.
   await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Meta Acceptance Pilot' }).click()
-  await reshownTitle.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(reshownTitle, 'Training Grounds')
 
   // -- Second in-session switch: gunnery-range -> pursuit-range ("Air
   // Combat" here, `SCENARIO_OPTIONS`), without a page navigation.

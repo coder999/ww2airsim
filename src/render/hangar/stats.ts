@@ -13,6 +13,7 @@ const KN_PER_MPS = 3600 / 1852
 const MPH_PER_MPS = 3600 / 1609.344
 const FT_PER_M = 1 / 0.3048
 const LB_PER_KG = 1 / 0.45359237
+const W_PER_HP = 745.7
 
 const int = (n: number): string => Math.round(n).toLocaleString('en-US')
 const one = (n: number): string => n.toFixed(1)
@@ -58,9 +59,14 @@ export function figuresFor(entry: CatalogEntry): Figure[] {
     const flight = placeholderNote(a.reference.source)
     const out: Figure[] = []
     if (a.combat) {
-      out.push({ label: 'Structure', value: `${int(a.combat.structureHp)} HP`, note: GAMEPLAY_VALUE })
-      out.push({ label: 'Each subsystem', value: `${int(a.combat.subsystemHp)} HP`, note: GAMEPLAY_VALUE })
+      out.push({ label: 'Structure hit points', value: int(a.combat.structureHp), note: GAMEPLAY_VALUE })
+      out.push({ label: 'Each subsystem hit points', value: int(a.combat.subsystemHp), note: GAMEPLAY_VALUE })
     }
+    out.push({
+      label: 'Engine power',
+      value: `${int(Math.round((a.engine.maxPowerW / W_PER_HP) / 10) * 10)} hp`,
+      note: flight === undefined ? 'rounded takeoff rating; total for all engines' : `${flight}; rounded takeoff rating; total for all engines`,
+    })
     out.push(withNote({ label: 'Top speed', value: `${int(a.reference.topSpeedMps * MPH_PER_MPS)} mph at ${int(a.reference.topSpeedAltitudeM * FT_PER_M)} ft` }, flight))
     out.push(withNote({ label: 'Stall speed, clean', value: `${int(a.reference.stallSpeedMps * MPH_PER_MPS)} mph` }, flight))
     out.push(withNote({ label: 'Load limit', value: `${one(a.limits.gLimit)} g` }, flight))

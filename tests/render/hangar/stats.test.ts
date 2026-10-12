@@ -10,18 +10,20 @@ const byId = (id: string) => catalog.find((e) => e.library.id === id)!
 const figure = (id: string, label: string) => figuresFor(byId(id)).find((f) => f.label === label)
 
 describe('figuresFor (Hangar spec §5), against committed content', () => {
-  it("the F6F: structure HP, top speed, guns and rounds, points, all read from f6f-hellcat.json", () => {
-    expect(figure('f6f-hellcat', 'Structure')?.value).toBe('480 HP')
+  it("the F6F: hit points, horsepower, top speed, guns and rounds, points, all read from f6f-hellcat.json", () => {
+    expect(figure('f6f-hellcat', 'Structure hit points')?.value).toBe('480')
+    expect(figure('f6f-hellcat', 'Engine power')?.value).toBe('2,000 hp')
+    expect(figure('f6f-hellcat', 'Engine power')?.note).toContain('total for all engines')
     expect(figure('f6f-hellcat', 'Top speed')?.value).toBe('391 mph at 23,100 ft')
     expect(figure('f6f-hellcat', 'Top speed')?.note).toBeUndefined()
     expect(figure('f6f-hellcat', 'Guns')?.value).toBe('6, 2,400 rounds')
     expect(figure('f6f-hellcat', 'Points when shot down')?.value).toBe(String(pointsForTargetType('fighter')))
   })
 
-  it("the F4F is a real F4F-4 now, no PLACEHOLDER note; its HP is still a gameplay value", () => {
+  it("the F4F is a real F4F-4 now, no PLACEHOLDER note; its hit points are still a gameplay value", () => {
     expect(figure('f4f-wildcat', 'Top speed')?.note).toBeUndefined()
     expect(figure('f4f-wildcat', 'Load limit')?.note).toBeUndefined()
-    expect(figure('f4f-wildcat', 'Structure')?.note).toMatch(/gameplay value/)
+    expect(figure('f4f-wildcat', 'Structure hit points')?.note).toMatch(/gameplay value/)
   })
 
   it('a ship: hull, dimensions, speed in knots and m/s; an escort scores as a destroyer', () => {

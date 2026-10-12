@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, hopClear, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, hopClear, openOrdersFor, waitForScenario, type DiagWindow } from './harness.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
@@ -37,7 +37,7 @@ async function orders(page: Page, pilot: string): Promise<Locator> {
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill(pilot)
   await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
   return title
 }
 
@@ -69,7 +69,8 @@ async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
   const firstSentence = s.briefing!.situation.split(/(?<=\.) /)[0]!
   await expect(briefing).toContainText(firstSentence)
   await expect(briefing).toContainText('Background')
-  await expect(briefing).toContainText('Sources:')
+  await expect(briefing).toContainText(/Sources?:/)
+  await expect(briefing).not.toContainText('https://')
   const rows = await figureRows(briefing)
   for (const o of s.objectives!) {
     expect(rows, `briefing row for ${o.label}`).toContainEqual([o.label, o.priority === 'primary' ? 'PRIMARY' : 'SECONDARY'])
@@ -91,8 +92,9 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
 }
 
 /** After Launch: the scenario is live and the entities exist. `atOrdnance`
- *  runs on Form 4, before Launch (the loadout lives there since the sortie forms). */
+ *  runs on Form 6, before Launch (the loadout lives there since the sortie forms). */
 async function launched(page: Page, title: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
+  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await atOrdnance?.(title)
