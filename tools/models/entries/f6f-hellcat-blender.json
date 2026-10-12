@@ -4,7 +4,7 @@
   "source": {
     "kind": "blender",
     "script": "tools/models/blender/f6f-hellcat-blender.py",
-    "dimensions": "span 13.06 m, length 10.24 m, wing area 31.0 m2, NACA 23015.6 / 23009 airfoil, a 3-bladed 3.99 m propeller and six .50 in wing guns: English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5), read 2026-10-11; stance fitted to content/aircraft/f6f-hellcat.json; every other figure is an ESTIMATE labeled in the script's header",
+    "dimensions": "span 13.06 m, length 10.24 m, wing area 31.0 m2, NACA 23015.6 / 23009 airfoil, a 3-bladed 3.99 m propeller and six .50 in wing guns: English Wikipedia 'Grumman F6F Hellcat', Specifications (F6F-5), read 2026-10-11; stance fitted to content/aircraft/f6f-hellcat.json; fuselage, canopy, wing planform and dihedral, tail and gear wheel measured from the Commons three-view (re-read 2026-10-11); the rest are ESTIMATES labeled in the script's header",
     "license": "AGPL-3.0-or-later"
   },
   "normalize": {
@@ -25,7 +25,7 @@
       "node": "Prop",
       "pivot": {
         "point": [
-          2.7228,
+          2.64,
           0,
           0
         ],
@@ -37,7 +37,7 @@
       "pivot": {
         "point": [
           0.62,
-          -0.6537,
+          -0.6015,
           -1.5411
         ],
         "axis": "+z"
@@ -48,7 +48,7 @@
       "pivot": {
         "point": [
           0.62,
-          -0.6537,
+          -0.6015,
           1.5411
         ],
         "axis": "+z"
@@ -76,6 +76,12 @@
     },
     {
       "node": "Flap1R"
+    },
+    {
+      "node": "Flap2L"
+    },
+    {
+      "node": "Flap2R"
     },
     {
       "node": "ElevatorL"
