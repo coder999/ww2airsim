@@ -74,6 +74,10 @@ describe('C3 cockpit catalog', () => {
       'rpm-engine:1', 'rpm-engine:2', 'rpm-engine:3', 'rpm-engine:4',
     ])
     expect(new Set(b17.rpmNeedles.map((needle) => needle.parent)).size).toBe(4)
+    expect(b17.root.getObjectByName('rpm:multi-engine-plate')).toBeDefined()
+    for (let engine = 1; engine <= 4; engine++) {
+      expect(b17.root.getObjectByName(`rpm-engine:${engine}:bezel`)).toBeDefined()
+    }
     expect(b17.badge.name).toBe('cockpit:badge:usn')
     expect(b17.root.getObjectByName('cockpit:canopy-bow')).toBeUndefined()
 
@@ -82,6 +86,7 @@ describe('C3 cockpit catalog', () => {
     expect(val.lights.gear.visible).toBe(false)
     expect(val.lights.hook.visible).toBe(true)
     expect(val.lights.bay.visible).toBe(false)
+    expect(val.root.getObjectByName('rpm:multi-engine-plate')).toBeUndefined()
     expect(val.badge.name).toBe('cockpit:badge:ijn')
   })
 })

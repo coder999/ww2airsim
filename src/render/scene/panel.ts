@@ -387,7 +387,7 @@ const APPROVED_RADAR_APERTURE = {
 }
 const APPROVED_ATTITUDE_APERTURE = {
   x: approvedFasciaX(1106.25),
-  y: approvedFasciaY(837.25),
+  y: approvedFasciaY(838.25),
   radius: 77 * APPROVED_FASCIA_M_PER_PX,
 }
 
@@ -729,26 +729,56 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     const centre = (band.top + band.bottom) / 2
 
     if (g.id === 'rpm' && config.rpmNeedles > 1) {
-      // One pointer per face. The previous implementation put two or four
-      // differently colored pointers on the one photographed RPM scale; the
-      // simulation was genuinely per-engine, but the presentation was not.
-      // Keep the cluster inside the existing RPM opening so the four-family
-      // fascia remains shared by single-, twin-, and four-engine aircraft.
+      // A multi-engine installation is its own bolted instrument plate, not
+      // little gauges nested inside the photographed single-engine dial. The
+      // plate covers that complete bezel and mounts one independent bezel per
+      // physical engine. Single-engine aircraft keep the original large face.
       const fourUp = config.rpmNeedles > 2
-      const faceRadius = DIAL_RADIUS * (fourUp ? 0.31 : 0.42)
-      const centreOffsetX = DIAL_RADIUS * (fourUp ? 0.38 : 0.43)
-      const centreOffsetY = fourUp ? DIAL_RADIUS * 0.38 : 0
+      const scale = config.layout.auxiliaryScale
+      const plateW = 0.122 / scale
+      const plateH = 0.110 / scale
+      const plateY = 0.003 / scale
+      const faceRadius = (fourUp ? 0.0145 : 0.0225) / scale
+      const centreOffsetX = (fourUp ? 0.0275 : 0.030) / scale
+      const centreOffsetY = fourUp ? 0.0205 / scale : 0
 
-      const mask = new Mesh(
-        // Cover the photographed single-engine scale all the way to its inner
-        // rim; otherwise its old 0/4 numerals show through around the new
-        // engine faces and make the cluster look like one gauge laid over
-        // another.
-        new CircleGeometry(DIAL_RADIUS * 1.10, 48),
-        new MeshBasicMaterial({ color: config.layout.faceColor }),
+      const plateShadow = new Mesh(
+        new PlaneGeometry(plateW + 0.006 / scale, plateH + 0.006 / scale),
+        bezelShadowMat,
       )
-      mask.position.z = Z_MARKS
-      dial.add(mask)
+      plateShadow.name = 'rpm:multi-engine-plate-shadow'
+      plateShadow.position.set(0, plateY, Z_MARKS)
+      dial.add(plateShadow)
+      const plateTrim = new Mesh(
+        new PlaneGeometry(plateW + 0.0025 / scale, plateH + 0.0025 / scale),
+        bezelHighlightMat,
+      )
+      plateTrim.name = 'rpm:multi-engine-plate-trim'
+      plateTrim.position.set(0, plateY, Z_MARKS + 0.0002)
+      dial.add(plateTrim)
+      const plate = new Mesh(
+        new PlaneGeometry(plateW, plateH),
+        new MeshBasicMaterial({ color: config.layout.frameColor }),
+      )
+      plate.name = 'rpm:multi-engine-plate'
+      plate.position.set(0, plateY, Z_MARKS + 0.0004)
+      dial.add(plate)
+      const screwX = plateW / 2 - 0.006 / scale
+      const screwY = plateH / 2 - 0.006 / scale
+      addScrew(dial, -screwX, plateY + screwY, 0.0012, Math.PI / 5, 0.0025 / scale)
+      addScrew(dial, screwX, plateY + screwY, 0.0012, -Math.PI / 4, 0.0025 / scale)
+      addScrew(dial, -screwX, plateY - screwY, 0.0012, -Math.PI / 6, 0.0025 / scale)
+      addScrew(dial, screwX, plateY - screwY, 0.0012, Math.PI / 3, 0.0025 / scale)
+
+      const rpmPlateLabel = textPlate(
+        config.layout.unitProfile === 'metric-japanese' ? '回転' : 'RPM',
+        0.037 / scale,
+        0.009 / scale,
+        makeText,
+      )
+      rpmPlateLabel.name = 'rpm:multi-engine-label'
+      rpmPlateLabel.position.set(0, plateY + plateH / 2 - 0.007 / scale, Z_READOUT)
+      dial.add(rpmPlateLabel)
 
       for (let i = 0; i < config.rpmNeedles; i++) {
         const subdial = new Group()
@@ -758,17 +788,24 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         subdial.position.set(
           (column === 0 ? -1 : 1) * centreOffsetX,
           fourUp ? (row === 0 ? 1 : -1) * centreOffsetY : 0,
-          0,
+          0.001,
         )
 
         const face = new Mesh(new CircleGeometry(faceRadius, 32), faceMat)
         face.position.z = Z_MARKS + 0.0002
         subdial.add(face)
+        const outerRim = new Mesh(
+          new RingGeometry(faceRadius * 1.12, faceRadius * 1.32, 32),
+          bezelShadowMat,
+        )
+        outerRim.name = `rpm-engine:${i + 1}:bezel`
+        outerRim.position.z = Z_MARKS + 0.0003
+        subdial.add(outerRim)
         const rim = new Mesh(
           new RingGeometry(faceRadius, faceRadius * 1.12, 32),
           bezelHighlightMat,
         )
-        rim.position.z = Z_MARKS + 0.0004
+        rim.position.z = Z_MARKS + 0.0005
         subdial.add(rim)
 
         for (const mark of tickMarksFor(g).filter((candidate) => candidate.major)) {

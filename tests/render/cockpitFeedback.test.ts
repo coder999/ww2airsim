@@ -77,7 +77,7 @@ describe('cockpit feedback', () => {
 
     const horizon = new Box3().setFromObject(p.attitude.ball)
     expect(horizon.getCenter(new Vector3()).x).toBeCloseTo(0.198974, 5)
-    expect(horizon.getCenter(new Vector3()).y).toBeCloseTo(-0.080023, 5)
+    expect(horizon.getCenter(new Vector3()).y).toBeCloseTo(-0.080759, 5)
     expect(horizon.getSize(new Vector3()).x).toBeCloseTo(0.113384, 5)
     expect(horizon.getSize(new Vector3()).y).toBeCloseTo(0.113384, 5)
   })
