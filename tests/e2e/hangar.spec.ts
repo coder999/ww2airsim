@@ -216,9 +216,18 @@ test.describe('the Hangar', () => {
       // doors open and a side view; otherwise an opaque fuselage correctly
       // hides both the on and off poses (the promoted B-17 exposed this case).
       const internal = hasPart(c, 'doors')
-      const { empty, model: on } = await view(page, id, internal ? 'side' : 'front', {
-        bombs: true, rockets: true, bayDoorFraction: internal ? 1 : 0, gearFraction: internal ? 0 : 1,
-      })
+      let empty: Frame, on: Frame
+      if (internal) {
+        // Look up into the open bay from below and slightly to starboard.
+        await page.evaluate(() => (window as HangarWindow).__hangar!.aim([0, -14, 4], [0, 2, 0]))
+        await pose(page, { bombs: true, rockets: true, bayDoorFraction: 1, gearFraction: 0 })
+        await visible(page, false)
+        empty = await shot(page)
+        await visible(page, true)
+        on = await shot(page)
+      } else {
+        ({ empty, model: on } = await view(page, id, 'front', { bombs: true, rockets: true }))
+      }
       await pose(page, { bombs: false, rockets: false })
       const off = await shot(page)
       const m = await masks(page, empty, [on, off])
