@@ -1,14 +1,16 @@
 {
   "id": "a6m2-zero-blender",
-  "name": "Mitsubishi A6M2 Model 21 Zero (Blender model)",
+  "name": "Mitsubishi A6M2 Model 21 Zero",
+  "rosterName": "Mitsubishi A6M Zero",
   "kind": "aircraft",
   "side": "japanese",
+  "spec": "a6m2-zero",
   "model": {
     "kind": "aircraft",
     "id": "a6m2-zero-blender"
   },
-  "blurb": "A second A6M2 Model 21, built in Blender from cited dimensions and a measured real-airplane three-view: moving gear, propeller and control surfaces, fitted to the flying Zero's stance. Not flown yet.",
-  "history": "The Mitsubishi A6M2 Model 21 was the carrier-capable Zero that fought through the opening Pacific campaigns. Its low weight, broad wing and long range made it formidable at low and moderate speeds, while the absence of armor and self-sealing tanks left it vulnerable.\n\nWhat this entry models: an original Blender A6M2 with a 39 ft 4 in span, 29 ft 9 in length, three-bladed propeller and the real cockpit measured from the Wikimedia Commons three-view. The flying Zero still draws the downloaded model.",
+  "blurb": "The game's A6M2 Model 21, built in Blender from cited dimensions and a measured real-airplane three-view, with moving gear, propeller and control surfaces.",
+  "history": "The Mitsubishi A6M2 Model 21 was the carrier-capable Zero that fought through the opening Pacific campaigns. Its low weight, broad wing and long range made it formidable at low and moderate speeds, while the absence of armor and self-sealing tanks left it vulnerable.\n\nWhat this entry models: an original Blender A6M2 with a 39 ft 4 in span, 29 ft 9 in length, three-bladed propeller and the real cockpit measured from the Wikimedia Commons three-view. It is the model used in flight; the retired download remains in the DEV Hangar.",
   "sources": [
     {
       "title": "Mitsubishi A6M Zero",
