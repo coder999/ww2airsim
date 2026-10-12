@@ -217,12 +217,13 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
   },
   'f4f-wildcat-blender': {
     // An original Blender model (f4f-wildcat-blender.py), a duplicate beside the download: the kit's propeller is
-    // exactly 3-fold symmetric. The mains fold inboard about +x into the fuselage (the real legs are hand-cranked up
-    // into the fuselage sides; one hinge, ESTIMATE); the tailwheel is fixed and static.
+    // exactly 3-fold symmetric. The real legs are hand-cranked up into the fuselage sides; here each leg swings aft
+    // about +z from a hinge inside the fuselage side to lie along it under the wing root (one hinge, ESTIMATE: an
+    // inboard fold crosses the centerline with the spec's 1.5 m leg, 2026-10-11); the tailwheel is fixed and static.
     props: [{ node: 'Prop', blades: 3 }],
     gear: [
-      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
-      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
+      { node: 'GearL', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
+      { node: 'GearR', upAngleDeg: -90, retracts: 'aft', source: 'ESTIMATE (f4f-wildcat-blender.py header)' },
     ],
     turrets: [],
     surfaces: surfaces(1),
