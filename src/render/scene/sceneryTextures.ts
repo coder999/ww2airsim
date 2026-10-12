@@ -31,14 +31,7 @@ export function sceneryTexturesFromQuery(search: string): 'on' | 'off' | undefin
   throw new Error(`sceneryTextures: ${JSON.stringify(raw)} is not on or off`)
 }
 
-export function legacyTreeCrownsFromQuery(search: string): boolean {
-  const raw = new URLSearchParams(search).get('treeCrowns')
-  if (raw === null || raw === 'clusters') return false
-  if (raw === 'legacy') return true
-  throw new Error(`treeCrowns: ${JSON.stringify(raw)} is not clusters or legacy`)
-}
-
-/** Loads the ten small, independent scenery maps. Independent KTX2 files let
+/** Loads the six small, independent scenery maps. Independent KTX2 files let
  * every material retain normal 2-D sampling/triplanar projection while the
  * renderer keeps exactly the same meshes and draw calls. */
 export async function loadSceneryTextures(renderer: WebGPURenderer): Promise<SceneryTextures> {

@@ -2,7 +2,7 @@
 // module free of Three.js and import.meta so tsx can execute it in Node.
 import { z } from 'zod'
 
-export const SCENERY_TEXTURE_LAYERS = ['foliage', 'bark', 'steel', 'timber', 'concrete'] as const
+export const SCENERY_TEXTURE_LAYERS = ['steel', 'timber', 'concrete'] as const
 export type SceneryTextureLayer = (typeof SCENERY_TEXTURE_LAYERS)[number]
 
 const textureLayerSchema = z.object({

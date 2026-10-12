@@ -29,23 +29,22 @@ why it decides by the bytes and not the response header. Sizes and timings:
 The release build excludes obsolete uncompressed `terrain/L<n>.bin` files that may
 remain in local or remote build caches after L1.1a; only the `.bin.gz` levels ship.
 
-## Trees and scenery materials
+## Scenery materials
 
-L1's remaining visual slice replaces each tree's three overlapping foliage
-balls with seven separated low-poly clusters and adds four visible branches to
-the merged bark geometry. Placement, resident-cell caching, fade distances and
-the two instanced forest draws are unchanged. The new crown is 56 triangles,
-down from the legacy crown's 60.
-
-Foliage, bark, corrugated steel, timber and concrete use separate mipmapped
-KTX2 albedo/OpenGL-normal pairs built by `npm run textures:scenery`.
+Corrugated steel, timber and concrete use separate mipmapped KTX2
+albedo/OpenGL-normal pairs built by `npm run textures:scenery`.
 `content/textures/scenery.json` is the checked runtime manifest; pinned CC0
 Poly Haven sources, authors and hashes are in `ASSETS.md` and
 `tools/textures/scenerySources.ts`. The runtime loader validates the
 manifest and falls back to the former procedural materials if any scenery
 texture fails. Building geometry, damage identity and material batching do not
-change. In DEV, `?sceneryTextures=off` and `?treeCrowns=legacy` provide the
-exact A/B paths.
+change. In DEV, `?sceneryTextures=off` provides the exact A/B path.
+
+The accompanying seven-cluster/four-branch tree pass was rejected and reverted
+after visual review. A bounded follow-up removed the protruding branches but
+still measured 3.678 ms versus 3.350 ms p95 for the exact legacy tree (+9.8%)
+in the locked dense-jungle view. The original three-lobe crown, single trunk
+and procedural leaf/bark materials therefore remain.
 
 ## Curved shoreline render surface
 

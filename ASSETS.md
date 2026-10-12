@@ -275,8 +275,6 @@ title art and the terrain textures below. Cloud noise volumes under `content/sky
 | layer 2 (dirt) | https://polyhaven.com/a/dirt_aerial_02 | Rob Tuytel | CC0 |
 | layer 3 (jungle floor) | https://polyhaven.com/a/forest_leaves_02 | Rob Tuytel | CC0 |
 | layer 4 (rock) | https://polyhaven.com/a/aerial_rocks_02 | Rob Tuytel | CC0 |
-| `content/textures/scenery-foliage-{albedo,normal}.ktx2`, built by `tools/textures/buildScenery.ts` | https://polyhaven.com/a/forest_leaves_03 | Dimitrios Savva, Rob Tuytel | CC0 |
-| `content/textures/scenery-bark-{albedo,normal}.ktx2` | https://polyhaven.com/a/bark_brown_02 | Rob Tuytel | CC0 |
 | `content/textures/scenery-steel-{albedo,normal}.ktx2` | https://polyhaven.com/a/corrugated_iron_02 | Jenelle van Heerden, Sergej Majboroda | CC0 |
 | `content/textures/scenery-timber-{albedo,normal}.ktx2` | https://polyhaven.com/a/brown_planks_04 | Rob Tuytel | CC0 |
 | `content/textures/scenery-concrete-{albedo,normal}.ktx2` | https://polyhaven.com/a/concrete_wall_008 | Charlotte Baglioni, Dario Barresi | CC0 |

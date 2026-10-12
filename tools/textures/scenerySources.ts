@@ -14,12 +14,6 @@ const PH = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k'
 
 /** Poly Haven 2k JPGs, pinned to API-reported MD5s on 2026-10-11. */
 export const SCENERY_TEXTURE_SOURCES: readonly SceneryTextureSource[] = [
-  { layer: 'foliage', id: 'forest_leaves_03', author: 'Dimitrios Savva, Rob Tuytel', license: 'CC0-1.0', tileM: 2.3,
-    diffuse: { url: `${PH}/forest_leaves_03/forest_leaves_03_diff_2k.jpg`, md5: '61ef4565d2801ab0b8bab48ae4cca022' },
-    normal: { url: `${PH}/forest_leaves_03/forest_leaves_03_nor_gl_2k.jpg`, md5: '61d078ce8d908ca9874e5185a3c938c7' } },
-  { layer: 'bark', id: 'bark_brown_02', author: 'Rob Tuytel', license: 'CC0-1.0', tileM: 1,
-    diffuse: { url: `${PH}/bark_brown_02/bark_brown_02_diff_2k.jpg`, md5: '11a2a6039bb5b93f12dcf1689838545b' },
-    normal: { url: `${PH}/bark_brown_02/bark_brown_02_nor_gl_2k.jpg`, md5: '39db6c4574fb58de1ad164442e9d6287' } },
   { layer: 'steel', id: 'corrugated_iron_02', author: 'Jenelle van Heerden, Sergej Majboroda', license: 'CC0-1.0', tileM: 2.7,
     diffuse: { url: `${PH}/corrugated_iron_02/corrugated_iron_02_diff_2k.jpg`, md5: '88f0ec0310e41f408dd0092c8c53db58' },
     normal: { url: `${PH}/corrugated_iron_02/corrugated_iron_02_nor_gl_2k.jpg`, md5: '7ce1e415161ddffdf06fb1f9a80bae5c' } },

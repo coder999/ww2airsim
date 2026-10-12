@@ -1,8 +1,11 @@
 # L1 plan: tree crowns and scenery materials
 
-**Status:** implemented and verified on branch `l1-l2-visuals`, worktree
-`/home/mark/projects/ww2airsim-l1-l2-visuals`, 2026-10-11. Awaiting Mark's
-combined L1/L2 review and merge.
+**Status:** partially accepted on branch `l1-l2-visuals`, 2026-10-11.
+Corrugated-steel, timber and concrete building materials are implemented and
+verified. Mark rejected the tree silhouette; the bounded follow-up removed its
+protruding branches but measured +0.328 ms (+9.8%) p95 against the exact legacy
+tree in the locked dense-jungle view, so the crown/branch and leaf/bark work was
+reverted before merge.
 
 **Run:** unattended. Mark will inspect the final combined L1/L2 result after
 both tracks finish. Do not stop at intermediate visual checkpoints; preserve

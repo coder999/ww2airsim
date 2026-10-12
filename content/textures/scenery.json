@@ -2,32 +2,6 @@
   "version": 1,
   "layers": [
     {
-      "name": "foliage",
-      "source": "forest_leaves_03",
-      "author": "Dimitrios Savva, Rob Tuytel",
-      "tileM": 2.3,
-      "albedo": "scenery-foliage-albedo.ktx2",
-      "normal": "scenery-foliage-normal.ktx2",
-      "meanLinear": [
-        0.07191,
-        0.04692,
-        0.01872
-      ]
-    },
-    {
-      "name": "bark",
-      "source": "bark_brown_02",
-      "author": "Rob Tuytel",
-      "tileM": 1,
-      "albedo": "scenery-bark-albedo.ktx2",
-      "normal": "scenery-bark-normal.ktx2",
-      "meanLinear": [
-        0.12918,
-        0.10627,
-        0.06421
-      ]
-    },
-    {
       "name": "steel",
       "source": "corrugated_iron_02",
       "author": "Jenelle van Heerden, Sergej Majboroda",

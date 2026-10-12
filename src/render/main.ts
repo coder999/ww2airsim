@@ -118,7 +118,7 @@ import { createTowns, type Town } from './scene/towns.js'
 import { createVillages, type Village } from './scene/villages.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
 import { loadBeaches, shoreFxFromQuery, shoreTimeFromQuery } from './scene/beaches.js'
-import { legacyTreeCrownsFromQuery, loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } from './scene/sceneryTextures.js'
+import { loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } from './scene/sceneryTextures.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
@@ -1409,11 +1409,10 @@ async function boot(): Promise<void> {
   const surfaceTexturesLoading: Promise<SurfaceTextures | null> = forcedTerrainTextures === 'off'
     ? Promise.resolve(null)
     : loadSurfaceTextures(renderer).catch((err: unknown) => { console.warn('terrain textures unavailable; drawing the procedural surface:', err); return null })
-  // L1: real leaf, bark, metal, timber and concrete maps. They load beside
+  // L1: real metal, timber and concrete maps. They load beside
   // the terrain maps and degrade independently to the existing procedural
   // materials, so a missing cosmetic asset never blocks the sortie.
   const forcedSceneryTextures = import.meta.env.DEV ? sceneryTexturesFromQuery(location.search) : undefined
-  const legacyTreeCrowns = import.meta.env.DEV && legacyTreeCrownsFromQuery(location.search)
   const sceneryTexturesLoading: Promise<SceneryTextures | null> = forcedSceneryTextures === 'off'
     ? Promise.resolve(null)
     : loadSceneryTextures(renderer).catch((err: unknown) => { console.warn('scenery textures unavailable; drawing procedural scenery materials:', err); return null })
@@ -3468,7 +3467,7 @@ async function boot(): Promise<void> {
         ...towns.hutFootprints,
         ...(villages?.footprints ?? []),
         ...vehicleFootprints,
-      ], { textures: sceneryTextures, legacyCrowns: legacyTreeCrowns })
+      ])
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --
