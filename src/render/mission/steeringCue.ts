@@ -1,5 +1,8 @@
 import { playerAircraft, type World } from '../../sim/loop.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
+import { APPROACH_SPEED_STALL_MULTIPLE } from '../../sim/paddles.js'
+import { effectiveStallSpeedMps } from '../../sim/ground.js'
+import { deckAxes, deckLocal, deckOf, deckWorld } from '../../sim/world/deck.js'
 import { heightAt } from '../../sim/world/terrain.js'
 import { mapPoints, selectedPoint, type MapPoint } from '../missionMap.js'
 import { METERS_PER_MILE } from '../radar.js'
@@ -19,6 +22,9 @@ type SteeringTarget = {
   readonly point: MapPoint
   readonly label: string
   readonly source: SteeringCue['source']
+  /** A virtual approach point carries its own height instead of borrowing
+   *  the carrier's waterline altitude from the chart point. */
+  readonly altitudeM?: number
 }
 
 const entityId = (point: MapPoint): string => point.id.slice(point.id.indexOf(':') + 1)
@@ -51,6 +57,76 @@ function pointForBase(points: readonly MapPoint[], id: string): MapPoint | null 
   return points.find((point) => point.id === `ship:${id}`) ?? null
 }
 
+const FT_PER_M = 1 / 0.3048
+const MPH_PER_MPS = 3600 / METERS_PER_MILE
+
+/**
+ * A carrier recovery has two useful steering destinations, neither of which
+ * is the carrier's chart marker:
+ *
+ * - outside the groove, a moving LINEUP point at 90% of Paddles' maximum
+ *   range, on the real glideslope;
+ * - once astern, inside Paddles' cone and closing, the trap-zone centre.
+ *
+ * This is render-only guidance over live sim geometry. It does not move the
+ * ship, score a pass or fly the airplane. The 90% entry leaves a little
+ * margin inside the Paddles window instead of asking the pilot to hit its
+ * exact boundary.
+ */
+function carrierRecoveryTarget<M>(
+  world: World<M>,
+  shipId: string,
+  chartPoint: MapPoint,
+): SteeringTarget | null {
+  const ship = world.ships.find((candidate) => candidate.id === shipId)
+  const deck = ship === undefined ? null : deckOf(ship)
+  const paddles = ship?.spec.paddles
+  if (ship === undefined || deck === null || paddles === undefined) return null
+
+  const player = playerAircraft(world)
+  const zoneZ = -deck.lengthM / 2 + (deck.trapFromSternM + deck.trapToSternM) / 2
+  const local = deckLocal(deck, player.state.position.x, player.state.position.z)
+  const asternM = zoneZ - local.z
+  const rangeM = Math.hypot(asternM, local.x)
+  const offAxisDeg = Math.abs(Math.atan2(local.x, asternM)) * 180 / Math.PI
+  const { bow } = deckAxes(deck)
+  const closingMps =
+    (player.state.velocity.x - deck.velocity.x) * bow.x
+    + (player.state.velocity.z - deck.velocity.z) * bow.z
+  const inGroove =
+    asternM > 0
+    && rangeM <= paddles.maxRangeM
+    && offAxisDeg <= paddles.coneHalfAngleDeg
+    && closingMps > 0
+
+  const approachMph = Math.round(
+    APPROACH_SPEED_STALL_MULTIPLE * effectiveStallSpeedMps(player.spec, 1) * MPH_PER_MPS,
+  )
+  if (inGroove) {
+    const trap = deckWorld(deck, 0, zoneZ)
+    return {
+      point: { ...chartPoint, x: trap.x, z: trap.z },
+      label: `FINAL · ${approachMph} MPH · GEAR FLAPS HOOK`,
+      source: 'objective',
+      altitudeM: deck.center.y + player.spec.gear.heightM,
+    }
+  }
+
+  const entryRangeM = paddles.maxRangeM * 0.9
+  const entry = deckWorld(deck, 0, zoneZ - entryRangeM)
+  const entryAltitudeM =
+    deck.center.y
+    + player.spec.gear.heightM
+    + entryRangeM * Math.tan(paddles.glideslopeDeg * Math.PI / 180)
+  const entryAltitudeFt = Math.round(entryAltitudeM * FT_PER_M / 50) * 50
+  return {
+    point: { ...chartPoint, x: entry.x, z: entry.z },
+    label: `LINEUP · ${approachMph} MPH · ${entryAltitudeFt} FT`,
+    source: 'objective',
+    altitudeM: entryAltitudeM,
+  }
+}
+
 /** The first active primary that is a finite destination. Protect, deny and
  *  approaches are standing orders (the objective line omits them too), so
  *  they must not mask a later recovery objective that is active at the same
@@ -68,7 +144,13 @@ function objectiveTarget<M>(world: World<M>, points: readonly MapPoint[]): Steer
 
   let point: MapPoint | null = null
   if (active.kind === 'takeoff') point = pointForBase(points, active.from)
-  else if (active.kind === 'land') point = pointForBase(points, active.at)
+  else if (active.kind === 'land') {
+    point = pointForBase(points, active.at)
+    if (point !== null) {
+      const recovery = carrierRecoveryTarget(world, active.at, point)
+      if (recovery !== null) return recovery
+    }
+  }
   else if (active.kind === 'reach' || active.kind === 'hold') point = points.find((p) => p.id === `station:${active.id}`) ?? null
   else if (active.kind === 'release' && active.target !== undefined) point = points.find((p) => entityId(p) === active.target) ?? null
   else if (active.kind === 'destroy') {
@@ -94,7 +176,7 @@ export function steeringCueFor<M>(world: World<M>, selectedId: string | null): S
   const player = playerAircraft(world)
   const dx = target.point.x - player.state.position.x
   const dz = target.point.z - player.state.position.z
-  const y = targetAltitude(world, target.point, player.state.position.y)
+  const y = target.altitudeM ?? targetAltitude(world, target.point, player.state.position.y)
   return {
     label: target.label,
     rangeMi: Math.hypot(dx, dz) / METERS_PER_MILE,

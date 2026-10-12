@@ -47,6 +47,8 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Strike lead: Zeros over the convoy!': 'radio_wingman_convoy_zeros',
   'Paddles: Ready deck. Launch, then take the downwind leg to port.': 'radio_paddles_quals_launch',
   'Paddles: Abeam. Gear, flaps and hook down, and bring it aboard.': 'radio_paddles_quals_abeam',
+  'Instructor: Positive climb. Raise gear and flaps, hold 500 to 1,000 feet, and follow DOWNWIND.': null,
+  'Instructor: Follow LINEUP astern. Slow toward the shown approach speed and hold the shown altitude until the turn to final.': null,
   'Tacloban tower: cleared for takeoff. Dulag strip is nineteen miles south.': 'radio_tower_dulag_takeoff',
   'Strike lead: bandits scrambling off Dulag!': 'radio_wingman_dulag_bandits',
   'Strike lead: hangars are down. Head home to Tacloban.': 'radio_wingman_dulag_hangars_down',
@@ -75,6 +77,7 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Trap 3 of 3': 'radio_paddles_trap_3_of_3',
   'Paddles: wave-off — go around.': 'radio_paddles_waveoff_1',
   'Flight deck: respotted for launch, hook up. Launch when ready.': 'radio_paddles_respot',
+  'Instructor: After launch, raise gear and flaps once you are climbing.': null,
   'Keep the raid off: failed': 'radio_tower_raid_screen_breached',
   "Cease fire! Cease fire! You're hitting friendlies!": 'radio_wingman_friendly_fire',
   // Lands with the missed pass's own wave-off call; a second voice on top would sound wrong.
@@ -113,8 +116,11 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
 export const PADDLES_LINES: Readonly<Record<PaddlesCall, readonly string[]>> = {
   high: ['radio_paddles_high_1', 'radio_paddles_high_2'],
   low: ['radio_paddles_low_1', 'radio_paddles_low_2'],
-  fast: ['radio_paddles_fast_1', 'radio_paddles_fast_2'],
-  slow: ['radio_paddles_slow_1', 'radio_paddles_slow_2'],
+  // Airspeed alone cannot tell the pilot which control caused the error.
+  // The second takes say “easy on the power” / “add power,” which is wrong
+  // before the airplane is established and can make a low pilot still lower.
+  fast: ['radio_paddles_fast_1'],
+  slow: ['radio_paddles_slow_1'],
   roger: ['radio_paddles_roger_1', 'radio_paddles_roger_2'],
   cut: ['radio_paddles_cut_1', 'radio_paddles_cut_2', 'radio_paddles_cut_3'],
   'wave-off': ['radio_paddles_waveoff_1', 'radio_paddles_waveoff_2', 'radio_paddles_waveoff_3'],
