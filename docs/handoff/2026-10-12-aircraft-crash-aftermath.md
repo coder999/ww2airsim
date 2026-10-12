@@ -1,10 +1,10 @@
 # Handoff: aircraft crash aftermath (2026-10-12)
 
-**Branch:** `aircraft-crash-collisions`. **Scope:** renderer-owned fatal-crash
-aftermath and the automatic replay window; the deterministic simulation's impact
-judgement, scoring, mission outcomes and aircraft state remain unchanged. Mark
-approved the land choreography and water splash in the running reference-GPU
-build. No deployment was performed.
+**Merged:** `aircraft-crash-collisions` was integrated into `main` as
+`004fe759`. **Scope:** renderer-owned fatal-crash aftermath and the automatic
+replay window; the deterministic simulation's impact judgement, scoring, mission
+outcomes and aircraft state remain unchanged. Mark approved the land choreography
+and water splash in the running reference-GPU build. No deployment was performed.
 
 ## What is there now
 
@@ -94,5 +94,10 @@ restart and rebuilt deterministically during replay.
 - The three crash E2E cases above passed together on the Ryzen RX 6700 XT
   reference GPU in **1.0 minute**.
 
-After integration, run `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` from
-`main` and record its result in the merge closeout.
+## Final integrated status
+
+After the clean merge at `004fe759`,
+`REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` passed from `main`: TypeScript,
+ESLint and dependency analysis were clean, and all **6,283 tests in 433 files**
+passed with **11 skipped** in 301.71 seconds. The only subsequent change is this
+documentation-only closeout record.
