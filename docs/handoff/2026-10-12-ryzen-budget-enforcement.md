@@ -18,8 +18,10 @@ budget run blocks new CPU jobs and waits for existing ones to finish.
 
 ## Tests updated
 
-- `playwright.config.ts` owns the single budget-title pattern and the lock
-  guard. Default and budget list-mode runs prove the two sets are disjoint and
+- `playwright.config.ts` owns the selection guard, while the nightly runner
+  repeats the established budget-title pattern at the CLI boundary so either
+  repository can roll forward safely. Default and budget list-mode runs prove
+  the two sets are disjoint and
   that budget mode refuses a missing lock.
 - The nightly shell script keeps the existing aggregate report and
   `runs.tsv` contract while recording both Playwright exit codes.
