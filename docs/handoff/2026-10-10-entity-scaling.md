@@ -197,6 +197,12 @@ window (5.8 ms p95), dominant at 60 (work p95 68.6 ms with nothing of the swarm 
    one mesh per material, and drawing anything beyond a few miles as a single low-poly mesh or a billboard,
    gets most of it, because far airplanes cost the same as near ones today. This alone would move the mission
    layout's 120 Hz limit from about 5 to past 30 on the GPU and main thread, if the ceiling is reached.
+
+   **First distance pass implemented and measured 2026-10-11.** Intact airframes beyond 0.75 mi now use one
+   shared indexed silhouette draw per model, with full articulation restored inside 0.62 mi and always used
+   for damage. The frozen mission-60 point fell from 1,741 to 437 calls (75%); tight-60 from 1,745 to 1,025
+   (41%). This keeps the source triangles for silhouette fidelity, so low-poly geometry remains a separate
+   possible second pass. See [`2026-10-11-aircraft-draw-call-lod.md`](2026-10-11-aircraft-draw-call-lod.md).
 2. **A broad phase in the projectile contact test** (`nearestContact`, `src/sim/weapons/combat.ts:314`): every
    round tests every airplane's damage zones (each a quaternion transform and a box test), every hull and every
    structure on the map, every tick, with no distance reject. 60 % of a tight tick and 45 % of a mission tick

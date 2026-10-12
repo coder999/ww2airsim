@@ -1,10 +1,11 @@
 // tests/render/pivotedAirframe.test.ts
 import { describe, expect, it } from 'vitest'
-import { Group, Object3D, Quaternion, Vector3 } from 'three'
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
 import type { ModelInstance } from '../../src/render/models/modelCache.js'
 import { DEBRIS_S, debrisFlight, gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout, turretAim, TURRET_SLEW_DEG_S } from '../../src/render/scene/pivotedAirframe.js'
 import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig, type TurretArc } from '../../src/render/scene/airframeRigs.js'
 import { propAngle } from '../../src/render/scene/airframe.js'
+import { AIRFRAME_LOD_ENTER_M, AIRFRAME_LOD_PROXY_NAME } from '../../src/render/scene/airframeLod.js'
 
 const RIG: AirframeRig = {
   props: [{ node: 'Prop', blades: 3 }],
@@ -96,6 +97,18 @@ describe('the pivoted airframe (R3)', () => {
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: null })
     expect(inst.node('Prop').visible).toBe(true)
     expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
+  })
+
+  it('uses the one-mesh far representation, but damage forces the articulated model at any range', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    inst.root.add(new Mesh(new BoxGeometry(8, 2, 10), new MeshStandardMaterial()))
+    const a = await loadPivotedAirframe('toy-lod', 'toy-lod.glb', RIG, undefined, async () => inst)
+    const proxy = a.root.getObjectByName(AIRFRAME_LOD_PROXY_NAME)!
+    a.update({ ...zero, gearFraction: 0, throttle: 1, frameS: 0, cameraDistanceM: AIRFRAME_LOD_ENTER_M })
+    expect([inst.root.visible, proxy.visible]).toEqual([false, true])
+    a.update({ ...zero, gearFraction: 0, throttle: 0, frameS: 0, cameraDistanceM: AIRFRAME_LOD_ENTER_M, debris: { ageS: 1, seed: 7 } })
+    expect([inst.root.visible, proxy.visible]).toEqual([true, false])
+    a.dispose()
   })
 
   it('a part with no baked pivot axis throws, naming the model and node, and releases the instance (Review Focus 1)', async () => {

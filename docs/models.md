@@ -184,6 +184,21 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   (`pivotedAirframe.ts`); measure them on that model first with
   `npm run models:mounts`, which `tests/tools/models/wildcatMounts.test.ts`
   enforces for every stores-carrying spec (sortie forms A4, 2026-09-27).
+
+### Runtime aircraft distance LOD
+
+`src/render/scene/airframeLod.ts` bakes each registered airframe's intact authored pose into one indexed,
+vertex-colored mesh and shares that geometry and material across every instance of the same model. Beyond
+0.75 mi (`AIRFRAME_LOD_ENTER_M`, stored internally in SI) the runtime hides the detailed hierarchy and any
+remaining stores and draws that single mesh; inside 0.62 mi it restores the exact prior visibility state.
+The gap is hysteresis, not two quality tiers. The Hangar always supplies distance zero, so its articulation
+bench remains the full model.
+
+Landing gear and runtime stores are deliberately absent from the far silhouette. Damage at any distance
+forces the full hierarchy so detached propellers and control surfaces still stage correctly. A future model
+therefore needs no LOD-specific manifest entry, but its authored intact, gear-down pose must remain a valid
+silhouette when the gear nodes are omitted. `tests/render/airframeLod.test.ts` pins sharing, hysteresis,
+visibility restoration and disposal; the pivoted-airframe and Wildcat tests pin their loader wiring.
 - **Ships:** add the id to `SHIP_MODELS` in
   [`src/render/scene/shipModels.ts`](../src/render/scene/shipModels.ts), and
   set `view.model` in `content/ships/<spec>.json`. The Hangar spec names a

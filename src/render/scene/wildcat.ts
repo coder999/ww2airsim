@@ -8,6 +8,7 @@ import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
 import { propAngle, type Airframe } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
+import { createAirframeLod } from './airframeLod.js'
 
 import { WILDCAT_CORRECTION_NAME, WILDCAT_GEAR_STRETCH_M, WILDCAT_SCALE, wildcatCorrection } from './wildcatFrame.js'
 
@@ -331,13 +332,16 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
     }
     freeVisuals = visuals.release
   }
+  const fullRoots = [...root.children]
+  const lod = createAirframeLod(WILDCAT_MODEL_URL, root, correction, fullRoots, [gearDer, gearIzq])
   let disposed = false
 
   return {
     root,
     parts: stores === undefined ? ['prop', 'gear', 'flaps', 'surfaces'] : ['prop', 'gear', 'flaps', 'surfaces', 'stores'],
-    setStores: (b, r) => { hung?.setStores(b, r) },
+    setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
+      lod.update(u.cameraDistanceM, (u.debris ?? null) !== null)
       propRad = propAngle(propRad, u.throttle, u.frameS)
       helice.rotation.z = heliceRestZ + propRad
       applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, u.gearFraction)
@@ -356,6 +360,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       ;(flaps.mesh.material as MeshStandardMaterial).dispose()
       pins?.dispose()
       inboard?.dispose()
+      lod.dispose()
       instance.release()
     },
   }

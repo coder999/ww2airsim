@@ -6,6 +6,7 @@ import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, typ
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 import { createRng } from '../../sim/rng.js'
+import { createAirframeLod } from './airframeLod.js'
 
 /**
  * One airframe from a rigged glb (R3): its articulated parts were pivoted by the build (each
@@ -201,12 +202,15 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   // Damage stages (2026-10-09): what breaks away in a mid-air explosion, and where each sits whole.
   const loose = [...bound.props, ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
   const scratch = new Vector3()
+  const fullRoots = [...root.children]
+  const lod = createAirframeLod(url, root, instance.root, fullRoots, bound.gear.map((g) => g.posed.node))
   let disposed = false
   return {
     root,
     parts: stores === undefined ? rigParts(rig) : [...rigParts(rig), 'stores'],
-    setStores: (b, r) => { hung?.setStores(b, r) },
+    setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
+      lod.update(u.cameraDistanceM, (u.debris ?? null) !== null)
       bound.props.forEach((p, i) => {
         propRad[i] = propAngle(propRad[i] ?? 0, u.propThrottles?.[i] ?? u.throttle, u.frameS)
         p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad[i]!))
@@ -246,6 +250,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
       disposed = true
       hung?.dispose()
       freeVisuals()
+      lod.dispose()
       instance.release()
     },
   }
