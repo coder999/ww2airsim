@@ -2,7 +2,7 @@
 import { setEnsignTime } from '../scene/ensign.js'
 import { initRenderer, normalizeGpuError } from '../renderer.js'
 import { showFailure, type FailureKind } from '../failure.js'
-import { buildCatalog, drawable, type CatalogEntry } from './catalog.js'
+import { buildCatalog, drawable, visibleCatalog, type CatalogEntry } from './catalog.js'
 import { loadHangarContent } from './contentIndex.js'
 import { loadHangarModel, type HangarModel, type PartPose } from './models.js'
 import { createBenchController } from './benchController.js'
@@ -37,7 +37,8 @@ async function boot(): Promise<void> {
   let content: ReturnType<typeof loadHangarContent>
   try {
     content = loadHangarContent()
-    catalog = buildCatalog(content)
+    const dev = new URLSearchParams(location.search).get('dev') === '1'
+    catalog = visibleCatalog(buildCatalog(content), dev)
   } catch (e) {
     showFailure(root, 'bad-content', e instanceof Error ? e.message : String(e))
     return

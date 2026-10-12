@@ -1,8 +1,7 @@
 // tests/tools/models/blenderDuplicates.test.ts
-// A Blender duplicate of a downloaded airframe (docs/blender-aircraft.md) is shown in the Hangar beside the
-// download and may replace it. It earns the swap by fitting the spec the download flies on, unchanged: the
-// same stance, the guns inside the hull, the eye under the canopy, and a wing the stores hang on. Each row
-// pairs a spec with its duplicate (`station`: the semi-span fraction centerPoint.test.ts cuts that spec's wing at, where not 0.3); "Promoting a duplicate" in that document is what follows a pass.
+// Drawing-fit locks for the seven Blender airframes promoted on 2026-10-11. The retired downloads remain
+// DEV-only Hangar entries, while each row below holds the active spec to its replacement's stance, guns,
+// eye and store-bearing wing (`station` is the semi-span fraction used for the quarter-chord check).
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
@@ -14,7 +13,7 @@ import { drawnPoints } from './_drawnPoints.js'
 
 /** `eye`: where the pilot's eye sits in the real cockpit, read off the three-view drawing on Wikimedia Commons (docs/blender-aircraft.md, "Measure the real airplane"). The specs' eye points were fitted to the downloads, whose canopies sit 0.1 to 1.0 m aft of and 0.2 to 0.6 m lower than the real ones; promoting a duplicate moves the spec's `view.eyePointM` here (Mark, 2026-10-11).
  *  `skin`: the duplicate's whole-airframe node (the build merges the glass into it, as the Ki-84's and the TBM's are; kit.py names it <NAME>_dark). */
-const DUPLICATES: readonly {
+const PROMOTED: readonly {
   spec: string
   model: string
   skin: string
@@ -39,7 +38,7 @@ const DUPLICATES: readonly {
 ]
 const TOLERANCE_M = 0.05
 
-describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye, canopyRoof }) => {
+describe.each(PROMOTED)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye, canopyRoof }) => {
   const spec = loadAircraftSpec(specId)
 
   it('mains on gear.heightM at the stance x, tail on the ground at the stance pitch', async () => {

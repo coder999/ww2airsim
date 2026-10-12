@@ -24,20 +24,25 @@ const DEG = Math.PI / 180
  */
 export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   'f6f-hellcat': { mainWheelXM: 0.620, tailDownPitchRad: 9.49 * DEG },
+  'f6f-hellcat-blender': { mainWheelXM: 0.610, tailDownPitchRad: 11.736 * DEG },
   // Through wildcatCorrection(), which levels the glb's baked-in 7.33 degree datum, at the real span
   // and centered on the quarter-chord, with the main legs lengthened (wildcatGearStretch) to
   // Grumman's static ground angle, 12 deg 20 min ([DS] 116a, read 2026-09-28; W1 ruling R5). The
   // model's own legs gave 7.43 degrees; stance.test.ts holds the drawing to this within 0.25 degrees.
   wildcat: { mainWheelXM: 0.413, tailDownPitchRad: (12 + 20 / 60) * DEG },
+  'f4f-wildcat-blender': { mainWheelXM: 0.413, tailDownPitchRad: 11.004 * DEG },
   // Measured 2026-09-29 (F4U-1D onboarding) with drawnPoints, the propeller excluded: mains at x 0.418, tail
   // wheel the first aft point to touch at 10.268 degrees; [DS] 116a gives a static ground angle of 10 deg 59 min.
   'f4u-corsair': { mainWheelXM: 0.418, tailDownPitchRad: 10.268 * DEG },
+  'f4u-corsair-blender': { mainWheelXM: 0.558, tailDownPitchRad: 12.685 * DEG },
   // Measured 2026-09-29 with the model leveled (normalize.pitchDeg -12.36 in its entry): mains at x 0.182, tailwheel
   // the first aft point to touch at 12.224 degrees, close to the real Zero's three-point attitude.
   'a6m2-zero': { mainWheelXM: 0.182, tailDownPitchRad: 12.224 * DEG },
+  'a6m2-zero-blender': { mainWheelXM: 0.420, tailDownPitchRad: 14.464 * DEG },
   // Measured 2026-09-29 (B-17G onboarding) after moving the entry's origin 0.354 m forward (quarter-chord to x 0),
   // with the propellers and turrets excluded: mains at x 0.852, tailwheel the first aft point to touch at 7.200 degrees.
   'b-17-flying-fortress': { mainWheelXM: 0.852, tailDownPitchRad: 0.12566 },
+  'b-17-flying-fortress-blender': { mainWheelXM: 0.480, tailDownPitchRad: 5.458 * DEG },
   // Tricycle: nose wheel and mains bottom out at the same y (4.085), so the drawn airplane rests level.
   'b-29-superfortress': { mainWheelXM: 0.008, tailDownPitchRad: 0 },
   // Measured 2026-09-29 (P-38L onboarding) with the propellers excluded: nose wheel and mains bottom out at the same y (-2.248), so the
@@ -53,9 +58,11 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-30 (Ki-43-II onboarding) with the propeller excluded: mains at x 0.348, the fixed tailwheel the first aft
   // point to touch at 12.306 degrees.
   'ki-43-oscar': { mainWheelXM: 0.348, tailDownPitchRad: 12.306 * DEG },
+  'ki-43-oscar-blender': { mainWheelXM: 0.572, tailDownPitchRad: 12.565 * DEG },
   // Measured 2026-09-30 (D3A Val onboarding) with drawnPoints, the propeller excluded: the spatted mains bottom out at x 0.257,
   // y -1.850; the fixed tailwheel is the first aft point to touch at 11.52 degrees.
   'd3a-val': { mainWheelXM: 0.257, tailDownPitchRad: 11.52 * DEG },
+  'd3a-val-blender': { mainWheelXM: 0.430, tailDownPitchRad: 12.571 * DEG },
   // Measured 2026-09-30 (Ki-84-Ia onboarding) with the propeller excluded, after moving the entry's origin 0.25 m behind the mains
   // (normalize.origin x -0.25; the drawn wheels stood at x 0.000, which the schema's mainX > 0 rejects): mains at x 0.250, the
   // retractable tailwheel the first aft point to touch at 16.417 degrees, steeper than the Zero's 12.2 (the long drawn legs).

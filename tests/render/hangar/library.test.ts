@@ -69,6 +69,7 @@ describe('LibraryEntrySchema', () => {
     ['a vehicle with a spec', { ...valid, kind: 'vehicle', spec: 'jeep' }, /no vehicle is in the sim/],
     ['display-only without a spec', { ...valid, displayOnly: true, model: { kind: 'ship', id: 'x' } }, /requires both a spec and an own model/],
     ['display-only without an own model', { ...valid, displayOnly: true, spec: 'x' }, /requires both a spec and an own model/],
+    ['archived without display-only', { ...valid, status: 'archived' }, /archived entries must be display-only/],
     ['a model on an ordnance entry', { ...valid, kind: 'ordnance', spec: 'an-m65', model: { kind: 'building', id: 'hangar' } }, /entry's own kind \\"ordnance\\"/],
   ])('rejects %s', (_l, raw, message) => {
     expect(() => parseLibraryEntry(raw)).toThrow(message)
@@ -78,6 +79,7 @@ describe('LibraryEntrySchema', () => {
     expect(parseLibraryEntry({ ...valid, model: { kind: 'ship', id: 'essex-cv' } }).model).toEqual({ kind: 'ship', id: 'essex-cv' })
     expect(parseLibraryEntry({ ...valid, kind: 'vehicle', model: { kind: 'vehicle', id: 'jeep' } }).kind).toBe('vehicle')
     expect(parseLibraryEntry({ ...valid, spec: 'x', model: { kind: 'ship', id: 'x' }, displayOnly: true }).displayOnly).toBe(true)
+    expect(parseLibraryEntry({ ...valid, spec: 'x', model: { kind: 'ship', id: 'x' }, displayOnly: true, status: 'archived' }).status).toBe('archived')
   })
 
   it('gameplayNumbersIn catches a number with a unit, and only that', () => {
