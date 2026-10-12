@@ -76,6 +76,44 @@ horizon face down exactly one source-art pixel, with one additional pixel on the
 fascia variants, and replaces the preliminary clustered RPM treatment with the direct-mounted two-
 or four-bezel arrangement described above.
 
+## Test reconciliation
+
+### Tests updated
+
+- `cockpitLayouts.test.ts` enrolls all fourteen flyable aircraft, pins the four families and their
+  imperial/metric labels, derives sight/gear/hook/bay equipment from each airframe, and asserts
+  independent one/two/four-engine RPM bezels with no parent gauge or cover plate.
+- `panel.test.ts`, `panelLayout.test.ts` and `cockpitFeedback.test.ts` replace the retired universal
+  panel's three-dial, generic-band and procedural-bezel assumptions with the shipped five-instrument
+  layout, visible-layer bounds, integrated configuration/armament bank, literal fascia-aperture
+  registration and the final one-pixel multi-engine horizon offset.
+- `gauges.test.ts` and `gaugeSamples.ts` enroll RPM and the Japanese metric profile. Schema, damage
+  and `engineRpm.test.ts` cover engine count/ranges, independent damage output, deterministic lag,
+  cutout wind-down and the display-only boundary.
+- `cockpitFamiliesCapture.spec.ts` is an opt-in visual capture tool, not a screenshot oracle. It
+  launches every flyable aircraft on the reference GPU, asserts clean WebGPU/console output and
+  produces the four representative frames plus the fourteen-aircraft contact sheet above.
+
+### Tests still valid
+
+- The existing gunsight ballistics, gun-pipper, gunnery and impact-marker checks remain valid for
+  enrolled forward-gun aircraft because C3 conditionally hides the sight but does not change its
+  line, depression or ballistics.
+- Approach and carrier checks still own the gear, flap and hook controls. C3 changes their cockpit
+  presentation only; the simulation controls and transition state are unchanged.
+- The chase-view flight-data assertions, including the compact `THR` label, remain intentionally
+  valid because slip and RPM are cockpit-only and C3 does not change that strip.
+- No `window.__ww2` diagnostic field, camera route or player control changed.
+
+### Known gaps
+
+- By repository policy there are no screenshot goldens. Automated tests pin geometry, enrollment,
+  state and clean GPU execution; the committed full-resolution captures and Mark's approval are the
+  evidence for texture finish, Japanese glyph appearance and perceptual alignment.
+- The P-38 still repeats one aggregate damage-output channel across its two RPM instruments until
+  separate engine hit zones are modeled. The two displays and their indicated lag are covered; the
+  missing independent damage source is not disguised as a test skip.
+
 ## Verification
 
 - `npm run typecheck` passes after the final implementation and capture-tool changes.
