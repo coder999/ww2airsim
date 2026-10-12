@@ -9,7 +9,7 @@ import type { Airfield } from '../world/airfields.js'
 import { deckOf, type Deck } from '../world/deck.js'
 import { paddlesWindow } from '../paddles.js'
 import type { Vec3 } from '../math/vec3.js'
-import { RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
+import { RESPOT_CLIMB_MESSAGE, RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
 import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
 import type { PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
@@ -284,6 +284,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       respot = m.respot
       added.push({ tick: t.tick, kind: 'respot' })
       added.push({ tick: t.tick, kind: 'message', text: RESPOT_MESSAGE })
+      added.push({ tick: t.tick, kind: 'message', text: RESPOT_CLIMB_MESSAGE })
     }
   }
 

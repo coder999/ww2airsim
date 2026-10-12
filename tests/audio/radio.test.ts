@@ -42,8 +42,8 @@ describe('which line voices which message (I2)', () => {
     for (const m of [WAVE_OFF_MESSAGE, RESPOT_MESSAGE, FRIENDLY_FIRE_RADIO]) expect(RADIO_LINES[m], m).toBeTypeOf('string')
   })
 
-  it('has a recorded file, in both languages, for every line it can play, and plays all 38', () => {
-    expect(VOICE_STEMS).toHaveLength(38)
+  it('has a recorded file, in both languages, for every line it can play, and plays all 36', () => {
+    expect(VOICE_STEMS).toHaveLength(36)
     for (const stem of VOICE_STEMS) {
       for (const lang of ['us', 'ja'] as const) {
         expect(existsSync(repoPath(`content/audio/voice/${voiceId(stem, lang)}.wav`)), `${stem} ${lang}`).toBe(true)
@@ -124,5 +124,10 @@ describe('nextRadio (I2)', () => {
 
   it('every PaddlesCall has at least one take', () => {
     for (const [call, lines] of Object.entries(PADDLES_LINES)) expect(lines.length, call).toBeGreaterThan(0)
+  })
+
+  it('airspeed calls never prescribe a power change before the pilot is established', () => {
+    expect(PADDLES_LINES.fast).toEqual(['radio_paddles_fast_1'])
+    expect(PADDLES_LINES.slow).toEqual(['radio_paddles_slow_1'])
   })
 })

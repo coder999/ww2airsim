@@ -157,8 +157,8 @@ FIN_THICKNESS = [(-0.10, 0.20), (1.40, 0.15), (1.75, 0.10), (1.85, 0.06), (1.888
 RUDDER = (-0.06, 1.80, 9.655)           # heights and the straight hinge station
 PROP = dict(hub=0.40, chord=0.236, spinner_r=0.148, spinner_len=0.533)  # meters; the cap's tip is d=0
 # x, z, wheel; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin.
-GEAR = dict(x=0.62, z=1.5411, bottom=2.42, wheel_r=0.397, wheel_w=0.20)
-TAILWHEEL = dict(x=-6.0, y=-0.55, bottom=1.318, wheel_r=0.12, wheel_w=0.08)           # x, hinge y, bottom: m
+GEAR = dict(x=0.61, z=1.5411, bottom=2.42, wheel_r=0.397, wheel_w=0.20)
+TAILWHEEL = dict(x=-5.85, y=-0.55, bottom=1.078, wheel_r=0.12, wheel_w=0.08)          # x, hinge y, bottom: m
 
 SEGMENTS = 96
 SUBDIVIDE = 4

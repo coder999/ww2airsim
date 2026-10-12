@@ -488,23 +488,24 @@ describe('ground pitch: a taildragger at its three-point rest attitude (T1 fix r
   // The ruling of 2026-09-28 was taken on the Zero's mesh as downloaded, baked
   // 12.36 degrees nose-up, where the derived rest pitch read -0.118 deg. The
   // model was leveled 2026-09-29 (2034ecc), which re-measured the gear and put
-  // the rest pitch at the real three-point attitude, 12.23 deg. The ceiling
-  // (12.6 degrees, from the lift curve) is unchanged, so the rotation range is
-  // now the 0.4 degrees between them.
+  // the rest pitch at 12.23 deg. The Blender promotion re-measured the real
+  // three-point attitude from the drawing at 14.46 deg (2026-10-11). That is
+  // above the old lift-curve ceiling, so the derived ceiling clamps to the
+  // stance instead of inventing a lower nose attitude.
   const zero = loadAircraftSpec('a6m2-zero')
   const zeroRest = restPitchRad(zero.gear)
   const zeroAt = (pitchRad: number, speed: number) =>
     createState({ position: v3(0, 0, 0), velocity: v3(speed, 0, 0), attitude: qFromAxisAngle(v3(0, 0, 1), pitchRad), gearFraction: 1 })
 
   it('has the rest pitch the ruling was taken on', () => {
-    expect((zeroRest * 180) / Math.PI).toBeCloseTo(12.228, 2)
+    expect((zeroRest * 180) / Math.PI).toBeCloseTo(14.464, 2)
   })
 
   it('rotates nose-up under full stick at speed, up to the derived ceiling and no further', () => {
     const at = (p: number) => groundBodyRates(zero, zeroAt(p, zero.gear.tailLiftSpeedMps * 1.5), { ...neutral, pitch: 1 }, v3(0, 0, 0), DT).z
     expect(at(zeroRest)).toBeGreaterThan(0)
     const cap = groundPitchCeilingRad(zero)
-    expect(cap).toBeGreaterThan(zeroRest)
+    expect(cap).toBeGreaterThanOrEqual(zeroRest)
     expect(cap - 0.001 + at(cap - 0.001) * DT).toBeLessThanOrEqual(cap + 1e-9)
   })
 

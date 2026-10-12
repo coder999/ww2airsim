@@ -65,12 +65,6 @@ export const BINDINGS = {
   // reason `throttleDown` documents: Ctrl+T opens a browser tab and
   // `preventDefault` does not stop it.
   toggleTripleTime: ['KeyT'],
-  // `/` because it is the conventional help key and, unlike F1, it is not a
-  // browser command -- F1 opens the browser's own help in several and
-  // `preventDefault` does not always stop it, which is the same trap
-  // `throttleDown` above documents for Ctrl+W. Firefox's quick-find IS
-  // preventable, and main.ts prevents it.
-  toggleLegend: ['Slash'],
   // Plan 14. P for plot: it opens the navigation chart and is deliberately
   // page furniture, not a sim control. M already cuts the throttle and I
   // opens follow-view data, so this free key keeps map lookup discoverable

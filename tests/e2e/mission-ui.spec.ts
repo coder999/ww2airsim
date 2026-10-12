@@ -34,9 +34,10 @@ const fixtureWind = (page: Page) =>
  * down in the harness's window (measured on the reference GPU 2026-09-26).
  * So each test first proves the recommendation was applied, then changes it
  * (spec §3: "preselected and changeable") and flies with Both. Since the
- * sortie forms the loadout is on Form 4, so this walks there and launches.
+ * sortie forms the loadout is on Form 6, so this walks there and launches.
  */
 async function flyWithBoth(title: Locator) {
+  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   const loadout = title.getByRole('radiogroup', { name: 'Loadout' })
@@ -63,6 +64,8 @@ async function orders(page: Page, pilot: string) {
   await title.getByRole('button', { name: 'Add' }).click()
   await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
   await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('radiogroup', { name: 'Flight type' }).getByRole('radio', { name: 'Missions' }).check()
+  await title.getByRole('button', { name: 'Next' }).click()
   return title
 }
 
@@ -102,8 +105,7 @@ async function expectNoHudOverlap(page: Page, required = ['Objective', 'Radio', 
 test('briefing, objective line, radio line, held-group spawn, chart, debrief, badge, stamp and dossier', async ({ page }) => {
   const title = await orders(page, 'Mission UI Pilot')
   const scenario = title.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(scenario).toContainText('Missions')
-  await expect(scenario).toContainText('Ranges')
+  await expect(scenario).not.toContainText('Free Flight')
   await scenario.getByRole('radio', { name: 'UI Fixture (dev)' }).check()
   const briefing = title.getByRole('region', { name: 'Briefing' })
   await expect(briefing).toContainText('DEV FIXTURE. Take off from Tacloban')
@@ -117,9 +119,6 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
   await expect(page.getByRole('status', { name: 'Radio' })).toHaveText('Tower: cleared for takeoff.', { timeout: 10_000 })
   expect((await mission(page))!.meshes).toEqual([{ id: 'drone-1', visible: false }])
-  // The controls legend starts open and is player-collapsible (Slash); the radio line may sit under it
-  // until then, so the overlap check runs the way it is played, collapsed.
-  await page.keyboard.press('Slash')
   // Open question 2 promised both common desktop sizes (controller ruling PF3).
   await expectNoHudOverlap(page)
   await page.setViewportSize({ width: 1920, height: 1080 })
@@ -155,7 +154,9 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await debrief.getByRole('button', { name: 'Return to title' }).click()
   await title.locator('button[aria-pressed]').first().click()
   await title.getByRole('button', { name: 'New game' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
   await expect(title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'UI Fixture (dev)' })).toContainText('AWARDED')
+  await title.getByRole('button', { name: 'Back' }).click()
   await title.getByRole('button', { name: 'Back' }).click()
   await title.getByRole('button', { name: 'Dossier: Mission UI Pilot' }).click()
   await expect(page.getByRole('dialog', { name: 'Dossier: Mission UI Pilot' })).toContainText('UI Fixture Wings (dev)')
@@ -172,8 +173,6 @@ test('steering cue follows the current objective and a chart override', async ({
   await expect(steeringCue(page)).toContainText('TAKE OFF')
   const first = (await mission(page))!
   expect(first.steering).toMatch(/^TAKE OFF · \d+\.\d MI$/)
-  await page.keyboard.press('Slash')
-
   await page.keyboard.press('KeyP')
   const chart = page.getByRole('dialog', { name: 'Pause menu' }).getByRole('region', { name: 'Mission map' })
   await chart.getByRole('button', { name: 'Set target-1 as navigation destination' }).click()

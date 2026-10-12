@@ -1,14 +1,16 @@
 {
   "id": "d3a-val-blender",
-  "name": "Aichi D3A2 Model 22 Val (Blender model)",
+  "name": "Aichi D3A2 Model 22 Val",
+  "rosterName": "Aichi D3A Val",
   "kind": "aircraft",
   "side": "japanese",
+  "spec": "d3a-val",
   "model": {
     "kind": "aircraft",
     "id": "d3a-val-blender"
   },
-  "blurb": "A second Val model, measured from a Wikimedia Commons three-view and kept beside the downloaded one for comparison: fixed spatted gear, propeller, control surfaces, dive brakes and rear gun. Not flown yet.",
-  "history": "The Aichi D3A, called Val by the Allies, was the Imperial Japanese Navy's principal carrier dive bomber early in the Pacific War. The Model 22 paired the familiar fixed spatted undercarriage and elliptical wing with a more powerful Mitsubishi Kinsei 54 engine.\n\nWhat this entry models: an original Blender D3A2 using the published 47 ft 1.6 in span, 33 ft 5.4 in length and three-blade propeller. Its silhouette is measured from the only D3A three-view linked by the English article, explicitly a D3A1 drawing; the variant mismatch, unsourced airfoil and propeller diameter, fixed-gear stance fit, static dive brakes and other estimates are labeled in the script and handoff. The flying Val still draws the downloaded model.",
+  "blurb": "The game's original Blender Val, measured from a Wikimedia Commons three-view with fixed spatted gear, propeller, control surfaces, dive brakes and rear gun.",
+  "history": "The Aichi D3A, called Val by the Allies, was the Imperial Japanese Navy's principal carrier dive bomber early in the Pacific War. The Model 22 paired the familiar fixed spatted undercarriage and elliptical wing with a more powerful Mitsubishi Kinsei 54 engine.\n\nWhat this entry models: an original Blender D3A2 using the published 47 ft 1.6 in span, 33 ft 5.4 in length and three-blade propeller. Its silhouette is measured from the only D3A three-view linked by the English article, explicitly a D3A1 drawing; the variant mismatch, unsourced airfoil and propeller diameter, fixed-gear stance fit, static dive brakes and other estimates are labeled in the script and handoff. It is the model used in flight; the retired download remains in the DEV Hangar.",
   "sources": [
     {
       "title": "Aichi D3A",

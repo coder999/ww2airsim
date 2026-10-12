@@ -6,7 +6,7 @@ Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
 on 2026-10-11 for the opt-in Takram integrations, the full TSL merge and the
-Form 2 cloudiness selector; §3.10 records the effects
+Flight Conditions cloudiness selector; §3.10 records the effects
 dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
 relevant section here in the same commit.
 
@@ -17,7 +17,7 @@ relevant section here in the same commit.
   the fraction of the **sky** it covers, seen from above
   (`src/sim/scenario.ts`). Free-flight uses 0.45 and deck-quals 0.55; the
   most any layer can reach is 0.636.
-- **Player weather:** Form 2 rolls one of four equally likely initial reports:
+- **Player weather:** Flight Conditions (Form 4) rolls one of four equally likely initial reports:
   Sunny (0.10 combined cumulus coverage), Partly Cloudy (0.25), Cloudy (0.42)
   or Overcast (0.58). The pilot may change the roll. The adjustment preserves
   authored bases, thicknesses and cirrus, and reweights multiple cumulus
@@ -148,7 +148,7 @@ measures this renderer from now on; the last locked TSL numbers were 5.75 to
 
 | Concern | File |
 | --- | --- |
-| Form 2 cloudiness roll and scenario-layer adjustment | `src/render/cloudiness.ts`, `titleScreen.ts` |
+| Flight Conditions cloudiness roll and scenario-layer adjustment | `src/render/cloudiness.ts`, `titleScreen.ts` |
 | Tiers, the march, light march, early-outs | `src/render/scene/clouds.ts` |
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |

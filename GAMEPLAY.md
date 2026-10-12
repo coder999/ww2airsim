@@ -103,6 +103,9 @@ log[] (the latest 200 debriefs)
 
 Each roster row's **Dossier** button opens that pilot's service record,
 kills, badges and mission log (`src/render/dossier.ts`).
+Each roster row also has its own **New game** button. Starting from the row
+selects that pilot and opens the sortie forms; there is no separate disabled
+global button or hidden “select a pilot first” state.
 
 **Resurrection** flips `status` from `kia` back to `active` and increments
 `resurrections`. It does not erase the death. The roster stays simultaneously
@@ -120,12 +123,22 @@ the coupling now.
 
 ### Mission selector
 
-Sortie Orders chooses the mission, takeoff time and cloudiness. Cloudiness is
-rolled when the New Game screen opens, with Sunny, Partly Cloudy, Cloudy and
-Overcast equally likely; the pilot may keep the roll or select another report.
-The following forms assign the aircraft and its available clean, bomb, rocket
-or combined loadout. Stores feed their real mass and drag into the flight
-model, so the loadout screen is a performance decision, not decoration.
+The launch sequence is six memo forms: Squadron Roster, Flight Type, Sortie
+Orders, Flight Conditions, Aircraft Assignment and Ordnance Requisition.
+Flight Type separates operational **Missions** from the **Training Grounds**.
+It recommends that new pilots complete Basic Flying, Torpedo Qualification
+and Carrier Qualification before operational missions. Sortie Orders then
+shows only the chosen kind, with Back and Next at the top-right so a long list
+does not hide navigation below the fold.
+
+Flight Conditions chooses takeoff time and cloudiness. Cloudiness is rolled
+when the New Game screen opens, with Sunny, Partly Cloudy, Cloudy and Overcast
+equally likely; the pilot may keep the roll or select another report. The
+following forms assign the aircraft and its available clean, bomb, rocket or
+combined loadout. Aircraft figures spell out structure and subsystem **hit
+points** and list total engine power in horsepower. Stores feed their real mass
+and drag into the flight model, so the loadout screen is a performance
+decision, not decoration.
 
 ### In-flight guidance
 
@@ -521,7 +534,7 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped on this branch** (`content/scenarios/`, checked 2026-10-11) are the
+**Shipped on `main`** (`content/scenarios/`, checked 2026-10-11) are the
 sandbox and test-range scenarios the engineering plans needed — `free-flight`,
 `gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus twelve
 real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
@@ -538,6 +551,16 @@ the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`), the
 Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`), the Tank Buster
 handoff (`docs/handoff/2026-10-11-tank-buster-mission.md`) and the Surigao
 handoff (`docs/handoff/2026-10-11-surigao-strait-mission.md`).
+
+**Carrier Qualification guidance** (2026-10-11) teaches the pattern instead
+of jumping from DOWNWIND straight to the carrier marker. After each launch the
+instructor calls for gear and flaps up in the climb. After the abeam gate, the
+steering cue follows a moving LINEUP point 2,250 m astern on the carrier's
+3.5-degree glideslope; in the F6F it shows 97 mph and 500 ft. Once established
+inside Paddles' cone and closing, it switches to the trap zone and the FINAL
+gear/flaps/hook checklist. Paddles' fast and slow calls report airspeed only;
+they do not prescribe a throttle change that the cue cannot infer. Handoff:
+`docs/handoff/2026-10-11-carrier-qualification-guidance.md`.
 
 **Surigao Strait** (Track F, 2026-10-11) is a dawn-aftermath mission. *Fuso*
 and *Yamashiro* are already sunk. The player's F6F carries both bombs and

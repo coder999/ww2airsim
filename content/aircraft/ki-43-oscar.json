@@ -74,10 +74,10 @@
     "rollingResistanceCoeff": 0.02,
     "brakingResistanceCoeff": 0.4,
     "lateralGripSeconds": 1.5,
-    "heightM": 1.843,
+    "heightM": 1.89,
     "layout": "taildragger",
-    "mainX": 0.348,
-    "thirdX": -5.375,
+    "mainX": 0.572,
+    "thirdX": -5.238,
     "thirdHeightM": 0.595,
     "thirdSteering": "casterLock",
     "steerYawRateDegPerSec": 5,
@@ -107,8 +107,8 @@
     "guns": [
       {
         "position": [
-          1.1,
-          0.35,
+          1.761,
+          0.456,
           -0.25
         ],
         "rounds": 250,
@@ -116,8 +116,8 @@
       },
       {
         "position": [
-          1.1,
-          0.35,
+          1.761,
+          0.456,
           0.25
         ],
         "rounds": 250,
@@ -176,7 +176,7 @@
         ],
         "halfSize": [
           0.7,
-          0.85,
+          0.77,
           0.2
         ],
         "system": "yaw"
@@ -267,8 +267,8 @@
       {
         "id": "left-rack",
         "offset": [
-          -0.335,
-          -0.368,
+          -0.26,
+          -0.375,
           -2.4
         ],
         "store": "type98-no25"
@@ -276,8 +276,8 @@
       {
         "id": "right-rack",
         "offset": [
-          -0.336,
-          -0.367,
+          -0.26,
+          -0.375,
           2.4
         ],
         "store": "type98-no25"
@@ -296,10 +296,10 @@
   },
   "view": {
     "eyePointM": [
-      -1.0,
-      0.7,
+      -0.77,
+      0.72,
       0
     ],
-    "model": "ki-43-oscar"
+    "model": "ki-43-oscar-blender"
   }
 }

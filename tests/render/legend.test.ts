@@ -5,14 +5,12 @@ import {
   legendEntries, legendLines,
 } from '../../src/render/legend.js'
 
-describe('the control legend (2026-09-15)', () => {
+describe('the pause-screen control catalog', () => {
   it('names every binding exactly once, so a new key cannot ship undocumented', () => {
     // This is the whole reason the legend is derived rather than typed out.
-    // Mark could not find the throttle-down key on 2026-09-15 and asked for one
-    // to be ADDED -- `Z` and `-` had been bound since Plan 1 and simply were
-    // not written down anywhere a pilot could see. A hand-maintained list would
-    // drift back into that state the first time a binding was added; this case
-    // fails instead.
+    // The pause dossier is the player-facing key reference. A hand-maintained
+    // list would drift the first time a binding was added; this case fails
+    // instead.
     const listed = LEGEND_ROWS.flatMap((r) => r.bindings)
     const declared = Object.keys(BINDINGS) as BindingName[]
 
@@ -43,11 +41,15 @@ describe('the control legend (2026-09-15)', () => {
     expect(legendLines()).toContain(`${guns!.label}  ${guns!.keys}`)
   })
 
+  it('has no obsolete in-flight overlay toggle', () => {
+    expect(Object.values(BINDINGS).flat()).not.toContain('Slash')
+    expect(legendEntries().some((entry) => entry.label === 'Controls')).toBe(false)
+  })
+
   it('never shows a bound key as its raw DOM code', () => {
     // The case above only checks the codes someone thought to list, which is
-    // exactly how `Slash` shipped reading "Controls  Slash" in the 2026-09-15
-    // screenshot: it was added to BINDINGS, had no entry in NAMED, and fell
-    // through to `return code`. This sweeps every key actually bound, so the
+    // exactly how a raw DOM key code can leak into player-facing text. This
+    // sweeps every key actually bound, so the
     // next one added is covered whether or not anyone remembers to list it.
     for (const [name, codes] of Object.entries(BINDINGS)) {
       for (const code of codes) {
@@ -83,13 +85,13 @@ describe('the control legend (2026-09-15)', () => {
   it('credits ESA WorldCover alongside the other data sources, linked to its licence', () => {
     // CC BY 4.0 §3(a)(2) wants a hyperlink to the licence where reasonably
     // practicable, which the OSM credit right beside it already demonstrates
-    // is practicable in this exact panel -- legend.ts's dated argument,
+    // is practicable in the About memo -- legend.ts's dated argument,
     // 2026-09-18, has the full reasoning for why that puts ESA WorldCover on
     // a different footing than Copernicus/GEBCO's plain "Data:" mention.
-    // `createLegend` renders `CREDITS.worldCover` as an <a> to
+    // the About memo renders `CREDITS.worldCover` as an <a> to
     // `WORLDCOVER_LICENCE_URL`, the same way it renders `CREDITS.link` to
     // `OSM_COPYRIGHT_URL` -- DOM rendering itself is untested here by design
-    // (`createLegend`'s own comment: the vitest environment is `node`), so
+    // (the vitest environment is `node`), so
     // this pins the pure pieces the DOM wiring reads from, the same way the
     // OSM link's URL is pinned below.
     expect(creditsLine()).toContain('ESA WorldCover')

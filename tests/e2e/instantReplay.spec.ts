@@ -167,7 +167,7 @@ test('manual replay controls, cameras and effects stay isolated from the held fl
   console.log(`instant replay effect rebuild at window end: ${rebuildMs.toFixed(3)} ms`)
 
   // Every tempting live-flight key is owned by replay while the replay is up.
-  for (const key of ['KeyL', 'KeyR', 'KeyQ', 'KeyP', 'Tab', 'KeyI', 'Slash', 'KeyT']) {
+  for (const key of ['KeyL', 'KeyR', 'KeyQ', 'KeyP', 'Tab', 'KeyI', 'KeyT']) {
     await page.keyboard.press(key)
   }
   await expect(page.getByRole('dialog', { name: 'Pause menu' })).toBeHidden()

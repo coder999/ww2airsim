@@ -6,27 +6,22 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { modelIO } from '../../../tools/models/document.js'
 import { worldPositions } from '../../../tools/models/rig.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
-import { wildcatToSimMatrix } from '../../../src/render/scene/wildcatFrame.js'
-import { WILDCAT_MODEL_PATH } from '../../../src/render/content.js'
 
-/** Each drawn model's canopy glazing node. The Wildcat's is its sliding hood. */
+/** Each drawn model's canopy glazing or skin node. */
 const CANOPY: Readonly<Record<string, string>> = {
-  'f6f-hellcat': 'kabina-FACES',
-  wildcat: 'Puerta_cabina_Cabina_MAT_0',
-  'a6m2-zero': 'Verriere_Verriere_0',
-  'f4u-corsair': 'kabina-FACES',
-  // One transparent shell over the whole airframe (alpha 0.15); the eye sits under its top at the flight deck.
-  'b-17-flying-fortress': 'Object_51',
+  'f6f-hellcat-blender': 'f6f_dark',
+  'f4f-wildcat-blender': 'f4f_blueGray',
+  'a6m2-zero-blender': 'a6m2b_dark',
+  'f4u-corsair-blender': 'f4u_dark',
+  'b-17-flying-fortress-blender': 'b17b_dark',
   // The G4M's model has a single skinned material and no separate canopy node; g4m_dark is the whole airframe's skin, and the eye sits under the glasshouse crown (top y about 1.65 at x 3.4).
   'g4m-betty': 'g4m_dark',
   // A single-skin airframe like the G4M: b29_dark is the whole skin, and the eye sits under the glazed crown at x 9.0.
   'b-29-superfortress': 'b29_dark',
   // A single-skin airframe again: p38_dark is the whole skin; the canopy crown reads y 1.20 to 1.22 at x 0 to 0.5 (measured 2026-09-29), eye at x 0.6, y 0.95.
   'p-38-lightning': 'p38_dark',
-  // The canopy glazing node kabina-FACES (x -1.88 to -0.15, top y 0.99, measured 2026-09-30); the eye sits 0.29 m under its crown.
-  'ki-43-oscar': 'kabina-FACES',
-  // The Val's canopy is the mesh node Object_20 (material "transparent", x -3.22 to 0.10, top y 1.009, measured 2026-09-30); the eye sits 0.26 m under its crown.
-  'd3a-val': 'Object_20',
+  'ki-43-oscar-blender': 'ki43b_dark',
+  'd3a-val-blender': 'd3a2_dark',
   // Whole-skin crown: the Ki-84 model is one skin node (ki84_dark) with no separate glazing node.
   'ki-84-frank': 'ki84_dark',
   'tbm-3-avenger': 'tbm3_dark',
@@ -39,14 +34,11 @@ const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]
 
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
 
-async function canopyPoints(model: string): Promise<[number, number, number][]> {
-  const path = model === 'wildcat' ? WILDCAT_MODEL_PATH : `content/aircraft/${model}.glb`
-  const m = model === 'wildcat' ? wildcatToSimMatrix() : [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  const doc = await modelIO().readBinary(new Uint8Array(readFileSync(path)))
+async function canopyPoints(model: string): Promise<readonly (readonly [number, number, number])[]> {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/aircraft/${model}.glb`)))
   const nodes = doc.getRoot().listNodes().filter((n) => n.getName() === CANOPY[model])
   expect(nodes.length, `${model}: no canopy node ${CANOPY[model]}`).toBeGreaterThan(0)
-  return nodes.flatMap((n) => worldPositions(n)).map(([x, y, z]) =>
-    [m[0]! * x + m[4]! * y + m[8]! * z + m[12]!, m[1]! * x + m[5]! * y + m[9]! * z + m[13]!, m[2]! * x + m[6]! * y + m[10]! * z + m[14]!])
+  return nodes.flatMap((n) => worldPositions(n))
 }
 
 describe('every eye point is inside its drawn canopy', () => {

@@ -27,7 +27,6 @@ test('attack-range: a dive-bombing run and a torpedo run land on the destroyer, 
     scenario: 'attack-range', launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', god: '1', cloudTier: 'off', oceanTier: 'high',
   }))
   await waitForTerrain(page)
-  await page.keyboard.press('Slash') // the controls panel is open at launch: close it for the pictures
   await page.mouse.move(960, 540)
   await page.mouse.down() // held for the whole run: the chase camera looks where the mouse is dragged (0.3 deg a pixel)
   const hp0 = (await page.evaluate(() => (window as DiagWindow).__ww2!.ships().find((s) => s.id === 'dd-1')!.hp))

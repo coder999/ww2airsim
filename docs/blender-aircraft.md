@@ -121,7 +121,7 @@ Everything the download it may replace has, because the game draws a flyable air
    (about 3.5 minutes on ryzen; `-t "<id>"` narrows it to seconds while iterating).
 9. **Look at it in the Hangar.** `npx vite --port <free port>` from the checkout, then
    `PW_BASE_URL=http://localhost:<port> npx playwright test tests/e2e/hangar.spec.ts --workers=1` (nexus's own
-   WebGPU is enough for correctness; 23 tests, about 7 minutes). The capture tool beside it,
+   WebGPU is enough for correctness; 25 tests, about 8 minutes). The capture tool beside it,
    `E2E_CAPTURE=1 E2E_CAPTURE_DIR=<dir> ... tests/e2e/blenderDuplicatesCapture.spec.ts`, writes each duplicate
    next to its download, gear down and up.
 
@@ -140,21 +140,26 @@ follows the next section; it deliberately changes the flying spec.
 
 ## Promoting a duplicate
 
-A duplicate is shown, not flown. To fly it, replace the download in one change. **This list is derived from the
-files each test reads and has not been exercised yet (2026-10-11); the first promotion should correct it.**
+The first fleet promotion exercised this path on 2026-10-11. Promotion changes both the flying spec and which card is
+normally visible; the retired download remains reviewable in the Dev Hangar.
 
-1. In `content/aircraft/<spec>.json` set `view.model` to the duplicate's id, and add the model to
-   `MODEL_STANCE` in `src/render/scene/stance.ts` with the spec's own `mainX` and stance pitch.
-2. Re-measure the stores: `npm run models:mounts`, and write the printed rack and rail offsets into the spec
-   (`wildcatMounts.test.ts` then holds them). `blenderDuplicates.test.ts` already proves the wing takes them.
-3. Add the model to `CANOPY` in `eyePoints.test.ts` (its whole-skin node, as the TBM's), and to the pinned lists in
-   `wildcatMounts.test.ts`; delete its row in `blenderDuplicates.test.ts`.
-4. Point the Library card at the spec (`spec`), and decide the old download's fate (`ASSETS.md` keeps its credit
-   while its glb ships). The Wildcat is the special case: `view.model: "wildcat"` is loaded by `wildcat.ts`
-   with its own leg stretch and code-drawn split flaps, none of which the duplicate needs; the swap goes through the
-   generic rig, and the Wildcat-only tests and constants (`wildcatFrame.ts`, `wildcatGear.test.ts`) fall away with it.
-5. Run the graded flight cards: `tests/sim/testcards/graded.test.ts` reads the spec, so a changed drawing must not
-   change them; if it does, the stance fit was wrong.
+1. In `content/aircraft/<spec>.json`, set `view.model` to the Blender id. Refit `gear.heightM`, `mainX`, `thirdX`,
+   `thirdHeightM`, gun positions, combat-zone bounds and `view.eyePointM` to that built mesh. Add its measured main-wheel
+   radius and stance pitch to `MODEL_STANCE`; update the spec-to-model rows in `gearContact.test.ts`.
+2. Re-measure stores with `npm run models:mounts`, write the rack and rail offsets into the spec, and run the belly or
+   internal-bay fit when applicable. A promoted Library card names the same aircraft model as its spec; `models.ts`
+   must send that card through the flight-airframe path so it receives the spec stance, stores and controls.
+3. Add the model's whole-skin canopy node to `eyePoints.test.ts` and keep its row in `blenderDuplicates.test.ts` as an
+   active drawing-conformance test. Add or update the pinned rig and mount lists rather than deleting the evidence.
+4. Move the spec, canonical name and roster name onto the Blender Library card. Keep the old card and GLB with their
+   original ids, set `status: "archived"` and `displayOnly: true`, and retain their provenance in `ASSETS.md`. The
+   catalog hides archived cards normally and exposes them only with `?dev=1`; the comparison capture therefore opens
+   `/hangar.html?bench&dev=1`.
+5. Keep any bespoke legacy loader only for the archived card. The Wildcat's active Blender model uses the generic rig;
+   its old `wildcat.ts` path remains solely so the Dev Hangar can render the retired download.
+6. Run the complete model/Hangar suite, the graded flight cards, and browser checks. Rebuild every changed Blender GLB
+   on the remote runner and confirm `blenderEntries.test.ts` reproduces it byte-for-byte. A multi-engine gear door may
+   extend above its hinge even when the wheel fits; the rig test checks both pieces through the full retraction arc.
 
 ## Traps found on the three fighters (2026-10-11)
 

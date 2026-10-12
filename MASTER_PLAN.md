@@ -18,6 +18,7 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
 - **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
 - **Photoreal Task 14,** which never ran: re-filed into H0.
+- **Controls overlay and pause audio (done and merged 2026-10-11, `ab78775c`):** the redundant in-flight keyboard overlay and its `/` toggle are gone; the pause dossier remains the player-facing control reference. Required data and model attribution links moved to the title screen's About memo. Pausing now silences the master bus as well as loop state, so active radio, weapons, impacts and engines stop until play resumes. Handoff [`docs/handoff/2026-10-11-controls-overlay-pause-audio.md`](docs/handoff/2026-10-11-controls-overlay-pause-audio.md).
 
 ### Track A: First load and the launch sequence
 
@@ -28,9 +29,8 @@ render quality with auto-detect.
 
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
-**A3. Time-of-day picker (S-M). Done 2026-10-09** (merge of `a3a4-launch`): Form 2 offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
-- **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
-- **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
+**A3. Time-of-day picker (S-M). Done 2026-10-09; moved to dedicated Flight Conditions Form 4 on 2026-10-11** (merge of `a3a4-launch`): the form offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
+- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
 **A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
@@ -38,7 +38,9 @@ render quality with auto-detect.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
-**A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. Form 4 no longer owns editable rendering controls: its administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
+**A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. The launch forms no longer own editable rendering controls: the separate administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
+
+**A7. Main-menu and sortie-flow refresh (S). Done and merged 2026-10-11 (feature commit `9ebdc3e3`):** the roster starts a sortie from each pilot row beside Dossier, removing the disabled global New game state. The six-form flow separates Missions from Training Grounds, recommends Basic Flying, Torpedo Qualification and Carrier Qualification to new pilots, keeps Sortie Orders navigation at the top-right, and gives takeoff time and cloudiness their own Flight Conditions form. Briefing citations are named hyperlinks rather than visible raw URLs; aircraft figures spell out hit points and add total engine horsepower; About credits Mark Tuttle, Copyright (C) 2026, and links both the source repository and `marktuttle.dev`. Handoff `docs/handoff/2026-10-11-main-menu-sortie-refresh.md`.
 
 ### Track B: Guidance, autopilot and tutorial
 
@@ -87,15 +89,16 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 - **Blender fighter duplicates merged 2026-10-11:** original Hellcat, Corsair and Wildcat models sit beside their downloads in the
   Hangar. A photo-guided Hellcat follow-up replaces the rounded canopy with its steep windscreen and straight descending roof, with a
   dedicated close side capture for review. Handoff `docs/handoff/2026-10-11-blender-fighter-duplicates.md`.
-- **External-aircraft Blender comparison set merged, 2026-10-11:** A6M2, B-17G, D3A2 and Ki-43-IIb alternatives
-  join the Hellcat, Corsair and Wildcat alternatives. All seven retain separate `*-blender` ids beside their legacy downloads
-  in the main Hangar, use one Commons orthographic family where available, and remain display-only until reviewed; no flying spec
-  was promoted. Remove any rejected duplicate later by its distinct library/model id. Plan
+- **External-aircraft Blender comparison set promoted and merged, 2026-10-11 (`23872091`):** A6M2, B-17G, D3A2 and Ki-43-IIb alternatives
+  joined the Hellcat, Corsair and Wildcat alternatives under separate `*-blender` ids. After Mark's review, all seven Blender
+  airframes were promoted for gameplay with drawing-fit stance, guns, combat zones, stores and pilot eyes. Their downloaded
+  predecessors retain their original ids as `status: archived`, visible only in the Dev Hangar for comparison. Plan
   `docs/superpowers/plans/2026-10-11-fleet-blender-rebuild.md`; handoff `docs/handoff/2026-10-11-fleet-blender-rebuild.md`.
   The B-17G and D3A2 were re-measured the same day after Mark flagged the B-17's triangular fin: both first passes
   had misread their three-views (body, canopy, tail); handoff `docs/handoff/2026-10-11-b17-val-remeasure.md`.
   The other five duplicates and the M4 Sherman were re-measured the same way (`docs/handoff/2026-10-11-fleet-remeasure.md`).
-  **Waiting on Mark:** re-fit the fighter specs' gear, tailwheel and gun positions to the drawings (table in that handoff).
+  Promotion handoff: `docs/handoff/2026-10-11-promote-blender-duplicates.md`. Final verification passed 426 files / 6,237 tests
+  with 11 intentional skips; the 25-test desktop/mobile Hangar run also passed. The promotion worktree and merged branch were removed.
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
   - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.
@@ -190,6 +193,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - **Surigao Strait done and merged 2026-10-11 (`a8c01fd2`):** at dawn, a bomb-and-rocket F6F pursues *Mogami* while Oldendorf's battle line engages a representative rear guard; recovery is aboard a staged Essex (plan `docs/superpowers/plans/2026-10-11-surigao-strait-mission.md`, handoff `docs/handoff/2026-10-11-surigao-strait-mission.md`).
   - **Tank Buster done 2026-10-11:** a Hellcat attacks six stationary Japanese tanks southwest of Dulag; four kills plus recovery earn the badge, all six the secondary objective. The Chi-Ha is an explicit stand-in for the Type 89/Type 95 tanks better documented on Leyte. Handoff `docs/handoff/2026-10-11-tank-buster-mission.md`; its targets now use Track V's single `World.vehicles` representation.
   - **Torpedo Qualification and USS Crow done and merged 2026-10-11 (`001a5a9d`):** the Avenger takes off from Tacloban, follows an instructor-led low-level run, releases one Mk 13 at the stationary practice ship USS *Crow* (AMc-20), secures the bay and recovers. A hit or miss completes the practice attack; Crow's scenario-only practice-target flag prevents damage and flooding. Crow is an original Blender-built, unarmed ship model.
+  - **Carrier Qualification guidance improved and merged 2026-10-11 (feature commit `16899e0a`):** takeoff cleanup is coached after every launch; the recovery objective leads to a moving lineup point astern on the real glideslope, shows the F6F's 97 mph approach speed and 500 ft entry altitude, then switches to the trap zone on final. Paddles' speed calls no longer prescribe throttle changes they cannot infer. Handoff `docs/handoff/2026-10-11-carrier-qualification-guidance.md`.
   - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**
 
@@ -214,7 +218,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - The sun's date is the constant `SCENARIO_DAY_OF_YEAR` (`sky/sun.ts:11`).
   - Bases and routes are local coordinates.
   - Leyte's data is about 171 MB (L0 134 MB in LFS; 37 MB gzipped since L1.1a).
-- **G1, the world abstraction (M):** a world id on scenarios, runtime-loaded headers, a per-world data directory and build, a per-world center and date, and a theater picker on Form 2. Leyte keeps working unchanged, verified by the existing suite.
+- **G1, the world abstraction (M):** a world id on scenarios, runtime-loaded headers, a per-world data directory and build, a per-world center and date, and a theater picker upstream of mission selection in the launch flow. Leyte keeps working unchanged, verified by the existing suite.
 - **G2, the first new theater (M-L):** **Midway is the recommendation** over Pearl Harbor:
   - Its terrain is two atolls, so the data is tiny.
   - The battle is carriers and dive bombers, which the game already does well.
@@ -302,8 +306,8 @@ merge. The rejected adaptive-sampling follow-up remains preserved separately.
 **Promoted 2026-10-11 (Mark):** after the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in DEV and production; `legacy` and
 `takram` stay selectable by query in DEV.
-Form 2 now also rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
-initial selection, which the player may change; it sets combined cumulus
+Flight Conditions now also rolls an equally likely Sunny, Partly Cloudy,
+Cloudy or Overcast initial selection, which the player may change; it sets combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 

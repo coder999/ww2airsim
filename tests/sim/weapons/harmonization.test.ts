@@ -10,15 +10,16 @@ const eye = f6f.view.eyePointM
 const deg = (rad: number): number => rad * 180 / Math.PI
 
 describe('gunHarmonization: where the guns put their rounds, seen from the eye', () => {
-  it('depresses the F6F sight line about 0.287 degrees to the 300 m mean impact point', () => {
-    // 0.287 deg is the shootdown spike's measurement (2026-09-25): a sight
+  it('depresses the F6F sight line about 0.334 degrees to the 300 m mean impact point', () => {
+    // 0.334 deg is the Blender-promotion measurement (2026-10-11), after the
+    // eye and all six wing guns were moved to their drawing stations. A sight
     // line through the mean impact of a 1 s burst at convergence, found by
     // sweeping the aim through production stepCombat.
     const h = gunHarmonization(combat, eye)
     expect(h.rangeM).toBe(combat.convergenceM)
-    expect(deg(h.depressionRad)).toBeGreaterThan(0.28)
-    expect(deg(h.depressionRad)).toBeLessThan(0.295)
-    // The impact point is on the centerline and below the eye: 0.9 m of eye
+    expect(deg(h.depressionRad)).toBeGreaterThan(0.33)
+    expect(deg(h.depressionRad)).toBeLessThan(0.34)
+    // The impact point is on the centerline and below the fitted eye: eye
     // height plus gravity drop, not either one alone.
     expect(h.impactBody.x).toBeCloseTo(combat.convergenceM, 6)
     expect(Math.abs(h.impactBody.z)).toBeLessThan(1e-9)

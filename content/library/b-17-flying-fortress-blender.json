@@ -1,14 +1,16 @@
 {
   "id": "b-17-flying-fortress-blender",
-  "name": "Boeing B-17G Flying Fortress (Blender model)",
+  "name": "Boeing B-17G Flying Fortress",
+  "rosterName": "Boeing B-17 Flying Fortress",
   "kind": "aircraft",
   "side": "allied",
+  "spec": "b-17-flying-fortress",
   "model": {
     "kind": "aircraft",
     "id": "b-17-flying-fortress-blender"
   },
-  "blurb": "An original B-17G built in Blender from cited dimensions and a measured three-view, kept beside the downloaded Flying Fortress for comparison. Its gear, four propellers, controls, six defensive gun groups, and bomb-bay doors move. Not flown yet.",
-  "history": "The Boeing B-17 Flying Fortress was the United States Army Air Forces' best-known four-engine heavy bomber in Europe. The late B-17G added the Bendix chin turret to an already formidable defensive armament.\n\nWhat this entry models: an original Blender B-17G (span 103 ft 9 in, length 74 ft 4 in, thirteen .50-caliber guns) measured against Kaboldy's corrected Wikimedia Commons three-view. The flying B-17 still draws the downloaded model.",
+  "blurb": "The game's original Blender B-17G, measured from a three-view with moving gear, four propellers, controls, six defensive gun groups and bomb-bay doors.",
+  "history": "The Boeing B-17 Flying Fortress was the United States Army Air Forces' best-known four-engine heavy bomber in Europe. The late B-17G added the Bendix chin turret to an already formidable defensive armament.\n\nWhat this entry models: an original Blender B-17G (span 103 ft 9 in, length 74 ft 4 in, thirteen .50-caliber guns) measured against Kaboldy's corrected Wikimedia Commons three-view. It is the model used in flight; the retired download remains in the DEV Hangar.",
   "sources": [
     {
       "title": "Boeing B-17 Flying Fortress",

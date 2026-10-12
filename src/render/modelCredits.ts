@@ -2,10 +2,10 @@
 /**
  * The in-app credit for every CC BY model the game draws (ship-models spec
  * §10, Open item 3, approved by Mark 2026-09-25): one "Models:" line in the
- * legend's credits, derived from tools/models/entries/*.json, so a model
+ * About memo, derived from tools/models/entries/*.json, so a model
  * cannot ship without its credit. CC BY 4.0 §3(a) asks for the creator, a
  * link to the material and one to the licence "in any reasonable manner";
- * the legend meets WorldCover's the same way (legend.ts). Before this, the
+ * the About memo meets WorldCover's the same way (legend.ts). Before this, the
  * committed Wildcat (CC BY, rojatsu) had no in-app credit at all.
  */
 export interface CreditSource { readonly source: { readonly license: string; readonly url?: string; readonly author?: string } }
@@ -46,7 +46,7 @@ export function modelCreditParts(credits: readonly ModelCredit[]): CreditPart[] 
   return out
 }
 
-/** The line as plain text, which is all a `node` test can see; `createLegend` renders the same parts, linking each work and the licence. */
+/** The line as plain text, which is all a `node` test can see; the About memo renders the same parts, linking each work and the licence. */
 export function modelCreditsText(credits: readonly ModelCredit[]): string {
   return credits.length === 0 ? '' : `Models: ${modelCreditParts(credits).map((p) => p.text).join('')} (CC BY 4.0)`
 }

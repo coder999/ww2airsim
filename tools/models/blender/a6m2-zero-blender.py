@@ -157,8 +157,8 @@ FIN_THICKNESS = [(0.10, 0.20), (0.50, 0.16), (0.70, 0.11), (1.40, 0.09), (1.58, 
 RUDDER_HINGE = ((0.32, 8.106), (1.58, 8.092))
 PROP = dict(hub=0.39, chord=0.2265, spinner_r=0.24, spinner_len=0.52)  # meters; spinner tip is d=0
 # x and bottom are FITTED to the spec; z and hinge placement are ESTIMATE; wheel radii DRAWING-MEASURED.
-GEAR = dict(x=0.182, z=1.74, bottom=2.025, wheel_r=0.295, wheel_w=0.16)
-TAILWHEEL = dict(x=-6.532, y=-0.08, bottom=0.570, wheel_r=0.07, wheel_w=0.05)
+GEAR = dict(x=0.420, z=1.74, bottom=2.025, wheel_r=0.295, wheel_w=0.16)
+TAILWHEEL = dict(x=-6.190, y=-0.08, bottom=0.320, wheel_r=0.07, wheel_w=0.05)
 
 SEGMENTS = 96
 SUBDIVIDE = 3

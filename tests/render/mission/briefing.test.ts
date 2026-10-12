@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadScenarioBundle } from '../../../tools/content/load.js'
-import { briefingModel, briefingRequest, conditionsFor } from '../../../src/render/mission/briefing.js'
+import { briefingModel, briefingRequest, briefingSource, conditionsFor } from '../../../src/render/mission/briefing.js'
 import type { Scenario } from '../../../src/sim/scenario.js'
 
 type CloudLayer = NonNullable<Scenario['weather']['clouds']>[number]
@@ -74,6 +74,22 @@ describe('briefingModel', () => {
     const s = loadScenarioBundle('dev-mission-ui').scenario
     const history = { text: 'Context.', sources: ['A source.'] }
     expect(briefingModel({ ...s, history }, []).history).toEqual(history)
+  })
+})
+
+describe('briefingSource', () => {
+  it('turns a citation with a trailing URL into human-readable link text', () => {
+    expect(briefingSource('Naval History and Heritage Command, USS Crow: https://example.test/crow')).toEqual({
+      label: 'Naval History and Heritage Command, USS Crow',
+      url: 'https://example.test/crow',
+    })
+  })
+
+  it('keeps a citation without a URL as plain text', () => {
+    expect(briefingSource('Archive reference 80-G-277691')).toEqual({
+      label: 'Archive reference 80-G-277691',
+      url: null,
+    })
   })
 })
 

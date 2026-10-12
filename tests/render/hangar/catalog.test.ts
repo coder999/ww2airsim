@@ -1,6 +1,6 @@
 // tests/render/hangar/catalog.test.ts
 import { describe, expect, it } from 'vitest'
-import { availability, buildCatalog, drawable, filterCatalog, listLabel, statusNote } from '../../../src/render/hangar/catalog.js'
+import { availability, buildCatalog, drawable, filterCatalog, listLabel, statusNote, visibleCatalog } from '../../../src/render/hangar/catalog.js'
 import { nodeHangarContent } from './content.js'
 
 const content = nodeHangarContent()
@@ -65,10 +65,10 @@ describe('origin: internal (ours) or external (a download), for the list filter'
   const get = (id: string) => catalog.find((e) => e.library.id === id)!
 
   it('reads each entry\'s model the way the Hangar loads it', () => {
-    // Downloads: a spec's view.model (Wildcat, Essex), or an entry's own model (Corsair, B-17).
+    // Downloads remain addressable as archived entries; active promoted aircraft resolve to our Blender models.
     for (const id of ['f4f-wildcat', 'fletcher-dd', 'f4u-corsair', 'b-17-flying-fortress', 'a6m-zero', 'zuikaku-cv']) expect(get(id).origin, id).toBe('external')
     // Ours: Blender (Ki-84, Kagero, the hangar, the tower since R4), generated ordnance (HVAR).
-    for (const id of ['ki-84-frank', 'p-38-lightning', 'fletcher-dd-blender', 'shiratsuyu-dd-blender', 'zuikaku-cv-blender', 'kagero-dd', 'essex-cv', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
+    for (const id of ['a6m2-zero-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-84-frank', 'p-38-lightning', 'fletcher-dd-blender', 'shiratsuyu-dd-blender', 'zuikaku-cv-blender', 'kagero-dd', 'essex-cv', 'hangar', 'hvar', 'tower']) expect(get(id).origin, id).toBe('internal')
   })
 
   it('leaves an undrawn entry with no origin, and every drawn one with one', () => {
@@ -98,7 +98,8 @@ describe('availability (R1, model-roster spec §4.3)', () => {
   const get = (id: string) => cat.find((e) => e.library.id === id)!
 
   it('a spec is in the game, a model alone is display-only, neither is not drawn', () => {
-    expect(availability(get('f4f-wildcat'))).toBe('in-game')
+    expect(availability(get('f4f-wildcat-blender'))).toBe('in-game')
+    expect(availability(get('f4f-wildcat'))).toBe('archived')
     expect(availability(get('hangar'))).toBe('in-game') // a spec and a model: still in the game
     expect(availability(get('ki-84-frank'))).toBe('display-only')
     expect(availability(get('test-undrawn'))).toBe('not-drawn')
@@ -106,7 +107,7 @@ describe('availability (R1, model-roster spec §4.3)', () => {
   })
 
   it('an explicit comparison model stays display-only while borrowing a spec', () => {
-    const base = c.library.find((e) => e.id === 'f4f-wildcat')!
+    const base = c.library.find((e) => e.id === 'f4f-wildcat-blender')!
     const comparison = { ...base, id: 'wildcat-comparison', displayOnly: true as const, model: { kind: 'aircraft' as const, id: 'wildcat' } }
     const entry = buildCatalog({ ...c, library: [comparison] })[0]!
     expect(entry.subject?.kind).toBe('aircraft')
@@ -116,17 +117,23 @@ describe('availability (R1, model-roster spec §4.3)', () => {
   })
 
   it('labels the list and the card by availability', () => {
-    expect(listLabel(get('f4f-wildcat'))).toBe(get('f4f-wildcat').library.name)
+    expect(listLabel(get('f4f-wildcat-blender'))).toBe(get('f4f-wildcat-blender').library.name)
+    expect(listLabel(get('f4f-wildcat'))).toBe(`${get('f4f-wildcat').library.name} (archived)`)
     expect(listLabel(get('ki-84-frank'))).toBe(`${frank.name} (not in the game yet)`)
     expect(listLabel(get('test-undrawn'))).toMatch(/ \(not yet in service\)$/)
-    expect([statusNote(get('f4f-wildcat')), statusNote(get('ki-84-frank')), statusNote(get('test-undrawn'))])
-      .toEqual([null, 'Not in the game yet', 'Not yet in service'])
+    expect([statusNote(get('f4f-wildcat-blender')), statusNote(get('f4f-wildcat')), statusNote(get('ki-84-frank')), statusNote(get('test-undrawn'))])
+      .toEqual([null, 'Archived', 'Not in the game yet', 'Not yet in service'])
   })
 
-  it('sorts in the game, then display-only, then not drawn, within a kind', () => {
+  it('sorts in the game, then display-only, archived, and not drawn, within a kind', () => {
     const aircraft = cat.filter((e) => e.library.kind === 'aircraft').map(availability)
-    const rank = { 'in-game': 0, 'display-only': 1, 'not-drawn': 2 }
+    const rank = { 'in-game': 0, 'display-only': 1, archived: 2, 'not-drawn': 3 }
     expect(aircraft.map((a) => rank[a])).toEqual([...aircraft.map((a) => rank[a])].sort((x, y) => x - y))
     expect(aircraft).toContain('display-only')
+  })
+
+  it('keeps archived entries DEV-only while preserving their ids', () => {
+    expect(visibleCatalog(catalog, false).map((e) => e.library.id)).not.toContain('f4f-wildcat')
+    expect(visibleCatalog(catalog, true).map((e) => e.library.id)).toContain('f4f-wildcat')
   })
 })

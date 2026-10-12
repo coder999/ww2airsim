@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -20,7 +20,7 @@ test('a landed sortie appears in the dossier; the title does not re-lock', async
   await title.getByRole('button', { name: 'Add' }).click()
   // Review focus 5: markup in a name shows literally.
   await expect(title.locator('button[aria-pressed="true"]')).toHaveText('<b>Ace</b>')
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Gunnery Range' }).check()
   await launchFromOrders(title)
   await expect(title).toBeHidden()

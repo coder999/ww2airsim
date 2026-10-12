@@ -29,7 +29,6 @@ for (const view of VIEWS) for (const v of VARIANTS) {
     await page.goto(withParams(url, { sceneryView: '1', cloudTier: 'off', oceanTier: 'high', ...(v === 'off' ? {} : { drape: v }) }))
     await waitForTerrain(page)
     await page.waitForTimeout(3000)
-    await page.keyboard.press('Slash')
     await page.waitForTimeout(800)
     await page.screenshot({ path: `${OUT}/${view.name}-${v}.png` })
     expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])

@@ -35,7 +35,7 @@ describe('replay keys (spec §6; plan Global Constraints)', () => {
     }
   })
   it('WASD / Q / E are held movement, not actions; unbound keys and flight toggles are null (Review Focus 1)', () => {
-    for (const code of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyK', 'KeyR', 'KeyP', 'KeyT', 'KeyI', 'Slash', 'Tab', 'KeyG', 'Digit0', 'ArrowUp']) {
+    for (const code of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyK', 'KeyR', 'KeyP', 'KeyT', 'KeyI', 'Tab', 'KeyG', 'Digit0', 'ArrowUp']) {
       expect(replayKeyAction(code, false), code).toBeNull()
     }
   })
