@@ -1,12 +1,10 @@
 # Entity scaling: projectile-contact broad phase
 
-Branch: `entity-contact-broadphase`
-
-Status: implemented and measured; ready for review, not merged
+Merged to `main` on 2026-10-11 in `0ca520d9`, together with the aircraft far-LOD follow-up.
 
 This is the first implementation follow-up to the entity-scaling measurement in
 [`2026-10-10-entity-scaling.md`](2026-10-10-entity-scaling.md). It addresses the simulation cliff in a tight
-furball; it does not address the renderer's per-aircraft draw calls, which remain the next scaling item.
+furball. The renderer's per-aircraft draw calls were addressed by the far-LOD follow-up in the same merge.
 
 ## What changed
 

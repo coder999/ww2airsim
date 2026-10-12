@@ -1,7 +1,7 @@
 # Aircraft draw-call reduction: shared far LOD
 
-Parent: [`2026-10-10-entity-scaling.md`](2026-10-10-entity-scaling.md), ranked fix 1. This branch is stacked
-on the projectile-contact broad phase (`9157127a`). Run unattended in its own worktree.
+Parent: [`2026-10-10-entity-scaling.md`](2026-10-10-entity-scaling.md), ranked fix 1. Merged to `main` on
+2026-10-11 in `0ca520d9`, together with its projectile-contact broad-phase parent (`9157127a`).
 
 ## Result
 

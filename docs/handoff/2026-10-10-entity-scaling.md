@@ -211,10 +211,11 @@ window (5.8 ms p95), dominant at 60 (work p95 68.6 ms with nothing of the swarm 
    the 8 to 17 ms single-tick hitches in every layout. The 12 % GC share points at the per-round `candidates`
    arrays in the same function.
 
-   **Implemented and measured 2026-10-11.** The conservative swept-sphere broad phase and allocation-free
+   **Implemented, measured and merged 2026-10-11 (`0ca520d9`).** The conservative swept-sphere broad phase and allocation-free
    nearest selection are recorded in [`2026-10-11-entity-contact-broadphase.md`](2026-10-11-entity-contact-broadphase.md).
    Tight 30 fell from 5.56 to 1.01 ms/tick mean; tight 60 + 20 from 22.94 to 4.32. The original estimate was
-   conservative. Aircraft draw calls remain the next ranked scaling fix.
+   conservative. The aircraft far-LOD pass above landed in the same merge; ship draw calls are now the next
+   ranked scaling fix, after remeasuring the combined ceiling.
 3. **Ships: the same draw-call treatment.** 20 hulls: main thread 8.6 -> 5.1 ms p50 and GPU p95 15.5 -> 7.6 ms
    when hidden (mission). Each hull is about 10.5 draws plus per-mount gun laying on the main thread.
 4. **Effects in a furball** (`fx=off`, tight 30): GPU p50 12.1 -> 6.3 ms, main thread 13.0 -> 10.0 ms. Only
