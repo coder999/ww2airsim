@@ -98,21 +98,23 @@ test('soft edge: no single-row luminance step where smoke meets the ground (spec
   expect(soft).toBeLessThan(0.6 * hard)
 })
 
-test('cloud ordering: a fireball in front of a cloud keeps its pixels (spec §4.2, §7)', async ({ page }) => {
-  const warmAt = async (url: string, label: string): Promise<number> => {
-    const { after, a } = await inject(page, url, 'cloud-fireball', 400, label, 'fireball')
-    return count(after, a.x, a.y, 160, warm)
-  }
-  const photo = withParams('/', { look: '33,39' })
-  const limited = await warmAt(photo, 'cloud-fireball')
-  const unlimited = await warmAt(withParams(photo, { fxCloudLimit: 'off' }), 'cloud-fireball-nolimit')
-  const clear = await warmAt(withParams(photo, { cloudTier: 'off' }), 'cloud-fireball-clearsky')
-  console.log(`FX cloud ordering warm px: limited ${limited}, no limit ${unlimited}, clear sky ${clear}`)
-  // 0.4, not E1's 0.5: the baked fireball measured 0.44 and 0.43 of clear sky on 2026-09-28 (plan E2
-  // Task 10, Mark's ruling). The control below still proves the limit is what keeps the fireball.
-  expect(limited).toBeGreaterThanOrEqual(0.4 * clear)
-  expect(unlimited).toBeLessThan(0.5 * limited) // the control: without the limit the cloud eats the fireball
-})
+for (const renderer of ['takram-tsl', 'takram'] as const) {
+  test(`cloud ordering (${renderer}): a fireball in front of a cloud keeps its pixels (spec §4.2, §7)`, async ({ page }) => {
+    const warmAt = async (url: string, label: string): Promise<number> => {
+      const { after, a } = await inject(page, url, 'cloud-fireball', 400, label, 'fireball')
+      return count(after, a.x, a.y, 160, warm)
+    }
+    const photo = withParams('/', { look: '33,39', cloudRenderer: renderer })
+    const limited = await warmAt(photo, `cloud-fireball-${renderer}`)
+    const unlimited = await warmAt(withParams(photo, { fxCloudLimit: 'off' }), `cloud-fireball-${renderer}-nolimit`)
+    const clear = await warmAt(withParams(photo, { cloudTier: 'off' }), `cloud-fireball-${renderer}-clearsky`)
+    console.log(`FX cloud ordering ${renderer} warm px: limited ${limited}, no limit ${unlimited}, clear sky ${clear}`)
+    // 0.4, not E1's 0.5: the baked fireball measured 0.44 and 0.43 of clear sky on 2026-09-28 (plan E2
+    // Task 10, Mark's ruling). The control below still proves the limit is what keeps the fireball.
+    expect(limited).toBeGreaterThanOrEqual(0.4 * clear)
+    expect(unlimited).toBeLessThan(0.5 * limited) // the control: without the limit the cloud eats the fireball
+  })
+}
 
 test('the sheets failing to load still boots, and effects fall back to blobs (Review Focus 2)', async ({ page }) => {
   await page.route('**/content/fx/**', (r) => r.abort())
