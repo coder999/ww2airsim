@@ -1,7 +1,8 @@
 # L1 plan: tree crowns and scenery materials
 
-**Status:** ready to execute on branch `l1-l2-visuals`, worktree
-`/home/mark/projects/ww2airsim-l1-l2-visuals`.
+**Status:** implemented and verified on branch `l1-l2-visuals`, worktree
+`/home/mark/projects/ww2airsim-l1-l2-visuals`, 2026-10-11. Awaiting Mark's
+combined L1/L2 review and merge.
 
 **Run:** unattended. Mark will inspect the final combined L1/L2 result after
 both tracks finish. Do not stop at intermediate visual checkpoints; preserve

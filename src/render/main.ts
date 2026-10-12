@@ -117,7 +117,8 @@ import { createAirfield } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
 import { createVillages, type Village } from './scene/villages.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
-import { loadBeaches } from './scene/beaches.js'
+import { loadBeaches, shoreFxFromQuery, shoreTimeFromQuery } from './scene/beaches.js'
+import { legacyTreeCrownsFromQuery, loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } from './scene/sceneryTextures.js'
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
@@ -1408,10 +1409,20 @@ async function boot(): Promise<void> {
   const surfaceTexturesLoading: Promise<SurfaceTextures | null> = forcedTerrainTextures === 'off'
     ? Promise.resolve(null)
     : loadSurfaceTextures(renderer).catch((err: unknown) => { console.warn('terrain textures unavailable; drawing the procedural surface:', err); return null })
+  // L1: real leaf, bark, metal, timber and concrete maps. They load beside
+  // the terrain maps and degrade independently to the existing procedural
+  // materials, so a missing cosmetic asset never blocks the sortie.
+  const forcedSceneryTextures = import.meta.env.DEV ? sceneryTexturesFromQuery(location.search) : undefined
+  const legacyTreeCrowns = import.meta.env.DEV && legacyTreeCrownsFromQuery(location.search)
+  const sceneryTexturesLoading: Promise<SceneryTextures | null> = forcedSceneryTextures === 'off'
+    ? Promise.resolve(null)
+    : loadSceneryTextures(renderer).catch((err: unknown) => { console.warn('scenery textures unavailable; drawing procedural scenery materials:', err); return null })
   const beachesDisabled = import.meta.env.DEV && new URLSearchParams(location.search).get('beaches') === 'off'
+  const shoreFx = import.meta.env.DEV ? shoreFxFromQuery(location.search) : undefined
+  const forcedShoreTime = import.meta.env.DEV ? shoreTimeFromQuery(location.search) : undefined
   const beachesLoading = beachesDisabled
     ? Promise.resolve(null)
-    : loadBeaches(BEACHES_URL).catch((err: unknown) => {
+    : loadBeaches(BEACHES_URL, undefined, shoreFx !== 'off').catch((err: unknown) => {
         console.warn('curved beaches unavailable; drawing the terrain shoreline:', err)
         return null
       })
@@ -1464,6 +1475,7 @@ async function boot(): Promise<void> {
   // happened to agree with this one only because both were the same
   // hardcoded literal.
   const surfaceTextures = await surfaceTexturesLoading
+  const sceneryTextures = await sceneryTexturesLoading
   const terrain = createTerrainMesh(TERRAIN_HEADER, finestFetchedLevel, shadow, surfaceTextures)
   const beaches = await beachesLoading
   // Scenery `low` draws the procedural surface (plan Ruling 3). `?terrainTextures=on`
@@ -2793,7 +2805,7 @@ async function boot(): Promise<void> {
     // arithmetic now lives in frame.ts instead.
     const worldOffset = worldOffsetFor(view.eye.position)
     scene.position.set(worldOffset.x, worldOffset.y, worldOffset.z)
-    beaches?.update(view.eye.position.x, view.eye.position.z)
+    beaches?.update(view.eye.position.x, view.eye.position.z, forcedShoreTime ?? view.world.tick * DT + view.world.accumulatorSeconds)
     camera.position.set(0, 0, 0)
     const cameraOrientation = toThreeOrientation(view.eye.attitude)
     camera.quaternion.set(
@@ -3425,7 +3437,7 @@ async function boot(): Promise<void> {
     if (arrived !== null) {
       // One strip and one set of airfield scenery per airfield the world
       // carries (Plan 12), not one hardcoded Tacloban.
-      const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a) }))
+      const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a, sceneryTextures) }))
       scene.add(...airfields.flatMap((f) => [f.runway, f.airfield.object]))
       airfieldHandles = airfields.map((f) => f.airfield)
       // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
@@ -3433,7 +3445,7 @@ async function boot(): Promise<void> {
       // airfield's own clearing (excluded during placement, `townHutFootprints`),
       // so nothing else keeps trees off it the way `inAirfieldClearing` already
       // keeps them off `AIRFIELD_HUTS`.
-      const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields)
+      const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields, sceneryTextures)
       scene.add(towns.object)
       // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
       // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
@@ -3456,7 +3468,7 @@ async function boot(): Promise<void> {
         ...towns.hutFootprints,
         ...(villages?.footprints ?? []),
         ...vehicleFootprints,
-      ])
+      ], { textures: sceneryTextures, legacyCrowns: legacyTreeCrowns })
       // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
       // which forces its own full recompose at `lastX/lastZ`: left at their
       // (0, 0) default -- open sea, never where the airplane actually is --

@@ -1,6 +1,6 @@
-import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
+import { BufferGeometry, Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Matrix4, Object3D, OctahedronGeometry, Quaternion, Vector3 } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { float, hash, instanceIndex, length, positionWorld, smoothstep, uniform } from 'three/tsl'
+import { color, float, hash, instanceIndex, length, mix, normalMap, positionWorld, smoothstep, texture, triplanarTexture, uniform, vec2, vec3 } from 'three/tsl'
 import { SCENERY_TIERS, TREE_FADE_END_M, type SceneryTierName } from './tiers.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
@@ -10,6 +10,7 @@ import type { HutFootprint } from './towns.js'
 import { nearRiver } from '../terrain/rivers.js'
 import { coverFractionsAt, type CoverHeader } from '../landcover/cover.js'
 import { COVER_HEADER } from '../landcover/load.js'
+import type { SceneryTextures } from './sceneryTextures.js'
 
 export type CoverLookup = { fractionsAt(x: number, z: number): { tree: number; crop: number; mangrove: number; open: number } }
 
@@ -31,6 +32,44 @@ export const TREES_PER_CELL = 220
 export const TREE_FADE_BAND_M = 450
 export { TREE_FADE_END_M }
 export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number }
+
+export type TreeGeometry = { readonly crowns: BufferGeometry; readonly bark: BufferGeometry }
+
+function branchGeometry(from: Vector3, to: Vector3, baseRadius: number, tipRadius: number): BufferGeometry {
+  const direction = to.clone().sub(from)
+  const geometry = new CylinderGeometry(tipRadius, baseRadius, direction.length(), 5)
+  const rotation = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), direction.clone().normalize())
+  geometry.applyMatrix4(new Matrix4().compose(from.clone().add(to).multiplyScalar(0.5), rotation, new Vector3(1, 1, 1)))
+  return geometry
+}
+
+/** One merged bark mesh and one merged, genuinely three-dimensional foliage
+ * cluster mesh. Instancing these two geometries preserves the forest's two
+ * draw calls. The seven low-poly clusters total 56 triangles, slightly fewer
+ * than the legacy three-icosahedron crown's 60. */
+export function createTreeGeometry(legacyCrowns = false): TreeGeometry {
+  const crownParts = legacyCrowns
+    ? [new IcosahedronGeometry(1, 0), new IcosahedronGeometry(0.8, 0).translate(0.5, -0.2, 0.25), new IcosahedronGeometry(0.75, 0).translate(-0.45, -0.15, -0.35)]
+    : [
+        [0, 0.14, 0, 0.78, 0.88, 0.72], [-0.5, -0.12, -0.25, 0.58, 0.62, 0.55], [0.5, -0.16, 0.24, 0.62, 0.58, 0.58],
+        [-0.08, -0.1, 0.56, 0.55, 0.58, 0.5], [0.14, -0.12, -0.58, 0.52, 0.55, 0.48], [-0.25, 0.35, 0.2, 0.5, 0.58, 0.48], [0.3, 0.28, -0.18, 0.48, 0.55, 0.5],
+      ].map(([x, y, z, sx, sy, sz]) => new OctahedronGeometry(1, 0).scale(sx!, sy!, sz!).translate(x!, y!, z!))
+  const crowns = mergeGeometries(crownParts)!
+  for (const part of crownParts) part.dispose()
+  crowns.computeVertexNormals()
+
+  const barkParts: BufferGeometry[] = [new CylinderGeometry(0.4, 0.65, 1, 5)]
+  for (const [from, to, base, tip] of [
+    [[0, 0.58, 0], [-0.42, 0.84, -0.22], 0.16, 0.07],
+    [[0, 0.63, 0], [0.46, 0.9, 0.2], 0.15, 0.06],
+    [[0, 0.68, 0], [-0.12, 0.98, 0.42], 0.13, 0.05],
+    [[0, 0.72, 0], [0.15, 1.03, -0.36], 0.12, 0.045],
+  ] as const) barkParts.push(branchGeometry(new Vector3(...from), new Vector3(...to), base, tip))
+  const bark = mergeGeometries(barkParts)!
+  for (const part of barkParts) part.dispose()
+  bark.computeVertexNormals()
+  return { crowns, bark }
+}
 
 /**
  * Cell offsets from the eye's cell that can still show a tree: those whose
@@ -127,7 +166,12 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = []): {
+export function createVegetation(
+  field: TerrainField,
+  airfields: readonly Airfield[],
+  huts: readonly HutFootprint[] = [],
+  options: { readonly textures?: SceneryTextures | null; readonly legacyCrowns?: boolean } = {},
+): {
   object: Group
   update(x: number, z: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -142,7 +186,25 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   const object = new Group()
   object.name = 'nearby jungle'
   const leaves = new MeshStandardNodeMaterial({ color: 0xffffff, roughness: 1 })
-  const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
+  const barkMaterial = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
+  const foliageTexture = options.textures?.layers.foliage
+  if (foliageTexture) {
+    const albedo = texture(foliageTexture.albedo)
+    const sampled = triplanarTexture(albedo, albedo, albedo, float(1 / foliageTexture.tileM)).rgb
+    const ratio = sampled.div(vec3(...foliageTexture.meanLinear)).clamp(0.38, 1.7)
+    leaves.colorNode = mix(color(0xffffff), ratio, 0.82)
+    const normal = texture(foliageTexture.normal)
+    leaves.normalNode = normalMap(triplanarTexture(normal, normal, normal, float(1 / foliageTexture.tileM)).rgb, vec2(0.22))
+  }
+  const barkTexture = options.textures?.layers.bark
+  if (barkTexture) {
+    const albedo = texture(barkTexture.albedo)
+    const sampled = triplanarTexture(albedo, albedo, albedo, float(1 / barkTexture.tileM)).rgb
+    const ratio = sampled.div(vec3(...barkTexture.meanLinear)).clamp(0.4, 1.7)
+    barkMaterial.colorNode = ratio.mul(vec3(0.4, 0.325, 0.25))
+    const normal = texture(barkTexture.normal)
+    barkMaterial.normalNode = normalMap(triplanarTexture(normal, normal, normal, float(1 / barkTexture.tileM)).rgb, vec2(0.3))
+  }
   // positionWorld includes the scene's -eye translation: this is distance
   // from the camera, not distance from the geographic world origin.
   const fadeStart = uniform(TREE_FADE_END_M - TREE_FADE_BAND_M), fadeEnd = uniform(TREE_FADE_END_M)
@@ -158,18 +220,13 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   // "invalid due to a previous error" entries. tests/render/scenery.test.ts
   // guards it; the single-variable probe that found it is in the 13a notes.
   const threshold = hash(instanceIndex)
-  for (const material of [leaves, bark]) {
+  for (const material of [leaves, barkMaterial]) {
     material.opacityNode = fade
     material.alphaTestNode = threshold
   }
-  const lobes = [new IcosahedronGeometry(1, 0),
-    new IcosahedronGeometry(0.8, 0).translate(0.5, -0.2, 0.25),
-    new IcosahedronGeometry(0.75, 0).translate(-0.45, -0.15, -0.35)]
-  const crownGeometry = mergeGeometries(lobes)!
-  for (const lobe of lobes) lobe.dispose()
-  crownGeometry.computeVertexNormals()
-  const crowns = new InstancedMesh(crownGeometry, leaves, CAPACITY)
-  const trunks = new InstancedMesh(new CylinderGeometry(0.4, 0.65, 1, 5), bark, CAPACITY)
+  const treeGeometry = createTreeGeometry(options.legacyCrowns)
+  const crowns = new InstancedMesh(treeGeometry.crowns, leaves, CAPACITY)
+  const trunks = new InstancedMesh(treeGeometry.bark, barkMaterial, CAPACITY)
   crowns.instanceColor = new InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3)
   for (const mesh of [crowns, trunks]) {
     mesh.instanceMatrix.setUsage(DynamicDrawUsage)

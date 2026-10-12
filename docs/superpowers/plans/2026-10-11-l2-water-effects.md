@@ -1,6 +1,7 @@
 # L2 plan: breaking surf and shallow water
 
-**Status:** ready to execute on branch `l1-l2-visuals`, after the L1 commits.
+**Status:** implemented and verified on branch `l1-l2-visuals`, 2026-10-11.
+Awaiting Mark's combined L1/L2 review and merge.
 
 **Run:** unattended. Mark's checkpoint is the final combined L1/L2 result;
 collect intermediate captures without stopping.

@@ -29,6 +29,24 @@ why it decides by the bytes and not the response header. Sizes and timings:
 The release build excludes obsolete uncompressed `terrain/L<n>.bin` files that may
 remain in local or remote build caches after L1.1a; only the `.bin.gz` levels ship.
 
+## Trees and scenery materials
+
+L1's remaining visual slice replaces each tree's three overlapping foliage
+balls with seven separated low-poly clusters and adds four visible branches to
+the merged bark geometry. Placement, resident-cell caching, fade distances and
+the two instanced forest draws are unchanged. The new crown is 56 triangles,
+down from the legacy crown's 60.
+
+Foliage, bark, corrugated steel, timber and concrete use separate mipmapped
+KTX2 albedo/OpenGL-normal pairs built by `npm run textures:scenery`.
+`content/textures/scenery.json` is the checked runtime manifest; pinned CC0
+Poly Haven sources, authors and hashes are in `ASSETS.md` and
+`tools/textures/scenerySources.ts`. The runtime loader validates the
+manifest and falls back to the former procedural materials if any scenery
+texture fails. Building geometry, damage identity and material batching do not
+change. In DEV, `?sceneryTextures=off` and `?treeCrowns=legacy` provide the
+exact A/B paths.
+
 ## Curved shoreline render surface
 
 The simulation DEM and `heightAt` still define land, contact and physics.  The
@@ -45,6 +63,13 @@ file is authoritative.  `tests/tools/shorelineBuild.test.ts` rebuilds the GLB
 byte-for-byte with Blender 5.0.1.  Runtime material replacement and shared
 horizon curvature live in `src/render/scene/beaches.ts`.  In DEV only,
 `?beaches=off` provides an exact visual/performance ablation.
+
+L2 keeps that same ribbon and draw, but its `ShoreSurf` material now layers a
+shallow-water gradient, two shoreward breaker crests, broken foam and
+backwash. Animation reads simulation time and therefore freezes on Pause; it
+does not change the ocean or physics. In DEV, `?shoreFx=off` restores the
+static feathered material, and `?shoreTime=<seconds>` fixes a phase for
+deterministic captures.
 
 Design and measured result:
 [`2026-10-09-curved-beaches-design.md`](superpowers/specs/2026-10-09-curved-beaches-design.md),

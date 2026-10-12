@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { InstancedMesh, Mesh, type Object3D } from 'three'
+import { CylinderGeometry, InstancedMesh, Mesh, type Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { AIRFIELD_HUTS, createAirfield, inAirfieldClearing } from '../../src/render/scene/airfield.js'
-import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createVegetation, nearTownHut, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
+import { TREE_CELL_M, TREE_CELL_RADIUS, TREE_FADE_END_M, coverLookup, createTreeGeometry, createVegetation, nearTownHut, residentCellOffsets, treeSites } from '../../src/render/scene/vegetation.js'
 import { createTowns, type Town } from '../../src/render/scene/towns.js'
 import { createCoverNodes, createDetailTexture } from '../../src/render/terrain/surface.js'
 import { createTerrainMesh } from '../../src/render/terrain/mesh.js'
@@ -199,6 +199,19 @@ describe('scenery placement on the real Leyte field', () => {
       expect(material.alphaTestNode, 'per-instance dissolve threshold missing').not.toBeNull()
       expect(material.opacityNode, 'distance fade missing').not.toBeNull()
     }
+  })
+
+  it('uses merged 3-D foliage clusters and branches without adding tree draws', () => {
+    const geometry = createTreeGeometry()
+    const legacy = createTreeGeometry(true)
+    const triangles = (g: typeof geometry.crowns) => (g.index?.count ?? g.attributes.position!.count) / 3
+    expect(triangles(geometry.crowns)).toBe(56)
+    expect(triangles(geometry.crowns)).toBeLessThanOrEqual(triangles(legacy.crowns))
+    const legacyTrunk = new CylinderGeometry(0.4, 0.65, 1, 5)
+    expect(triangles(geometry.bark)).toBeGreaterThan(triangles(legacyTrunk))
+    const vegetation = createVegetation(field, [tacloban])
+    expect(vegetation.object.children).toHaveLength(2)
+    legacyTrunk.dispose(); geometry.crowns.dispose(); geometry.bark.dispose(); legacy.crowns.dispose(); legacy.bark.dispose()
   })
 
   it('samples the ground detail texture without anisotropic filtering', () => {

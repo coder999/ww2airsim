@@ -4,6 +4,7 @@ import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
 import type { StructureDamage } from '../../sim/weapons/structures.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector, weathered } from './buildings.js'
+import type { SceneryTextures } from './sceneryTextures.js'
 
 /** What `createAirfield` hands back (Plan 6b Task 8, fixed post-Task-8): the
  *  scene object, plus the per-structure update path -- following `ship.ts`'s
@@ -110,16 +111,16 @@ function groundPatch(field: TerrainField, x: number, z: number, width: number, l
  * base with scenery on it is Plan 13d's problem along with the building table
  * itself. Stated here rather than left silently true.
  */
-export function createAirfield(field: TerrainField, airfield: Airfield): AirfieldHandle {
+export function createAirfield(field: TerrainField, airfield: Airfield, textures?: SceneryTextures | null): AirfieldHandle {
   const root = new Group()
   root.name = `${airfield.name} airfield scenery`
   // `drawBuilding` (buildings.ts, extracted Plan 13d Task 3) needs exactly
   // these five; the apron/taxiway/windsock clutter below needs two more that
   // stay local to this file.
-  const materials = createBuildingMaterials()
+  const materials = createBuildingMaterials(textures)
   const { steel, timber, concrete, white } = materials
-  const coral = weathered(0x8e8464, 0xbdb392)
-  const canvas = weathered(0x696d4b, 0x98916a)
+  const coral = weathered(0x8e8464, 0xbdb392, textures, 'concrete')
+  const canvas = weathered(0x696d4b, 0x98916a, textures, 'timber')
   // Decorative content (the apron, huts, taxiways, stores, windsock) still
   // shares ONE airfield-wide batch, merged into as few draw calls as before.
   const shared = makeCollector()
@@ -248,6 +249,6 @@ export function createAirfield(field: TerrainField, airfield: Airfield): Airfiel
   const wy = heightAt(field, wx, wz)
   shared.box(wx, wy, wz, 0.12, 6, 0.12, white)
   const sock = new CylinderGeometry(0.4, 0.15, 2.4, 10, 1, true).rotateZ(Math.PI / 2).translate(wx + 1.1, wy + 6, wz)
-  shared.add(sock, weathered(0xb66335, 0xd98c57))
+  shared.add(sock, weathered(0xb66335, 0xd98c57, textures, 'timber'))
   return finish()
 }
