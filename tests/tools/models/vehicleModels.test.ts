@@ -31,9 +31,10 @@ const TURRETS: Readonly<Record<string, readonly string[]>> = { 'm4-sherman': ['T
 
 /** Each vehicle's own proof that its nose is at +x; a model turned 180° fails it. */
 const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail: string }>> = {
+  // The 75 mm muzzle is drawn 2.68 m forward of mid-length (FM 30-40 three-view, re-read 2026-10-11).
   'm4-sherman': (doc) => {
     const b = getBounds(findNode(doc, 'Gun1'))
-    return { ok: b.max[0] > 2.7, detail: `Gun1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
+    return { ok: b.max[0] > 2.4, detail: `Gun1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
   },
   'type95-kurogane': (doc) => {
     const b = getBounds(findNode(doc, 'KuroganeNose'))

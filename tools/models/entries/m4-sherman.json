@@ -4,13 +4,13 @@
   "source": {
     "kind": "blender",
     "script": "tools/models/blender/m4-sherman.py",
-    "dimensions": "M4 length 19 ft 4 in (5.8938 m), width 8 ft 7 in (2.6162 m), height 9 ft (2.7432 m), track centers 83 in and ground clearance 17.5 in: U.S. Army Standard Ordnance Items Catalog, Volume 1 (1944), Medium Tank M4 Series, read 2026-10-11; composite-hull identity and Philippine fittings are ESTIMATES from cited wartime photographs",
+    "dimensions": "M4 length 19 ft 4 in (5.8938 m), width 8 ft 7 in (2.6162 m), height 9 ft (2.7432 m), track centers 83 in and ground clearance 17.5 in: U.S. Army Standard Ordnance Items Catalog, Volume 1 (1944), Medium Tank M4 Series, read 2026-10-11; shape measured from the public-domain FM 30-40 (1943) Medium Tank M4 three-view (Wikimedia Commons), re-read 2026-10-11; composite-hull cast front and Philippine fittings are ESTIMATES from photographs, labeled in the script",
     "license": "AGPL-3.0-or-later"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 5.8938 } },
   "keep": [
-    { "node": "Turret1", "pivot": { "point": [-0.38, 1.65, 0], "axis": "+y" } },
-    { "node": "Gun1", "pivot": { "point": [0.43, 2.07, 0], "axis": "+z" } }
+    { "node": "Turret1", "pivot": { "point": [0, 2.06, 0], "axis": "+y" } },
+    { "node": "Gun1", "pivot": { "point": [0.7, 2.31, 0], "axis": "+z" } }
   ],
   "skin": true,
   "textures": { "maxSize": 512, "format": "webp" },
