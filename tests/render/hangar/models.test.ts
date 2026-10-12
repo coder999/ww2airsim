@@ -225,7 +225,10 @@ describe("an entry's own model (R1)", () => {
     const m = await loadHangarModel(entry, async (id, stores) => { asked.push([id, stores]); return createHellcat() })
     expect(asked).toEqual([['wildcat', undefined]])
     expect(new Box3().setFromObject(m!.root).min.y).toBeCloseTo(0, 6)
-    expect(m!.mounts()).toEqual([])
+    expect(m!.mounts().map((p) => p.id)).toEqual([
+      ...(hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores!.racks.map((r) => r.id) : []),
+      ...(hellcat.subject!.kind === 'aircraft' ? hellcat.subject.spec.stores!.rails.map((r) => r.id) : []),
+    ])
     expect(m!.parts.find((p) => p.id === 'prop')!.modeled).toBe(true)
   })
 

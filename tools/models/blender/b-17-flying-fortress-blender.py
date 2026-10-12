@@ -298,10 +298,11 @@ tan_sw = math.tan(math.radians(SWEEP_DEG))
 tan_di = math.tan(math.radians(DIHEDRAL_DEG))
 qc_z = 0.30 * SPAN / 2
 qc_chord = root_chord + (tip_chord - root_chord) * qc_z / (SPAN / 2)
-# The analytic 30%-semispan quarter-chord is the drawing-derived body origin.
-# A previous correction had the wrong sign and put the built wing 0.441 m aft;
-# centerPoint.test.ts measures the exported section and guards this origin.
-root_le_x = qc_z * tan_sw + 0.25 * qc_chord
+# kit.wing's measured 30%-semispan section puts its quarter-chord 0.441 m
+# forward of the analytic station because its airfoil chord bounds include the
+# authored control-surface split. The measured correction keeps that section
+# on the drawing-derived body origin (2026-10-11).
+root_le_x = qc_z * tan_sw + 0.25 * qc_chord - 0.441
 
 
 def chord_at(z):

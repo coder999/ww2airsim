@@ -15,12 +15,11 @@ const STATION: Readonly<Record<string, number>> = { 'f4u-corsair': 0.4, 'g4m-bet
 /** Per-model tolerance where the default cannot hold. The B-29's wing is swept, so the quarter-chord reads 0.17 m aft of the drawn origin at the root (station 0.1) and 0.32 m at z 4 (measured 2026-09-29, B-29 onboarding). Its drawn main wheels stand at the root quarter-chord and the schema needs a tricycle's mainX below zero, so moving the origin to satisfy 0.15 m would put the mains ahead of the origin; the drawing is left as committed (Mark, D4) and held to 0.20 m. */
 const TOLERANCE_BY_MODEL: Readonly<Record<string, number>> = { 'b-29-superfortress': 0.2 }
 /** The P-38's stations 0.1 to 0.5 (z 0.8 to 4.0 m) all cross the propeller discs, the booms or the tail, which read a leading edge near x 3.4; station 0.6 (z 4.75 m) is the clean outer wing (measured 2026-09-29, P-38L onboarding). */
-/** The wing slice's trailing-edge clip, metres; the default (-2, WING_MIN_X_M) truncates the B-17's 4.9 m chord and reads
- *  a quarter-chord 0.35 m too far aft. Found and measured 2026-09-29 (B-17G onboarding): with -6 the drawn model reads 0.001 m
- *  after its entry's origin was moved 0.354 m forward. */
+/** The promoted B-17 uses the normal clip: its authored control-surface split makes the old download's -6 m override
+ * read a different chord. blenderDuplicates.test.ts holds the same normal-clip section to the drawing origin. */
 /** The G4M's default 0.3 station (z 3.7 m) cuts through the engine nacelle (quarter-chord 1.9 to 2.1 m); the clean wing at z 2.5 m (station 0.2) with minX -6 reads 0.000 m. Measured 2026-09-29 (G4M1 onboarding). */
 /** The Ki-21's stations 0.05, 0.2, 0.3 and 0.4 (z 0.6, 2.25, 3.4 and 4.5 m) cross the fuselage, nacelles or propeller discs and read a quarter-chord 1.7 to 3.7 m forward; stations 0.1, 0.15 and 0.5 to 0.9 are clean wing. Station 0.5 with minX -6 reads 0.000 m (the default -2 clip reads 0.094 m). Measured 2026-09-30 (Ki-21-IIb onboarding). */
-const MIN_X: Readonly<Record<string, number>> = { 'b-17-flying-fortress': -6, 'g4m-betty': -6, 'b-29-superfortress': -6, 'ki-21-sally': -6 }
+const MIN_X: Readonly<Record<string, number>> = { 'g4m-betty': -6, 'b-29-superfortress': -6, 'ki-21-sally': -6 }
 const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.replace(/\.json$/, '')))
 
 describe('every drawn model is centered on its quarter-chord', () => {
