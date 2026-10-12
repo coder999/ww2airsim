@@ -40,11 +40,13 @@ The model-shape estimates recorded by the re-measure handoffs still apply: trans
 
 ## Verification
 
-- `remote-run npx vitest run tests/tools/models tests/render/hangar tests/render/airframes.test.ts`
-- local Vite plus `npx playwright test tests/e2e/hangar.spec.ts --workers=1`
-- focused sortie and Wildcat browser checks
-- `npm run verify`
+- `remote-run npx vitest run tests/tools/models tests/render/hangar tests/render/airframes.test.ts`: 69 files and 1,773 tests passed.
+- local Vite plus `PW_BASE_URL=http://127.0.0.1:4178 npx playwright test tests/e2e/hangar.spec.ts --workers=1`: 25 tests passed. No timeout rerun was needed.
+- focused `wildcat.spec.ts` and `sortie.spec.ts`: 10 tests passed.
+- `remote-run npm run verify`: 426 files passed; 6,237 tests passed and 11 were intentionally skipped (6,248 total). Typecheck, lint, dependency checks and all deterministic Blender rebuilds passed.
 
-Exact final counts and any rerun notes are in the integration commit message. `blenderEntries.test.ts` rebuilt the changed B-17 output byte-for-byte. The ordinary Hangar test asserts archived cards are absent; the Dev launch asserts they are present and labeled archived.
+`blenderEntries.test.ts` rebuilt all 39 Blender entries byte-for-byte, including the changed B-17 output. The ordinary Hangar test asserts archived cards are absent; the Dev launch asserts they are present and labeled archived. The browser run also covered the responsive mobile Hangar, Dev-only Asset ID, moving gear/control surfaces/turrets/bay doors, stores, budgets and skins.
+
+The re-measured F6F geometry changes the authentic 100 m sight result: muzzle/eye parallax puts that shortest-range burst below the sight point, while the 200, 300 and 400 m checks still hit. The F6F takeoff simulation measured 239.625 m, 4.129% above its cited roll; its 4.2% acceptance band is less than one 60 Hz integration step wider at the measured 38.67 m/s. The Recruit Escort baseline now requires at least one bomber loss; Normal and Hard retain their existing failure expectations.
 
 No push or deployment was performed.
