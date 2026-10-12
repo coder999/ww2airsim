@@ -195,8 +195,11 @@ B-17): it still drops bombs, but it cannot fire or be hit.
 flyable id to one of four procedural cockpit families (American fighter,
 American bomber, Japanese fighter, Japanese bomber); a new id must be enrolled
 explicitly. Gear, hook, bay, reflector sight and one/two/four-needle RPM cells
-come from the aircraft's actual capabilities. Recommend a sourced eye point
-and the nearest family; a modeled cockpit per airframe remains deferred.
+come from the aircraft's actual capabilities. A spec with `bayDoors` receives
+the configuration bank's `BAY` annunciator: dark while shut, amber during
+travel and green only when fully open. A spec without doors receives no bay
+cell. Recommend a sourced eye point and the nearest family; a modeled cockpit
+per airframe remains deferred.
 
 ### D13. AI behavior
 

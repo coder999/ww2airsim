@@ -23,6 +23,12 @@ derived from the actual airframe capability, and the reflector sight appears onl
 enrolled aircraft with pilot-fired forward guns. The common radar remains visually separate as the
 same clip-on game aid used before C3.
 
+For a bay-equipped aircraft the status zone gains a `BAY` lamp beside the other configuration
+annunciators: dark means shut, amber means the doors are travelling and green means fully open. The
+cell is absent rather than blank on aircraft without modeled doors. On the Avenger, the four compact
+`GEAR / FLAP / HOOK / BAY` lamps align with the four armament cells beneath them; Mark approved the
+actual 2560×1440 Flattop Hunt cockpit rendering on 2026-10-12.
+
 Fighter and bomber families have different coaming crowns and proportions; American and Japanese
 families have distinct, texture-backed fascia materials, fasteners, wear, service markings and
 insignia. The approved art is the fixed dashboard while the live indicators remain deterministic
@@ -87,13 +93,19 @@ or four-bezel arrangement described above.
 - `panel.test.ts`, `panelLayout.test.ts` and `cockpitFeedback.test.ts` replace the retired universal
   panel's three-dial, generic-band and procedural-bezel assumptions with the shipped five-instrument
   layout, visible-layer bounds, integrated configuration/armament bank, literal fascia-aperture
-  registration and the final one-pixel multi-engine horizon offset.
+  registration and the final one-pixel multi-engine horizon offset. The later Avenger regression
+  pins four visible, separately positioned configuration lamps, the conditional absence of `BAY` on
+  an aircraft without doors, and the shut/transit/open colors on the Avenger itself.
 - `gauges.test.ts` and `gaugeSamples.ts` enroll RPM and the Japanese metric profile. Schema, damage
   and `engineRpm.test.ts` cover engine count/ranges, independent damage output, deterministic lag,
   cutout wind-down and the display-only boundary.
 - `cockpitFamiliesCapture.spec.ts` is an opt-in visual capture tool, not a screenshot oracle. It
   launches every flyable aircraft on the reference GPU, asserts clean WebGPU/console output and
   produces the four representative frames plus the fourteen-aircraft contact sheet above.
+- `scenarioPicker.spec.ts` now changes from the boot Hellcat to Flattop Hunt in place, waits for the
+  Avenger entity rebuild, holds `C` across render frames, and asserts both cockpit mode and the live
+  `american-bomber` panel family. This covers the post-merge regression in which the camera moved to
+  the Avenger pilot position while the boot cockpit object was never rebuilt.
 
 ### Tests still valid
 
@@ -104,7 +116,9 @@ or four-bezel arrangement described above.
   presentation only; the simulation controls and transition state are unchanged.
 - The chase-view flight-data assertions, including the compact `THR` label, remain intentionally
   valid because slip and RPM are cockpit-only and C3 does not change that strip.
-- No `window.__ww2` diagnostic field, camera route or player control changed.
+- Existing camera routes and player controls remain valid. The post-merge scenario-switch fix adds
+  the read-only `window.__ww2.cockpitLayout()` diagnostic solely so E2E can prove which production
+  panel family is live without using screenshot pixels as a correctness oracle.
 
 ### Known gaps
 
@@ -131,6 +145,16 @@ or four-bezel arrangement described above.
   with 11 skipped. The two independent baseline assertions seen during the preliminary branch run
   had already been corrected on current `main`; no expectation was hidden, skipped or weakened for
   this merge.
+
+### Post-delivery verification (2026-10-12)
+
+- The in-page aircraft-switch repair is `41e75864`; the Avenger-specific BAY coverage and robust
+  frame-held cockpit input are `28c7a409`.
+- The full deterministic gate after the switch repair passed typecheck, lint, dependency analysis
+  and 433/433 Vitest files: 6,283 passed, 11 skipped.
+- The focused panel suite after the Avenger assertions passes 57/57. The focused Flattop Hunt
+  scenario-switch E2E passes 1/1 against `https://ww2airsim.windomlane.org/`, with the production
+  `american-bomber` layout live and no WebGPU validation errors.
 
 ## Delivery and remaining boundaries
 

@@ -116,8 +116,10 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   American bomber, Japanese fighter and Japanese bomber. Enrollment is explicit and tested, so a
   new aircraft cannot silently inherit a cockpit.
 - Each family keeps the same instrument zones while aircraft capability swaps reserved cells:
-  retractable gear, arrestor hook, bomb bay and pilot-fired forward-gun sight. The common radar
-  remains a visibly separate game aid.
+  retractable gear, arrestor hook, bomb bay and pilot-fired forward-gun sight. A bay-equipped
+  aircraft gets a compact `BAY` annunciator in the configuration bank (dark shut, amber in transit,
+  green fully open); an aircraft without doors gets no empty bay cell. The common radar remains a
+  visibly separate game aid.
 - American faces use imperial units. Japanese faces use metric units and bundled Japanese labels.
   RPM is deterministic indicated state with a short lag and one/two/four needles following actual
   engine-output channels; it has no path back into flight physics. The P-38 repeats its aggregate
