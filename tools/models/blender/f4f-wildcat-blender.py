@@ -154,8 +154,8 @@ RUDDER_HINGE = ((0.22, 8.10), (1.75, 8.10))
 PROP = dict(hub=0.40, chord=0.21, spinner_r=0.12, spinner_len=0.533)  # m; the hub cap tip is d = 0
 # x, z, wheel in m; the stance is FITTED (header): the wheel bottom lands on gear.heightM below the origin. The leg
 # hangs from a hinge just inside the fuselage side and slants out to the axle.
-GEAR = dict(x=0.413, hinge_y=-0.55, hinge_z=0.52, z=0.80, bottom=2.3952, wheel_r=0.33, wheel_w=0.20, strut_r=0.06)
-TAILWHEEL = dict(x=-4.627, y=-0.25, bottom=1.293, wheel_r=0.13, wheel_w=0.07)
+GEAR = dict(x=0.413, hinge_y=-0.55, hinge_z=0.52, z=0.80, bottom=1.750, wheel_r=0.33, wheel_w=0.20, strut_r=0.06)
+TAILWHEEL = dict(x=-4.817, y=-0.25, bottom=0.733, wheel_r=0.13, wheel_w=0.07)
 GUN_Z = (2.01, 2.21, 3.10)
 
 SEGMENTS = 96

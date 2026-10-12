@@ -64,7 +64,6 @@ test(`first visit at Asset Quality ${TIER}: bytes, time to ready, memory`, async
   await page.waitForTimeout(6000)
   const heapBytes = await page.evaluate(() => (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? -1)
   const gpu = playwrightGpuProcesses().filter((p) => p.startMs >= startMs - 5000)
-  await page.keyboard.press('Slash')
   await page.waitForTimeout(600)
   await page.screenshot({ path: `${OUT}/${TIER}.png` })
   const errors = await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)

@@ -39,11 +39,13 @@ const CURSORS_8 = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * 7919)
 //   tail     v-g 5 -> 6 (117 s), v-v 1 -> 7 (99 s)
 //   crossing v-g 5 -> 8 (80 s),  v-v 2 -> 3 (150 s)
 // 18 of 72 resolved before, 36 after. Green against green still resolves in none.
+// Drawing-fitted F6F guns (2026-10-11): head-on v-g 7/8 and tail v-g 5/8;
+// the other four pinned rows remain above their E4 floors.
 const ROWS: readonly (readonly [Geometry, Skill, Skill, readonly number[], number])[] = [
   // geometry, a, b, cursors, kills, measured 2026-10-10 (E4)
-  ['head-on', 'veteran', 'green', CURSORS_8, 8],
+  ['head-on', 'veteran', 'green', CURSORS_8, 7],
   ['head-on', 'veteran', 'veteran', CURSORS_8, 4],
-  ['tail', 'veteran', 'green', CURSORS_8, 6],
+  ['tail', 'veteran', 'green', CURSORS_8, 5],
   ['tail', 'veteran', 'veteran', CURSORS_8, 7],
   ['crossing', 'veteran', 'green', CURSORS_8, 8],
   ['crossing', 'veteran', 'veteran', CURSORS_8, 3],

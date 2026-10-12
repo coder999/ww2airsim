@@ -200,8 +200,8 @@ NACELLE_SHIFT = 0.61
 NACELLE = [(x + NACELLE_SHIFT, r) for x, r in
            [(-1.65, 0.23), (-0.90, 0.62), (0.20, 0.78), (1.55, 0.80), (2.35, 0.72), (2.73, 0.56), (2.78, 0.40)]]
 PROP_X = (2.88 + NACELLE_SHIFT, 2.42 + NACELLE_SHIFT)
-GEAR = dict(x=0.852, z=3.03, hinge_y=-0.42, length=2.128, wheel_r=0.55, wheel_w=0.32)
-TAILWHEEL = dict(x=-10.623, hinge_y=-0.45, length=0.647, wheel_r=0.18, wheel_w=0.14)
+GEAR = dict(x=0.480, z=3.03, hinge_y=-0.40, length=1.890, wheel_r=0.52, wheel_w=0.32)
+TAILWHEEL = dict(x=-10.300, hinge_y=-0.45, length=0.810, wheel_r=0.18, wheel_w=0.14)
 BAYS = [(-2.55, 0.75, 0.48)]
 
 SEGMENTS = 96
@@ -394,7 +394,7 @@ with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         m.gear_leg('dark', (g['x'], g['hinge_y'], side * g['z']), g['length'], g['wheel_r'], g['wheel_w'], node=name)
         m.box('dark', (g['x'] - 0.25, g['hinge_y'] - 0.75, side * (g['z'] - 0.22)),
-              (0.45, 1.30, 0.035), node=name)
+              (0.45, 0.75, 0.035), node=name)
     tw = TAILWHEEL
     m.gear_leg('dark', (tw['x'], tw['hinge_y'], 0.0), tw['length'], tw['wheel_r'], tw['wheel_w'], node='Tailwheel')
 

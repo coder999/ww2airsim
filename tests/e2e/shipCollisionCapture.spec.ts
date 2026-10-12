@@ -26,7 +26,6 @@ for (const god of [false, true]) {
       scenario: 'range-test', launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', cloudTier: 'off', oceanTier: 'high', ...(god ? { god: '1' } : {}),
     }))
     await waitForTerrain(page)
-    await page.keyboard.press('Slash')
     const read = () => page.evaluate((id) => {
       const w = (window as DiagWindow).__ww2!
       const me = w.aircraft().find((a) => a.id === 'player-1')!

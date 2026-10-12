@@ -88,8 +88,8 @@ test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and re
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
   await waitForScenario(page, 'free-flight')
-  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('a6m2-zero')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['a6m2-zero', 'a6m2-zero'])
+  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('a6m2-zero-blender')
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['a6m2-zero-blender', 'a6m2-zero-blender'])
   await expect.poll(() => combat(page).then((c) => c.player.stores.bombs), { timeout: 10_000 }).toBe(2)
   await page.screenshot({ path: `${SHOTS}/sortie-dev-zero-bombs.png` })
   await page.keyboard.press('KeyV')
@@ -116,23 +116,23 @@ test('the player is drawn as the chosen aircraft, and an aircraft-only change re
   const title = await newPilot(page, 'Model Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))
   await startGame(page)
   await expect(title).toBeHidden()
-  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat')
+  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat-blender')
   // Free Flight's second airframe is its parked axis Zero (6ce00eb, 2026-09-28).
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'a6m2-zero'])
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat-blender', 'a6m2-zero-blender'])
   await page.screenshot({ path: `${SHOTS}/sortie-default-hellcat.png` })
 
   // Return to title the debrief's way: dive in, then "Return to title".
   await diveToSea(page)
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
   await startGame(page, { aircraft: 'Wildcat' })
-  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('wildcat')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['wildcat', 'a6m2-zero'])
+  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f4f-wildcat-blender')
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f4f-wildcat-blender', 'a6m2-zero-blender'])
 
   await diveToSea(page)
   await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
   await startGame(page, { aircraft: 'Hellcat' })
-  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat')
-  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat', 'a6m2-zero'])
+  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat-blender')
+  await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat-blender', 'a6m2-zero-blender'])
 })
 
 test('a quick launch flies without the title, and its debrief says the sortie was not recorded', async ({ page }) => {
@@ -141,7 +141,7 @@ test('a quick launch flies without the title, and its debrief says the sortie wa
   // Air Combat starts airborne, so `diveToSea` can end it (it only pushes the nose down).
   await quickLaunch(page, { scenario: 'pursuit-range', aircraft: 'f4f-wildcat', loadout: 'clean' })
   await expect(titleOf(page)).toBeHidden()
-  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('wildcat')
+  await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f4f-wildcat-blender')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 60_000 })
   await diveToSea(page)
   await expect(debriefDialog(page)).toContainText('Dev sortie: not recorded')

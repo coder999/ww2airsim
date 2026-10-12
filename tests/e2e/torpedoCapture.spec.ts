@@ -32,7 +32,6 @@ async function attack(page: Page, id: string, start: { x: number; y: number; z: 
   await page.goto(`${spawnUrl(start)}&${SCENARIO_PARAM}=convoy-strike&launch&aircraft=${id}&loadout=bombs`)
   await waitForTerrain(page)
   await tap(page, 'KeyI')
-  await tap(page, 'Slash')
   const m0 = await maru(page)
   const hp0 = m0.hp
   console.log(`${id}: maru-1 at ${m0.x.toFixed(0)}, ${m0.z.toFixed(0)}; airplane at ${JSON.stringify(await flight(page))}`)
@@ -97,7 +96,6 @@ async function flood(page: Page, target: string, tag: string): Promise<void> {
   // The ship steams north at 4.1 m/s: lead it by the 32 s from spawn to hit (7 s of flight, 3 s falling, 22 s running).
   await page.goto(`${spawnUrl({ x: s0.x - 1500, y: 60, z: s0.z - 4.1 * 32 })}&${SCENARIO_PARAM}=convoy-strike&launch&aircraft=tbm-3-avenger&loadout=bombs`)
   await waitForTerrain(page)
-  await tap(page, 'Slash')
   await tap(page, 'KeyO')
   const hp0 = (await ship(page, target)).hp
   await expect.poll(async () => {

@@ -138,12 +138,12 @@ FIN_TE = [(0.05, 10.00), (0.29, 9.99), (0.71, 9.977), (0.99, 9.969), (1.20, 9.95
 FIN_THICKNESS = [(0.05, 0.13), (1.50, 0.12), (1.80, 0.08), (1.90, 0.05), (1.951, 0.03)]
 RUDDER_HINGE = ((0.31, 9.351), (1.62, 9.36))
 PROP = dict(hub=0.28, chord=0.25, spinner_r=0.18, spinner_len=0.28)  # meters; spinner tip is d=0
-GEAR = dict(x=0.257, z=1.62, bottom=1.850, wheel_r=0.39, wheel_w=0.20)
-TAILWHEEL = dict(x=-6.577, y=-0.10, bottom=0.457, wheel_r=0.12, wheel_w=0.07)
+GEAR = dict(x=0.430, z=1.62, bottom=2.110, wheel_r=0.39, wheel_w=0.20)
+TAILWHEEL = dict(x=-6.790, y=-0.10, bottom=0.500, wheel_r=0.12, wheel_w=0.07)
 REAR_GUN = dict(x=-2.10, y=0.86, length=0.75)
 # Spat side outline (drawing, raised SPAT_RAISE so the tire meets the spec stance): (x, half-width,
 # half-height, center y); the drawing's tire bottom is 0.26 m below the spec's.
-SPAT_RAISE = 0.26
+SPAT_RAISE = 0.0
 SPAT = [(-0.61, 0.02, 0.03, -1.50), (-0.45, 0.08, 0.145, -1.515), (-0.20, 0.14, 0.245, -1.515),
         (0.05, 0.19, 0.335, -1.505), (0.35, 0.21, 0.385, -1.485), (0.60, 0.21, 0.385, -1.495),
         (0.75, 0.19, 0.34, -1.51), (0.89, 0.15, 0.255, -1.525), (0.95, 0.10, 0.17, -1.53), (1.01, 0.02, 0.04, -1.52)]

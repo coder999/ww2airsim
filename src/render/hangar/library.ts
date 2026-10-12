@@ -41,6 +41,8 @@ export const LibraryEntrySchema = z.object({
   /** True only for a Hangar comparison model that borrows a sim spec for dimensions and articulation.
    *  It remains display-only: it is not a second gameplay roster entry. */
   displayOnly: z.literal(true).optional(),
+  /** A retired asset kept for comparison. Archived entries are exposed only when the Hangar's Dev mode is enabled. */
+  status: z.literal('archived').optional(),
   /** One or two sentences: what it is in this game. Never a gameplay number (§4.2). */
   blurb: z.string().min(1),
   /** One to three short paragraphs, separated by a blank line: the real thing. */
@@ -56,6 +58,7 @@ export const LibraryEntrySchema = z.object({
   if (n < 1 || n > 3) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['history'], message: `must be 1 to 3 paragraphs, found ${n}` })
   if (e.model !== undefined && e.model.kind !== e.kind) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['model', 'kind'], message: `must be the entry's own kind "${e.kind}"` })
   if (e.displayOnly && (e.spec === undefined || e.model === undefined)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['displayOnly'], message: 'requires both a spec and an own model' })
+  if (e.status === 'archived' && e.displayOnly !== true) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['status'], message: 'archived entries must be display-only' })
   if (e.kind === 'vehicle' && e.spec !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['spec'], message: 'no vehicle is in the sim: a vehicle entry takes no spec' })
 })
 

@@ -15,9 +15,9 @@
   },
   "keep": [
     { "node": "Prop", "pivot": { "point": [1.97, 0, 0], "axis": "+x" } },
-    { "node": "GearL", "pivot": { "point": [0.182, -0.4062, -1.74], "axis": "+x" } },
-    { "node": "GearR", "pivot": { "point": [0.182, -0.4062, 1.74], "axis": "+x" } },
-    { "node": "Tailwheel", "pivot": { "point": [-6.532, -0.08, 0], "axis": "+z" } },
+    { "node": "GearL", "pivot": { "point": [0.42, -0.4062, -1.74], "axis": "+x" } },
+    { "node": "GearR", "pivot": { "point": [0.42, -0.4062, 1.74], "axis": "+x" } },
+    { "node": "Tailwheel", "pivot": { "point": [-6.19, -0.08, 0], "axis": "+z" } },
     { "node": "AileronL" },
     { "node": "AileronR" },
     { "node": "Flap1L" },

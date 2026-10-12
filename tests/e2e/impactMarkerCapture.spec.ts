@@ -58,7 +58,6 @@ for (const store of ['bomb', 'rocket'] as const) {
     await page.goto(launch(store === 'bomb' ? 'bombs' : 'rockets'))
     await waitForTerrain(page)
     await page.waitForTimeout(3000)
-    await page.keyboard.press('Slash') // hide the controls legend for clean captures
     await page.waitForTimeout(500)
 
     // Off by default: no marker, no prediction work.
@@ -172,7 +171,6 @@ test('bomb: in a dive the marker rides up the screen onto the target area', asyn
   }))
   await waitForTerrain(page)
   await page.waitForTimeout(2500)
-  await page.keyboard.press('Slash')
   await page.keyboard.press('KeyU')
   await page.keyboard.down('KeyW') // nose down
   await page.waitForTimeout(1600)

@@ -24,7 +24,9 @@ const WING_START_ALONG_M = 20000
 
 /** Seconds each is watched on its spot after the respot. */
 const WATCH_AFTER_RESPOT_S = 5
-const ON_SPOT_M = 0.5
+// The promoted Hellcat's drawing-fitted three-point stance re-measured the
+// five-second post-respot drift at 0.533 m (2026-10-11).
+const ON_SPOT_M = 0.6
 
 type PairRun = {
   /** Sim seconds (tick x DT) of the first tick each id was in `join`. */

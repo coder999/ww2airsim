@@ -80,7 +80,7 @@ describe('the title screen model (2026-09-19)', () => {
     expect(text).toContain('Leyte')
     expect(text).toContain('Hellcats Over the Pacific')
     expect(text).toContain('working title')
-    // The same credits line the controls panel shows -- one copy, legend.ts.
+    // The same catalog the About memo renders as links -- one copy, legend.ts.
     expect(m.credits).toBe(creditsLine())
     expect(m.licence).toContain('AGPL-3.0-or-later')
     expect(m.repository).toBe('https://github.com/coder999/ww2airsim')
@@ -92,7 +92,7 @@ describe('the title screen model (2026-09-19)', () => {
 
 describe('the title screen loadout picker (Plan 6b Task 9, spec §1)', () => {
   // `createTitleScreen`'s DOM wiring is deliberately untested here, same as
-  // `createLegend`/`createCombatReadout`: the vitest environment is `node`
+  // `createCombatReadout`: the vitest environment is `node`
   // (no `document`, and neither `jsdom` nor `happy-dom` is a dependency), so
   // this pins the pure pieces the radio row is built from -- the same split
   // this file's own top comment describes ("a pure model the Node suite

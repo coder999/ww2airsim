@@ -52,5 +52,5 @@ test('the Wildcat parks on its three wheels with no validation errors', async ({
     .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.supportedContact()), { timeout: 20_000 })
     .toBe(true)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.playerModel())).toBe('wildcat')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.playerModel())).toBe('f4f-wildcat-blender')
 })

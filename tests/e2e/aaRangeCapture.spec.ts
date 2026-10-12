@@ -41,7 +41,6 @@ for (const [name, at, waitMs] of [
     await page.goto(launch('aa-range', at))
     await waitForTerrain(page)
     await page.waitForTimeout(waitMs)
-    await page.keyboard.press('Slash')
     await page.waitForTimeout(400)
     // At 6,000 ft the flak scatters wide while the guns range in, so a puff is in the picture only some of the time: keep a short series.
     if (name === 'high-6000ft') {
@@ -64,7 +63,6 @@ test('aa-range: the battery at Tacloban shoots too', async ({ page }) => {
   await page.goto(launch('aa-range', { x: BASE.x - 1700, y: 100, z: BASE.z + 30 }, {}))
   await waitForTerrain(page)
   await page.waitForTimeout(5000)
-  await page.keyboard.press('Slash')
   await page.waitForTimeout(400)
   const state = await aa(page)
   expect(state.rounds + state.pendingBursts + state.burstsRecent + state.firing).toBeGreaterThan(0)
@@ -78,7 +76,6 @@ test('range-test: every armed warship shoots the player over the anchorage', asy
   await page.goto(launch('range-test', { x: BASE.x + 1800, y: 100, z: BASE.z - 600 }))
   await waitForTerrain(page)
   await page.waitForTimeout(6000)
-  await page.keyboard.press('Slash')
   await page.waitForTimeout(400)
   const state = await aa(page)
   expect(state.rounds, 'tracers fly').toBeGreaterThan(20)
@@ -98,7 +95,6 @@ test('aa-range: a hit and the damage stages, on the airplane that is hit (no God
       const c = await page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
       if (c.player.structure < best) best = c.player.structure
       if (c.player.structure < 0.9) {
-        await page.keyboard.press('Slash')
         await page.screenshot({ path: `${OUT}/aa-hit.png` })
         await page.waitForTimeout(4000)
         await page.screenshot({ path: `${OUT}/aa-after.png` })
