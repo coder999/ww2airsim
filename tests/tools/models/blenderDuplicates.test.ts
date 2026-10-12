@@ -31,7 +31,7 @@ const DUPLICATES: readonly {
     // ESTIMATE checked against the Commons drawing's front view and NACA EL-2000-00243, 2026-10-11.
     canopyRoof: { x: -0.88, minY: 1.45, halfWidth: [0.30, 0.37] },
   },
-  { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.63, 1.02] },
+  { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.80, 1.05] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.85, 0.95] },
   { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [2.40, 1.44] },
 ]
