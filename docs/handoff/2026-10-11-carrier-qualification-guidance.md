@@ -1,6 +1,6 @@
 # Carrier Qualification guidance handoff (2026-10-11)
 
-Branch `carrier-quals-guidance`; isolated worktree `/home/mark/projects/ww2airsim-carrier-quals-guidance`. Unattended run.
+Implemented on branch `carrier-quals-guidance` in feature commit `16899e0a`, then fast-forwarded into `main` on 2026-10-11. The isolated worktree and local/remote feature branches were removed after the merge. Unattended run.
 
 ## What changed
 
