@@ -3,7 +3,7 @@ import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
 import { applyRenderScale, initRenderer, normalizeGpuError, pixelRatioFor, rendererQueue, renderScaleFromQuery } from './renderer.js'
 import { showFailure, type FailureKind } from './failure.js'
-import { buildScenarioEntities, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
+import { buildScenarioEntities, disposeMeshTree, loadRegisteredAirframe, type ScenarioEntities } from './scenarioEntities.js'
 import { entityViews } from './mission/entityViews.js'
 import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
@@ -128,6 +128,7 @@ import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
+import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
@@ -304,6 +305,10 @@ async function boot(): Promise<void> {
   // see the latest value.
   let radarSweepRad = 0
   let radarContactList: readonly RadarContact[] = []
+  // The cockpit is built later, after the first scenario load. Keeping this
+  // small value here lets the early-installed DEV hook report which family
+  // is actually live, including across an in-page aircraft switch.
+  let cockpitLayout: CockpitFamily | null = null
   // The sortie the forms (or the boot default) chose -- scenario, aircraft,
   // loadout, Dev -- is `chosen`, declared at the `?scenario=` resolution
   // below, the first point its scenario is known. `buildWorld` reads it on
@@ -381,12 +386,15 @@ async function boot(): Promise<void> {
   // the engine audio belong to the OLD sortie until then, so both stay hidden.
   let swapPending = false
   let devStores: AircraftSpec['stores'] = undefined
-  // Read once, right after the FIRST `loadScenario` call below, for `spec`:
-  // every scenario flies the one shipped flight model, `f6f-hellcat` (design
-  // doc §5, `content/scenarios/*.json` spec fields, unchanged by Task 6 --
-  // only the RENDERED mesh is now the Wildcat, via `loadWildcat()`), so
-  // nothing else ever needs a later scenario's world.
+  // Updated by every successful `loadScenario` call. Renderer state that is
+  // owned by the player's aircraft is synchronized after the replacement
+  // frame is built (through `syncPlayerAircraftVisuals`, below).
   let scenarioWorld: World<undefined> | null = null
+  // Bound after the renderer has built the first cockpit. Scenario loading is
+  // intentionally hoisted above that construction, so the title's New game
+  // callback reaches this through a nullable seam rather than closing over
+  // panel objects that are still in their temporal dead zone during boot.
+  let syncPlayerAircraftVisuals: ((spec: AircraftSpec) => void) | null = null
   let spawnedAt: Vec3 | null = null
   // `airframes`/`shipHandles`/`player`, together --
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
@@ -422,15 +430,14 @@ async function boot(): Promise<void> {
   const swarmHidden = import.meta.env.DEV && swarm !== null && new URLSearchParams(window.location.search).get('swarmHide') === '1'
   /**
    * Fetches one scenario's content bundle and rebuilds everything sized to
-   * its entity lists: `scenarioWorld` (read once, below, for the player's
-   * aircraft spec), the spawn point, and `scenarioEntities` --
+   * its entity lists: `scenarioWorld`, the spawn point, and
+   * `scenarioEntities` --
    * `airframes`/`shipHandles`/`player`
    * (`buildScenarioEntities`, `scenarioEntities.ts`). Terrain, ocean and sky
    * are NOT rebuilt here (design doc §5: every scenario sits in the same
-   * Leyte Gulf tangent plane, so none of that is scenario content), and
-   * neither is the panel -- it is per-PLAYER, not per-entity-count, and
-   * every scenario flies the one shipped airframe, so it is left exactly as
-   * a loadout change already leaves it (the title's `onNewGame`, below).
+   * Leyte Gulf tangent plane, so none of that is scenario content). The title
+   * callback rebuilds the frame and then synchronizes the cockpit and other
+   * player-spec-owned renderer objects.
    *
    * Any of the five files a bundle fetches failing to load or failing
    * validation is the same fault and the same screen a missing
@@ -776,6 +783,7 @@ async function boot(): Promise<void> {
         frame = rebuilt.groundSpawn && rebuilt.world.terrain !== null
           ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
           : rebuilt
+        syncPlayerAircraftVisuals?.(playerAircraft(frame.world).spec)
         frame = withPaused(frame, false)
         // Whole-branch review C-1: `resetFlightUi` (declared below, alongside
         // the state it clears -- see its own doc comment) is a forward
@@ -1054,6 +1062,7 @@ async function boot(): Promise<void> {
       validationErrors,
       tick: () => frame?.world.tick ?? 0,
       cameraMode: () => frame?.cameraMode ?? 'chase',
+      cockpitLayout: () => cockpitLayout,
       timeScale: () => frame?.timeScale ?? 1,
       gearFraction: () => (frame ? playerAircraft(frame.world).state.gearFraction : 0),
       controls: () => frame?.controls ?? NEUTRAL,
@@ -1382,14 +1391,10 @@ async function boot(): Promise<void> {
     import.meta.env.DEV ? beaufortFromQuery(window.location.search) : undefined,
   )
 
-  // The player's own airplane, for the panel, the gauges and the flight-data
-  // overlay. One aircraft spec is all any of those take; the wingman's is the
-  // same record anyway (both are `f6f-hellcat` -- the flight-model spec,
-  // unchanged by Task 6; the rendered mesh for both is the Wildcat). Read
-  // once, from the FIRST scenario's world -- see `scenarioWorld`'s own
-  // comment above for why a later `loadScenario` call never needs to touch
-  // this.
-  const spec = playerAircraft(scenarioWorld!).spec
+  // The player's airplane spec drives the panel, gauges, pipper and flight
+  // data. It starts from the boot scenario and changes when the title loads a
+  // scenario whose player uses another airframe.
+  let spec = playerAircraft(scenarioWorld!).spec
 
   // Plan 16b: the shadow map's lookup node is baked into the terrain's and
   // the ocean's materials, so the cloud field and the map exist before them.
@@ -1761,15 +1766,42 @@ async function boot(): Promise<void> {
   // they move differently -- both are posed from the
   // same `frame.render` pose each frame.
   await ensureCockpitTextFont()
-  const panel = createPanel(spec)
+  let panel = createPanel(spec)
   resizePanel(panel, window.innerWidth / window.innerHeight)
-  const radarScope = createRadarScope()
+  let radarScope = createRadarScope()
   radarScope.attachTo(panel.radar.face)
   const cockpit = new Group()
   cockpit.add(panel.root)
   scene.add(cockpit)
-  const gunPipper = createGunPipper(spec) // chase-view aiming reference (scene/gunPipper.ts)
+  let gunPipper = createGunPipper(spec) // chase-view aiming reference (scene/gunPipper.ts)
   if (gunPipper) scene.add(gunPipper.root)
+  cockpitLayout = panel.config.layout.id
+  syncPlayerAircraftVisuals = (nextSpec): void => {
+    if (nextSpec.id === spec.id) return
+    spec = nextSpec
+
+    // The title swaps scenarios and aircraft without reloading the page. C3's
+    // panel used to be built only once from the boot Free Flight Hellcat, so
+    // selecting Flattop Hunt moved the camera to the Avenger pilot's eye but
+    // left no panel there. Replace every player-spec-owned scene object as one
+    // operation; the terrain, weather and scenario entities remain in place.
+    cockpit.remove(panel.root)
+    disposeMeshTree(panel.root)
+    radarScope.dispose()
+    panel = createPanel(spec)
+    resizePanel(panel, window.innerWidth / window.innerHeight)
+    radarScope = createRadarScope()
+    radarScope.attachTo(panel.radar.face)
+    cockpit.add(panel.root)
+    cockpitLayout = panel.config.layout.id
+
+    if (gunPipper) {
+      scene.remove(gunPipper.root)
+      disposeMeshTree(gunPipper.root)
+    }
+    gunPipper = createGunPipper(spec)
+    if (gunPipper) scene.add(gunPipper.root)
+  }
   const steeringArrow = createSteeringArrow() // B1: in-scene arrow and destination marker (scene/steeringArrow.ts)
   scene.add(steeringArrow.root)
   const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)

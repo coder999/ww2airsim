@@ -38,7 +38,7 @@ test('a direct Flattop Hunt URL boots its racks-only Avenger with a legal loadou
   await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toBeChecked()
 })
 
-test('picking a different scenario swaps entities in place, with no navigation', async ({ page }) => {
+test('picking a different scenario swaps entities and its cockpit in place, with no navigation', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   const title = page.getByRole('dialog', { name: 'Title' })
@@ -55,31 +55,42 @@ test('picking a different scenario swaps entities in place, with no navigation',
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
   await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
+  await openOrdersFor(title, 'Missions')
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
-  await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeVisible()
+  await expect(scenarioGroup.getByRole('radio', { name: 'Basic Flying' })).toBeChecked()
+  await expect(scenarioGroup.getByRole('radio', { name: 'Flattop Hunt' })).toBeVisible()
 
-  await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
+  await scenarioGroup.getByRole('radio', { name: 'Flattop Hunt' }).check()
   await launchFromOrders(title)
 
   // No reload: the title hides immediately and the URL never carries
   // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
   await expect(title).toBeHidden()
-  // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc
-  // comment (harness.ts) for why the terrain signal cannot tell "the switch
-  // landed" from "terrain arrived on its own, unrelated schedule".
-  await waitForScenario(page, 'gunnery-range')
+  // Wait for the renderer's live bundle identity via `waitForScenario`, not
+  // a `groundHeightM()` poll; the entity assertion below separately waits
+  // for the asynchronous model rebuild to finish.
+  await waitForScenario(page, 'flattop-hunt')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
   expect(page.url()).toBe(urlBefore)
 
-  // The real, different entity list gunnery-range.json carries -- not
+  // The real, different entity list flattop-hunt.json carries -- not
   // free-flight's f6f-2 wingman, and not an empty/default world relabelled.
-  const ids = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
-  expect(ids.sort()).toEqual(['f6f-1', 'target-1', 'target-2'])
+  await expect.poll(
+    () => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id).sort()),
+    { timeout: 30_000 },
+  ).toEqual(['avenger-1', 'avenger-2', 'avenger-3', 'avenger-4'])
+
+  // Regression, 2026-10-12: the panel was constructed once from Free
+  // Flight's Hellcat and never rebuilt by the in-page scenario switch. C
+  // therefore moved to the Avenger pilot position with no dashboard. Read
+  // the production panel family's live diagnostic rather than treating a
+  // screenshot as a correctness oracle (docs/testing.md, Philosophy).
+  await page.keyboard.press('KeyC')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())).toBe('cockpit')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.cockpitLayout())).toBe('american-bomber')
 
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
   await page.screenshot({ path: 'test-results/scenario-picker.png' })
