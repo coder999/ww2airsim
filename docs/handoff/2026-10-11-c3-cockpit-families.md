@@ -39,10 +39,10 @@ license, 9,724-byte size and SHA-256 are recorded in `content/fonts/NOTICE.md` a
 Every engine spec now supplies a count, idle RPM and rated RPM. `AircraftState.engineRpm` follows
 throttle through a deterministic 0.45-second exponential lag and the existing per-engine damage
 output channels. Negative-G cutout and a dead output wind a needle down. Single-engine aircraft use
-the full-size RPM face. Multi-engine aircraft replace that opening with a bolted rectangular
-instrument plate carrying one independent, numbered bezel per physical engine: two larger bezels
-side-by-side for twins and a 2×2 bank of four bezels for the B-17 and B-29. No multi-engine layout
-nests smaller gauges inside a larger gauge. The P-38 has two physical
+the full-size RPM face. Dedicated multi-engine fascia variants omit that large face and bezel
+entirely. One independent, numbered bezel per physical engine mounts directly to the surrounding
+fascia: two larger bezels side-by-side for twins and a 2×2 bank of four for the B-17 and B-29. There
+is no parent gauge and no rectangular cover plate. The P-38 has two physical
 dials even though its aggregate damage output is repeated until its content gains separate engine
 hit zones. This state is display-only: it has no path back into thrust, fuel, propeller efficiency,
 control authority or any other flight term. The production fixed step reuses one precomputed blend
@@ -72,14 +72,15 @@ first slot-based radar/horizon alignment check was self-referential and wrong. T
 measures each aperture across all four 1672×941 fascia assets and converts those literal pixel
 centres/radii into panel coordinates, with a one/two-pixel lip overscan. Fresh full-size captures
 confirm that both live faces now fill their painted openings. The final visual refinement moves the
-horizon face down exactly one source-art pixel and replaces the preliminary clustered RPM treatment
-with the independent two- or four-bezel mounting plate described above.
+horizon face down exactly one source-art pixel, with one additional pixel on the edited multi-engine
+fascia variants, and replaces the preliminary clustered RPM treatment with the direct-mounted two-
+or four-bezel arrangement described above.
 
 ## Verification
 
 - `npm run typecheck` passes after the final implementation and capture-tool changes.
-- Focused panel, layout, feedback, family enrollment and engine-RPM coverage passes 78/78 after the
-  final one-pixel horizon adjustment and independent multi-engine-bezel changes.
+- Focused panel, layout, feedback, family enrollment and engine-RPM coverage passes 79/79 after the
+  final multi-engine horizon registration and direct-mounted bezel changes.
 - Nexus's real Radeon 680M preliminary capture passed 15/15 (fourteen aircraft plus contact sheet).
 - The final, aperture-corrected and multi-engine-bezel headed Ryzen RX 6700 XT reference capture
   passed 15/15 in 1.8 minutes, with no WebGPU

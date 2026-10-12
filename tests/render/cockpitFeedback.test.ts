@@ -12,6 +12,7 @@ import { v3, length, sub } from '../../src/sim/math/vec3.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
+const multiEngineSpec = loadAircraftSpec('p-38-lightning')
 const panel = () => {
   const p = createPanel(spec, () => null)
   p.root.position.set(0, 0, 0)
@@ -80,6 +81,15 @@ describe('cockpit feedback', () => {
     expect(horizon.getCenter(new Vector3()).y).toBeCloseTo(-0.080759, 5)
     expect(horizon.getSize(new Vector3()).x).toBeCloseTo(0.113384, 5)
     expect(horizon.getSize(new Vector3()).y).toBeCloseTo(0.113384, 5)
+  })
+
+  it('registers the multi-engine horizon one source pixel lower', () => {
+    const p = createPanel(multiEngineSpec, () => null)
+    p.root.position.set(0, 0, 0)
+    p.root.rotation.set(0, 0, 0)
+    p.root.updateMatrixWorld(true)
+    const horizon = new Box3().setFromObject(p.attitude.ball)
+    expect(horizon.getCenter(new Vector3()).y).toBeCloseTo(-0.081495, 5)
   })
 })
 

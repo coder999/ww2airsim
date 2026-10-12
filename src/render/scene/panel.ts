@@ -194,11 +194,23 @@ const APPROVED_FASCIA_FAMILIES = new Set<CockpitConfig['layout']['id']>([
  * Loading stays a browser enhancement like text and radar textures: headless
  * construction/tests never need an Image implementation or network access.
  */
-function makeApprovedFascia(family: CockpitConfig['layout']['id']): Mesh | null {
+const MULTI_ENGINE_FASCIA_FAMILIES = new Set<CockpitConfig['layout']['id']>([
+  'american-fighter',
+  'american-bomber',
+  'japanese-bomber',
+])
+
+function makeApprovedFascia(
+  family: CockpitConfig['layout']['id'],
+  multiEngine: boolean,
+): Mesh | null {
   if (typeof document === 'undefined' || typeof Image === 'undefined') return null
 
   const material = new MeshBasicMaterial({ transparent: true, opacity: 0, alphaTest: 0.02 })
-  const path = `${import.meta.env.BASE_URL}content/cockpit/${family}-fascia.png`
+  const variant = multiEngine && MULTI_ENGINE_FASCIA_FAMILIES.has(family)
+    ? `${family}-multi-engine`
+    : family
+  const path = `${import.meta.env.BASE_URL}content/cockpit/${variant}-fascia.png`
   new TextureLoader().load(path, (texture) => {
     texture.colorSpace = SRGBColorSpace
     texture.minFilter = LinearFilter
@@ -729,46 +741,16 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     const centre = (band.top + band.bottom) / 2
 
     if (g.id === 'rpm' && config.rpmNeedles > 1) {
-      // A multi-engine installation is its own bolted instrument plate, not
-      // little gauges nested inside the photographed single-engine dial. The
-      // plate covers that complete bezel and mounts one independent bezel per
-      // physical engine. Single-engine aircraft keep the original large face.
+      // Multi-engine fascia variants omit the photographed single-engine RPM
+      // opening entirely. Mount each engine's bezel directly on that clean
+      // fascia region: no larger parent gauge and no rectangular cover plate.
+      // Single-engine aircraft keep the original large photographed face.
       const fourUp = config.rpmNeedles > 2
       const scale = config.layout.auxiliaryScale
-      const plateW = 0.122 / scale
-      const plateH = 0.110 / scale
-      const plateY = 0.003 / scale
+      const clusterY = 0.003 / scale
       const faceRadius = (fourUp ? 0.0145 : 0.0225) / scale
       const centreOffsetX = (fourUp ? 0.0275 : 0.030) / scale
       const centreOffsetY = fourUp ? 0.0205 / scale : 0
-
-      const plateShadow = new Mesh(
-        new PlaneGeometry(plateW + 0.006 / scale, plateH + 0.006 / scale),
-        bezelShadowMat,
-      )
-      plateShadow.name = 'rpm:multi-engine-plate-shadow'
-      plateShadow.position.set(0, plateY, Z_MARKS)
-      dial.add(plateShadow)
-      const plateTrim = new Mesh(
-        new PlaneGeometry(plateW + 0.0025 / scale, plateH + 0.0025 / scale),
-        bezelHighlightMat,
-      )
-      plateTrim.name = 'rpm:multi-engine-plate-trim'
-      plateTrim.position.set(0, plateY, Z_MARKS + 0.0002)
-      dial.add(plateTrim)
-      const plate = new Mesh(
-        new PlaneGeometry(plateW, plateH),
-        new MeshBasicMaterial({ color: config.layout.frameColor }),
-      )
-      plate.name = 'rpm:multi-engine-plate'
-      plate.position.set(0, plateY, Z_MARKS + 0.0004)
-      dial.add(plate)
-      const screwX = plateW / 2 - 0.006 / scale
-      const screwY = plateH / 2 - 0.006 / scale
-      addScrew(dial, -screwX, plateY + screwY, 0.0012, Math.PI / 5, 0.0025 / scale)
-      addScrew(dial, screwX, plateY + screwY, 0.0012, -Math.PI / 4, 0.0025 / scale)
-      addScrew(dial, -screwX, plateY - screwY, 0.0012, -Math.PI / 6, 0.0025 / scale)
-      addScrew(dial, screwX, plateY - screwY, 0.0012, Math.PI / 3, 0.0025 / scale)
 
       const rpmPlateLabel = textPlate(
         config.layout.unitProfile === 'metric-japanese' ? '回転' : 'RPM',
@@ -777,7 +759,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         makeText,
       )
       rpmPlateLabel.name = 'rpm:multi-engine-label'
-      rpmPlateLabel.position.set(0, plateY + plateH / 2 - 0.007 / scale, Z_READOUT)
+      rpmPlateLabel.position.set(0, clusterY + 0.048 / scale, Z_READOUT)
       dial.add(rpmPlateLabel)
 
       for (let i = 0; i < config.rpmNeedles; i++) {
@@ -787,7 +769,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
         const row = fourUp ? Math.floor(i / 2) : 0
         subdial.position.set(
           (column === 0 ? -1 : 1) * centreOffsetX,
-          fourUp ? (row === 0 ? 1 : -1) * centreOffsetY : 0,
+          clusterY + (fourUp ? (row === 0 ? 1 : -1) * centreOffsetY : 0),
           0.001,
         )
 
@@ -1273,7 +1255,9 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   backing.position.set(0, 0, BACKING_Z)
   if (approvedFascia) backing.layers.set(1)
   root.add(backing)
-  const approvedFasciaMesh = approvedFascia ? makeApprovedFascia(config.layout.id) : null
+  const approvedFasciaMesh = approvedFascia
+    ? makeApprovedFascia(config.layout.id, config.rpmNeedles > 1)
+    : null
   if (approvedFasciaMesh !== null) root.add(approvedFasciaMesh)
   const fasciaPaintTexture = approvedFascia ? null : makeFasciaPaintTexture(config.layout.id)
   if (fasciaPaintTexture !== null) {
@@ -1400,7 +1384,10 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     attitudeGroup.name = 'attitude'
     attitudeGroup.position.set(
       approvedFascia ? APPROVED_ATTITUDE_APERTURE.x : attitudeSlot.centreX,
-      approvedFascia ? APPROVED_ATTITUDE_APERTURE.y : PANEL_BELOW_M - lowerCentre,
+      approvedFascia
+        ? APPROVED_ATTITUDE_APERTURE.y
+          - (config.rpmNeedles > 1 ? APPROVED_FASCIA_M_PER_PX : 0)
+        : PANEL_BELOW_M - lowerCentre,
       0,
     )
     root.add(attitudeGroup)
