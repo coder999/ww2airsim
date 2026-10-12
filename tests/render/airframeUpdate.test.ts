@@ -16,7 +16,7 @@ const origin = v3(0, 0, 0)
 describe('airframeUpdateFor', () => {
   it("an AI aircraft reads its own entity's controls, gear and flaps", () => {
     const u = airframeUpdateFor(alive, null, v3(3, 4, 12), origin, 0.016)
-    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13, debris: null, propThrottles: null })
+    expect(u).toEqual({ gearFraction: 0.25, flapFraction: 0.5, bayDoorFraction: 0, throttle: 0.6, controls: { roll: -0.2, pitch: 0.1, yaw: 0.3 }, frameS: 0.016, cameraDistanceM: 13, debris: null, propThrottles: null, surfaceCrash: null })
   })
 
   it("the player's aircraft reads the frame's raw controls instead", () => {
@@ -43,6 +43,28 @@ describe('airframeUpdateFor', () => {
   it('a wreck, player or AI, gets throttle 0 so its propeller stops', () => {
     expect(airframeUpdateFor(wreck, null, origin, origin, 0.016).throttle).toBe(0)
     expect(airframeUpdateFor(wreck, { pitch: 0, roll: 0, yaw: 0, throttle: 1 }, origin, origin, 0.016).throttle).toBe(0)
+  })
+
+  it('a fatal surface contact breaks up on land or deck and submerges in water; a survivable ditch does neither', () => {
+    const impact = (surface: 'land' | 'deck' | 'water', kind: 'destroyed' | 'ditched') => ({
+      ...alive,
+      impact: { tick: 27, position: origin, verticalSpeedMps: -20, groundHeightM: 0, surface, kind },
+    })
+    const land = airframeUpdateFor(impact('land', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
+    const deck = airframeUpdateFor(impact('deck', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
+    const water = airframeUpdateFor(impact('water', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 27, 'z')
+    expect(land.surfaceCrash).toMatchObject({ mode: 'breakup' })
+    expect(deck.surfaceCrash).toMatchObject({ mode: 'breakup' })
+    expect(water.surfaceCrash).toMatchObject({ mode: 'submerge' })
+    expect(airframeUpdateFor(impact('water', 'ditched'), null, origin, origin, 0.016, healthyDamage(), 27, 'z').surfaceCrash).toBeNull()
+    expect(land.surfaceCrash!.seed).toBe(airframeUpdateFor(impact('land', 'destroyed'), null, origin, origin, 0.016, healthyDamage(), 200, 'z').surfaceCrash!.seed)
+  })
+
+  it('a ship collision starts renderer-timed breakup even before it can become a deck impact', () => {
+    const rammed = { ...healthyDamage(), structure: 0, destroyedAt: 44, attacker: 'collision:carrier' }
+    const u = airframeUpdateFor(alive, null, origin, origin, 0.016, rammed, 44, 'z')
+    expect(u.debris).toMatchObject({ ageS: 0 })
+    expect(u.surfaceCrash).toMatchObject({ mode: 'breakup' })
   })
 })
 

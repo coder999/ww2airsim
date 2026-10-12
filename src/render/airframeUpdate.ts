@@ -7,6 +7,7 @@ import { qRotate, type Quat } from '../sim/math/quat.js'
 import { sideOf, type Side } from '../sim/sides.js'
 import { engineOutputs, idSeed, isDoomed, type Damage } from '../sim/damage/model.js'
 import { DT } from '../sim/flight/model.js'
+import { COLLISION_ATTACKER_PREFIX } from '../sim/shipCollision.js'
 
 /**
  * What one aircraft's airframe is told for one rendered frame (main.ts's
@@ -19,6 +20,7 @@ import { DT } from '../sim/flight/model.js'
  * - a dead or cutting-out engine (damage stages, `engineOutput`) windmills
  *   its propeller at WINDMILL_THROTTLE, so a sputter shows in the prop
  * - an airframe destroyed in the air gets `debris`: its loose parts fly off
+ * - a fatal land/deck contact gets the same breakup; a fatal water contact submerges
  */
 export function airframeUpdateFor(
   aircraft: Pick<AircraftEntity, 'state' | 'controls' | 'impact'>,
@@ -33,6 +35,8 @@ export function airframeUpdateFor(
 ): AirframeUpdate {
   const controls = playerControls ?? aircraft.controls
   const exploded = damage?.destroyedAt ?? null
+  const fatalImpact = aircraft.impact?.kind === 'destroyed' ? aircraft.impact : null
+  const collidedWithShip = exploded !== null && (damage?.attacker?.startsWith(COLLISION_ATTACKER_PREFIX) ?? false)
   const outputs = damage === null ? [1] : engineOutputs(damage, tick, id, DT)
   const prop = (output: number): number => aircraft.impact !== null || exploded !== null ? 0 : output > 0 ? controls.throttle : WINDMILL_THROTTLE
   return {
@@ -43,6 +47,11 @@ export function airframeUpdateFor(
     // A multi-engine airplane's props each follow their own engine (damage stages round 2).
     propThrottles: outputs.length > 1 ? outputs.map(prop) : null,
     debris: exploded === null ? null : { ageS: (tick - exploded) * DT, seed: idSeed(id) },
+    surfaceCrash: fatalImpact !== null
+      ? { mode: fatalImpact.surface === 'water' ? 'submerge' : 'breakup', seed: (idSeed(id) ^ fatalImpact.tick) >>> 0 }
+      : collidedWithShip
+        ? { mode: 'breakup', seed: (idSeed(id) ^ exploded) >>> 0 }
+        : null,
     controls: { roll: controls.roll, pitch: controls.pitch, yaw: controls.yaw },
     frameS,
     cameraDistanceM: Math.hypot(position.x - eye.x, position.y - eye.y, position.z - eye.z),

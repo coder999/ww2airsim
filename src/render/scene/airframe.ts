@@ -7,6 +7,50 @@ import type { Object3D } from 'three'
  *  decision 1, 2026-09-25). */
 export type PartId = 'prop' | 'gear' | 'flaps' | 'surfaces' | 'doors' | 'turrets' | 'stores'
 
+/** A fatal surface contact's renderer-only aftermath. The simulation keeps
+ * its impact pose immutable for scoring and replay; an airframe uses this to
+ * animate that frozen pose without feeding anything back into physics. */
+export interface SurfaceCrashVisual {
+  readonly mode: 'breakup' | 'submerge'
+  readonly seed: number
+}
+
+/** The sea has covered the largest flyable airframe by this depth. ESTIMATE. */
+export const WATER_CRASH_SUBMERGE_M = 12
+/** Seconds from impact to the full submergence depth. ESTIMATE. */
+export const WATER_CRASH_SUBMERGE_S = 2.5
+
+export interface SurfaceCrashClock {
+  readonly key: string | null
+  readonly ageS: number
+}
+
+export const NO_SURFACE_CRASH_CLOCK: SurfaceCrashClock = { key: null, ageS: 0 }
+
+/** Advance one airframe's visual crash clock. A changed crash (or a replay
+ * scrubbed back before it) starts clean; invalid frame deltas cannot poison
+ * the animation. Pure so both airframe implementations share one rule. */
+export function stepSurfaceCrashClock(
+  before: SurfaceCrashClock,
+  crash: SurfaceCrashVisual | null | undefined,
+  frameS: number,
+): SurfaceCrashClock {
+  if (crash == null) return NO_SURFACE_CRASH_CLOCK
+  const key = `${crash.mode}:${crash.seed}`
+  if (before.key !== key) return { key, ageS: 0 }
+  const dt = Number.isFinite(frameS) && frameS > 0 ? frameS : 0
+  return { key, ageS: before.ageS + dt }
+}
+
+/** Smoothly lower a fatal water crash below the ocean while its splash hides
+ * the transition. The root is re-posed from simulation every frame, so this
+ * is an absolute offset rather than an accumulated one. */
+export function waterCrashSubmergeM(ageS: number): number {
+  const t = Math.min(1, Math.max(0, ageS / WATER_CRASH_SUBMERGE_S))
+  const smooth = t * t * (3 - 2 * t)
+  return WATER_CRASH_SUBMERGE_M * smooth
+}
+
 /** Everything one airframe needs to pose itself for one rendered frame. */
 export interface AirframeUpdate {
   /** `AircraftState.gearFraction`: 1 = down, 0 = up. */
@@ -33,6 +77,9 @@ export interface AirframeUpdate {
    *  the propellers and control surfaces breaking away. Null or absent: whole. A pure function of
    *  these two, so a replay scrubbed backwards puts the parts back. */
   readonly debris?: { readonly ageS: number; readonly seed: number } | null
+  /** Fatal surface contact: land/deck breaks loose parts away; water lowers the wreck beneath the
+   *  surface. Renderer-only because the immutable impact pose remains the simulation truth. */
+  readonly surfaceCrash?: SurfaceCrashVisual | null
 }
 
 /** Implemented by every airframe module (hellcat.ts, wildcat.ts, and each

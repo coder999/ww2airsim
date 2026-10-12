@@ -95,10 +95,10 @@ const column = (rate: number, durationS: number, size: [number, number]): RawEmi
   ({ mode: 'stream', sheet: 'smoke', ratePerS: rate, delayS: 0.5, durationS, lifeS: [8, 12], speedMps: [4, 8], direction: 'up', spreadDeg: 15, sizeM: size, alpha: 0.6, tint: SMOKE, dragPerS: 0.4, accelYMps2: 1.5 })
 const waterColumn = (count: number, size: [number, number]): RawEmitter =>
   ({ mode: 'burst', sheet: 'water-column', count, lifeS: [2.5, 3.5], speedMps: [30, 45], direction: 'up', spreadDeg: 8, sizeM: size, alpha: 0.9, tint: WATER, dragPerS: 0.8, accelYMps2: GRAVITY, seaKill: true })
-const crown = (count: number): RawEmitter =>
-  ({ mode: 'burst', sheet: 'spray', count, lifeS: [2, 3], speedMps: [20, 35], direction: 'up', spreadDeg: 35, sizeM: [4.5, 13], alpha: 0.8, tint: WATER, dragPerS: 0.6, accelYMps2: GRAVITY, seaKill: true })
-const surge = (count: number): RawEmitter =>
-  ({ mode: 'burst', sheet: 'spray', count, lifeS: [3, 5], speedMps: [18, 28], direction: 'ring', spreadDeg: 5, sizeM: [6.7, 22], alpha: 0.5, tint: WATER, dragPerS: 1.2, accelYMps2: 0 })
+const crown = (count: number, scale = 1): RawEmitter =>
+  ({ mode: 'burst', sheet: 'spray', count, lifeS: [2, 3], speedMps: [20, 35], direction: 'up', spreadDeg: 35, sizeM: [4.5 * scale, 13 * scale], alpha: 0.8, tint: WATER, dragPerS: 0.6, accelYMps2: GRAVITY, seaKill: true })
+const surge = (count: number, scale = 1): RawEmitter =>
+  ({ mode: 'burst', sheet: 'spray', count, lifeS: [3, 5], speedMps: [18, 28], direction: 'ring', spreadDeg: 5, sizeM: [6.7 * scale, 22 * scale], alpha: 0.5, tint: WATER, dragPerS: 1.2, accelYMps2: 0 })
 const sparks = (count: number): RawEmitter =>
   ({ mode: 'burst', sheet: 'streak', count, lifeS: [0.12, 0.25], speedMps: [15, 30], direction: 'up', spreadDeg: 80, sizeM: [0.15, 0.1], alpha: 1, tint: SPARK, emissive: 3, dragPerS: 2, accelYMps2: GRAVITY, streakS: 0.03 })
 
@@ -128,7 +128,10 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   // Ruling R4: the pre-E1 renderer's own 'hit' flash (2.5 m, 0.25 s), deleted in E1 Task 10.
   'round.aircraft': { emitters: [sparks(3), { ...fireball(1, [1.6, 3.9], [0.2, 0.3]), radiusM: 0 }], source: 'pre-E1 flashAppearance(\'hit\'): 2.5 m, 0.25 s (estimate, Plan 6)' },
   'crash.land': { emitters: [fireball(8, [28, 62], [2.8, 4]), ejecta(50), column(8, 30, [14, 46])], source: ESTIMATE },
-  'crash.water': { emitters: [waterColumn(6, [12, 30]), crown(30), surge(20)], source: ESTIMATE },
+  // An aircraft carries far more displaced volume and momentum into the sea than the old faint
+  // treatment suggested. This is deliberately the largest water-contact recipe: the plume masks
+  // the renderer-only submergence while the crown and surface surge spread beyond the airframe.
+  'crash.water': { emitters: [waterColumn(10, [18, 48]), crown(48, 1.6), surge(32, 1.6)], source: ESTIMATE },
   'crash.deck': { emitters: [fireball(6, [19, 44], [2.4, 3.6]), sparks(20), column(6, 20, [9.3, 30])], source: ESTIMATE },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the wreck, which falls since
   // damage stages (2026-10-09). The dark fragments are the airframe's skin and spars going down.

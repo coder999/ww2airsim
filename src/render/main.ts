@@ -9,6 +9,7 @@ import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
 import { applyShipGunLaying } from './scene/shipGunLaying.js'
 import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
+import { DEBRIS_S } from './scene/pivotedAirframe.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { ensureCockpitTextFont, makeTextTexture } from './scene/text.js'
@@ -2784,7 +2785,6 @@ async function boot(): Promise<void> {
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
     const viewPlayer = playerAircraft(view.world)
-    renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
@@ -2979,9 +2979,17 @@ async function boot(): Promise<void> {
       const playerControls = a.id === view.world.player ? view.controls : null
       const damage = view.world.combat.aircraft[a.id]?.damage ?? null
       airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000, damage, view.world.tick, a.id), aim: turretAimFor(view.world, view.poses, i) })
+      if (a.id === view.world.player) {
+        const drawn = airframes[i]!.root.position
+        renderedPlayerPosition = { x: drawn.x, y: drawn.y, z: drawn.z }
+      }
       // An airframe that exploded in the air is gone once its wreck reaches the surface: the crash
-      // effect covers the spot (damage stages, 2026-10-09). The player's own is the debrief's.
-      if (a.id !== view.world.player) airframes[i]!.root.visible = !(damage?.destroyedAt != null && a.impact !== null) && !(swarmHidden && a.id.startsWith('swarm-'))
+      // effect covers the spot after its twelve-second loose-parts animation. A water wreck instead
+      // remains renderable while its surface-crash animation carries it below the ocean. The
+      // player's own remains available to the debrief/replay cameras.
+      const spentLandWreck = damage?.destroyedAt != null && a.impact !== null && a.impact.surface !== 'water'
+        && (view.world.tick - damage.destroyedAt) * DT >= DEBRIS_S
+      if (a.id !== view.world.player) airframes[i]!.root.visible = !spentLandWreck && !(swarmHidden && a.id.startsWith('swarm-'))
     })
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {

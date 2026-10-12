@@ -1,6 +1,9 @@
 // src/render/scene/pivotedAirframe.ts
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
-import { propAngle, type Airframe, type PartId } from './airframe.js'
+import {
+  NO_SURFACE_CRASH_CLOCK, propAngle, stepSurfaceCrashClock, waterCrashSubmergeM,
+  type Airframe, type PartId, type SurfaceCrashClock,
+} from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
@@ -204,13 +207,19 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   const scratch = new Vector3()
   const fullRoots = [...root.children]
   const lod = createAirframeLod(url, root, instance.root, fullRoots, bound.gear.map((g) => g.posed.node))
+  let crashClock: SurfaceCrashClock = NO_SURFACE_CRASH_CLOCK
   let disposed = false
   return {
     root,
     parts: stores === undefined ? rigParts(rig) : [...rigParts(rig), 'stores'],
     setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
-      lod.update(u.cameraDistanceM, (u.debris ?? null) !== null)
+      crashClock = stepSurfaceCrashClock(crashClock, u.surfaceCrash, u.frameS)
+      if (u.surfaceCrash?.mode === 'submerge') root.position.y -= waterCrashSubmergeM(crashClock.ageS)
+      const debris = u.surfaceCrash?.mode === 'breakup'
+        ? { ageS: crashClock.ageS, seed: u.surfaceCrash.seed }
+        : u.debris ?? null
+      lod.update(u.cameraDistanceM, debris !== null)
       bound.props.forEach((p, i) => {
         propRad[i] = propAngle(propRad[i] ?? 0, u.propThrottles?.[i] ?? u.throttle, u.frameS)
         p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad[i]!))
@@ -232,7 +241,6 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
         t.turret.node.quaternion.copy(turnedAbout(t.turret.rest, t.turret.axis, t.traverse))
         t.guns.node.quaternion.copy(turnedAbout(t.guns.rest, t.guns.axis, t.elevation))
       }
-      const debris = u.debris ?? null
       loose.forEach((l, i) => {
         l.node.position.copy(l.restPosition)
         l.node.visible = debris === null || debris.ageS < DEBRIS_S
