@@ -28,8 +28,10 @@ const DUPLICATES: readonly {
   { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.77, 0.72] },
   {
     spec: 'f6f-hellcat', model: 'f6f-hellcat-blender', skin: 'f6f_dark', eye: [-0.87, 1.17],
-    // ESTIMATE checked against the Commons drawing's front view and NACA EL-2000-00243, 2026-10-11.
-    canopyRoof: { x: -0.88, minY: 1.45, halfWidth: [0.30, 0.37] },
+    // Re-measured 2026-10-11 (f6f-hellcat-blender.py header): the Commons drawing's front view puts the hood's
+    // roof edge 0.16 m out, 0.04 m under the 1.467 m crown, and its top view draws the roof panel's frame at
+    // 0.19-0.22 m. The photo-guided repair's 0.32 m roof edge (minY 1.45, 0.30-0.37) was twice the drawing's.
+    canopyRoof: { x: -0.88, minY: 1.40, halfWidth: [0.14, 0.23] },
   },
   { spec: 'f4u-corsair', model: 'f4u-corsair-blender', skin: 'f4u_dark', station: 0.4, eye: [-1.80, 1.05] },
   { spec: 'f4f-wildcat', model: 'f4f-wildcat-blender', skin: 'f4f_blueGray', eye: [-0.85, 0.95] },
@@ -140,6 +142,47 @@ it('B-17G follows the Commons three-view: fillet-and-fin tail, rudder, body widt
   expect(base).toBeGreaterThanOrEqual(1.55)
   expect(base).toBeLessThanOrEqual(1.62)
   expect(extent(turret, 1)).toBeCloseTo(0.52, 2)
+})
+
+it('F6F-5 follows the Commons three-view: body, hood and turtledeck, dihedral, deep tail, rudder and tailplane', async () => {
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/f6f-hellcat-blender.glb')))
+  const nodes = (re: RegExp) => doc.getRoot().listNodes().filter((n) => re.test(n.getName())).flatMap((n) => worldPositions(n))
+  const skin = nodes(/^f6f_dark$/)
+  // Kaboldy's F6F three-view, re-read 2026-10-11 (f6f-hellcat-blender.py header): the origin is 3.04 m aft of the
+  // spinner tip, heights are meters above the propeller axis.
+  const X = (aft: number) => 3.04 - aft
+  const centerline = (aft: number) => skin.filter((p) => Math.abs(p[0]! - X(aft)) <= 0.004 && Math.abs(p[2]!) < 0.01)
+  // Drawn top and bottom lines (aft of the hood the top is the turtledeck's crown). The first pass's tail cone
+  // pinched to 0.58 m deep at 10.0 m where the drawn tail is 0.95 m deep down to the rudder post.
+  for (const [aft, top, bottom] of [[0.8, 0.728, -0.833], [1.5, 0.841, -0.978], [2.5, 0.966, -1.034], [5.0, 1.251, -0.986],
+    [7.0, 0.777, -0.833], [8.0, 0.556, -0.728], [10.0, 0.45, -0.50]] as const) {
+    const ring = centerline(aft)
+    expect(ring.length, `centerline vertices ${aft} m aft of the spinner`).toBeGreaterThanOrEqual(2)
+    expect(Math.max(...ring.map((p) => p[1]!)), `top ${aft} m aft`).toBeCloseTo(top, 2)
+    expect(Math.min(...ring.map((p) => p[1]!)), `bottom ${aft} m aft`).toBeCloseTo(bottom, 2)
+  }
+  const top = (from: number, to: number) => Math.max(...skin.filter((p) => p[0]! <= X(from) && p[0]! >= X(to) && Math.abs(p[2]!) < 0.05).map((p) => p[1]!))
+  // Hood roof 1.467 m over the pilot (frame bars 0.02 m proud); the first pass stood 0.07 m higher. The steep
+  // windscreen has already risen to 1.35 m by 3.6 m, where the first pass was still at the 1.07 m deck.
+  expect(top(3.85, 4.1)).toBeGreaterThanOrEqual(1.46)
+  expect(top(3.85, 4.1)).toBeLessThanOrEqual(1.50)
+  expect(top(3.5, 3.6)).toBeGreaterThanOrEqual(1.30)
+  // Outer panels at 7.5 deg from a flat center section: the tip rows' chord line stands about 0.16 m above the
+  // axis (front view). The first pass's 2.5 deg from a root 0.51 m down put it 0.24 m below.
+  const tip = skin.filter((p) => Math.abs(p[2]!) >= 6.3)
+  expect(tip.length).toBeGreaterThan(50)
+  expect(tip.reduce((a, p) => a + p[1]!, 0) / tip.length).toBeGreaterThan(0.08)
+  // The rudder hangs on a straight hinge at 9.655 m from its foot under the tail cone's end (-0.05 m) to +1.79 m.
+  const rudder = nodes(/^Rudder$/)
+  expect(Math.max(...rudder.map((p) => p[0]!))).toBeCloseTo(X(9.655), 2)
+  expect(Math.min(...rudder.map((p) => p[1]!))).toBeLessThanOrEqual(0.0)
+  // Fin crown 1.89 m at 9.46 m; the tailplane's rounded tips 2.89 m out (span scale).
+  const fin = skin.filter((p) => p[0]! < X(8.5)).reduce((a, p) => (p[1]! > a[1]! ? p : a))
+  expect(fin[1]!).toBeCloseTo(1.89, 1)
+  expect(Math.abs(fin[0]! - X(9.46))).toBeLessThanOrEqual(0.10)
+  const tailplane = skin.filter((p) => p[0]! < X(8.2) && Math.abs(p[1]! - 0.19) < 0.15)
+  expect(Math.max(...tailplane.map((p) => Math.abs(p[2]!)))).toBeCloseTo(2.89, 1)
+  expect(Math.max(...tailplane.map((p) => Math.abs(p[2]!)))).toBeLessThanOrEqual(2.92)
 })
 
 it('Ki-43-IIb follows the Commons Ki-43-I three-view: nose, square wing, tailplane, fin and rudder, canopy, mast', async () => {
