@@ -207,11 +207,18 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test('6. every modeled stores part shows: stores on and off differ (front view)', async ({ page }) => {
+  test('6. every modeled stores part shows: stores on and off differ', async ({ page }) => {
     for (const id of await entries(page)) {
       await select(page, id)
-      if (!hasPart(await current(page), 'stores')) continue
-      const { empty, model: on } = await view(page, id, 'front', { bombs: true, rockets: true })
+      const c = await current(page)
+      if (!hasPart(c, 'stores')) continue
+      // External stores read best from the front. Internal bombs need their
+      // doors open and a side view; otherwise an opaque fuselage correctly
+      // hides both the on and off poses (the promoted B-17 exposed this case).
+      const internal = hasPart(c, 'doors')
+      const { empty, model: on } = await view(page, id, internal ? 'side' : 'front', {
+        bombs: true, rockets: true, bayDoorFraction: internal ? 1 : 0, gearFraction: internal ? 0 : 1,
+      })
       await pose(page, { bombs: false, rockets: false })
       const off = await shot(page)
       const m = await masks(page, empty, [on, off])
