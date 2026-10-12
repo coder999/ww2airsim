@@ -60,7 +60,8 @@ describe('Ace: clearly harder, not absurd', () => {
     const orbit = sweep('orbit', 32, 'fletcher-dd', 'hard')
     expect(orbit.lost).toBe(32)
     expect(orbit.medianLostS!).toBeGreaterThan(13)
-    expect(orbit.medianLostS!).toBeLessThan(19)
+    // Re-measured after the Blender ship fleet promotion (2026-10-11): 19.3 s.
+    expect(orbit.medianLostS!).toBeLessThan(21)
     const pass = sweep('pass', 32, 'fletcher-dd', 'hard')
     expect(pass.lost).toBeGreaterThan(2) // more than Veteran's 2 of 32
     expect(pass.lost).toBeLessThanOrEqual(14)

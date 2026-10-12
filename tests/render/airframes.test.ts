@@ -18,9 +18,9 @@ describe('the airframe registry (A6M Zero spec §7.2)', () => {
     expect(Object.keys(AIRFRAME_MODELS), `${id}.json names "${model}"`).toContain(model)
   })
 
-  it('A4: the Hellcat flies its own R3 model, not the Wildcat\'s; the Wildcat keeps its own (sortie spec)', () => {
-    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat')
-    expect(loadAircraftSpec('f4f-wildcat').view.model).toBe('wildcat')
+  it('the Hellcat and Wildcat fly their promoted Blender models', () => {
+    expect(loadAircraftSpec('f6f-hellcat').view.model).toBe('f6f-hellcat-blender')
+    expect(loadAircraftSpec('f4f-wildcat').view.model).toBe('f4f-wildcat-blender')
   })
 
   it('an unregistered id throws naming the id and the registered ones, including prototype keys', () => {

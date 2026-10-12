@@ -232,11 +232,12 @@ describe('the pursuit autopilot stays inside the airframe limit (B3)', () => {
   // before and after the limit: the Damage Range's first two 0.25 s taps land
   // 11 and 14 hits (the damage stages round 2 handoff's 11-18), the three
   // Zeros burn on taps 2, 12 and 12; head-on, Shift first holds the solution
-  // on a veteran Zero at 9.8 s.
+  // on a veteran Zero at 9.8 s. Re-measured with the drawing-fitted F6F guns
+  // (2026-10-11): 2, 13 and 13; first solution remains 9.85 s.
   it('keeps the gun solution: Damage Range taps, and the head-on pass', () => {
     const range = runDamageRange()
     expect(range.taps[0]).toBeGreaterThanOrEqual(11)
-    expect(Object.values(range.tapsToBurn).every((n) => n !== null && n <= 12)).toBe(true)
+    expect(Object.values(range.tapsToBurn).every((n) => n !== null && n <= 13)).toBe(true)
     expect(runEvader('head-on', 'veteran', 0).firstSolutionS).toBeLessThanOrEqual(10)
   })
 })

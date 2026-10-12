@@ -209,12 +209,15 @@ describe('an approach flown into Tacloban', () => {
     // rollout's pitch ceiling rose from 9.45 to 12.60 degrees, which changes
     // the wheel depth the rollout is seated at; the touchdown itself is airborne
     // flight and does not read the ground ceiling.
+    // Re-recorded 2026-10-11 after the Blender Hellcat promotion re-measured
+    // mainX, thirdX and thirdHeightM from the drawing. The approach remains
+    // gentle and centered; the new physical stance moves the rollout 1.64 m.
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47686.49097489367,
-        "touchdownSinkMps": 1.3504191060115247,
-        "touchdownSpeedMps": 37.71417640522327,
+        "restZ": -47688.13543842732,
+        "touchdownSinkMps": 1.3583310317344388,
+        "touchdownSpeedMps": 37.59631425497266,
       }
     `)
   })

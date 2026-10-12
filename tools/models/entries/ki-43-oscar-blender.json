@@ -15,8 +15,8 @@
   },
   "keep": [
     { "node": "Prop", "pivot": { "point": [1.892, 0, 0], "axis": "+x" } },
-    { "node": "GearL", "pivot": { "point": [0.348, -0.42, -1.4], "axis": "+x" } },
-    { "node": "GearR", "pivot": { "point": [0.348, -0.42, 1.4], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [0.572, -0.42, -1.4], "axis": "+x" } },
+    { "node": "GearR", "pivot": { "point": [0.572, -0.42, 1.4], "axis": "+x" } },
     { "node": "AileronL" },
     { "node": "AileronR" },
     { "node": "Flap1L" },

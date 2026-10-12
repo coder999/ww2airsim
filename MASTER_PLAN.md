@@ -88,14 +88,14 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   Hangar. A photo-guided Hellcat follow-up replaces the rounded canopy with its steep windscreen and straight descending roof, with a
   dedicated close side capture for review. Handoff `docs/handoff/2026-10-11-blender-fighter-duplicates.md`.
 - **External-aircraft Blender comparison set merged, 2026-10-11:** A6M2, B-17G, D3A2 and Ki-43-IIb alternatives
-  join the Hellcat, Corsair and Wildcat alternatives. All seven retain separate `*-blender` ids beside their legacy downloads
-  in the main Hangar, use one Commons orthographic family where available, and remain display-only until reviewed; no flying spec
-  was promoted. Remove any rejected duplicate later by its distinct library/model id. Plan
+  joined the Hellcat, Corsair and Wildcat alternatives under separate `*-blender` ids. After Mark's review, all seven Blender
+  airframes were promoted for gameplay with drawing-fit stance, guns, combat zones, stores and pilot eyes. Their downloaded
+  predecessors retain their original ids as `status: archived`, visible only in the Dev Hangar for comparison. Plan
   `docs/superpowers/plans/2026-10-11-fleet-blender-rebuild.md`; handoff `docs/handoff/2026-10-11-fleet-blender-rebuild.md`.
   The B-17G and D3A2 were re-measured the same day after Mark flagged the B-17's triangular fin: both first passes
   had misread their three-views (body, canopy, tail); handoff `docs/handoff/2026-10-11-b17-val-remeasure.md`.
   The other five duplicates and the M4 Sherman were re-measured the same way (`docs/handoff/2026-10-11-fleet-remeasure.md`).
-  **Waiting on Mark:** re-fit the fighter specs' gear, tailwheel and gun positions to the drawings (table in that handoff).
+  Promotion handoff: `docs/handoff/2026-10-11-promote-blender-duplicates.md`.
 - **Decided (grilling, 2026-10-08):**
   - Ailerons, elevator, rudder (both fins on the P-38) and flaps. No trim tabs, cowl flaps or dive brakes.
   - **Visual only:** the renderer follows pilot `Controls` through a cosmetic slew rate, with full travel at any speed. Flaps follow the sim's existing `flapFraction`. The flight model is unchanged.

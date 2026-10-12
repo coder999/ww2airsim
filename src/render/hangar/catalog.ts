@@ -27,9 +27,10 @@ export interface CatalogEntry {
 export type Origin = 'internal' | 'external'
 
 /** How an entry stands in the Library (model-roster spec §4.3). */
-export type Availability = 'in-game' | 'display-only' | 'not-drawn'
+export type Availability = 'in-game' | 'display-only' | 'archived' | 'not-drawn'
 
 export function availability(e: CatalogEntry): Availability {
+  if (e.library.status === 'archived') return 'archived'
   if (e.library.displayOnly === true) return 'display-only'
   if (e.subject !== null) return 'in-game'
   return e.library.model !== undefined ? 'display-only' : 'not-drawn'
@@ -41,22 +42,23 @@ export const drawable = (e: CatalogEntry): boolean => availability(e) !== 'not-d
 const STATUS: Readonly<Record<Availability, string | null>> = {
   'in-game': null,
   'display-only': 'not in the game yet',
+  archived: 'archived',
   'not-drawn': 'not yet in service',
 }
 
 /** The list button's text: the name, and the status of anything not in the game. */
 export function listLabel(e: CatalogEntry): string {
-  const s = e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
+  const s = e.library.status === 'archived' ? STATUS.archived : e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
   return s === null ? e.library.name : `${e.library.name} (${s})`
 }
 
 /** The card's status note, capitalized; null in the game. */
 export function statusNote(e: CatalogEntry): string | null {
-  const s = e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
+  const s = e.library.status === 'archived' ? STATUS.archived : e.library.displayOnly === true ? 'hangar only' : STATUS[availability(e)]
   return s === null ? null : `${s[0]!.toUpperCase()}${s.slice(1)}`
 }
 
-const AVAILABILITY_RANK: Readonly<Record<Availability, number>> = { 'in-game': 0, 'display-only': 1, 'not-drawn': 2 }
+const AVAILABILITY_RANK: Readonly<Record<Availability, number>> = { 'in-game': 0, 'display-only': 1, archived: 2, 'not-drawn': 3 }
 
 function subjectFor(e: LibraryEntry, c: HangarContent): CatalogSubject | null {
   if (e.spec === undefined) return null
@@ -124,6 +126,11 @@ export interface CatalogFilter { readonly kind: LibraryKind | 'all'; readonly si
 
 export function filterCatalog(entries: readonly CatalogEntry[], f: CatalogFilter): CatalogEntry[] {
   return entries.filter((e) => (f.kind === 'all' || e.library.kind === f.kind) && (f.side === 'all' || e.library.side === f.side) && (f.origin === 'all' || e.origin === f.origin))
+}
+
+/** Ordinary players never see retired assets. Dev mode keeps them available for side-by-side judging. */
+export function visibleCatalog(entries: readonly CatalogEntry[], dev: boolean): CatalogEntry[] {
+  return dev ? [...entries] : entries.filter((e) => availability(e) !== 'archived')
 }
 
 export const FILTER_KINDS: readonly (LibraryKind | 'all')[] = ['all', ...LIBRARY_KINDS]

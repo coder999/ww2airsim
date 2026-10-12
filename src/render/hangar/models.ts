@@ -236,7 +236,7 @@ const loadRegisteredDisplay: LoadDisplay = (ref) => acquireModel(displayModelUrl
 /**
  * An entry's own model (model-roster spec §4.3), drawn in place of the spec's view.model, in the
  * Hangar only. It stands on the pad by its own bounds, not by a spec's gear height, because it
- * need not be the model the spec flies (the Hellcat's is, since sortie forms A4), and it hangs no stores. Ships stand at their waterline origin, and
+ * need not be the model the spec flies, and it hangs no stores. Ships stand at their waterline origin, and
  * buildings and vehicles on their own y = 0 (the Blender kit's frame, spec §4.2).
  */
 async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDisplay: LoadDisplay, loadRider: LoadRider): Promise<HangarModel> {
@@ -318,6 +318,17 @@ export async function loadHangarModel(entry: CatalogEntry, loadAirframe: LoadAir
     const spec = { ...entry.subject.spec, view: { ...(entry.subject.spec.view ?? {}), model: entry.library.model.id } }
     const view = await loadShip(spec)
     return { ...staticModel(view.root), gunMounts: view.mounts, dispose: () => view.dispose() }
+  }
+  // A promoted aircraft card deliberately names the same model as its flight
+  // spec. Treat it as the flyable airframe so the Hangar uses the spec stance,
+  // store mounts and controls. A retired comparison card names a different
+  // model and continues through displayModel below, bounds-fitted and storeless.
+  if (entry.library.model?.kind === 'aircraft' && entry.subject?.kind === 'aircraft'
+      && entry.library.model.id === entry.subject.spec.view.model) {
+    const airframe = await loadAirframe(entry.library.model.id, entry.subject.spec.stores)
+    const model = aircraftModel(airframe, entry.subject.spec.gear.heightM, entry.subject.spec.stores)
+    model.update(0)
+    return model
   }
   if (entry.library.model !== undefined) return displayModel(entry.library.model, loadAirframe, loadDisplay, loadRider)
   const s = entry.subject

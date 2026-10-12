@@ -69,11 +69,11 @@
     "rollingResistanceCoeff": 0.02,
     "brakingResistanceCoeff": 0.4,
     "lateralGripSeconds": 1.5,
-    "heightM": 2.548,
+    "heightM": 2.29,
     "layout": "taildragger",
-    "mainX": 0.852,
-    "thirdX": -10.623,
-    "thirdHeightM": 1.097,
+    "mainX": 0.48,
+    "thirdX": -10.3,
+    "thirdHeightM": 1.26,
     "thirdSteering": "casterLock",
     "steerYawRateDegPerSec": 20,
     "steerLockSpeedMps": 8,
@@ -121,11 +121,11 @@
   },
   "view": {
     "eyePointM": [
-      2.9,
-      1.55,
+      2.4,
+      1.44,
       0
     ],
-    "model": "b-17-flying-fortress"
+    "model": "b-17-flying-fortress-blender"
   },
   "flap": {
     "travelSeconds": 12,
@@ -311,7 +311,7 @@
           0
         ],
         "halfSize": [
-          4.35,
+          4.28,
           1.23,
           1.14
         ],
@@ -363,12 +363,12 @@
         "id": "fin",
         "center": [
           -14.4,
-          2.95,
+          2.75,
           0
         ],
         "halfSize": [
           1.9,
-          2.33,
+          2.13,
           0.28
         ],
         "system": "yaw"

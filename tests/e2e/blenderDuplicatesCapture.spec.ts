@@ -33,7 +33,7 @@ async function snap(page: Page, id: string, preset: CameraPreset, pose: PartPose
 test('the Blender duplicates beside their downloads', async ({ page }) => {
   mkdirSync(OUT, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 800 })
-  await page.goto('/hangar.html?bench')
+  await page.goto('/hangar.html?bench&dev=1')
   await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
   await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
   await page.evaluate(() => (window as HangarWindow).__hangar!.freeze())

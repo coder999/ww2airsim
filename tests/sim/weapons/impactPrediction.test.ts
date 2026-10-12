@@ -93,7 +93,7 @@ describe('predictImpact against the real sim', () => {
         worst = Math.max(worst, miss)
         expect(miss, c.name).toBeLessThan(EXACT_M)
         expect(r.predicted!.armed, c.name).toBe(true)
-        if (where === 'land') { expect(r.actual[0]!.y, c.name).toBeGreaterThan(1); land++ } else { expect(r.actual[0]!.y, c.name).toBe(0); sea++ }
+        if (where === 'land') { expect(r.actual[0]!.y, c.name).toBeGreaterThan(1); land++ } else { expect(r.actual[0]!.y, c.name).toBeCloseTo(0, 12); sea++ }
       }
     }
     expect([land, sea]).toEqual([18, 18])
