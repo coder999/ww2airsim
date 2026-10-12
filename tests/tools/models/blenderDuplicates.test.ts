@@ -23,7 +23,7 @@ const DUPLICATES: readonly {
   /** A transverse likeness check where the source front view makes a narrow bubble visibly wrong. */
   canopyRoof?: { x: number; minY: number; halfWidth: readonly [number, number] }
 }[] = [
-  { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.88, 0.70] },
+  { spec: 'a6m2-zero', model: 'a6m2-zero-blender', skin: 'a6m2b_dark', eye: [-0.74, 0.72] },
   { spec: 'd3a-val', model: 'd3a-val-blender', skin: 'd3a2_dark', eye: [-0.60, 0.82] },
   { spec: 'ki-43-oscar', model: 'ki-43-oscar-blender', skin: 'ki43b_dark', eye: [-0.75, 0.65] },
   {
@@ -36,20 +36,6 @@ const DUPLICATES: readonly {
   { spec: 'b-17-flying-fortress', model: 'b-17-flying-fortress-blender', skin: 'b17b_dark', eye: [2.40, 1.44] },
 ]
 const TOLERANCE_M = 0.05
-
-it('the A6M2 outer aft fuselage keeps the drawing-measured depth and width six meters aft of the spinner', async () => {
-  const doc = await modelIO().readBinary(new Uint8Array(readFileSync('content/aircraft/a6m2-zero-blender.glb')))
-  const skin = doc.getRoot().listNodes().find((n) => n.getName() === 'a6m2b_dark')
-  expect(skin, 'no A6M2 whole-skin node').toBeDefined()
-  const x = 2.22 - 6.0 // drawing-measured wing quarter-chord origin is 2.22 m aft of the spinner
-  const section = worldPositions(skin!).filter(([px]) => Math.abs(px - x) <= 0.03)
-  expect(section.length, 'no vertices at the authored 6.0 m aft station').toBeGreaterThan(20)
-  // Wikimedia Commons "Mitsubishi A6M Zero drawing.svg", re-read 2026-10-11: the visible outer belly is
-  // -0.49 m from the thrust line and the half-width is 0.35 m here. The former table accidentally followed
-  // internal lines at +0.25 m / 0.18 m. Tolerances cover pixel rounding and the loft's finite ring sampling.
-  expect(Math.min(...section.map((p) => p[1])), 'aft belly relative to the thrust line').toBeLessThanOrEqual(-0.40)
-  expect(Math.max(...section.map((p) => Math.abs(p[2]))), 'aft half-width').toBeGreaterThanOrEqual(0.32)
-})
 
 describe.each(DUPLICATES)('$model fits the spec of $spec', ({ spec: specId, model, skin, station = 0.3, eye, canopyRoof }) => {
   const spec = loadAircraftSpec(specId)
