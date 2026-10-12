@@ -2,6 +2,7 @@ import { HalfFloatType, LinearFilter, RGBAFormat, RenderTarget, Vector2, Vector3
 import { NodeUpdateType, TempNode, type Node, type NodeBuilder, type NodeFrame, type TextureNode, type WebGPURenderer } from 'three/webgpu'
 import { convertToTexture, texture, vec4 } from 'three/tsl'
 import type { Vec3 } from '../../sim/math/vec3.js'
+import type { FxCloudLimit } from '../fx/fxPass.js'
 import type { ReprojectionResidual } from './cloudPass.js'
 import { shaderModuleSource, takramGameCloudsFragment, takramGameCompositeFragment, takramGameTemporalFragment } from './takramGameShaders.js'
 
@@ -178,7 +179,9 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
   private cloudPipeline: GPURenderPipeline
   private temporalPipeline: GPURenderPipeline
   private compositePipeline: GPURenderPipeline
-  private cloudGroup: GPUBindGroup
+  private cloudGroup: GPUBindGroup | null = null
+  private boundFxColour: GPUTexture | null = null
+  private boundFxDense: GPUTexture | null = null
   private temporalGroups: readonly [GPUBindGroup, GPUBindGroup] | null = null
   private compositeGroups: readonly [GPUBindGroup, GPUBindGroup] | null = null
   private readonly repeatSampler: GPUSampler
@@ -211,6 +214,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     private readonly camera: PerspectiveCamera,
     private readonly sceneColor: TextureNode,
     private readonly sceneDepth: TextureNode,
+    private readonly fxLimit: FxCloudLimit | null,
   ) {
     super('vec4')
     this.updateBeforeType = NodeUpdateType.FRAME
@@ -227,7 +231,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     this.queryResolve = timestamps ? device.createBuffer({ size: 16, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC }) : null
     this.queryRead = timestamps ? device.createBuffer({ size: 16, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }) : null
     const module = (label: string, fragment: string): GPUShaderModule => device.createShaderModule({ label, code: shaderModuleSource(fragment) })
-    const cloudModule = module('Takram game cloud march', takramGameCloudsFragment())
+    const cloudModule = module('Takram game cloud march', takramGameCloudsFragment(fxLimit !== null))
     const temporalModule = module('Takram game temporal reconstruction', takramGameTemporalFragment)
     const compositeModule = module('Takram game cloud composite', takramGameCompositeFragment)
     this.cloudPipeline = device.createRenderPipeline({
@@ -245,14 +249,6 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
       fragment: { module: compositeModule, entryPoint: 'fragmentMain', targets: [{ format: 'rgba16float' }] },
       primitive: { topology: 'triangle-list' },
     })
-    this.cloudGroup = device.createBindGroup({
-      layout: this.cloudPipeline.getBindGroupLayout(0), entries: [
-        { binding: 0, resource: { buffer: this.uniforms } }, { binding: 1, resource: this.repeatSampler },
-        { binding: 2, resource: assets.weather.createView() }, { binding: 3, resource: assets.shape.createView() },
-        { binding: 4, resource: assets.detail.createView() }, { binding: 5, resource: assets.turbulence.createView() },
-        { binding: 6, resource: assets.stbn.createView() },
-      ],
-    })
     this.output.texture.name = 'takramCloudComposite'
     this.output.texture.minFilter = this.output.texture.magFilter = LinearFilter
   }
@@ -265,6 +261,8 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     this.histories = null
     this.temporalGroups = null
     this.compositeGroups = null
+    this.cloudGroup = null
+    this.boundFxColour = this.boundFxDense = null
     this.nativeOutput = null
   }
 
@@ -287,6 +285,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     const sceneColor = backend.get(passTexture(this.sceneColor, 'scene color')).texture
     const sceneDepth = backend.get(passTexture(this.sceneDepth, 'scene depth')).texture
     if (this.nativeOutput === null || sceneColor === undefined || sceneDepth === undefined) throw new Error('Takram clouds could not access Three render targets')
+    this.refreshCloudGroup(renderer)
     this.temporalGroups = [0, 1].map(index => this.assets.device.createBindGroup({
       layout: this.temporalPipeline.getBindGroupLayout(0), entries: [
         { binding: 0, resource: { buffer: this.uniforms } }, { binding: 1, resource: this.linearSampler },
@@ -305,6 +304,34 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     this.resetPending = true
   }
 
+  /** The FX targets are resized lazily when particles first appear. Rebind
+   *  only when Three replaces their native textures; otherwise an idle boot
+   *  would retain the original 1x1 resources after the first explosion. */
+  private refreshCloudGroup(renderer: WebGPURenderer): void {
+    let fxColour: GPUTexture | null = null, fxDense: GPUTexture | null = null
+    const backend = renderer.backend as unknown as NativeBackend
+    if (this.fxLimit !== null) {
+      renderer.initRenderTarget(this.fxLimit.colorTarget)
+      renderer.initRenderTarget(this.fxLimit.denseTarget)
+      fxColour = backend.get(passTexture(this.fxLimit.colorTexture, 'FX colour')).texture ?? null
+      fxDense = backend.get(passTexture(this.fxLimit.denseTexture, 'FX dense depth')).texture ?? null
+      if (fxColour === null || fxDense === null) throw new Error('Takram clouds could not access FX render targets')
+    }
+    if (this.cloudGroup !== null && fxColour === this.boundFxColour && fxDense === this.boundFxDense) return
+    const cloudEntries: GPUBindGroupEntry[] = [
+      { binding: 0, resource: { buffer: this.uniforms } }, { binding: 1, resource: this.repeatSampler },
+      { binding: 2, resource: this.assets.weather.createView() }, { binding: 3, resource: this.assets.shape.createView() },
+      { binding: 4, resource: this.assets.detail.createView() }, { binding: 5, resource: this.assets.turbulence.createView() },
+      { binding: 6, resource: this.assets.stbn.createView() },
+    ]
+    if (fxColour !== null && fxDense !== null) {
+      cloudEntries.push({ binding: 7, resource: fxColour.createView() }, { binding: 8, resource: fxDense.createView() })
+    }
+    this.cloudGroup = this.assets.device.createBindGroup({ layout: this.cloudPipeline.getBindGroupLayout(0), entries: cloudEntries })
+    this.boundFxColour = fxColour
+    this.boundFxDense = fxDense
+  }
+
   setEye(value: Vec3): void { this.eye = value }
   gpuTimesMs(): readonly number[] { return this.nativeGpuTimes }
   setEnvironment(timeS: number, sun: Vec3, coverage: number, baseM: number): void {
@@ -319,6 +346,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     const renderer = frame.renderer as unknown as WebGPURenderer
     const { x: width, y: height } = renderer.getDrawingBufferSize(drawingBuffer)
     this.resize(renderer, width, height)
+    this.refreshCloudGroup(renderer)
     const cameraForward = new Vector3(0, 0, -1).transformDirection(this.camera.matrixWorld)
     const cameraRight = new Vector3(1, 0, 0).transformDirection(this.camera.matrixWorld)
     const cameraUp = new Vector3(0, 1, 0).transformDirection(this.camera.matrixWorld)
@@ -334,7 +362,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
     set(24, this.previousPosition, this.resetPending ? 0 : 1)
     set(28, this.previousForward, fov)
     set(32, this.previousRight, width / height)
-    set(36, this.previousUp, 0)
+    set(36, this.previousUp, this.fxLimit?.active() === true ? this.fxLimit.span() : 0)
     this.assets.device.queue.writeBuffer(this.uniforms, 0, values)
     const compositeValues = new Float32Array(16)
     compositeValues.set([width, height, this.camera.near, this.camera.far], 0)
@@ -349,7 +377,7 @@ class TakramCloudPassNode extends TempNode<'vec4'> {
       { view: this.lowColour!.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 } },
       { view: this.lowDepth!.createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 1, g: 0, b: 0, a: 1 } },
     ], ...(measure ? { timestampWrites: { querySet: this.querySet!, beginningOfPassWriteIndex: 0 } } : {}) })
-    cloud.setPipeline(this.cloudPipeline); cloud.setBindGroup(0, this.cloudGroup); cloud.draw(3); cloud.end()
+    cloud.setPipeline(this.cloudPipeline); cloud.setBindGroup(0, this.cloudGroup!); cloud.draw(3); cloud.end()
     const temporal = encoder.beginRenderPass({ colorAttachments: [
       { view: this.histories![next]![0].createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 0 } },
       { view: this.histories![next]![1].createView(), loadOp: 'clear', storeOp: 'store', clearValue: { r: 1, g: 0, b: 0, a: 1 } },
@@ -410,9 +438,11 @@ export function createTakramCloudPass(options: {
   camera: PerspectiveCamera
   sceneColor: Node<'vec4'>
   sceneDepth: Node<'float'>
+  fxLimit?: FxCloudLimit | null
 }): TakramCloudPass {
   const node = new TakramCloudPassNode(
     options.assets, options.camera, convertToTexture(options.sceneColor) as unknown as TextureNode, options.sceneDepth as unknown as TextureNode,
+    options.fxLimit ?? null,
   )
   return {
     composite: node as unknown as Node<'vec4'>,

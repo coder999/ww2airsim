@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { playerAircraft } from '../../src/sim/loop.js'
 import { flyPass } from '../pilot/flyPass.js'
-import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
+import { groundTruthTerrain, landingAhead, rangePass } from '../pilot/rangePass.js'
+import { loadAirfield } from '../../tools/content/load.js'
 
 /**
  * The shipped Gunnery Range, flown the way a player flies it (plan
@@ -34,4 +35,10 @@ describe('the Gunnery Range strafing pass', () => {
     for (const s of w.structures) expect(w.combat.structures[s.id]!.hp, s.id).toBe(s.hp)
     expect(w.combat.aircraft[playerAircraft(w).id]!.friendlyFire).toBeNull()
   })
+})
+
+it('caps a delayed test landing before Tacloban\'s far threshold', () => {
+  const runway = loadAirfield('tacloban').runway
+  const pass = landingAhead({ x: runway.center.x, z: runway.center.z - 1000 }, 'tacloban', 250, terrain)
+  expect(pass.landing.aimZ).toBe(runway.center.z - (runway.lengthM / 2 - 120))
 })

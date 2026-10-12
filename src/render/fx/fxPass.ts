@@ -33,7 +33,18 @@ export function fxTargetSize(width: number, height: number, scale: number): { wi
   return { width: Math.max(1, Math.ceil(width * scale)), height: Math.max(1, Math.ceil(height * scale)) }
 }
 
-export type FxCloudLimit = { denseViewZAt(fullPixel: Node<'vec2'>): Node<'float'> }
+export type FxCloudLimit = {
+  denseViewZAt(fullPixel: Node<'vec2'>): Node<'float'>
+  /** Native-WGSL cloud passes cannot call the TSL helper above. These are
+   *  the same reduced-resolution buffers and live state, exposed so that
+   *  their shader can apply the identical dense-effect stop rule. */
+  readonly colorTexture: TextureNode
+  readonly denseTexture: TextureNode
+  readonly colorTarget: RenderTarget
+  readonly denseTarget: RenderTarget
+  active(): boolean
+  span(): number
+}
 export type FxPass = {
   readonly composite: Node<'vec4'>
   readonly cloudLimit: FxCloudLimit | null
@@ -193,6 +204,12 @@ class FxPassNode extends TempNode<'vec4'> {
       })
       return out as unknown as Node<'float'>
     },
+    colorTexture: this.colorTex,
+    denseTexture: this.denseTex,
+    colorTarget: this.color,
+    denseTarget: this.dense,
+    active: () => this.live > 0,
+    span: () => fxSpan(this.scale),
   }
 
   override dispose(): void {

@@ -50,7 +50,7 @@ async function fixedView(page: Page, url: string): Promise<void> {
   await page.waitForTimeout(1000)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.tick())).toBe(0)
 }
-/** Clear of the overlays: the legend sits top-right, the diagnostics top-left, PAUSED at mid-height. */
+/** Clear of the overlays: diagnostics sit top-left and PAUSED at mid-height. */
 const SKY_STRIP = { x: 500, y: 120, w: 1400, h: 300 }
 const GROUND_STRIP = { x: 200, y: 1000, w: 2160, h: 300 }
 const at = { ...OVER_GULF, y: 1300 }

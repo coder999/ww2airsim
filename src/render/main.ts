@@ -1235,7 +1235,7 @@ async function boot(): Promise<void> {
         layers: cloudLayers, tier: cloudTier, renderer: cloudRenderer,
         steps: cloudTier === 'off' ? 0 : CLOUD_TIERS[cloudTier].cumulusSteps,
         // Plan 16b: what the shadow pass is doing, for the E2E budget.
-        shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M },
+        shadow: { enabled: shadow.enabled, taps: shadow.taps, mapSideM: MAP_SIDE_M, renderedFrames: shadow.renderedFrames },
         // Photoreal Task 4: frames resolved without history (0 with no pass).
         historyResets: cloudPass?.historyResets() ?? 0,
         takramGpuMs: takramCloudPass?.gpuTimesMs() ?? [],
@@ -1831,6 +1831,7 @@ async function boot(): Promise<void> {
       takramCloudPass = createTakramCloudPass({
         renderer, assets: takramAssets, camera,
         sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+        fxLimit: fxPass?.cloudLimit ?? null,
       })
       cloudPass = takramCloudPass
     } else if (cloudRenderer === 'takram-tsl') {
@@ -1838,6 +1839,7 @@ async function boot(): Promise<void> {
       takramCloudPass = createTakramTslCloudPass({
         assets: takramTslAssets, camera,
         sceneColor: fxPass?.composite ?? framePipeline.sceneColor, sceneDepth: framePipeline.sceneDepth,
+        fxLimit: fxPass?.cloudLimit ?? null,
       })
       cloudPass = takramCloudPass
     } else {
@@ -3201,6 +3203,7 @@ async function boot(): Promise<void> {
         shadow.update(view.eye.position)
         renderer.setRenderTarget(shadow.target)
         renderer.render(shadow.scene, shadow.camera)
+        shadow.markRendered()
         renderer.setRenderTarget(null)
       }
       // Plan 17: the radar scope's own offscreen pass, the same shape the

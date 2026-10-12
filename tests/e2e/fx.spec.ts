@@ -59,7 +59,9 @@ test('a bomb on land draws fire at its point (spec §7)', async ({ page }) => {
 test('a bomb on water raises a white column at its point (spec §7)', async ({ page }) => {
   // Looking west and slightly down puts both the sea and the whole tall column
   // in the metric's window; the default runway view hides it below the frame.
-  const { before, after, a } = await inject(page, withParams('/', { look: '-90,-3' }), 'bomb-water', 1500, 'bomb-water', 'center')
+  // Clouds used to contribute 7-20k white pixels to this local splash
+  // window. Isolate the effect whose wiring this test owns.
+  const { before, after, a } = await inject(page, withParams('/', { look: '-90,-3', cloudTier: 'off' }), 'bomb-water', 1500, 'bomb-water', 'center')
   const was = count(before, a.x, a.y - 60, 100, white), now = count(after, a.x, a.y - 60, 100, white)
   console.log(`FX bomb-water white px: before ${was}, after ${now}`)
   expect(now - was).toBeGreaterThan(2500)
@@ -88,8 +90,10 @@ test('soft edge: no single-row luminance step where smoke meets the ground (spec
     await context.close()
     return result
   }
-  const soft = await fresh(withParams('/', { look: '-90,-3' }), 'smoke-base-soft')
-  const hard = await fresh(withParams('/', { look: '-90,-3', fxSoft: 'off' }), 'smoke-base-hard')
+  // The two pages must differ only in the soft-depth switch; a different
+  // temporal cloud field otherwise dominates the row-step relationship.
+  const soft = await fresh(withParams('/', { look: '-90,-3', cloudTier: 'off' }), 'smoke-base-soft')
+  const hard = await fresh(withParams('/', { look: '-90,-3', cloudTier: 'off', fxSoft: 'off' }), 'smoke-base-hard')
   console.log(`FX soft edge: row step p90 soft ${soft.toFixed(1)}, hard ${hard.toFixed(1)} (8-bit luma)`)
   expect(soft).toBeLessThan(0.6 * hard)
 })

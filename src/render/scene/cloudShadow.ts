@@ -86,6 +86,9 @@ export type CloudShadowHandle = {
   setTier(name: CloudTierName): void
   /** Recenter on the eye (true world metres). Call before rendering the pass. */
   update(eye: Vec3): void
+  /** DEV structural diagnostic: frames actually submitted by main.ts. */
+  readonly renderedFrames: number
+  markRendered(): void
   /** DEV diagnostic: the map's stored transmittance at a sea-level world point,
    *  read back through the SAME texel convention the lookup node samples, so a
    *  fixed world point must read the same value from any eye position. Null
@@ -98,6 +101,7 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
   const capable = mode !== 'off'
   let lowest = field.lowestCumulus()
   let enabled = lowest !== null && capable
+  let renderedFrames = 0
 
   const target = new RenderTarget(MAP_TEXELS, MAP_TEXELS, {
     format: RedFormat, type: UnsignedByteType, depthBuffer: false, stencilBuffer: false,
@@ -223,6 +227,8 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
       center.z = c.z
       mapOrigin.value.set(c.x - MAP_SIDE_M / 2, c.z - MAP_SIDE_M / 2)
     },
+    get renderedFrames() { return renderedFrames },
+    markRendered(): void { renderedFrames += 1 },
     dispose(): void {
       target.dispose()
       quad.geometry.dispose()

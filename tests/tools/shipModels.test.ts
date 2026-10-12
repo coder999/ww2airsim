@@ -1,6 +1,6 @@
 // tests/tools/shipModels.test.ts
 import { describe, expect, it } from 'vitest'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { loadModelEntries } from '../../tools/models/manifest.js'
 import { downloadBakeInputs } from '../../tools/models/build.js'
 import { findNode, modelIO } from '../../tools/models/document.js'
@@ -8,6 +8,7 @@ import { documentSoup, SMOKE_REACH_M } from '../../tools/models/stages/shipFit.j
 import { bounds, fitProblems, residualProblems, surfaceBelow, trapLaneHalfWidth, type ShipFit } from '../../src/render/scene/shipFit.js'
 import { loadShipSpec } from '../../tools/content/load.js'
 import { bearingQuat, GUNS_SUFFIX, KIT_PREFIX, MAX_ELEVATION_DEG, MOUNT_SLACK_M, namedMounts } from '../../tools/models/stages/shipMounts.js'
+import { parseLibraryEntry } from '../../src/render/hangar/library.js'
 
 /**
  * Deterministic for every committed ship glb (ship-models spec §9, items 1-5), on a
@@ -22,11 +23,19 @@ const ships = loadModelEntries().filter((e) => e.ship !== undefined)
 const read = async (path: string) => modelIO().readBinary(new Uint8Array(readFileSync(path)))
 
 describe('the committed ship models', () => {
-  it('are the complete Library roster', () => {
-    expect(ships.map((e) => e.id)).toEqual([
-      'abukuma-cl', 'casablanca-cve', 'cleveland-cl', 'crow-amc-20', 'essex-cv', 'fletcher-dd-blender', 'fletcher-dd', 'kagero-dd',
-      'mogami-ca', 'pennsylvania-bb', 'shiratsuyu-dd-blender', 'shiratsuyu-dd', 'type-b-maru', 'yamato-bb', 'zuikaku-cv-blender', 'zuikaku-cv',
-    ])
+  it('cover every model the Library ship roster resolves, exactly once', () => {
+    const expected = readdirSync('content/library').filter((f) => f.endsWith('.json')).map((file) =>
+      parseLibraryEntry(JSON.parse(readFileSync(`content/library/${file}`, 'utf8'))),
+    ).filter((entry) => entry.kind === 'ship').map((entry) => {
+      const model = entry.model?.id ?? (entry.spec === undefined ? undefined : loadShipSpec(entry.spec).view?.model)
+      if (model === undefined) throw new Error(`Library ship ${entry.id} resolves no model`)
+      return model
+    }).sort()
+    // Enrollment guard: a broken filter must not make this consistency check
+    // pass vacuously. The inventory itself has one owner, content/library.
+    expect(expected.length).toBeGreaterThan(0)
+    expect(new Set(expected).size).toBe(expected.length)
+    expect(ships.map((entry) => entry.id).sort()).toEqual(expected)
   })
 })
 
