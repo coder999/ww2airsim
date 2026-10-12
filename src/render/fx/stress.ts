@@ -55,7 +55,10 @@ export function stressScene(name: FxStressName, eye: Vec3, look: Vec3, groundAt:
     // 800 m the old stimulus sat below the 750 m cloud base, so all three
     // controls were the same image after TSL became the default. 1,400 m
     // puts the fireball inside the deck and makes the limit observable.
-    case 'cloud-fireball': { const p = ahead(1400); return { ...empty, triggers: [t('kill.air', p)], anchors: [{ name: 'fireball', position: p }] } }
+    case 'cloud-fireball': {
+      const p = ahead(1400)
+      return { ...empty, triggers: [t('kill.air', p)], sustained: [s('fireball', 'kill.air', p)], anchors: [{ name: 'fireball', position: p }] }
+    }
     case 'eye-smoke': return { ...empty, sustained: [s('plume', 'ship.fire', ahead(5)), s('column', 'structure.collapse', v3(eye.x, eye.y - 3, eye.z))], anchors: [] }
     case 'none': return empty
   }
