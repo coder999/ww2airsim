@@ -34,7 +34,7 @@ export const PANEL_SLOTS: readonly Slot[] = [
   { id: 'radar', centreX: 0, widthM: 0.14 },
   // The approved fascia's attitude opening is larger than the numeric dials;
   // its live ball fills that opening instead of inheriting `dialWidth`.
-  { id: 'attitude', centreX: 0.19, widthM: 0.122 },
+  { id: 'attitude', centreX: 0.199, widthM: 0.116 },
   { id: 'verticalSpeed', centreX: 0.32, widthM: dialWidth },
   { id: 'fuel', centreX: 0.48, widthM: 0.050 },
   { id: 'slip', centreX: 0.32, widthM: dialWidth, band: 'auxiliary' },

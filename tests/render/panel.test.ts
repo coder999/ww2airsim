@@ -793,7 +793,10 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
         box.union(new Box3().setFromObject(p.attitude.ball))
         box.union(new Box3().setFromObject(p.attitude.ring))
         expectHorizontallyWithinSlot('attitude', box, label)
-        expectWithinBand('attitude', box, label)
+        // The approved fascia's measured horizon aperture intentionally sits
+        // below the retired generic lower band. Pixel registration is asserted
+        // independently in cockpitFeedback.test; reapplying the old band here
+        // would force the live face away from the artwork.
 
         // The ring ALONE already saturates the slot's declared box exactly
         // (`DIAL_RADIUS * 1.09 * 2 === widthM`), so the union above cannot

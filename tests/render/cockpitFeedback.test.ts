@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Box3, Mesh, Vector3 } from 'three'
 import { createPanel, updatePanel, PANEL_BELOW_M } from '../../src/render/scene/panel.js'
-import { degreesBelowEye, HORIZON_KEEP_DEG, PANEL_BANDS, PANEL_SLOTS } from '../../src/render/scene/panelLayout.js'
+import { degreesBelowEye, HORIZON_KEEP_DEG, PANEL_BANDS } from '../../src/render/scene/panelLayout.js'
 import { cameraTransformFor } from '../../src/render/camera.js'
 import { flightDataItems } from '../../src/render/flightData.js'
 import { initialFrameState, nextFrameState } from '../../src/render/frame.js'
@@ -61,23 +61,25 @@ describe('cockpit feedback', () => {
     }
   })
 
-  it('centres the radar face in its reserved slot and fills the approved circular opening', () => {
+  it('registers the radar and horizon faces to the measured fascia apertures', () => {
     const p = panel()
     p.root.updateMatrixWorld(true)
-    // The approved raster supplies the recess. Hidden procedural shadow
-    // planes are deliberately larger than the slot and do not render; the
-    // live circular face is the geometry that must remain registered.
+    // Independent world-space expectations from the four source assets'
+    // measured pixel apertures (1672x941), including the intentional lip
+    // overscan. Do not derive these from `faceRadius`: that self-referential
+    // assertion previously passed while both live displays visibly missed
+    // their painted openings.
     const radar = new Box3().setFromObject(p.radar.face)
-    const slot = PANEL_SLOTS.find(s => s.id === 'radar')!
-    const centre = radar.getCenter(new Vector3())
-    const size = radar.getSize(new Vector3())
-    expect(centre.x).toBe(slot.centreX)
-    expect(radar.min.x).toBeGreaterThanOrEqual(slot.centreX - slot.widthM / 2 - 1e-6)
-    expect(radar.max.x).toBeLessThanOrEqual(slot.centreX + slot.widthM / 2 + 1e-6)
-    expect(centre.y).toBeLessThan(PANEL_BELOW_M - PANEL_BANDS.lower.top)
-    expect(centre.y).toBeGreaterThan(PANEL_BELOW_M - PANEL_BANDS.lower.bottom)
-    expect(size.x).toBeCloseTo(p.radar.faceRadius * 2, 6)
-    expect(size.y).toBeCloseTo(p.radar.faceRadius * 2, 6)
+    expect(radar.getCenter(new Vector3()).x).toBeCloseTo(-0.001288, 5)
+    expect(radar.getCenter(new Vector3()).y).toBeCloseTo(-0.050389, 5)
+    expect(radar.getSize(new Vector3()).x).toBeCloseTo(0.161977, 5)
+    expect(radar.getSize(new Vector3()).y).toBeCloseTo(0.161977, 5)
+
+    const horizon = new Box3().setFromObject(p.attitude.ball)
+    expect(horizon.getCenter(new Vector3()).x).toBeCloseTo(0.198974, 5)
+    expect(horizon.getCenter(new Vector3()).y).toBeCloseTo(-0.080023, 5)
+    expect(horizon.getSize(new Vector3()).x).toBeCloseTo(0.113384, 5)
+    expect(horizon.getSize(new Vector3()).y).toBeCloseTo(0.113384, 5)
   })
 })
 

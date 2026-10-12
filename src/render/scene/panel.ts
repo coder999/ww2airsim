@@ -175,7 +175,9 @@ const EQUIPMENT_CELL_X = (i: number): number =>
 export type ArmamentId = 'ammo' | 'bomb' | 'rocket' | 'torpedo'
 const ARMAMENT_IDS: readonly ArmamentId[] = ['ammo', 'bomb', 'rocket', 'torpedo']
 
-const APPROVED_FASCIA_ASPECT = 1672 / 941
+const APPROVED_FASCIA_WIDTH_PX = 1672
+const APPROVED_FASCIA_HEIGHT_PX = 941
+const APPROVED_FASCIA_ASPECT = APPROVED_FASCIA_WIDTH_PX / APPROVED_FASCIA_HEIGHT_PX
 const APPROVED_FASCIA_FAMILIES = new Set<CockpitConfig['layout']['id']>([
   'american-fighter',
   'american-bomber',
@@ -266,16 +268,6 @@ const Z_NEEDLE = 0.005
  * joint derivation of this constant and that one.
  */
 const DIAL_TEXT_OFFSET_M = 0.08 * S
-
-// The approved raster fascia has deliberately larger openings for its two
-// display instruments than the old procedural row did. The live layers used
-// the procedural dial radius, leaving a dark crescent around both screens and
-// making their slightly high placement obvious. These radii and the shared
-// correction register the live displays to the literal openings in all four
-// approved family fascias.
-const APPROVED_ATTITUDE_FACE_RADIUS = DIAL_RADIUS * 1.24
-const APPROVED_RADAR_FACE_RADIUS = 0.066
-const APPROVED_DISPLAY_Y_OFFSET = -0.0045
 
 /**
  * The attitude ball's sky/ground split, rebuilt fresh every `updatePanel`
@@ -376,6 +368,28 @@ export { PANEL_AHEAD_M }
  * be read at a realistic eye point are faithful and useless.
  */
 export const PANEL_BELOW_M = 0.19
+
+// Pixel registrations measured from all four 1672x941 approved fascia assets.
+// Convert the literal aperture coordinates to panel-local metres so the live
+// faces are registered to the art instead of merely to the old logical slots.
+// The radii overscan the painted inner lips by one/two source pixels, preventing
+// a dark crescent after linear texture filtering.
+const APPROVED_FASCIA_VIEW_HEIGHT = 2 * Math.tan((CAMERA_VFOV_DEG * Math.PI) / 360) * PANEL_AHEAD_M
+const APPROVED_FASCIA_M_PER_PX = APPROVED_FASCIA_VIEW_HEIGHT / APPROVED_FASCIA_HEIGHT_PX
+const approvedFasciaX = (pixelX: number): number =>
+  (pixelX - APPROVED_FASCIA_WIDTH_PX / 2) * APPROVED_FASCIA_M_PER_PX
+const approvedFasciaY = (pixelY: number): number =>
+  PANEL_BELOW_M + APPROVED_FASCIA_VIEW_HEIGHT / 2 - pixelY * APPROVED_FASCIA_M_PER_PX
+const APPROVED_RADAR_APERTURE = {
+  x: approvedFasciaX(834.25),
+  y: approvedFasciaY(797),
+  radius: 110 * APPROVED_FASCIA_M_PER_PX,
+}
+const APPROVED_ATTITUDE_APERTURE = {
+  x: approvedFasciaX(1106.25),
+  y: approvedFasciaY(837.25),
+  radius: 77 * APPROVED_FASCIA_M_PER_PX,
+}
 
 /**
  * The reflector sight, as an angle rather than a size.
@@ -977,12 +991,12 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   // reverse -- a "RESERVED" label on a working instrument would be the same
   // lie the other direction). No on-face label, matching the attitude
   // ball's precedent: a live, self-evidently-a-radar sweep needs none.
-  const radarFaceRadius = approvedFascia ? APPROVED_RADAR_FACE_RADIUS : 0.058
+  const radarFaceRadius = approvedFascia ? APPROVED_RADAR_APERTURE.radius : 0.058
   const radar = new Group()
   radar.name = 'radar'
   radar.position.set(
-    slotX('radar'),
-    PANEL_BELOW_M - lowerCentre + (approvedFascia ? APPROVED_DISPLAY_Y_OFFSET : 0),
+    approvedFascia ? APPROVED_RADAR_APERTURE.x : slotX('radar'),
+    approvedFascia ? APPROVED_RADAR_APERTURE.y : PANEL_BELOW_M - lowerCentre,
     0,
   )
   const radarShadow = new Mesh(new PlaneGeometry(0.152, 0.140), bezelShadowMat)
@@ -1344,12 +1358,12 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
   {
     const attitudeSlot = PANEL_SLOTS.find((s) => s.id === 'attitude')
     if (!attitudeSlot) throw new Error('no layout slot for attitude')
-    const attitudeFaceRadius = approvedFascia ? APPROVED_ATTITUDE_FACE_RADIUS : DIAL_RADIUS
+    const attitudeFaceRadius = approvedFascia ? APPROVED_ATTITUDE_APERTURE.radius : DIAL_RADIUS
     const attitudeGroup = new Group()
     attitudeGroup.name = 'attitude'
     attitudeGroup.position.set(
-      attitudeSlot.centreX,
-      PANEL_BELOW_M - lowerCentre + (approvedFascia ? APPROVED_DISPLAY_Y_OFFSET : 0),
+      approvedFascia ? APPROVED_ATTITUDE_APERTURE.x : attitudeSlot.centreX,
+      approvedFascia ? APPROVED_ATTITUDE_APERTURE.y : PANEL_BELOW_M - lowerCentre,
       0,
     )
     root.add(attitudeGroup)

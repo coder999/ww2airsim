@@ -64,17 +64,21 @@ WebGPU validation/console output and then built the contact sheet from those exa
 
 The final visual pass confirmed the family silhouette/palette differences, readable primary faces,
 Japanese glyphs and units, conditional sight/status equipment, and one/two/four-engine RPM
-presentation. The 2026-10-12 feedback pass enlarged and recentered the live radar and attitude
-faces so each fills its circular fascia opening, and replaced shared multi-needle RPM presentation
-with the separate per-engine mini-dials described above.
+presentation. The 2026-10-12 feedback pass replaced shared multi-needle RPM presentation with the
+separate per-engine mini-dials described above. A subsequent visual re-evaluation found that the
+first slot-based radar/horizon alignment check was self-referential and wrong. The final correction
+measures each aperture across all four 1672×941 fascia assets and converts those literal pixel
+centres/radii into panel coordinates, with a one/two-pixel lip overscan. Fresh full-size captures
+confirm that both live faces now fill and centre on their painted openings.
 
 ## Verification
 
 - `npm run typecheck` passes after the final implementation and capture-tool changes.
 - Focused panel, layout, feedback, family enrollment and engine-RPM coverage passes 78/78 after the
-  2026-10-12 alignment and per-engine-dial changes.
+  final pixel-registered aperture and per-engine-dial changes.
 - Nexus's real Radeon 680M preliminary capture passed 15/15 (fourteen aircraft plus contact sheet).
-- The final headed Ryzen RX 6700 XT reference capture passed 15/15 in 1.8 minutes, with no WebGPU
+- The final, aperture-corrected headed Ryzen RX 6700 XT reference capture passed 15/15 in 1.8
+  minutes, with no WebGPU
   validation errors or captured page/console errors.
 - `git diff --check` passes.
 - The broad `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` gate passed typecheck, lint and
