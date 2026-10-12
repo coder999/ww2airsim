@@ -27,6 +27,23 @@ export type TextTextureFactory = (text: string, aspect: number) => Texture | nul
 /** Texture height. Width follows from the plate's aspect, so glyphs stay square. */
 const TEXTURE_HEIGHT_PX = 96
 
+const COCKPIT_FONT_FAMILY = 'WW2 Cockpit Japanese'
+let cockpitFont: Promise<void> | null = null
+
+/** Load the committed C3 glyph subset before any Japanese plate is painted.
+ * Canvas otherwise snapshots whichever OS fallback happens to be available. */
+export function ensureCockpitTextFont(): Promise<void> {
+  if (typeof document === 'undefined' || typeof FontFace === 'undefined') return Promise.resolve()
+  if (cockpitFont === null) {
+    cockpitFont = new FontFace(
+      COCKPIT_FONT_FAMILY,
+      'url(/content/fonts/noto-sans-jp-cockpit.ttf) format("truetype")',
+      { style: 'normal', weight: '600' },
+    ).load().then((font) => { document.fonts.add(font) })
+  }
+  return cockpitFont
+}
+
 export const makeTextTexture: TextTextureFactory = (text, aspect) => {
   if (typeof document === 'undefined' || text === '') return null
 
@@ -52,7 +69,7 @@ export const makeTextTexture: TextTextureFactory = (text, aspect) => {
   let size = Math.round(TEXTURE_HEIGHT_PX * 0.72)
   const maxWidth = canvas.width * 0.94
   for (; size > 8; size--) {
-    ctx.font = `600 ${size}px ui-monospace, "DejaVu Sans Mono", monospace`
+    ctx.font = `600 ${size}px "${COCKPIT_FONT_FAMILY}", ui-monospace, "DejaVu Sans Mono", monospace`
     if (ctx.measureText(text).width <= maxWidth) break
   }
 

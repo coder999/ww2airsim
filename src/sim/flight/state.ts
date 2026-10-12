@@ -49,6 +49,10 @@ export type AircraftState = {
   // has no effect.
   readonly bodyRates: Vec3
   readonly fuelKg: number
+  /** C3 indicated engine speed, one value per physical engine. Display-only:
+   * it follows throttle/output with lag and never feeds propulsion. Empty on
+   * legacy initial states; the first `step` sizes it from the active spec. */
+  readonly engineRpm: readonly number[]
   /** The simulation tick this state is the result of. Starts at 0.
    *  Master spec §3 has the renderer interpolating between the two most recent
    *  ticks, which needs each snapshot to say which tick it is. It also makes a
@@ -80,6 +84,7 @@ export const createState = (init: Partial<AircraftState> = {}): AircraftState =>
   attitude: init.attitude ?? qIdentity(),
   bodyRates: init.bodyRates ?? v3(0, 0, 0),
   fuelKg: init.fuelKg ?? 400,
+  engineRpm: init.engineRpm ?? [],
   tick: init.tick ?? 0,
   gearFraction: init.gearFraction ?? 0,
   flapFraction: init.flapFraction ?? 0,

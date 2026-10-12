@@ -133,6 +133,12 @@ const AircraftSpecObject = z.object({
     oswaldE: fraction,
   }).strict(),
   engine: z.object({
+    /** Physical engine count for cockpit indication. Damage may expose fewer
+     * channels for legacy aggregate content (notably the P-38). */
+    count: z.number().int().min(1).max(4),
+    /** Display-only tachometer endpoints; neither changes propulsion. */
+    idleRpm: positive,
+    ratedRpm: positive,
     maxPowerW: positive,
     propEfficiency: fraction,
     staticThrustN: positive,
@@ -155,7 +161,9 @@ const AircraftSpecObject = z.object({
       .refine((pts) => pts.every((p, i) => i === 0 || p[0] > pts[i - 1]![0]), {
         message: 'power curve altitudes must strictly increase',
       }),
-  }).strict(),
+  }).strict().refine((engine) => engine.idleRpm < engine.ratedRpm, {
+    message: 'idleRpm must be below ratedRpm',
+  }),
   rates: z.object({
     maxRollRateDegPerSec: positive,
     maxPitchRateDegPerSec: positive,
@@ -550,6 +558,10 @@ export const AircraftSpecSchema = AircraftSpecObject.refine(
  */
 export type AircraftSpec = z.infer<typeof AircraftSpecSchema> & {
   storesLoad?: { massKg: number; dragAreaM2: number }
+  /** C3: per-engine deterministic output for indicated RPM. Transient only;
+   * never legal JSON content. A shorter legacy vector is repeated by the RPM
+   * display model for an explicitly multi-engine spec. */
+  engineOutputs?: readonly number[]
   /** C4: signed engine-out yaw rate and its healthy-airframe combined cap,
    * derived by `damagedSpec` from indexed engine hit-zone arms before yaw
    * control damage scales `rates.maxYawRateDegPerSec`. Never legal content:

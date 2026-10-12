@@ -32,6 +32,8 @@ export type { AircraftState, Controls } from './state.js'
  *  and how a variable frame time is accumulated into 60 Hz ticks, is a
  *  deliberately deferred design decision for the next plan. */
 export const DT = 1 / 60
+const RPM_LAG_SECONDS = 0.45
+const FIXED_STEP_RPM_BLEND = 1 - Math.exp(-DT / RPM_LAG_SECONDS)
 /** Constant deceleration of an arrested airplane relative to the deck: 2.0 s
  *  and 34 m of run-out from a 34 m/s arrival, about 1.7 g, in the range of a
  *  real pendant run-out (design section 5, amended during planning to a
@@ -180,6 +182,37 @@ function thrustMagnitude(spec: AircraftSpec, state: AircraftState, rawThrottle: 
  */
 export function engineCutOut(spec: AircraftSpec, liftN: number, onGroundNow = false): boolean {
   return spec.engine.negativeGCutout === true && liftN < 0 && !onGroundNow
+}
+
+/** C3's deliberately small tachometer model. RPM is indicated state only:
+ * one fixed lag follows throttle and the same deterministic output channels
+ * damage already supplies. It cannot feed thrust or any other flight term. */
+export function engineRpmAfter(
+  spec: AircraftSpec,
+  state: AircraftState,
+  throttle: number,
+  cutOut: boolean,
+  dt: number,
+): readonly number[] {
+  const command = clampFinite(throttle, 0, 1)
+  const outputs = spec.engineOutputs
+  const targetHealthy = spec.engine.idleRpm + command * (spec.engine.ratedRpm - spec.engine.idleRpm)
+  // Exact exponential response makes the result deterministic for any valid
+  // timestep while giving the panel a readable half-second spool response.
+  // The production loop always uses DT. Reusing its blend avoids millions of
+  // identical transcendental calls in large headless missions while keeping
+  // the arbitrary-dt helper exact for tests and other callers.
+  const blend = dt === DT ? FIXED_STEP_RPM_BLEND : 1 - Math.exp(-dt / RPM_LAG_SECONDS)
+  const lastOutput = outputs === undefined ? 1 : outputs[outputs.length - 1] ?? 1
+  const rpm = new Array<number>(spec.engine.count)
+  for (let i = 0; i < rpm.length; i++) {
+    const output = cutOut ? 0 : clampFinite(outputs?.[i] ?? lastOutput, 0, 1)
+    const target = targetHealthy * output
+    const previous = state.engineRpm[i] ?? (output > 0 ? spec.engine.idleRpm * output : 0)
+    const next = previous + (target - previous) * blend
+    rpm[i] = Number.isFinite(next) ? Math.max(0, next) : 0
+  }
+  return rpm
 }
 
 const DEG = Math.PI / 180
@@ -741,6 +774,7 @@ export function step(
   const flapFraction = flapAfter(spec, state.flapFraction, controls.flapDown, dt)
   // Bay doors (C2), the same way, driven by `controls.bayDoorsOpen`.
   const bayDoorFraction = bayDoorsAfter(spec, state.bayDoorFraction, controls.bayDoorsOpen, dt)
+  const engineRpm = engineRpmAfter(spec, state, controls.throttle, starved, dt)
 
-  return { position, velocity, attitude, bodyRates, fuelKg, tick: ctx.tick, gearFraction, flapFraction, bayDoorFraction, arrested }
+  return { position, velocity, attitude, bodyRates, fuelKg, engineRpm, tick: ctx.tick, gearFraction, flapFraction, bayDoorFraction, arrested }
 }

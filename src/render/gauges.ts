@@ -26,14 +26,9 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
 export type Wind = Vec3 | null
 
 /**
- * Instruments fitted to the panel.
- *
- * Every one of these is backed by a quantity the flight model actually
- * produces. Deliberately absent: tachometer, manifold pressure, oil and
- * cylinder-head temperatures -- Plan 1's model has no engine RPM or thermal
- * state, and a needle driven by `throttle * 2700` would be a lie rendered at
- * 60 fps. This project treats a false claim in a comment as a defect; a gauge
- * is a louder claim than a comment. Each goes in when a plan models it.
+ * Instruments fitted to the panel. Every one is backed by simulation state;
+ * C3 adds indicated RPM to that contract but deliberately does not invent
+ * manifold pressure, oil pressure or temperature.
  */
 export type GaugeId =
   | 'airspeed'
@@ -42,7 +37,10 @@ export type GaugeId =
   | 'heading'
   | 'fuel'
   | 'slip'
+  | 'rpm'
   | 'throttle'
+
+export type GaugeProfile = 'imperial' | 'metric-japanese'
 
 /**
  * Which shape an instrument is drawn as.
@@ -158,9 +156,14 @@ export const GAUGES: readonly GaugeSpec[] = [
     majorStep: 125, minorStep: 62.5, fromSI: 1 / (6 * 0.45359237), decimals: 0,
   },
   {
-    id: 'slip', label: 'SLIP', unit: '', kind: 'dial', cockpit: false,
+    id: 'slip', label: 'SLIP', unit: '', kind: 'dial',
     min: -0.5, max: 0.5, sweepRad: Math.PI / 2, circular: false,
     majorStep: 0.5, minorStep: 0.125, fromSI: 1, decimals: 2,
+  },
+  {
+    id: 'rpm', label: 'RPM', unit: 'rpm', kind: 'dial',
+    min: 0, max: 3500, sweepRad: (TWO_PI * 3) / 4, circular: false,
+    majorStep: 1000, minorStep: 500, fromSI: 1, decimals: 0,
   },
   // Appended here, per R1 -- the table is finalised in this task, not spread
   // across later ones.
@@ -171,7 +174,34 @@ export const GAUGES: readonly GaugeSpec[] = [
   },
 ]
 
-const byId = new Map(GAUGES.map((g) => [g.id, g]))
+export const JAPANESE_GAUGES: readonly GaugeSpec[] = GAUGES.map((g): GaugeSpec => {
+  switch (g.id) {
+    case 'airspeed': return { ...g, label: '速度', unit: 'km/h', min: 0, max: 800, majorStep: 200, minorStep: 50, fromSI: 3.6 }
+    case 'altimeter': return { ...g, label: '高度', unit: 'm', min: 0, max: 12_000, majorStep: 3000, minorStep: 1000, fromSI: 1 }
+    case 'verticalSpeed': return { ...g, label: '昇降', unit: 'm/s', min: -25, max: 25, majorStep: 25, minorStep: 5, fromSI: 1 }
+    case 'heading': return { ...g, label: '方位' }
+    case 'fuel': return { ...g, label: '燃料', unit: 'L', min: 0, max: 1500, majorStep: 750, minorStep: 375, fromSI: 1 / 0.72 }
+    case 'slip': return { ...g, label: '横滑' }
+    case 'rpm': return { ...g, label: '回転' }
+    case 'throttle': return { ...g, label: '出力' }
+  }
+})
+
+const gaugesByProfile: Readonly<Record<GaugeProfile, readonly GaugeSpec[]>> = {
+  imperial: GAUGES,
+  'metric-japanese': JAPANESE_GAUGES,
+}
+const byProfile = new Map(Object.entries(gaugesByProfile).map(([profile, gauges]) => [
+  profile as GaugeProfile,
+  new Map(gauges.map((g) => [g.id, g])),
+]))
+
+export const gaugesFor = (profile: GaugeProfile): readonly GaugeSpec[] => gaugesByProfile[profile]
+export const gaugeFor = (id: GaugeId, profile: GaugeProfile = 'imperial'): GaugeSpec => {
+  const gauge = byProfile.get(profile)?.get(id)
+  if (!gauge) throw new Error(`Unknown gauge: ${id}`)
+  return gauge
+}
 
 export const COCKPIT_GAUGES = GAUGES.filter(g => g.cockpit !== false)
 
@@ -199,9 +229,9 @@ export function gaugeValue(
   state: AircraftState,
   controls: Controls,
   wind: Wind = null,
+  profile: GaugeProfile = 'imperial',
 ): number {
-  const g = byId.get(id)
-  if (!g) throw new Error(`Unknown gauge: ${id}`)
+  const g = gaugeFor(id, profile)
   return siValueFor(id, spec, state, controls, wind) * g.fromSI
 }
 
@@ -230,6 +260,8 @@ function siValueFor(id: GaugeId, _spec: AircraftSpec, state: AircraftState, cont
     // pilot input, not something the flight model produces.
     case 'throttle':
       return controls.throttle
+    case 'rpm':
+      return state.engineRpm[0] ?? 0
     case 'heading': {
       // Geographic compass: north (-Z) is 000, east (+X) is 090.
       // Body +Z is right; right turns increase this clockwise bearing.
@@ -269,9 +301,9 @@ export function needleAngleFor(
   spec: AircraftSpec,
   state: AircraftState,
   wind: Wind = null,
+  profile: GaugeProfile = 'imperial',
 ): number {
-  const g = byId.get(id)
-  if (!g) throw new Error(`Unknown gauge: ${id}`)
+  const g = gaugeFor(id, profile)
   // Dial-only: a column or a tape has no needle for this to be the angle of.
   // The panel only ever calls this for a gauge it has built a needle for
   // (panel.ts filters `GAUGES` to `kind === 'dial'`), so reaching here for
@@ -281,7 +313,7 @@ export function needleAngleFor(
   // NEUTRAL_CONTROLS, not a real vector: `g.kind === 'dial'` above rules out
   // `throttle`, the only gauge `gaugeValue` reads `controls` for, so nothing
   // here can ever be sensitive to which vector is passed.
-  const value = gaugeValue(id, spec, state, NEUTRAL_CONTROLS, wind)
+  const value = gaugeValue(id, spec, state, NEUTRAL_CONTROLS, wind, profile)
   if (!Number.isFinite(value)) return 0
 
   return angleForValue(g, value)
@@ -461,10 +493,10 @@ export function readoutTextFor(
   state: AircraftState,
   controls: Controls,
   wind: Wind = null,
+  profile: GaugeProfile = 'imperial',
 ): string {
-  const g = byId.get(id)
-  if (!g) throw new Error(`Unknown gauge: ${id}`)
-  const raw = gaugeValue(id, spec, state, controls, wind)
+  const g = gaugeFor(id, profile)
+  const raw = gaugeValue(id, spec, state, controls, wind, profile)
   if (!Number.isFinite(raw)) return '--'
   const value = wrapsAndPads(g) ? raw : Math.min(g.max, Math.max(g.min, raw))
   return formatDisplay(g, value)

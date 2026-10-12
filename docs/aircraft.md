@@ -122,6 +122,15 @@ single-engine output add no yaw bias. This is not a per-engine force or inertia
 model: feathering/windmilling drag, explicit AI trim, and engine-out
 yaw on the runway remain deferred.
 
+**Added 2026-10-11 (C3): indicated RPM without new engine physics.** Every
+engine block declares its physical `count`, `idleRpm` and `ratedRpm`. The
+state carries one indicated value per physical engine; it follows throttle
+with one deterministic lag and the same per-engine damage/output channel used
+above. The P-38 currently repeats its aggregate output across two needles
+until it gains indexed engine hit zones. RPM never feeds thrust, fuel burn or
+propeller efficiency. The three values are cockpit/display content, not a
+constant-speed-propeller or governor simulation.
+
 ### D7. Payload
 
 Options, one per airframe:
@@ -181,9 +190,13 @@ B-17): it still drops bombs, but it cannot fire or be hit.
 
 ### D12. Cockpit view
 
-Only `view.eyePointM` exists today, and `eyePoints.test.ts` checks that it
-sits inside the canopy. Recommend an eye point in the canopy and nothing
-more. A modeled cockpit per airframe is deferred, not asked.
+`view.eyePointM` remains the only per-airframe camera datum, and
+`eyePoints.test.ts` checks that it sits inside the canopy. C3 assigns every
+flyable id to one of four procedural cockpit families (American fighter,
+American bomber, Japanese fighter, Japanese bomber); a new id must be enrolled
+explicitly. Gear, hook, bay, reflector sight and one/two/four-needle RPM cells
+come from the aircraft's actual capabilities. Recommend a sourced eye point
+and the nearest family; a modeled cockpit per airframe remains deferred.
 
 ### D13. AI behavior
 
@@ -368,8 +381,9 @@ Record it in the D-table as "deferred", and do not build it.
 
 - **Turrets and defensive guns.** `Turret1..N` rig nodes exist, but no
   gunner is modeled.
-- **A modeled cockpit.** Each airframe needs its own; every one uses the
-  eye-point view (D12) until that work is scheduled.
+- **A modeled cockpit.** C3 supplies four procedural families at the sourced
+  eye points. Seats, controls, sidewalls and literal per-airframe interiors
+  remain deferred.
 - **Bomber AI.** A bomber is flown by the player only.
 - **Real internal bays.** Bay loads drop from undrawn racks inside the hull (D7); bay doors are C2 (`MASTER_PLAN.md`), real door nodes in every bay bomber's model, listed in its rig's `doors` (`docs/models.md` §5): a Blender model gets them from `kit.fuselage(doors=...)`, a download from a `split` with a `cut`. A new bay bomber needs a `bayDoors` block in its spec and the door nodes in its model and rig; `aircraftRigs.test.ts` and `combat.test.ts` pin the lists.
 - **Detailed engine-out handling** beyond D6's airborne yaw-rate bias:

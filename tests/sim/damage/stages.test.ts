@@ -135,10 +135,11 @@ describe('asymmetric multi-engine thrust', () => {
     expect(Math.abs(outer), id).toBeGreaterThan(Math.abs(inner))
   })
 
-  it('keeps the damaged single-engine derivation exactly unchanged', () => {
+  it('keeps the damaged single-engine flight derivation unchanged and exposes its indicated output', () => {
     const spec = loadAircraftSpec('f6f-hellcat')
     const damage = { ...healthyDamage(), engine: 0.5 }
-    expect(damagedSpec(spec, damage, [0.5])).toStrictEqual(damagedSpec(spec, damage, 0.5))
+    const scalar = damagedSpec(spec, damage, 0.5)
+    expect(damagedSpec(spec, damage, [0.5])).toStrictEqual({ ...scalar, engineOutputs: [0.5] })
   })
 
   const productionYaw = (engines: readonly [number, number], yaw: number): number => {

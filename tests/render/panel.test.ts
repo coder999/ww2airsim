@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3 } from 'three'
+import { Box3, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, Vector3, type Object3D } from 'three'
 import {
   createPanel,
   updatePanel,
@@ -12,6 +12,7 @@ import {
   LIGHT_OFF,
   LIGHT_TRANSIT,
   LIGHT_DOWN,
+  LIGHT_WARNING,
   type Panel,
 } from '../../src/render/scene/panel.js'
 import {
@@ -39,9 +40,11 @@ import { v3 } from '../../src/sim/math/vec3.js'
 import { qFromAxisAngle, qMul } from '../../src/sim/math/quat.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { gunHarmonization } from '../../src/sim/weapons/harmonization.js'
+import { createCombat } from '../../src/sim/weapons/combat.js'
 import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
+const b17 = loadAircraftSpec('b-17-flying-fortress')
 const deg = (rad: number) => (rad * 180) / Math.PI
 
 /** No input held. Every `updatePanel` call in later tasks uses this -- see
@@ -68,6 +71,22 @@ const DIAL_GAUGES = GAUGES.filter((g): g is DialSpec => g.kind === 'dial')
  */
 const dialsOf = (p: Panel): Group[] =>
   p.root.children.filter((c): c is Group => c instanceof Group && c.name.startsWith('dial:'))
+
+/** Bounds of what the default game camera can actually draw. C3 keeps the
+ * old procedural marks on layer 1 for headless semantic inspection, while
+ * the approved raster fascia supplies those fixed pixels on camera layer 0. */
+function renderedBox(object: Object3D): Box3 {
+  object.updateWorldMatrix(true, true)
+  const box = new Box3()
+  object.traverseVisible((child) => {
+    if (!(child instanceof Mesh) || (child.layers.mask & 1) === 0) return
+    child.geometry.computeBoundingBox()
+    if (child.geometry.boundingBox !== null) {
+      box.union(child.geometry.boundingBox.clone().applyMatrix4(child.matrixWorld))
+    }
+  })
+  return box
+}
 
 /** Roll about the nose, right wing down for a positive angle. */
 const banked = (bankDeg: number): AircraftState =>
@@ -312,6 +331,12 @@ describe('panel', () => {
     expect(b).not.toBeCloseTo(a, 6)
   })
 
+  it('carries the altitude needle nearly to the scale ring', () => {
+    const needle = createPanel(f6f).needles.get('altimeter') as Mesh
+    needle.geometry.computeBoundingBox()
+    expect(needle.geometry.boundingBox!.max.y).toBeGreaterThanOrEqual(DIAL_RADIUS * 0.95)
+  })
+
   it('fits inside the field of view, labels and readouts included', () => {
     // Found by flying it, 2026-09-13. Mark asked for the instruments to be
     // labelled; they already were, and every label was off the bottom of the
@@ -363,11 +388,11 @@ describe('panel', () => {
       if (child === p.tape.strip) {
         for (const mark of child.children) {
           if (!mark.visible) continue
-          box.union(new Box3().setFromObject(mark))
+          box.union(renderedBox(mark))
         }
         continue
       }
-      box.union(new Box3().setFromObject(child))
+      box.union(renderedBox(child))
     }
     const [ex, ey, ez] = f6f.view.eyePointM
     const halfFovRad = ((CAMERA_VFOV_DEG / 2) * Math.PI) / 180
@@ -397,14 +422,16 @@ describe('panel', () => {
     // as one smear. Nothing measured the relation between the two constants.
     const p = createPanel(f6f, () => null)
     const dials = dialsOf(p)
-    const centres = dials.map((d) => d.position.x).sort((a, b) => a - b)
-    const bezelOuter = Math.max(
-      ...dials[0]!.children
-        .filter((c): c is Mesh => c instanceof Mesh)
-        .map((c) => new Box3().setFromObject(c).max.x),
-    )
-    for (let i = 1; i < centres.length; i++) {
-      expect(centres[i]! - centres[i - 1]!).toBeGreaterThan(bezelOuter * 2)
+    const rows = new Map<string, { centre: number; box: Box3 }[]>()
+    for (const dial of dials) {
+      const key = dial.position.y.toFixed(6)
+      rows.set(key, [...(rows.get(key) ?? []), { centre: dial.position.x, box: renderedBox(dial) }])
+    }
+    for (const entries of rows.values()) {
+      entries.sort((a, b) => a.centre - b.centre)
+      for (let i = 1; i < entries.length; i++) {
+        expect(entries[i - 1]!.box.max.z).toBeLessThan(entries[i]!.box.min.z)
+      }
     }
   })
 
@@ -427,7 +454,7 @@ describe('panel', () => {
     }
   })
 
-  it('gives every printed scale number room not to collide with the next one', () => {
+  it('keeps procedural scale numbers off the default camera layer', () => {
     // The fuel dial ran eight majors 38.6 degrees apart and the slip dial five
     // at 22.5, against a numeral plate more than twice the arc available. The
     // screenshot shows "-0.50.25" and "+15+8.0-5.0" as a result.
@@ -439,21 +466,11 @@ describe('panel', () => {
       )
       const majors = tickMarksFor(g).filter((m) => m.major)
       expect(numerals.length).toBeGreaterThanOrEqual(majors.length)
-      const placed = numerals.map((n) => n.position)
-      for (let a = 0; a < placed.length; a++) {
-        for (let b = a + 1; b < placed.length; b++) {
-          const dx = Math.abs(placed[a]!.x - placed[b]!.x)
-          const dy = Math.abs(placed[a]!.y - placed[b]!.y)
-          const w = (numerals[a]!.geometry as PlaneGeometry).parameters.width
-          const h = (numerals[a]!.geometry as PlaneGeometry).parameters.height
-          // Boxes must not intersect: separated on at least one axis.
-          expect(dx >= w || dy >= h).toBe(true)
-        }
-      }
+      for (const numeral of numerals.filter((n) => n.visible)) expect(numeral.layers.mask & 1).toBe(0)
     })
   })
 
-  it('keeps every scale number clear of the tick marks', () => {
+  it('keeps procedural scale ticks off the default camera layer', () => {
     // Seen on the reference platform 2026-09-13: at the end of each scale the
     // numeral sat across its own major tick, because the numerals were placed
     // by radius alone with no account of their own width. The sibling tests
@@ -463,17 +480,12 @@ describe('panel', () => {
     const dials = dialsOf(p)
     for (const dial of dials) {
       const meshes = dial.children.filter((c): c is Mesh => c instanceof Mesh)
-      const numerals = meshes.filter((m) => m.geometry instanceof PlaneGeometry)
       const ticks = meshes.filter(
         (m) => m.geometry instanceof BoxGeometry && m !== p.needles.get('airspeed'),
       )
-      for (const n of numerals) {
-        const nb = new Box3().setFromObject(n)
-        for (const t of ticks) {
-          // The needle legitimately crosses everything; it is drawn on top.
-          if ([...p.needles.values()].includes(t)) continue
-          expect(nb.intersectsBox(new Box3().setFromObject(t))).toBe(false)
-        }
+      for (const tick of ticks) {
+        if ([...p.needles.values()].includes(tick)) continue
+        expect(tick.layers.mask & 1).toBe(0)
       }
     }
   })
@@ -655,7 +667,7 @@ describe('the attitude ball (2026-09-15)', () => {
     expect(offsetAt(20)).toBeCloseTo(2 * offsetAt(10), 6)
   })
 
-  it('deflects by exactly 0.8 of DIAL_RADIUS at 30 degrees nose-up', () => {
+  it('deflects by exactly 0.8 of its face radius at 30 degrees nose-up', () => {
     // The linearity check above passes for ANY scale factor -- half, double,
     // or the real 0.8 -- since it only pins the SHAPE of the response, not
     // its size. This pins the size itself, at a pitch (30 degrees) still
@@ -667,7 +679,7 @@ describe('the attitude ball (2026-09-15)', () => {
     // Negative: nose-up pitch deflects the chord toward -y in this local
     // frame, the same direction "drops its horizon as the nose comes up"
     // (above) checks the ordering of.
-    expect(ballLocalPitchOffset(p)).toBeCloseTo(-0.8 * DIAL_RADIUS, 6)
+    expect(ballLocalPitchOffset(p)).toBeCloseTo(-0.8 * p.attitude.faceRadius, 6)
   })
 })
 
@@ -720,9 +732,6 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
     return p
   }
 
-  const yTop = PANEL_BELOW_M - PANEL_BANDS.lower.top
-  const yBottom = PANEL_BELOW_M - PANEL_BANDS.lower.bottom
-
   function expectHorizontallyWithinSlot(slotId: string, box: Box3, label: string): void {
     const slot = PANEL_SLOTS.find((s) => s.id === slotId)!
     expect(box.min.x, `${label}: left edge inside ${slotId}'s slot width`)
@@ -731,10 +740,15 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
       .toBeLessThanOrEqual(slot.centreX + slot.widthM / 2 + EPS)
   }
 
-  function expectWithinLowerBand(box: Box3, label: string): void {
-    expect(box.max.y, `${label}: top edge inside PANEL_BANDS.lower`)
+  function expectWithinBand(slotId: string, box: Box3, label: string): void {
+    const slot = PANEL_SLOTS.find((s) => s.id === slotId)!
+    const bandName = slot.band ?? 'lower'
+    const band = PANEL_BANDS[bandName]
+    const yTop = PANEL_BELOW_M - band.top
+    const yBottom = PANEL_BELOW_M - band.bottom
+    expect(box.max.y, `${label}: top edge inside PANEL_BANDS.${bandName}`)
       .toBeLessThanOrEqual(yTop + EPS)
-    expect(box.min.y, `${label}: bottom edge inside PANEL_BANDS.lower`)
+    expect(box.min.y, `${label}: bottom edge inside PANEL_BANDS.${bandName}`)
       .toBeGreaterThanOrEqual(yBottom - EPS)
   }
 
@@ -744,9 +758,9 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
     p.root.updateMatrixWorld(true)
     for (const dial of dialsOf(p)) {
       const id = dial.name.slice('dial:'.length)
-      const box = new Box3().setFromObject(dial)
+      const box = renderedBox(dial)
       expectHorizontallyWithinSlot(id, box, id)
-      expectWithinLowerBand(box, id)
+      expectWithinBand(id, box, id)
     }
   })
 
@@ -756,9 +770,9 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
       updatePanel(p, f6f, createState(), { ...NEUTRAL_CONTROLS, throttle }, () => null)
       p.root.updateMatrixWorld(true)
       const column = p.root.children.find((c) => c.name === 'column:throttle')!
-      const box = new Box3().setFromObject(column)
+      const box = renderedBox(column)
       expectHorizontallyWithinSlot('throttle', box, `throttle=${throttle}`)
-      expectWithinLowerBand(box, `throttle=${throttle}`)
+      expectWithinBand('throttle', box, `throttle=${throttle}`)
     }
   })
 
@@ -779,7 +793,10 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
         box.union(new Box3().setFromObject(p.attitude.ball))
         box.union(new Box3().setFromObject(p.attitude.ring))
         expectHorizontallyWithinSlot('attitude', box, label)
-        expectWithinLowerBand(box, label)
+        // The approved fascia's measured horizon aperture intentionally sits
+        // below the retired generic lower band. Pixel registration is asserted
+        // independently in cockpitFeedback.test; reapplying the old band here
+        // would force the live face away from the artwork.
 
         // The ring ALONE already saturates the slot's declared box exactly
         // (`DIAL_RADIUS * 1.09 * 2 === widthM`), so the union above cannot
@@ -787,17 +804,19 @@ describe('per-slot containment (Task 6 fix round 1, 2026-09-15)', () => {
         // round 3. Checked separately: the ball's own `Box3`, centred on
         // wherever `updatePanel` actually placed it (read off its own
         // `matrixWorld`, not assumed from `PANEL_SLOTS`), must stay within
-        // `DIAL_RADIUS` on every side.
+        // its configured face radius on every side. The approved raster has a
+        // larger attitude opening than the old procedural dial, so this must
+        // follow the live face rather than assuming `DIAL_RADIUS`.
         const centre = new Vector3().setFromMatrixPosition(p.attitude.ball.matrixWorld)
         const ballBox = new Box3().setFromObject(p.attitude.ball)
-        expect(ballBox.min.x, `${label}: ball left edge within DIAL_RADIUS`)
-          .toBeGreaterThanOrEqual(centre.x - DIAL_RADIUS - EPS)
-        expect(ballBox.max.x, `${label}: ball right edge within DIAL_RADIUS`)
-          .toBeLessThanOrEqual(centre.x + DIAL_RADIUS + EPS)
-        expect(ballBox.min.y, `${label}: ball bottom edge within DIAL_RADIUS`)
-          .toBeGreaterThanOrEqual(centre.y - DIAL_RADIUS - EPS)
-        expect(ballBox.max.y, `${label}: ball top edge within DIAL_RADIUS`)
-          .toBeLessThanOrEqual(centre.y + DIAL_RADIUS + EPS)
+        expect(ballBox.min.x, `${label}: ball left edge within its face`)
+          .toBeGreaterThanOrEqual(centre.x - p.attitude.faceRadius - EPS)
+        expect(ballBox.max.x, `${label}: ball right edge within its face`)
+          .toBeLessThanOrEqual(centre.x + p.attitude.faceRadius + EPS)
+        expect(ballBox.min.y, `${label}: ball bottom edge within its face`)
+          .toBeGreaterThanOrEqual(centre.y - p.attitude.faceRadius - EPS)
+        expect(ballBox.max.y, `${label}: ball top edge within its face`)
+          .toBeLessThanOrEqual(centre.y + p.attitude.faceRadius + EPS)
       }
     }
   })
@@ -828,7 +847,9 @@ describe('panel markings and readouts (I-2)', () => {
     // Throttle and heading have their own column/tape markings.
     const { factory, drawn } = recordingText()
     createPanel(f6f, factory)
-    for (const g of DIAL_GAUGES) expect(drawn).toContain(labelTextFor(g))
+    for (const g of DIAL_GAUGES) {
+      expect(drawn).toContain(g.id === 'rpm' ? 'RPM  ×1000' : labelTextFor(g))
+    }
   })
 
   it('prints a number beside every major scale mark on a fitted dial', () => {
@@ -836,7 +857,7 @@ describe('panel markings and readouts (I-2)', () => {
     createPanel(f6f, factory)
     for (const g of DIAL_GAUGES) {
       for (const m of tickMarksFor(g)) {
-        if (m.major) expect(drawn).toContain(m.text)
+        if (m.major) expect(drawn).toContain(g.id === 'rpm' ? String(Number(m.text) / 1000) : m.text)
       }
     }
   })
@@ -888,6 +909,12 @@ describe('panel markings and readouts (I-2)', () => {
       updatePanel(p, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS, () => null)
       const needle = p.needles.get(g.id) as Mesh
       const value = gaugeValue(g.id, f6f, GAUGE_SAMPLES[g.id].high, NEUTRAL_CONTROLS)
+      if (g.id === 'slip') {
+        expect(needle.rotation.z).toBe(0)
+        const fraction = (value - g.min) / (g.max - g.min)
+        expect(needle.position.x).toBeCloseTo((fraction - 0.5) * DIAL_RADIUS * 1.18, 9)
+        continue
+      }
       // A tick at `value` sits at (sin a, cos a) from the dial centre; the
       // needle's own tip direction must agree.
       const a = angleForValue(g, value)
@@ -996,16 +1023,27 @@ describe('the two-band dashboard (2026-09-15)', () => {
     expect(backingBox.max.z).toBeGreaterThanOrEqual(rowBox.max.z)
   })
 
-  it('makes the radar reservation visible and removes the slip dial', () => {
+  it('keeps the clip-on radar visible and restores slip and RPM instruments', () => {
     const p = createPanel(f6f, () => null)
     const named = p.root.children.map((c) => c.name)
     expect(named).toContain('radar')
-    expect(named).not.toContain('dial:slip')
+    expect(named).toContain('dial:slip')
+    expect(named).toContain('dial:rpm')
     expect(named).not.toContain('armament')
   })
 
-  it('keeps airspeed, altitude and climb dials alongside the attitude ball', () => {
-    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(3)
+  it('keeps the three primary dials plus slip and RPM around the attitude ball', () => {
+    expect(dialsOf(createPanel(f6f, () => null))).toHaveLength(5)
+  })
+
+  it('centers and enlarges the live display faces for the approved fascia openings', () => {
+    const p = createPanel(f6f, () => null)
+    expect(p.attitude.ball.position.x).toBe(0)
+    expect(p.attitude.ball.position.y).toBe(0)
+    expect(p.radar.face.position.x).toBe(0)
+    expect(p.radar.face.position.y).toBe(0)
+    expect(p.attitude.faceRadius).toBeGreaterThan(DIAL_RADIUS)
+    expect(p.radar.faceRadius).toBeGreaterThan(p.attitude.faceRadius)
   })
 })
 
@@ -1297,7 +1335,7 @@ describe('the heading tape (Task 5, 2026-09-15)', () => {
   })
 })
 
-describe('gear and flap lights (Mark, 2026-09-17)', () => {
+describe('configuration lights', () => {
   // "flaps and landing gear should somehow be indicated in the cockpit
   // instruments. right now they are only in the follow view bar". The
   // cockpit design reserved indicator lights for exactly this.
@@ -1330,16 +1368,56 @@ describe('gear and flap lights (Mark, 2026-09-17)', () => {
     }
   })
 
-  it('sits in the upper band beside the heading tape, clear of its window', () => {
+  it('uses the same state colours for hook and bay rather than category colours', () => {
+    const hookUp = createPanel(f6f)
+    updatePanel(hookUp, f6f, createState(), { ...NEUTRAL_CONTROLS, hookDown: false })
+    expect(colourOf(hookUp.lights.hook)).toBe(LIGHT_OFF)
+    const hookDown = createPanel(f6f)
+    updatePanel(hookDown, f6f, createState(), { ...NEUTRAL_CONTROLS, hookDown: true })
+    expect(colourOf(hookDown.lights.hook)).toBe(LIGHT_DOWN)
+
+    for (const [fraction, colour] of [[0, LIGHT_OFF], [0.5, LIGHT_TRANSIT], [1, LIGHT_DOWN]] as const) {
+      const bay = createPanel(b17)
+      updatePanel(bay, b17, createState({ bayDoorFraction: fraction }), NEUTRAL_CONTROLS)
+      expect(colourOf(bay.lights.bay), `bay ${fraction}`).toBe(colour)
+    }
+  })
+
+  it('reserves red for a real unsafe/fault state', () => {
+    expect(LIGHT_WARNING).not.toBe(LIGHT_OFF)
+    expect(LIGHT_WARNING).not.toBe(LIGHT_TRANSIT)
+    expect(LIGHT_WARNING).not.toBe(LIGHT_DOWN)
+    const normal = at(1, 1)
+    expect([colourOf(normal.lights.gear), colourOf(normal.lights.flap)]).not.toContain(LIGHT_WARNING)
+  })
+
+  it('mounts the configuration lamps inside the equipment bank', () => {
     const p = createPanel(f6f)
-    const upperTop = PANEL_BELOW_M - PANEL_BANDS.upper.top
-    const upperBottom = PANEL_BELOW_M - PANEL_BANDS.upper.bottom
+    const bank = p.root.getObjectByName('equipment:bank') as Mesh
+    expect(bank).toBeInstanceOf(Mesh)
+    const geometry = bank.geometry as PlaneGeometry
+    const { width, height } = geometry.parameters
     for (const light of [p.lights.gear, p.lights.flap]) {
-      expect(light.position.y).toBeLessThan(upperTop)
-      expect(light.position.y).toBeGreaterThan(upperBottom)
-      expect(Math.abs(light.position.x)).toBeGreaterThan(TAPE_W / 2 + TAPE_CULL_MARGIN_M)
+      expect(Math.abs(light.position.x - bank.position.x)).toBeLessThan(width / 2)
+      expect(Math.abs(light.position.y - bank.position.y)).toBeLessThan(height / 2)
     }
     expect(p.lights.gear.position.x).not.toBeCloseTo(p.lights.flap.position.x, 3)
+  })
+})
+
+describe('the integrated armament bank', () => {
+  it('shows live ammunition and store counts, with a dash for unsupported torpedoes', () => {
+    const state = createState({ position: v3(0, 1000, 0), velocity: v3(100, 0, 0) })
+    const combat = createCombat([
+      { id: 'player', spec: f6f, state, previous: state, controls: NEUTRAL_CONTROLS, impact: null },
+    ], { player: { bombs: 2, rockets: 6 } }).aircraft.player!
+    const panel = createPanel(f6f, () => null)
+    updatePanel(panel, f6f, state, NEUTRAL_CONTROLS, () => null, state.attitude, null, combat)
+    const ammo = f6f.combat!.guns.reduce((sum, gun) => sum + gun.rounds, 0)
+    expect(panel.armament.get('ammo')!.text).toBe(String(ammo))
+    expect(panel.armament.get('bomb')!.text).toBe('2')
+    expect(panel.armament.get('rocket')!.text).toBe('6')
+    expect(panel.armament.get('torpedo')!.text).toBe('—')
   })
 })
 

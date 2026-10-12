@@ -285,6 +285,18 @@ title art and the terrain textures below. Cloud noise volumes under `content/sky
 | `content/fx/fx-light-a.ktx2`, `fx-light-b.ktx2`, `fx-motion.ktx2`, `sheets.json` (placeholder flipbooks, built by `tools/fx/build.ts`) | generated in code from seeded noise, no source material | authored for this project | AGPL-3.0-or-later |
 | `content/vendor/basis/basis_transcoder.{js,wasm}` (copied from three r186 `examples/jsm/libs/basis/`) | https://github.com/BinomialLLC/basis_universal | Binomial LLC | Apache-2.0 |
 
+## Cockpit fascia art
+
+| Asset | Source | Author | License |
+| --- | --- | --- | --- |
+| `content/cockpit/american-fighter-fascia.png` | OpenAI ImageGen edits of the user-approved C3 American-fighter dashboard checkpoint, 2026-10-12. First isolated the exact dashboard on transparency while preserving its silhouette, finish, `ENGINE` label, and small WWII US Navy star-and-bars marking. Production pass then removed only changing needles/readings, blanked live scope/tape/attitude fields, emptied the engine/fuel bars, set configuration lamps dark, and changed `GUN` to `AMMO`, leaving fixed scales and hardware intact for live code overlays. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/american-bomber-fascia.png` | OpenAI ImageGen variant of the powered-off American-fighter source, 2026-10-12. Prompt retained identical live-instrument coordinates while changing the silhouette and construction to a broad charcoal/neutral-gray US multi-engine bomber desk with squared twin consoles, heavier fasteners, olive wear, a restrained star-and-bars marking, and blank live fields. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/japanese-fighter-fascia.png` | OpenAI ImageGen variant of the powered-off American-fighter source, 2026-10-12. Prompt retained identical live-instrument coordinates while creating a compact Imperial Japanese fighter hood in deep cockpit green/olive lacquer, warm instrument faces, brass trim, period metric/Japanese fixed labels, a restrained IJN anchor/chrysanthemum plaque, and blank live fields. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/japanese-bomber-fascia.png` | OpenAI ImageGen variant of the Japanese-fighter source, 2026-10-12. Prompt retained identical live-instrument coordinates and metric/Japanese labels while creating a broad twin-binnacle bomber desk in worn khaki-brown/olive metal with heavier squared rails, IJN plaque, bay indication, and blank live fields. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/american-fighter-multi-engine-fascia.png` | OpenAI ImageGen precision edit of the approved American-fighter fascia, 2026-10-12. Removes only the fixed single-engine RPM face and bezel, reconstructing continuous matching navy-painted fascia so the P-38's two live engine bezels can mount directly without a parent gauge or cover plate. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/american-bomber-multi-engine-fascia.png` | OpenAI ImageGen precision edit of the approved American-bomber fascia, 2026-10-12. Removes only the fixed single-engine RPM face and bezel, reconstructing continuous matching worn gray fascia for direct twin/four-engine live bezel mounting. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+| `content/cockpit/japanese-bomber-multi-engine-fascia.png` | OpenAI ImageGen precision edit of the approved Japanese-bomber fascia, 2026-10-12. Removes only the fixed single-engine RPM face and bezel, reconstructing continuous matching khaki-olive fascia for direct twin-engine live bezel mounting while preserving all Japanese labels and insignia. | authored for this project with OpenAI ImageGen | AGPL-3.0-or-later |
+
 ## Fonts
 
 Self-hosted for the Naval Communications design system
@@ -298,6 +310,7 @@ the two fonts turned out to carry different licenses.
 | --- | --- | --- | --- |
 | `content/fonts/special-elite.woff2` | `https://fonts.gstatic.com/s/specialelite/v20/XLYgIZbkc4JPUL5CVArUVL0ntnAOSA.woff2` | Astigmatic (Brian J. Bonislawsky) | Apache-2.0; see `content/fonts/NOTICE.md` |
 | `content/fonts/stardos-stencil.woff2` | `https://fonts.gstatic.com/s/stardosstencil/v15/X7n94bcuGPC8hrvEOHXOgaKCc2Th6F52.woff2` | Vernon Adams | SIL Open Font License 1.1; see `content/fonts/NOTICE.md` |
+| `content/fonts/noto-sans-jp-cockpit.ttf` | Google Fonts `Noto Sans JP` text subset resolved from `fonts.gstatic.com/l/font`, 2026-10-11 | The Noto Project Authors | SIL Open Font License 1.1; see `content/fonts/NOTICE.md` |
 
 ## Terrain source data
 

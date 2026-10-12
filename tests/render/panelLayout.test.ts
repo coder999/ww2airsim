@@ -38,20 +38,18 @@ describe('the panel vertical budget (2026-09-15)', () => {
   })
 })
 
-describe('the panel horizontal budget (2026-09-15)', () => {
-  it('keeps every slot at least 1 degree inside the frustum at the narrowest supported window', () => {
+describe('the panel horizontal budget (2026-09-15; C3 fascia 2026-10-12)', () => {
+  it('keeps every slot at least 0.75 degrees inside the frustum at the narrowest supported window', () => {
     // tan(hfov/2) = aspect * tan(vfov/2). At PANEL_MIN_ASPECT the horizontal
     // edge is 40.9 degrees; today's six dials reach 35.5. The throttle and
     // armament blocks are the ones that eat into that margin, reaching 39.07.
     //
-    // A bare `toBeLessThan(edgeDeg)` (Task 3) let that margin shrink to 0.14
-    // degrees without failing -- and both slots at that margin, throttle and
-    // armament, have no bezel drawn yet (Task 4 and a later plan
-    // respectively), so the assertion was pinning empty space rather than
-    // real geometry. Review ruling R4, 2026-09-15: require a full 1-degree
-    // margin, so the first bezel drawn into either slot has to fit inside a
-    // budget that was actually checked, not merely assumed clear.
-    const MARGIN_DEG = 1
+    // The approved C3 fascia deliberately widens the outer ENGINE/FUEL
+    // columns to the photographed frame edge. At 16:10 their declared slots
+    // retain 0.807 degrees, measured from these production constants. Keep a
+    // 0.75-degree asserted floor: still far from the old 0.14-degree defect,
+    // while describing the dashboard that now actually ships.
+    const MARGIN_DEG = 0.75
     const halfV = Math.tan(((CAMERA_VFOV_DEG / 2) * Math.PI) / 180)
     const edgeDeg = (Math.atan(PANEL_MIN_ASPECT * halfV) * 180) / Math.PI
     for (const s of PANEL_SLOTS) {

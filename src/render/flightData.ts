@@ -49,7 +49,9 @@ export function flightDataItems(spec: AircraftSpec, state: AircraftState, contro
     const rounded = Math.round(value)
     return `${signed && rounded >= 0 ? '+' : ''}${rounded}`
   }
-  const items = COCKPIT_GAUGES.map(g => {
+  // Slip and RPM are useful analog cockpit instruments, but the chase-view
+  // strip deliberately stays the compact set it exposed before C3.
+  const items = COCKPIT_GAUGES.filter(g => g.id !== 'slip' && g.id !== 'rpm').map(g => {
     const value = gaugeValue(g.id, spec, state, controls, wind)
     if (g.id === 'heading') return { label: 'HDG', value: Number.isFinite(value) ? `${((Math.round(value) % 360 + 360) % 360).toString().padStart(3, '0')}°` : '--' }
     if (g.id === 'fuel') return { label: 'FUEL', value: `${number(fuelFraction(spec, state) * 100)}% (${number(value)} gal)` }
