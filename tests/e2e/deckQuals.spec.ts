@@ -108,12 +108,18 @@ test('deck quals: a full-throttle deck run gets airborne off the bow and climbs 
   await page.screenshot({ path: 'test-results/deck-quals-airborne.png' })
 })
 
-test('H toggles the hook and is listed in the legend', async ({ page }) => {
+test('H toggles the hook and the pause dossier lists the control', async ({ page }) => {
   await page.goto(URL)
   await waitForTerrain(page)
   await page.keyboard.press('KeyH')
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.controls().hookDown)).toBe(true)
-  await expect(page.getByText(/Hook\s+H/)).toBeVisible()
+  // The always-on flight legend was deliberately removed on 2026-10-11;
+  // Controls in the pause dossier is now the player-facing reference.
+  await page.keyboard.press('Escape')
+  const pause = page.getByRole('dialog', { name: 'Pause menu' })
+  await expect(pause).toBeVisible()
+  await pause.getByRole('tab', { name: 'Controls' }).click()
+  await expect(pause.getByRole('tabpanel', { name: 'Controls' }).getByRole('row', { name: /Hook H/ })).toBeVisible()
   await expect(debriefDialog(page)).toBeHidden()
 })
 

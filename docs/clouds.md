@@ -386,6 +386,15 @@ because TSL missed budget.
 ## 4. Traps
 
 **TSL and three r186**
+- **Initialize sampled render targets before their samplers compile.** Three
+  r186 can initialize a target texture first through a material's texture node,
+  then recreate it at the same size on its first render-target use while a
+  cached WebGPU pass descriptor still holds the destroyed view (upstream
+  issue #34301). The cloud-shadow map hit that exact race in the 2026-10-12
+  overnight run: `main.ts` now calls `renderer.initRenderTarget` immediately
+  after creating it, before terrain and ocean materials can compile the
+  sampler. Keep the texture name: WebGPU validation messages then identify
+  this target rather than reporting an anonymous 1024×1024 R8 texture.
 - **A graph that fails to build renders black with zero validation
   errors.** So do a TSL `Fn` returning more than one node,
   `smoothstep(0, 0, x)`, and a missing import (`saturate`). A missing

@@ -1456,6 +1456,12 @@ async function boot(): Promise<void> {
   const cloudField = createCloudField(cloudLayers, skyNoise)
   const shadowMode = import.meta.env.DEV ? cloudShadowFromQuery(location.search) : undefined
   const shadow = createCloudShadow(cloudField, shadowMode)
+  // Three r186 can first initialize this texture through a material's sample
+  // node, then treat the first render-target use as a same-size recreation.
+  // Its cached WebGPU render-pass descriptor still points at the destroyed
+  // GPUTexture (#34301), so initialize the target before terrain/ocean
+  // materials can compile a sampler for it.
+  renderer.initRenderTarget(shadow.target)
   // Photoreal Task 8 (spec §4.3): the atmosphere LUTs, one module-level
   // instance (atmosphereLuts.ts); the static two render on the first update.
   // DEV `?atmosphere=off` skips the per-frame update, for cost attribution.

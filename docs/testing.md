@@ -54,6 +54,34 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
   - Full suites go through `remote-run` (`serverconfig/ryzen.md`, "WSL Ubuntu and compute offload"). On nexus, run only the files you touch: parallel full suites have OOM-killed it.
 - **Comments say why, with a date.** Long rationale in a test is fine here: it is what the next agent reads before "fixing" it.
 
+### Worktree closeout
+
+"Merge, push, update docs and relevant testing, and clean up the worktree"
+means that tests are reconciled with the finished product before the branch is
+merged. It is not a request to add a test mechanically. Use this closeout:
+
+1. Diff the branch against its merge base and list the player-facing
+   contracts and diagnostics that changed: labels, controls, routes, default
+   selections, lifecycle/ownership, and `__ww2` fields.
+2. Search the existing suite for the old contract. Update an assertion when
+   the behavior moved, replace it when the seam changed, and delete it with
+   deleted behavior. A feature's new test does not make its old test current.
+3. Classify affected tests in the handoff under **Tests updated**, **Tests
+   still valid**, and **Known gaps**. Every removed assertion must land in one
+   of those three buckets.
+4. Run the focused deterministic or E2E specs that own those contracts on the
+   branch. After merge, run `npm run verify`; GPU-facing changes also run the
+   focused reference-GPU specs. Budget specs run separately under
+   `hwlock ryzen-budget`.
+5. Only then push and remove the worktree. The next overnight run is a broad
+   backstop, not the first time changed E2E contracts are exercised.
+
+Examples from 2026-10-12: removing the always-on flight legend requires the
+deck-qualification hook check to open the pause dossier's Controls tab; making
+Takram TSL the default requires the legacy reprojection-residual test to select
+the legacy renderer explicitly, while default-renderer tests keep asserting
+history resets and zero validation errors.
+
 ### Known gaps
 
 Things nothing automated covers, recorded here rather than as skipped tests:
@@ -333,10 +361,15 @@ mechanism; the script header has the step order.
   `systemd-creds --user` encrypted credential (`~/.config/ww2airsim-e2e/ryzen-rdp.cred`,
   loaded by the unit); `op` is only the fallback for manual runs. After rotating the
   password, re-encrypt it (command in `serverconfig/ryzen.md`).
-  It takes `hwlock ryzen` (waits up to 90 min, then records `skipped-lock`
-  rather than hold the lock into the morning), wakes ryzen with WoL if needed,
-  and shuts it down afterward only if it woke it and nobody else is on it.
-  It never falls back to nexus.
+  It currently calls `hwlock ryzen`, but that resource is disabled in
+  `~/.config/hwlock/off`, so the wrapper is a no-op and cannot produce
+  `skipped-lock`. The non-budget suite needs no whole-run lock. Budget specs
+  must instead be split into a second invocation wrapped by
+  `hwlock ryzen-budget`, after checking that no direct Windows browser or WSL
+  CPU job is competing with it. Until that split lands, nightly budget misses
+  are triage signals, not trusted measurements. The job wakes ryzen with WoL
+  if needed, shuts it down afterward only if it woke it and nobody else is on
+  it, and never falls back to nexus.
 - **Verdict:** any failing test is a failure, frame-time budgets
   (`budget|p95|tripwire|frame time|Hz` titles) included; the mail says how many
   of the failures are budget misses (`budget_failed` in `runs.tsv` is that
