@@ -157,7 +157,7 @@ fn currentRay(pixel: vec2f) -> vec3f {
   return out;
 }`
 
-export const takramGameCompositeFragment = /* wgsl */ `
+const compositeFragment = /* wgsl */ `
 struct CompositeUniforms {
   resolutionNearFar: vec4f,
   cameraForwardFov: vec4f,
@@ -225,6 +225,19 @@ fn cloudTap(uv: vec2f) -> vec4f {
   if (sceneDistance + 2.0 < cloudDistance) { return scene; }
   return vec4f(cloud.rgb + scene.rgb * (1.0 - cloud.a), scene.a);
 }`
+
+export function takramGameCompositeFragment(withFxLimit = false): string {
+  if (!withFxLimit) return compositeFragment
+  return compositeFragment
+    .replace(
+      '@group(0) @binding(5) var sceneDepth: texture_depth_2d;',
+      '@group(0) @binding(5) var sceneDepth: texture_depth_2d;\n@group(0) @binding(6) var fxColourTexture: texture_2d<f32>;\n@group(0) @binding(7) var fxDenseTexture: texture_2d<f32>;',
+    )
+    .replace(
+      '  let sceneDistance = -viewZ / max(0.001, dot(ray, c.cameraForwardFov.xyz));',
+      `  let cosView = max(0.001, dot(ray, c.cameraForwardFov.xyz));\n  var sceneDistance = -viewZ / cosView;\n  let fxSpan = c.cameraUpPad.w;\n  if (fxSpan > 0.0) {\n    let fxMax = vec2i(textureDimensions(fxColourTexture)) - 1;\n    let fxTexel = clamp(vec2i(floor(position.xy / fxSpan)), vec2i(0), fxMax);\n    let fxAlpha = textureLoad(fxColourTexture, fxTexel, 0).a;\n    let fxCloseness = textureLoad(fxDenseTexture, fxTexel, 0).r;\n    if (fxAlpha > ${DENSE_ACCUMULATED_ALPHA} && fxCloseness > 0.0) {\n      let fxViewZ = ${CLOSENESS_SCALE_M}.0 * (1.0 / max(fxCloseness, 1e-6) - 1.0);\n      sceneDistance = min(sceneDistance, fxViewZ / cosView);\n    }\n  }`,
+    )
+}
 
 export function shaderModuleSource(fragment: string): string {
   return `${fullscreenVertex}\n${fragment}`

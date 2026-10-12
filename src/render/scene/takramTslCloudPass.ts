@@ -575,7 +575,14 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
       const viewZ = perspectiveDepthToViewZ(depth, this.nearNode, this.farNode).negate().toVar()
       const ray = normalize(this.forwardNode.add(this.rightNode.mul(uv.x.mul(2).sub(1)).mul(this.aspectNode).mul(this.fovNode))
         .sub(this.upNode.mul(uv.y.mul(2).sub(1)).mul(this.fovNode))).toVar()
-      const sceneDistance = viewZ.div(max(0.001, dot(ray, this.forwardNode))).toVar()
+      const cosView = max(0.001, dot(ray, this.forwardNode)).toVar()
+      const sceneDistance = viewZ.div(cosView).toVar()
+      // The temporal resolve can still contain last frame's cloud where a
+      // dense effect has just appeared. Match the march stop in the final
+      // depth comparison so that stale history cannot cover a nearer effect.
+      if (this.fxLimit !== null) {
+        sceneDistance.assign(min(sceneDistance, this.fxLimit.denseViewZAt(position as unknown as V2).div(cosView)))
+      }
       const cloudDistance = this.resolvedDepth.sample(uv).level(float(0)).r.mul(FAR_M).toVar()
       const scene = vec4(this.sceneColor).toVar()
       return select(sceneDistance.add(2).lessThan(cloudDistance), scene, vec4(cloud.rgb.add(scene.rgb.mul(float(1).sub(cloud.a))), scene.a))

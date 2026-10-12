@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { takramGameCloudsFragment } from '../../src/render/scene/takramGameShaders.js'
+import { takramGameCloudsFragment, takramGameCompositeFragment } from '../../src/render/scene/takramGameShaders.js'
 
 describe('Takram native cloud shader assembly', () => {
   it('adds the dense-FX inputs and march stop only when the pass owns a limit', () => {
@@ -11,5 +11,12 @@ describe('Takram native cloud shader assembly', () => {
     expect(limited).toContain('@group(0) @binding(8) var fxDenseTexture')
     expect(limited).toContain('let fxViewZ = 1000.0')
     expect(limited).toContain('farDistance = min(farDistance, fxViewZ')
+  })
+
+  it('applies the same dense-FX depth to the temporal composite', () => {
+    expect(takramGameCompositeFragment()).not.toContain('fxColourTexture')
+    const limited = takramGameCompositeFragment(true)
+    expect(limited).toContain('@group(0) @binding(6) var fxColourTexture')
+    expect(limited).toContain('sceneDistance = min(sceneDistance, fxViewZ')
   })
 })
