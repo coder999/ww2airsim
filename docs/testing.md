@@ -143,8 +143,11 @@ says nothing about E2E**, and E2E does not gate a deploy: the nightly
   the list is in Philosophy, above) measure frame time. They are the only
   tests whose numbers depend on the machine, and the nightly counts them as
   failures like any other (see Verdict below). Other specs record a
-  `frame-time` annotation in the report instead of asserting. To run everything else:
-  `--grep-invert '/budget|p95|tripwire|frame time|\bHz\b/i'`. Last full
+  `frame-time` annotation in the report instead of asserting. A normal
+  `npm run test:e2e` is correctness-only: `playwright.config.ts` excludes
+  this title pattern by default. The complementary budget set runs only with
+  `E2E_BUDGET_RUN=1`, and the config refuses that mode unless
+  `HWLOCK_HELD` contains `ryzen-budget`. Last full
   non-budget run, 2026-09-30 from main a2e3e4f: 181 passed, 0 failed, 2 skipped.
 
 Checks that need a real GPU and a browser cannot run in `npm run verify` or in
@@ -193,15 +196,25 @@ PW_REMOTE=ws://localhost:39001/ PW_BASE_URL=https://ww2airsim.windomlane.org npm
 ```
 
 Other sessions may be rendering on the same GPU. Run the budget specs, and
-only them, under `hwlock ryzen-budget <cmd>` (`serverconfig/scripts/hwlock`;
-Mark, 2026-10-08). It orders budget runs against each other and nothing
-else. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
+only them, with:
+
+```sh
+hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run test:e2e
+```
+
+`playwright.config.ts` rejects budget mode without that lock, and ordinary
+E2E excludes budget titles, so an unlocked result cannot look trusted by
+accident. `remote-run` takes `ryzen-budget` shared while its WSL command runs;
+the exclusive budget invocation therefore waits for existing CPU jobs and
+blocks new ones. `hwlock ryzen` locks nothing: `ryzen` is in `~/.config/hwlock/off`
 (`serverconfig/ryzen.md`, "Resource locks"). Work started on Ryzen itself
 is invisible to either lock, so before trusting a number check that no other
-browser is driving its GPU. So is a `remote-run` job (it runs in ryzen's WSL):
-on 2026-10-10 a concurrent `remote-run npm run verify` held ryzen's CPU at 45-60% and
+browser is driving its GPU. On 2026-10-10, before `remote-run` joined the
+shared lock, a concurrent `remote-run npm run verify` held ryzen's CPU at 45-60% and
 pushed budget views from about 6 ms to 14-18 ms p95, with no other 3D client on the GPU
-(H0 handoff, "Rulings and the as-merged result"). Check ryzen's CPU as well as its GPU.
+(H0 handoff, "Rulings and the as-merged result"). Direct WSL commands and
+Windows applications still bypass nexus's lock, so check ryzen's CPU and GPU
+before a manual measurement.
 
 
 **Mark's console session (verified 2026-10-10, after a reboot).** When `markt` is logged in
@@ -366,15 +379,14 @@ mechanism; the script header has the step order.
   `systemd-creds --user` encrypted credential (`~/.config/ww2airsim-e2e/ryzen-rdp.cred`,
   loaded by the unit); `op` is only the fallback for manual runs. After rotating the
   password, re-encrypt it (command in `serverconfig/ryzen.md`).
-  It currently calls `hwlock ryzen`, but that resource is disabled in
-  `~/.config/hwlock/off`, so the wrapper is a no-op and cannot produce
-  `skipped-lock`. The non-budget suite needs no whole-run lock. Budget specs
-  must instead be split into a second invocation wrapped by
-  `hwlock ryzen-budget`, after checking that no direct Windows browser or WSL
-  CPU job is competing with it. Until that split lands, nightly budget misses
-  are triage signals, not trusted measurements. The job wakes ryzen with WoL
-  if needed, shuts it down afterward only if it woke it and nobody else is on
-  it, and never falls back to nexus.
+  The nightly runs two complementary Playwright invocations: correctness first
+  with budget titles excluded, then budget titles only under the exclusive
+  `ryzen-budget` lock. `remote-run` holds that resource shared, so its WSL CPU
+  work cannot overlap the measurement. If the budget lock is unavailable for
+  90 minutes the night records `skipped-lock` and does not mark the commit as
+  tested; a later run retries it. The non-budget suite takes no machine lock.
+  The job wakes ryzen with WoL if needed, shuts it down afterward only if it
+  woke it and nobody else is on it, and never falls back to nexus.
 - **Verdict:** any failing test is a failure, frame-time budgets
   (`budget|p95|tripwire|frame time|Hz` titles) included; the mail says how many
   of the failures are budget misses (`budget_failed` in `runs.tsv` is that
