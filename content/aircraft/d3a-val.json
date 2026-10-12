@@ -74,11 +74,11 @@
     "rollingResistanceCoeff": 0.02,
     "brakingResistanceCoeff": 0.4,
     "lateralGripSeconds": 1.5,
-    "heightM": 1.85,
+    "heightM": 2.11,
     "layout": "taildragger",
-    "mainX": 0.257,
-    "thirdX": -6.577,
-    "thirdHeightM": 0.457,
+    "mainX": 0.43,
+    "thirdX": -6.79,
+    "thirdHeightM": 0.5,
     "thirdSteering": "casterLock",
     "steerYawRateDegPerSec": 5,
     "steerLockSpeedMps": 8,
@@ -116,7 +116,7 @@
     "guns": [
       {
         "position": [
-          1.9,
+          2.45,
           0.45,
           -0.25
         ],
@@ -126,7 +126,7 @@
       },
       {
         "position": [
-          1.9,
+          2.45,
           0.45,
           0.25
         ],
@@ -298,10 +298,10 @@
   },
   "view": {
     "eyePointM": [
-      -0.8,
-      0.75,
+      -0.6,
+      0.82,
       0
     ],
-    "model": "d3a-val"
+    "model": "d3a-val-blender"
   }
 }
