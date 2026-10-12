@@ -8,7 +8,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import { STANDARD_GRAVITY_MPS2 } from '../../../src/sim/damage/overload.js'
 import { createCombat, flyProjectile, stepCombat, type CombatVehicle, type Projectile } from '../../../src/sim/weapons/combat.js'
-import { segmentBox } from '../../../src/sim/weapons/geometry.js'
+import { segmentBox, segmentMovingSphere } from '../../../src/sim/weapons/geometry.js'
 import { storesFromLoadout } from '../../../src/sim/weapons/stores.js'
 import { ageDamage, damagedSpec, damageFromHit, healthyDamage } from '../../../src/sim/damage/model.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
@@ -66,6 +66,15 @@ describe('ballistics and swept contacts', () => {
     expect(segmentBox(v3(-20, 0, 0), v3(20, 0, 0), v3(0, 0, 0), v3(0.01, 1, 1))).toBeCloseTo(0.49975, 10)
     expect(segmentBox(v3(-20, 2, 0), v3(20, 2, 0), v3(0, 0, 0), v3(0.01, 1, 1))).toBeNull()
     expect(segmentBox(v3(0, 0, 0), v3(0, 0, 0), v3(0, 0, 0), v3(1, 1, 1))).toBe(0)
+  })
+  it('broad-rejects a swept point only when it cannot touch a moving sphere', () => {
+    const still = v3(0, 0, 0)
+    expect(segmentMovingSphere(v3(-20, 1, 0), v3(20, 1, 0), still, still, 1)).toBe(true) // tangent
+    expect(segmentMovingSphere(v3(-20, 1.01, 0), v3(20, 1.01, 0), still, still, 1)).toBe(false)
+    expect(segmentMovingSphere(v3(0, 0, 0), v3(0, 0, 0), still, still, 1)).toBe(true)
+    expect(segmentMovingSphere(v3(-10, 0, 0), v3(-10, 0, 0), still, still, 1)).toBe(false)
+    // The target crosses a stationary projectile during the tick.
+    expect(segmentMovingSphere(still, still, v3(0, 0, -10), v3(0, 0, 10), 1)).toBe(true)
   })
   it('intersects a target that crosses the bullet during the tick', () => {
     const shooter = plane('shooter', -100)
