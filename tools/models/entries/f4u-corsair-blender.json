@@ -4,7 +4,7 @@
   "source": {
     "kind": "blender",
     "script": "tools/models/blender/f4u-corsair-blender.py",
-    "dimensions": "span 12.50 m, length 10.26 m, wing area 29.17 m2, a 3-bladed 4.06 m propeller, the inverted gull wing and six .50 in wing guns: English Wikipedia 'Vought F4U Corsair', Specifications (F4U-4) and Design, read 2026-10-11; F4U-1 canopy outline and rail widths measured from Commons 'Vought F4U-1 Corsair 3-view.svg' and its transverse section estimated from Commons F4U-1D NASM side/front photographs, read 2026-10-11; stance fitted to content/aircraft/f4u-corsair.json; every other figure is an ESTIMATE labeled in the script's header",
+    "dimensions": "span 12.50 m, length 10.26 m, wing area 29.17 m2, a 3-bladed 4.06 m propeller, the inverted gull wing and six .50 in wing guns: English Wikipedia 'Vought F4U Corsair', Specifications (F4U-4) and Design, read 2026-10-11; fuselage, hood, gull wing, fin and tailplane traced from Commons 'Vought F4U-1 Corsair 3-view.svg' (Kaboldy), re-read 2026-10-11; transverse sections estimated, checked against Commons F4U-1D NASM side/front photographs; stance fitted to content/aircraft/f4u-corsair.json; every other figure is an ESTIMATE labeled in the script's header",
     "license": "AGPL-3.0-or-later"
   },
   "normalize": {
@@ -25,7 +25,7 @@
       "node": "Prop",
       "pivot": {
         "point": [
-          2.5622,
+          2.59,
           0,
           0
         ],
@@ -37,8 +37,8 @@
       "pivot": {
         "point": [
           0.418,
-          -0.8251,
-          -1.8
+          -0.7772,
+          -1.88
         ],
         "axis": "+x"
       }
@@ -48,8 +48,8 @@
       "pivot": {
         "point": [
           0.418,
-          -0.8251,
-          1.8
+          -0.7772,
+          1.88
         ],
         "axis": "+x"
       }
