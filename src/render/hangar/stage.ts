@@ -1,5 +1,5 @@
 // src/render/hangar/stage.ts
-import { AxesHelper, Box3, Color, DataTexture, GridHelper, Group, LinearMipmapLinearFilter, LineBasicMaterial, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, RepeatWrapping, Scene, SRGBColorSpace, Sphere, Vector3, type Object3D } from 'three'
+import { Box3, BoxGeometry, Color, DataTexture, GridHelper, Group, LinearMipmapLinearFilter, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, RepeatWrapping, Scene, SRGBColorSpace, Sphere, Vector3, type Object3D } from 'three'
 import type { WebGPURenderer } from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { applySun, createLighting, SUN_DIRECTION } from '../scene/lighting.js'
@@ -123,40 +123,18 @@ export function applyDebugViews(root: Object3D, v: DebugViews): void {
   applyWireframe(root, v.wireframe) // the unlit stand-ins do not
 }
 
-/** Pivot gizmos (spec §8): an axes helper at each articulated node's origin,
- *  drawn over the model so a pivot inside the fuselage still shows. */
-export function createGizmos(nodes: readonly Object3D[], size: number): Group {
-  const g = new Group()
-  g.name = 'hangar gizmos'
-  for (const n of nodes) {
-    const h = new AxesHelper(size)
-    h.name = `gizmo ${n.name}`
-    const mat = h.material as LineBasicMaterial
-    mat.depthTest = false
-    h.renderOrder = 999
-    g.add(h)
-  }
-  return g
-}
-
-const _p = new Vector3(), _q = new Quaternion(), _s = new Vector3()
-/** Each gizmo to its node's world position and orientation, at scale 1. */
-export function syncGizmos(gizmos: Group, nodes: readonly Object3D[]): void {
-  nodes.forEach((n, i) => {
-    const h = gizmos.children[i]
-    if (!h) return
-    n.updateWorldMatrix(true, false)
-    n.matrixWorld.decompose(_p, _q, _s)
-    h.position.copy(_p)
-    h.quaternion.copy(_q)
-  })
-}
-
 const VFOV_DEG = 35
 const AUTO_ROTATE_SPEED = 0.6
+export type HangarEnvironment = 'hangar' | 'water' | 'outside'
+
+/** Aircraft, vehicles and loose ordnance are inspected under cover. Ships remain afloat and
+ * buildings remain outside so their ground relationship still reads naturally. */
+export function environmentFor(kind: LibraryKind | null): HangarEnvironment {
+  return kind === 'ship' ? 'water' : kind === 'building' || kind === null ? 'outside' : 'hangar'
+}
 
 export interface HangarStage {
-  /** Replaces what stands on the stage. `kind` picks the ground: water for ships, a pad otherwise. */
+  /** Replaces what stands on the stage. `kind` picks the surrounding environment. */
   show(model: Object3D | null, kind: LibraryKind | null): void
   setPreset(p: CameraPreset): void
   /** The camera at `eye`, looking at `target`, both in stage meters (M1c captures: one distance for every ship). */
@@ -170,14 +148,16 @@ export interface HangarStage {
   setChecker(on: boolean): void
   /** The current model unlit (its own paint, no lights), or lit again; show() relights (E2E check 5, R3). */
   setUnlit(on: boolean): void
-  /** Pivot gizmos on these nodes; null or [] = off. show() clears them (H2). */
-  setGizmos(nodes: readonly Object3D[] | null): void
+  /** One-foot scale grid over the current floor/water. Off by default and retained across selections. */
+  setGrid(on: boolean): void
   /** The turntable, on or off, without freezing anything else (H2). */
   setAutoRotate(on: boolean): void
   /** The standing model's bounding-box size, meters (x length, y height, z span). */
   modelSize(): { x: number; y: number; z: number } | null
   /** `world` through the stage camera, in NDC (O1, E2E check 11). */
   project(world: Vector3): readonly [number, number]
+  /** The category-specific environment currently surrounding the model. */
+  environment(): HangarEnvironment
   render(): void
   resize(width: number, height: number): void
 }
@@ -219,22 +199,13 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
   let checkerOn = false
   let unlitOn = false
   const views = (): DebugViews => ({ wireframe, checker: checkerOn, unlit: unlitOn })
-  let gizmos: Group | null = null
-  let gizmoNodes: readonly Object3D[] = []
-  const setGizmos = (nodes: readonly Object3D[] | null): void => {
-    // AxesHelper is LineSegments, which disposeMeshTree skips; it frees itself.
-    if (gizmos) { scene.remove(gizmos); for (const h of gizmos.children) (h as AxesHelper).dispose() }
-    gizmos = null
-    gizmoNodes = nodes ?? []
-    if (gizmoNodes.length === 0) return
-    gizmos = createGizmos(gizmoNodes, radius * 0.08)
-    gizmos.visible = holder.visible
-    scene.add(gizmos)
-  }
+  let gridOn = false
+  let measurementGrid: Group | null = null
+  let currentEnvironment: HangarEnvironment = 'outside'
   let preset: CameraPreset = 'three-quarter'
 
   const frame = (): void => {
-    const d = framingDistance(radius, VFOV_DEG, camera.aspect)
+    const d = framingDistance(radius, VFOV_DEG, camera.aspect, 1)
     const [x, y, z] = presetDirection(preset)
     const target = controls.target
     camera.position.set(target.x + x * d, target.y + y * d, target.z + z * d)
@@ -247,17 +218,78 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
   const rebuildGround = (kind: LibraryKind | null, extent: number): void => {
     disposeMeshTree(ground)
     ground.clear()
-    // Meter grid, 10 m major lines: a model at the wrong scale shows at a glance.
+    currentEnvironment = environmentFor(kind)
     const size = Math.max(20, Math.ceil((extent * 1.5) / 10) * 10)
-    const grid = new GridHelper(size, size, 0xd8d2c0, 0x5a5f66)
+    const material = (color: number, metalness = 0.05): MeshStandardMaterial =>
+      new MeshStandardMaterial({ color, roughness: 0.82, metalness })
+    const addBox = (name: string, dimensions: readonly [number, number, number], position: readonly [number, number, number], color: number, rotationX = 0, metalness = 0.05): void => {
+      const mesh = new Mesh(new BoxGeometry(...dimensions), material(color, metalness))
+      mesh.name = name
+      mesh.position.set(...position)
+      mesh.rotation.x = rotationX
+      ground.add(mesh)
+    }
+
+    // The request is a desktop redesign. Keep the proven phone stage intact; only its surrounding
+    // UI and camera-safe gray pad render there, while desktop receives the enclosed hangar.
+    if (currentEnvironment === 'hangar' && canvas.clientWidth > 820) {
+      // Scale the room with the model and keep every orbit camera inside it. The thick floor has
+      // a real underside, so dipping below grade no longer reveals transparency.
+      const room = Math.max(20, radius * 8, extent * 2.2)
+      const halfWidth = room * 0.5
+      const halfLength = room * 0.82
+      // Keep the roof just above the framed model. A scale-correct aircraft hangar many spans
+      // wide pushed the V beyond the camera frustum and read as a featureless dark box.
+      const eave = Math.max(2.5, radius * 1.05)
+      const ridge = Math.max(eave + 2, radius * 1.65)
+      const rise = ridge - eave
+      const slope = Math.hypot(halfWidth, rise)
+      const angle = Math.atan2(rise, halfWidth)
+      scene.background = new Color(0x11181d)
+      addBox('hangar floor', [halfLength * 2, 0.5, room], [0, -0.25, 0], 0x555a59, 0, 0.08)
+      addBox('hangar back wall', [0.6, ridge, room], [-halfLength, ridge / 2, 0], 0x39454a, 0, 0.18)
+      addBox('hangar left wall', [halfLength * 2, eave, 0.6], [0, eave / 2, -halfWidth], 0x354046, 0, 0.18)
+      addBox('hangar right wall', [halfLength * 2, eave, 0.6], [0, eave / 2, halfWidth], 0x354046, 0, 0.18)
+      // Keep the canopy behind the inspection volume. It still reads as a roofed bay from the
+      // default view, but top/side presets and free orbit never put opaque roof over the model.
+      const roofLength = halfLength * 0.62
+      const roofX = -halfLength + roofLength / 2
+      addBox('hangar roof left', [roofLength, 0.5, slope], [roofX, (eave + ridge) / 2, -halfWidth / 2], 0x28333a, -angle, 0.28)
+      addBox('hangar roof right', [roofLength, 0.5, slope], [roofX, (eave + ridge) / 2, halfWidth / 2], 0x28333a, angle, 0.28)
+      addBox('hangar ridge beam', [roofLength, 0.9, 0.9], [roofX, ridge - 0.25, 0], 0x121b21, 0, 0.45)
+      const trussAngle = Math.atan2(halfWidth, rise)
+      addBox('hangar back truss left', [0.9, slope, 0.65], [-halfLength + 0.65, (eave + ridge) / 2, -halfWidth / 2], 0x111a20, trussAngle, 0.42)
+      addBox('hangar back truss right', [0.9, slope, 0.65], [-halfLength + 0.65, (eave + ridge) / 2, halfWidth / 2], 0x111a20, -trussAngle, 0.42)
+      // One nearer cross-frame makes the V ceiling legible from the default three-quarter view.
+      const frameX = -halfLength * 0.38
+      addBox('hangar cross tie', [0.75, 0.75, room], [frameX, eave, 0], 0x1a2830, 0, 0.42)
+      addBox('hangar cross truss left', [0.75, slope, 0.75], [frameX, (eave + ridge) / 2, -halfWidth / 2], 0x1a2830, trussAngle, 0.42)
+      addBox('hangar cross truss right', [0.75, slope, 0.75], [frameX, (eave + ridge) / 2, halfWidth / 2], 0x1a2830, -trussAngle, 0.42)
+      // Strong vertical bays make the space read as a large military hangar instead of a box.
+      for (let i = -4; i <= 4; i++) {
+        const z = (i / 4) * halfWidth * 0.9
+        addBox(`hangar back rib ${i + 5}`, [0.8, eave, 0.28], [-halfLength + 0.5, eave / 2, z], 0x182228, 0, 0.35)
+      }
+    } else {
+      scene.background = new Color(currentEnvironment === 'water' ? 0x355d73 : 0x2a2f36)
+      const plane = new Mesh(
+        new PlaneGeometry(size * 4, size * 4).rotateX(-Math.PI / 2),
+        material(currentEnvironment === 'water' ? 0x1d4e68 : 0x8a8a84),
+      )
+      plane.name = currentEnvironment === 'water' ? 'water' : 'outside ground'
+      ground.add(plane)
+    }
+
+    // One-foot grid with 10-foot major lines: useful for scale inspection, but deliberately opt-in.
+    measurementGrid = new Group()
+    measurementGrid.name = 'scale grid'
+    const grid = new GridHelper(size, Math.max(1, Math.round(size / 0.3048)), 0xd8d2c0, 0x5a5f66)
     grid.position.y = 0.01
-    const major = new GridHelper(size, size / 10, 0xf2e9d0, 0xf2e9d0)
+    const major = new GridHelper(size, Math.max(1, Math.round(size / 3.048)), 0xf2e9d0, 0xf2e9d0)
     major.position.y = 0.02
-    const plane = new Mesh(
-      new PlaneGeometry(size * 4, size * 4).rotateX(-Math.PI / 2),
-      new MeshStandardMaterial({ color: kind === 'ship' ? 0x1d3f57 : 0x8a8a84, roughness: 0.9 }),
-    )
-    ground.add(plane, grid, major)
+    measurementGrid.add(grid, major)
+    measurementGrid.visible = gridOn
+    ground.add(measurementGrid)
   }
 
   return {
@@ -267,7 +299,6 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
         applyDebugViews(current, { wireframe: false, checker: false, unlit: false })
         holder.remove(current)
       }
-      setGizmos(null)
       current = model
       unlitOn = false // show() relights
       if (model === null) {
@@ -303,7 +334,6 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
     },
     setModelVisible(visible): void {
       holder.visible = visible
-      if (gizmos) gizmos.visible = visible
     },
     setUnlit(on): void {
       unlitOn = on
@@ -317,7 +347,10 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       checkerOn = on
       if (current) applyDebugViews(current, views())
     },
-    setGizmos,
+    setGrid(on): void {
+      gridOn = on
+      if (measurementGrid) measurementGrid.visible = on
+    },
     setAutoRotate(on): void { controls.autoRotate = on },
     modelSize() {
       if (!current) return null
@@ -329,8 +362,8 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       const p = world.clone().project(camera)
       return [p.x, p.y]
     },
+    environment(): HangarEnvironment { return currentEnvironment },
     render(): void {
-      if (gizmos) syncGizmos(gizmos, gizmoNodes)
       controls.update()
       pipeline.render()
     },

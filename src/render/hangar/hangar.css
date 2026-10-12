@@ -1,17 +1,26 @@
-/* The Hangar keeps one DOM for both layouts. Desktop is the original three-column workbench;
-   phones turn the catalog into a compact picker and the details into a bottom sheet. */
+/* One DOM, two layouts. Desktop is a full-width display bay with floating instruments and a
+   cockpit-metal catalog rail. The phone breakpoint below deliberately preserves the compact
+   picker / model / bottom-sheet layout. */
 
 .hangar-layout {
+  --hangar-metal: #17232d;
+  --hangar-metal-deep: #0b131a;
+  --hangar-metal-edge: #34495a;
+  --hangar-cream: #efe5c8;
+  --hangar-amber: #e2a531;
   display: grid;
-  grid-template-columns: 380px minmax(0, 1fr) auto;
-  grid-template-rows: minmax(0, 1fr);
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 148px;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  background: #0b1015;
 }
 
 #hangar-canvas {
-  grid-area: 1 / 2;
+  grid-area: 1 / 1;
   display: block;
   width: 100%;
   height: 100%;
@@ -21,10 +30,10 @@
 }
 
 .hangar-empty {
-  grid-area: 1 / 2;
+  grid-area: 1 / 1;
   place-self: center;
   pointer-events: none;
-  color: var(--paper);
+  color: var(--hangar-cream);
   opacity: 0.7;
   font-family: var(--font-display);
   font-size: 22px;
@@ -32,70 +41,264 @@
   text-transform: uppercase;
 }
 
+/* Only the top controls and bottom rail have a surface. The middle remains transparent and
+   click-through for orbit controls. */
 .hangar-panel {
-  grid-area: 1 / 1;
+  grid-area: 1 / 1 / 3;
+  z-index: 4;
+  min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  padding: 16px;
+  overflow: visible;
+  padding: 0;
+  pointer-events: none;
 }
 
-.hangar-panel > .sheet,
-.hangar-detail > .sheet {
-  flex: 1 1 0;
-  width: 100%;
+.hangar-panel > .sheet {
+  position: absolute;
+  inset: 0;
+  width: auto;
   min-height: 0;
-  overflow-y: auto;
-  padding: 14px 16px;
+  overflow: visible;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hangar-panel > .sheet::before {
+  display: none;
+}
+
+.hangar-panel .letterhead {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  width: 286px;
+  margin: 0;
+  padding: 12px 16px 10px;
+  border: 1px solid var(--paper-edge);
+  border-bottom: 3px double var(--rule-heavy);
+  background: var(--paper);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.42);
+  pointer-events: auto;
+}
+
+.hangar-panel > .sheet > .ink-button {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  min-height: 42px;
+  border-color: var(--hangar-cream);
+  background: rgba(10, 18, 24, 0.9);
+  color: var(--hangar-cream);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+.hangar-panel > .sheet > .ink-button:hover {
+  background: #213443;
 }
 
 .hangar-filters {
+  position: absolute;
+  top: 18px;
+  left: 330px;
+  right: 186px;
   display: flex;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 10px 0;
-}
-
-.hangar-panel ul {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  pointer-events: auto;
 }
 
-.hangar-panel li > button {
-  width: 100%;
-  margin: 2px 0;
-  text-align: left;
-}
-
-.hangar-panel li > button[aria-current='true'] {
-  color: var(--stamp-blue);
-  border-color: var(--stamp-blue);
-  background: rgba(31, 61, 99, 0.08);
+.hangar-filters select {
+  min-height: 42px;
+  min-width: 142px;
+  padding: 0 34px 0 12px;
+  border: 1px solid #607486;
+  border-radius: 3px;
+  background: rgba(14, 24, 32, 0.92);
+  color: var(--hangar-cream);
+  font: 12px var(--font-body);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 7px 20px rgba(0, 0, 0, 0.35);
 }
 
 .hangar-mobile-picker {
   display: none;
 }
 
-.hangar-detail {
-  grid-area: 1 / 3;
-  width: 380px;
-  min-height: 0;
+/* Cockpit-inspired bottom selector: inset rail, amber current item, and large mechanical arrows. */
+.hangar-catalog-dock {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  left: 18px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 58px;
+  grid-template-rows: minmax(0, 1fr) 22px;
+  gap: 6px 10px;
+  height: 120px;
+  padding: 13px 16px 8px;
+  border: 2px solid #263847;
+  border-radius: 15px 15px 6px 6px;
+  background:
+    radial-gradient(circle at 15px 15px, #70808b 0 2px, #16222b 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 15px) 15px, #70808b 0 2px, #16222b 3px 5px, transparent 6px),
+    radial-gradient(circle at 15px calc(100% - 15px), #70808b 0 2px, #16222b 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 15px) calc(100% - 15px), #70808b 0 2px, #16222b 3px 5px, transparent 6px),
+    linear-gradient(180deg, #253845 0%, var(--hangar-metal) 46%, var(--hangar-metal-deep) 100%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.14), inset 0 -3px 8px rgba(0, 0, 0, 0.7), 0 12px 28px rgba(0, 0, 0, 0.48);
+  pointer-events: auto;
+}
+
+.hangar-catalog-window {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
   overflow: hidden;
-  padding: 16px;
-  gap: 8px;
+  border: 1px solid #070c10;
+  border-radius: 5px;
+  background: #071016;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.92), 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.hangar-panel ul {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  height: 100%;
+  margin: 0;
+  padding: 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  list-style: none;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.hangar-panel ul::-webkit-scrollbar {
+  display: none;
+}
+
+.hangar-panel li {
+  flex: 0 0 clamp(150px, 16vw, 235px);
+  scroll-snap-align: center;
+}
+
+.hangar-panel li > button {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1px solid #536a7b;
+  border-radius: 3px;
+  background: linear-gradient(#1c2c37, #111d25);
+  color: #d7d3c4;
+  font: 12px/1.18 var(--font-display);
+  letter-spacing: 0.065em;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: normal;
+}
+
+.hangar-panel li > button:hover {
+  border-color: #91a3ad;
+  background: linear-gradient(#2b414e, #172630);
+}
+
+.hangar-panel li > button[aria-current='true'] {
+  border-color: var(--hangar-amber);
+  background: linear-gradient(#172b37, #08141c);
+  color: #fff2c7;
+  box-shadow: inset 0 -4px var(--hangar-amber), 0 0 14px rgba(226, 165, 49, 0.18);
+}
+
+.hangar-catalog-arrow {
+  grid-row: 1;
+  min-width: 0;
+  border: 1px solid #61788a;
+  border-radius: 5px;
+  background: linear-gradient(#263c4a, #0c171f);
+  color: var(--hangar-cream);
+  font: 42px/1 var(--font-display);
+  cursor: pointer;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.hangar-catalog-arrow--previous { grid-column: 1; }
+.hangar-catalog-arrow--next { grid-column: 3; }
+
+.hangar-catalog-arrow:hover:not(:disabled) {
+  color: var(--hangar-amber);
+  border-color: var(--hangar-amber);
+}
+
+.hangar-catalog-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.hangar-catalog-status {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: #aebbc2;
+  font: 10px/18px var(--font-body);
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The dossier and bench are deliberately separate visual instruments on desktop. */
+.hangar-detail {
+  position: absolute;
+  z-index: 5;
+  top: 82px;
+  right: 20px;
+  display: flex;
+  width: 380px;
+  max-height: 36vh;
+  min-height: 0;
+  overflow: visible;
+  padding: 0;
+  gap: 7px;
 }
 
 .hangar-detail.is-collapsed {
-  width: 60px;
-  gap: 0;
+  width: 52px;
+}
+
+.hangar-detail.is-collapsed > .sheet {
+  flex: 0 0 0;
+  width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hangar-detail.is-collapsed > .sheet::before {
+  display: none;
+}
+
+.hangar-detail > .sheet {
+  flex: 1 1 auto;
+  width: 100%;
+  max-height: 36vh;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
 }
 
 .hangar-detail-toggle {
-  align-self: flex-end;
+  align-self: flex-start;
   min-width: 44px;
-  min-height: 36px;
-  padding: 4px 12px;
+  min-height: 38px;
+  padding: 4px 10px;
   border-color: var(--paper-edge);
   background: var(--paper);
   font-size: 16px;
@@ -107,6 +310,57 @@
 .hangar-card td,
 .hangar-card a {
   overflow-wrap: anywhere;
+}
+
+.hangar-bench {
+  position: fixed;
+  right: 20px;
+  bottom: 162px;
+  width: 380px;
+  max-height: 28vh;
+  overflow: auto;
+  padding: 14px 16px;
+  border: 2px solid var(--hangar-metal-edge);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 12px 12px, #788791 0 2px, #111b22 3px 5px, transparent 6px),
+    radial-gradient(circle at calc(100% - 12px) 12px, #788791 0 2px, #111b22 3px 5px, transparent 6px),
+    linear-gradient(160deg, #253743, #101b23 55%, #091219);
+  color: var(--hangar-cream);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.13), inset 0 -5px 12px rgba(0, 0, 0, 0.48), 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.hangar-bench .form-section-title {
+  margin: 0 0 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #526877;
+  color: #fff0bf;
+  letter-spacing: 0.13em;
+}
+
+.hangar-bench button {
+  border: 1px solid #708491;
+  border-radius: 3px;
+  background: #162631;
+  color: var(--hangar-cream);
+}
+
+.hangar-bench input[type='range'],
+.hangar-bench input[type='checkbox'] {
+  accent-color: var(--hangar-amber);
+}
+
+.hangar-counts {
+  color: #aebbc2;
+}
+
+@media (min-width: 821px) and (max-width: 1150px) {
+  .hangar-panel .letterhead { width: 235px; }
+  .hangar-panel .letterhead-title { font-size: 25px; }
+  .hangar-filters { left: 275px; right: 165px; }
+  .hangar-filters select { min-width: 116px; }
+  .hangar-detail,
+  .hangar-bench { width: 320px; }
 }
 
 @media (max-width: 820px) {
@@ -128,32 +382,46 @@
   }
 
   .hangar-panel {
+    position: static;
     grid-area: 1 / 1;
     z-index: 2;
     overflow: visible;
     padding: max(8px, env(safe-area-inset-top)) 8px 0;
     gap: 0;
+    pointer-events: auto;
   }
 
   .hangar-panel > .sheet {
+    position: relative;
+    inset: auto;
     display: grid;
     flex: none;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
+    width: 100%;
     overflow: visible;
     padding: 8px 10px 10px;
+    border: 1px solid var(--paper-edge);
+    background-color: var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.015) 0 1px, transparent 1px 3px),
+      radial-gradient(ellipse at 20% -10%, rgba(255, 255, 255, 0.25), transparent 60%),
+      radial-gradient(ellipse at 100% 110%, rgba(0, 0, 0, 0.18), transparent 55%);
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 2px 0 var(--paper-edge) inset;
   }
 
   .hangar-panel .letterhead {
+    position: static;
+    width: auto;
     min-width: 0;
     margin: 0;
     padding: 0;
-    border-bottom: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
-  .hangar-panel .letterhead-kicker {
-    display: none;
-  }
+  .hangar-panel .letterhead-kicker { display: none; }
 
   .hangar-panel .letterhead-title {
     overflow: hidden;
@@ -164,14 +432,20 @@
   }
 
   .hangar-panel > .sheet > .ink-button {
+    position: static;
     align-self: center;
     min-height: 44px;
     padding: 8px 12px;
+    border-color: var(--ink);
+    background: transparent;
+    color: var(--ink);
+    box-shadow: none;
     font-size: 11px;
     white-space: nowrap;
   }
 
   .hangar-filters {
+    position: static;
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -184,10 +458,12 @@
     width: 100%;
     min-width: 0;
     min-height: 44px;
+    padding: initial;
     border: 1px solid var(--rule-heavy);
     border-radius: 2px;
     background: rgba(255, 255, 255, 0.2);
     color: var(--ink);
+    box-shadow: none;
     font: 12px var(--font-body);
   }
 
@@ -203,15 +479,16 @@
     text-transform: uppercase;
   }
 
-  .hangar-panel ul {
-    display: none;
-  }
+  .hangar-catalog-dock { display: none; }
+  .hangar-panel ul { display: none; }
 
   .hangar-detail {
+    position: static;
     grid-area: 3 / 1;
     z-index: 3;
     width: 100%;
     height: min(42dvh, 390px);
+    max-height: none;
     padding: 0 8px max(8px, env(safe-area-inset-bottom));
     gap: 0;
   }
@@ -219,6 +496,11 @@
   .hangar-detail.is-collapsed {
     width: 100%;
     height: auto;
+  }
+
+  .hangar-detail.is-collapsed > .sheet {
+    flex: 1 1 0;
+    width: 100%;
   }
 
   .hangar-detail > .sheet {
@@ -239,29 +521,41 @@
     font-size: 20px;
   }
 
-  .hangar-detail .form-section-title {
-    margin-top: 12px;
-  }
-
-  .hangar-detail .form-table {
-    font-size: 12px;
-  }
+  .hangar-detail .form-section-title { margin-top: 12px; }
+  .hangar-detail .form-table { font-size: 12px; }
 
   .hangar-detail .form-table th,
-  .hangar-detail .form-table td {
-    padding: 5px 6px;
+  .hangar-detail .form-table td { padding: 5px 6px; }
+
+  .hangar-bench {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: inherit;
+    box-shadow: none;
   }
 
-  .hangar-bench input[type='range'] {
-    min-height: 32px;
+  .hangar-bench .form-section-title {
+    margin-top: 12px;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    letter-spacing: normal;
   }
 
   .hangar-bench button {
     min-width: 44px;
     min-height: 44px;
+    border: revert;
+    background: revert;
+    color: revert;
   }
 
-  .hangar-bench label {
-    min-height: 44px;
-  }
+  .hangar-bench input[type='range'] { min-height: 32px; }
+  .hangar-bench label { min-height: 44px; }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AxesHelper, BoxGeometry, Color, DataTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, RepeatWrapping } from 'three'
-import { applyChecker, applyDebugViews, applyUnlit, applyWireframe, CHECKER_REPEAT, createGizmos, syncGizmos, type DebugViews } from '../../../src/render/hangar/stage.js'
+import { BoxGeometry, Color, DataTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, RepeatWrapping } from 'three'
+import { applyChecker, applyDebugViews, applyUnlit, applyWireframe, CHECKER_REPEAT, environmentFor, type DebugViews } from '../../../src/render/hangar/stage.js'
 
 describe('applyWireframe', () => {
   it('sets and clears every mesh material, arrays included, because clones share them', () => {
@@ -132,17 +132,13 @@ describe('applyDebugViews (DP0 Task 11 review: the views toggle in any order)', 
   })
 })
 
-describe('gizmos', () => {
-  it('one axes helper per node, following its world transform', () => {
-    const parent = new Group(); parent.position.set(10, 0, 0); parent.scale.setScalar(0.1)
-    const node = new Object3D(); node.name = 'Helice'; node.position.set(0, 20, 0)
-    parent.add(node)
-    const g = createGizmos([node], 2)
-    expect(g.children).toHaveLength(1)
-    expect(g.children[0]).toBeInstanceOf(AxesHelper)
-    expect(g.children[0]!.name).toBe('gizmo Helice')
-    syncGizmos(g, [node])
-    expect(g.children[0]!.position.toArray()).toEqual([10, 2, 0])
-    expect(g.children[0]!.scale.toArray()).toEqual([1, 1, 1])
+describe('category environments', () => {
+  it('puts aircraft, vehicles and ordnance in the hangar; ships on water; buildings outside', () => {
+    expect(environmentFor('aircraft')).toBe('hangar')
+    expect(environmentFor('vehicle')).toBe('hangar')
+    expect(environmentFor('ordnance')).toBe('hangar')
+    expect(environmentFor('ship')).toBe('water')
+    expect(environmentFor('building')).toBe('outside')
+    expect(environmentFor(null)).toBe('outside')
   })
 })
