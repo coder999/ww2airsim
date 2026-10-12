@@ -4,7 +4,7 @@ import type { SortieChoice } from '../../src/sim/sortie.js'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
   pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
-  createTitleScreen,
+  createTitleScreen, NEW_PILOT_GUIDANCE,
   type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
@@ -84,6 +84,9 @@ describe('the title screen model (2026-09-19)', () => {
     expect(m.credits).toBe(creditsLine())
     expect(m.licence).toContain('AGPL-3.0-or-later')
     expect(m.repository).toBe('https://github.com/coder999/ww2airsim')
+    expect(text).toContain('Mark Tuttle')
+    expect(text).toContain('Copyright (C) 2026')
+    expect(m.website).toBe('https://marktuttle.dev')
   })
 })
 
@@ -266,7 +269,7 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
   })
 })
 
-describe('the title screen as four sequential memo forms (sortie spec)', () => {
+describe('the title screen as six sequential memo forms (sortie spec)', () => {
   // The DOM (step switching, Back, Enter) needs a `document`, which this
   // suite's `node` environment lacks; `tests/e2e/title.spec.ts` drives it.
   // What is pinned here is the text the two forms and the buttons that move
@@ -280,11 +283,15 @@ describe('the title screen as four sequential memo forms (sortie spec)', () => {
     expect(m.dev).toBe('Dev — unlocks everything')
   })
 
-  it('numbers the four forms "of 4" and gives each its own letterhead', () => {
-    expect(Object.keys(TITLE_FORMS)).toEqual(['roster', 'orders', 'aircraft', 'ordnance'])
-    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual(['Form 1 of 4', 'Form 2 of 4', 'Form 3 of 4', 'Form 4 of 4'])
-    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual(['Squadron Roster', 'Sortie Orders', 'Aircraft Assignment', 'Ordnance Requisition'])
-    expect(Object.values(TITLE_FORMS).map((f) => f.kicker)).toEqual(['Bureau of Naval Personnel', 'Flight Operations', 'Bureau of Aeronautics', 'Bureau of Ordnance'])
+  it('numbers the six forms and gives each its own letterhead', () => {
+    expect(Object.keys(TITLE_FORMS)).toEqual(['roster', 'type', 'orders', 'conditions', 'aircraft', 'ordnance'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual([
+      'Form 1 of 6', 'Form 2 of 6', 'Form 3 of 6', 'Form 4 of 6', 'Form 5 of 6', 'Form 6 of 6',
+    ])
+    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual([
+      'Squadron Roster', 'Flight Type', 'Sortie Orders', 'Flight Conditions', 'Aircraft Assignment', 'Ordnance Requisition',
+    ])
+    expect(NEW_PILOT_GUIDANCE).toContain('Basic Flying, Torpedo Qualification and Carrier Qualification')
   })
 
   it('gives the About memo its own letterhead', () => {

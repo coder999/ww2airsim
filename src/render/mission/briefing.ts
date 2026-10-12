@@ -113,6 +113,40 @@ function paragraph(text: string, style = PARAGRAPH_STYLE): HTMLParagraphElement 
   return p
 }
 
+export type BriefingSource = { readonly label: string; readonly url: string | null }
+
+/** Scenario history keeps citations as one author-readable string. Split a
+ * trailing URL for display so the citation is the link text and the raw URL
+ * never becomes the visible label. Non-URL citations remain plain text. */
+export function briefingSource(source: string): BriefingSource {
+  const match = /^(.*?):\s*(https?:\/\/\S+)\s*$/.exec(source)
+  return match === null
+    ? { label: source, url: null }
+    : { label: match[1]!.trim(), url: match[2]! }
+}
+
+function sourcesParagraph(sources: readonly string[]): HTMLParagraphElement {
+  const p = document.createElement('p')
+  p.style.cssText = SOURCES_STYLE
+  p.append(`${sources.length === 1 ? 'Source' : 'Sources'}: `)
+  sources.forEach((source, index) => {
+    if (index > 0) p.append('; ')
+    const item = briefingSource(source)
+    if (item.url === null) {
+      p.append(item.label)
+      return
+    }
+    const link = document.createElement('a')
+    link.href = item.url
+    link.target = '_blank'
+    link.rel = 'noopener'
+    link.textContent = item.label
+    link.style.color = 'inherit'
+    p.appendChild(link)
+  })
+  return p
+}
+
 /** Replaces `el`'s content with the briefing (or its loading/failed line). */
 export function renderBriefing(el: HTMLElement, m: BriefingModel | 'loading' | 'unavailable'): void {
   const section = document.createElement('section')
@@ -128,7 +162,7 @@ export function renderBriefing(el: HTMLElement, m: BriefingModel | 'loading' | '
     section.append(
       sectionTitle('Background'),
       paragraph(m.history.text),
-      paragraph(`Sources: ${m.history.sources.join('; ')}`, SOURCES_STYLE),
+      sourcesParagraph(m.history.sources),
     )
   }
   if (m.objectives.length > 0) {

@@ -1,6 +1,6 @@
 import { DoubleSide, Material, Mesh, Object3D, Vector2 } from 'three'
 import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu'
-import { color, float, length, max, mix, normalize, positionLocal, smoothstep, uniform, uv, vec3 } from 'three/tsl'
+import { color, float, fract, length, max, mix, normalize, positionLocal, sin, smoothstep, uniform, uv, vec3 } from 'three/tsl'
 import { BEACHES_URL } from '../content.js'
 import { horizonSinkNode } from '../horizon.js'
 import { parseGltf, type ParseModel } from '../models/modelCache.js'
@@ -15,18 +15,54 @@ export type BeachStats = {
   readonly roles: Readonly<Record<BeachRoleName, number>>
   readonly eyeX: number
   readonly eyeZ: number
+  readonly timeS: number
+  readonly animated: boolean
 }
 
 export type Beaches = {
   readonly object: Object3D
-  update(eyeX: number, eyeZ: number): void
+  update(eyeX: number, eyeZ: number, timeS?: number): void
   stats(): BeachStats
   dispose(): void
 }
 
 const isRole = (name: string): name is BeachRoleName => (BEACH_ROLE_NAMES as readonly string[]).includes(name)
 
-function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>): Readonly<Record<BeachRoleName, MeshBasicNodeMaterial>> {
+/** CPU twin of the compact breaker field used below. Useful for pinning the
+ * direction, period and cross-shore envelope without compiling a shader. */
+export function shoreEffectSample(along: number, across: number, timeS: number): { foam: number; backwash: number; shallow: number } {
+  const smooth = (a: number, b: number, value: number): number => {
+    const x = Math.max(0, Math.min(1, (value - a) / (b - a)))
+    return x * x * (3 - 2 * x)
+  }
+  const wave = (offset: number): number => {
+    const p = ((across * 1.55 + timeS * 0.16 + Math.sin(along * 22 + timeS * 0.35) * 0.04 + offset) % 1 + 1) % 1
+    return smooth(0.035, 0.105, p) * (1 - smooth(0.105, 0.235, p))
+  }
+  const envelope = 1 - smooth(0.62, 0.96, across)
+  const foam = Math.min(1, (wave(0) + wave(0.48) * 0.68) * envelope)
+  const backwash = (0.5 + 0.5 * Math.sin(across * 18 - timeS * 0.7 + along * 5)) * smooth(0.04, 0.42, across) * (1 - smooth(0.42, 0.9, across))
+  return { foam, backwash, shallow: smooth(0.03, 0.95, across) }
+}
+
+export function shoreFxFromQuery(search: string): 'on' | 'off' | undefined {
+  const raw = new URLSearchParams(search).get('shoreFx')
+  if (raw === null) return undefined
+  if (raw === 'on' || raw === 'off') return raw
+  throw new Error(`shoreFx: ${JSON.stringify(raw)} is not on or off`)
+}
+
+/** Fixed phase for repeatable DEV captures. Omitted in normal play, where the
+ * simulation clock drives the surf and therefore freezes with Pause. */
+export function shoreTimeFromQuery(search: string): number | undefined {
+  const raw = new URLSearchParams(search).get('shoreTime')
+  if (raw === null) return undefined
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0) throw new Error(`shoreTime: ${JSON.stringify(raw)} is not a non-negative number`)
+  return value
+}
+
+function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>, timeS: UniformNode<'float', number>, animated: boolean): Readonly<Record<BeachRoleName, MeshBasicNodeMaterial>> {
   const position = vec3(
     positionLocal.x,
     positionLocal.y.sub(horizonSinkNode(length(positionLocal.xz.sub(eyeXZ)))),
@@ -48,7 +84,20 @@ function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>): Readonly<Record<Be
   const across = uv().y
   const dry = mix(c(0x747855), c(0xb7a57e), smoothstep(0, 0.45, across))
   const sand = make('ShoreSand', mix(dry, c(0x5f5b4c), smoothstep(0.45, 1, across)))
-  const surf = make('ShoreSurf', c(0xe4eff0))
+  let surfAlbedo: Node<'vec3'> = c(0xe4eff0)
+  if (animated) {
+    const along = uv().x, acrossWater = uv().y
+    const phase = (offset: number) => fract(acrossWater.mul(1.55).add(timeS.mul(0.16)).add(sin(along.mul(22).add(timeS.mul(0.35))).mul(0.04)).add(offset))
+    const crest = (p: ReturnType<typeof phase>) => smoothstep(0.035, 0.105, p).mul(float(1).sub(smoothstep(0.105, 0.235, p)))
+    const foam = crest(phase(0)).add(crest(phase(0.48)).mul(0.68))
+      .mul(float(1).sub(smoothstep(0.62, 0.96, acrossWater))).clamp(0, 1)
+    const backwash = sin(acrossWater.mul(18).sub(timeS.mul(0.7)).add(along.mul(5))).mul(0.5).add(0.5)
+      .mul(smoothstep(0.04, 0.42, acrossWater)).mul(float(1).sub(smoothstep(0.42, 0.9, acrossWater)))
+    const shallow = mix(c(0x789788), c(0x315f67), smoothstep(0.03, 0.95, acrossWater))
+    surfAlbedo = mix(shallow, c(0xcbd9d2), backwash.mul(0.2))
+    surfAlbedo = mix(surfAlbedo, c(0xf2f6ee), foam.mul(0.92))
+  }
+  const surf = make('ShoreSurf', surfAlbedo)
   surf.transparent = true
   surf.depthWrite = false
   // UV.y is zero at the waterline and one at the submerged edge.  The ocean
@@ -58,9 +107,10 @@ function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>): Readonly<Record<Be
   return { ShoreSand: sand, ShoreSurf: surf }
 }
 
-export function createBeaches(root: Object3D): Beaches {
+export function createBeaches(root: Object3D, animated = true): Beaches {
   const eyeXZ = uniform(new Vector2()) as UniformNode<'vec2', Vector2>
-  const runtime = beachMaterials(eyeXZ)
+  const timeS = uniform(0) as UniformNode<'float', number>
+  const runtime = beachMaterials(eyeXZ, timeS, animated)
   const roles: Record<BeachRoleName, number> = { ShoreSand: 0, ShoreSurf: 0 }
   const sourceMaterials = new Set<Material>()
   let meshes = 0, triangles = 0
@@ -84,8 +134,8 @@ export function createBeaches(root: Object3D): Beaches {
   let disposed = false
   return {
     object: root,
-    update(eyeX, eyeZ): void { eyeXZ.value.set(eyeX, eyeZ) },
-    stats: (): BeachStats => ({ meshes, triangles, roles: { ...roles }, eyeX: eyeXZ.value.x, eyeZ: eyeXZ.value.y }),
+    update(eyeX, eyeZ, nextTimeS = timeS.value): void { eyeXZ.value.set(eyeX, eyeZ); timeS.value = nextTimeS },
+    stats: (): BeachStats => ({ meshes, triangles, roles: { ...roles }, eyeX: eyeXZ.value.x, eyeZ: eyeXZ.value.y, timeS: timeS.value, animated }),
     dispose(): void {
       if (disposed) return
       disposed = true
@@ -97,6 +147,6 @@ export function createBeaches(root: Object3D): Beaches {
   }
 }
 
-export async function loadBeaches(url = BEACHES_URL, parse: ParseModel = parseGltf): Promise<Beaches> {
-  return createBeaches(await parse(url))
+export async function loadBeaches(url = BEACHES_URL, parse: ParseModel = parseGltf, animated = true): Promise<Beaches> {
+  return createBeaches(await parse(url), animated)
 }

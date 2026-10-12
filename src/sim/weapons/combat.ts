@@ -14,7 +14,7 @@ import {
   measureStructuralStress,
   type StructuralStress,
 } from '../damage/overload.js'
-import { inBody, segmentBox, tupleVector } from './geometry.js'
+import { inBody, segmentBox, segmentMovingSphere, tupleVector } from './geometry.js'
 import type { CombatSpec, DamageSystem } from './schema.js'
 import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
@@ -294,6 +294,8 @@ function deckHit(from: Vec3, to: Vec3, decks: readonly Deck[]): { readonly t: nu
  *  `world/airfields.ts`, which is what `buildStructures` measured `halfSize`
  *  in (`x` across the building, `z` along it). */
 function structureHit(from: Vec3, to: Vec3, s: StructureEntity): number | null {
+  if (!segmentMovingSphere(from, to, s.position, s.position,
+    Math.hypot(s.halfSize.x, s.halfSize.y, s.halfSize.z))) return null
   const c = Math.cos(s.headingRad), sn = Math.sin(s.headingRad)
   const local = (p: Vec3): Vec3 => {
     const d = sub(p, s.position)
@@ -304,23 +306,29 @@ function structureHit(from: Vec3, to: Vec3, s: StructureEntity): number | null {
 
 /** A hull's box, in the ship frame the round loop has always used. */
 function hullHit(from: Vec3, to: Vec3, ship: CombatShip, start: number): number | null {
+  const began = add(ship.previous.position, scale(sub(ship.state.position, ship.previous.position), start))
+  // The sphere is centred at the waterline rather than the box centre, so its
+  // vertical radius is the full deck height. That is deliberately conservative.
+  if (!segmentMovingSphere(from, to, began, ship.state.position,
+    Math.hypot(ship.spec.lengthM / 2, ship.spec.deckHeightM, ship.spec.beamM / 2))) return null
   const h = ship.state.headingRad
   const local = (p: Vec3, center: Vec3): Vec3 => {
     const d = sub(p, center)
     return v3(d.x * Math.sin(h) - d.z * Math.cos(h), d.y, d.x * Math.cos(h) + d.z * Math.sin(h))
   }
-  const began = add(ship.previous.position, scale(sub(ship.state.position, ship.previous.position), start))
   return segmentBox(local(from, began), local(to, ship.state.position),
     v3(0, ship.spec.deckHeightM / 2, 0), v3(ship.spec.lengthM / 2, ship.spec.deckHeightM / 2, ship.spec.beamM / 2))
 }
 
 function vehicleHit(from: Vec3, to: Vec3, vehicle: CombatVehicle, start: number): number | null {
+  const began = add(vehicle.previous.position, scale(sub(vehicle.state.position, vehicle.previous.position), start))
+  if (!segmentMovingSphere(from, to, began, vehicle.state.position,
+    Math.hypot(vehicle.spec.lengthM / 2, vehicle.spec.heightM, vehicle.spec.widthM / 2))) return null
   const heading = vehicle.state.headingRad
   const local = (p: Vec3, center: Vec3): Vec3 => {
     const d = sub(p, center)
     return v3(d.x * Math.sin(heading) - d.z * Math.cos(heading), d.y, d.x * Math.cos(heading) + d.z * Math.sin(heading))
   }
-  const began = add(vehicle.previous.position, scale(sub(vehicle.state.position, vehicle.previous.position), start))
   return segmentBox(local(from, began), local(to, vehicle.state.position),
     v3(0, vehicle.spec.heightM / 2, 0), v3(vehicle.spec.lengthM / 2, vehicle.spec.heightM / 2, vehicle.spec.widthM / 2))
 }
@@ -341,49 +349,68 @@ type Contact =
   | { readonly t: number; readonly kind: 'structure'; readonly structure: StructureEntity }
   | { readonly t: number; readonly kind: 'vehicle'; readonly vehicle: CombatVehicle }
 
+/** Rotation-invariant sphere enclosing every damage-zone corner, cached by the
+ * immutable combat spec. This keeps broad-phase work independent of zone count. */
+const aircraftContactRadii = new WeakMap<CombatSpec, number>()
+function aircraftContactRadius(spec: CombatSpec): number {
+  const known = aircraftContactRadii.get(spec)
+  if (known !== undefined) return known
+  let radius2 = 0
+  for (const zone of spec.zones) {
+    const x = Math.abs(zone.center[0]) + zone.halfSize[0]
+    const y = Math.abs(zone.center[1]) + zone.halfSize[1]
+    const z = Math.abs(zone.center[2]) + zone.halfSize[2]
+    radius2 = Math.max(radius2, x * x + y * y + z * z)
+  }
+  const radius = Math.sqrt(radius2)
+  aircraftContactRadii.set(spec, radius)
+  return radius
+}
+
 function nearestContact(
   p: Projectile, start: number, aircraft: readonly CombatAircraft[], ships: readonly CombatShip[],
   structures: readonly StructureEntity[], terrain: TerrainField | null, decks: readonly Deck[],
   vehicles: readonly CombatVehicle[] = [],
 ): Contact | null {
-  const candidates: Contact[] = []
+  // Keep the current best in place instead of allocating a candidates array
+  // for every round on every tick. Strict `<` preserves the old tie order.
+  let nearest: Contact | null = null
   const ground = groundHit(p.previous, p.position, terrain)
-  if (ground !== null) candidates.push({ t: ground, kind: 'ground', sea: false })
+  if (ground !== null) nearest = { t: ground, kind: 'ground', sea: false }
   const sea = seaHit(p.previous, p.position, terrain)
-  if (sea !== null) candidates.push({ t: sea, kind: 'ground', sea: true })
+  if (sea !== null && (nearest === null || sea < nearest.t)) nearest = { t: sea, kind: 'ground', sea: true }
   // A flight deck is part of its ship: a round on the deck, overhang
   // included, hits the ship. A deck whose ship is no longer afloat is ground.
   const onDeck = deckHit(p.previous, p.position, decks)
-  if (onDeck !== null) {
+  if (onDeck !== null && (nearest === null || onDeck.t < nearest.t)) {
     const ship = ships.find((s) => s.id === onDeck.shipId)
-    candidates.push(ship === undefined ? { t: onDeck.t, kind: 'ground', sea: false } : { t: onDeck.t, kind: 'ship', ship })
+    nearest = ship === undefined ? { t: onDeck.t, kind: 'ground', sea: false } : { t: onDeck.t, kind: 'ship', ship }
   }
   for (const a of aircraft) {
     if (a.id === p.owner || a.spec.combat === undefined) continue
     const began = add(a.previous.position, scale(sub(a.state.position, a.previous.position), start))
+    if (!segmentMovingSphere(p.previous, p.position, began, a.state.position, aircraftContactRadius(a.spec.combat))) continue
     // Endpoints are relative to the corresponding target pose; the chord
     // approximates rotation within one 60 Hz tick, not translation.
     const from = inBody(a.previous.attitude, sub(p.previous, began))
     const to = inBody(a.state.attitude, sub(p.position, a.state.position))
     for (const z of a.spec.combat.zones) {
       const t = segmentBox(from, to, tupleVector(z.center), tupleVector(z.halfSize))
-      if (t !== null) candidates.push({ t, kind: 'aircraft', aircraft: a, system: z.system, ...(z.engine === undefined ? {} : { engine: z.engine }) })
+      if (t !== null && (nearest === null || t < nearest.t)) nearest = { t, kind: 'aircraft', aircraft: a, system: z.system, ...(z.engine === undefined ? {} : { engine: z.engine }) }
     }
   }
   for (const ship of ships) {
     const t = hullHit(p.previous, p.position, ship, start)
-    if (t !== null) candidates.push({ t, kind: 'ship', ship })
+    if (t !== null && (nearest === null || t < nearest.t)) nearest = { t, kind: 'ship', ship }
   }
   for (const structure of structures) {
     const t = structureHit(p.previous, p.position, structure)
-    if (t !== null) candidates.push({ t, kind: 'structure', structure })
+    if (t !== null && (nearest === null || t < nearest.t)) nearest = { t, kind: 'structure', structure }
   }
   for (const vehicle of vehicles) {
     const t = vehicleHit(p.previous, p.position, vehicle, start)
-    if (t !== null) candidates.push({ t, kind: 'vehicle', vehicle })
+    if (t !== null && (nearest === null || t < nearest.t)) nearest = { t, kind: 'vehicle', vehicle }
   }
-  let nearest: Contact | null = null
-  for (const c of candidates) if (nearest === null || c.t < nearest.t) nearest = c
   return nearest
 }
 

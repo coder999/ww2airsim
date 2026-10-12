@@ -5,6 +5,7 @@ import type { Airfield } from '../../sim/world/airfields.js'
 import { inAirfieldClearing } from './airfield.js'
 import { createRng } from '../../sim/rng.js'
 import { batched, createBuildingMaterials, drawBuilding, makeCollector } from './buildings.js'
+import type { SceneryTextures } from './sceneryTextures.js'
 
 /**
  * Towns and villages as deterministic hut rings (Plan 13d Task 3, design doc
@@ -110,8 +111,9 @@ export function createTowns(
   field: TerrainField,
   places: { readonly towns: readonly Town[] },
   airfields: readonly Airfield[],
+  textures?: SceneryTextures | null,
 ): TownsHandle {
-  const materials = createBuildingMaterials()
+  const materials = createBuildingMaterials(textures)
   const collector = makeCollector()
   const hutFootprints = townHutFootprints(field, places, airfields)
   for (const hut of hutFootprints) {

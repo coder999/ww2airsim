@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders } from './harness.js'
+import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -70,7 +70,7 @@ test('land, return to title, New game, land again: a second debrief shows and th
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Relaunch Test Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
 
   const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
   await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
@@ -100,7 +100,7 @@ test('land, return to title, New game, land again: a second debrief shows and th
   // row's "Dossier: Relaunch Test Pilot" button and is a strict-mode
   // violation (regression from the Dossier button, Tasks 2-8).
   await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Relaunch Test Pilot' }).click()
-  await reshownTitle.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(reshownTitle, 'Training Grounds')
 
   // Same scenario -- this is `onNewGame`'s SAME-scenario branch (a direct
   // `rebuildFrame()` call, not `loadScenario(...).then(rebuildFrame)`), the

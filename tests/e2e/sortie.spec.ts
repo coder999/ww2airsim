@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import { readdirSync } from 'node:fs'
-import { debriefDialog, diveToSea, quickLaunch, spawnUrl, startGame, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, openOrdersFor, quickLaunch, spawnUrl, startGame, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
 
 /**
  * E2E acceptance for the sortie forms (docs/superpowers/specs/2026-09-27-sortie-forms-design.md,
@@ -39,10 +39,11 @@ const rosterJson = (page: Page) => page.evaluate((k) => window.localStorage.getI
 test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev adds the Zero, labeled Japanese; four form captures', async ({ page }) => {
   const title = await newPilot(page, 'Carrier Pilot')
   await page.screenshot({ path: `${SHOTS}/sortie-form-1.png` })
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
   await radio(title, 'Scenario', 'Carrier Qualification').click()
   await expect(title.getByRole('region', { name: 'Briefing' })).toBeVisible()
   await page.screenshot({ path: `${SHOTS}/sortie-form-2.png` })
+  await next(title)
   await next(title)
   // Four since D1 (70cb2cb5) onboarded the carrier-capable TBM Avenger; its Kate is Japanese, so Dev-only.
   await expect(rows(title, 'Aircraft')).toHaveCount(4)
@@ -51,15 +52,18 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await expect(radio(title, 'Aircraft', 'Grumman F4F Wildcat')).toBeVisible()
   await expect(radio(title, 'Aircraft', 'Vought F4U Corsair')).toBeVisible()
   await expect(title.getByRole('radiogroup', { name: 'Aircraft' })).not.toContainText('Zero')
+  await expect(title).toContainText('Structure hit points')
+  await expect(title).toContainText('Engine power')
   await page.screenshot({ path: `${SHOTS}/sortie-form-3.png` })
   await next(title)
   await expect(radio(title, 'Loadout', 'Clean (recommended)')).toHaveAttribute('aria-checked', 'true')
   await page.screenshot({ path: `${SHOTS}/sortie-form-4.png` })
 
   // Back to Form 1, check Dev, and the Zero appears on the same mission.
-  for (let i = 0; i < 3; i++) await title.getByRole('button', { name: 'Back' }).click()
+  for (let i = 0; i < 5; i++) await title.getByRole('button', { name: 'Back' }).click()
   await title.getByRole('checkbox', { name: DEV }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
+  await next(title)
   await next(title)
   await expect(rows(title, 'Aircraft')).toHaveCount(readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).length)
   await expect(radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)')).toBeVisible()
@@ -69,8 +73,9 @@ test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and re
   // The DEV spawn override puts the sortie in the air, so the release needs no takeoff (strike.spec.ts's pattern).
   const title = await newPilot(page, 'Dev Zero Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))
   await title.getByRole('checkbox', { name: DEV }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
   await radio(title, 'Scenario', 'Free Flight').click()
+  await next(title)
   await next(title)
   await radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)').click()
   await next(title)
@@ -95,8 +100,9 @@ test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and re
 
 test('the Wildcat offers only Clean and Bombs on the armament form (W1: no rockets)', async ({ page }) => {
   const title = await newPilot(page, 'Racks Pilot')
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
   await radio(title, 'Scenario', 'Carrier Qualification').click()
+  await next(title)
   await next(title)
   await radio(title, 'Aircraft', 'Grumman F4F Wildcat').click()
   await next(title)
@@ -146,11 +152,12 @@ test('a quick launch flies without the title, and its debrief says the sortie wa
 test('unchecking Dev drops a Dev-only mission back to Free Flight', async ({ page }) => {
   const title = await newPilot(page, 'Toggle Pilot')
   await title.getByRole('checkbox', { name: DEV }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
   await radio(title, 'Scenario', 'Furball (dev)').click()
   await title.getByRole('button', { name: 'Back' }).click()
+  await title.getByRole('button', { name: 'Back' }).click()
   await title.getByRole('checkbox', { name: DEV }).uncheck()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Training Grounds')
   await expect(title.getByRole('radiogroup', { name: 'Scenario' })).not.toContainText('Furball')
   await expect(radio(title, 'Scenario', 'Free Flight')).toHaveAttribute('aria-checked', 'true')
 })

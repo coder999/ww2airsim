@@ -197,6 +197,12 @@ window (5.8 ms p95), dominant at 60 (work p95 68.6 ms with nothing of the swarm 
    one mesh per material, and drawing anything beyond a few miles as a single low-poly mesh or a billboard,
    gets most of it, because far airplanes cost the same as near ones today. This alone would move the mission
    layout's 120 Hz limit from about 5 to past 30 on the GPU and main thread, if the ceiling is reached.
+
+   **First distance pass implemented and measured 2026-10-11.** Intact airframes beyond 0.75 mi now use one
+   shared indexed silhouette draw per model, with full articulation restored inside 0.62 mi and always used
+   for damage. The frozen mission-60 point fell from 1,741 to 437 calls (75%); tight-60 from 1,745 to 1,025
+   (41%). This keeps the source triangles for silhouette fidelity, so low-poly geometry remains a separate
+   possible second pass. See [`2026-10-11-aircraft-draw-call-lod.md`](2026-10-11-aircraft-draw-call-lod.md).
 2. **A broad phase in the projectile contact test** (`nearestContact`, `src/sim/weapons/combat.ts:314`): every
    round tests every airplane's damage zones (each a quaternion transform and a box test), every hull and every
    structure on the map, every tick, with no distance reject. 60 % of a tight tick and 45 % of a mission tick
@@ -204,6 +210,12 @@ window (5.8 ms p95), dominant at 60 (work p95 68.6 ms with nothing of the swarm 
    (**estimated from the profile, not measured**). This is the fix for the tight furball's 3x collapse and for
    the 8 to 17 ms single-tick hitches in every layout. The 12 % GC share points at the per-round `candidates`
    arrays in the same function.
+
+   **Implemented, measured and merged 2026-10-11 (`0ca520d9`).** The conservative swept-sphere broad phase and allocation-free
+   nearest selection are recorded in [`2026-10-11-entity-contact-broadphase.md`](2026-10-11-entity-contact-broadphase.md).
+   Tight 30 fell from 5.56 to 1.01 ms/tick mean; tight 60 + 20 from 22.94 to 4.32. The original estimate was
+   conservative. The aircraft far-LOD pass above landed in the same merge; ship draw calls are now the next
+   ranked scaling fix, after remeasuring the combined ceiling.
 3. **Ships: the same draw-call treatment.** 20 hulls: main thread 8.6 -> 5.1 ms p50 and GPU p95 15.5 -> 7.6 ms
    when hidden (mission). Each hull is about 10.5 draws plus per-mount gun laying on the main thread.
 4. **Effects in a furball** (`fx=off`, tight 30): GPU p50 12.1 -> 6.3 ms, main thread 13.0 -> 10.0 ms. Only

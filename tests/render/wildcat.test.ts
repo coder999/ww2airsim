@@ -6,6 +6,7 @@ import { WILDCAT_CORRECTION_NAME } from '../../src/render/scene/wildcatFrame.js'
 import { syntheticCache, wildcatGlbScene } from './_wildcatCache.js'
 import { ordnanceModelUrl, WILDCAT_MODEL_URL } from '../../src/render/content.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { AIRFRAME_LOD_ENTER_M, AIRFRAME_LOD_EXIT_M, AIRFRAME_LOD_PROXY_NAME } from '../../src/render/scene/airframeLod.js'
 
 const f6fMounts = loadAircraftSpec('f6f-hellcat').stores!
 
@@ -87,6 +88,20 @@ describe('loadWildcat through the model cache (Z1)', () => {
     expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(rest + 0.4, 12)
     expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_UP.der.pos)).toBeLessThan(1e-6)
     expect(a.root.getObjectByName('GRP_Rueda_Izq')!.position.distanceTo(GEAR_UP.izq.pos)).toBeLessThan(1e-6)
+  })
+
+  it('uses one far mesh and preserves dropped-store visibility when it returns to the full model', async () => {
+    const cache = syntheticCache()
+    const a = await loadWildcat(f6fMounts, (url) => cache.acquire(url))
+    const correction = a.root.getObjectByName(WILDCAT_CORRECTION_NAME)!
+    const proxy = a.root.getObjectByName(AIRFRAME_LOD_PROXY_NAME)!
+    a.update({ gearFraction: 0, flapFraction: 0, bayDoorFraction: 0, throttle: 1, controls: still, frameS: 0, cameraDistanceM: AIRFRAME_LOD_ENTER_M })
+    expect([correction.visible, proxy.visible]).toEqual([false, true])
+    a.setStores(0, 0)
+    a.update({ gearFraction: 0, flapFraction: 0, bayDoorFraction: 0, throttle: 1, controls: still, frameS: 0, cameraDistanceM: AIRFRAME_LOD_EXIT_M })
+    expect([correction.visible, proxy.visible]).toEqual([true, false])
+    expect(a.root.getObjectByName(f6fMounts.racks[0]!.id)!.visible).toBe(false)
+    a.dispose()
   })
 
   it('two Wildcats share one parse; disposing one releases only its own instance, once', async () => {

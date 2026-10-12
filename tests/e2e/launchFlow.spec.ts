@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
-import { type DiagWindow } from './harness.js'
+import { openOrdersFor, type DiagWindow } from './harness.js'
 
 /**
  * A3 and A4 (docs/superpowers/plans/2026-10-09-a3-a4-launch.md): Form 2's
@@ -20,20 +20,23 @@ async function toOrders(page: Page): Promise<Locator> {
   await title.getByRole('button', { name: 'New pilot' }).click()
   await title.getByPlaceholder('Pilot name').fill('Launch Pilot')
   await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('button', { name: 'New game' }).click()
+  await openOrdersFor(title, 'Missions')
   return title
 }
 
-test('Form 2 offers Morning, Midday and Dusk, suggests the one nearest the historical hour, and the chosen hour is the hour flown', async ({ page }) => {
+test('Flight Conditions offers Morning, Midday and Dusk, suggests the nearest historical hour, and flies the chosen hour', async ({ page }) => {
   const title = await toOrders(page)
-  const times = title.getByRole('radiogroup', { name: 'Takeoff time' })
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: /Airfield Strike/ }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  const times = title.getByRole('radiogroup', { name: 'Takeoff time' })
   // Airfield Strike's historical hour is 0730: Morning.
   await expect(times.getByRole('radio', { name: 'Morning (0740, suggested)' })).toHaveAttribute('aria-checked', 'true')
   await expect(times.getByRole('radio')).toHaveText(['Morning (0740, suggested)', 'Midday (1200)', 'Dusk (1645)'])
   // Convoy Strike's is 1500: Dusk, and a mission change resets the pick.
   await times.getByRole('radio', { name: 'Midday (1200)' }).click()
+  await title.getByRole('button', { name: 'Back' }).click()
   await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: /Convoy Strike/ }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
   await expect(times.getByRole('radio', { name: 'Dusk (1645, suggested)' })).toHaveAttribute('aria-checked', 'true')
   await times.getByRole('radio', { name: 'Midday (1200)' }).click()
   await expect(times.getByRole('radio', { name: 'Midday (1200)' })).toHaveAttribute('aria-checked', 'true')
@@ -49,7 +52,6 @@ test('Form 2 offers Morning, Midday and Dusk, suggests the one nearest the histo
 
 test('Form 4 has no rendering controls; the always-visible administration memo links that concern to Settings', async ({ page }) => {
   const title = await toOrders(page)
-  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await expect(title.getByRole('radiogroup', { name: 'Render quality' })).toHaveCount(0)
   await expect(title.getByRole('radiogroup', { name: 'Render scale' })).toHaveCount(0)
