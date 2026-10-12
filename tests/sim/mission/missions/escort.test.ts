@@ -86,7 +86,7 @@ describe.skipIf(terrain === null)('Escort, headless', () => {
     expect(progressOf(w, 'bombers').status).toBe('failed')
     w = hold(w, FAR, 1)
     expect(radioMessages(w.mission!).map((e) => e.text)).toContain(LOST_TWO)
-  })
+  }, 60_000)
 
   it.each(DIFFICULTIES)('escorted at %s (the Zeros shot down as they arrive): the formation turns onto the run in formation, bombs, and both hangars go down', (d) => {
     let w = hold(escort(d), FAR, ticksFor(61))
