@@ -173,6 +173,20 @@
       "then": [
         {
           "message": "Paddles: Abeam. Gear, flaps and hook down, and bring it aboard."
+        },
+        {
+          "message": "Instructor: Follow LINEUP astern. Slow toward the shown approach speed and hold the shown altitude until the turn to final."
+        }
+      ]
+    },
+    {
+      "id": "climb-clean",
+      "when": {
+        "completed": "up"
+      },
+      "then": [
+        {
+          "message": "Instructor: Positive climb. Raise gear and flaps, hold 500 to 1,000 feet, and follow DOWNWIND."
         }
       ]
     }

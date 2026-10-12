@@ -4,7 +4,7 @@ import { advance, playerAircraft, withAircraftState, withControls, type World } 
 import { DT } from '../../../src/sim/flight/model.js'
 import { deckOf, deckLocal } from '../../../src/sim/world/deck.js'
 import { ticksFor, lastLanding } from '../../../src/sim/mission/state.js'
-import { RESPOT_DELAY_S, RESPOT_MESSAGE, stateOnDeck } from '../../../src/sim/mission/respot.js'
+import { RESPOT_CLIMB_MESSAGE, RESPOT_DELAY_S, RESPOT_MESSAGE, stateOnDeck } from '../../../src/sim/mission/respot.js'
 import { parseScenario } from '../../../src/sim/scenario.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 
@@ -57,6 +57,7 @@ describe('respot (M3-R1..R3)', () => {
     expect(p.previous).toBe(p.state)
     expect(w.mission!.log.filter((e) => e.kind === 'respot').map((e) => e.tick)).toEqual([landedAt + ticksFor(RESPOT_DELAY_S)])
     expect(w.mission!.log.some((e) => e.kind === 'message' && e.text === RESPOT_MESSAGE)).toBe(true)
+    expect(w.mission!.log.some((e) => e.kind === 'message' && e.text === RESPOT_CLIMB_MESSAGE)).toBe(true)
   })
 
   it('the radio line says the deck crew raised the hook (ruling F-C1)', () => {

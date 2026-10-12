@@ -521,7 +521,7 @@ reinforcement convoy off Ormoc — on 2026-09-25 (missions spec §0.4). It is
 not renumbered into the list above; the numbering above is the original
 eight.
 
-**Shipped on this branch** (`content/scenarios/`, checked 2026-10-11) are the
+**Shipped on `main`** (`content/scenarios/`, checked 2026-10-11) are the
 sandbox and test-range scenarios the engineering plans needed — `free-flight`,
 `gunnery-range`, `pursuit-range`, `strike-range` and a few others — plus twelve
 real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
@@ -538,6 +538,16 @@ the Flattop Hunt handoff (`docs/handoff/2026-10-10-flattop-hunt.md`), the
 Escort handoff (`docs/handoff/2026-10-10-escort-mission.md`), the Tank Buster
 handoff (`docs/handoff/2026-10-11-tank-buster-mission.md`) and the Surigao
 handoff (`docs/handoff/2026-10-11-surigao-strait-mission.md`).
+
+**Carrier Qualification guidance** (2026-10-11) teaches the pattern instead
+of jumping from DOWNWIND straight to the carrier marker. After each launch the
+instructor calls for gear and flaps up in the climb. After the abeam gate, the
+steering cue follows a moving LINEUP point 2,250 m astern on the carrier's
+3.5-degree glideslope; in the F6F it shows 97 mph and 500 ft. Once established
+inside Paddles' cone and closing, it switches to the trap zone and the FINAL
+gear/flaps/hook checklist. Paddles' fast and slow calls report airspeed only;
+they do not prescribe a throttle change that the cue cannot infer. Handoff:
+`docs/handoff/2026-10-11-carrier-qualification-guidance.md`.
 
 **Surigao Strait** (Track F, 2026-10-11) is a dawn-aftermath mission. *Fuso*
 and *Yamashiro* are already sunk. The player's F6F carries both bombs and

@@ -19,6 +19,8 @@ import { GROUND_CONTACT_TOLERANCE_M } from '../../src/sim/ground.js'
  */
 const f6f = loadAircraftSpec('f6f-hellcat')
 const URL = `/?${SCENARIO_PARAM}=deck-quals`
+const MISSION_LINEUP_URL =
+  `/?${SCENARIO_PARAM}=deck-quals-mission&launch=1&spawnX=-10726&spawnY=250&spawnZ=-28752`
 
 /**
  * The deck run is real time, because the simulation is: the spot is 241 m
@@ -113,6 +115,26 @@ test('H toggles the hook and is listed in the legend', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.controls().hookDown)).toBe(true)
   await expect(page.getByText(/Hook\s+H/)).toBeVisible()
   await expect(debriefDialog(page)).toBeHidden()
+})
+
+test('carrier qualification wires the recovery objective to the moving lineup cue and coaching', async ({ page }) => {
+  // DEV's airborne spawn puts the real mission at its downwind station. The
+  // first two objectives complete through the production mission step, so
+  // this exercises the browser wiring without flying a several-minute lap.
+  await page.goto(MISSION_LINEUP_URL)
+  await waitForTerrain(page)
+  await expect.poll(
+    () => page.evaluate(() => (window as DiagWindow).__ww2!.mission()?.objective),
+    { timeout: 20_000 },
+  ).toBe('TRAP 0/3')
+  const mission = await page.evaluate(() => (window as DiagWindow).__ww2!.mission()!)
+  expect(mission.steering).toMatch(/^LINEUP · 97 MPH · 500 FT · \d+\.\d MI$/)
+  const messages = mission.log
+    .filter((entry) => entry.kind === 'message')
+    .map((entry) => entry.kind === 'message' ? entry.text : '')
+  expect(messages).toContain('Instructor: Positive climb. Raise gear and flaps, hold 500 to 1,000 feet, and follow DOWNWIND.')
+  expect(messages).toContain('Instructor: Follow LINEUP astern. Slow toward the shown approach speed and hold the shown altitude until the turn to final.')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
 
 /**

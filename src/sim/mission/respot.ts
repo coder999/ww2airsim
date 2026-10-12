@@ -17,6 +17,10 @@ export const RESPOT_DELAY_S = 3
  *  respot (ruling F-C1, 2026-09-27; `FrameState.respotHandledTick` in
  *  src/render/frame.ts), so the line reports it rather than asking for it. */
 export const RESPOT_MESSAGE = 'Flight deck: respotted for launch, hook up. Launch when ready.'
+/** Text-only coaching after the recorded respot call. Carrier Qualification
+ *  repeats the launch twice, so its lesson must repeat too rather than rely
+ *  on the one-shot scenario trigger from the first takeoff. */
+export const RESPOT_CLIMB_MESSAGE = 'Instructor: After launch, raise gear and flaps once you are climbing.'
 
 /** An airplane at rest on `spot` of `deck`, facing the bow, gear down,
  *  moving with the deck. `buildAircraft`'s ship-parked start, moved here

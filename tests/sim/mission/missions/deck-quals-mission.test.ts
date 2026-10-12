@@ -43,13 +43,15 @@ import { SEA_LEVEL_M } from '../../../../src/sim/world/terrain.js'
 import { attitudeAngles } from '../../../../src/sim/flight/attitude.js'
 import { ticksFor, lastLanding, radioMessages } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
-import { RESPOT_DELAY_S, RESPOT_MESSAGE } from '../../../../src/sim/mission/respot.js'
+import { RESPOT_CLIMB_MESSAGE, RESPOT_DELAY_S, RESPOT_MESSAGE } from '../../../../src/sim/mission/respot.js'
 import { WAVE_OFF_MESSAGE } from '../../../../src/sim/mission/passes.js'
 import { progressOf } from '../fixture.js'
 import { carrierApproach, deckRun, DITCH, hold, levelAt, stageDitch, stepsWithControls, terrainOrSkip } from '../fly.js'
 
 const DOWNWIND_GATE = { x: -10726, z: -28752 }
 const ABEAM = 'Paddles: Abeam. Gear, flaps and hook down, and bring it aboard.'
+const CLEAN_CLIMB = 'Instructor: Positive climb. Raise gear and flaps, hold 500 to 1,000 feet, and follow DOWNWIND.'
+const LINEUP = 'Instructor: Follow LINEUP astern. Slow toward the shown approach speed and hold the shown altitude until the turn to final.'
 
 describe('Deck Quals mission content', () => {
   it('the downwind gate is the Essex at t = 90 s, 1,500 m to port, within 50 m (stepShip, 5,400 ticks)', () => {
@@ -90,7 +92,9 @@ describe.skipIf(terrain === null)('Deck Quals mission, headless (spec §5)', () 
       }
     }
     const texts = radioMessages(w.mission!).map((e) => e.text)
-    expect(texts).toEqual(expect.arrayContaining(['Trap 1 of 3', 'Trap 2 of 3', RESPOT_MESSAGE, ABEAM]))
+    expect(texts).toEqual(expect.arrayContaining([
+      'Trap 1 of 3', 'Trap 2 of 3', RESPOT_MESSAGE, RESPOT_CLIMB_MESSAGE, CLEAN_CLIMB, ABEAM, LINEUP,
+    ]))
     expect(texts).not.toContain(WAVE_OFF_MESSAGE)
     expect(w.mission!.log.filter((e) => e.kind === 'pass').map((e) => e.kind === 'pass' && e.result))
       .toEqual(['trapped', 'trapped', 'trapped'])
