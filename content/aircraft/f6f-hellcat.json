@@ -71,9 +71,9 @@
     "lateralGripSeconds": 1.5,
     "heightM": 2.42,
     "layout": "taildragger",
-    "mainX": 0.62,
-    "thirdX": -6,
-    "thirdHeightM": 1.318,
+    "mainX": 0.61,
+    "thirdX": -5.85,
+    "thirdHeightM": 1.078,
     "thirdSteering": "casterLock",
     "steerYawRateDegPerSec": 20,
     "steerLockSpeedMps": 8,
@@ -94,11 +94,11 @@
   },
   "view": {
     "eyePointM": [
-      -0.75,
-      0.95,
+      -0.87,
+      1.17,
       0
     ],
-    "model": "f6f-hellcat"
+    "model": "f6f-hellcat-blender"
   },
   "flap": {
     "travelSeconds": 5,
@@ -121,54 +121,54 @@
     "guns": [
       {
         "position": [
-          1.5,
-          -0.25,
-          -3
+          0.845,
+          -0.327,
+          -2.35
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.4
+          0.829,
+          -0.303,
+          -2.53
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          -3.8
+          0.813,
+          -0.278,
+          -2.72
         ],
         "rounds": 400,
         "group": "leftGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3
+          0.845,
+          -0.327,
+          2.35
         ],
         "rounds": 400,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.4
+          0.829,
+          -0.303,
+          2.53
         ],
         "rounds": 400,
         "group": "rightGuns"
       },
       {
         "position": [
-          1.5,
-          -0.25,
-          3.8
+          0.813,
+          -0.278,
+          2.72
         ],
         "rounds": 400,
         "group": "rightGuns"
