@@ -9,6 +9,7 @@ import { makeShipViewLoader } from './scene/shipModels.js'
 import { probeShipSurface, smokeOriginWorld } from './scene/ship.js'
 import { applyShipGunLaying } from './scene/shipGunLaying.js'
 import { airframeUpdateFor, turretAimFor } from './airframeUpdate.js'
+import { waterCrashSubmergeM } from './scene/airframe.js'
 import { createRafLoop, type RafLoop } from './rafLoop.js'
 import { CAMERA_VFOV_DEG, cameraTransformFor, lookFromQuery, type CameraMode, type EyeTransform } from './camera.js'
 import { ensureCockpitTextFont, makeTextTexture } from './scene/text.js'
@@ -57,13 +58,14 @@ import {
 import { createTakramTslCloudPass } from './scene/takramTslCloudPass.js'
 import { loadTakramTslAssets } from './scene/takramTslAssets.js'
 import { FX_CATALOG } from './fx/catalog.js'
-import { NO_FX_MEMORY, nextFxEvents, type FxMemory } from './fx/events.js'
+import { NO_FX_MEMORY, nextFxEvents, type FxMemory, type FxSustained, type FxTrigger } from './fx/events.js'
 import { createFxPass, type FxPass } from './fx/fxPass.js'
 import { fxQueryFrom } from './fx/query.js'
 import { sheetLayout } from './fx/sheetManifest.js'
 import { loadFxSheets, type FxSheetTextures } from './fx/sheets.js'
 import { stressRounds, stressScene, type FxStressName, type FxStressScene } from './fx/stress.js'
 import { createFxSystem, fxDtSeconds, type FxSystem } from './fx/system.js'
+import { wreckAftermathEmitter } from './fx/wreckAftermath.js'
 import { FX_TIERS } from './fx/tiers.js'
 import { shouldResetHistory } from './scene/cloudHistory.js'
 import { createCloudField } from './scene/cloudField.js'
@@ -1612,6 +1614,16 @@ async function boot(): Promise<void> {
   let fxPass: FxPass | null = null
   let fxSheets: FxSheetTextures | null = null
   let fxMemory: FxMemory = NO_FX_MEMORY
+  type WreckWaterEntry = {
+    readonly key: string
+    ageS: number
+    readonly position: Vec3
+    readonly rotation: { readonly x: number; readonly y: number; readonly z: number; readonly w: number }
+    readonly scale: Vec3
+  }
+  type WreckVisual = { readonly key: string; ageS: number; waterEntry: WreckWaterEntry | null }
+  /** Renderer-owned because the authoritative impact pose remains immutable after contact. */
+  const wreckVisuals = new Map<string, WreckVisual>()
   let lastFxRebuildMs = 0
   let fxStress: { readonly scene: FxStressScene; readonly startedMs: number; rounds: number } | null = null
   let fxCpuMs = 0
@@ -2175,6 +2187,7 @@ async function boot(): Promise<void> {
     // edges, but only the pool can drop what is already drawn.
     fxSystem?.clear()
     fxMemory = NO_FX_MEMORY
+    wreckVisuals.clear()
     fxStress = null
     missionHud.reset()
     // Instant replay spec §4: Restart, New game and a scenario switch start
@@ -2342,7 +2355,7 @@ async function boot(): Promise<void> {
   /**
    * Opens a replay of the current recording. 'manual' (K while paused): the
    * whole recording, Orbit, holding on the last frame. 'auto' (Task 9's crash
-   * replay and Watch replay): impact - 8 s to impact + 1.5 s on Auto, done at
+   * replay and Watch replay): impact - 8 s to impact + 8 s on Auto, done at
    * the end. Effects and sound are cleared / held here until Task 8 drives
    * them from the recording (R-3, R-4).
    */
@@ -2784,7 +2797,6 @@ async function boot(): Promise<void> {
     // ocean clock read it); `viewPlayer` is the one drawn, live or recorded.
     const player = playerAircraft(current.world)
     const viewPlayer = playerAircraft(view.world)
-    renderedPlayerPosition = view.poses[view.world.aircraft.findIndex((a) => a.id === view.world.player)]!.position
 
     // Camera-relative: the world moves, the camera stays at the origin. float32
     // loses precision at 100 km, which shows as geometry jitter -- master spec §4
@@ -2975,14 +2987,68 @@ async function boot(): Promise<void> {
     // no visible jitter -- same reasoning as the `setStores` loop above.
     // `airframeUpdateFor` owns the rules: the player's airframe reads the raw
     // frame controls, every other its own pilot's, and a wreck's prop stops.
+    const wreckSustained: FxSustained[] = []
+    const wreckWaterSplashes: FxTrigger[] = []
+    const activeWrecks = new Set<string>()
+    const wreckFrameS = fxDtSeconds(frameMs / 1000, view.paused, view.timeScale)
     view.world.aircraft.forEach((a, i) => {
       const playerControls = a.id === view.world.player ? view.controls : null
       const damage = view.world.combat.aircraft[a.id]?.damage ?? null
-      airframes[i]!.update({ ...airframeUpdateFor(a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000, damage, view.world.tick, a.id), aim: turretAimFor(view.world, view.poses, i) })
-      // An airframe that exploded in the air is gone once its wreck reaches the surface: the crash
-      // effect covers the spot (damage stages, 2026-10-09). The player's own is the debrief's.
-      if (a.id !== view.world.player) airframes[i]!.root.visible = !(damage?.destroyedAt != null && a.impact !== null) && !(swarmHidden && a.id.startsWith('swarm-'))
+      const update = airframeUpdateFor(
+        a, playerControls, view.poses[i]!.position, view.eye.position, frameMs / 1000,
+        damage, view.world.tick, a.id, a.spec.mass.emptyKg + a.state.fuelKg,
+      )
+      airframes[i]!.update({
+        ...update,
+        aim: turretAimFor(view.world, view.poses, i),
+      })
+      const root = airframes[i]!.root
+      if (update.surfaceCrash?.mode === 'breakup') {
+        activeWrecks.add(a.id)
+        const key = `${a.id}:${update.surfaceCrash.seed}`
+        const previous = wreckVisuals.get(a.id)
+        const wreck: WreckVisual = previous?.key === key
+          ? { ...previous, ageS: previous.ageS + wreckFrameS }
+          : { key, ageS: 0, waterEntry: null }
+        if (wreck.waterEntry === null) {
+          const under = groundUnder(view.world.terrain, decksOf(view.world.ships), root.position.x, root.position.z)
+          if (under?.surface === 'water') {
+            wreck.waterEntry = {
+              key,
+              ageS: 0,
+              position: { x: root.position.x, y: root.position.y, z: root.position.z },
+              rotation: { x: root.quaternion.x, y: root.quaternion.y, z: root.quaternion.z, w: root.quaternion.w },
+              scale: { x: root.scale.x, y: root.scale.y, z: root.scale.z },
+            }
+            wreckWaterSplashes.push({
+              recipe: 'crash.water',
+              position: { x: root.position.x, y: under.heightM, z: root.position.z },
+              velocity: a.state.velocity,
+            })
+          }
+        } else {
+          wreck.waterEntry.ageS += wreckFrameS
+        }
+        if (wreck.waterEntry !== null) {
+          const entry = wreck.waterEntry
+          root.position.set(entry.position.x, entry.position.y - waterCrashSubmergeM(entry.ageS), entry.position.z)
+          root.quaternion.set(entry.rotation.x, entry.rotation.y, entry.rotation.z, entry.rotation.w)
+          root.scale.set(entry.scale.x, entry.scale.y, entry.scale.z)
+        }
+        const source = { x: root.position.x, y: root.position.y, z: root.position.z }
+        const emitter = wreckAftermathEmitter(a.id, wreck.ageS, source, wreck.waterEntry !== null)
+        if (emitter !== null) wreckSustained.push(emitter)
+        wreckVisuals.set(a.id, wreck)
+      }
+      if (a.id === view.world.player) {
+        const drawn = root.position
+        renderedPlayerPosition = { x: drawn.x, y: drawn.y, z: drawn.z }
+      }
+      // Keep a settled wreck present for its long-lived, fuselage-anchored aftermath. Individual
+      // loose parts still expire on their own; only stress-scene entities are deliberately hidden.
+      if (a.id !== view.world.player) root.visible = !(swarmHidden && a.id.startsWith('swarm-'))
     })
+    for (const id of wreckVisuals.keys()) if (!activeWrecks.has(id)) wreckVisuals.delete(id)
     ordnance.update(view.world.combat.projectiles)
     view.world.ships.forEach((s, i) => {
       const damage = view.world.combat.ships[s.id]
@@ -3019,23 +3085,27 @@ async function boot(): Promise<void> {
         })
         fxMemory = events.memory
         for (const t of events.triggers) fxSystem.trigger(t.recipe, t.position, t.velocity)
+        for (const t of wreckWaterSplashes) fxSystem.trigger(t.recipe, t.position, t.velocity)
         if (fxStress !== null) {
           const due = Math.floor(((now - fxStress.startedMs) / 1000) * fxStress.scene.roundsHz)
           for (; fxStress.rounds < due; fxStress.rounds++) for (const t of stressRounds(fxStress.scene.center, fxStress.rounds)) fxSystem.trigger(t.recipe, t.position, t.velocity)
         }
-        fxSystem.setSustained(fxStress === null ? events.sustained : [...events.sustained, ...fxStress.scene.sustained])
+        const sustained = [...events.sustained, ...wreckSustained]
+        fxSystem.setSustained(fxStress === null ? sustained : [...sustained, ...fxStress.scene.sustained])
         fxSystem.step(fxDtSeconds(frameMs / 1000, view.paused, view.timeScale))
       } else if (replay.jumpedThisFrame) {
         const rebuildStarted = performance.now()
         replay.replayFxMemory = rebuildReplayFx(
-          fxSystem, replay.player.recording, replay.player.tS, anchors,
+          fxSystem, replay.player.recording, replay.player.tS, anchors, wreckSustained,
         )
+        for (const t of wreckWaterSplashes) fxSystem.trigger(t.recipe, t.position, t.velocity)
         lastFxRebuildMs = performance.now() - rebuildStarted
       } else if (replay.player.playing) {
         replay.replayFxMemory = stepReplayFx(
           fxSystem, replay.replayFxMemory, replay.pose,
-          (frameMs / 1000) * replay.player.speed, anchors,
+          (frameMs / 1000) * replay.player.speed, anchors, wreckSustained,
         )
+        for (const t of wreckWaterSplashes) fxSystem.trigger(t.recipe, t.position, t.velocity)
       }
       fxPass.setWorldOffset(worldOffset)
       fxPass.setCount(fxSystem.writeInstances(view.eye.position, fxPass.instances))

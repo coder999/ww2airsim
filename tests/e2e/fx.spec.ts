@@ -5,6 +5,7 @@ import { debriefDialog, spawnUrl, waitForTerrain, type DiagWindow } from './harn
 import { VIEWS, withParams } from './views.js'
 import { count, decode, rowStep, warm, white, type Rgba } from './fxPixels.js'
 import type { FxStressName } from '../../src/render/fx/stress.js'
+import { toLocal } from '../../src/sim/world/projection.js'
 
 /** Effects engine, reference GPU (ordnance-and-effects design §7, E2E).
  *  Captures go to FX_SHOTS_DIR (Task 13 commits them with the handoff). */
@@ -133,16 +134,69 @@ test('the sheets failing to load still boots, and effects fall back to blobs (Re
     ...consoleErrors.filter((m) => m !== 'Failed to load resource: net::ERR_FAILED'))
 })
 
-test('a crash into the sea fires crash.water, and Restart clears every effect (Rulings R5, Review Focus 3)', async ({ page }) => {
+test('a fatal land contact breaks up while its fuselage bounces, tumbles and slides on render time', async ({ page }) => {
+  const inland = toLocal(11.244, 125.0035)
+  // A broad inland run east across central Leyte, clear of the shoreline throughout the dive.
+  await page.goto(spawnUrl({ x: inland.x - 1000, y: 250, z: inland.z }))
+  await waitForTerrain(page)
+  await page.keyboard.down('ArrowUp')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.impact()), { timeout: 20_000 })
+    .toMatchObject({ surface: 'land', kind: 'destroyed' })
+  await page.keyboard.up('ArrowUp')
+  await expect.poll(async () => (await fx(page)).live).toBeGreaterThan(10)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const impact = d.impact()
+    const drawn = d.renderedPlayerPositionM()
+    return impact === null || drawn === null ? 0 : Math.hypot(drawn.x - impact.position.x, drawn.z - impact.position.z)
+  }), { timeout: 3000 }).toBeGreaterThan(5)
+  // Unit coverage measures tumble, rebound and the small longitudinal crush for both airframe paths.
+  // This headed frame is retained for human inspection of the production choreography.
+  await shot(page, 'crash-land-breakup')
+})
+
+test('a solid-impact wreck that slides into the sea splashes, sinks, and loses its attached fire', async ({ page }) => {
+  // The east-facing shore here has 25 m of shallow land before open water in the committed field.
+  const shore = { x: 46_370, z: 1_000 }
+  await page.goto(spawnUrl({ x: shore.x - 320, y: 120, z: shore.z }))
+  await waitForTerrain(page)
+  await page.keyboard.down('ArrowUp')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.impact()), { timeout: 20_000 })
+    .toMatchObject({ surface: 'land', kind: 'destroyed' })
+  await page.keyboard.up('ArrowUp')
+  await expect.poll(async () => (await fx(page)).live).toBeGreaterThan(10)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const impact = d.impact()
+    const drawn = d.renderedPlayerPositionM()
+    return impact === null || drawn === null ? 0 : impact.groundHeightM - drawn.y
+  }), { timeout: 2800, intervals: [100] }).toBeGreaterThan(5)
+})
+
+test('a fatal sea crash raises the large crash.water splash, submerges the airframe, and Restart clears both (Rulings R5, Review Focus 3)', async ({ page }) => {
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
   await waitForTerrain(page)
   await page.keyboard.down('ArrowUp')
   // The debrief follows the crash replay, so the splash has ended by the time it shows: catch it live.
   await expect.poll(async () => (await fx(page)).live, { timeout: 20_000 }).toBeGreaterThan(10)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const impact = d.impact()
+    const drawn = d.renderedPlayerPositionM()
+    return impact?.kind === 'destroyed' && impact.surface === 'water' && drawn !== null
+      ? impact.groundHeightM - drawn.y
+      : 0
+  }), { timeout: 3000 }).toBeGreaterThan(8)
   await shot(page, 'crash-water')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await page.getByRole('button', { name: 'Restart' }).click()
   await expect(debriefDialog(page)).toBeHidden()
   await expect.poll(async () => (await fx(page)).live, { timeout: 2000 }).toBe(0)
+  await expect.poll(() => page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    const drawn = d.renderedPlayerPositionM()
+    const live = d.aircraftPositionM()
+    return drawn === null ? Infinity : Math.abs(drawn.y - live.y)
+  })).toBeLessThan(0.1)
 })

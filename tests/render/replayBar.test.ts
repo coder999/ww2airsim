@@ -28,8 +28,8 @@ describe('replay bar model (spec §6; plan R-5)', () => {
     const one = { worlds: [w(600)] }
     expect(replayBarModel(startReplay(one, manualWindow(one), 'hold'), camera()).progress).toBe(1)
   })
-  it('marks the event (the last recorded tick): 8 / 9.5 of an automatic window, the end of a manual one', () => {
-    expect(replayBarModel(startReplay(R, autoWindow(R), 'finish'), camera()).eventMarker).toBeCloseTo(8 / 9.5, 12)
+  it('marks the event (the last recorded tick): halfway through the 8 + 8 automatic window, the end of a manual one', () => {
+    expect(replayBarModel(startReplay(R, autoWindow(R), 'finish'), camera()).eventMarker).toBeCloseTo(0.5, 12)
     expect(replayBarModel(startReplay(R, manualWindow(R), 'hold'), camera()).eventMarker).toBe(1)
   })
   it('has no event marker when the event is outside the window', () => {

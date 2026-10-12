@@ -7,6 +7,7 @@ import { syntheticCache, wildcatGlbScene } from './_wildcatCache.js'
 import { ordnanceModelUrl, WILDCAT_MODEL_URL } from '../../src/render/content.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { AIRFRAME_LOD_ENTER_M, AIRFRAME_LOD_EXIT_M, AIRFRAME_LOD_PROXY_NAME } from '../../src/render/scene/airframeLod.js'
+import { WATER_CRASH_SUBMERGE_M, WATER_CRASH_SUBMERGE_S } from '../../src/render/scene/airframe.js'
 
 const f6fMounts = loadAircraftSpec('f6f-hellcat').stores!
 
@@ -88,6 +89,37 @@ describe('loadWildcat through the model cache (Z1)', () => {
     expect(a.root.getObjectByName('Helice')!.rotation.z).toBeCloseTo(rest + 0.4, 12)
     expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_UP.der.pos)).toBeLessThan(1e-6)
     expect(a.root.getObjectByName('GRP_Rueda_Izq')!.position.distanceTo(GEAR_UP.izq.pos)).toBeLessThan(1e-6)
+  })
+
+  it('uses the shared surface-crash treatment: loose parts break away on land and the whole aircraft submerges in water', async () => {
+    const cache = syntheticCache()
+    const a = await loadWildcat(undefined, (url) => cache.acquire(url))
+    const prop = a.root.getObjectByName('Helice')!
+    const rest = prop.position.clone()
+    const base = { gearFraction: 1, flapFraction: 0, bayDoorFraction: 0, throttle: 0, controls: still, cameraDistanceM: 50 }
+    const breakup = { mode: 'breakup' as const, seed: 31, velocity: { x: 42, y: -14, z: 2 }, massKg: 2900 }
+    a.update({ ...base, frameS: 0, surfaceCrash: breakup })
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...base, frameS: 1, surfaceCrash: breakup })
+    expect(prop.position.distanceTo(rest)).toBeGreaterThan(1)
+    expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_DOWN.der.pos)).toBeGreaterThan(1)
+    expect(Math.hypot(a.root.position.x, a.root.position.z)).toBeGreaterThan(10)
+    expect(a.root.scale.x).toBeLessThan(0.99)
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...base, frameS: 0, surfaceCrash: null })
+    expect(prop.position.distanceTo(rest)).toBeLessThan(1e-9)
+    expect(a.root.getObjectByName('GRP_Rueda_Der')!.position.distanceTo(GEAR_DOWN.der.pos)).toBeLessThan(1e-6)
+    expect(a.root.scale.toArray()).toEqual([1, 1, 1])
+
+    const submerge = { mode: 'submerge' as const, seed: 32 }
+    a.root.position.set(0, 0, 0)
+    a.update({ ...base, frameS: 0, surfaceCrash: submerge })
+    a.root.position.y = 0
+    a.update({ ...base, frameS: WATER_CRASH_SUBMERGE_S / 2, surfaceCrash: submerge })
+    expect(a.root.position.y).toBeCloseTo(-WATER_CRASH_SUBMERGE_M / 2, 9)
+    a.dispose()
   })
 
   it('uses one far mesh and preserves dropped-store visibility when it returns to the full model', async () => {

@@ -116,7 +116,7 @@ test('going into the sea sounds ONE crash cue live and once more in its replay, 
   expect(await cues(), 'nothing should have fired merely by spawning').toBe(0)
 
   await page.keyboard.down('ArrowUp')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await expect.poll(cues, { timeout: 10_000 }).toBe(2)
 

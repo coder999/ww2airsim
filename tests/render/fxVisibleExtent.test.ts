@@ -6,7 +6,7 @@ import type { BakeReport } from '../../tools/fx/bake.js'
 const e1 = JSON.parse(readFileSync('tests/render/fxVisibleExtent.e1.json', 'utf8')) as Record<string, ([number, number] | null)[]>
 const report = JSON.parse(readFileSync('tools/fx/bake-report.json', 'utf8')) as BakeReport
 
-describe('baked sheets keep each effect its E1 visible size (plan E2 Ruling R9)', () => {
+describe('baked sheets keep each effect its accepted visible size (plan E2 Ruling R9)', () => {
   for (const [id, sizes] of Object.entries(e1)) {
     it(id, () => {
       FX_CATALOG[id as RecipeId].emitters.forEach((e, i) => {

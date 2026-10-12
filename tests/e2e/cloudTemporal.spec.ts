@@ -101,7 +101,7 @@ test('restart: history resets across a crash and Restart in the same page', asyn
   await page.goto(spawnUrl({ x: tacloban.x, y: 120, z: tacloban.z - 8000 }) + '&cloudTier=high&oceanTier=high')
   await waitForTerrain(page)
   await page.keyboard.down('ArrowUp')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await page.waitForTimeout(1000)
   const before = await resets(page)

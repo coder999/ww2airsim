@@ -41,4 +41,18 @@ describe('fx catalog (effects design §3.3)', () => {
     expect(peak('rocket.land')).toBeLessThan(peak('bomb.land'))
     expect(peak('rocket.water')).toBeLessThan(peak('bomb.water'))
   })
+
+  it('an aircraft water crash is larger and denser than a bomb splash', () => {
+    const crash = FX_CATALOG['crash.water'].emitters
+    const bomb = FX_CATALOG['bomb.water'].emitters
+    expect(Math.max(...crash.map((e) => e.sizeM[1]))).toBeGreaterThan(Math.max(...bomb.map((e) => e.sizeM[1])))
+    expect(crash.reduce((n, e) => n + (e.count ?? 0), 0)).toBeGreaterThan(bomb.reduce((n, e) => n + (e.count ?? 0), 0))
+  })
+
+  it('keeps solid impact recipes as bursts while wreck smoke is sustained', () => {
+    for (const id of ['crash.land', 'crash.deck'] as const) {
+      expect(FX_CATALOG[id].emitters.every((e) => e.mode === 'burst')).toBe(true)
+    }
+    expect(FX_CATALOG['wreck.smoke'].emitters.some((e) => e.mode === 'stream' && e.durationS === undefined)).toBe(true)
+  })
 })

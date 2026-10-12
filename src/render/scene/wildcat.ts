@@ -1,12 +1,15 @@
 // src/render/scene/wildcat.ts
 import { Box3, BufferGeometry, DoubleSide, Float32BufferAttribute, Group, Matrix4, Mesh, MeshStandardMaterial, Object3D, Quaternion, Vector3 } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { slewToward, surfaceAngleRad } from './pivotedAirframe.js'
+import { DEBRIS_S, debrisFlight, slewToward, surfaceAngleRad } from './pivotedAirframe.js'
 import { surfaceDrive } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 import { WILDCAT_MODEL_URL } from '../content.js'
-import { propAngle, type Airframe } from './airframe.js'
+import {
+  applySurfaceCrashPose, NO_SURFACE_CRASH_CLOCK, propAngle, stepSurfaceCrashClock,
+  type Airframe, type SurfaceCrashClock,
+} from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { createAirframeLod } from './airframeLod.js'
 
@@ -294,7 +297,15 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   // The prop turns about ITS OWN native axis (local Z here, not the +X
   // hellcat.ts's box uses), from whatever angle the file authored it at.
   const heliceRestZ = helice.rotation.z
+  const heliceRestPosition = helice.position.clone()
   let propRad = 0
+  const loose = [
+    { node: helice, surfaceOnly: false },
+    ...surfaces.map((s) => ({ node: s.node, surfaceOnly: false })),
+    { node: gearDer, surfaceOnly: true },
+    { node: gearIzq, surfaceOnly: true },
+  ]
+  const debrisScratch = new Vector3()
 
   // The basis/scale fix lives on one wrapper Group, isolating this model's
   // native-axis quirk from every consumer (scenarioEntities.ts, main.ts):
@@ -334,6 +345,7 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
   }
   const fullRoots = [...root.children]
   const lod = createAirframeLod(WILDCAT_MODEL_URL, root, correction, fullRoots, [gearDer, gearIzq])
+  let crashClock: SurfaceCrashClock = NO_SURFACE_CRASH_CLOCK
   let disposed = false
 
   return {
@@ -341,8 +353,16 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
     parts: stores === undefined ? ['prop', 'gear', 'flaps', 'surfaces'] : ['prop', 'gear', 'flaps', 'surfaces', 'stores'],
     setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
-      lod.update(u.cameraDistanceM, (u.debris ?? null) !== null)
+      crashClock = stepSurfaceCrashClock(crashClock, u.surfaceCrash, u.frameS)
+      applySurfaceCrashPose(root, u.surfaceCrash, crashClock.ageS)
+      const debris = u.surfaceCrash?.mode === 'breakup'
+        ? { ageS: crashClock.ageS, seed: u.surfaceCrash.seed }
+        : u.debris ?? null
+      lod.update(u.cameraDistanceM, debris !== null)
       propRad = propAngle(propRad, u.throttle, u.frameS)
+      // Unlike the pivoted models, this legacy prop's origin is not rebuilt by an articulation
+      // helper every frame. Restore it before applying a fresh absolute debris displacement.
+      helice.position.copy(heliceRestPosition)
       helice.rotation.z = heliceRestZ + propRad
       applyGearFraction(gearDer, GEAR_DOWN.der, GEAR_UP.der, u.gearFraction)
       applyGearFraction(gearIzq, GEAR_DOWN.izq, GEAR_UP.izq, u.gearFraction)
@@ -350,6 +370,17 @@ export async function loadWildcat(stores: StoreMounts | undefined, acquire: (url
       for (const k of ['roll', 'pitch', 'yaw'] as const) stick[k] = slewToward(stick[k], u.controls[k], u.frameS)
       for (const s of surfaces) turnAbout(s.node, s.rest, s.hinge, surfaceAngleRad(s.name, stick[s.input]))
       flaps.set(u.flapFraction)
+      loose.forEach((l, i) => {
+        const active = debris !== null && (!l.surfaceOnly || u.surfaceCrash?.mode === 'breakup')
+        l.node.visible = !active || debris.ageS < DEBRIS_S
+        if (!active || l.node.parent === null) return
+        const f = debrisFlight(debris.ageS, (debris.seed + Math.imul(i + 1, 0x9e3779b1)) >>> 0)
+        l.node.parent.updateWorldMatrix(true, false)
+        debrisScratch.copy(l.node.position)
+        l.node.parent.localToWorld(debrisScratch).add(f.offset)
+        l.node.position.copy(l.node.parent.worldToLocal(debrisScratch))
+        l.node.quaternion.multiply(new Quaternion().setFromAxisAngle(f.axis, f.angleRad))
+      })
     },
     dispose(): void {
       if (disposed) return

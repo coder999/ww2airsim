@@ -176,7 +176,7 @@ test('a restart rebuilds the guns: full load, empty sky, no replayed gunfire', a
   expect(fired.player.ammo).toBeLessThan(2400)
 
   await page.keyboard.down('ArrowUp')
-  await debriefDialog(page).waitFor({ timeout: 20_000 })
+  await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
   await debriefDialog(page).getByRole('button', { name: 'Restart' }).click()
   await expect.poll(() => combat(page).then((c) => c.player.shots), { timeout: 10_000 }).toBe(0)
