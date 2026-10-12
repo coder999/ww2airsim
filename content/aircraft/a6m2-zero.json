@@ -102,16 +102,16 @@
   },
   "stores": {
     "racks": [
-      { "id": "left-rack", "offset": [-0.374,-0.346,-2.6], "store": "type98-no25" },
-      { "id": "right-rack", "offset": [-0.374,-0.346,2.6], "store": "type98-no25" }
+      { "id": "left-rack", "offset": [-0.3,-0.32,-2.6], "store": "type98-no25" },
+      { "id": "right-rack", "offset": [-0.3,-0.32,2.6], "store": "type98-no25" }
     ],
     "rails": [
-      { "id": "left-rail-1", "offset": [-0.566,-0.314,-3.6], "store": "hvar" },
-      { "id": "left-rail-2", "offset": [-0.532,-0.246,-4.3], "store": "hvar" },
-      { "id": "left-rail-3", "offset": [-0.499,-0.176,-5], "store": "hvar" },
-      { "id": "right-rail-1", "offset": [-0.566,-0.314,3.6], "store": "hvar" },
-      { "id": "right-rail-2", "offset": [-0.532,-0.246,4.3], "store": "hvar" },
-      { "id": "right-rail-3", "offset": [-0.499,-0.176,5], "store": "hvar" }
+      { "id": "left-rail-1", "offset": [-0.441,-0.211,-3.6], "store": "hvar" },
+      { "id": "left-rail-2", "offset": [-0.398,-0.133,-4.3], "store": "hvar" },
+      { "id": "left-rail-3", "offset": [-0.356,-0.055,-5], "store": "hvar" },
+      { "id": "right-rail-1", "offset": [-0.441,-0.21,3.6], "store": "hvar" },
+      { "id": "right-rail-2", "offset": [-0.398,-0.132,4.3], "store": "hvar" },
+      { "id": "right-rail-3", "offset": [-0.356,-0.055,5], "store": "hvar" }
     ],
     "types": {
       "type98-no25": {"kind": "bomb", "massKg": 241, "dragAreaM2": 0.036, "fillerKg": 96, "damage": 48, "blastRadiusM": 22, "armS": 0.5, "lifetimeS": 60, "dragPerM": 1.5e-05},

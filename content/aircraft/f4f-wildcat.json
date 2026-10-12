@@ -306,8 +306,8 @@
   },
   "stores": {
     "racks": [
-      { "id": "left-rack", "offset": [-0.324, -0.707, -2.6], "store": "an-m65" },
-      { "id": "right-rack", "offset": [-0.324, -0.707, 2.6], "store": "an-m65" }
+      { "id": "left-rack", "offset": [-0.325, 0.004, -2.6], "store": "an-m65" },
+      { "id": "right-rack", "offset": [-0.325, 0.004, 2.6], "store": "an-m65" }
     ],
     "rails": [],
     "types": {
