@@ -77,10 +77,10 @@
       { "position": [0.699, -0.197, 2.3], "rounds": 60, "group": "rightGuns", "type": "type99-20mm" }
     ],
     "zones": [
-      { "id": "engine", "center": [2.6, 0, 0], "halfSize": [1.3, 0.75, 0.75], "system": "engine" },
+      { "id": "engine", "center": [1.65, 0, 0], "halfSize": [0.62, 0.7, 0.7], "system": "engine" },
       { "id": "fuel", "center": [0, 0, 0], "halfSize": [1.3, 0.75, 0.75], "system": "fuel" },
       { "id": "tail", "center": [-2.7, 0, 0], "halfSize": [1.3, 0.5, 0.5], "system": "pitch" },
-      { "id": "rudder", "center": [-3.6, 0.9, 0], "halfSize": [0.7, 0.9, 0.2], "system": "yaw" },
+      { "id": "rudder", "center": [-3.6, 0.85, 0], "halfSize": [0.7, 0.79, 0.2], "system": "yaw" },
       { "id": "left-guns", "center": [0.3, -0.2, -2.6], "halfSize": [1.1, 0.3, 1.2], "system": "leftGuns" },
       { "id": "right-guns", "center": [0.3, -0.2, 2.6], "halfSize": [1.1, 0.3, 1.2], "system": "rightGuns" },
       { "id": "left-aileron", "center": [-0.3, -0.2, -5.0], "halfSize": [0.9, 0.3, 0.9], "system": "roll" },
