@@ -143,7 +143,7 @@ Recommend the historically standard load, not the maximum.
 ### D8. Which stores
 
 Each rack or rail names a `store` that must exist in `types` and, for the
-name shown on Form 4, in the Library as an ordnance entry (`an-m65`, `type98-no25`,
+name shown on Form 6, in the Library as an ordnance entry (`an-m65`, `type98-no25`,
 `hvar` today; a Japanese bomber carries `type98-no25`, V2 2026-10-09). Options: an existing store, or a new one. Recommend an existing one
 where the real weapon matches; a new store needs a mass, drag area, filler,
 damage and blast figure each with a source, plus its Library ordnance card.
@@ -325,11 +325,12 @@ An aircraft is onboarded when Mark can pick it in the sortie forms and fly it.
 mechanical:
 
 - **Availability.** Every spec in `content/aircraft/` is a flyable aircraft.
-  With Dev checked, Form 3 lists all of them on every scenario
+  With Dev checked, Form 5 lists all of them on every scenario
   (`eligibleAircraft`). Without Dev it lists the allied ones, and on a carrier
   start only `carrierCapable` ones. There is no registry to edit.
-- **Data the forms read.** Form 3 shows the Library card's `blurb` and
-  `figuresFor` (speeds, climb, stall, weights, from the spec). Form 4 shows
+- **Data the forms read.** Form 5 shows the Library card's `blurb` and
+  `figuresFor` (hit points, engine horsepower, speeds, climb, stall and
+  weights, from the spec). Form 6 shows
   `storesLine` (racks and rails, named from the Library ordnance cards).
   The Hangar shows `history` and `sources`. `flyable.test.ts` fails a card
   that lacks any of these.

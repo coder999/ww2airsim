@@ -28,9 +28,8 @@ render quality with auto-detect.
 
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
-**A3. Time-of-day picker (S-M). Done 2026-10-09** (merge of `a3a4-launch`): Form 2 offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
-- **Today:** players can't choose it. It comes from the scenario's `weather.timeOfDay`, or `?timeOfDay=` in DEV only.
-- **Proposal:** a field on Form 2 (Sortie Orders) that defaults to the scenario's historical hour, labeled as suggested, and is clamped to dawn-dusk. **There is no night lighting**, so night is a separate rendering plan if wanted.
+**A3. Time-of-day picker (S-M). Done 2026-10-09; moved to dedicated Flight Conditions Form 4 on 2026-10-11** (merge of `a3a4-launch`): the form offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
+- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **There is no night lighting**, so night is a separate rendering plan if wanted.
 
 **A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
@@ -38,7 +37,9 @@ render quality with auto-detect.
 - **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
 - **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
-**A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. Form 4 no longer owns editable rendering controls: its administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
+**A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. The launch forms no longer own editable rendering controls: the separate administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
+
+**A7. Main-menu and sortie-flow refresh (S). Done and merged 2026-10-11 (feature commit `9ebdc3e3`):** the roster starts a sortie from each pilot row beside Dossier, removing the disabled global New game state. The six-form flow separates Missions from Training Grounds, recommends Basic Flying, Torpedo Qualification and Carrier Qualification to new pilots, keeps Sortie Orders navigation at the top-right, and gives takeoff time and cloudiness their own Flight Conditions form. Briefing citations are named hyperlinks rather than visible raw URLs; aircraft figures spell out hit points and add total engine horsepower; About credits Mark Tuttle, Copyright (C) 2026, and links both the source repository and `marktuttle.dev`. Handoff `docs/handoff/2026-10-11-main-menu-sortie-refresh.md`.
 
 ### Track B: Guidance, autopilot and tutorial
 
@@ -215,7 +216,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - The sun's date is the constant `SCENARIO_DAY_OF_YEAR` (`sky/sun.ts:11`).
   - Bases and routes are local coordinates.
   - Leyte's data is about 171 MB (L0 134 MB in LFS; 37 MB gzipped since L1.1a).
-- **G1, the world abstraction (M):** a world id on scenarios, runtime-loaded headers, a per-world data directory and build, a per-world center and date, and a theater picker on Form 2. Leyte keeps working unchanged, verified by the existing suite.
+- **G1, the world abstraction (M):** a world id on scenarios, runtime-loaded headers, a per-world data directory and build, a per-world center and date, and a theater picker upstream of mission selection in the launch flow. Leyte keeps working unchanged, verified by the existing suite.
 - **G2, the first new theater (M-L):** **Midway is the recommendation** over Pearl Harbor:
   - Its terrain is two atolls, so the data is tiny.
   - The battle is carriers and dive bombers, which the game already does well.
@@ -303,8 +304,8 @@ merge. The rejected adaptive-sampling follow-up remains preserved separately.
 **Promoted 2026-10-11 (Mark):** after the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in DEV and production; `legacy` and
 `takram` stay selectable by query in DEV.
-Form 2 now also rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
-initial selection, which the player may change; it sets combined cumulus
+Flight Conditions now also rolls an equally likely Sunny, Partly Cloudy,
+Cloudy or Overcast initial selection, which the player may change; it sets combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 

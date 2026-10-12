@@ -267,8 +267,8 @@ export function badgeName(id: string): string {
  *  rows too, so a fixture's log row reads its label. */
 const scenarioLabel = (id: string): string => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id
 
-/** What Forms 2-4 offer, and how Form 2 fetches a mission's briefing.
- *  `flyable` is Form 3's catalog and `ordnanceNames` Form 4's store names
+/** What the sortie forms offer, and how Form 3 fetches a mission's briefing.
+ *  `flyable` is Form 5's catalog and `ordnanceNames` Form 6's store names
  *  (sortie spec); `loadScenario: null` fetches nothing (no briefing panel). */
 export type TitleMissions = {
   readonly options: readonly ScenarioOption[]
