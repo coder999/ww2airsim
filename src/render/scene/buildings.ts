@@ -1,9 +1,10 @@
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, Group, Mesh, type Material } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { color, mix, positionLocal, varying } from 'three/tsl'
+import { color, float, mix, normalMap, positionLocal, texture, triplanarTexture, varying, vec2, vec3 } from 'three/tsl'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { groundNoise } from '../terrain/surface.js'
+import type { SceneryTextureLayer, SceneryTextures } from './sceneryTextures.js'
 
 /**
  * Shared mesh-construction plumbing for both `airfield.ts` (hangars, the
@@ -16,9 +17,20 @@ import { groundNoise } from '../terrain/surface.js'
  * world-space positions and its own material set.
  */
 
-export function weathered(base: number, worn: number): MeshStandardNodeMaterial {
+export function weathered(base: number, worn: number, textures?: SceneryTextures | null, layer?: SceneryTextureLayer): MeshStandardNodeMaterial {
   const m = new MeshStandardNodeMaterial({ roughness: 0.93, side: DoubleSide })
-  m.colorNode = mix(color(base), color(worn), groundNoise(varying(positionLocal.xz), 30).g)
+  const procedural = mix(color(base), color(worn), groundNoise(varying(positionLocal.xz), 30).g)
+  const source = textures && layer ? textures.layers[layer] : null
+  if (source) {
+    const albedo = texture(source.albedo)
+    const sampled = triplanarTexture(albedo, albedo, albedo, float(1 / source.tileM)).rgb
+    const ratio = sampled.div(vec3(...source.meanLinear)).clamp(0.4, 1.75)
+    m.colorNode = mix(procedural, procedural.mul(ratio), 0.78)
+    const normal = texture(source.normal)
+    m.normalNode = normalMap(triplanarTexture(normal, normal, normal, float(1 / source.tileM)).rgb, vec2(0.28))
+  } else {
+    m.colorNode = procedural
+  }
   return m
 }
 
@@ -74,13 +86,13 @@ export type BuildingMaterials = {
   readonly white: Material
 }
 
-export function createBuildingMaterials(): BuildingMaterials {
+export function createBuildingMaterials(textures?: SceneryTextures | null): BuildingMaterials {
   return {
-    steel: weathered(0x59645a, 0x919286),
-    timber: weathered(0x61513c, 0x8d7957),
-    concrete: weathered(0x8d8978, 0xb3ac92),
-    dark: weathered(0x172624, 0x263e3b),
-    white: weathered(0xd5c9a0, 0xefe4c9),
+    steel: weathered(0x59645a, 0x919286, textures, 'steel'),
+    timber: weathered(0x61513c, 0x8d7957, textures, 'timber'),
+    concrete: weathered(0x8d8978, 0xb3ac92, textures, 'concrete'),
+    dark: weathered(0x172624, 0x263e3b, textures, 'steel'),
+    white: weathered(0xd5c9a0, 0xefe4c9, textures, 'steel'),
   }
 }
 

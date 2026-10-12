@@ -35,8 +35,6 @@ render quality with auto-detect.
 **A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
 **A5. Render scale in Settings (S, after H0 and A4). Done and merged 2026-10-10:** Settings gains a Render Scale row offering 50, 75 and 100% on top of the capped `devicePixelRatio`. It applies live, persists, and defaults to 100%; DEV `?renderScale=` still overrides. Verified on ryzen's GPU (`settingsUi.spec.ts`, canvas size at each scale). Handoff `docs/handoff/2026-10-10-a5-render-scale.md`.
-- **Today:** render size is window size × `devicePixelRatio`, capped at 2 (`renderer.ts:114`). H0 adds a DEV-only `?renderScale=` param.
-- **Proposal:** promote it to a player-facing Render scale option beside A4's quality step (Mark, 2026-10-08).
 
 **A6. Preflight graphics check and shared rendering settings (M). Done and merged 2026-10-11 (`2ac3cc6c`):** the first automatic visit measures six quality/scale profiles against actual WebGPU queue completion on the fully built title scene, then saves the highest profile that sustains 50 fps with p95 completion latency at or below 150 ms. The saved check is reused while adapter, browser major and pixel count remain comparable. The launch forms no longer own editable rendering controls: the separate administration memo summarizes the session-wide result and links to Settings. The pause dossier embeds the same settings implementation, limited to changes safe during a live sortie. Missing or software-only adapters now explain that the browser may be hiding a real GPU and give Chrome/Edge acceleration, diagnostics, driver, multi-GPU and managed-policy recovery steps. Ryzen RX 6700 XT at 2560×1440 recommended High/100%; nexus Radeon 680M at the same size recommended Medium/75%. Plan `docs/superpowers/plans/2026-10-11-preflight-graphics-check.md`; handoff `docs/handoff/2026-10-11-preflight-graphics-check.md`.
 
@@ -64,13 +62,7 @@ Mark's items: guide mode (an arrow to the objective; a bomb impact marker); impr
 
 **B3. Navigation autopilot (M).** Done and merged 2026-10-10; plan [`2026-10-10-b3-pursuit-g-limit.md`](docs/superpowers/plans/2026-10-10-b3-pursuit-g-limit.md), handoff [`2026-10-10-b3-pursuit-g-limit.md`](docs/handoff/2026-10-10-b3-pursuit-g-limit.md).
 - **Built:** Shift pulls at most 0.9 of each airframe's own `gLimit` (rudder included) and stops diving at 0.9 of its dive speed. The 13 g overshoot (13.55 g, F6F broken up) is now 6.78 g, structure intact; Damage Range taps unchanged (11 and 14 hits on the first two).
-- **Today:** the player autopilot is the pursuit law only (Shift). Altitude hold was deleted 2026-09-17 because it wasn't wanted then.
-- **What exists:** the AI already flies the laws: `goalDesiredVelocity` (ingress), `loiterDesiredVelocity`, `approachControls`, formation keeping. The measurement autopilot holds level flight (`sim/autopilot.ts`).
-- **Proposal:** three modes built on the AI laws rather than new control law:
-  - heading and altitude hold;
-  - fly to the B1 waypoint;
-  - fix the pursuit mode's 13 g overshoot with a g-limit.
-- **Decided (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
+- **Scope decision (§4 Q5):** pursuit only, as g-limited lead pursuit onto a gun solution; the player still fires. Heading/altitude hold and waypoint modes are dropped.
 
 **B4. Tutorial (M).** Done and merged 2026-10-10; plan [`2026-10-10-b4-tutorial.md`](docs/superpowers/plans/2026-10-10-b4-tutorial.md), handoff [`2026-10-10-b4-tutorial.md`](docs/handoff/2026-10-10-b4-tutorial.md).
 - **Ruled (Mark, 2026-10-10):** Basic Flying is the default mission; the picker opens on it.
@@ -233,8 +225,8 @@ this track is the budget both spend. (Rendering steps are not numbered
 H1-H3: those names already mean the Hangar plans.)
 
 **H0. Win back budget first (M).**
-- **Today:** the 2026-10-03 E2E run had 13 frame-time reds. Since correctness specs stopped asserting frame time (2026-10-08), 7 of them are budget misses: six `budget4k` views and `motionBudget` (projected; the next nightly confirms). The `photo` view at High has 0.6 ms of margin, and `clouds.md` §6 says to win margin back before adding any feature.
-- **Proposal:** one profiling plan on the reference GPU (under `hwlock ryzen`) that buys headroom first and re-baselines what is left with Mark's ruling, so Tracks K and L have a budget to spend.
+- **Before H0:** the 2026-10-03 E2E run had 13 frame-time reds. Seven became budget work when correctness and budget tests were separated: six `budget4k` views and `motionBudget`. The `photo` view at High had only 0.6 ms of margin.
+- **Planned work:** one profiling plan on the reference GPU (under `hwlock ryzen`) to buy headroom first and re-baseline what remained with Mark's ruling, so Tracks K and L had a budget to spend.
 - **Decided (grilling, 2026-10-08):**
   - **The gate moves to 1440p at 120 Hz:** High gpu p95 ≤ 8.33 ms at 2560×1440, in every view, the in-cloud view included (no carve-out). At 1440p, 60 Hz would already be green by ~8 ms (prior handoffs read 6.2-8.1 ms), so it would not be a bar. Medium at 1440p, and both tiers at 4K, are recorded, never asserted.
   - **Margin target:** every High view at ≤ 7.5 ms (about 10%) when H0 ends.
@@ -252,43 +244,31 @@ H1-H3: those names already mean the Hangar plans.)
 
 ### Track K: Clouds (size L)
 
-Clouds have needed attempt after attempt (`clouds.md` §3 is the
-history), so they get their own track. **`clouds.md` §6 is the
-step list and its order; this track does not restate it.** In outline:
-- measure High in-cloud frame pacing first;
-- the auto-tier, built in A4 (order 2), which does more for Mark's desktop than any shader work;
-- Low edge shimmer;
-- multi-layer clouds and cirrus shadows (`clouds.md` #8);
-- one look-pass sitting with Mark on #6 and #7.
+Clouds have needed attempt after attempt, recorded in `docs/clouds.md` with
+the technical history and traps. Its §6 order predates the Takram promotion;
+the current status and remaining order are recorded here.
 
 H0's margin was met 2026-10-10 (every High view inside 7.5 ms but in-deck-1900, which has its own 10.0 ms gate), so cloud features can land; each still answers to `budget.spec.ts`. Expect a plan per step, not
 one plan for the lot.
 
-**Plain-cloud game integration complete, opt-in, 2026-10-10:** the accepted
-Takram port now flies in the real game behind `?cloudRenderer=takram`; legacy
-remains the DEV and production default and nothing was deployed. The native
-pass consumes game color/reversed depth, follows the game camera, sun, scenario
-coverage and cumulus base, resets temporal history on cuts, and preserves the
-aircraft/terrain/effects composite. Mark accepted the broad soft edge; the dense
-center's slight out-of-focus look and small residual breakup on thin wisps are
-recorded compromises. Thunderheads and the reference cirrus layer are deferred.
-Locked RX 6700 XT, 2560x1440 High: native clouds 2.016 ms GPU p95; conservative
-whole-frame estimate 4.759 ms. Next checkpoint is Mark's normal flight verdict,
-not more unattended visual tuning. Plan and handoff:
-`docs/superpowers/plans/2026-10-10-k-clouds-v3-game-integration.md` and
-`docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
+**Current status — TSL is the default, 2026-10-11:** after Mark's "pretty
+good" flight verdict and the edge-history fix (`docs/clouds.md` §1.2),
+`takram-tsl` is the default renderer on `main` in both DEV and production
+builds. DEV can still select `legacy` or the native-WGSL `takram` path by
+query. Form 2 rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
+initial selection which the player may change; it adjusts combined cumulus
+coverage while preserving scenario cloud geometry and cirrus. No deployment
+followed from this work.
 
-**Merged to main 2026-10-11, opt-in; not deployed:** Mark's flight verdict was
-"pretty good." Only the production integration was transplanted onto `main` at
-`2eff2943`; rejected Blender and spike history stayed out. A stale production
-import from the spike was found and replaced with self-contained production
-WGSL. Full deterministic verification passed (413 files, 5,696 tests), as did
-the focused Takram game-flight/WebGPU E2E and the exclusive RX 6700 XT Takram
-budget spec (native 2.022 ms GPU p95; conservative total 4.779 ms at 2560x1440
-High). The repository-wide `npm run test:e2e` suite was not run and is not
-claimed by this checkpoint. `main` reached `92b9b6ee`; legacy remains the
-default and no deployment occurred. Handoff:
-`docs/handoff/2026-10-11-k-clouds-v3-main-integration-testing.md`.
+**Integration evidence:** the native-WGSL port was first accepted and merged
+opt-in (`2eff2943`), with rejected Blender/spike history left out and the
+production shader made self-contained. The full TSL port then merged at
+`1c654889`; R8 volume textures and conditional explicit-LOD weather fetches cut
+its march p95 by 45–46%. Two locked RX 6700 XT runs at 2560×1440 High measured
+whole-frame p95 at 5.746–5.772 ms, versus 5.890–5.915 ms estimated for native
+WGSL, inside both the 8.33 ms gate and the plan's 15% promotion criterion.
+Handoffs: `docs/handoff/2026-10-11-k-clouds-v3-main-integration-testing.md`
+and `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 
 **Full TSL experiment complete, optimized and merged opt-in, 2026-10-11:**
 Main commit `1c654889` merges the accepted `54fd91f7` state of
@@ -311,13 +291,25 @@ Cloudy or Overcast initial selection, which the player may change; it sets combi
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.
 
+**Open, in order:**
+
+1. Re-measure High in-cloud p50/p95/p99 pacing on the default TSL renderer.
+2. Re-test the former Low-only edge shimmer on the default path before carrying
+   a legacy-renderer fix forward.
+3. Add the deferred thunderhead/multi-layer work and cirrus shadows, one
+   budgeted plan at a time.
+4. Sit with Mark for the fixed-capture look pass: cloudiness from below,
+   shadow darkness, ocean shadowing at dusk, and crimson dusk clouds. The
+   accepted soft dense center and slight thin-wisp breakup are not unattended
+   tuning targets.
+
 ### Track L: Terrain (size L)
 
 **L1. Land (M-L).**
 1. On-demand terrain level allocation, then the default Asset Quality moves to `medium`. This is Mark's 2026-09-27 ruling, deferred, and the single biggest visible change for a first-time player. **Merged 2026-10-10, not deployed:** L0 is held as a window around the camera, and the first-visit default is Medium. At Medium the GPU process now uses what it does at Low (1.04 GB, down from 1.32), and every 1440p High budget view passes. L1.1a below reduces the first-visit terrain download to 49.5 MB; deploying is Mark's call. Mark kept the headless suite on L1 (handoff, rulings). Handoff `docs/handoff/2026-10-10-l1-1-terrain-on-demand.md`.
 1a. **Terrain compression complete, merged 2026-10-10; not deployed.** Every level ships as `L<n>.bin.gz` (gzip level 9, following `cover.bin.gz`); a Medium first visit fetches 49.5 MB of terrain instead of 179.0 MB, Low 12.8 MB instead of 44.8 MB. Inflated samples are unchanged. The build excludes obsolete raw levels left in caches. Handoff `docs/handoff/2026-10-10-l1-1a-compress-terrain.md`.
-2. Real tree crowns (visual-realism §3.1). Trees are three flat icosahedra today (`scene/vegetation.ts:144-167`).
-3. Leaf, bark and building textures (visual-realism spec §2.2, §2.3).
+2. **Real tree crowns remain open.** The seven-cluster/four-branch pass on `l1-l2-visuals` was rejected and reverted after review on 2026-10-11: branches initially protruded through the canopy, and the bounded fix still measured 3.678 ms versus 3.350 ms p95 for the exact legacy tree (+0.328 ms, +9.8%) in the locked dense-jungle view. The original three-lobe crown and single trunk remain.
+3. **Building textures complete and merged 2026-10-11.** Six mipmapped KTX2 textures from three pinned CC0 Poly Haven materials add corrugated steel, timber and concrete albedo/normal detail. Building geometry and batches are unchanged; load failure keeps the procedural materials. Leaf and bark textures were removed with the rejected tree pass. Plan and handoff: `docs/superpowers/plans/2026-10-11-l1-tree-building-materials.md`, `docs/handoff/2026-10-11-l1-l2-visuals.md`.
 
 **L2. Beach and shore (M).**
 - **Smooth border complete 2026-10-09:** a deterministic Blender-built render
@@ -328,9 +320,13 @@ coverage while preserving scenario cloud geometry and cirrus. Handoff:
   shared runtime roles.  [Design](docs/superpowers/specs/2026-10-09-curved-beaches-design.md),
   [plan](docs/superpowers/plans/2026-10-09-curved-beaches.md),
   [handoff](docs/handoff/2026-10-09-curved-beaches.md).
-- **Open:** animated/breaking white water and richer shallow-water interaction.
-  The shipped surf edge is static and feathered; those ocean effects are a
-  later water-effects slice, not another DEM rewrite.
+- **Animated surf complete and merged 2026-10-11:** the existing `ShoreSurf` draw now carries shallow-water
+  color, two shoreward breaker crests, broken foam and backwash. It uses the
+  simulation clock, so Pause freezes it, and adds no geometry or draw. DEV
+  `?shoreFx=off` restores the static material for exact A/B. Design, plan and
+  handoff: `docs/superpowers/specs/2026-10-11-l2-water-effects-design.md`,
+  `docs/superpowers/plans/2026-10-11-l2-water-effects.md`,
+  `docs/handoff/2026-10-11-l1-l2-visuals.md`.
 
 ### Track I: Sound (M, two plans)
 
@@ -366,11 +362,11 @@ coverage while preserving scenario cloud geometry and cirrus. Handoff:
 ### Track M: Ships (L)
 
 Mark's items (2026-10-08): better ship models, turrets that work and fire, and AA on every warship.
-- **Today** (verified 2026-10-08):
-  - 10 ship classes. Pennsylvania, Kagero and Casablanca are our own Blender models (`tools/models/blender/*.py`); the other 7 are Sketchfab downloads (`ASSETS.md`). (Since M1f, 2026-10-09: 12 classes, eight of them Blender models.)
-  - Only Pennsylvania (`Turret1..4`) and Kagero (`Turret1..2`) have separate turret nodes. Most downloads are one merged mesh.
-  - Nothing fires at the player except enemy aircraft. Ground `aaa` structures are targets only (`sim/weapons/structures.ts`), and ships have no guns.
-  - Ships have one `hullHp` pool (Track D).
+- **Current state (2026-10-11):**
+  - 12 gameplay ship classes, eight of them original Blender models. Original Fletcher, Shiratsuyu and Zuikaku candidates also sit beside their external gameplay models in the Hangar under display-only `-blender` ids.
+  - Every warship's main and AA batteries are authored as separate trainable mounts; merchants remain unarmed.
+  - Ship and ground AA fire at hostile aircraft. Scenario-enabled main batteries fire at hostile ships or standing structures, with real shells, mount knock-out, muzzle effects and sound.
+  - Ships retain one `hullHp` pool, augmented by torpedo flooding and visible list/slowdown (Track D); detailed compartment and waterline simulation remains out of scope.
 - **Decided (Mark, 2026-10-08), in order:**
   1. ~~**M1 Models (M-L).**~~ Done 2026-10-08 (branch `m1-ship-models`, handoff `docs/handoff/2026-10-08-m1-ship-models.md`): every warship's guns are spec data and instanced, trainable kits; the three Blender ships got a detail and paint pass.
      - Our three Blender ships gain detail, silhouette, paint and textures.
@@ -437,12 +433,12 @@ prerequisites are met.
 | Order | Work | Why here |
 | --- | --- | --- |
 | 1 | ~~A1; A2; I quick win (radial engines); J~~ done 2026-10-08 | Days of work, all visible, no dependencies. Track 0 is done |
-| 2 | A3, A4; B1; M1 ship models (own worktree, in parallel) | Fixes what every player sees first; A4 closes the trees incident. M1 is asset work, independent of the rest |
+| 2 | ~~A3; A4; B1; M1 ship models~~ done by 2026-10-09 | Fixed what every player sees first; M1 ran independently as asset work |
 | 3 | ~~E1 gunnery honesty; H0 budget~~ done 2026-10-09 and 2026-10-10 | E1 unblocks most missions; H0 unblocks Tracks K and L |
 | 4 | ~~A5 render scale; B2; B4 tutorial; C1 control surfaces; I1; I2 voice; M2 AA fire; B3; M3 gun-laying AI; M5 difficulty~~ done by 2026-10-10 | Player experience; C1 and I1 share the flap and gear motion |
-| 5 | ~~F missions that are now unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a), then trees; K in-cloud pacing | |
+| 5 | ~~F missions that were unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a); ~~L1 building materials~~ done 2026-10-11; **open:** real crowns/leaf/bark after the rejected costlier pass, and default-TSL in-cloud pacing | |
 | 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; ~~F Escort~~ done 2026-10-10 (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
-| 7 | ~~D torpedoes (Avenger)~~ done (D1, D3, and E2's AI torpedo run, 2026-10-10); K clouds, remaining steps; L2 shore; M4 main batteries, then F Surigao Strait | |
+| 7 | ~~D torpedoes (Avenger); M4 main batteries; F Surigao Strait~~ done by 2026-10-11; ~~K default renderer, L2 smooth shore, and L2 animated surf/shallow water~~ done; **open:** K's remaining visual steps | |
 | 8 | F campaign by day; C3 stage 1 panels | |
 | 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
 
