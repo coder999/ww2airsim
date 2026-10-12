@@ -394,7 +394,7 @@ with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         m.gear_leg('dark', (g['x'], g['hinge_y'], side * g['z']), g['length'], g['wheel_r'], g['wheel_w'], node=name)
         m.box('dark', (g['x'] - 0.25, g['hinge_y'] - 0.75, side * (g['z'] - 0.22)),
-              (0.45, 1.30, 0.035), node=name)
+              (0.45, 0.75, 0.035), node=name)
     tw = TAILWHEEL
     m.gear_leg('dark', (tw['x'], tw['hinge_y'], 0.0), tw['length'], tw['wheel_r'], tw['wheel_w'], node='Tailwheel')
 
