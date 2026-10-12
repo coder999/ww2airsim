@@ -103,6 +103,7 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
     format: RedFormat, type: UnsignedByteType, depthBuffer: false, stencilBuffer: false,
     minFilter: LinearFilter, magFilter: LinearFilter, wrapS: ClampToEdgeWrapping, wrapT: ClampToEdgeWrapping, generateMipmaps: false,
   })
+  target.texture.name = 'cloud shadow transmittance'
   /** Minimum-x, minimum-z corner of the map in true world metres. */
   const mapOrigin = uniform(new Vector2())
   const taps = uniform(SHADOW_TIERS.high.taps, 'int')

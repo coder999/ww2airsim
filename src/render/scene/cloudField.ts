@@ -304,6 +304,8 @@ export function createCloudField(layers: readonly CloudLayer[], noise: SkyNoise)
   const weatherPlane = WEATHER_SIZE * WEATHER_SIZE * 4
   const weatherMap = plane(noise.weather.subarray(0, weatherPlane), WEATHER_SIZE)
   const runnerMap = plane(noise.weather.subarray(weatherPlane), WEATHER_SIZE)
+  weatherMap.name = 'cloud field weather winner'
+  runnerMap.name = 'cloud field weather runner-up'
   const coverageTable = skyCoverageTable(noise.weather, cumulusFootprint(noise.cumulus))
   const thresholds = uniformArray(coverageTable.thresholds, 'float')
 

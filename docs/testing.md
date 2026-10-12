@@ -361,10 +361,15 @@ mechanism; the script header has the step order.
   `systemd-creds --user` encrypted credential (`~/.config/ww2airsim-e2e/ryzen-rdp.cred`,
   loaded by the unit); `op` is only the fallback for manual runs. After rotating the
   password, re-encrypt it (command in `serverconfig/ryzen.md`).
-  It takes `hwlock ryzen` (waits up to 90 min, then records `skipped-lock`
-  rather than hold the lock into the morning), wakes ryzen with WoL if needed,
-  and shuts it down afterward only if it woke it and nobody else is on it.
-  It never falls back to nexus.
+  It currently calls `hwlock ryzen`, but that resource is disabled in
+  `~/.config/hwlock/off`, so the wrapper is a no-op and cannot produce
+  `skipped-lock`. The non-budget suite needs no whole-run lock. Budget specs
+  must instead be split into a second invocation wrapped by
+  `hwlock ryzen-budget`, after checking that no direct Windows browser or WSL
+  CPU job is competing with it. Until that split lands, nightly budget misses
+  are triage signals, not trusted measurements. The job wakes ryzen with WoL
+  if needed, shuts it down afterward only if it woke it and nobody else is on
+  it, and never falls back to nexus.
 - **Verdict:** any failing test is a failure, frame-time budgets
   (`budget|p95|tripwire|frame time|Hz` titles) included; the mail says how many
   of the failures are budget misses (`budget_failed` in `runs.tsv` is that

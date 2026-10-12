@@ -24,6 +24,12 @@ async function openHangar(page: Page, dev = false): Promise<void> {
 
 type Current = { readonly id: string; readonly kind: string; readonly parts: readonly { readonly id: string; readonly modeled: boolean }[] }
 const entries = (page: Page) => page.evaluate(() => (window as HangarWindow).__hangar!.entries())
+const skinnedModelIds = (): string[] => readdirSync('tools/models/entries')
+  .filter((f) => f.endsWith('.json'))
+  .map((f) => JSON.parse(readFileSync(`tools/models/entries/${f}`, 'utf8')) as { id: string; skin?: boolean })
+  .filter((e) => e.skin === true)
+  .map((e) => e.id)
+  .sort()
 const select = (page: Page, id: string) => page.evaluate((i) => (window as HangarWindow).__hangar!.select(i), id)
 const current = (page: Page) => page.evaluate(() => (window as HangarWindow).__hangar!.current()) as Promise<Current>
 const pose = (page: Page, p: PartPose) => page.evaluate((q) => (window as HangarWindow).__hangar!.pose(q), p)
@@ -474,8 +480,17 @@ test.describe('the Hangar', () => {
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
-    for (const id of ['ki-84-frank', 'hangar', 'pennsylvania-bb', 'essex-cv', 'zuikaku-cv', 'zuikaku-cv-blender', 'shiratsuyu-dd-blender', 'ki-21-sally', 'p-38-lightning', 'b-29-superfortress', 'g4m-betty', 'tbm-3-avenger', 'b5n2-kate', 'a6m2-zero-blender', 'b-17-flying-fortress-blender', 'd3a-val-blender', 'ki-43-oscar-blender', 'f6f-hellcat-blender', 'f4u-corsair-blender', 'f4f-wildcat-blender',
-      'aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower']) {
+    // The manifest, not a hand-maintained snapshot, enrolls every skinned
+    // Library model. The old 29-id list was already nine models stale, and
+    // its added work had pushed this correctness test past the 60 s default.
+    test.setTimeout(180_000)
+    const listed = new Set(await entries(page))
+    const skinned = skinnedModelIds()
+    const ids = skinned.filter((id) => listed.has(id))
+    // The driver is a nested part of the M4 rather than its own Library card.
+    // Any other unlisted skin is a new coverage decision, not a silent skip.
+    expect(skinned.filter((id) => !listed.has(id))).toEqual(['us-army-driver'])
+    for (const id of ids) {
       const { empty, model } = await view(page, id, 'three-quarter')
       await setDebug(page, 'checker', true)
       const on = await shot(page)

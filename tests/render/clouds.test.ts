@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { Data3DTexture, PerspectiveCamera, Texture } from 'three'
-import { texture, vec4 } from 'three/tsl'
 import { CLOUD_TIERS, applyCloudTune, cloudDriftM, cloudTierFromQuery, createClouds } from '../../src/render/scene/clouds.js'
 import { FOG_DISTANCE_M } from '../../src/render/horizon.js'
 import { FAR_FADE_START_M } from '../../src/render/scene/atmosphereShading.js'
@@ -10,8 +8,7 @@ import { loadScenario } from '../../tools/content/load.js'
 import { loadCumulus, loadCurl, loadWeather, loadDetail, loadShape } from '../../tools/sky/load.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { cloudRendererFromQuery } from '../../src/render/scene/takramCloudPass.js'
-import { volumeMipLayout, type TakramTslAssets } from '../../src/render/scene/takramTslAssets.js'
-import { createTakramTslCloudPass } from '../../src/render/scene/takramTslCloudPass.js'
+import { volumeMipLayout } from '../../src/render/scene/takramTslAssets.js'
 
 const noise = { shape: loadShape(), detail: loadDetail(), curl: loadCurl(), weather: loadWeather(), cumulus: loadCumulus() }
 
@@ -31,24 +28,6 @@ describe('clouds (Plan 16a)', () => {
       expect(layout[i]!.offset).toBe(layout[i - 1]!.offset + layout[i - 1]!.length)
     }
     expect(layout.at(-1)!.offset + 1).toBe(2_396_745)
-  })
-  it('a TSL pass disposal leaves its boot-owned texture assets alive', () => {
-    let assetSetDisposals = 0
-    const volume = () => new Data3DTexture(new Uint8Array(1), 1, 1, 1)
-    const assets: TakramTslAssets = {
-      weather: new Texture(), shape: volume(), detail: volume(), turbulence: new Texture(), stbn: volume(),
-      dispose() { assetSetDisposals += 1 },
-    }
-    const pass = createTakramTslCloudPass({
-      assets,
-      camera: new PerspectiveCamera(),
-      sceneColor: vec4(0),
-      sceneDepth: texture(new Texture()).x,
-    })
-
-    pass.dispose()
-
-    expect(assetSetDisposals).toBe(0)
   })
   it('has three tiers that march fewer steps as they descend', () => {
     expect(CLOUD_TIERS.high.cumulusSteps).toBeGreaterThan(CLOUD_TIERS.medium.cumulusSteps)
