@@ -46,7 +46,6 @@ for (let r = 0; r < REPEATS; r++) for (const view of VIEWS) for (const v of VARI
     }))
     expect(t.gpu.length, 'no GPU timestamp samples').toBeGreaterThan(100)
     console.log(`LANDTIME ${view.name} ${v.name} #${r} gpu p50 ${percentile(t.gpu, 0.5).toFixed(3)} p95 ${percentile(t.gpu, 0.95).toFixed(3)} ms over ${t.gpu.length}`)
-    await page.keyboard.press('Slash')
     await page.waitForTimeout(600)
     if (r === 0) await page.screenshot({ path: `${OUT}/${view.name}-${v.name}.png` })
     expect(t.errors).toEqual([])

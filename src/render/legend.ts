@@ -1,19 +1,13 @@
 /**
- * The on-screen control reference.
+ * The keyboard-control catalog shown in the pause dossier.
  *
- * It exists because a binding that is not written down is a binding nobody
- * finds. On 2026-09-15 Mark asked for a way to reduce the throttle; `Z` and
- * `-` had been bound since Plan 1. The keys were never the problem.
- *
- * So the rows below name BINDINGS entries rather than restating their keys,
- * and `legend.test.ts` requires the two sets to match exactly. Adding a
- * binding without giving it a row fails the suite instead of shipping another
+ * The rows below name BINDINGS entries rather than restating their keys, and
+ * `legend.test.ts` requires the two sets to match exactly. Adding a binding
+ * without giving it a row fails the suite instead of shipping another
  * invisible control. `src/input/bindings.ts` stays the only place a key
  * changes.
  */
 import { BINDINGS, type BindingName } from '../input/bindings.js'
-import { MODEL_CREDITS } from './modelCreditsIndex.js'
-import { modelCreditParts } from './modelCredits.js'
 
 export type LegendRow = {
   /** What the pilot is trying to do, not what the code calls it. */
@@ -63,7 +57,6 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Wingman: cover me', bindings: ['wingmanCover'] },
   { label: 'Wingman: form up', bindings: ['wingmanFormUp'] },
   { label: 'Mute', bindings: ['toggleMute'] },
-  { label: 'Controls', bindings: ['toggleLegend'] },
   { label: 'Navigation chart', bindings: ['toggleMissionMap'] },
   { label: 'Radar range', bindings: ['toggleRadarRange'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },
@@ -83,10 +76,8 @@ const NAMED: Readonly<Record<string, string>> = {
   Minus: '-',
   Equal: '=',
   // Punctuation codes are named, not symbolic, so every one of these reads as
-  // a word unless it is listed. `Slash` shipped as the literal text "Slash"
-  // on 2026-09-15 for exactly that reason; `legend.test.ts` now sweeps every
-  // bound key rather than the handful anyone thought to list.
-  Slash: '/',
+  // a word unless it is listed. `legend.test.ts` sweeps every bound key rather
+  // than the handful anyone thought to list.
   Backslash: '\\',
   Period: '.',
   Comma: ',',
@@ -100,8 +91,7 @@ const NAMED: Readonly<Record<string, string>> = {
   // Plan 17. `KeyboardEvent.code` for this key already IS 'Tab', so the
   // fallthrough `return code` at the bottom of `keyLabel` would print it
   // correctly by coincidence -- but `legend.test.ts`'s "never shows a bound
-  // key as its raw DOM code" sweep can't tell coincidence from the `Slash`
-  // bug it exists to catch, and fails on the identity either way. An
+  // key as its raw DOM code" sweep fails on the identity either way. An
   // explicit NAMED entry (worded like `Space` above, not left bare) satisfies
   // both: still the keycap's own word, but reached through the same mapping
   // every other multi-character key goes through, not the fallthrough.
@@ -132,7 +122,7 @@ export function keyLabel(code: string): string {
 const keysOf = (name: BindingName): string =>
   [...new Set(BINDINGS[name].map(keyLabel))].join(' / ')
 
-/** Structured control entries shared by the flight legend and menu surfaces. */
+/** Structured control entries for the pause dossier and other menu surfaces. */
 export function legendEntries(
   muted = false,
   racks: 'Bombs' | 'Torpedo' = 'Bombs',
@@ -156,19 +146,15 @@ export function legendLines(muted = false, racks: 'Bombs' | 'Torpedo' = 'Bombs')
   return legendEntries(muted, racks).map(({ label, keys }) => `${label}  ${keys}`)
 }
 
-/** The legend's own key, read from BINDINGS so the prompt cannot name a key
- *  that no longer toggles it. */
-const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / ')
-
 /**
- * The data credits, shown as the panel's last line.
+ * The data credits, shown in the title screen's About memo.
  *
  * The rivers in `content/scenery/rivers.json` are OpenStreetMap data, and the
  * ODbL requires the attribution to be visible to a user of the produced work
  * (`content/scenery/NOTICE.md`). Codex's first pass (daa1b39) met that with a
  * fixed watermark in the corner of the play screen; Mark did not authorize a
- * watermark, so on 2026-09-17 it moved in here, behind the same key as the
- * controls. `dist.test.ts` refuses the old `map-credit` element in the shipped
+ * watermark, so on 2026-09-17 it moved into the UI. The About memo now owns
+ * it. `dist.test.ts` refuses the old `map-credit` element in the shipped
  * `index.html`.
  *
  * Copernicus (licence Article 6(b)/6(c)) and GEBCO ask only that their notices
@@ -183,7 +169,7 @@ const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / '
  * asks the licensee to retain, "in any reasonable manner", the creator
  * credit, a licence notice, and "a URI or hyperlink to the licence... to the
  * extent reasonably practicable". A hyperlink is reasonably practicable in
- * this exact panel -- the OSM credit right beside it already is one -- so
+ * the About memo -- the OSM credit right beside it already is one -- so
  * unlike Copernicus/GEBCO's "accompany, don't display" bar, a bare "Data:"
  * mention does not clear §3(a)(2) on its own. "ESA WorldCover" is therefore a
  * link to the CC BY 4.0 deed (`WORLDCOVER_LICENCE_URL`), the same way the
@@ -192,7 +178,7 @@ const TOGGLE_KEYS = [...new Set(BINDINGS.toggleLegend.map(keyLabel))].join(' / '
  * `content/landcover/NOTICE.md`, which ships with the raster (verified live,
  * 200, 2026-09-18) and is what `§3(a)(2)`'s "reasonable manner" is satisfied
  * by together with this link -- the section does not require the notice
- * itself to be in-app, only a way to reach the licence, which this panel now
+ * itself to be in-app, only a way to reach the licence, which the About memo
  * has. Nothing on the play screen either way: same rule as the rivers.
  */
 export const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright'
@@ -200,99 +186,15 @@ export const WORLDCOVER_LICENCE_URL = 'https://creativecommons.org/licenses/by/4
 export const CREDITS = {
   /** Everything before the WorldCover link. */
   before: 'Data: Copernicus DEM, GEBCO, ',
-  /** The WorldCover link text; `createLegend` points it at `WORLDCOVER_LICENCE_URL`. */
+  /** The WorldCover link text; the About memo points it at `WORLDCOVER_LICENCE_URL`. */
   worldCover: 'ESA WorldCover',
   /** Between the two links. */
   between: ' · Rivers © ',
-  /** The OSM link text; `createLegend` points it at `OSM_COPYRIGHT_URL`. */
+  /** The OSM link text; the About memo points it at `OSM_COPYRIGHT_URL`. */
   link: 'OpenStreetMap contributors',
 } as const
 
 /** The credit line as plain text, which is all a `node` test can see. */
 export function creditsLine(): string {
   return CREDITS.before + CREDITS.worldCover + CREDITS.between + CREDITS.link
-}
-
-export type LegendHandle = {
-  /** Collapsed to a single prompt line, or fully shown. */
-  setOpen(open: boolean): void
-  /** Marks the Mute row, so silence-by-choice is distinguishable from audio
-   *  that failed to load. */
-  setMuted(muted: boolean): void
-  /** Names the release row after the player's racks: "Bombs" or "Torpedo" (`racksLabel`). */
-  setRacks(racks: 'Bombs' | 'Torpedo'): void
-}
-
-/**
- * Renders the legend into the page.
- *
- * TOP right, not bottom right: the instrument panel occupies the bottom of the
- * frame in cockpit view, and the first screenshot of this feature (2026-09-15)
- * had the legend sitting on top of the slip dial. The dev overlay takes the
- * top LEFT corner, so the two do not collide either.
- *
- * DOM only, and deliberately thin: the vitest environment is `node`, so
- * everything worth asserting lives in the pure functions above. Same split as
- * `overlay.ts`.
- */
-export function createLegend(root: HTMLElement): LegendHandle {
-  const el = document.createElement('pre')
-  el.style.cssText =
-    'position:fixed;right:8px;top:8px;margin:0;padding:8px 10px;border-radius:4px;' +
-    'background:rgba(12,14,18,.72);color:#cfe3ff;font:12px/1.45 ui-monospace,Menlo,monospace;' +
-    'pointer-events:none;white-space:pre;text-align:right'
-  root.appendChild(el)
-
-  // The key lines are one text node; the credit is a separate element after
-  // them so its links can be <a>s. A link alone re-enables pointer events:
-  // the <pre> disables them so the panel never steals a click from the canvas.
-  const lines = document.createTextNode('')
-  el.appendChild(lines)
-  const credit = document.createElement('div')
-  credit.style.cssText = 'margin-top:8px;font-size:10px;opacity:.6'
-  const makeLink = (text: string, href: string): HTMLAnchorElement => {
-    const a = document.createElement('a')
-    a.href = href
-    a.target = '_blank'
-    a.rel = 'noopener'
-    a.textContent = text
-    a.style.cssText = 'color:inherit;pointer-events:auto'
-    return a
-  }
-  credit.append(CREDITS.before, makeLink(CREDITS.worldCover, WORLDCOVER_LICENCE_URL), CREDITS.between,
-    makeLink(CREDITS.link, OSM_COPYRIGHT_URL))
-  // The models' CC BY credit (ship-models spec §10): every work links to its
-  // model (modelCreditParts), and the licence to the same deed WorldCover's link names.
-  if (MODEL_CREDITS.length) {
-    credit.append(document.createElement('br'), 'Models: ')
-    for (const p of modelCreditParts(MODEL_CREDITS)) credit.append(p.href === undefined ? p.text : makeLink(p.text, p.href))
-    credit.append(' (', makeLink('CC BY 4.0', WORLDCOVER_LICENCE_URL), ')')
-  }
-  el.appendChild(credit)
-
-  let open = true
-  let muted = false
-  let racks: 'Bombs' | 'Torpedo' = 'Bombs'
-  const render = (): void => {
-    lines.data = open
-      ? [...legendLines(muted, racks), '', `${TOGGLE_KEYS}  hide`].join('\n')
-      : `${TOGGLE_KEYS}  controls`
-    credit.style.display = open ? '' : 'none'
-  }
-  render()
-  return {
-    setOpen(next: boolean): void {
-      open = next
-      render()
-    },
-    setMuted(next: boolean): void {
-      muted = next
-      render()
-    },
-    setRacks(next: 'Bombs' | 'Torpedo'): void {
-      if (next === racks) return
-      racks = next
-      render()
-    },
-  }
 }

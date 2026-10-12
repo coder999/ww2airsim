@@ -33,7 +33,6 @@ for (const p of PILOTS) {
       await page.goto(launch(p.aircraft, { god: '1' }, at))
       await waitForTerrain(page)
       await page.waitForTimeout(5000)
-      await page.keyboard.press('Slash')
       await page.waitForTimeout(600)
       await page.screenshot({ path: `${OUT}/${p.name}-${name}.png` })
     }
@@ -68,7 +67,6 @@ for (const p of PILOTS) {
     await page.goto(launch(p.aircraft, { god: '1' }, { x: BASE.x + 1700, y: 640, z: BASE.z + 150 }))
     await waitForTerrain(page)
     await page.waitForTimeout(3500)
-    await page.keyboard.press('Slash')
     await page.waitForTimeout(600)
     await page.screenshot({ path: `${OUT}/${p.name}-duck.png` })
   })
