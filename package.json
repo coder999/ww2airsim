@@ -34,7 +34,8 @@
     "fx:pack": "tsx tools/fx/bake.ts",
     "fx:bake": "tsx tools/fx/render.ts && tsx tools/fx/bake.ts",
     "spike:webgpu": "vite --config spike/webgpu-day0/vite.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "capture:e2e": "playwright test --config playwright.capture.config.ts"
   },
   "keywords": [],
   "author": "",

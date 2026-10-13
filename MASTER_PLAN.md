@@ -17,6 +17,15 @@ completed plan has been: **S** = under one plan, **M** = one plan, **L** = 2-4 p
 - **Stale docs:** fixed: §15's "not merged" claims, `clouds.md`, `drape.md`, a `main.ts` comment.
 - **Test-suite cleanup:** done. Correctness and budget tests separated, three trap clones merged into one enrolled test, unwired coast tools deleted with their tests, capture tools gated behind `E2E_CAPTURE=1`, and the slowest unit file down from 108 s to 1 s.
 - **Testing philosophy:** written into [`docs/testing.md`](docs/testing.md#philosophy).
+- **E2E classification refresh (2026-10-13):** capture and measurement
+  programs have an explicit manifest and a separate Playwright configuration,
+  so ordinary correctness and budget runs no longer enumerate them as expected
+  skips. The mixed Takram file was split into correctness, capture and locked
+  budget contracts; its hidden secondary budget gate was removed. The completed
+  `cloudPixels` migration probe was deleted, while the still-unique `1944`
+  drape comparison was retained. A deterministic guard rejects unclassified
+  capture programs, focused tests, hidden Takram budget gates and unapproved
+  E2E skips.
 - **Photoreal Task 14,** which never ran: re-filed into H0.
 - **Controls overlay and pause audio (done and merged 2026-10-11, `ab78775c`):** the redundant in-flight keyboard overlay and its `/` toggle are gone; the pause dossier remains the player-facing control reference. Required data and model attribution links moved to the title screen's About memo. Pausing now silences the master bus as well as loop state, so active radio, weapons, impacts and engines stop until play resumes. Handoff [`docs/handoff/2026-10-11-controls-overlay-pause-audio.md`](docs/handoff/2026-10-11-controls-overlay-pause-audio.md).
 - **Desktop Hangar UI (done 2026-10-11):** desktop now uses a full-width inspection bay, cockpit-metal bottom carousel with previous/next controls, and separate upper-right details and lower-right test-bench overlays. Aircraft, vehicles and ordnance use a generated open-front V-roof hangar; ships remain on water and buildings outside. Pivot gizmos were replaced by an opt-in scale grid. The existing compact phone picker, plain stage and bottom sheet are retained at the mobile breakpoint. Handoff [`docs/handoff/2026-10-11-hangar-desktop-ui.md`](docs/handoff/2026-10-11-hangar-desktop-ui.md).

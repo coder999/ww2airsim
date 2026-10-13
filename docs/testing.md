@@ -53,10 +53,24 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
 - **Every skip has a reason the code can check.** `skipIf(terrain === null)` or `skipIf(!HAVE_BLENDER)` are fine: the data or tool is absent, and the skip names it. An unconditional skip is either:
   - waiting on a named ruling from Mark (say which, and in which handoff); or
   - a known gap, which belongs in "Known gaps" below, not in the suite as a skipped test.
-- **Capture tools are not tests.** A spec whose output is screenshots for a person to read is skipped unless `E2E_CAPTURE=1`. Examples: `capture.spec.ts` and `drapeSpike.spec.ts`; `cloudPixels.spec.ts` has its own variable. The L3, Range Test, B2, M2, M3, L1.1, B4 and E3 ones: `landGapCapture.spec.ts` (shipping, `synth`, `synthsr` or `synth2` at three altitudes), `landVillageCapture.spec.ts` (GPU frame time and a screenshot over the densest village, `LAND_REPEATS` and `LAND_VIEW` for interleaved repeats; run it under `hwlock ryzen-budget`), `rangeTestCapture.spec.ts` (both Range Test missions, read through `__ww2.aircraft()` and `__ww2.ships()`, and a god-mode dive), `impactMarkerCapture.spec.ts` (B2: a bomb and a rocket pair released with the Impact marker on, the marker read through `__ww2.impactMarker()` and then the real impact, chase and cockpit), `aaRangeCapture.spec.ts` (M2: the `aa-range` scenario in God mode at 300 ft and 6,000 ft, and the Range Test with every warship firing, with the AA state read through `__ww2.combat()`) `gunLayingCapture.spec.ts` (M3: a close pass over `aa-range`, with trained/elevated mount poses read through `__ww2.combat().aa.laying`) and `mainBatteryCapture.spec.ts` (M4: the `gunnery-duel` scenario, a Fletcher broadside at the flash and in its smoke, and the range a minute in, read through `__ww2.combat().mainBattery`). `terrainMemoryCapture.spec.ts` (L1.1: one Asset Quality tier per run, `TERRAIN_TIER=low|medium`; bytes fetched, seconds to the physics field, JS heap and the ryzen GPU process's dedicated memory, read over `ssh ryzen`). `tutorialCapture.spec.ts` (B4: Basic Flying flown with real keys through full throttle, take-off, gear up and the climb, each step read from `__ww2.mission()`). `attackRangeCapture.spec.ts` (E2: the `attack-range` scenario in God mode, a dive-bombing run and a torpedo run on the anchored destroyer, read through `__ww2.aircraft()` and `__ww2.ships()`). `shipCollisionCapture.spec.ts` (air-to-ship collision: the Range Test, a level low pass into the anchored destroyer without and with God mode, read through `__ww2.aircraft()` and `__ww2.ships()`). `pursuitAutopilotCapture.spec.ts` (B3: the Damage Range on Shift with 0.25 s taps of Space, hits per tap and the player's peak load read through `__ww2.combat()`). `bomberRangeCapture.spec.ts` (E3: the Bomber Range in God mode, a slow approach from astern on the formation, its gunners read through `__ww2.combat().gunners` and the wingmen through `__ww2.aircraft()`). `entityScalingCapture.spec.ts` (entity scaling, 2026-10-10: N extra AI aircraft and M ships from `?swarmAircraft=&swarmShips=&swarmLayout=tight|mission` (`src/sim/swarm.ts`), GPU p50/p95, draw calls and triangles, then main-thread work, rAF interval and sim ms per tick at 1x and 3x with GPU sampling off, read through `__ww2.cpuFrameSamples()` and `__ww2.entityCounts()`; knobs in its header; run it under `hwlock ryzen-budget`; its headless twin is `tools/ai/swarmSweep.ts`). `E2E_CAPTURE_DIR` picks where the pictures go.
+- **Capture tools are not tests.** `tests/e2e/captureTools.ts` is the
+  authoritative manifest. The normal Playwright configuration ignores every
+  entry, so expected capture skips do not hide unexpected test skips. Run a
+  tool explicitly with `npm run capture:e2e -- <file-or-grep>`;
+  `playwright.capture.config.ts` supplies `E2E_CAPTURE=1`, while
+  `E2E_CAPTURE_DIR` still selects the output directory. Measurement tools that
+  report frame time still run under `hwlock ryzen-budget`.
+  - The manifest includes visual checkpoints, scenario probes, and the L1/L2,
+    combat, cockpit, PBY, vehicle, ship, terrain-memory and entity-scaling
+    measurement programs. Their file headers own their knobs and outputs.
+  - `drapeSpike.spec.ts` remains because its `1944` comparison is not covered
+    by the current `synth`/`synthsr`/`synth2` land captures.
+  - The one-off `cloudPixels.spec.ts` migration probe was retired on
+    2026-10-13; its evidence remains in the dated plan and handoff.
 - **C3 final visual checkpoint.** `cockpitFamiliesCapture.spec.ts` records one matched 1440p
   cockpit frame per flyable aircraft, named by its four-family enrollment, plus four representative
-  views and a fourteen-aircraft contact sheet. Run it with `E2E_CAPTURE=1`; `E2E_CAPTURE_DIR`
+  views and a fourteen-aircraft contact sheet. Run it through
+  `npm run capture:e2e -- cockpitFamiliesCapture.spec.ts`; `E2E_CAPTURE_DIR`
   selects the output. It asserts an empty WebGPU validation and console-error set, while its pixels
   remain evidence for review rather than a correctness oracle.
 - **PBY-5A final visual checkpoint.** `pbyCapture.spec.ts` records three Hangar
@@ -67,7 +81,8 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
   retraction and an empty WebGPU/console-error set.
 - **L1/L2 final visual checkpoint.** `l1l2Capture.spec.ts` records fixed
   procedural/textured building views plus static and fixed-phase shore views.
-  Run it with `E2E_CAPTURE=1`; `E2E_CAPTURE_DIR` selects the output.
+  Run it through `npm run capture:e2e -- l1l2Capture.spec.ts`;
+  `E2E_CAPTURE_DIR` selects the output.
   It asserts an empty WebGPU validation and console-error set, but its pixels
   remain evidence for a person to inspect rather than a correctness oracle.
 - **Delete a test with its code.** Unwired code and its tests go together, because git remembers.
@@ -153,7 +168,7 @@ says nothing about E2E**, and E2E does not gate a deploy: the nightly
   `settingsUi`, `instantReplay` and `audio` (for example: a sea crash sounds
   once live and once more in its replay, by design) check the UI and
   session-level behavior.
-- **Pixel specs are the exception:** `fx*`, `hangar`, `cloudPixels`,
+- **Pixel specs are the exception:** `fx*`, `hangar`,
   `cloudShadow`, `sun` and `ordnance` read the rendered canvas for a specific
   thing (a flash appears, a shadow is where it should be). They need a real
   desktop session, which is why the nightly uses the RDP route below.
@@ -165,8 +180,9 @@ says nothing about E2E**, and E2E does not gate a deploy: the nightly
   `npm run test:e2e` is correctness-only: `playwright.config.ts` excludes
   this title pattern by default. The complementary budget set runs only with
   `E2E_BUDGET_RUN=1`, and the config refuses that mode unless
-  `HWLOCK_HELD` contains `ryzen-budget`. Last full
-  non-budget run, 2026-09-30 from main a2e3e4f: 181 passed, 0 failed, 2 skipped.
+  `HWLOCK_HELD` contains `ryzen-budget`. Counts are deliberately not pinned
+  here because enrollment grows; the overnight record owns each run's exact
+  result.
 
 Checks that need a real GPU and a browser cannot run in `npm run verify` or in
 hosted CI: an adapter guard (confirms the browser is actually using the
