@@ -10,6 +10,16 @@ The Vite hostname/port edit is local scratch, never committed.
 
 ## Checkpoint 1 ruling and next comparison
 
+**Subsequent checkpoint 2 ruling:** Mark prefers the original close-range trees
+and still sees popping and a tree boundary. He approved a narrower follow-up:
+restore original tree shapes, palette and draw range; compare whole-tree
+switching against a pixel-level dissolve at the same range. The canopy material
+is now opt-in, and the rejected shorter-range tree treatment is removed. Both
+fade variants retain altitude draw culling. Use `treeFade=whole|pixel`, original
+ground (`canopy=off`), matched flight recordings and isolated GPU measurements.
+Pause for his next attended check-in. This experiment targets popping, not
+the still-missing distant tree representation.
+
 Mark perceived no difference and asked to roll back any added GPU cost.
 The prototype adds roughly 0.1–0.15 ms in stable reference-GPU comparisons;
 it is now disabled by default, with no map downloads or shader sampling.

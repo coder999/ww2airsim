@@ -2,6 +2,26 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
+test('tree fade comparison preserves near trees and compiles both fragment paths', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  let originalCount = 0
+  for (const mode of ['whole', 'pixel']) {
+    await page.goto(`/?spawnX=-36629&spawnY=457&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&canopy=off&treeFade=${mode}`)
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ fadeMode: mode, fadeStartM: 1400, fadeEndM: 1850, visible: true })
+    const stats = await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())
+    expect(stats!.drawnInstances).toBeGreaterThan(0)
+    if (mode === 'whole') originalCount = stats!.instances
+    else expect(stats!.instances).toBe(originalCount)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.canopy().enabled)).toBe(false)
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  }
+  expect(consoleErrors).toEqual([])
+})
+
 test('canopy loads, stops distant tree draws, and falls back safely when its material is invalid', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })

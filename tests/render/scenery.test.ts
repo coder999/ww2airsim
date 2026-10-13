@@ -287,8 +287,8 @@ describe('scenery placement on the real Leyte field', () => {
     expect(residentCellOffsets(SCENERY_TIERS.medium.treeFadeEndM).length).toBeLessThan(residentCellOffsets().length)
   })
 
-  it('keeps canopy fade seeds attached to trees across repacking and culls invisible altitude work', () => {
-    const vegetation = createVegetation(field, [tacloban], [], true)
+  it('keeps pixel fade seeds attached to trees across repacking and culls invisible altitude work', () => {
+    const vegetation = createVegetation(field, [tacloban], [], 'pixel')
     const crowns = vegetation.object.children[0] as InstancedMesh
     const seeds = () => {
       const result = new Map<string, number>()
@@ -300,6 +300,14 @@ describe('scenery placement on the real Leyte field', () => {
       return result
     }
     vegetation.update(-40900, -30666, 100)
+    expect(vegetation.stats()).toMatchObject({ fadeMode: 'pixel', fadeStartM: 1400, fadeEndM: 1850 })
+    const baseline = createVegetation(field, [tacloban], [], 'whole')
+    baseline.update(-40900, -30666, 100)
+    const original = baseline.object.children[0] as InstancedMesh
+    expect(crowns.count).toBe(original.count)
+    expect(crowns.instanceMatrix.array).toEqual(original.instanceMatrix.array)
+    expect(crowns.instanceColor!.array).toEqual(original.instanceColor!.array)
+    expect(crowns.geometry.getAttribute('normal').array).toEqual(original.geometry.getAttribute('normal').array)
     const before = seeds()
     expect(before.size).toBeGreaterThan(100)
     vegetation.update(-40900 + TREE_CELL_M, -30666, 100)

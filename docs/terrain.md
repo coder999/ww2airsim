@@ -1,10 +1,33 @@
 # Terrain
 
+## Tree pixel-dissolve checkpoint (2026-10-13, isolated branch)
+
+Mark preferred the original close-range trees and reported popping beneath
+the plane in the canopy trial. The worktree now restores original tree shapes,
+colors, flat crown normals and tier distances. The new DEV default is
+`?treeFade=pixel`; `treeFade=whole` selects the original whole-instance fade.
+Both modes use the same material, placement and distance band. High starts
+fading at approximately 0.87 miles and ends at 1.15 miles; Medium fades from
+approximately 0.47 to 0.75 miles. Neither adds a distant tree representation.
+
+`scene/treeFade.ts` supplies derivative-free interleaved gradient noise for
+the fragment alpha threshold. Its screen-pixel pattern has no temporal jitter;
+a stable site seed decorrelates overlapping crowns. Partial coverage trades
+whole-crown switching for visible stipple in the transition band. The existing
+derivative-based `alphaHash` path stays disabled because it failed Tint shader
+compilation on the reference GPU. Production keeps the whole-instance fade.
+
+Both modes retain the conservative altitude draw cull. Diagnostics expose
+`fadeMode`, `fadeStartM`, `fadeEndM`, resident instances and submitted instances.
+`TREE_FADE_CAPTURE=1 E2E_CAPTURE=1` enrolls the matched comparisons in the
+existing land/terrain-cost capture tools. Measurements and review clips are in
+the [pixel-dissolve handoff](handoff/2026-10-13-tree-fade.md).
+
 ## Continuous canopy checkpoint (2026-10-13, isolated branch)
 
-The attended `terrain-lighting` worktree now defaults to a DEV canopy trial.
-`?canopy=off` restores the prior forest material and nearby-tree behavior;
-production remains unchanged. `?trees=off` independently hides nearby meshes.
+The canopy material is now **opt-in** with `?canopy=on`; the worktree defaults
+to the original ground. It no longer changes tree appearance or range.
+Production retains the original surface. `?trees=off` independently hides nearby meshes.
 The [checkpoint handoff](handoff/2026-10-13-canopy.md) holds captures, costs and
 remaining visual limitations. The mountain-lighting trial below remains off.
 
@@ -19,12 +42,10 @@ miles; the color texture mips continuously into the far field. Terrain
 geometry and collision heights do not change. Missing or malformed material
 falls back to procedural forest color, with `__ww2.canopy()` reporting the error.
 
-The trial draws fewer nearby tree cells: High fades from roughly 656 to
-3,281 ft, Medium from 525 to 2,625 ft. Fade seeds now belong to the tree site,
-so repacking the instance buffers no longer changes their thresholds. Smooth
-crown normals and darker linear-RGB colors reduce the contrast with the ground
-canopy. A conservative upper bound on resident tree tops skips both draw calls
-when all trees are vertically beyond range. This does not skip CPU placement.
+The shorter-range, dark, smooth tree treatment shown in the historical canopy
+captures was rejected and removed. A conservative upper bound on resident tree
+tops still skips both draw calls when all trees are vertically beyond range.
+This does not skip CPU placement.
 `__ww2.vegetation().drawnInstances` distinguishes submitted meshes from resident
 instances and the separate DEV group-visibility override.
 

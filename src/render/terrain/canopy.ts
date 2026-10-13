@@ -5,7 +5,7 @@ import { inflateIfGzipped } from '../gunzip.js'
 
 /** Attended DEV prototype; production remains unchanged until accepted. */
 export function canopyEnabled(): boolean {
-  return !!import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('canopy') !== 'off'
+  return !!import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('canopy') === 'on'
 }
 
 let material: DataTexture | null = null

@@ -485,7 +485,7 @@ export type Ww2Diagnostics = {
   readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
   readonly terrainLighting: () => { readonly mode: string; readonly ready: boolean; readonly error: string | null; readonly bytes: number }
   readonly canopy: () => { readonly enabled: boolean; readonly ready: boolean; readonly error: string | null }
-  readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly drawnInstances: number; readonly visible: boolean; readonly tier: string } | null
+  readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly drawnInstances: number; readonly fadeMode: 'whole' | 'pixel'; readonly fadeStartM: number; readonly fadeEndM: number; readonly visible: boolean; readonly tier: string } | null
   /** DEV comparison: isolates tree draws without changing terrain materials or quality. */
   readonly setTreesVisible: (visible: boolean) => void
   /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is

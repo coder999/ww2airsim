@@ -14,7 +14,8 @@ const C = { x: -31629, z: -47829 }
 const FT = 0.3048
 const lightingCapture = process.env.LAND_LIGHTING_CAPTURE === '1'
 const canopyCapture = process.env.LAND_CANOPY_CAPTURE === '1'
-const VIEWS = canopyCapture ? [
+const treeFadeCapture = process.env.TREE_FADE_CAPTURE === '1'
+const VIEWS = canopyCapture || treeFadeCapture ? [
   { name: 'low-noon', x: -36629, z: -47829, y: 1000 * FT, hour: 12 },
   { name: 'ridge-noon', x: -63000, z: -32000, y: 6000 * FT, hour: 12 },
   { name: 'high-noon', x: -38129, z: -47829, y: 13000 * FT, hour: 12 },
@@ -27,7 +28,7 @@ const VIEWS = canopyCapture ? [
   { name: 'alt-4000ft', x: C.x - 6000, y: 4000 * FT },
   { name: 'alt-13000ft', x: C.x - 6500, y: 13000 * FT },
 ] as const
-const VARIANTS = (process.env.DRAPE_VARIANTS ?? (lightingCapture || canopyCapture ? 'off,on' : 'off,synth,synthsr')).split(',')
+const VARIANTS = (process.env.DRAPE_VARIANTS ?? (treeFadeCapture ? 'whole,pixel' : lightingCapture || canopyCapture ? 'off,on' : 'off,synth,synthsr')).split(',')
 test.setTimeout(150_000)
 for (const view of VIEWS) for (const v of VARIANTS) {
   test(`${view.name} ${v}`, async ({ page }) => {
@@ -38,11 +39,11 @@ for (const view of VIEWS) for (const v of VARIANTS) {
     await page.setViewportSize({ width: 1920, height: 1080 })
     const url = spawnUrl({ x: view.x, y: view.y, z: 'z' in view ? view.z : C.z })
     await page.goto(withParams(url, { sceneryView: '1', cloudTier: 'off', oceanTier: 'high',
-      canopy: canopyCapture ? v : 'off',
-      ...(canopyCapture ? { terrainLighting: 'off', timeOfDay: '12', launch: '1' } : {}),
+      canopy: canopyCapture ? v : 'off', treeFade: treeFadeCapture ? v : 'whole',
+      ...(canopyCapture || treeFadeCapture ? { terrainLighting: 'off', timeOfDay: '12', launch: '1' } : {}),
       ...(lightingCapture ? { terrainLighting: v, timeOfDay: String('hour' in view ? view.hour : 12), launch: '1' }
-        : v === 'off' ? {} : { drape: v }) }))
-    if (lightingCapture || canopyCapture) {
+        : canopyCapture || treeFadeCapture || v === 'off' ? {} : { drape: v }) }))
+    if (lightingCapture || canopyCapture || treeFadeCapture) {
       // Quick launch + sceneryView deliberately stays at tick zero without
       // a title dialog, so the ordinary startGame helper cannot detect it.
       await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30000 })
@@ -53,7 +54,7 @@ for (const view of VIEWS) for (const v of VARIANTS) {
       .toMatchObject({ enabled: true, ready: true, error: null })
     await page.waitForTimeout(3000)
     await page.waitForTimeout(800)
-    await page.screenshot(lightingCapture || canopyCapture
+    await page.screenshot(lightingCapture || canopyCapture || treeFadeCapture
       ? { path: `${OUT}/${view.name}-${v}.jpg`, type: 'jpeg', quality: 92 }
       : { path: `${OUT}/${view.name}-${v}.png` })
     expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
@@ -61,7 +62,7 @@ for (const view of VIEWS) for (const v of VARIANTS) {
   })
 }
 
-if (canopyCapture) for (const variant of VARIANTS) test(`canopy moving pass ${variant}`, async ({ browser, baseURL }) => {
+if (canopyCapture || treeFadeCapture) for (const variant of VARIANTS) test(`${treeFadeCapture ? 'tree fade' : 'canopy'} moving pass ${variant}`, async ({ browser, baseURL }) => {
   mkdirSync(OUT, { recursive: true })
   const context = await browser.newContext({ ...(baseURL ? { baseURL } : {}), viewport: { width: 1280, height: 720 },
     recordVideo: { dir: `${OUT}/video`, size: { width: 1280, height: 720 } } })
@@ -72,10 +73,11 @@ if (canopyCapture) for (const variant of VARIANTS) test(`canopy moving pass ${va
   const video = page.video()!
   try {
     await page.goto(withParams(spawnUrl({ x: -36629, z: -47829, y: 1500 * FT }), {
-      sceneryView: '1', look: '0,-15', launch: '1', timeOfDay: '12', cloudTier: 'off', oceanTier: 'high', canopy: variant, terrainLighting: 'off',
+      sceneryView: '1', look: '0,-15', launch: '1', timeOfDay: '12', cloudTier: 'off', oceanTier: 'high', canopy: canopyCapture ? variant : 'off', treeFade: treeFadeCapture ? variant : 'whole', terrainLighting: 'off',
     }))
     await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
-    if (variant !== 'off') await page.waitForFunction(() => (window as DiagWindow).__ww2!.canopy().ready)
+    if (canopyCapture && variant !== 'off') await page.waitForFunction(() => (window as DiagWindow).__ww2!.canopy().ready)
+    if (treeFadeCapture) await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ fadeMode: variant, fadeStartM: 1400, fadeEndM: 1850 })
     await page.waitForTimeout(3000)
     const before = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraftPositionM())
     const tick = await page.evaluate(() => (window as DiagWindow).__ww2!.tick())
