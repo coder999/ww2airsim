@@ -44,7 +44,6 @@ import { createCombat } from '../../src/sim/weapons/combat.js'
 import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
-const b17 = loadAircraftSpec('b-17-flying-fortress')
 const avenger = loadAircraftSpec('tbm-3-avenger')
 const deg = (rad: number) => (rad * 180) / Math.PI
 
