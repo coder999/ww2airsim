@@ -14,8 +14,8 @@ The shared distant-tree controller now supports coarse cells: each contains
 retain the original land-cover, slope, water and clearing exclusions, but the
 wider group footprint is approximate. Each group is still one two-triangle
 card, three times an individual stand-in's radius. This adds one transparent
-draw and no shadows. Stable slots and incremental loading are shared with the
-accepted layer. The new layer has its own roughly 1 ms loader slice, not a
+draw, receives the existing cloud-shadow map, and casts no shadows. Stable
+slots and incremental loading are shared with the accepted layer. The new layer has its own roughly 1 ms loader slice, not a
 single combined slice with the accepted trees.
 
 A mipmapped canopy material blends onto forest/mangrove terrain by camera
@@ -56,7 +56,8 @@ draws neither representation. The near-tree range and appearance are unchanged.
 Each stand-in is a camera-facing two-triangle crown with a three-lobe analytic
 silhouette, a soft edge and rounded normal. It uses the existing sun/sky/fog
 lighting and the same deterministic sites, palette, land cover and exclusions
-as the detailed trees. It has no trunk, texture asset or shadow draw. The
+as the detailed trees, including the existing cloud-shadow map. It has no
+trunk, texture asset or shadow draw. The
 stand-ins blend in across the near-tree fade band and blend out at their outer
 range; they are rounder than the detailed tree art and do not guarantee an
 invisible transition. Camera roll does not change their crown proportions.

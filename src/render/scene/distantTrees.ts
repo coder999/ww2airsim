@@ -65,6 +65,9 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
   material.alphaTestNode = float(0)
   const object = new Mesh(geometry, material)
   object.name = groves ? 'distant crown groups' : 'distant tree crowns'
+  // Like the near forest, receive the sun's existing cloud-shadow map.
+  // These stand-ins do not cast shadows or add a shadow-rendering pass.
+  object.receiveShadow = true
   object.frustumCulled = false
   object.renderOrder = groves ? -2 : -1 // Draw distant cards before the nearby blended crowns.
   const tint = new Color()

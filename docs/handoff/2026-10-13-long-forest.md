@@ -203,3 +203,28 @@ has no GPU; browser correctness and earlier locked measurements are separate.
 
 Focused deterministic verification: 110 tests passed across eight terrain,
 settings and classification files, plus both existing production-build tests.
+
+
+The first full gate caught an omitted cloud-shadow receiver flag on the two
+new crown layers. The existing `cloudShadow.test.ts` contract stayed unchanged;
+the renderer now receives the sun's cloud-shadow map like nearby trees, without
+casting shadows or adding a shadow-rendering pass. All 12 focused cloud-shadow
+and distant-tree tests pass after the fix. Earlier timing tables predate this
+receiver fix; its extra shadow sampling has not been separately timed.
+
+
+Final local gate on merged main: `npm run verify` passed all 441 files,
+with 6,413 tests passed and 12 existing named skips. Typecheck, lint and
+dependency boundaries passed, followed by a successful production build with
+the existing large-chunk warning. The initial 20 settings/terrain browser
+checks passed on Ryzen. All 14 post-fix cloud-shadow and terrain browser
+checks also passed against merged main, including shader compilation, fallback
+and tier swaps. Cloud-shadow captures were inspected. These correctness runs
+were not locked GPU measurements and do not establish a performance pass.
+
+Slot 2 now serves main through the local `ww2airsim-slot2-dev.service`, using
+an ignored `.vite/slot2.config.ts` wrapper. Primary dev and slot 2 both returned
+HTTP 200. Worktree browser evidence and verification logs were preserved in
+main's ignored `test-results/terrain-closeout/`; committed checkpoint captures
+remain in this handoff's linked folders. Shared terrain/model caches and
+Playwright infrastructure remain in place.

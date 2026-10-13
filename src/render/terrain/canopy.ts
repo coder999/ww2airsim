@@ -4,7 +4,7 @@ import { float, mix, smoothstep, texture, uniform } from 'three/tsl'
 import type { Node } from 'three/webgpu'
 import { inflateIfGzipped } from '../gunzip.js'
 
-/** Attended DEV prototype; production remains unchanged until accepted. */
+/** Full-range DEV comparison; production uses only the accepted distant blend. */
 export function canopyEnabled(): boolean {
   return !!import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('canopy') === 'on'
 }

@@ -5,7 +5,9 @@ and confirmed pauses at these visual checkpoints: mountain lighting,
 canopy/surface improvements, final comparison. Automated checks finish before
 each checkpoint; viewing is not a test gate.
 
-**Checkout:** `terrain-lighting`, `ww2airsim-terrain-lighting`; slot 2, port 5175.
+**Development checkout:** `terrain-lighting`, `ww2airsim-terrain-lighting`;
+slot 2, port 5175. Mark authorized merging and retiring this checkout after
+the accepted visual handoff; the reusable slot will serve main.
 The Vite hostname/port edit is local scratch, never committed.
 
 ## Checkpoint 1 ruling and next comparison
