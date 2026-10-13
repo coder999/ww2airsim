@@ -11,6 +11,14 @@ Figure 1 and Section I pp. 1-4, read 2026-10-12:
   27.229 m; float length 10 ft 3/8 in / 3.057 m                         CITED
   two R-1830-92 engines; three-blade, 12 ft / 3.658 m propellers        CITED
 
+Catalina Preservation Society specifications, read 2026-10-12:
+  main-gear tire 47 in contour; nose-gear tire 30 in contour            CITED
+
+The side-mounted main-gear linkage and its inward/upward folding sequence are
+VISUALLY REFERENCED from the PBY-5A hydraulic-gear animation at Aviation
+Rapture, supplied by Mark on 2026-10-12. The geometry here is original and
+simplifies the real multi-link motion to the renderer's single rigid hinge.
+
 AN 01-5MA-2 Section V pp. 635-665: bow .30-cal installation, two waist
 .50-cal positions, tunnel .30-cal position, two fore/aft Mark 51-7 bomb
 racks under each wing, and two Mark 13-1/13-2 torpedoes as an alternate
@@ -39,6 +47,9 @@ TIP_CHORD = 3.048
 SWEEP_DEG = 2.9667
 DIHEDRAL_DEG = 2.3333
 PROP_DIAMETER = 3.658
+GROUND_Y = -2.40
+MAIN_WHEEL_RADIUS = 47 * 0.0254 / 2
+NOSE_WHEEL_RADIUS = 30 * 0.0254 / 2
 FLOAT_HALF_TREAD = 27.229 / 2
 FLOAT_LENGTH = 3.057
 TAIL_SPAN = 9.296
@@ -141,30 +152,42 @@ for i, z in enumerate((-nac_z, nac_z), start=1):
         m.propeller('dark', (2.17, 2.42, z), PROP_DIAMETER, 3, 0.42, 0.28, 0.38,
                     node=f'Prop{i}', blade_sections=[(0.13, 0.9, 42), (0.38, 1.05, 32), (0.70, 0.85, 23), (1.0, 0.42, 16)])
 
-# Retractable PBY-5A tricycle gear. Tread is cited. The mains emerge from
-# hull-side trunnions and angle out to the cited wheel tread; yoke/brace detail
-# and the rigid one-hinge retraction are estimates from manual photographs.
-ground_y = -3.62
+# Retractable PBY-5A tricycle gear. The cited tires sit close beside the keel,
+# as in the three-view and period photographs, rather than at the ends of long
+# conventional oleos. Each side is a compact triangular yoke: two hull-side
+# pivots converge on a shoulder, a short carrier reaches the axle, and crossed
+# radius/actuator braces make the unusual mechanism readable. The real links
+# change their relative angles through travel; the game's whole assembly turns
+# inward about the upper hull pivot as one rigid visual approximation.
+ground_y = GROUND_Y
 with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
         hull_z = side * 1.48
-        knee = (-1.35, -1.32, side * 2.12)
-        axle = (-1.35, ground_y + 0.48, side * 2.5525)
-        # A recessed backing plate keeps the leg visibly rooted in the hull.
-        m.box('dark', (-1.35, -0.76, side * 1.49), (1.34, 0.48, 0.10))
-        # The two arms form the side-mounted triangular yoke seen in PBY-5A photos.
-        m.strut('dark', (-1.92, -0.72, hull_z), knee, 0.070, 0.055, sides=8, node=name)
-        m.strut('dark', (-0.78, -0.72, hull_z), knee, 0.070, 0.055, sides=8, node=name)
-        m.strut('dark', knee, axle, 0.085, 0.065, sides=10, node=name)
-        m.strut('dark', (-0.62, -0.76, hull_z), (-1.05, -2.08, side * 2.31),
-                0.045, 0.035, sides=8, node=name)
-        m.revolve('dark', (axle[0], axle[1], axle[2] - 0.14), (0, 0, 1),
-                  [(0.0, 0.48), (0.28, 0.48)], 16, node=name)
-        m.revolve('dark', (axle[0], axle[1], axle[2] - 0.18), (0, 0, 1),
-                  [(0.0, 0.13), (0.36, 0.13)], 12, node=name)
+        front_pivot = (-1.92, -0.42, hull_z)
+        rear_pivot = (-0.78, -0.42, hull_z)
+        shoulder = (-1.35, -0.86, side * 2.06)
+        carrier = (-1.35, -1.35, side * 2.39)
+        axle = (-1.35, ground_y + MAIN_WHEEL_RADIUS, side * 2.5525)
+        # A shallow recess/backing plate roots the mechanism in the hull side.
+        m.box('dark', (-1.35, -0.64, side * 1.49), (1.42, 0.38, 0.10))
+        # Upper fork, short oleo/wheel carrier, and the crossed radius/actuator links.
+        m.strut('dark', front_pivot, shoulder, 0.075, 0.055, sides=8, node=name)
+        m.strut('dark', rear_pivot, shoulder, 0.075, 0.055, sides=8, node=name)
+        m.strut('dark', shoulder, carrier, 0.090, 0.068, sides=10, node=name)
+        m.strut('dark', carrier, axle, 0.105, 0.075, sides=10, node=name)
+        m.strut('dark', (-2.02, -0.72, hull_z), carrier,
+                0.050, 0.036, sides=8, node=name)
+        m.strut('dark', (-0.68, -0.72, hull_z), (-1.35, -1.12, side * 2.27),
+                0.045, 0.032, sides=8, node=name)
+        tire_width = 0.34
+        m.revolve('dark', (axle[0], axle[1], axle[2] - tire_width / 2), (0, 0, 1),
+                  [(0.0, MAIN_WHEEL_RADIUS), (tire_width, MAIN_WHEEL_RADIUS)], 20, node=name)
+        m.revolve('dark', (axle[0], axle[1], axle[2] - 0.19), (0, 0, 1),
+                  [(0.0, 0.16), (0.38, 0.16)], 16, node=name)
     nose = (5.15, -0.92, 0.0)
-    m.gear_leg('dark', nose, nose[1] - ground_y, 0.35, 0.22, node='GearNose')
-    m.strut('dark', nose, (4.35, -2.20, 0), 0.045, sides=8, node='GearNose')
+    m.gear_leg('dark', nose, nose[1] - ground_y, NOSE_WHEEL_RADIUS, 0.22, node='GearNose')
+    m.strut('dark', nose, (4.55, ground_y + NOSE_WHEEL_RADIUS + 0.18, 0),
+            0.045, sides=8, node='GearNose')
 
 # Retractable stabilizing floats. Each complete assembly turns inboard about a fore-aft hinge.
 for side, node in ((-1, 'FloatL'), (1, 'FloatR')):

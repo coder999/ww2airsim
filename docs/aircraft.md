@@ -615,6 +615,12 @@ Detail: [`docs/handoff/2026-10-12-pby-5a-water-operations.md`](handoff/2026-10-1
 - **Floats are not wheel gear.** `FloatL` and `FloatR` have their own rig pivots.
   The current control compromise uses `flapFraction`, so the flight card marks
   flap direction inapplicable and the aircraft has no flap lift bonus.
+- **Amphibian gear needs its characteristic ground stance.** The PBY-5A's
+  short, hull-side main assemblies use 47-inch tires, a compact triangular
+  yoke and crossed braces. The resulting keel clearance is about 11 inches.
+  A 130-degree inward/upward rigid rotation approximates the real multi-link
+  retraction path; it is deliberately not presented as a literal mechanism
+  simulation.
 - **Different stores need different station sets.** Four bomb racks and two
   inboard torpedo stations are represented by `racks` and `torpedoRacks`; a
   loadout changes both the inventory and the visible suspension points.

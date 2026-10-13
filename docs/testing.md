@@ -55,8 +55,9 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
   views and a fourteen-aircraft contact sheet. Run it with `E2E_CAPTURE=1`; `E2E_CAPTURE_DIR`
   selects the output. It asserts an empty WebGPU validation and console-error set, while its pixels
   remain evidence for review rather than a correctness oracle.
-- **PBY-5A final visual checkpoint.** `pbyCapture.spec.ts` records two Hangar
-  configurations plus the torpedo-loaded aircraft afloat and after water
+- **PBY-5A final visual checkpoint.** `pbyCapture.spec.ts` records three Hangar
+  configurations (including the landing gear at mid-cycle) plus the
+  torpedo-loaded aircraft afloat and after water
   takeoff. `waterOperations.spec.ts` is the corresponding correctness E2E:
   it asserts the authored afloat state, alternate racks, takeoff, float
   retraction and an empty WebGPU/console-error set.

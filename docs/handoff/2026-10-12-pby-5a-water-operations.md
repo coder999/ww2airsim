@@ -117,9 +117,19 @@ the supplied PBY-5A torpedo photograph rather than preserving those estimates:
 - the parasol-strut upper attachments moved outboard to 6.20 m so the modeled
   order matches the manual: hull, engine, strut attachment, then store station;
 - the cited 16 ft 9 in main-wheel tread is unchanged, but each main assembly is
-  now a triangular yoke rooted in a hull-side trunnion/recess. Its 100-degree
-  rigid animation is still an estimate, and passes both rise/inboard-motion and
-  retracted-surface containment checks.
+  now rooted in a hull-side trunnion/recess.
+
+The next visual review used the supplied
+[PBY landing-gear animation](https://elpoderdelasgalaxias.wordpress.com/2018/12/12/consolidated-pby-5a-catalina-in-out/)
+and the [Catalina Preservation Society specifications](https://pbycatalina.com/specifications/)
+to correct the overly tall first assembly. The model now uses the documented
+47-inch main and 30-inch nose tire contours, compact hull-side triangular yokes,
+short wheel carriers and crossed braces. It stands with about 11 inches (0.29 m)
+of keel clearance rather than the former 4.7 ft (1.42 m). A 130-degree
+inward/upward rotation gives the rigid `GearL`/`GearR` parts the silhouette and
+travel of the real multi-link mechanism without claiming exact linkage
+articulation. Regression coverage pins the low stance, wheel-ground fit, inward
+rise and retracted-surface containment.
 
 `StoreMountSchema.chordFraction` is the general content hook for genuinely
 distinct fore/aft wing stations. `models:mounts` continues to fit the vertical
@@ -137,6 +147,7 @@ draw calls.
 ## Captures
 
 - [Gear and floats down, four bombs](captures/2026-10-12-pby-5a/pby-5a-hangar-gear-floats-down-bombs.png)
+- [Landing gear at mid-cycle](captures/2026-10-12-pby-5a/pby-5a-hangar-gear-mid-cycle.png)
 - [Clean side profile](captures/2026-10-12-pby-5a/pby-5a-hangar-clean-side.png)
 - [Afloat with two Mk 13 torpedoes](captures/2026-10-12-pby-5a/pby-5a-afloat-torpedoes.png)
 - [On the step with twin wake and planing spray](captures/2026-10-12-pby-5a/pby-5a-on-step-wake-torpedoes.png)
@@ -173,6 +184,12 @@ draw calls.
   E2E and the three-checkpoint afloat/on-step/airborne capture E2E also passed.
   The gate caught and repaired both stale radio-silence keys after the mission
   landing instructions were clarified.
+- Landing-gear review gate: the deterministic geometry/rig subset passed 25
+  checks; ground, water, sortie and weapons regressions passed 259 checks;
+  runway and water-takeoff E2Es passed; the six-view capture tool passed with
+  no validation or console errors; and the full gate passed 435 test files,
+  6,382 tests, and 12 intentional skips. The generated GLB is 935,172 bytes,
+  28,840 triangles and 17 draw calls.
 
 No budget-titled browser spec was changed or run. The browser checks above are
 correctness tests; the repository continues to require exclusive

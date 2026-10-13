@@ -30,6 +30,10 @@ test('Catalina Hangar and water-operation views', async ({ page }) => {
   await page.evaluate(settle)
   await page.locator('#hangar-canvas').screenshot({ path: `${OUT}/pby-5a-hangar-gear-floats-down-bombs.png` })
 
+  await page.evaluate(() => (window as HangarWindow).__hangar!.pose({ gearFraction: 0.5, flapFraction: 1, bombs: true }))
+  await page.evaluate(settle)
+  await page.locator('#hangar-canvas').screenshot({ path: `${OUT}/pby-5a-hangar-gear-mid-cycle.png` })
+
   await page.evaluate(() => (window as HangarWindow).__hangar!.camera('side'))
   await page.evaluate(() => (window as HangarWindow).__hangar!.pose({ gearFraction: 0, flapFraction: 0, bombs: false }))
   await page.evaluate(settle)

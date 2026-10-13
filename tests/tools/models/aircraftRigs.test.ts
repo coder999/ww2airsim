@@ -115,6 +115,21 @@ it('control surfaces: exactly the promoted airframes, each driving its applicabl
   }
 })
 
+it('the PBY-5A stands with its boat-hull keel close to the ground on the short side gear', async () => {
+  const id = 'pby-5a-catalina'
+  const doc = await modelIO().readBinary(new Uint8Array(readFileSync(aircraftModelPath(id))))
+  // The skin bake joins fixed details into pby5a_dark, so isolate the central step/keel by its
+  // authored station and beam. This excludes the lower, aft tunnel gun and the wing stores.
+  const keel = worldPositions(one(doc, 'pby5a_dark')).filter((p) => p[0] >= -2.25 && p[0] <= -1.55 && Math.abs(p[2]) <= 0.9)
+  expect(keel.length).toBeGreaterThan(0)
+  const keelY = Math.min(...keel.map((p) => p[1]))
+  const clearanceM = loadAircraftSpec(id).gear.heightM + keelY
+  // Scaled from the public three-view after Mark's gear review, 2026-10-12: visibly clear, but only
+  // about a foot beneath the flying-boat keel. The old conventional-looking stalks left 1.75 m.
+  expect(clearanceM).toBeGreaterThan(0.20)
+  expect(clearanceM).toBeLessThan(0.50)
+})
+
 describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (R3)', (id, rig) => {
   const path = aircraftModelPath(id)
   let doc: Document
