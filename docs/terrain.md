@@ -1,10 +1,11 @@
 # Terrain
 
-## Distant crown stand-ins (2026-10-13, opt-in prototype)
+## Accepted distant crown stand-ins (2026-10-13, isolated branch)
 
-`?distantTrees=on` adds a DEV-only forest extension beyond the accepted soft
-near trees. Production and an ordinary DEV visit keep it off pending visual
-review. High extends crowns to approximately 2.6 miles, fading over the final
+Mark accepted the distant extension after the visual check-in. It now defaults
+on in DEV and production builds on this branch; `?distantTrees=off` retains
+the DEV comparison. It has not been merged or deployed.
+High extends crowns to approximately 2.6 miles, fading over the final
 1.1 miles; Medium extends to 1.7 miles, fading over the final 0.75 miles. Low
 draws neither representation. The near-tree range and appearance are unchanged.
 

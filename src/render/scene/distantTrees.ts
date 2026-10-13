@@ -11,7 +11,7 @@ const LOAD_SLICE_MS = 1
 const MAX_CELLS = residentCellOffsets(FAR_RANGES.high[1]).length
 
 export function distantTreesEnabled(): boolean {
-  return !!import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('distantTrees') === 'on'
+  return !(import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('distantTrees') === 'off')
 }
 
 export type DistantTreeStats = {

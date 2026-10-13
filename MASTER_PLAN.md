@@ -440,9 +440,10 @@ soft fade: continuous transparency only in the transition band, with near trees
 opaque. It is now the DEV and production-build default on the isolated branch,
 with measured added GPU cost of about 0.21–0.22 ms; the distant boundary remains.
 Not merged or deployed. [Soft-fade handoff](docs/handoff/2026-10-13-tree-soft.md).
-Next attended trial, requested by Mark: cheap distant crown stand-ins extend
-the High forest to approximately 2.6 miles with a wide fade. DEV opt-in only;
-visual acceptance and cost judgment pending.
+Mark accepted the distant crown extension: High now reaches approximately
+2.6 miles with a wide fade. It defaults on in DEV and production builds on
+the isolated branch, adding 0.07–0.29 ms median GPU time in the measured views.
+Not merged or deployed.
 [Distant-tree handoff](docs/handoff/2026-10-13-distant-trees.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).

@@ -333,7 +333,7 @@ describe('scenery placement on the real Leyte field', () => {
   })
 
   it('keeps the soft transition aligned with opaque trees through movement, tiers and altitude culling', () => {
-    const vegetation = createVegetation(field, [tacloban], [], 'soft')
+    const vegetation = createVegetation(field, [tacloban], [], 'soft', false)
     const meshes = vegetation.object.children as InstancedMesh[]
     expect(meshes).toHaveLength(4)
     for (const i of [0, 1]) {

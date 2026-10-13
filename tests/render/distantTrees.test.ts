@@ -1,6 +1,21 @@
-import { expect, it } from 'vitest'
-import { createDistantTrees } from '../../src/render/scene/distantTrees.js'
+import { expect, it, vi } from 'vitest'
+import { createDistantTrees, distantTreesEnabled } from '../../src/render/scene/distantTrees.js'
 import { residentCellOffsets, TREE_CELL_M } from '../../src/render/scene/treeCells.js'
+
+it('defaults to the accepted extension and limits the off comparison to DEV', () => {
+  try {
+    vi.stubEnv('DEV', true)
+    vi.stubGlobal('location', { search: '' })
+    expect(distantTreesEnabled()).toBe(true)
+    vi.stubGlobal('location', { search: '?distantTrees=off' })
+    expect(distantTreesEnabled()).toBe(false)
+    vi.stubEnv('DEV', false)
+    expect(distantTreesEnabled()).toBe(true)
+  } finally {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  }
+})
 
 it('fills incrementally, preserves resident slots, and clears reused slots and quality changes', () => {
   let barren = false

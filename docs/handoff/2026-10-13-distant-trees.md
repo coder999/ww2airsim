@@ -1,9 +1,9 @@
 # Distant tree stand-ins — October 13, 2026
 
-An attended visual experiment requested by Mark after accepting soft fading.
-The question is whether inexpensive stand-ins can make the tree border less
-noticeable. Work is isolated on `terrain-lighting`, served in slot 2. No merge
-or deployment; stand-ins remain DEV opt-in pending review.
+Accepted by Mark after the visual check-in: "progress! i like it". The distant
+stand-ins now default on in DEV and production builds alongside the accepted
+soft fade. Work is isolated on `terrain-lighting`, served in slot 2. No merge
+or deployment; `?distantTrees=off` remains a DEV comparison.
 
 ## Review
 
@@ -47,7 +47,8 @@ previous boundary. **The stand-ins look rounder than the detailed trees.**
 Their transition is not invisible, and the outer fade still ends at a finite
 range. This experiment has not established that the border disappears.
 Transparent instances are unsorted, and initial loading can be seen before
-the distant layer finishes filling. Motion acceptance remains pending.
+the distant layer finishes filling. Mark accepted the visual result with
+these limits; it does not establish an invisible boundary from every viewpoint.
 
 ## Measurements
 
@@ -113,7 +114,12 @@ captures after the camera-axis correction, and production build. The build
 reported the existing large-chunk warning. Measurement results are above.
 After adding the CPU slice: typecheck, focused lint, the two streaming tests
 and all four on captures passed again, including zero console/GPU errors.
+After acceptance: 32 focused tests, typecheck, lint and production build passed.
+The new default test covers DEV opt-out and production enablement. The test
+specifically covering the four near-tree meshes now explicitly disables the
+distant layer; general scenery tests exercise the accepted default. Rendering
+and streaming code are unchanged from the measured version.
 
-**Known gaps:** visual acceptance, transparent overlap, other viewing angles,
+**Known gaps:** transparent overlap, other viewing angles,
 hardware/resolutions, and long-flight CPU/streaming behavior. No full-suite
 merge gate was run for this checkpoint. The plan was emailed as required.
