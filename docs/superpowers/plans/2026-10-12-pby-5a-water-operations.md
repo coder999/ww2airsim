@@ -99,7 +99,7 @@ Hangar and water-operation captures.
     measurements, tuning residuals, exact test evidence, captures, and
     deferred work. Email the handoff.
 
-- [ ] 11. Merge and clean up
+- [x] 11. Merge and clean up
   - Rebase or merge current `origin/main` into the branch and rerun affected
     tests.
   - Merge to nexus `main`, run `npm run verify` through `remote-run`, push,

@@ -104,7 +104,8 @@ airborne above 10 m inside 60 simulated seconds.
   - Catalina runway takeoff and bomb release via `flyableAll`: 1 passed;
   - full Hangar: 26 passed (9.3 min);
   - final capture tool: 1 passed.
-- Full `npm run verify`: 432 test files passed; 6,355 tests passed and 12 skipped.
+- Final post-merge `npm run verify`: 434 test files passed; 6,370 tests passed
+  and 12 skipped.
 
 No budget-titled browser spec was changed or run. The browser checks above are
 correctness tests; the repository continues to require exclusive
@@ -122,6 +123,8 @@ shared claim so CPU work cannot overlap one.
   instead of assuming every torpedo is carried by the ordinary `bombs` loadout.
 - Replaced the ground harness's stale fixed 40 m/s pull threshold with a value
   derived from each aircraft's stall speed; no airframe exemption was added.
+- The post-merge gate also removed an unused B-17 panel fixture and corrected
+  stale Catalina library-roster and alphabetical flyable-order expectations.
 
 ### Tests still valid
 
