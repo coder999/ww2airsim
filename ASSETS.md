@@ -352,6 +352,11 @@ pipeline's output, which is a derivative work of them:
   pinned in `tests/build/dist.test.ts`.
 - `content/terrain/NOTICE.md` — the licence notice that must travel WITH the
   derived data; see Article 6(b)/6(c) below.
+- `content/terrain-lighting/` (2026-10-13 prototype): directional horizon and
+  sky-visibility rasters derived from the same L1 terrain by
+  `tools/terrain/bakeHorizons.ts`. The header records its source SHA-256;
+  its `NOTICE.md` carries the same Copernicus notice. These contain elevation
+  derivatives only, no third-party photographic imagery.
 - The output is byte-reproducible from the same cache: the SHA-256 of every
   committed file, and of all eight source tiles, is pinned as a literal in
   `tests/tools/terrainBuild.test.ts` rather than recompared run-to-run.

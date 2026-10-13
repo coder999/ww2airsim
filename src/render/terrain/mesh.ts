@@ -48,6 +48,7 @@ import { aerialPerspective, farFadeTarget, farFadeWeight } from '../scene/atmosp
 import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
+import { createTerrainOcclusion, type TerrainOcclusion } from './occlusion.js'
 
 /**
  * The terrain, as three objects: a grid of quads shared by every patch, one
@@ -83,6 +84,7 @@ export type TerrainMesh = {
   setSurfaceDetail(enabled: boolean): void
   /** True only when textures exist AND detail is enabled. */
   readonly surfaceDetail: boolean
+  readonly occlusion: TerrainOcclusion
 }
 
 type RingMaterial = { readonly material: MeshBasicNodeMaterial; setDetail(on: boolean): void }
@@ -293,6 +295,7 @@ function createRingMaterial(
   cover: CoverNodes,
   shadow: CloudShadowHandle | undefined,
   textures: SurfaceTextures | null,
+  occlusion: TerrainOcclusion,
 ): RingMaterial {
   const material = new MeshBasicNodeMaterial()
 
@@ -342,7 +345,10 @@ function createRingMaterial(
   // above this line is the vertex stage, shared by both graphs and never
   // rebuilt.
   const colorFor = (detail: SurfaceDetailNodes | null): Node<'vec3'> => {
-    const surf = terrainSurface(varying(worldXZ), varying(heightM), varying(slope), cover, detail ?? undefined)
+    // Reuse this interpolator: allocating one per consumer can exceed
+    // WebGPU's 16 vertex-output locations on the textured terrain path.
+    const surfaceXZ = varying(worldXZ)
+    const surf = terrainSurface(surfaceXZ, varying(heightM), varying(slope), cover, detail ?? undefined)
     const albedo = surf.albedo
     // Photoreal Task 13: the shading normal carries a procedural detail bump
     // (surface.ts `detailSlopeNode`, two scales of the albedo's value noise)
@@ -356,7 +362,7 @@ function createRingMaterial(
     // `detailSlopeNode` already clamps its own sum, so on the procedural path
     // this is clamp(clamp(x)) = clamp(x): unchanged.
     const meshNormal = varying(normal)
-    const procedural = detailSlopeNode(varying(worldXZ))
+    const procedural = detailSlopeNode(surfaceXZ)
     const summed = surf.detailSlope ? procedural.add(surf.detailSlope) : procedural
     const detailSlope = clampSlopeNode(summed).mul(detailNormalFadeNode(varying(eyeDistanceM)))
     const shadingNormal = normalize(meshNormal.div(meshNormal.y).sub(vec3(detailSlope.x, 0, detailSlope.y)))
@@ -375,8 +381,9 @@ function createRingMaterial(
     // HemisphereLight does (lighting.ts sets both from one palette). The up
     // term includes the cumulus deck's scattered skylight, as the
     // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
-    const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode), shadingNormal.y.mul(0.5).add(0.5))
-    const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT))))
+    const visibility = occlusion.nodes(surfaceXZ)
+    const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode).mul(visibility.sky), shadingNormal.y.mul(0.5).add(0.5))
+    const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))))
 
     // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
     // interpolated like the old fog ramp: the LUT is 32x32 per slice and
@@ -528,6 +535,7 @@ export function createTerrainMesh(
   const { position, index } = createGridAttributes()
   const cameraXZ = uniform(new Vector2())
   const cover = createCoverNodes(COVER_HEADER)
+  const occlusion = createTerrainOcclusion(header.halfExtentM)
 
   const newHeightTexture = (n: number): DataTexture => {
     // Zero-filled until `setLevel` lands: zero is sea level, and the sea is
@@ -631,6 +639,7 @@ export function createTerrainMesh(
       cover,
       shadow,
       surfaceTextures,
+      occlusion,
     )
     ringMaterials.push(ringMaterial)
     const mesh = new Mesh(geometry, ringMaterial.material)
@@ -654,6 +663,7 @@ export function createTerrainMesh(
 
   return {
     object,
+    occlusion,
 
     levelTexture,
     wholeLevel,

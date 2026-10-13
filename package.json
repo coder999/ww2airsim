@@ -19,6 +19,7 @@
     "golden:regen": "tsx tools/golden/generate.ts",
     "bathy:build": "tsx tools/bathy/build.ts",
     "terrain:build": "tsx tools/terrain/build.ts",
+    "terrain:lighting": "tsx tools/terrain/bakeHorizons.ts",
     "landcover:build": "tsx tools/landcover/build.ts",
     "shoreline:build": "tsx tools/shoreline/build.ts",
     "sky:build": "tsx tools/sky/build.ts",

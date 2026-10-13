@@ -2,6 +2,26 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
+test('terrain lighting comparison modes load, compile and fail safely with an invalid map', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  for (const mode of ['off', 'sky', 'sun', 'on']) {
+    await page.goto(`/?spawnX=-63000&spawnY=1829&spawnZ=-32000&sceneryView=1&launch=1&cloudTier=off&terrainLighting=${mode}`)
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.terrainLighting())).toMatchObject({ mode, ready: mode !== 'off', error: null })
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  }
+  await page.route('**/terrain-lighting/header.json', route => route.fulfill({ contentType: 'application/json', body: '{"version":-1}' }))
+  await page.reload()
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2?.terrainLighting().error)).toContain('does not match')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.terrainLighting().ready)).toBe(false)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
+
 const surface = (page: Page) =>
   page.evaluate(() => (window as DiagWindow).__ww2!.terrainSurface())
 const errors = (page: Page) =>

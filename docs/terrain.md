@@ -1,5 +1,39 @@
 # Terrain
 
+## Terrain lighting prototype (2026-10-13, isolated branch)
+
+`terrain-lighting` tests mountain self-shadow and diffuse sky enclosure with
+shipping ground colors; no drape is enabled. The attended checkpoints and
+worktree/slot are in [the plan](superpowers/plans/2026-10-13-terrain-lighting.md).
+
+`tools/terrain/bakeHorizons.ts` derives 16 directional horizons from the L1
+DEM out to 15.5 miles, plus an integrated sky-visibility map normalized against
+the receiver's local slope. An open inclined plane remains fully sky-lit.
+The 1025-square output spans the whole theater at roughly 641 ft spacing;
+it captures large landforms, not individual trees or narrow gullies. Directions
+are interpolated and the sun transition is filtered over three degrees to
+soften finite-raster artifacts. This is reconstruction filtering, not the
+physical size of the sun. More resolution may be warranted after review.
+
+`src/render/terrain/occlusion.ts` loads the maps asynchronously and retains
+baseline illumination on a missing or mismatched asset. The DEV-only modes
+are `?terrainLighting=off|sky|sun|on`; the worktree defaults to `on`, while a
+production build remains off. `__ww2.terrainLighting()` reports mode, readiness,
+errors and texture bytes. Terrain casts onto terrain only in this checkpoint;
+airplanes, trees and buildings do not yet receive these mountain shadows.
+
+The maps total 17,860,625 decoded bytes and 4,196,248 gzip bytes, excluding
+the 309-byte header. They retain Copernicus attribution. Ground elevation,
+collision, material colors, clouds and atmosphere are unchanged. The terrain
+shader shares its existing world-coordinate interpolator to remain under
+WebGPU's default 16 vertex-output-location limit.
+
+The existing `landGapCapture.spec.ts` supports `LAND_LIGHTING_CAPTURE=1` for
+matched morning/noon/afternoon views with the camera held at 6,000 ft.
+Use `E2E_CAPTURE=1`; `DRAPE_VARIANTS=off,on` selects the lighting modes in
+this capture configuration. Screenshots are visual evidence; the correctness
+check in `terrainTextures.spec.ts` covers all four modes and an invalid map.
+
 **What it is.** Copernicus GLO-30 elevation, resampled offline into one
 8193 × 8193 heightfield — a 200 × 200 km tangent plane at 24.4 m posting,
 centred on 10.8 N 125.3 E — drawn as a CDLOD quadtree out to 100 km with

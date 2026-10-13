@@ -420,6 +420,10 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
 ---
 
 **L3. Land render quality (size M; measured and prototyped 2026-10-09 to 10, dev-only).**
+An isolated follow-up began 2026-10-13 on `terrain-lighting`, slot 2: mountain
+cast shadows and sky enclosure first, then canopy/texture repetition, with
+attended visual check-ins. Mark finds the earlier drape gain unconvincing and
+authorizes retaining or replacing it on visual merit. [Follow-up plan](docs/superpowers/plans/2026-10-13-terrain-lighting.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were

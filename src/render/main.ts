@@ -1262,6 +1262,7 @@ async function boot(): Promise<void> {
       // Visual realism §2.1: read through the same closure-after-boot shape as
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
+      terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
         tier: fxTier, capacity: fxSystem?.capacity() ?? 0, live: fxSystem?.live() ?? 0,
