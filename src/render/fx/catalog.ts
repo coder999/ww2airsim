@@ -141,8 +141,8 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
     { mode: 'stream', sheet: 'spray', ratePerS: 8, lifeS: [1.2, 2.4], speedMps: [0, 0.45], direction: 'ring', spreadDeg: 6, radiusM: 1.2, sizeM: [1.4, 4.2], alpha: 0.36, tint: WATER, dragPerS: 2.5, accelYMps2: 0 },
   ], source: 'gameplay estimate (shared seaworthiness, 2026-10-12): subtle waterline foam at rest' },
   'water.planing': { emitters: [
-    { mode: 'stream', sheet: 'spray', ratePerS: 42, lifeS: [0.7, 1.5], speedMps: [2, 6], direction: 'up', spreadDeg: 55, radiusM: 1.4, sizeM: [0.8, 3.2], alpha: 0.78, tint: WATER, dragPerS: 1.5, accelYMps2: GRAVITY, seaKill: true },
-  ], source: 'gameplay estimate (Catalina water-operation review, 2026-10-12): visible step spray before liftoff' },
+    { mode: 'stream', sheet: 'spray', ratePerS: 42, lifeS: [0.25, 0.55], speedMps: [2, 6], direction: 'up', spreadDeg: 55, radiusM: 1.4, sizeM: [0.8, 3.2], alpha: 0.78, tint: WATER, dragPerS: 1.5, accelYMps2: GRAVITY, seaKill: true },
+  ], source: 'gameplay estimate (Catalina water-operation review, 2026-10-13): visible step spray that clears immediately after liftoff' },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the wreck, which falls since
   // damage stages (2026-10-09). The dark fragments are the airframe's skin and spars going down.
   'kill.air': { emitters: [fireball(6, [16, 41], [2.4, 3.2]), sparks(16),

@@ -48,11 +48,11 @@ test('Catalina Hangar and water-operation views', async ({ page }) => {
   await page.keyboard.down('Equal')
   await page.keyboard.down('ArrowDown')
   try {
-    await page.waitForFunction(() => {
+    await page.waitForFunction((y) => {
       const flight = (window as DiagWindow).__ww2!.playerFlight()!
       return Math.hypot(flight.state.velocity.x, flight.state.velocity.z) > flight.spec.waterOperations!.planingSpeedMps + 5
-        && flight.state.position.y < flight.spec.waterOperations!.hullDepthM + 5
-    }, undefined, { timeout: 120_000, polling: 100 })
+        && flight.state.position.y < y + 1.5
+    }, restY, { timeout: 120_000, polling: 100 })
     await page.waitForTimeout(400)
     await page.screenshot({ path: `${OUT}/pby-5a-on-step-wake-torpedoes.png` })
     await page.waitForFunction((y) => (window as DiagWindow).__ww2!.aircraftPositionM().y > y + 10, restY, { timeout: 120_000, polling: 250 })

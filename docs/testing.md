@@ -32,13 +32,15 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
   - Pin the enrolled list in the same test, so a filter that matches nothing fails instead of passing empty.
   - `trapCorsair.test.ts` and `trapVal.test.ts` were clones of `trap.test.ts` differing in two numbers. They were merged on 2026-10-08, which also covered the Zero and Wildcat for the first time.
   - Water-capable aircraft enroll in `tests/sim/waterOperations.test.ts` for
-    hull support and takeoff, the ordinary ground conformance table for their
-    wheel path, and `flyableAll.spec.ts` for the browser path. `afloatAt` and
-    water-only sortie eligibility are held in `tests/sim/sortie.test.ts`.
+    hull support, takeoff, power-off rollout, arrow/rudder taxi steering and
+    lateral grip; the ordinary ground conformance table covers their wheel
+    path, and `flyableAll.spec.ts` covers the browser runway path. `afloatAt`
+    and water-only sortie eligibility are held in `tests/sim/sortie.test.ts`.
   - `tests/sim/waterSurface.test.ts` pins the shared deterministic support sea,
     motion across wave slopes and hull-size filtering. Ship tests cover
     wave-supported heave/attitude; FX event tests require lapping at rest and
-    separate planing spray, while `tests/render/waterWake.test.ts` enrolls both
+    separate planing spray that stops at liftoff, while
+    `tests/render/waterWake.test.ts` enrolls both
     ships and water-supported aircraft in the common surface-wake contract and
     verifies its crest/churn geometry and fade-out.
 - **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget` (the gate: High gpu p95 ≤ 8.33 ms at 1440p in every view, H0 2026-10-08), `fx-budget`, `wake-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).

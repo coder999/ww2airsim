@@ -1660,7 +1660,7 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
     const lightY = EQUIPMENT_BANK_Y + 0.009
     const status = [
       ['gear', japanese ? '脚' : 'GEAR', config.gear],
-      ['flap', japanese ? '翼' : 'FLAP', config.flap],
+      ['flap', japanese ? '翼' : spec.waterOperations === undefined ? 'FLAP' : 'FLOATS', config.flap],
       ['hook', japanese ? '鉤' : 'HOOK', config.hook],
       ['bay', japanese ? '扉' : 'BAY', config.bay],
     ] as const
@@ -1681,6 +1681,8 @@ export function createPanel(spec: AircraftSpec, makeText: TextTextureFactory = m
       light.visible = active
       root.add(light)
       const plate = textPlate(label, cellW * 0.86, 0.009, makeText)
+      plate.name = `equipment:label:${id}`
+      plate.userData.text = label
       plate.position.set(x, EQUIPMENT_BANK_Y + 0.024, Z_READOUT)
       plate.visible = active
       root.add(plate)

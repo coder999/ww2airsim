@@ -116,9 +116,16 @@ ocean remains richer than this contact model; it need not match individual
 crests. Ships use the same support sea, with hull-size response filtering. All
 supported watercraft produce lapping spray at rest and feed the same persistent
 surface-wake renderer underway: a turbulent centre trail inside widening,
-low-profile Kelvin-style crest arms. Planing aircraft additionally throw short-
-lived airborne step spray until liftoff. Wake geometry samples the support-sea
-height every frame but remains a visual cue rather than a force.
+low-profile Kelvin-style crest arms. High quality uses denser longitudinal
+samples, broken interference crests and feathered per-vertex edges rather than
+opaque polygon strips. Planing aircraft additionally throw short-lived step
+spray, with emission ending on the takeoff-separation step and the last droplets
+clearing in under a second. Water taxiing accepts the same arrow/A-D steering
+as wheel taxiing, and hydrodynamic lateral grip turns the track with the hull
+instead of letting it skid forever along its old heading. The content drag
+coefficients bound the power-off planing rollout as well as the full-power
+takeoff run. Wake geometry samples the support-sea height every frame but
+remains a visual cue rather than a force.
 
 ### D6. Engines
 

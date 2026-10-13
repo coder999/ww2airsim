@@ -72,6 +72,11 @@ describe('fx events (effects design §3.2)', () => {
       expect(sustained.filter((s) => s.key.startsWith('water:pby:')).map((s) => s.recipe)).toEqual(speed === 0 ? ['water.lap', 'water.lap'] : [])
       expect(sustained.some((s) => s.key === 'water-planing:pby')).toBe(speed > water.planingSpeedMps)
     }
+    const departing = afloat(water.takeoffSpeedMps)
+    const climbing = { ...departing, state: { ...departing.state, velocity: v3(water.takeoffSpeedMps, 1, 0) } }
+    const departingCombat = createCombat([climbing])
+    expect(nextFxEvents(NO_FX_MEMORY, view(1, departingCombat, [climbing], { water: support })).sustained)
+      .not.toContainEqual(expect.objectContaining({ key: 'water-planing:pby' }))
   })
 
   it('maps every impact to its recipe; expiries to nothing (Rulings R1, R4)', () => {

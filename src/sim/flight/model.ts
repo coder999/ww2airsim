@@ -22,6 +22,7 @@ import {
   restOnWater,
   supportedWaterContact,
   waterBodyRates,
+  waterLateralGripAfter,
   waterResistanceN,
   waterSupportVelocity,
 } from '../waterOperations.js'
@@ -633,7 +634,12 @@ export function step(
       waterSeated = true
       const rested = restOnWater(spec, integrated, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, integrated.velocity))
       position = rested.position
-      velocity = rested.velocity
+      velocity = waterLateralGripAfter(
+        spec,
+        rested,
+        dt,
+        waterSupportVelocity(ground.velocity, ground.water, rested.velocity),
+      )
     }
   }
 

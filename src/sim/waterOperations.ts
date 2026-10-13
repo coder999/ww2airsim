@@ -2,7 +2,8 @@ import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
 import { attitudeAngles } from './flight/attitude.js'
 import { GROUND_CONTACT_TOLERANCE_M, SEPARATION_MPS } from './ground.js'
-import { add, length, sub, v3, ZERO, type Vec3 } from './math/vec3.js'
+import { qRotate } from './math/quat.js'
+import { add, dot, length, scale, sub, v3, ZERO, type Vec3 } from './math/vec3.js'
 import type { WaterSurfaceSample } from './waterSurface.js'
 
 const G = 9.80665
@@ -15,6 +16,8 @@ const FLOATS_DOWN_FRACTION = 0.95
 const ATTITUDE_SETTLE_SECONDS = 1.5
 const ATTITUDE_RATE_LIMIT_RAD_PER_S = 8 * DEG
 const WATER_SEPARATION_DEPTH_M = 0.02
+const DISPLACEMENT_LATERAL_GRIP_SECONDS = 1.5
+const PLANING_LATERAL_GRIP_SECONDS = 4
 
 const clamp01 = (n: number): number => Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0
 
@@ -147,6 +150,40 @@ export function restOnWater(
   }
 }
 
+/**
+ * Water's keel/step resists travelling sideways, just as tyres resist a
+ * runway skid, but less rigidly and with still less grip once the hull is on
+ * the step. Without this constraint the rudder could turn the Catalina's
+ * nose while its velocity continued forever along the old heading, so a
+ * water-taxi turn was visually present but did not change the craft's path.
+ */
+export function waterLateralGripAfter(
+  spec: AircraftSpec,
+  state: AircraftState,
+  dt: number,
+  surfaceVelocity: Vec3 = ZERO,
+): Vec3 {
+  if (spec.waterOperations === undefined || !Number.isFinite(dt) || dt <= 0) return state.velocity
+  const nose = qRotate(state.attitude, v3(1, 0, 0))
+  const flat = v3(nose.x, 0, nose.z)
+  const flatLength = length(flat)
+  if (!Number.isFinite(flatLength) || flatLength < 1e-6) return state.velocity
+  const direction = scale(flat, 1 / flatLength)
+  const relative = sub(state.velocity, surfaceVelocity)
+  const horizontal = v3(relative.x, 0, relative.z)
+  const along = scale(direction, dot(horizontal, direction))
+  const across = sub(horizontal, along)
+  const planing = planingFraction(spec, length(horizontal))
+  const settleSeconds = DISPLACEMENT_LATERAL_GRIP_SECONDS
+    + planing * (PLANING_LATERAL_GRIP_SECONDS - DISPLACEMENT_LATERAL_GRIP_SECONDS)
+  const dampedAcross = scale(across, Math.exp(-dt / settleSeconds))
+  return v3(
+    along.x + dampedAcross.x + surfaceVelocity.x,
+    state.velocity.y,
+    along.z + dampedAcross.z + surfaceVelocity.z,
+  )
+}
+
 /** Low-speed hull/float attitude constraint. Roll and pitch settle toward a
  * stable water attitude; rudder supplies taxi yaw and fades by liftoff. */
 export function waterBodyRates(
@@ -170,7 +207,11 @@ export function waterBodyRates(
   const roll = clampRate((surfaceAttitude.rollRad * waveResponse - rollRad) / ATTITUDE_SETTLE_SECONDS)
   const pitch = clampRate((targetPitch - pitchRad) / ATTITUDE_SETTLE_SECONDS)
   const taxiAuthority = Math.max(0, 1 - trackSpeed / w.takeoffSpeedMps)
-  const taxiYaw = -Math.max(-1, Math.min(1, controls.yaw)) * w.taxiYawRateDegPerSec * DEG * taxiAuthority
+  // Match ground taxi's arcade control: the arrow/A-D roll channel steers
+  // while supported, as do the dedicated rudder keys. Roll itself remains
+  // constrained by the hull and floats.
+  const steerInput = Math.max(-1, Math.min(1, controls.yaw + controls.roll))
+  const taxiYaw = -steerInput * w.taxiYawRateDegPerSec * DEG * taxiAuthority
   return v3(roll, airRates.y + taxiYaw, pitch)
 }
 

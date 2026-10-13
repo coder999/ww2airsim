@@ -16,6 +16,7 @@ import {
   safeWaterArrival,
   supportedWaterContact,
   waterBodyRates,
+  waterLateralGripAfter,
   waterResistanceN,
 } from '../../src/sim/waterOperations.js'
 import { waterSurfaceAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
@@ -93,8 +94,19 @@ describe('water operations', () => {
     expect(low.x).toBeLessThan(0)
     expect(low.y).toBeCloseTo(-8 * Math.PI / 180)
     expect(low.z).toBeGreaterThan(0)
+    const arrows = waterBodyRates(spec, tilted, { pitch: 0, roll: 1, yaw: 0, throttle: 0 }, v3(0, 0, 0))
+    expect(arrows.y).toBeCloseTo(low.y)
     const fast = waterBodyRates(spec, { ...afloat, velocity: v3(40, 0, 0) }, { pitch: 0, roll: 0, yaw: 1, throttle: 0 }, v3(0, 0.02, 0))
     expect(fast.y).toBeCloseTo(0.02)
+  })
+
+  it('damps sideways water travel toward the heading without adding energy', () => {
+    const turned = { ...afloat, velocity: v3(8, 0, 8) }
+    const after = waterLateralGripAfter(spec, turned, 1, v3(0, 0, 0))
+    expect(after.x).toBeCloseTo(8)
+    expect(after.z).toBeGreaterThan(0)
+    expect(after.z).toBeLessThan(8)
+    expect(Math.hypot(after.x, after.z)).toBeLessThan(Math.hypot(turned.velocity.x, turned.velocity.z))
   })
 
   it('stays active and afloat through the real fixed-step/impact seam', () => {
@@ -154,6 +166,66 @@ describe('water operations', () => {
     }
     expect(maxSpeedMps, 'the hull never reached its authored water takeoff speed').toBeGreaterThanOrEqual(catalina.waterOperations!.takeoffSpeedMps)
     expect(airborneTick, 'the Catalina did not climb 10 m clear of the water within 60 seconds').not.toBeNull()
+  })
+
+  it('slows a power-off Catalina from the step to taxi speed within 45 seconds', () => {
+    const water0 = waterSurfaceAt(waterSurfaceContext(0, null), 0, 0)
+    const operations = catalina.waterOperations!
+    const speedMps = operations.takeoffSpeedMps - 0.5
+    const draftM = operations.planingDraftM
+    const start = createState({
+      position: v3(0, water0.heightM + operations.hullDepthM - draftM, 0),
+      velocity: v3(speedMps, water0.verticalSpeedMps, 0),
+      attitude: qFromAxisAngle(v3(0, 0, 1), operations.planingPitchDeg * Math.PI / 180),
+      gearFraction: 0,
+      flapFraction: 1,
+      fuelKg: 1800,
+    })
+    let world = createWorldOf({
+      aircraft: [{
+        id: 'catalina', spec: catalina, state: start, previous: start,
+        controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: false, flapDown: true },
+        assistMemory: undefined, impact: null, parked: false,
+      }],
+      player: 'catalina', terrain: sea, wind: v3(0, 0, 0),
+    })
+    let taxiAtS: number | null = null
+    for (let i = 1; i <= 45 / DT; i++) {
+      world = advance(world, DT).world
+      const aircraft = playerAircraft(world)
+      expect(aircraft.impact).toBeNull()
+      if (Math.hypot(aircraft.state.velocity.x, aircraft.state.velocity.z) <= 5) {
+        taxiAtS = i * DT
+        break
+      }
+    }
+    expect(taxiAtS, 'the power-off water rollout remained above 10 knots after 45 seconds').not.toBeNull()
+  })
+
+  it('turns the real Catalina water-taxi track with the arrow-key roll channel', () => {
+    const water0 = waterSurfaceAt(waterSurfaceContext(0, null), 0, 0)
+    const operations = catalina.waterOperations!
+    const start = createState({
+      position: v3(0, water0.heightM + operations.hullDepthM - operations.displacementDraftM, 0),
+      velocity: v3(8, water0.verticalSpeedMps, 0),
+      attitude: qFromAxisAngle(v3(0, 0, 1), operations.restPitchDeg * Math.PI / 180),
+      gearFraction: 0,
+      flapFraction: 1,
+      fuelKg: 1800,
+    })
+    let world = createWorldOf({
+      aircraft: [{
+        id: 'catalina', spec: catalina, state: start, previous: start,
+        controls: { pitch: 0, roll: 1, yaw: 0, throttle: 0, gearDown: false, flapDown: true },
+        assistMemory: undefined, impact: null, parked: false,
+      }],
+      player: 'catalina', terrain: sea, wind: v3(0, 0, 0),
+    })
+    for (let i = 0; i < 5 / DT; i++) world = advance(world, DT).world
+    const turned = playerAircraft(world)
+    expect(turned.impact).toBeNull()
+    expect(turned.state.position.z).toBeGreaterThan(2)
+    expect(turned.state.velocity.z).toBeGreaterThan(0.5)
   })
 
   it('carries a configured Catalina arrival through the real impact seam and rejects an overspeed one', () => {

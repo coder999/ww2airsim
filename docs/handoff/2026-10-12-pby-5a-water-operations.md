@@ -71,7 +71,8 @@ VPB-33-inspired but does not claim one exact bureau number.
   `sortieBundle` swaps only the selected player's effective rack layout.
 - `FloatL` and `FloatR` are independent airframe-rig parts. The current control
   compromise drives them through `flapFraction`; the PBY has no aerodynamic
-  flap lift increment and the HUD/bench calls the control **FLOATS**.
+  flap lift increment and the HUD, Hangar bench and cockpit equipment bank call
+  the control **FLOATS**.
 - Defensive bow, blister and tunnel guns are static model detail. No
   `combat.gunners` entry claims that they aim or fire.
 - The Range Test generator and every roster/catalog/ribbon/radio enrollment
@@ -193,10 +194,40 @@ draw calls.
   6,382 tests, and 12 intentional skips. The generated GLB is 935,172 bytes,
   28,840 triangles and 17 draw calls.
 
-No budget-titled browser spec was changed or run. The browser checks above are
-correctness tests; the repository continues to require exclusive
-`hwlock ryzen-budget` only for budget measurements, while `remote-run` takes a
-shared claim so CPU work cannot overlap one.
+### Water-handling and wake review, 2026-10-13
+
+The next player review found four integration gaps and one fidelity gap. The
+follow-up makes the water path agree with the already-established ground taxi
+controls without treating a hull as a tire:
+
+- planing spray emission now ends on the same upward takeoff-separation step as
+  hull support, and its residual droplets live only 0.25–0.55 seconds;
+- the authored displacement/planing resistance was raised from 0.04/0.012 to
+  0.12/0.08 of weight. A deterministic engine-cut run now slows from just
+  below the 76-knot liftoff target to 10 knots within 45 seconds, while the
+  existing full-power test still climbs 33 feet clear inside 60 seconds;
+- arrow/A-D roll input joins the dedicated rudder input while afloat, matching
+  ground taxi's player control. A water-only lateral-grip decay aligns velocity
+  with the yawing hull in 1.5 seconds at displacement speed, weakening to four
+  seconds on the step;
+- the cockpit's shared configuration lamp is labeled **FLOATS** for the PBY
+  and remains **FLAP** for ordinary aircraft;
+- High wake quality doubles longitudinal sampling, uses four-lane feathered
+  ribbons with vertex alpha, shortens the visible interference spacing and
+  drops the former three continuous parallel bands to two broken divergent
+  arms. Churn is narrower and translucent. Ships and the PBY still share the
+  same two meshes and the same wake-source contract.
+
+The focused simulation/render set passed 90 tests, TypeScript validation
+passed, and repeated WebGPU Catalina captures completed without validation or
+console errors. `wake-budget.spec.ts` was rerun under the exclusive
+`ryzen-budget` lock. The first custom-material version missed its 0.50 ms
+differential allowance at +0.517 ms and was rejected; the replacement uses the
+stock WebGPU material's four-component vertex colors and passed two locked
+runs. Those passing runs had noisy off/on absolute timings, so they establish
+the enforced budget outcome but are not recorded as a new cost baseline.
+The final full gate passed all 436 test files: 6,390 tests passed and 12
+intentional tests were skipped.
 
 ### Tests updated
 

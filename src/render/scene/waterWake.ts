@@ -64,7 +64,13 @@ export function aircraftWaterContact(
   const draftM = water.displacementDraftM + planing * (water.planingDraftM - water.displacementDraftM)
   const waterlineY = pose.position.y - water.hullDepthM + draftM
   const surfaceY = waterSurfaceAt(waterContext, pose.position.x, pose.position.z).heightM
-  if (Math.abs(waterlineY - surfaceY) >= 1) return null
+  // Stop every water-attached effect on the actual unstick, rather than
+  // letting the generous approach/contact band emit spray beneath a climbing
+  // aircraft for another second. The lower tolerance remains broad enough
+  // for an arriving hull; above the surface the rendered waterline is tight.
+  if (speedMps >= water.takeoffSpeedMps && aircraft.state.velocity.y > 0) return null
+  const waterlineErrorM = waterlineY - surfaceY
+  if (waterlineErrorM < -1 || waterlineErrorM > 0.2) return null
   const aft = speedMps > 0.2
     ? v3(-aircraft.state.velocity.x / speedMps, 0, -aircraft.state.velocity.z / speedMps)
     : qRotate(pose.attitude, v3(-1, 0, 0))
@@ -167,40 +173,56 @@ type Point = { x: number; y: number; z: number }
 
 class TriangleWriter {
   readonly array = new Float32Array(MAX_VERTICES * 3)
+  readonly colour = new Float32Array(MAX_VERTICES * 4)
   count = 0
 
   clear(): void { this.count = 0 }
 
-  private vertex(p: Point): void {
+  private vertex(p: Point, alpha: number): void {
     if (this.count >= MAX_VERTICES) return
     const i = this.count * 3
     this.array[i] = p.x
     this.array[i + 1] = p.y
     this.array[i + 2] = p.z
+    const c = this.count * 4
+    this.colour[c] = 1
+    this.colour[c + 1] = 1
+    this.colour[c + 2] = 1
+    this.colour[c + 3] = alpha
     this.count++
   }
 
-  ribbon(a: Point, b: Point, widthA: number, widthB: number): void {
+  ribbon(a: Point, b: Point, widthA: number, widthB: number, alphaA = 1, alphaB = 1): void {
     const dx = b.x - a.x, dz = b.z - a.z
     const d = Math.hypot(dx, dz)
-    if (d < 1e-4 || this.count + 6 > MAX_VERTICES) return
+    if (d < 1e-4 || this.count + 18 > MAX_VERTICES) return
     const nx = -dz / d, nz = dx / d
-    const a0 = { x: a.x + nx * widthA, y: a.y, z: a.z + nz * widthA }
-    const a1 = { x: a.x - nx * widthA, y: a.y, z: a.z - nz * widthA }
-    const b0 = { x: b.x + nx * widthB, y: b.y, z: b.z + nz * widthB }
-    const b1 = { x: b.x - nx * widthB, y: b.y, z: b.z - nz * widthB }
-    this.vertex(a0); this.vertex(a1); this.vertex(b0)
-    this.vertex(a1); this.vertex(b1); this.vertex(b0)
+    // Four lanes make three joined strips: transparent outer vertices and a
+    // narrow opaque centre. That gives every crest a soft water-blended edge
+    // without a texture, extra draw call, or a visibly polygonal halo mesh.
+    const lanes = [1.6, 0.38, -0.38, -1.6]
+    const edgeAlpha = [0, 1, 1, 0]
+    for (let lane = 0; lane < 3; lane++) {
+      const a0 = { x: a.x + nx * widthA * lanes[lane]!, y: a.y, z: a.z + nz * widthA * lanes[lane]! }
+      const a1 = { x: a.x + nx * widthA * lanes[lane + 1]!, y: a.y, z: a.z + nz * widthA * lanes[lane + 1]! }
+      const b0 = { x: b.x + nx * widthB * lanes[lane]!, y: b.y, z: b.z + nz * widthB * lanes[lane]! }
+      const b1 = { x: b.x + nx * widthB * lanes[lane + 1]!, y: b.y, z: b.z + nz * widthB * lanes[lane + 1]! }
+      this.vertex(a0, alphaA * edgeAlpha[lane]!); this.vertex(a1, alphaA * edgeAlpha[lane + 1]!); this.vertex(b0, alphaB * edgeAlpha[lane]!)
+      this.vertex(a1, alphaA * edgeAlpha[lane + 1]!); this.vertex(b1, alphaB * edgeAlpha[lane + 1]!); this.vertex(b0, alphaB * edgeAlpha[lane]!)
+    }
   }
 }
 
 function meshFor(writer: TriangleWriter, colour: number, opacity: number): Mesh {
   const geometry = new BufferGeometry()
   const position = new BufferAttribute(writer.array, 3).setUsage(DynamicDrawUsage)
+  const vertexColour = new BufferAttribute(writer.colour, 4).setUsage(DynamicDrawUsage)
   geometry.setAttribute('position', position)
+  geometry.setAttribute('color', vertexColour)
   geometry.setDrawRange(0, 0)
   const material = new MeshBasicMaterial({
     color: colour,
+    vertexColors: true,
     transparent: true,
     opacity,
     depthWrite: false,
@@ -224,6 +246,10 @@ function commit(mesh: Mesh, writer: TriangleWriter): void {
   position.clearUpdateRanges()
   position.addUpdateRange(0, writer.count * 3)
   position.needsUpdate = true
+  const vertexColour = geometry.getAttribute('color') as BufferAttribute
+  vertexColour.clearUpdateRanges()
+  vertexColour.addUpdateRange(0, writer.count * 4)
+  vertexColour.needsUpdate = true
   geometry.setDrawRange(0, writer.count)
 }
 
@@ -278,8 +304,10 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
   root.name = 'water-wakes'
   const crests = new TriangleWriter()
   const churn = new TriangleWriter()
-  const crestMesh = meshFor(crests, 0xe8f0ed, 0.52)
-  const churnMesh = meshFor(churn, 0xc3dcd9, 0.28)
+  const crestMesh = meshFor(crests, 0xe8f0ed, 0.36)
+  const churnMesh = meshFor(churn, 0xc3dcd9, 0.16)
+  churnMesh.renderOrder = 1
+  crestMesh.renderOrder = 2
   root.add(churnMesh, crestMesh)
   const tracks = new Map<string, Track>()
   const forcedOff = import.meta.env.DEV && typeof location !== 'undefined' && wakeOffFromQuery(location.search)
@@ -304,7 +332,14 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
     for (const source of sources) {
       let track = tracks.get(source.key)
       const maxAgeS = clamp(source.lengthM * 5 / Math.max(source.speedMps, 1), 12, 40)
-      const sampleSpacingM = clamp(source.lengthM / 32, 1.5, 8)
+      // High quality keeps roughly twice the longitudinal resolution of the
+      // first pass. The broad halo below makes each narrow crest read as a
+      // feathered wave rather than a strip of opaque triangles.
+      const sampleSpacingM = currentTier === 'high'
+        ? clamp(source.lengthM / 64, 0.6, 3)
+        : currentTier === 'medium'
+          ? clamp(source.lengthM / 48, 1, 5)
+          : clamp(source.lengthM / 32, 1.5, 8)
       if (track === undefined) {
         const first = { x: source.stern.x, z: source.stern.z, rightX: source.right.x, rightZ: source.right.z, ageS: 0 }
         track = { source, samples: [first], anchor: { ...first }, maxAgeS, sampleSpacingM }
@@ -336,7 +371,7 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
       }
     }
 
-    const maxSamples = currentTier === 'high' ? 96 : currentTier === 'medium' ? 64 : 40
+    const maxSamples = currentTier === 'high' ? 192 : currentTier === 'medium' ? 128 : 64
     for (const [key, track] of tracks) {
       track.samples = track.samples.filter((sample) => sample.ageS <= track.maxAgeS).slice(0, maxSamples)
       if (track.samples.length === 0) tracks.delete(key)
@@ -344,10 +379,8 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
 
     crests.clear(); churn.clear()
     const angles = currentTier === 'high'
-      ? [KELVIN_HALF_ANGLE_RAD, 13 * Math.PI / 180, 8 * Math.PI / 180]
-      : currentTier === 'medium'
-        ? [KELVIN_HALF_ANGLE_RAD, 12 * Math.PI / 180]
-        : [KELVIN_HALF_ANGLE_RAD]
+      ? [KELVIN_HALF_ANGLE_RAD, 10 * Math.PI / 180]
+      : [KELVIN_HALF_ANGLE_RAD]
 
     for (const track of tracks.values()) {
       if (track.samples.length < 2) continue
@@ -362,10 +395,12 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
         const developB = smoothstep(0, track.source.lengthM * 0.35, distanceB)
         const centreA = samplePoint(a, distanceA, 0, 0, track, water, false)
         const centreB = samplePoint(b, distanceB, 0, 0, track, water, false)
-        const churnWidthA = track.source.beamM * (0.08 + developA * 0.32) * fadeA * track.source.strength
-        const churnWidthB = track.source.beamM * (0.08 + developB * 0.32) * fadeB * track.source.strength
-        // Break the centre ribbon into uneven patches so it reads as turbulent foam, not paint.
-        if ((i + sourceHash(track.source.key)) % 5 !== 3) churn.ribbon(centreA, centreB, churnWidthA, churnWidthB)
+        const churnWidthA = track.source.beamM * (0.05 + developA * 0.22) * fadeA * track.source.strength
+        const churnWidthB = track.source.beamM * (0.05 + developB * 0.22) * fadeB * track.source.strength
+        const churnWaveM = clamp(track.source.beamM * 2.2, 3, 24)
+        const churnAlphaA = 0.15 + 0.55 * Math.abs(Math.sin((distanceA / churnWaveM + sourceHash(track.source.key) * 0.01) * Math.PI))
+        const churnAlphaB = 0.15 + 0.55 * Math.abs(Math.sin((distanceB / churnWaveM + sourceHash(track.source.key) * 0.01) * Math.PI))
+        churn.ribbon(centreA, centreB, churnWidthA, churnWidthB, churnAlphaA, churnAlphaB)
 
         const planingNarrow = 1 - track.source.planing * 0.35
         angles.forEach((baseAngle, band) => {
@@ -373,11 +408,17 @@ export function createWaterWake(tier: QualityTierName | 'off'): WaterWakeHandle 
           for (const side of [-1, 1] as const) {
             const pa = samplePoint(a, distanceA, side, angle, track, water, true)
             const pb = samplePoint(b, distanceB, side, angle, track, water, true)
-            const wavelengthM = clamp((track.source.speedMps ** 2 / G) * (0.55 + band * 0.17), 4, 42)
-            const pulseA = 0.42 + 0.58 * Math.abs(Math.sin((distanceA / wavelengthM) * Math.PI))
-            const pulseB = 0.42 + 0.58 * Math.abs(Math.sin((distanceB / wavelengthM) * Math.PI))
+            // The full deep-water wavelength is much longer than the visible
+            // patch of breaking foam. Short pulse spacing represents the
+            // smaller interference crests inside that wave, avoiding the
+            // continuous parallel "rails" of the first implementation.
+            const wavelengthM = clamp((track.source.speedMps ** 2 / G) * (0.08 + band * 0.03), 3, 18)
+            const pulseA = 0.02 + 0.98 * smoothstep(0.25, 0.9, Math.abs(Math.sin((distanceA / wavelengthM) * Math.PI)))
+            const pulseB = 0.02 + 0.98 * smoothstep(0.25, 0.9, Math.abs(Math.sin((distanceB / wavelengthM) * Math.PI)))
             const baseWidth = clamp(track.source.beamM * (0.018 + band * 0.006), 0.12, 1.5)
-            crests.ribbon(pa, pb, baseWidth * fadeA * pulseA, baseWidth * fadeB * pulseB)
+            const widthA = baseWidth * fadeA
+            const widthB = baseWidth * fadeB
+            crests.ribbon(pa, pb, widthA, widthB, pulseA * track.source.strength, pulseB * track.source.strength)
           }
         })
         distanceA = distanceB

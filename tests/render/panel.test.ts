@@ -45,6 +45,7 @@ import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const avenger = loadAircraftSpec('tbm-3-avenger')
+const catalina = loadAircraftSpec('pby-5a-catalina')
 const deg = (rad: number) => (rad * 180) / Math.PI
 
 /** No input held. Every `updatePanel` call in later tasks uses this -- see
@@ -1410,6 +1411,12 @@ describe('configuration lights', () => {
       expect(Math.abs(light.position.y - bank.position.y)).toBeLessThan(height / 2)
     }
     expect(p.lights.gear.position.x).not.toBeCloseTo(p.lights.flap.position.x, 3)
+  })
+
+  it('labels the Catalina float indicator as floats rather than flaps', () => {
+    const panel = createPanel(catalina, () => null)
+    expect(panel.root.getObjectByName('equipment:label:flap')?.userData.text).toBe('FLOATS')
+    expect(createPanel(f6f, () => null).root.getObjectByName('equipment:label:flap')?.userData.text).toBe('FLAP')
   })
 })
 
