@@ -1,6 +1,9 @@
 // src/render/scene/pivotedAirframe.ts
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
-import { propAngle, type Airframe, type PartId } from './airframe.js'
+import {
+  applySurfaceCrashPose, NO_SURFACE_CRASH_CLOCK, propAngle, stepSurfaceCrashClock,
+  type Airframe, type PartId, type SurfaceCrashClock,
+} from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type FloatRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
@@ -207,18 +210,31 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   }
   const propRad: number[] = []
   const stick = { roll: 0, pitch: 0, yaw: 0 }
-  // Damage stages (2026-10-09): what breaks away in a mid-air explosion, and where each sits whole.
-  const loose = [...bound.props, ...bound.floats.map((x) => x.posed), ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
+  // An air kill sheds props and control surfaces. A much harsher solid contact can additionally
+  // tear away gear, bay doors and complete turret assemblies without pretending every joined GLB
+  // has separately modeled wing spars. Keep the distinction so airborne damage is unchanged.
+  const loose = [
+    ...[...bound.props, ...bound.floats.map((x) => x.posed), ...bound.surfaces.map((x) => x.posed)]
+      .map((p) => ({ node: p.node, surfaceOnly: false })),
+    ...[...bound.gear.map((x) => x.posed), ...bound.doors, ...bound.turrets.map((x) => x.turret)]
+      .map((p) => ({ node: p.node, surfaceOnly: true })),
+  ].map((p) => ({ ...p, restPosition: p.node.position.clone() }))
   const scratch = new Vector3()
   const fullRoots = [...root.children]
   const lod = createAirframeLod(url, root, instance.root, fullRoots, bound.gear.map((g) => g.posed.node))
+  let crashClock: SurfaceCrashClock = NO_SURFACE_CRASH_CLOCK
   let disposed = false
   return {
     root,
     parts: stores === undefined ? rigParts(rig) : [...rigParts(rig), 'stores'],
     setStores: (b, r) => { lod.mutateFull(() => { hung?.setStores(b, r) }) },
     update(u): void {
-      lod.update(u.cameraDistanceM, (u.debris ?? null) !== null)
+      crashClock = stepSurfaceCrashClock(crashClock, u.surfaceCrash, u.frameS)
+      applySurfaceCrashPose(root, u.surfaceCrash, crashClock.ageS)
+      const debris = u.surfaceCrash?.mode === 'breakup'
+        ? { ageS: crashClock.ageS, seed: u.surfaceCrash.seed }
+        : u.debris ?? null
+      lod.update(u.cameraDistanceM, debris !== null)
       bound.props.forEach((p, i) => {
         propRad[i] = propAngle(propRad[i] ?? 0, u.propThrottles?.[i] ?? u.throttle, u.frameS)
         p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad[i]!))
@@ -241,11 +257,11 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
         t.turret.node.quaternion.copy(turnedAbout(t.turret.rest, t.turret.axis, t.traverse))
         t.guns.node.quaternion.copy(turnedAbout(t.guns.rest, t.guns.axis, t.elevation))
       }
-      const debris = u.debris ?? null
       loose.forEach((l, i) => {
         l.node.position.copy(l.restPosition)
-        l.node.visible = debris === null || debris.ageS < DEBRIS_S
-        if (debris === null || l.node.parent === null) return
+        const active = debris !== null && (!l.surfaceOnly || u.surfaceCrash?.mode === 'breakup')
+        l.node.visible = !active || debris.ageS < DEBRIS_S
+        if (!active || l.node.parent === null) return
         const f = debrisFlight(debris.ageS, (debris.seed + Math.imul(i + 1, 0x9e3779b1)) >>> 0)
         l.node.parent.updateWorldMatrix(true, false)
         scratch.copy(l.restPosition)

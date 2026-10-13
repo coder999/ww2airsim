@@ -116,8 +116,10 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   American bomber, Japanese fighter and Japanese bomber. Enrollment is explicit and tested, so a
   new aircraft cannot silently inherit a cockpit.
 - Each family keeps the same instrument zones while aircraft capability swaps reserved cells:
-  retractable gear, arrestor hook, bomb bay and pilot-fired forward-gun sight. The common radar
-  remains a visibly separate game aid.
+  retractable gear, arrestor hook, bomb bay and pilot-fired forward-gun sight. A bay-equipped
+  aircraft gets a compact `BAY` annunciator in the configuration bank (dark shut, amber in transit,
+  green fully open); an aircraft without doors gets no empty bay cell. The common radar remains a
+  visibly separate game aid.
 - American faces use imperial units. Japanese faces use metric units and bundled Japanese labels.
   RPM is deterministic indicated state with a short lag and one/two/four needles following actual
   engine-output channels; it has no path back into flight physics. The P-38 repeats its aggregate
@@ -136,6 +138,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 **C4. Damage stages (M). Damage merged 2026-10-10; asymmetric engine-loss yaw completed 2026-10-11.**
 - **Mark's report (2026-10-09):** a shot Zero froze in mid-air.
 - **Now:** a hit engine smokes, sputters below half health, and stalls dead below 15%. At 25% structure the airframe catches fire and is doomed. AI pilots spiral down, and the fire burns it out in 15 s. At zero it explodes, its props and control surfaces break away, and the wreck falls to the surface.
+- **Surface-crash aftermath completed and merged 2026-10-12 (`004fe759`):** a fatal water impact raises the larger approved splash and submerges the airframe instead of pinning it to the surface. A fatal land, deck or solid-object impact breaks loose parts away while the fuselage follows a mass-sensitive eight-second bounce, tumble, slide and modest crush. The impact blast stays at the collision point; fire and smoke follow the fuselage to rest for five minutes, smoke continues for five more, and both extinguish if that wreck enters water as it splashes and sinks. Automatic replay now preserves eight seconds after the event so this choreography finishes before debrief. Handoff [`docs/handoff/2026-10-12-aircraft-crash-aftermath.md`](docs/handoff/2026-10-12-aircraft-crash-aftermath.md).
 - **Credit** waits for the explosion or the impact (Mark's ruling).
 - Plan `docs/superpowers/plans/2026-10-09-aircraft-damage-stages.md`; handoff `docs/handoff/2026-10-09-aircraft-damage-stages.md`. Dev range: `?scenario=damage-range&launch`.
 - **Round 2 (after Mark's flight, 2026-10-09):**

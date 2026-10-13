@@ -45,6 +45,7 @@ import { GAUGE_SAMPLES } from './gaugeSamples.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const b17 = loadAircraftSpec('b-17-flying-fortress')
+const avenger = loadAircraftSpec('tbm-3-avenger')
 const deg = (rad: number) => (rad * 180) / Math.PI
 
 /** No input held. Every `updatePanel` call in later tasks uses this -- see
@@ -1347,6 +1348,14 @@ describe('configuration lights', () => {
     return p
   }
 
+  it('adds BAY as the Avenger\'s fourth annunciator and omits it from aircraft without doors', () => {
+    const p = createPanel(avenger)
+    const lamps = [p.lights.gear, p.lights.flap, p.lights.hook, p.lights.bay]
+    expect(lamps.every((lamp) => lamp.visible)).toBe(true)
+    expect(new Set(lamps.map((lamp) => lamp.position.x)).size).toBe(4)
+    expect(createPanel(f6f).lights.bay.visible).toBe(false)
+  })
+
   it('shows dark when up, amber in transit, and green when down, for both', () => {
     expect(colourOf(at(0, 0).lights.gear)).toBe(LIGHT_OFF)
     expect(colourOf(at(0, 0).lights.flap)).toBe(LIGHT_OFF)
@@ -1377,8 +1386,8 @@ describe('configuration lights', () => {
     expect(colourOf(hookDown.lights.hook)).toBe(LIGHT_DOWN)
 
     for (const [fraction, colour] of [[0, LIGHT_OFF], [0.5, LIGHT_TRANSIT], [1, LIGHT_DOWN]] as const) {
-      const bay = createPanel(b17)
-      updatePanel(bay, b17, createState({ bayDoorFraction: fraction }), NEUTRAL_CONTROLS)
+      const bay = createPanel(avenger)
+      updatePanel(bay, avenger, createState({ bayDoorFraction: fraction }), NEUTRAL_CONTROLS)
       expect(colourOf(bay.lights.bay), `bay ${fraction}`).toBe(colour)
     }
   })

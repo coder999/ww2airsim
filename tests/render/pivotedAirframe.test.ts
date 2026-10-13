@@ -4,7 +4,7 @@ import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Object3D, Quaternion, V
 import type { ModelInstance } from '../../src/render/models/modelCache.js'
 import { DEBRIS_S, debrisFlight, gearAngleRad, loadPivotedAirframe, pivotAxisOf, rigParts, slewToward, SURFACE_SWEEP_S, surfaceAngleRad, turnedAbout, turretAim, TURRET_SLEW_DEG_S } from '../../src/render/scene/pivotedAirframe.js'
 import { AIRFRAME_RIGS, PART_NAME, SURFACE_MAX_DEG, type AirframeRig, type TurretArc } from '../../src/render/scene/airframeRigs.js'
-import { propAngle } from '../../src/render/scene/airframe.js'
+import { propAngle, WATER_CRASH_SUBMERGE_M, WATER_CRASH_SUBMERGE_S } from '../../src/render/scene/airframe.js'
 import { AIRFRAME_LOD_ENTER_M, AIRFRAME_LOD_PROXY_NAME } from '../../src/render/scene/airframeLod.js'
 
 const RIG: AirframeRig = {
@@ -112,6 +112,59 @@ describe('the pivoted airframe (R3)', () => {
     a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, debris: null })
     expect(inst.node('Prop').visible).toBe(true)
     expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
+  })
+
+  it('a fatal land contact advances breakup on render time even while the simulation tick is held', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    inst.node('Prop').position.set(4, 0, 0)
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
+    const crash = { mode: 'breakup' as const, seed: 19 }
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: crash })
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 3, surfaceCrash: crash })
+    const flown = debrisFlight(3, (19 + Math.imul(1, 0x9e3779b1)) >>> 0)
+    expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0).add(flown.offset))).toBeLessThan(1e-9)
+    expect(inst.node('GearL').position.length()).toBeGreaterThan(5)
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: null })
+    expect(inst.node('Prop').position.distanceTo(new Vector3(4, 0, 0))).toBeLessThan(1e-9)
+  })
+
+  it('a solid impact carries the fuselage through a bounded bounce, tumble, slide and crush', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
+    const crash = { mode: 'breakup' as const, seed: 29, velocity: { x: 48, y: -18, z: 3 }, massKg: 3200, surfaceLiftM: 0.25 }
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: crash })
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0.35, surfaceCrash: crash })
+    expect(Math.hypot(a.root.position.x, a.root.position.z)).toBeGreaterThan(5)
+    expect(a.root.position.y).toBeGreaterThan(0.25)
+    expect(a.root.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0.1)
+    expect(a.root.scale.x).toBeLessThan(0.98)
+    expect(a.root.scale.z).toBeGreaterThan(1)
+
+    // main.ts restores position/orientation from the simulation every frame; the airframe owns scale.
+    a.root.position.set(0, 0, 0)
+    a.root.quaternion.identity()
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: null })
+    expect(a.root.position.length()).toBe(0)
+    expect(a.root.scale.toArray()).toEqual([1, 1, 1])
+  })
+
+  it('a fatal water contact sinks the whole airframe smoothly below the surface, then a reset restores its pose', async () => {
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 0, 1] })
+    const a = await loadPivotedAirframe('toy', 'toy.glb', RIG, undefined, async () => inst)
+    const crash = { mode: 'submerge' as const, seed: 23 }
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: crash })
+    expect(a.root.position.y).toBe(0)
+    a.root.position.y = 0 // main.ts re-applies the immutable impact pose each frame
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: WATER_CRASH_SUBMERGE_S / 2, surfaceCrash: crash })
+    expect(a.root.position.y).toBeCloseTo(-WATER_CRASH_SUBMERGE_M / 2, 9)
+    a.root.position.y = 0
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: WATER_CRASH_SUBMERGE_S, surfaceCrash: crash })
+    expect(a.root.position.y).toBe(-WATER_CRASH_SUBMERGE_M)
+    a.root.position.y = 0
+    a.update({ ...zero, gearFraction: 1, throttle: 0, frameS: 0, surfaceCrash: null })
+    expect(a.root.position.y).toBe(0)
   })
 
   it('uses the one-mesh far representation, but damage forces the articulated model at any range', async () => {

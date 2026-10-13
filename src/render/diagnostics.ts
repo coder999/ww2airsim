@@ -23,6 +23,7 @@ import type { AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { MissionDiagnostics } from './mission/hud.js'
 import type { ReplayCameraId } from '../replay/cameras.js'
 import type { GraphicsCheckRecord, GraphicsCheckSnapshot } from './graphicsCheck.js'
+import type { CockpitFamily } from './scene/cockpitLayouts.js'
 
 export type ImpactMarkerDiagnostics = {
   readonly on: boolean
@@ -70,6 +71,9 @@ export type Ww2Diagnostics = {
   readonly validationErrors: readonly string[]
   readonly tick: () => number
   readonly cameraMode: () => CameraMode
+  /** The panel family currently built for the live player aircraft. Null only
+   *  during boot, before the first panel exists. */
+  readonly cockpitLayout: () => CockpitFamily | null
   /** Current live-flight time scale. Instant-replay keys must not mutate it. */
   readonly timeScale: () => number
   /** Proves a KeyG press reached the player's AircraftState.gearFraction

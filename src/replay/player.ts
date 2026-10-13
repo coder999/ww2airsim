@@ -26,7 +26,8 @@ export type ReplayCommand =
   | { readonly kind: 'skip' }
 
 export const AUTO_BEFORE_S = 8
-export const AUTO_AFTER_S = 1.5
+/** Post-impact playback: long enough for the solid-crash choreography to settle before debrief. */
+export const AUTO_AFTER_S = 8
 export const MANUAL_MIN_S = 3
 export const STEP_S = 1
 

@@ -1,7 +1,7 @@
 import { DT } from '../sim/flight/model.js'
 import type { World } from '../sim/loop.js'
 import type { Vec3 } from '../sim/math/vec3.js'
-import { nextFxEvents, NO_FX_MEMORY, type FxMemory, type FxWorldView } from '../render/fx/events.js'
+import { nextFxEvents, NO_FX_MEMORY, type FxMemory, type FxSustained, type FxWorldView } from '../render/fx/events.js'
 import type { FxSystem } from '../render/fx/system.js'
 import type { Recording } from './recorder.js'
 import { replayPosesAt, type ReplayPoses } from './view.js'
@@ -38,10 +38,17 @@ const viewOf = (w: World<undefined>, poses: ReplayPoses['poses'], anchors: FxAnc
  * world, by `rebuildReplayFx` below -- the two must agree exactly, so a jump
  * lands on the same particles a play-through to the same time would.
  */
-export function stepReplayFx(fx: FxSystem, memory: FxMemory, pose: ReplayPoses, dtS: number, anchors: FxAnchors): FxMemory {
+export function stepReplayFx(
+  fx: FxSystem,
+  memory: FxMemory,
+  pose: ReplayPoses,
+  dtS: number,
+  anchors: FxAnchors,
+  extraSustained: readonly FxSustained[] = [],
+): FxMemory {
   const events = nextFxEvents(memory, viewOf(pose.world, pose.poses, anchors))
   for (const t of events.triggers) fx.trigger(t.recipe, t.position, t.velocity)
-  fx.setSustained(events.sustained)
+  fx.setSustained([...events.sustained, ...extraSustained])
   fx.step(dtS)
   return events.memory
 }
@@ -60,7 +67,13 @@ export function stepReplayFx(fx: FxSystem, memory: FxMemory, pose: ReplayPoses, 
  * resolved before the recording started (an impact already in the ring)
  * don't replay on entry.
  */
-export function rebuildReplayFx(fx: FxSystem, rec: Recording, tS: number, anchors: FxAnchors): FxMemory {
+export function rebuildReplayFx(
+  fx: FxSystem,
+  rec: Recording,
+  tS: number,
+  anchors: FxAnchors,
+  extraSustained: readonly FxSustained[] = [],
+): FxMemory {
   fx.reset(REPLAY_FX_SEED)
   const worlds = rec.worlds
   const first = worlds[0]!
@@ -74,6 +87,11 @@ export function rebuildReplayFx(fx: FxSystem, rec: Recording, tS: number, anchor
     memory = stepReplayFx(fx, memory, pose, (w.tick - prevTick) * DT, anchors)
     prevTick = w.tick
   }
+  // Internal re-simulation deliberately excludes renderer-owned emitters. At the requested frame,
+  // combine them with the recorded world's state-driven sources before stepping the fractional tail.
+  const currentPose = replayPosesAt(rec, tS)
+  const currentEvents = nextFxEvents(memory, viewOf(currentPose.world, currentPose.poses, anchors))
+  fx.setSustained([...currentEvents.sustained, ...extraSustained])
   const tailS = tS - prevTick * DT
   if (tailS > 0) fx.step(tailS)
   return memory

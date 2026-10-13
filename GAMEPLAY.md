@@ -213,8 +213,9 @@ the badge is what needs a landing (see Badges).
 
 ### Instant Replay
 
-A crash or shoot-down holds for three seconds, replays the final moments once,
-then opens the debrief. **Watch replay** runs the same recording again. While
+A crash or shoot-down holds for three seconds, then replays eight seconds before
+and eight seconds after the event so the aftermath can finish before the debrief.
+**Watch replay** runs the same recording again. While
 paused, **K** opens a manual replay of the last 10 seconds once at least three
 seconds have been recorded.
 
