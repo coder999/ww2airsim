@@ -112,7 +112,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   - Worktree, unattended. Checkpoint: B-29 doors cycling in the Hangar plus a flown drop, captures in the handoff.
 
 **C3. Four-family game cockpits (L). Completed 2026-10-12.**
-- Four stable, game-readable layouts now cover all fourteen flyable aircraft: American fighter,
+- Four stable, game-readable layouts now cover all fifteen flyable aircraft: American fighter,
   American bomber, Japanese fighter and Japanese bomber. Enrollment is explicit and tested, so a
   new aircraft cannot silently inherit a cockpit.
 - Each family keeps the same instrument zones while aircraft capability swaps reserved cells:
@@ -130,7 +130,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
   the simulation draws only the changing needles, bars, scope, attitude ball, heading tape, lamps and
   armament counts over them. Indicator colours describe state consistently: dark retracted, amber in
   transit, green deployed/locked; red is reserved for a real unsafe/fault signal not yet modeled.
-- Modeled seats, controls, sidewalls, clickable systems and literal fourteen-airframe interiors remain dropped.
+- Modeled seats, controls, sidewalls, clickable systems and literal fifteen-airframe interiors remain dropped.
 - Design `docs/superpowers/specs/2026-10-11-c3-per-airframe-cockpit-design.md`; plan
   `docs/superpowers/plans/2026-10-11-c3-cockpit-families.md`; handoff
   `docs/handoff/2026-10-11-c3-cockpit-families.md`.
@@ -157,6 +157,7 @@ Mark's items: animated rudder, ailerons and flaps; bomb-bay doors; cockpits uniq
 
 ### Track D: Torpedoes (L)
 
+- **PBY-5A and water operations done 2026-10-12:** an original Blender-built Catalina carries either four AN-M65 bombs or two Mk 13 torpedoes, uses the American-bomber cockpit without a pilot sight, and operates from land or open water. The reusable hull-support model adds afloat starts, displacement/planing drag, water taxi steering, safe water touchdown and open-water landing reports without changing conventional-aircraft ditching. Retractable wingtip floats are independently rigged; the defensive gun installations are static visual detail in this release. The shipped Catalina Water Qualification starts afloat in San Pedro Bay. Design `docs/superpowers/specs/2026-10-12-pby-5a-water-operations-design.md`; plan `docs/superpowers/plans/2026-10-12-pby-5a-water-operations.md`; handoff `docs/handoff/2026-10-12-pby-5a-water-operations.md`.
 - **Steps 1 and 2 done (D1, 2026-10-09):** the TBM-3 Avenger and the B5N2 Kate are onboarded (Blender-built, carrier-capable, flyable from the picker), and `torpedo` is a store kind: a drop envelope judged at release, a water entry, a straight run at depth, an arming run, and a hull hit for the store's damage (`combat.ts`, `tests/sim/weapons/torpedo.test.ts`). The G4M carries a Type 91. Plan `docs/superpowers/plans/2026-10-09-d1-torpedo-planes.md`; handoff `docs/handoff/2026-10-09-d1-torpedo-planes.md`. Step 3 and the sound done in D3 (below); step 4 stays open.
 - **Step 3 and the sound done (D3, 2026-10-09):** a torpedo hit floods: the blow, then 0.6x the warhead drained over 60 s on the hit side, floods adding up, the ship listing toward the water and slowing (`src/sim/weapons/flooding.ts`, `tests/sim/weapons/flooding.test.ts`); bombs never flood. `torpedo_splash` and `torpedo_hit` play; torpedo airplanes say "Torpedo" in the loadout, legend, HUD and Hangar. Plan `docs/superpowers/plans/2026-10-09-d3-torpedo-flooding.md`; handoff `docs/handoff/2026-10-09-d3-torpedo-flooding.md`.
 - **Before D1:** projectile `kind` was round, bomb or rocket. Ships have one `hullHp` pool and sink over 90 s, with no waterline or hit location.
@@ -195,7 +196,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 ### Track F: Missions and a campaign (M then L)
 
 - **Today:**
-  - 12 missions and 6 ranges ship on `main` (counted in `SCENARIO_OPTIONS` 2026-10-11).
+  - 13 missions and 6 ranges ship on `main` (counted in `SCENARIO_OPTIONS` 2026-10-12).
   - A new mission is a JSON file, one `SCENARIO_OPTIONS` row and one `RIBBONS` design (`src/render/insignia.ts`; `tests/render/insignia.test.ts` fails without it), unless it needs a new objective kind, AI behavior or model.
   - **Ribbons and rank insignia done 2026-10-10:** an invented ribbon per mission badge and the 1944 USN collar device per rank, in the Dossier, debrief, roster and mission picker (GAMEPLAY.md, "Badges").
   - **F2 done 2026-10-09:** Single Combat and Scramble (plan `docs/superpowers/plans/2026-10-09-f2-single-combat-scramble.md`, handoff `docs/handoff/2026-10-09-f2-single-combat-scramble.md`).
@@ -204,6 +205,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   - **Surigao Strait done and merged 2026-10-11 (`a8c01fd2`):** at dawn, a bomb-and-rocket F6F pursues *Mogami* while Oldendorf's battle line engages a representative rear guard; recovery is aboard a staged Essex (plan `docs/superpowers/plans/2026-10-11-surigao-strait-mission.md`, handoff `docs/handoff/2026-10-11-surigao-strait-mission.md`).
   - **Tank Buster done 2026-10-11:** a Hellcat attacks six stationary Japanese tanks southwest of Dulag; four kills plus recovery earn the badge, all six the secondary objective. The Chi-Ha is an explicit stand-in for the Type 89/Type 95 tanks better documented on Leyte. Handoff `docs/handoff/2026-10-11-tank-buster-mission.md`; its targets now use Track V's single `World.vehicles` representation.
   - **Torpedo Qualification and USS Crow done and merged 2026-10-11 (`001a5a9d`):** the Avenger takes off from Tacloban, follows an instructor-led low-level run, releases one Mk 13 at the stationary practice ship USS *Crow* (AMc-20), secures the bay and recovers. A hit or miss completes the practice attack; Crow's scenario-only practice-target flag prevents damage and flooding. Crow is an original Blender-built, unarmed ship model.
+  - **Catalina Water Qualification done 2026-10-12:** the PBY-5A begins afloat in San Pedro Bay, taxis onto the step, takes off, flies a circuit, configures gear up/floats down and lands on open water. It is qualification gameplay informed by the 1945 PBY-5A handbook, not a reconstruction of one historical flight.
   - **Carrier Qualification guidance improved and merged 2026-10-11 (feature commit `16899e0a`):** takeoff cleanup is coached after every launch; the recovery objective leads to a moving lineup point astern on the real glideslope, shows the F6F's 97 mph approach speed and 500 ft entry altitude, then switches to the trap zone on final. Paddles' speed calls no longer prescribe throttle changes they cannot infer. Handoff `docs/handoff/2026-10-11-carrier-qualification-guidance.md`.
   - One more mission is designed in GAMEPLAY.md and not built: Kamikaze Watch (deferred: it needs the dropped kamikaze run).
 - **Each mission's dependency:**

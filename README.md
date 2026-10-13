@@ -128,7 +128,7 @@ This is a hobbyist game. Depth is allocated unevenly and on purpose:
 | Graphics — WebGPU, cascaded FFT ocean, volumetric cloud | Deep |
 | Flight physics — honest forces, simplified moments | Good enough |
 | Combat AI — pursuit, energy awareness, a maneuver set, formation, takeoff and landing | Basic |
-| Content — four missions, six ranges, twelve flyable aircraft | Minimal |
+| Content — thirteen missions, six ranges, fifteen flyable aircraft | Minimal |
 
 Explicitly not in scope: multiplayer, a persistent strategic campaign,
 study-level aerodynamics, mobile, or VR.

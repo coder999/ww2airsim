@@ -321,7 +321,7 @@ const STORAGE_KEY = 'ww2airsim.roster.v1'
 // Dossier spec §B.3, same zero-fill philosophy as `career` below.
 const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
 
-const LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']
+const LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'torpedoes', 'rockets', 'both']
 // titleScreen.ts's `DEFAULT_LOADOUT` ('both') is the canonical default;
 // duplicated here rather than imported because titleScreen.ts imports THIS
 // module (roster.ts) -- importing it back would be a cycle.

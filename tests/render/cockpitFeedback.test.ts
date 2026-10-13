@@ -155,6 +155,18 @@ describe('follow camera and numeric data', () => {
     expect(flapValue(1)).toBe('DOWN')
     expect(flapValue(0.5)).toBe('TRANSIT')
   })
+
+  it('labels the same lever as FLOATS for a water-capable aircraft', () => {
+    const amphibian = { ...spec, waterOperations: {
+      hullDepthM: 2.5, floatHalfSpanM: 13.6, floatDepthM: 2.3,
+      restPitchDeg: 3, planingPitchDeg: 6, planingSpeedMps: 20, takeoffSpeedMps: 40,
+      maxLandingSpeedMps: 45, maxLandingSinkMps: 3, displacementDragCoeff: 0.08,
+      planingDragCoeff: 0.02, taxiYawRateDegPerSec: 8, source: 'test',
+    } }
+    const items = flightDataItems(amphibian, createState({ flapFraction: 1 }), NEUTRAL)
+    expect(items.find(i => i.label === 'FLOATS')?.value).toBe('DOWN')
+    expect(items.some(i => i.label === 'FLAP')).toBe(false)
+  })
 })
 
 describe('the flight data strip shows the bay doors on an airplane that has them (C2)', () => {

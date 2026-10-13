@@ -102,6 +102,13 @@ Ask three things:
 Spec: the `gear` block. Model: nodes `GearL`, `GearR`, `GearNose`,
 `Tailwheel`, each with a pivot.
 
+An amphibian also carries a strict optional `waterOperations` block. Its
+landing gear remains ordinary wheel gear; hull support is available only over
+water with the wheels retracted. Retractable lateral floats are rig nodes
+`FloatL` and `FloatR`, driven by `flapFraction` until a dedicated float control
+exists. Such an aircraft therefore has no aerodynamic-flap lift increment and
+must start/land on water with floats down.
+
 ### D6. Engines
 
 **Decided 2026-09-28 (Mark): summed baseline power.** The spec has one
@@ -138,6 +145,9 @@ Options, one per airframe:
 - **None.** Guns only. Omit `stores`.
 - **External bombs (racks only).** As the Wildcat: `rails: []`.
 - **External bombs and rockets (racks and rails).** As the Hellcat.
+- **Alternate bombs or torpedoes.** Keep bomb stations in `racks` and put the
+  smaller torpedo set in `torpedoRacks`; the `torpedoes` loadout selects the
+  latter without pretending that every bomb station carries a torpedo.
 - **Bay-carried bombs.** Racks inside the hull, undrawn: the bombs drop from
   inside the airframe with no external rack or bay door in the picture. Place the
   rack offsets within the drawn hull and hold them with a test like the B-17's
@@ -217,6 +227,8 @@ Ask:
    Deterministic checks the roster in `GAMEPLAY.md`.
 2. **Scenarios.** Options: none (picker only), or named shipped scenarios.
    Recommend none until the airframe passes Part F.
+   A water-capable aircraft may use `afloatAt` and a `water` sortie start; the
+   shipped mission must name `open-water` for takeoff and landing objectives.
 3. **Acceptance.** Recommend the tolerances the graded suite already holds
    for the F6F and the Zero, and no wider. State the misses as findings; do
    not tune a coefficient to pass a card (R36).
@@ -581,6 +593,30 @@ Detail: [`docs/handoff/2026-10-09-d1-torpedo-planes.md`](handoff/2026-10-09-d1-t
   hangs its torpedo; the Avenger's keeps one, as every bay bomber's does, because check 6 looks for stores from the front and a
   bay load is invisible there.
 - **A carrier airframe traps on its own side's fleet carrier** in `trap.test.ts` (Essex, or Zuikaku for a Japanese type).
+
+## Lessons from the PBY-5A run (2026-10-12)
+
+Detail: [`docs/handoff/2026-10-12-pby-5a-water-operations.md`](handoff/2026-10-12-pby-5a-water-operations.md).
+
+- **Water capability is opt-in content, not a different aircraft class.** The
+  optional `waterOperations` block leaves every existing aircraft's contact
+  path unchanged and lets an amphibian use both the wheel and hull constraints.
+- **An afloat start needs an authored state.** `afloatAt` derives keel height,
+  rest pitch, wheels-up/floats-down controls and zero speed from the aircraft
+  spec; do not approximate it as an airborne start at sea level.
+- **Floats are not wheel gear.** `FloatL` and `FloatR` have their own rig pivots.
+  The current control compromise uses `flapFraction`, so the flight card marks
+  flap direction inapplicable and the aircraft has no flap lift bonus.
+- **Different stores need different station sets.** Four bomb racks and two
+  inboard torpedo stations are represented by `racks` and `torpedoRacks`; a
+  loadout changes both the inventory and the visible suspension points.
+- **A sourced stall can require an explicit lift fit.** The Catalina uses a
+  fitted lift-curve slope to reproduce the handbook's 55-knot clean stall.
+  Top speed and stall are close; the simplified model's climb and runway roll
+  residuals are recorded rather than hidden by unrelated coefficient changes.
+- **Static guns must stay honest.** The bow, blister and tunnel guns are model
+  detail only in this release: there is no `combat.gunners` entry and no claim
+  that they aim or fire.
 
 ## The worked example
 

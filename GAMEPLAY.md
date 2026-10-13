@@ -354,6 +354,7 @@ added here without a library file fails the suite. Design:
 | Lockheed P-38 Lightning | Player-flown, friendly AI |
 | Boeing B-17 Flying Fortress | Player-flown, friendly AI, escort subject |
 | Boeing B-29 Superfortress | Player-flown, friendly AI, escort subject |
+| Consolidated PBY-5A Catalina | Player-flown amphibious patrol bomber |
 | Vought F4U Corsair | Player-flown, friendly AI |
 | Grumman TBF/TBM Avenger | Player-flown torpedo bomber |
 | Mitsubishi A6M Zero | Hostile fighter |
@@ -364,8 +365,10 @@ added here without a library file fails the suite. Design:
 | Mitsubishi Ki-21 Sally | Hostile bomber |
 | Nakajima B5N Kate | Hostile torpedo bomber |
 
-This roster mirrors the original's and should be confirmed against a primary
-source before art work begins; it currently derives from a secondary summary.
+The original fourteen rows mirror the 1991 game's roster and should be
+confirmed against primary sources before art work begins; the Catalina is a
+2026 expansion sourced from the 1945 Navy PBY-5A operating and maintenance
+manuals.
 (Typos corrected 2026-09-24: F4F not "f4F", F4U not "f4U", "friendly" not
 "firendly"/"friendly-flow", Ki-21 not "K-21" — the Imperial Japanese Army
 bomber the 1991 original calls "Sally" is the Mitsubishi **Ki-21**, not a

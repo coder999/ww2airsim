@@ -9,15 +9,46 @@ import { DT } from '../../src/sim/flight/model.js'
 const hellcat = loadAircraftSpec('f6f-hellcat')
 const wildcat = loadAircraftSpec('f4f-wildcat')
 const zero = loadAircraftSpec('a6m2-zero')
+const catalina = loadAircraftSpec('pby-5a-catalina')
 const flyable = [hellcat, wildcat, zero]
 // A flyable airplane with no stores block, for the rules that only bite on one (the Zero had none until 2026-09-29).
 const bare = { ...zero, stores: undefined }
+const alternateTorpedoes = {
+  ...wildcat,
+  id: 'amphibian-test',
+  stores: {
+    ...wildcat.stores!,
+    torpedoRacks: [
+      { id: 'torpedo-left', offset: [0, -1, -2] as [number, number, number], store: 'mk13' },
+      { id: 'torpedo-right', offset: [0, -1, 2] as [number, number, number], store: 'mk13' },
+    ],
+    types: {
+      ...wildcat.stores!.types,
+      mk13: {
+        kind: 'torpedo' as const, massKg: 1005, dragAreaM2: 0.132, fillerKg: 274,
+        damage: 136, blastRadiusM: 31, lifetimeS: 60, dragPerM: 1.32e-5,
+        maxDropSpeedMps: 210.9, maxDropHeightM: 730, runSpeedMps: 17.23,
+        runRangeM: 3660, runDepthM: 3, armRunM: 180,
+      },
+    },
+  },
+}
 const ids = (xs: readonly { id: string }[]) => xs.map((x) => x.id)
 const scenarioIds = readdirSync('content/scenarios').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
 
 describe('startKindOf', () => {
-  it.each([['deck-quals', 'carrier'], ['free-flight', 'airfield'], ['combat-air-patrol', 'airborne']] as const)('%s is %s', (id, kind) => {
+  it.each([['deck-quals', 'carrier'], ['free-flight', 'airfield'], ['water-quals', 'water'], ['combat-air-patrol', 'airborne']] as const)('%s is %s', (id, kind) => {
     expect(startKindOf(loadScenario(id))).toBe(kind)
+  })
+  it('builds the Catalina afloat at its hull waterline with wheels up and floats down', () => {
+    const world = worldFromScenario(loadScenarioBundle('water-quals'), null, 'clean')
+    const player = world.aircraft.find((a) => a.id === world.player)!
+    expect(player.state.position).toEqual({ x: -13000, y: catalina.waterOperations!.hullDepthM, z: -36000 })
+    expect(player.state.velocity).toEqual({ x: 0, y: 0, z: 0 })
+    expect(player.state.gearFraction).toBe(0)
+    expect(player.state.flapFraction).toBe(1)
+    expect(player.controls).toMatchObject({ gearDown: false, flapDown: true, throttle: 0 })
+    expect(player.parked).toBe(true)
   })
 })
 
@@ -35,14 +66,21 @@ describe('eligibleAircraft: every start kind x every flyable spec x dev', () => 
     expect(ids(eligibleAircraft([landOnly], 'carrier', false))).toEqual([])
     expect(ids(eligibleAircraft([landOnly], 'airfield', false))).toEqual(['land-only'])
   })
+  it('offers only water-capable allied aircraft for a water start', () => {
+    expect(ids(eligibleAircraft([...flyable, catalina], 'water', false))).toEqual(['pby-5a-catalina'])
+  })
 })
 
 describe('eligibleLoadouts', () => {
-  it('racks and rails: all four; no stores: clean only; dev: all four', () => {
+  it('racks and rails: the original four; no stores: clean only; dev lends the original four', () => {
     expect(eligibleLoadouts(hellcat, false)).toEqual(['clean', 'bombs', 'rockets', 'both'])
     expect(eligibleLoadouts(zero, false)).toEqual(['clean', 'bombs', 'rockets', 'both'])
     expect(eligibleLoadouts(bare, false)).toEqual(['clean'])
-    expect(eligibleLoadouts(bare, true)).toEqual(ALL_LOADOUTS)
+    expect(eligibleLoadouts(bare, true)).toEqual(['clean', 'bombs', 'rockets', 'both'])
+  })
+  it('offers a distinct torpedoes choice only when alternate torpedo racks exist', () => {
+    expect(ALL_LOADOUTS).toContain('torpedoes')
+    expect(eligibleLoadouts(alternateTorpedoes, false)).toEqual(['clean', 'bombs', 'torpedoes'])
   })
   it('racks only, no rails: clean and bombs, not rockets or both (W1: the F4F-4 carries no rockets)', () => {
     expect(eligibleLoadouts(wildcat, false)).toEqual(['clean', 'bombs'])
@@ -62,6 +100,10 @@ describe('sortieRulesBroken, isDevSortie, validateSortie', () => {
     expect(() => validateSortie({ ...f, dev: false })).toThrow('sortie needs Dev: dev-scenario, enemy-aircraft, not-carrier-capable, no-stations')
     expect(() => validateSortie({ ...f, dev: true })).not.toThrow()
     expect(isDevSortie({ ...f, quickLaunch: false })).toBe(true)
+  })
+  it('requires a water-capable aircraft for a water start', () => {
+    expect(sortieRulesBroken({ ...facts, start: 'water', spec: hellcat })).toContain('not-water-capable')
+    expect(sortieRulesBroken({ ...facts, start: 'water', spec: catalina })).not.toContain('not-water-capable')
   })
   it('each kind of needed-Dev choice alone is a Dev sortie; a quick launch always is', () => {
     expect(isDevSortie({ ...facts, devScenario: true, quickLaunch: false })).toBe(true)
@@ -84,7 +126,9 @@ describe('the player-spec swap and the Dev stores layout', () => {
       const bundle = loadScenarioBundle(id)
       const playerSpecId = bundle.scenario.aircraft.find((a) => a.id === bundle.scenario.player)!.spec
       const playerSpec = bundle.aircraftSpecs[playerSpecId]!
-      for (const loadout of eligibleLoadouts(playerSpec, false)) {
+      // Alternate torpedo stations intentionally rewrite the player's spec;
+      // every loadout that uses the authored primary racks remains identical.
+      for (const loadout of eligibleLoadouts(playerSpec, false).filter((choice) => choice !== 'torpedoes')) {
         expect(worldFromScenario(sortieBundle(bundle, loadout, hellcat.stores), null, loadout), `${id} ${loadout}`)
           .toEqual(worldFromScenario(bundle, null, loadout))
       }
@@ -102,6 +146,27 @@ describe('the player-spec swap and the Dev stores layout', () => {
     expect(b.aircraftSpecs['a6m2-zero']!.stores).toBeUndefined()
     const w = worldFromScenario(b, null, 'bombs')
     expect(w.combat.aircraft[w.player]!.stores).toEqual({ bombs: 2, rockets: 0 })
+  })
+  it('an alternate torpedo sortie swaps only the player to its torpedo racks', () => {
+    const base = loadScenarioBundle('combat-air-patrol')
+    const scenario = withPlayerSpec(base.scenario, alternateTorpedoes.id)
+    const bundle = { ...base, scenario, aircraftSpecs: { ...base.aircraftSpecs, [alternateTorpedoes.id]: alternateTorpedoes } }
+    const b = sortieBundle(bundle, 'torpedoes', hellcat.stores)
+    const key = `${alternateTorpedoes.id}~torpedoes`
+    expect(b.scenario.aircraft.find((a) => a.id === b.scenario.player)!.spec).toBe(key)
+    expect(b.aircraftSpecs[key]!.stores!.racks).toEqual(alternateTorpedoes.stores.torpedoRacks)
+    expect(b.aircraftSpecs[alternateTorpedoes.id]!.stores!.racks).toEqual(wildcat.stores!.racks)
+    expect(worldFromScenario(b, null, 'torpedoes').combat.aircraft[b.scenario.player]!.stores).toEqual({ bombs: 2, rockets: 0 })
+  })
+  it('the Catalina water qualification launches with its two real Mk 13 stations', () => {
+    const bundle = loadScenarioBundle('water-quals')
+    const selected = sortieBundle(bundle, 'torpedoes', hellcat.stores)
+    const playerSpec = selected.aircraftSpecs['pby-5a-catalina~torpedoes']!
+    expect(playerSpec.stores!.racks.map((rack) => [rack.id, rack.store])).toEqual([
+      ['torpedo-left', 'mk13'],
+      ['torpedo-right', 'mk13'],
+    ])
+    expect(worldFromScenario(selected, null, 'torpedoes').combat.aircraft['catalina-1']!.stores).toEqual({ bombs: 2, rockets: 0 })
   })
 })
 

@@ -35,6 +35,18 @@ _Avoid_: speaker, character
 
 ## Airframes
 
+**Afloat start**:
+A scenario start for a water-capable aircraft already supported by its hull on open water, with landing gear up and wingtip floats down. It is stationary and launch-ready, but it is not an airfield or carrier parking spot.
+_Avoid_: water spawn, sea start
+
+**Wingtip floats**:
+The Catalina's retractable lateral floats. They use the flap control channel in this release: floats down is the water-safe state, while floats up is the clean-flight state. They are separate from landing gear and are not aerodynamic flaps.
+_Avoid_: pontoons, landing gear
+
+**Water support**:
+Non-terminal hull contact for an aircraft with a `waterOperations` block, landing gear up and wingtip floats down. It covers displacement rest, taxi, planing, takeoff and a safe open-water landing. Aircraft without that block still ditch or crash on water.
+_Avoid_: ditching, floating (alone)
+
 **Control surface**:
 An aileron, elevator, rudder or flap drawn moving on an airframe. The motion shows what the pilot is doing and does not change how the aircraft flies. Full travel at any speed.
 _Avoid_: moving part, control (alone)

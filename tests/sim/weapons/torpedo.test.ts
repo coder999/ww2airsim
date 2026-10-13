@@ -9,22 +9,29 @@ import { createState, type Controls } from '../../../src/sim/flight/state.js'
 import { DT } from '../../../src/sim/flight/model.js'
 import { v3, type Vec3 } from '../../../src/sim/math/vec3.js'
 import { createCombat, stepCombat, type CombatShip, type CombatState, type Projectile } from '../../../src/sim/weapons/combat.js'
-import { racksLabel, storesFromLoadout } from '../../../src/sim/weapons/stores.js'
+import { racksLabel, storesFromLoadout, type Loadout } from '../../../src/sim/weapons/stores.js'
 import type { AircraftSpec, StoreType } from '../../../src/sim/flight/schema.js'
 
 const ids = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
-const carriers = new Map<string, AircraftSpec>()
+const carriers = new Map<string, { spec: AircraftSpec; loadout: Loadout }>()
 for (const id of ids) {
   const spec = loadAircraftSpec(id)
-  for (const [storeId, t] of Object.entries(spec.stores?.types ?? {})) if (t.kind === 'torpedo' && !carriers.has(storeId)) carriers.set(storeId, spec)
+  for (const [storeId, t] of Object.entries(spec.stores?.types ?? {})) if (t.kind === 'torpedo' && !carriers.has(storeId)) {
+    const loadout: Loadout = spec.stores?.torpedoRacks?.some((r) => r.store === storeId) === true ? 'torpedoes' : 'bombs'
+    const effective = loadout === 'torpedoes'
+      ? { ...spec, stores: { ...spec.stores!, racks: spec.stores!.torpedoRacks! } }
+      : spec
+    carriers.set(storeId, { spec: effective, loadout })
+  }
 }
 const ENROLLED = ['mk13', 'type91']
 
 // D3 T1 (Mark, 2026-10-09): the loadout picker, the controls legend and the Hangar bench say
 // "Torpedo", not "Bombs", for every airplane whose racks carry a torpedo, and only for those.
-it('names the racks "Torpedo" on exactly the torpedo airplanes in content', () => {
+it('keeps the ordinary rack label honest when an amphibian has alternate torpedo stations', () => {
   const torpedoPlanes = ids.filter((id) => racksLabel(loadAircraftSpec(id)) === 'Torpedo').sort()
   expect(torpedoPlanes).toEqual(['b5n2-kate', 'g4m-betty', 'tbm-3-avenger'])
+  expect(racksLabel(loadAircraftSpec('pby-5a-catalina'))).toBe('Bombs')
   expect(racksLabel(loadAircraftSpec('f6f-hellcat'))).toBe('Bombs')
   expect(racksLabel(undefined)).toBe('Bombs')
 })
@@ -39,10 +46,10 @@ const controls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, fire: false
 /** The carrier releasing over open sea (no terrain field, so the sea plane is everywhere), doors
  *  open, at `speed` along +x and `height` above the sea. Steps until the torpedo is in the water or
  *  gone, and returns the combat state then. */
-function drop(spec: AircraftSpec, speed: number, height: number): { combat: CombatState; ticks: number } {
+function drop(spec: AircraftSpec, loadout: Loadout, speed: number, height: number): { combat: CombatState; ticks: number } {
   const state = createState({ position: v3(0, height, 0), velocity: v3(speed, 0, 0), bayDoorFraction: 1 })
   const a = { id: 'p', spec, state, previous: state, controls, impact: null }
-  let combat = createCombat([a], { p: storesFromLoadout(spec, 'bombs') })
+  let combat = createCombat([a], { p: storesFromLoadout(spec, loadout) })
   combat = stepCombat(combat, [a], [], [], null, null, [], 1, DT)
   const idle = { ...a, controls: { ...controls, dropBomb: false } }
   let ticks = 1
@@ -74,11 +81,11 @@ function run(spec: AircraftSpec, p: Projectile, ships: readonly CombatShip[]): C
 }
 
 describe.each(ENROLLED)('%s', (storeId) => {
-  const spec = carriers.get(storeId)!
+  const { spec, loadout } = carriers.get(storeId)!
   const t = spec.stores!.types[storeId]!
 
   it('dropped inside its envelope, it enters the water and runs at its depth and speed', () => {
-    const { combat } = drop(spec, 0.8 * t.maxDropSpeedMps!, 0.5 * t.maxDropHeightM!)
+    const { combat } = drop(spec, loadout, 0.8 * t.maxDropSpeedMps!, 0.5 * t.maxDropHeightM!)
     const p = combat.projectiles.find((q) => q.kind === 'torpedo')
     expect(p, 'a running torpedo').toBeDefined()
     expect(p!.runM).toBeDefined()
@@ -91,7 +98,7 @@ describe.each(ENROLLED)('%s', (storeId) => {
   })
 
   it.each([['too fast', 1.1, 0.5], ['too high', 0.8, 1.2]] as const)('dropped %s, it breaks up on the water', (_why, speedK, heightK) => {
-    const { combat } = drop(spec, speedK * t.maxDropSpeedMps!, heightK * t.maxDropHeightM!)
+    const { combat } = drop(spec, loadout, speedK * t.maxDropSpeedMps!, heightK * t.maxDropHeightM!)
     expect(combat.projectiles.filter((q) => q.kind === 'torpedo')).toHaveLength(0)
     expect(combat.impacts.map((i) => [i.cause, i.outcome, i.surface])).toEqual([['torpedo', 'broke-up', 'water']])
     expect(combat.aircraft.p!.torpedoesBrokeUp).toBe(1)
@@ -123,7 +130,7 @@ describe.each(ENROLLED)('%s', (storeId) => {
     const state = createState({ position: v3(0, 0.5 * Math.min(t.maxDropHeightM!, 100), 0), velocity: v3(0.8 * Math.min(t.maxDropSpeedMps!, 110), 0, 0), bayDoorFraction: 1 })
     const a = { id: 'p', spec, state, previous: state, controls, impact: null }
     const target = ship(1000)
-    let combat = createCombat([a], { p: storesFromLoadout(spec, 'bombs') }, [{ id: 'target', hullHp: 1000 }])
+    let combat = createCombat([a], { p: storesFromLoadout(spec, loadout) }, [{ id: 'target', hullHp: 1000 }])
     const idle = { ...a, controls: { ...controls, dropBomb: false } }
     for (let tick = 1; tick < 60 * 120 && combat.ships.target!.hp === 1000; tick++) combat = stepCombat(combat, [tick === 1 ? a : idle], [target], [], null, null, [], tick, DT)
     expect(combat.impacts.map((i) => i.outcome)).toEqual(['entered', 'detonated'])

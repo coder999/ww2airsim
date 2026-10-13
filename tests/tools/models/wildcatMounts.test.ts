@@ -41,8 +41,8 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
     wildcatToSimMatrix().forEach((v, i) => expect(v).toBeCloseTo(g.matrix.elements[i]!, 12))
   })
 
-  it('covers every wing-mounted stores-carrying spec, each on the model it draws (A4: the Hellcat on its own; the Corsair and the Zero likewise; the P-38 has ten rails and two racks hanging on its own wing outboard of the booms)', () => {
-    expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero-blender'], ['f4f-wildcat', 'f4f-wildcat-blender'], ['f4u-corsair', 'f4u-corsair-blender'], ['f6f-hellcat', 'f6f-hellcat-blender'], ['ki-43-oscar', 'ki-43-oscar-blender'], ['ki-84-frank', 'ki-84-frank'], ['p-38-lightning', 'p-38-lightning']])
+  it('covers every wing-mounted stores-carrying spec, each on the model it draws', () => {
+    expect(wingMounted.map((s) => [s.id, s.view.model]).sort()).toEqual([['a6m2-zero', 'a6m2-zero-blender'], ['f4f-wildcat', 'f4f-wildcat-blender'], ['f4u-corsair', 'f4u-corsair-blender'], ['f6f-hellcat', 'f6f-hellcat-blender'], ['ki-43-oscar', 'ki-43-oscar-blender'], ['ki-84-frank', 'ki-84-frank'], ['p-38-lightning', 'p-38-lightning'], ['pby-5a-catalina', 'pby-5a-catalina']])
   })
 
   it('the only stores-carrying specs left out are the B-17, the B-29, the G4M and the Ki-21 (racks internal) and the Val (belly rack)', () => {
@@ -55,7 +55,11 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
 
   it.each(wingMounted.map((s) => [s.id, s] as const))('%s: every offset is where `npm run models:mounts` hangs it on its own model, inside the chord, clear of the skin', (_id, spec) => {
     const fits = fitStores(sections.get(spec.view.model)!, spec.stores!)
-    const all = [...spec.stores!.racks.map((m, i) => [m, fits.racks[i]!] as const), ...spec.stores!.rails.map((m, i) => [m, fits.rails[i]!] as const)]
+    const all = [
+      ...spec.stores!.racks.map((m, i) => [m, fits.racks[i]!] as const),
+      ...spec.stores!.rails.map((m, i) => [m, fits.rails[i]!] as const),
+      ...(spec.stores!.torpedoRacks ?? []).map((m, i) => [m, fits.torpedoRacks[i]!] as const),
+    ]
     for (const [m, f] of all) {
       m.offset.forEach((v, k) => expect(Math.abs(v - f.offset[k]!), `${m.id}[${k}]: content ${v}, measured ${f.offset[k]} (re-run npm run models:mounts)`).toBeLessThanOrEqual(0.002))
       expect(m.offset[0], `${m.id} lug point inside the chord`).toBeGreaterThan(f.trailingX)

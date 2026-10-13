@@ -69,6 +69,12 @@ export function contactOutcome(
   // A deck arrival that failed `supportedContact`'s gates hit steel, not water.
   if (surface === 'land' || surface === 'deck') return 'destroyed'
 
+  // A water-capable hull reaches this function only after its own support
+  // gates failed. A safe amphibious arrival remains an active aircraft and
+  // never records an Impact; reaching the terminal path therefore means the
+  // gear, attitude, sink or speed was unsafe.
+  if (spec.waterOperations !== undefined) return 'destroyed'
+
   const { pitchRad, rollRad } = attitudeAngles(state)
   const wingsLevel = Math.abs(rollRad) <= DITCH_MAX_BANK_RAD
   // Bounds sink from below only -- a climbing state at contact would pass

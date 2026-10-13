@@ -27,6 +27,7 @@ export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'flattop-hunt': [[NAVY, 12], [WHITE, 2], [SCARLET, 2], [WHITE, 2], [NAVY, 2], [SCARLET, 4]],
   'escort': [[OLIVE, 4], [SKY, 2], [OLIVE, 12], [GOLD, 2], [BLUE, 4]],
   'surigao-strait': [[NAVY, 4], [WHITE, 2], [SCARLET, 3], [GOLD, 2], [SKY, 10], [GOLD, 2]],
+  'water-qualified': [[SKY, 7], [WHITE, 2], [NAVY, 6], [GOLD, 2], [SCARLET, 10]],
 }
 /** A badge with no design of its own (dev fixtures, a retired mission). */
 const PLAIN_RIBBON: readonly Stripe[] = [[NAVY, 20], [GOLD, 4]]

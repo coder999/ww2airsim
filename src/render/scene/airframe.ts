@@ -6,7 +6,7 @@ import { createRng } from '../../sim/rng.js'
  *  model actually has, so the Hangar bench can show the rest as "not
  *  modeled" instead of a slider that moves nothing (Hangar spec §7, Mark's
  *  decision 1, 2026-09-25). */
-export type PartId = 'prop' | 'gear' | 'flaps' | 'surfaces' | 'doors' | 'turrets' | 'stores'
+export type PartId = 'prop' | 'gear' | 'floats' | 'flaps' | 'surfaces' | 'doors' | 'turrets' | 'stores'
 
 /** A fatal surface contact's renderer-only aftermath. The simulation keeps
  * its impact pose immutable for scoring and replay; an airframe uses this to

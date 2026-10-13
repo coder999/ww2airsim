@@ -113,7 +113,7 @@ export type Badge = z.infer<typeof BadgeObject>
 
 /** The four loadouts the title offers (src/sim/weapons/stores.ts `Loadout`);
  *  `scenario.ts` asserts the two agree at the type level. */
-export const LoadoutObject = z.enum(['clean', 'bombs', 'rockets', 'both'])
+export const LoadoutObject = z.enum(['clean', 'bombs', 'torpedoes', 'rockets', 'both'])
 
 /** Display only (M2): what the title's orders memo shows for a mission.
  *  `loadout` is the recommended one, preselected but changeable (spec §3). */

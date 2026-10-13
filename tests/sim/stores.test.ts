@@ -8,6 +8,27 @@ import { qIdentity } from '../../src/sim/math/quat.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 
+const alternateTorpedoes = {
+  ...f6f,
+  stores: {
+    ...f6f.stores!,
+    rails: [],
+    torpedoRacks: [
+      { id: 'torpedo-left', offset: [0, -1, -2] as [number, number, number], store: 'mk13' },
+      { id: 'torpedo-right', offset: [0, -1, 2] as [number, number, number], store: 'mk13' },
+    ],
+    types: {
+      ...f6f.stores!.types,
+      mk13: {
+        kind: 'torpedo' as const, massKg: 1005, dragAreaM2: 0.132, fillerKg: 274,
+        damage: 136, blastRadiusM: 31, lifetimeS: 60, dragPerM: 1.32e-5,
+        maxDropSpeedMps: 210.9, maxDropHeightM: 730, runSpeedMps: 17.23,
+        runRangeM: 3660, runDepthM: 3, armRunM: 180,
+      },
+    },
+  },
+}
+
 describe('stores content and loadouts', () => {
   it('parses the shipped racks, rails and store types', () => {
     expect(f6f.stores?.racks).toHaveLength(2)
@@ -21,6 +42,9 @@ describe('stores content and loadouts', () => {
     expect(storesFromLoadout(f6f, 'bombs')).toEqual({ bombs: 2, rockets: 0 })
     expect(storesFromLoadout(f6f, 'rockets')).toEqual({ bombs: 0, rockets: 6 })
   })
+  it('an alternate torpedo loadout carries the torpedo racks instead of the bomb racks', () => {
+    expect(storesFromLoadout(alternateTorpedoes, 'torpedoes')).toEqual({ bombs: 2, rockets: 0 })
+  })
 })
 
 describe('storesSpec bit-identity and mass/drag (Plan 6b spec §3.1)', () => {
@@ -32,6 +56,10 @@ describe('storesSpec bit-identity and mass/drag (Plan 6b spec §3.1)', () => {
     const loaded = storesSpec(f6f, { bombs: 2, rockets: 6 })
     expect(massKg(loaded, state)).toBeCloseTo(f6f.mass.emptyKg + state.fuelKg + 2 * 453.6 + 6 * 61, 6)
     expect(massKg(storesSpec(f6f, { bombs: 1, rockets: 0 }), state)).toBeCloseTo(f6f.mass.emptyKg + state.fuelKg + 453.6, 6)
+  })
+  it('charges mass and drag against the active alternate torpedo racks', () => {
+    const torpedoSpec = { ...alternateTorpedoes, stores: { ...alternateTorpedoes.stores, racks: alternateTorpedoes.stores.torpedoRacks } }
+    expect(storesSpec(torpedoSpec, { bombs: 2, rockets: 0 }).storesLoad).toEqual({ massKg: 2010, dragAreaM2: 0.264 })
   })
   it('drag rises by the summed store area times dynamic pressure, and a clean airplane steps IDENTICALLY to today', () => {
     let bare = createState({ position: v3(0, 2000, 0), velocity: v3(0, 0, -90), attitude: qIdentity() })

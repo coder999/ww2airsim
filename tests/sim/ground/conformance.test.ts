@@ -53,7 +53,8 @@ const liftoffHighFraction = (id: string): number => (id === 'p-38-lightning' ? 1
 
 // The B-29 (50 t on a summed 2,000 hp per engine at sea level, unstick at 1.1 x its own 59.4 m/s stall) never left the ground in
 // 90 s and did in 100 s, measured 2026-09-29; 110 s leaves margin. Harness patience again, not a coefficient (B-29 onboarding).
-const takeoffWindowS = (id: string, fighterS: number): number => (id === 'b-17-flying-fortress' ? 90 : id === 'b-29-superfortress' ? 110 : fighterS)
+const takeoffWindowS = (id: string, fighterS: number): number =>
+  id === 'b-17-flying-fortress' ? 90 : id === 'b-29-superfortress' ? 110 : id === 'pby-5a-catalina' ? 60 : fighterS
 
 
 describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance: %s', (_id, spec) => {
@@ -114,7 +115,12 @@ describe.each(allGroundSpecs.map((s) => [s.id, s] as const))('ground conformance
   // 1.15 of it: it rejects both the old 9.45 degree ceiling (56 m/s, 1.30 for
   // the F6F) and a ceiling that lifts off at the stall.
   it('6. a firm pull lifts off within 0.95-1.15 of 1.1 x the clean stall speed', () => {
-    const { trace } = run(spec, (_t, s) => ({ pitch: speedOf(s) >= 40 ? 1 : 0, roll: 0, yaw: 0, throttle: 1, gearDown: true }), takeoffWindowS(spec.id, 40))
+    // Start the pull below the expected unstick speed. A fixed 40 m/s happened
+    // to suit the original fighters but is already above the Catalina's
+    // sourced 1.1 x stall target, which would make the test manufacture a
+    // late rotation and then blame the airplane for it.
+    const pullAtMps = Math.min(40, 0.9 * 1.1 * spec.reference.stallSpeedMps)
+    const { trace } = run(spec, (_t, s) => ({ pitch: speedOf(s) >= pullAtMps ? 1 : 0, roll: 0, yaw: 0, throttle: 1, gearDown: true }), takeoffWindowS(spec.id, 40))
     const i = trace.findIndex((s) => !onGround(spec, s, RUNWAY_HEIGHT_M))
     expect(i, 'never left the ground').toBeGreaterThan(0)
     const target = 1.1 * spec.reference.stallSpeedMps

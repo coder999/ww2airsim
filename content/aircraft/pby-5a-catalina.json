@@ -1,0 +1,132 @@
+{
+  "id": "pby-5a-catalina",
+  "name": "Consolidated PBY-5A Catalina",
+  "role": "bomber",
+  "side": "allied",
+  "carrierCapable": false,
+  "geometry": { "wingAreaM2": 130.0643, "wingSpanM": 31.6992 },
+  "mass": { "emptyKg": 9484.6, "fuelCapacityKg": 4022.4, "maxTakeoffKg": 16510.8 },
+  "aero": {
+    "clSlopePerRad": 6.66,
+    "clMax": 1.88,
+    "alphaCritDeg": 15.5,
+    "clAtZeroAlpha": 0.1,
+    "cySlopePerRad": 2.0,
+    "cd0": 0.024,
+    "oswaldE": 0.82
+  },
+  "engine": {
+    "count": 2,
+    "idleRpm": 600,
+    "ratedRpm": 2700,
+    "maxPowerW": 1789680,
+    "propEfficiency": 0.68,
+    "staticThrustN": 24000,
+    "powerFractionByAltitudeM": [[0, 0.96], [2134, 1.0], [3048, 0.96], [4572, 0.82], [6096, 0.68], [9144, 0.42]],
+    "windmillCd0": 0.048
+  },
+  "rates": {
+    "maxRollRateDegPerSec": 18,
+    "maxPitchRateDegPerSec": 12,
+    "maxYawRateDegPerSec": 8,
+    "rateRefSpeedMps": 70,
+    "weathercockSeconds": 2.5,
+    "autoRudderGainPerDeg": 0.1,
+    "stallLimiterSeconds": 0.2
+  },
+  "limits": { "diveSpeedMps": 90, "gLimit": 3.5 },
+  "gear": {
+    "travelSeconds": 15,
+    "dragAreaM2": 1.15,
+    "rollingResistanceCoeff": 0.02,
+    "brakingResistanceCoeff": 0.4,
+    "lateralGripSeconds": 1.8,
+    "heightM": 3.62,
+    "layout": "tricycle",
+    "mainX": -1.35,
+    "thirdX": 5.15,
+    "thirdHeightM": 3.62,
+    "thirdSteering": "steered",
+    "steerYawRateDegPerSec": 12,
+    "steerLockSpeedMps": 7,
+    "tailLiftSpeedMps": 28,
+    "propWashSpeedMps": 12,
+    "torqueYawRateDegPerSec": 0
+  },
+  "flap": {
+    "travelSeconds": 20,
+    "dragAreaM2": 0.001,
+    "clIncrement": 0.001
+  },
+  "waterOperations": {
+    "hullDepthM": 2.2,
+    "floatHalfSpanM": 13.6145,
+    "floatDepthM": 0.5,
+    "restPitchDeg": 3,
+    "planingPitchDeg": 6,
+    "planingSpeedMps": 20,
+    "takeoffSpeedMps": 39.1,
+    "maxLandingSpeedMps": 42.7,
+    "maxLandingSinkMps": 2.5,
+    "displacementDragCoeff": 0.04,
+    "planingDragCoeff": 0.012,
+    "taxiYawRateDegPerSec": 8,
+    "source": "AN 01-5MA-1 (revised 20 Jan 1945), pp. 49, 52, 58: water taxi has continuous drag; water takeoff 75-80 kn; water approach 76-83 kn with wheels up and floats down. hullDepthM is MEASURED from the original Blender model; floatHalfSpanM is half the AN 01-5MA-2 89 ft 4 in float tread; floatDepthM and maxLandingSinkMps are ESTIMATES. Drag coefficients, planingSpeedMps, pitch targets and taxi yaw are GAMEPLAY ESTIMATES, tuned only for stable deterministic operation. The flap lever/state is intentionally reused as the separate float lever because the Catalina has no aerodynamic flaps; clIncrement and dragAreaM2 are near-zero bookkeeping values."
+  },
+  "reference": {
+    "source": "Primary sources read 2026-10-12: U.S. Navy AN 01-5MA-1, Pilot's Handbook of Flight Operating Instructions, Navy Model PBY-5A, revised 20 Jan 1945; AN 01-5MA-2, Handbook of Erection and Maintenance Instructions, Navy Models PBY-5 and PBY-5A, 15 May 1945. GEOMETRY: 104 ft span, 1,300 sq ft wing less ailerons plus 100 sq ft ailerons = 1,400 sq ft / 130.0643 m2 (AN 01-5MA-2 Section I pp. 1-2). MASS: emptyKg 20,910 lb / 9,484.6 kg is SECONDARY; maxTakeoffKg 36,400 lb / 16,510.8 kg is the pilot handbook's jettisonable-load maximum. fuelCapacityKg 4,022.4 is DERIVED from the maintenance handbook's 1,478 US gal at the handbook's 6 lb/gal flight-planning weight. ENGINE: two R-1830-92, 1,200 bhp each at 2,700 rpm and 48 in Hg, AN 01-5MA-1 Figures 38 and 67; maxPowerW is 2 x 1,200 hp x 745.7. powerFractionByAltitudeM is an ESTIMATE shaped from Figure 68; propEfficiency and cd0 are initial FIT values. PERFORMANCE at 28,000 lb / 12,700.6 kg: Figure 64 gives 830 ft/min / 4.216 m/s sea-level climb and 1,100 ft / 335.3 m no-wind hard-runway ground run. The 55 kn / 28.294 m/s power-off clean stall is SOURCED at 27,000 lb, one thousand pounds below the test mass; clSlopePerRad 6.66 is FITTED to that stall through the shared flight-card harness. The handbook's 58 kn dirty figure is wheels and floats down, not an aerodynamic-flap result, so stallSpeedFlapMps repeats the clean target. topSpeedMps 87.61 m/s / 196 mph at 7,000 ft is SECONDARY, since the Navy handbook supplies cruise and permissible-speed charts rather than a maximum-performance trial. The PBY-5A's maximum continuous chart point at 5,000 ft is 174 mph true, a check rather than the full-power target. RATES, limit g, prop efficiency, static thrust, gear drag and handling coefficients are ESTIMATES. limits.diveSpeedMps 90 is the handbook's 175 kn permissible indicated speed at 28,000 lb, rounded. Gear positions and height are MEASURED from the original model; the 16 ft 9 in tread and tricycle arrangement are SOURCED. Float travelSeconds 20 is SOURCED (AN 01-5MA-1 p. 68). AI excludes split-S and Immelmann, and not merely aerobatic attack variants: AN 01-5MA-1 p. 54 states all acrobatics are prohibited.",
+    "testMassKg": 12700.6,
+    "topSpeedMps": 87.61,
+    "topSpeedAltitudeM": 2134,
+    "climbRateMps": 4.216,
+    "stallSpeedMps": 28.294,
+    "stallSpeedFlapMps": 28.294,
+    "rollRateDegPerSec": 18,
+    "takeoffDistanceM": 335.3
+  },
+  "ai": { "excludedManeuvers": ["split-s", "immelmann"] },
+  "view": { "eyePointM": [3.45, 1.32, -0.38], "model": "pby-5a-catalina" },
+  "stores": {
+    "racks": [
+      { "id": "bomb-outer-left", "offset": [-0.735, 2.003, -3.65], "store": "an-m65" },
+      { "id": "bomb-inner-left", "offset": [-0.575, 1.947, -3.0], "store": "an-m65" },
+      { "id": "bomb-inner-right", "offset": [-0.575, 1.947, 3.0], "store": "an-m65" },
+      { "id": "bomb-outer-right", "offset": [-0.735, 2.003, 3.65], "store": "an-m65" }
+    ],
+    "torpedoRacks": [
+      { "id": "torpedo-left", "offset": [-0.575, 2.19, -3.0], "store": "mk13" },
+      { "id": "torpedo-right", "offset": [-0.575, 2.191, 3.0], "store": "mk13" }
+    ],
+    "rails": [],
+    "types": {
+      "an-m65": { "kind": "bomb", "massKg": 453.6, "dragAreaM2": 0.09, "fillerKg": 240.9, "damage": 120, "blastRadiusM": 30, "armS": 0.5, "lifetimeS": 60, "dragPerM": 0.00002 },
+      "mk13": { "kind": "torpedo", "massKg": 1005, "dragAreaM2": 0.132, "fillerKg": 274, "damage": 136, "blastRadiusM": 31, "lifetimeS": 60, "dragPerM": 0.0000132, "maxDropSpeedMps": 210.9, "maxDropHeightM": 730, "runSpeedMps": 17.23, "runRangeM": 3660, "runDepthM": 3, "armRunM": 180 }
+    },
+    "source": "AN 01-5MA-2 Section V pp. 642-657: alternate loads include four 500 lb G.P./S.A.P. bombs or four 1,000 lb G.P./A.P./S.A.P. bombs, two under each wing; two Mark 13-1 or 13-2 torpedoes replace the bomb load. This first game load uses four existing AN-M65 1,000 lb bombs or two existing late-war Mk 13 definitions, never together. Rack offsets are MEASURED against the original model and represent four Mark 42 external positions and the two converted torpedo positions. Store physics are the fleet definitions copied unchanged from the F6F and TBM-3 specs."
+  },
+  "combat": {
+    "roundsPerMinute": 800,
+    "muzzleVelocityMps": 883.92,
+    "dragPerM": 0.00015,
+    "convergenceM": 300,
+    "dispersionDeg": 0.12,
+    "lifetimeS": 3,
+    "damagePerHit": 10,
+    "roundDamage": 4,
+    "structureHp": 800,
+    "subsystemHp": 180,
+    "fuelLeakKgPerS": 0.5,
+    "engineDecayPerS": 0.05,
+    "guns": [],
+    "zones": [
+      { "id": "engine-left", "center": [0.7, 2.4, -4.8], "halfSize": [1.5, 0.9, 0.9], "system": "engine", "engine": 0 },
+      { "id": "engine-right", "center": [0.7, 2.4, 4.8], "halfSize": [1.5, 0.9, 0.9], "system": "engine", "engine": 1 },
+      { "id": "hull-fuel", "center": [0.0, -0.2, 0.0], "halfSize": [5.2, 1.5, 1.6], "system": "fuel" },
+      { "id": "aft-hull", "center": [-7.0, 0.1, 0.0], "halfSize": [3.6, 1.2, 1.0], "system": "pitch" },
+      { "id": "tail", "center": [-9.0, 1.3, 0.0], "halfSize": [1.99, 2.79, 4.79], "system": "yaw" },
+      { "id": "left-wing", "center": [0.0, 2.6, -10.0], "halfSize": [2.5, 0.6, 5.7], "system": "roll" },
+      { "id": "right-wing", "center": [0.0, 2.6, 10.0], "halfSize": [2.5, 0.6, 5.7], "system": "roll" }
+    ],
+    "source": "GAMEPLAY ESTIMATES: no pilot-fired guns (`guns` empty). AN 01-5MA-2 Section V pp. 635-665 sources the drawn bow, waist-blister and tunnel installations, but this first release keeps them as static inspection geometry and deliberately omits combat.gunners, so they do not fire. Structure/subsystem durability and every hit zone are ESTIMATES measured from the original model."
+  }
+}

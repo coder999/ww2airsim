@@ -93,6 +93,12 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Instructor: Bay secure. Follow the arrow to the final.': null,
   'Instructor: On the final. Gear down with G, flaps down with F, and slow below 120 miles an hour.': null,
   'Instructor: Configuration checks. Put her down on the strip.': null,
+  // Catalina Water Qualification is text-only; the five calls teach the new hull/float path.
+  'Instructor: Catalina water qualification. Wheels are up and wingtip floats are down. Set takeoff power and hold a straight step-taxi run.': null,
+  'Instructor: Let the hull climb onto the step, then ease back near 76 knots. Keep the floats down until clear of the water.': null,
+  'Instructor: Airborne. Retract the floats with F, climb through 500 feet, and fly south to the circuit marker.': null,
+  'Instructor: Turn back over the bay. Wheels stay up; lower the floats with F and slow below 83 knots.': null,
+  'Instructor: Cleared to land anywhere on open water. Hold a shallow nose-up attitude and settle the hull gently.': null,
   // The tutorial's instructor (B4) is text-only, deliberately: no recordings, so an edit to a line costs nothing.
   "Instructor: Welcome to Tacloban. Hold = to bring the throttle to full, and keep your brakes off.": null,
   "Instructor: Rolling. Hold her straight with Z and X, ease back on the stick (S) at 85 miles an hour, and let her fly off.": null,

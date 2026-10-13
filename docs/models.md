@@ -127,6 +127,10 @@ them, and their hinges go in the same `<raw>.hinges.json` sidecar (already
 oriented, so the control-surface flip does not apply). The B-17's are cut
 from its belly by a `split` whose `cut` plane runs between the skin and the
 interior shell above it, so only skin comes away.
+Retractable lateral floats use `FloatL` and `FloatR`, each with a model-space
+pivot at its wing hinge and a rig travel angle. They are not landing-gear nodes:
+`pivotedAirframe.ts` drives them from `flapFraction` in the first water-aircraft
+implementation, independently of `gearFraction`.
 `surfaceDrive` in `src/render/scene/airframeRigs.ts` reads what each one
 follows from its name. Every part needs a `pivot`: the
 build moves its origin onto the hinge and records the axis the runtime turns

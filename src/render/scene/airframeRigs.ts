@@ -27,9 +27,18 @@ export interface GearRig {
   readonly source: string
 }
 
+export interface FloatRig {
+  readonly node: 'FloatL' | 'FloatR'
+  /** Signed turn from deployed (float/flap fraction 1) to retracted (0). */
+  readonly upAngleDeg: number
+  readonly source: string
+}
+
 export interface AirframeRig {
   readonly props: readonly PropRig[]
   readonly gear: readonly GearRig[]
+  /** Retractable water-stabilizing floats, driven by the flap lever/state on flapless amphibians. */
+  readonly floats?: readonly FloatRig[]
   /** `Turret1`...`TurretN`, each with its barrels in `Turret<N>Guns`, aimed by `turretArcs`. */
   readonly turrets: readonly string[]
   /** How far each turret turns and its guns elevate; exactly one per turret (aircraftRigs.test.ts). */
@@ -62,7 +71,7 @@ const fullCircle = (elevationDeg: readonly [number, number], restElevationDeg = 
 const flexCone = (restElevationDeg = 0, elevationDeg: readonly [number, number] = [-20, 30], traverseDeg = 30): TurretArc =>
   ({ traverseDeg, elevationDeg, restElevationDeg, source: 'ESTIMATE: a flexible gun on a ball socket, not a turret (flex guns, 2026-10-09)' })
 
-export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Turret\d+(Guns)?|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
+export const PART_NAME = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Float[LR]|Turret\d+(Guns)?|(Aileron|Elevator|Flap\d+|BayDoor\d+)[LR]|Rudder\d*)$/
 
 export type SurfaceInput = 'roll' | 'pitch' | 'yaw' | 'flap'
 
@@ -388,5 +397,20 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     ],
     turrets: [],
     surfaces: surfaces(2, 2),
+  },
+  'pby-5a-catalina': {
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'PBY-5A main wheels retract into the hull sides; one-hinge motion ESTIMATE (AN 01-5MA-2 Section IV)' },
+      { node: 'GearNose', upAngleDeg: -90, retracts: 'aft', source: 'PBY-5A nose wheel retracts aft; one-hinge motion ESTIMATE (AN 01-5MA-2 Section IV)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
+    ],
+    floats: [
+      { node: 'FloatL', upAngleDeg: -90, source: 'Wingtip float retracts inboard to form the tip; one-hinge motion ESTIMATE from AN 01-5MA-2 Figure 1' },
+      { node: 'FloatR', upAngleDeg: 90, source: 'as FloatL' },
+    ],
+    // The sourced bow, blister and tunnel guns are static inspection geometry in this first release.
+    turrets: [],
+    surfaces: surfaces(0),
   },
 }

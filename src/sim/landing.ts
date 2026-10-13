@@ -9,6 +9,7 @@ import { deckLocal, type Deck } from './world/deck.js'
 import type { TerrainField } from './world/terrain.js'
 import type { LandClass } from './world/cover.js'
 import { sub, length } from './math/vec3.js'
+import { supportedWaterContact, waterContactHeightM } from './waterOperations.js'
 
 /**
  * Where a flight touched down, and what it looked like at that instant.
@@ -35,7 +36,7 @@ export type Touchdown = {
  *  ship id. `name` is what the debrief prints: the airfield's display name,
  *  or the ship id again. The two differ for airfields ("tacloban" /
  *  "Tacloban", measured 2026-09-25), which is why both are carried. */
-export type LandingAt = { readonly kind: 'airfield' | 'carrier'; readonly id: string; readonly name: string }
+export type LandingAt = { readonly kind: 'airfield' | 'carrier' | 'water'; readonly id: string; readonly name: string }
 
 /** A completed landing: the touchdown, plus how far the roll-out ran. */
 export type LandingReport = {
@@ -96,11 +97,14 @@ export const LANDED_SPEED_MPS = 1
 const groundFor = (terrain: TerrainField | null, decks: readonly Deck[], s: AircraftState) =>
   groundUnder(terrain, decks, s.position.x, s.position.z)
 
-const wheelHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): number =>
-  s.position.y - wheelDepthOf(spec, s) - g.heightM
+const contactHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): number =>
+  g.surface === 'water' && spec.waterOperations !== undefined
+    ? waterContactHeightM(spec, s) - g.heightM
+    : s.position.y - wheelDepthOf(spec, s) - g.heightM
 
 const supported = (spec: AircraftSpec, s: AircraftState, g: GroundUnder | null): boolean =>
-  g !== null && supportedContact(spec, s, g.heightM, g.surface, g.velocity, g.landClass)
+  g !== null && (supportedContact(spec, s, g.heightM, g.surface, g.velocity, g.landClass)
+    || (g.surface === 'water' && supportedWaterContact(spec, s, g.heightM, g.velocity)))
 
 /**
  * One frame of landing bookkeeping. Pure: `before` and `after` are the
@@ -121,7 +125,7 @@ export function nextLandingTracking(
   const gAfter = groundFor(terrain, decks, after)
   if (gAfter === null) return prev
 
-  const height = wheelHeightM(spec, after, gAfter)
+  const height = contactHeightM(spec, after, gAfter)
   const airborne = prev.airborne || height > AIRBORNE_LATCH_M
   const onWheelsNow = supported(spec, after, gAfter)
 
@@ -173,6 +177,7 @@ function landedAt(touchdown: Touchdown, airfields: readonly Airfield[], g: Groun
   if (g.deck !== null && touchdown.deck !== null && g.deck.shipId === touchdown.deck.shipId) {
     return { kind: 'carrier', id: g.deck.shipId, name: g.deck.shipId }
   }
+  if (g.surface === 'water') return { kind: 'water', id: 'open-water', name: 'Open water' }
   const field = airfieldAt(airfields, touchdown.x, touchdown.z)
   return field === null ? null : { kind: 'airfield', id: field.id, name: field.name }
 }

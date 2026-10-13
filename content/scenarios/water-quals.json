@@ -1,0 +1,126 @@
+{
+  "id": "water-quals",
+  "player": "catalina-1",
+  "airfields": ["tacloban"],
+  "aircraft": [
+    {
+      "id": "catalina-1",
+      "spec": "pby-5a-catalina",
+      "afloatAt": {
+        "position": [-13000, -36000],
+        "headingDeg": 180
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 120,
+    "windMps": 3.1,
+    "timeOfDay": 8.25,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1100,
+        "thicknessM": 650,
+        "coverage": 0.35
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "power",
+      "label": "Set takeoff power",
+      "priority": "primary",
+      "kind": "state",
+      "throttle": [0.9, 1]
+    },
+    {
+      "id": "takeoff",
+      "label": "Take off from San Pedro Bay",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "open-water",
+      "after": "power"
+    },
+    {
+      "id": "circuit",
+      "label": "Fly the circuit marker",
+      "priority": "primary",
+      "kind": "reach",
+      "point": { "x": -13000, "z": -41000 },
+      "radiusM": 1000,
+      "altitudeM": [150, 900],
+      "after": "takeoff"
+    },
+    {
+      "id": "landing-config",
+      "label": "Wheels up, floats down, below 83 knots",
+      "priority": "primary",
+      "kind": "state",
+      "gear": "up",
+      "flaps": "down",
+      "airspeedMps": [0, 42.7],
+      "after": "circuit"
+    },
+    {
+      "id": "land",
+      "label": "Land on open water",
+      "priority": "primary",
+      "kind": "land",
+      "at": "open-water",
+      "after": "landing-config"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "welcome",
+      "when": { "at": 1 },
+      "then": [
+        { "message": "Instructor: Catalina water qualification. Wheels are up and wingtip floats are down. Set takeoff power and hold a straight step-taxi run." }
+      ]
+    },
+    {
+      "id": "on-step",
+      "when": { "completed": "power" },
+      "then": [
+        { "message": "Instructor: Let the hull climb onto the step, then ease back near 76 knots. Keep the floats down until clear of the water." }
+      ]
+    },
+    {
+      "id": "airborne",
+      "when": { "completed": "takeoff" },
+      "then": [
+        { "message": "Instructor: Airborne. Retract the floats with F, climb through 500 feet, and fly south to the circuit marker." }
+      ]
+    },
+    {
+      "id": "return",
+      "when": { "completed": "circuit" },
+      "then": [
+        { "message": "Instructor: Turn back over the bay. Wheels stay up; lower the floats with F and slow below 83 knots." }
+      ]
+    },
+    {
+      "id": "cleared",
+      "when": { "completed": "landing-config" },
+      "then": [
+        { "message": "Instructor: Cleared to land anywhere on open water. Hold a shallow nose-up attitude and settle the hull gently." }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "water-qualified",
+    "name": "Catalina Water Qualified"
+  },
+  "briefing": {
+    "situation": "Catalina Water Qualification. Begin afloat in San Pedro Bay with wheels retracted and wingtip floats deployed. Make a water takeoff, fly the marked circuit, return below 83 knots in the correct water-landing configuration, and settle onto open water. Two Mk 13 torpedoes are the recommended operational loadout, though no weapons release is required for this qualification.",
+    "loadout": "torpedoes"
+  },
+  "history": {
+    "text": "This fictional qualification is inspired by the U.S. Navy's wartime PBY-5A operating procedures, not a reconstruction of a particular flight. The takeoff and landing gates follow the January 1945 pilot handbook's water-operation guidance; the Leyte setting provides a representative late-war Southwest Pacific operating area.",
+    "sources": [
+      "U.S. Navy, AN 01-5MA-1, Pilot's Handbook of Flight Operating Instructions, Navy Model PBY-5A, revised 20 January 1945: https://aircorpslibrary.com/pilots-flight-operating-instructions-for-pby-5a/",
+      "U.S. Navy, AN 01-5MA-2, Handbook of Erection and Maintenance Instructions, Navy Models PBY-5 and PBY-5A, 15 May 1945: https://www.usaf-sig.org/index.php/references/downloads/4-technical-orders/38-type-specific/42-pby-catalina"
+    ]
+  }
+}

@@ -20,6 +20,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'b-29-superfortress': 'b29_dark',
   // A single-skin airframe again: p38_dark is the whole skin; the canopy crown reads y 1.20 to 1.22 at x 0 to 0.5 (measured 2026-09-29), eye at x 0.6, y 0.95.
   'p-38-lightning': 'p38_dark',
+  // The skin bake collapses the Catalina's glazing into its single pby5a_dark node.
+  'pby-5a-catalina': 'pby5a_dark',
   'ki-43-oscar-blender': 'ki43b_dark',
   'd3a-val-blender': 'd3a2_dark',
   // Whole-skin crown: the Ki-84 model is one skin node (ki84_dark) with no separate glazing node.

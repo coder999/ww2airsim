@@ -50,7 +50,7 @@ describe('the mission vocabulary (spec 2026-09-25 §2)', () => {
     ['after naming a later objective', { objectives: [{ ...REACH_FAR, after: 'near' }, { ...REACH_FAR, id: 'near' }] }, /after must name an earlier objective/],
     ['after naming nothing', { objectives: [{ ...REACH_FAR, after: 'nope' }] }, /after must name an earlier objective/],
     ['takeoff from where the player is not', { objectives: [{ id: 'up', label: 'Up', priority: 'primary', kind: 'takeoff', from: 'cv-1' }] }, /takeoff\.from must be where the player starts \(airborne\)/],
-    ['land at an unknown base', { objectives: [{ id: 'home', label: 'Home', priority: 'primary', kind: 'land', at: 'henderson' }] }, /land\.at "henderson" is neither one of airfields nor a starting ship/],
+    ['land at an unknown base', { objectives: [{ id: 'home', label: 'Home', priority: 'primary', kind: 'land', at: 'henderson' }] }, /land\.at "henderson" is neither open-water, one of airfields nor a starting ship/],
     ['deny around an unknown entity', { objectives: [{ id: 'd', label: 'D', priority: 'primary', kind: 'deny', hostiles: ['raid'], around: 'cv-9', radiusM: 5000 }] }, /deny\.around "cv-9" is not a starting aircraft or ship/],
     ['release at an unknown target', { objectives: [{ id: 'r', label: 'Release', priority: 'primary', kind: 'release', store: 'torpedo', target: 'hulk-9' }] }, /release\.target "hulk-9" is not a starting aircraft or ship/],
     ['an inverted altitude band', { objectives: [{ ...REACH_FAR, altitudeM: [3000, 2000] }] }, /altitudeM must be \[min, max\] with min < max/],

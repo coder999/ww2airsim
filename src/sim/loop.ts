@@ -11,6 +11,7 @@ import { qIntegrateBodyRates } from './math/quat.js'
 import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from './ground.js'
 import { wheelDepthOf } from './gearContact.js'
+import { supportedWaterContact, waterContactHeightM } from './waterOperations.js'
 import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
 import { stepShip } from './world/ships.js'
 import { floodSpeedFraction } from './weapons/flooding.js'
@@ -746,7 +747,9 @@ function stepAircraftEntity<M>(
   const groundAtStart = groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z)
   const assistContext: AssistContext = {
     onGround: groundAtStart !== null
-      && supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity),
+      && (supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity)
+        || (groundAtStart.surface === 'water'
+          && supportedWaterContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.velocity))),
   }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
   const outputs = engineOutputs(damage, tick, entity.id, DT)
@@ -798,7 +801,10 @@ function stepAircraftEntity<M>(
   // above ground and have it read as a normal landing.
   const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
   if (ground !== null) {
-    const unsupported = !supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)
+    const supported = supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)
+      || (ground.surface === 'water'
+        && supportedWaterContact(entity.spec, current, ground.heightM, ground.velocity))
+    const unsupported = !supported
     // An airplane that was on its wheels at the start of the step and ends it
     // with them buried past the contact tolerance, no longer supported, has
     // rolled into terrain rising faster than `restOnSurface` can lift it (it
@@ -812,7 +818,10 @@ function stepAircraftEntity<M>(
       startGround !== null &&
       supportedContact(entity.spec, entity.state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass) &&
       current.position.y - wheelDepthOf(entity.spec, current) < ground.heightM - GROUND_CONTACT_TOLERANCE_M
-    if ((current.position.y <= ground.heightM && unsupported) || droveIntoTerrain) {
+    const crossedSurface = ground.surface === 'water' && entity.spec.waterOperations !== undefined
+      ? waterContactHeightM(entity.spec, current) <= ground.heightM
+      : current.position.y <= ground.heightM
+    if ((crossedSurface && unsupported) || droveIntoTerrain) {
       if (bounce) {
         current = bounceState(current, ground.heightM)
         return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
