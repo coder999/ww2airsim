@@ -4,16 +4,16 @@
   "source": {
     "kind": "blender",
     "script": "tools/models/blender/pby-5a-catalina.py",
-    "dimensions": "Public-domain U.S. Navy AN 01-5MA-2 (15 May 1945), Figure 1 and Section I pp. 1-4: 104 ft span, 63 ft 10 7/16 in length, 15 ft/10 ft wing chords, 30 ft 6 in stabilizer, 16 ft 9 in main-gear tread, 89 ft 4 in float tread, 10 ft 3/8 in floats, 12 ft three-blade propellers; Section V pp. 635-665: guns and external rack installations. Read 2026-10-12.",
+    "dimensions": "Public-domain U.S. Navy AN 01-5MA-2 (15 May 1945), Figure 1 and Section I pp. 1-4: 104 ft span, 63 ft 10 7/16 in length, 15 ft/10 ft wing chords, 30 ft 6 in stabilizer, 16 ft 9 in main-gear tread, 89 ft 4 in float tread, 10 ft 3/8 in floats, 12 ft three-blade propellers; Section IV: hull-side amphibian gear; Section V pp. 635-665: guns, paired Mark 51-7 wing racks, and torpedo installations. Read 2026-10-12.",
     "license": "AGPL-3.0-or-later"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 31.699 } },
   "keep": [
     { "node": "Prop1", "pivot": { "point": [2.17, 2.42, -4.8], "axis": "+x" } },
     { "node": "Prop2", "pivot": { "point": [2.17, 2.42, 4.8], "axis": "+x" } },
-    { "node": "GearL", "pivot": { "point": [-1.35, -0.78, -2.5525], "axis": "+x" } },
+    { "node": "GearL", "pivot": { "point": [-1.35, -0.72, -1.48], "axis": "+x" } },
     { "node": "GearNose", "pivot": { "point": [5.15, -0.92, 0], "axis": "+z" } },
-    { "node": "GearR", "pivot": { "point": [-1.35, -0.78, 2.5525], "axis": "+x" } },
+    { "node": "GearR", "pivot": { "point": [-1.35, -0.72, 1.48], "axis": "+x" } },
     { "node": "FloatL", "pivot": { "point": [-0.55, 2.905, -13.6145], "axis": "+x" } },
     { "node": "FloatR", "pivot": { "point": [-0.55, 2.905, 13.6145], "axis": "+x" } },
     { "node": "AileronL" },

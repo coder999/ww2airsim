@@ -401,9 +401,9 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
   'pby-5a-catalina': {
     props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
     gear: [
-      { node: 'GearL', upAngleDeg: -90, retracts: 'inboard', source: 'PBY-5A main wheels retract into the hull sides; one-hinge motion ESTIMATE (AN 01-5MA-2 Section IV)' },
+      { node: 'GearL', upAngleDeg: -100, retracts: 'inboard', source: 'PBY-5A main wheels retract into recesses in the hull sides; hull-side pivot and direction CITED, 100-degree rigid one-hinge motion ESTIMATE (AN 01-5MA-2 Section IV)' },
       { node: 'GearNose', upAngleDeg: -90, retracts: 'aft', source: 'PBY-5A nose wheel retracts aft; one-hinge motion ESTIMATE (AN 01-5MA-2 Section IV)' },
-      { node: 'GearR', upAngleDeg: 90, retracts: 'inboard', source: 'as GearL' },
+      { node: 'GearR', upAngleDeg: 100, retracts: 'inboard', source: 'as GearL' },
     ],
     floats: [
       { node: 'FloatL', upAngleDeg: -90, source: 'Wingtip float retracts inboard to form the tip; one-hinge motion ESTIMATE from AN 01-5MA-2 Figure 1' },

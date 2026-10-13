@@ -84,6 +84,40 @@ flight model; no unrelated coefficient was distorted to conceal them. The
 water integration test accelerates from displacement through planing and is
 airborne above 10 m inside 60 simulated seconds.
 
+## Reference-photo correction
+
+The first post-merge visual review found two geometry errors: the bomb/torpedo
+stations were too close to the hull, and the main-gear legs did not meet it.
+The follow-up used the public-domain AN 01-5MA-2 maintenance manual alongside
+the supplied PBY-5A torpedo photograph rather than preserving those estimates:
+
+- pages 643-650 and Figure 291 describe two Mark 51-7 racks mounted fore/aft
+  under each wing, slightly outboard of the wing-strut attachments. The model
+  and spec now use one lateral station per wing with explicit 30%/62% chord
+  stations instead of treating the four bombs as inner/outer pairs;
+- Figures 296-298 place the alternate torpedo installation at wing Stations
+  7-8. Both Mk 13 centerlines now share the outboard 6.75 m station, clear of
+  the engines and outside the strut attachments;
+- the parasol-strut upper attachments moved outboard to 6.20 m so the modeled
+  order matches the manual: hull, engine, strut attachment, then store station;
+- the cited 16 ft 9 in main-wheel tread is unchanged, but each main assembly is
+  now a triangular yoke rooted in a hull-side trunnion/recess. Its 100-degree
+  rigid animation is still an estimate, and passes both rise/inboard-motion and
+  retracted-surface containment checks.
+
+`StoreMountSchema.chordFraction` is the general content hook for genuinely
+distinct fore/aft wing stations. `models:mounts` continues to fit the vertical
+position and clearance against the generated GLB. A PBY-specific regression
+pins the paired rack order and requires all six store positions to remain
+outboard of the modeled strut attachments.
+
+Follow-up verification: typecheck and targeted zero-warning lint passed; the
+Blender entry rebuilt byte-identically; the complete shared mount/rig run passed
+all 608 checks (including the 22 PBY rig and two PBY mount checks); and the full
+four-view PBY capture checkpoint passed in 43.3 seconds with no validation or
+console errors. The corrected GLB is 925,340 bytes, 28,648 triangles and 17
+draw calls.
+
 ## Captures
 
 - [Gear and floats down, four bombs](captures/2026-10-12-pby-5a/pby-5a-hangar-gear-floats-down-bombs.png)

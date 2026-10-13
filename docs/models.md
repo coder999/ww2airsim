@@ -188,6 +188,11 @@ This writes the entry's `output` (`content/aircraft/<id>.glb` or
   (`pivotedAirframe.ts`); measure them on that model first with
   `npm run models:mounts`, which `tests/tools/models/wildcatMounts.test.ts`
   enforces for every stores-carrying spec (sortie forms A4, 2026-09-27).
+  A mount normally uses the shared bomb or rocket chord station. Set its
+  optional `chordFraction` (0 at the local leading edge, 1 at the trailing
+  edge) only when the source distinguishes longitudinal stations, such as the
+  PBY-5A's paired forward/aft Mark 51-7 racks; `models:mounts` still derives
+  the final x/y offset and skin clearance from the committed model.
 
 ### Runtime aircraft distance LOD
 

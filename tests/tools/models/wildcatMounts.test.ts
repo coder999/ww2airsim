@@ -67,5 +67,24 @@ describe('the Wildcat mounts (O1, spec §2.3 and §7)', () => {
       expect(f.clearanceM, `${m.id} clearance`).toBeGreaterThanOrEqual(MIN_CLEARANCE_M - 0.001)
     }
   })
+
+  it('PBY racks stay as sourced fore/aft pairs outboard of the wing struts', () => {
+    const stores = wingMounted.find((s) => s.id === 'pby-5a-catalina')!.stores!
+    expect(stores.racks.map((m) => [m.id, m.offset[2], m.chordFraction])).toEqual([
+      ['bomb-forward-left', -6.75, 0.30],
+      ['bomb-aft-left', -6.75, 0.62],
+      ['bomb-forward-right', 6.75, 0.30],
+      ['bomb-aft-right', 6.75, 0.62],
+    ])
+    expect(stores.racks[0]!.offset[0]).toBeGreaterThan(stores.racks[1]!.offset[0])
+    expect(stores.racks[2]!.offset[0]).toBeGreaterThan(stores.racks[3]!.offset[0])
+    expect(stores.torpedoRacks!.map((m) => [m.id, m.offset[2]])).toEqual([
+      ['torpedo-left', -6.75], ['torpedo-right', 6.75],
+    ])
+    // The generated model's parasol-strut upper attachments are at +/-6.20 m.
+    for (const mount of [...stores.racks, ...stores.torpedoRacks!]) {
+      expect(Math.abs(mount.offset[2]), `${mount.id} is outboard of the strut`).toBeGreaterThan(6.20)
+    }
+  })
 })
 

@@ -73,8 +73,8 @@ export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<St
     if (!make) throw new Error(`mounts: no generated mesh for store "${id}" (have ${Object.keys(STORE_MESHES).join(', ')})`)
     return make()
   }
-  const fit = (m: { offset: readonly [number, number, number]; store: string }, f: number): MountFit =>
-    fitMount(sectionAt, m.offset[2], f, pitchRad, mesh(m.store), MIN_CLEARANCE_M)
+  const fit = (m: { offset: readonly [number, number, number]; store: string; chordFraction?: number | undefined }, f: number): MountFit =>
+    fitMount(sectionAt, m.offset[2], m.chordFraction ?? f, pitchRad, mesh(m.store), MIN_CLEARANCE_M)
   return {
     racks: stores.racks.map((m) => fit(m, BOMB_CHORD_FRACTION)),
     rails: stores.rails.map((m) => fit(m, ROCKET_CHORD_FRACTION)),

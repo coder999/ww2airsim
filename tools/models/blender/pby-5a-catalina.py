@@ -12,8 +12,9 @@ Figure 1 and Section I pp. 1-4, read 2026-10-12:
   two R-1830-92 engines; three-blade, 12 ft / 3.658 m propellers        CITED
 
 AN 01-5MA-2 Section V pp. 635-665: bow .30-cal installation, two waist
-.50-cal positions, tunnel .30-cal position, four external Mark 42 racks,
-and two Mark 13-1/13-2 torpedoes as an alternate load.                  CITED
+.50-cal positions, tunnel .30-cal position, two fore/aft Mark 51-7 bomb
+racks under each wing, and two Mark 13-1/13-2 torpedoes as an alternate
+load. The racks sit outboard of the wing-strut attachments.             CITED
 
 The station placement below is MEASURED from the manual's Figure 1 and hull
 station diagrams, then simplified into smooth kit lofts. Chine depth, canopy
@@ -42,6 +43,10 @@ FLOAT_HALF_TREAD = 27.229 / 2
 FLOAT_LENGTH = 3.057
 TAIL_SPAN = 9.296
 TAIL_ROOT = 2.616
+STRUT_HALF_SPAN = 6.20
+STORE_HALF_SPAN = 6.75
+FRONT_RACK_CHORD = 0.30
+REAR_RACK_CHORD = 0.62
 UPPER = 'seaBlue'
 LOWER = 'underside'
 STATIONS = tuple(sorted(set(kit.AIRFOIL_STATIONS_FINE) | {0.10, 0.22, 0.38, 0.55, 0.72, 0.86}))
@@ -103,11 +108,14 @@ with m.tagged('wing'), m.shared_chart():
                thickness=0.16 if z0 == 0 else 0.14, tip_thickness=0.10,
                lower_role=LOWER, stations=STATIONS, controls=controls)
 
-# Four parasol struts from the hull shoulders to the wing roots.
+# Four parasol struts from the hull shoulders to the wing. Photographs and the
+# manual's rack instructions put their upper attachments inboard of the stores.
 with m.tagged('struts'), m.shared_chart():
     for side in (-1, 1):
         for x0, x1 in ((-1.5, -0.7), (2.0, 1.2)):
-            m.strut(UPPER, (x0, 0.65, side * 1.18), (x1, 2.25, side * 3.00), 0.055, 0.035, sides=8)
+            m.strut(UPPER, (x0, 0.65, side * 1.18),
+                    (x1, wing_y(STRUT_HALF_SPAN) - 0.08, side * STRUT_HALF_SPAN),
+                    0.055, 0.035, sides=8)
 
 # Tailplane and single tall fin.
 with m.tagged('tailplane'), m.shared_chart():
@@ -133,13 +141,27 @@ for i, z in enumerate((-nac_z, nac_z), start=1):
         m.propeller('dark', (2.17, 2.42, z), PROP_DIAMETER, 3, 0.42, 0.28, 0.38,
                     node=f'Prop{i}', blade_sections=[(0.13, 0.9, 42), (0.38, 1.05, 32), (0.70, 0.85, 23), (1.0, 0.42, 16)])
 
-# Retractable PBY-5A tricycle gear. Tread is cited; leg geometry is estimated.
+# Retractable PBY-5A tricycle gear. Tread is cited. The mains emerge from
+# hull-side trunnions and angle out to the cited wheel tread; yoke/brace detail
+# and the rigid one-hinge retraction are estimates from manual photographs.
 ground_y = -3.62
 with m.tagged('gear'), m.shared_chart():
     for side, name in ((-1, 'GearL'), (1, 'GearR')):
-        hinge = (-1.35, -0.78, side * 2.5525)
-        m.gear_leg('dark', hinge, hinge[1] - ground_y, 0.48, 0.28, node=name)
-        m.strut('dark', hinge, (-0.55, -2.35, side * 2.40), 0.05, sides=8, node=name)
+        hull_z = side * 1.48
+        knee = (-1.35, -1.32, side * 2.12)
+        axle = (-1.35, ground_y + 0.48, side * 2.5525)
+        # A recessed backing plate keeps the leg visibly rooted in the hull.
+        m.box('dark', (-1.35, -0.76, side * 1.49), (1.34, 0.48, 0.10))
+        # The two arms form the side-mounted triangular yoke seen in PBY-5A photos.
+        m.strut('dark', (-1.92, -0.72, hull_z), knee, 0.070, 0.055, sides=8, node=name)
+        m.strut('dark', (-0.78, -0.72, hull_z), knee, 0.070, 0.055, sides=8, node=name)
+        m.strut('dark', knee, axle, 0.085, 0.065, sides=10, node=name)
+        m.strut('dark', (-0.62, -0.76, hull_z), (-1.05, -2.08, side * 2.31),
+                0.045, 0.035, sides=8, node=name)
+        m.revolve('dark', (axle[0], axle[1], axle[2] - 0.14), (0, 0, 1),
+                  [(0.0, 0.48), (0.28, 0.48)], 16, node=name)
+        m.revolve('dark', (axle[0], axle[1], axle[2] - 0.18), (0, 0, 1),
+                  [(0.0, 0.13), (0.36, 0.13)], 12, node=name)
     nose = (5.15, -0.92, 0.0)
     m.gear_leg('dark', nose, nose[1] - ground_y, 0.35, 0.22, node='GearNose')
     m.strut('dark', nose, (4.35, -2.20, 0), 0.045, sides=8, node='GearNose')
@@ -182,10 +204,17 @@ with m.tagged('armament'), m.shared_chart():
         m.fuselage('glazing', [(-4.75, 0.18, 0.22, 0.12), (-4.0, 0.42, 0.50, 0.12), (-3.25, 0.18, 0.22, 0.12)],
                    segments=32, subdivide=3, center_z=side * 1.40)
 
-# Rack fairings: four Mark 42 locations under the wing, no duplicate store geometry.
+# Four Mark 51-7 bomb-rack fairings: a front/rear pair at one station under each
+# wing. AN 01-5MA-2 pp. 643-650 places them slightly outboard of the strut
+# attachments; the exact chord fractions are measured estimates from Figure 291.
 with m.tagged('racks'), m.shared_chart():
-    for z in (-3.65, -3.00, 3.00, 3.65):
-        m.box('dark', (0.00, 1.93, z), (0.72, 0.12, 0.16))
+    for side in (-1, 1):
+        z = side * STORE_HALF_SPAN
+        lead = wing_le(z)
+        chord = chord_at(z)
+        for fraction in (FRONT_RACK_CHORD, REAR_RACK_CHORD):
+            m.box('dark', (lead - fraction * chord, wing_y(z) - 0.34, z),
+                  (0.72, 0.12, 0.16))
 
 
 def star(r):

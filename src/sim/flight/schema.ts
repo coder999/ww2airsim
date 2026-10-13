@@ -71,7 +71,15 @@ const StoreTypeObject = z.object({
   .refine((t) => t.kind !== 'torpedo' || [t.fillerKg, t.maxDropSpeedMps, t.maxDropHeightM, t.runSpeedMps, t.runRangeM, t.runDepthM, t.armRunM].every((v) => v !== undefined),
     { message: 'a torpedo needs fillerKg, maxDropSpeedMps, maxDropHeightM, runSpeedMps, runRangeM, runDepthM and armRunM' })
 
-const StoreMountSchema = z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()
+const StoreMountSchema = z.object({
+  id: z.string().min(1),
+  offset: z.tuple([finite, finite, finite]),
+  store: z.string().min(1),
+  /** Optional longitudinal station as a fraction of local wing chord, measured aft from
+   * the leading edge. Most stores use the shared default; paired fore/aft racks need to
+   * state their distinct stations so model-fitting tests do not collapse them together. */
+  chordFraction: fraction.optional(),
+}).strict()
 
 const StoresSchema = z.object({
   racks: z.array(StoreMountSchema).min(1).max(8),
