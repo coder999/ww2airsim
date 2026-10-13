@@ -10,13 +10,21 @@ The Vite hostname/port edit is local scratch, never committed.
 
 ## Checkpoint 1 ruling and next comparison
 
+**Acceptance ruling:** Mark reviewed the soft fade and said, "it looks slightly
+better. i think we keep it." Keep the measured soft implementation and make it
+the default in DEV and production builds on this branch. Retain DEV comparison
+queries, original tree art/range, altitude culling, and the opt-in status of
+rejected terrain experiments. Record the accepted cost and remaining boundary
+limitation. This approval does not request a merge or deployment.
+
 **Latest dissolve ruling:** Mark sees a slight improvement but rejects the
 visible pixelation, asking for a softer, coming-into-focus effect. Compare
 `treeFade=soft` (continuous alpha blending only in the transition band, opaque
 near trees) with `treeFade=pixel`. Keep original tree art/range and ground.
 Check overlap artifacts in moving and ridge captures, measure the added draw
 cost, then pause for the next attended review. This is a fade, not optical
-defocus, and still does not add distant forest. Keep production on `whole`.
+defocus, and still does not add distant forest. Production stayed on `whole`
+during that comparison; the acceptance ruling above supersedes it.
 
 **Subsequent checkpoint 2 ruling:** Mark prefers the original close-range trees
 and still sees popping and a tree boundary. He approved a narrower follow-up:

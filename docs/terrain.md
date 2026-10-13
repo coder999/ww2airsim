@@ -1,12 +1,14 @@
 # Terrain
 
-## Soft tree fade checkpoint (2026-10-13, isolated branch)
+## Accepted soft tree fade (2026-10-13, isolated branch)
 
-Mark found pixel dissolve slightly better but disliked its stipple. The DEV
-default is now `treeFade=soft`: nearby trees stay opaque; trees in the original
+Mark accepted the soft fade after finding pixel dissolve slightly better but
+disliking its stipple. The default is now soft in DEV and production builds:
+nearby trees stay opaque; trees in the original
 distance band blend continuously over the scene without a pixel mask.
 `treeFade=pixel` and `treeFade=whole` retain the previous comparisons.
-Production still uses `whole`.
+These query overrides are DEV-only. The accepted change is on the isolated
+branch; it has not been merged or deployed.
 
 The prototype submits an opaque crown/trunk pair plus a transparent pair
 sharing the same instance buffers. Their fragment masks are complementary:
@@ -37,7 +39,8 @@ the fragment alpha threshold. Its screen-pixel pattern has no temporal jitter;
 a stable site seed decorrelates overlapping crowns. Partial coverage trades
 whole-crown switching for visible stipple in the transition band. The existing
 derivative-based `alphaHash` path stays disabled because it failed Tint shader
-compilation on the reference GPU. Production keeps the whole-instance fade.
+compilation on the reference GPU. This earlier trial left production on the
+whole-instance fade; the accepted soft fade above supersedes that choice.
 
 Both modes retain the conservative altitude draw cull. Diagnostics expose
 `fadeMode`, `fadeStartM`, `fadeEndM`, resident instances and submitted instances.

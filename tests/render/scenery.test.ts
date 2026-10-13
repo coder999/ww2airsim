@@ -188,15 +188,16 @@ describe('scenery placement on the real Leyte field', () => {
     // 8 validation errors to 0 on the reference desktop (Playwright 1.63
     // Chromium, RX 6700 XT). three r186's hash takes dFdx/dFdy of the
     // position and then discards; the terrain's own Discard, which takes no
-    // derivatives, compiles fine. The fade is therefore a per-instance alpha
-    // test on `hash(instanceIndex)` against the distance fade: no
-    // derivatives, no blending, one opaque pipeline.
+    // derivatives, compiles fine. All fade modes must avoid that derivative
+    // path. The accepted soft mode (2026-10-13) adds an ordinary blended
+    // transition pair while retaining opaque near trees.
     const vegetation = createVegetation(field, [tacloban])
     for (const mesh of vegetation.object.children as InstancedMesh[]) {
       const material = mesh.material as MeshStandardNodeMaterial
       expect(material.alphaHash, `${mesh.name || 'tree mesh'} still sets alphaHash`).toBe(false)
-      expect(material.transparent, 'the fade must not need a blended pipeline').toBe(false)
-      expect(material.alphaTestNode, 'per-instance dissolve threshold missing').not.toBeNull()
+      // Soft fade deliberately blends the transition pair; the lifecycle
+      // test below protects its depth-write split from the opaque near pair.
+      expect(material.alphaTestNode, 'fade-region discard threshold missing').not.toBeNull()
       expect(material.opacityNode, 'distance fade missing').not.toBeNull()
     }
   })

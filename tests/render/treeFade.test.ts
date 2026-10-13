@@ -1,5 +1,5 @@
-import { expect, it } from 'vitest'
-import { treeFadeFromQuery, treePixelThresholdAt } from '../../src/render/scene/treeFade.js'
+import { expect, it, vi } from 'vitest'
+import { treeFadeFromQuery, treeFadeMode, treePixelThresholdAt } from '../../src/render/scene/treeFade.js'
 
 it('dissolves coverage progressively instead of toggling a whole crown', () => {
   for (const seed of [0.01, 0.3, 0.97]) {
@@ -19,4 +19,15 @@ it('offers an explicit baseline and rejects invalid comparison modes', () => {
   expect(treeFadeFromQuery('?treeFade=pixel')).toBe('pixel')
   expect(treeFadeFromQuery('?treeFade=soft')).toBe('soft')
   expect(() => treeFadeFromQuery('?treeFade=typo')).toThrow('Unknown treeFade')
+})
+
+it('uses the accepted soft fade in production even with a comparison query', () => {
+  vi.stubEnv('DEV', false)
+  vi.stubGlobal('location', { search: '?treeFade=whole' })
+  try {
+    expect(treeFadeMode()).toBe('soft')
+  } finally {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  }
 })

@@ -10,7 +10,7 @@ export function treeFadeFromQuery(search: string): TreeFadeMode {
 }
 
 export function treeFadeMode(): TreeFadeMode {
-  return import.meta.env?.DEV && typeof location !== 'undefined' ? treeFadeFromQuery(location.search) : 'whole'
+  return import.meta.env?.DEV && typeof location !== 'undefined' ? treeFadeFromQuery(location.search) : 'soft'
 }
 
 /** Interleaved gradient noise, already used by cloudPass. Stable in screen

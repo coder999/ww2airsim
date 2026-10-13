@@ -435,9 +435,11 @@ is removed. [Historical canopy handoff](docs/handoff/2026-10-13-canopy.md).
 The first attended follow-up restores original tree art/range and isolates
 pixel-level dissolve versus whole-tree switching, with altitude draw culling
 in both. [Pixel-dissolve handoff](docs/handoff/2026-10-13-tree-fade.md).
-Mark found a slight improvement but disliked pixelation. The next attended
-comparison uses continuous transparency only in the transition band and keeps
-near trees opaque. [Soft-fade handoff](docs/handoff/2026-10-13-tree-soft.md).
+Mark found a slight improvement but disliked pixelation. He then accepted the
+soft fade: continuous transparency only in the transition band, with near trees
+opaque. It is now the DEV and production-build default on the isolated branch,
+with measured added GPU cost of about 0.21–0.22 ms; the distant boundary remains.
+Not merged or deployed. [Soft-fade handoff](docs/handoff/2026-10-13-tree-soft.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were
