@@ -36,6 +36,27 @@ const tacloban = loadAirfield('tacloban')
 const dulag = loadAirfield('dulag')
 
 describe('scenery placement on the real Leyte field', () => {
+  it('suspends every tree loader while hidden and resumes at the current eye', () => {
+    const forest = createVegetation(field, [tacloban])
+    forest.object.visible = false
+    forest.update(-40900, -30666, 100)
+    forest.setTier('medium')
+    expect(forest.stats()).toMatchObject({ generated: 0, instances: 0,
+      distant: { generated: 0, drawnInstances: 0 }, coarse: { generated: 0, drawnInstances: 0 } })
+    forest.object.visible = true
+    forest.update(-40900, -30666, 100)
+    expect(forest.stats().drawnInstances).toBeGreaterThan(0)
+    const loaded = forest.stats()
+    forest.object.visible = false
+    forest.update(-40900 + TREE_CELL_M * 4, -30666, 100)
+    expect(forest.stats().generated).toBe(loaded.generated)
+    expect(forest.stats().distant.generated).toBe(loaded.distant.generated)
+    expect(forest.stats().coarse.generated).toBe(loaded.coarse.generated)
+    forest.object.visible = true
+    forest.update(-40900 + TREE_CELL_M * 4, -30666, 100)
+    expect(forest.stats().generated).toBeGreaterThan(loaded.generated)
+  })
+
   it('coarse crown candidates remain a sparse subset of the canonical forest', () => {
     let count = 0
     for (let z = -80; z < -76; z++) for (let x = -106; x < -102; x++) {
@@ -345,7 +366,7 @@ describe('scenery placement on the real Leyte field', () => {
   })
 
   it('keeps the soft transition aligned with opaque trees through movement, tiers and altitude culling', () => {
-    const vegetation = createVegetation(field, [tacloban], [], 'soft', false)
+    const vegetation = createVegetation(field, [tacloban], [], 'soft', false, false)
     const meshes = vegetation.object.children as InstancedMesh[]
     expect(meshes).toHaveLength(4)
     for (const i of [0, 1]) {

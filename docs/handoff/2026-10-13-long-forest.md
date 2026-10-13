@@ -1,14 +1,15 @@
 # Long-distance forest checkpoint — October 13, 2026
 
-DEV opt-in experiment on `terrain-lighting`, slot 2. Mark requested a much
+Accepted on `terrain-lighting`, slot 2. Mark requested a much
 farther forest with cheaper representations selected by actual viewer distance,
-including altitude. Awaiting attended visual review. No default change, merge
-or deployment.
+including altitude. Mark passed the visual handoff and requested keeping the extension with a
+Trees toggle. It now defaults on in DEV and production builds on this branch.
+No merge or deployment. The prior GPU budget failures remain known.
 
 ## Review
 
 - [Fly the extension](https://ww2airsim-2.windomlane.org/?spawnX=-36629&spawnY=457.2&spawnZ=-47829&sceneryView=1&look=0,-15&launch=1&timeOfDay=12&cloudTier=off&oceanTier=high&canopy=off&treeFade=soft&distantTrees=on&forestDistance=long)
-- [Fly the accepted forest](https://ww2airsim-2.windomlane.org/?spawnX=-36629&spawnY=457.2&spawnZ=-47829&sceneryView=1&look=0,-15&launch=1&timeOfDay=12&cloudTier=off&oceanTier=high&canopy=off&treeFade=soft&distantTrees=on&forestDistance=off)
+- [Compare the shorter forest](https://ww2airsim-2.windomlane.org/?spawnX=-36629&spawnY=457.2&spawnZ=-47829&sceneryView=1&look=0,-15&launch=1&timeOfDay=12&cloudTier=off&oceanTier=high&canopy=off&treeFade=soft&distantTrees=on&forestDistance=off)
 - Flight clips: [extended](2026-10-13-long-forest-shots/moving-on.webm),
   [accepted](2026-10-13-long-forest-shots/moving-off.webm).
 - Ridge stills: [extended](2026-10-13-long-forest-shots/ridge-noon-on.jpg),
@@ -93,7 +94,7 @@ Medians of three window statistics, full-frame GPU milliseconds:
 | High, 13,000 ft | 3.254 | 3.995 | 0.741 | 4.638 | 10.391 |
 | Forward, 1,500 ft | 3.903 | 4.434 | 0.531 | 4.997 | 10.819 |
 
-All 48 windows had more than 100 samples. **7 windows exceeded the 8.33 ms p95 target**; the maximum was 15.348 ms. These failures were in the extended tree-visible states. The prototype is not recommended as a default at this cost.
+All 48 windows had more than 100 samples. **7 windows exceeded the 8.33 ms p95 target**; the maximum was 15.348 ms. These failures were in the extended tree-visible states. At this checkpoint the prototype was not recommended as a default at this cost. Mark subsequently chose to keep it with a player-facing Trees toggle; these measurements remain failures.
 
 Tables compare the complete scenes with trees visible. The separate tree-hidden
 windows remove all tree geometry but retain terrain canopy shading. Their
@@ -113,7 +114,8 @@ Raw windows for the retained version:
 crowns and coarse groups, covering stable slots, incremental load, clearing,
 quality changes, parent visibility and altitude culling. The placement suite
 checks that sparse candidates remain a nonempty subset of the canonical
-forest. Query tests preserve accepted defaults and keep this trial DEV-only.
+forest. At the original checkpoint, query tests kept the trial DEV-only; the accepted
+follow-up below updates default/production coverage.
 The existing shader comparison enrolls the new mode, checks loading and
 nonzero groups, equal near-tree counts and no GPU/console errors. The existing
 trees-visible test now checks distant-layer visibility explicitly instead of
@@ -135,3 +137,32 @@ footprints at forest edges, other hardware/resolutions, other sun angles,
 long flights and initial-load visibility. Low/Medium controller behavior is
 unit-tested; visual and GPU measurements are High. No claim that every border
 or pop disappears. Plan emailed using the repository's required workflow.
+
+
+## Accepted follow-up: Trees On/Off
+
+Trees appears below Render Quality in title Settings and in Pause → Visual
+Quality. It applies immediately and persists per browser. Off hides nearby
+trees, individual distant crowns, and coarse groups, and suspends their cell
+streaming; terrain ground cover remains. It preserves buffers for re-enabling.
+Scenery Low still hides trees, with an explanatory note, without changing the
+saved preference. Returning to Medium/High restores trees only if On is saved.
+
+Tests updated: settings persistence and unavailable-storage behavior, boot-time
+and live setter wiring, disabled-loader lifecycle, production/default forest
+selection, and a browser test covering title/pause controls, reload, Low/High
+changes and keyboard activation. The original four-near-mesh test explicitly
+disables both distant layers. The DEV trees-off E2E now expects no generation
+before re-enabling. Existing shader comparisons explicitly select their
+historical modes. Rendering shaders and ranges are unchanged from the retained
+measurements above; no new GPU budget pass is claimed.
+
+Passed: 101 focused unit tests, typecheck, lint, dependency checks and production
+build. The browser checks pass for the new Settings/pause path, historical
+shader modes and the DEV tree-visibility comparison. The browser test caught
+and verified the fix for a startup binding-order bug. The UI detector reported
+no findings. Inspected captures: [desktop](2026-10-13-tree-settings-shots/trees-settings-desktop.png),
+[mobile](2026-10-13-tree-settings-shots/trees-settings-mobile.png),
+and [pause](2026-10-13-tree-settings-shots/trees-pause-settings.png).
+The build retains its existing large-chunk warning. No full-suite merge gate
+or new GPU timing pass was run for this setting/default change.

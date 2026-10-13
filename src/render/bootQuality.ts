@@ -96,6 +96,7 @@ export type BootQuality = {
    *  at once, as `bind` does, so a pick made during boot still lands.
    *  `main.ts` skips it under DEV's `?renderScale=`, which then wins. */
   bindRenderScale(set: (scale: RenderScale) => void): void
+  bindTrees(set: (enabled: boolean) => void): void
   /**
    * Connects the live tier setters, once `main.ts` has objects to move, and
    * immediately applies whatever the model currently holds -- which is what
@@ -128,12 +129,14 @@ export function createBootQuality(reload: () => void = () => window.location.rel
     targets.setFxTier(q.fx)
   }
 
+  let setTrees: ((enabled: boolean) => void) | null = null
   let arcade = false
   let setScale: ((scale: RenderScale) => void) | null = null
   const settings = createSettingsModel({
     onQualityChange: (q) => { apply(q) },
     onDamageModelChange: (model) => { arcade = model === 'arcade' },
     onRenderScaleChange: (scale) => { setScale?.(scale) },
+    onTreesChange: enabled => { setTrees?.(enabled) },
     onRunGraphicsCheck: reload,
   })
   // The model loaded the persisted damage model at construction; this is that
@@ -163,6 +166,10 @@ export function createBootQuality(reload: () => void = () => window.location.rel
     arcadeDamage: () => arcade,
     renderScale: () => settings.snapshot().renderScale,
     difficulty: () => settings.snapshot().difficulty,
+    bindTrees: (set): void => {
+      setTrees = set
+      set(settings.snapshot().treesEnabled)
+    },
     bindRenderScale: (set): void => {
       setScale = set
       set(settings.snapshot().renderScale)

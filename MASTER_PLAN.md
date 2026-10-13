@@ -445,11 +445,12 @@ Mark accepted the distant crown extension: High now reaches approximately
 the isolated branch, adding 0.07–0.29 ms median GPU time in the measured views.
 Not merged or deployed.
 [Distant-tree handoff](docs/handoff/2026-10-13-distant-trees.md).
-At Mark's request, a further extension is now DEV opt-in `forestDistance=long`:
-sparse crown groups to roughly 11 miles on High, then distant terrain canopy,
-with all fades based on 3D viewer distance. Accepted defaults remain. Measured added median GPU time is 0.15–1.60 ms;
-extended ridge/high/forward p95 exceeds the 8.33 ms target. Remains an opt-in
-visual trial, awaiting attended review; no merge or deployment.
+Mark accepted the roughly 11-mile extension after the visual handoff and
+requested retaining it with a Trees On/Off setting. It now defaults on in DEV
+and production builds on the isolated branch; title Settings and Pause → Visual
+Quality can disable all tree geometry and streaming immediately, with a saved
+preference independent of quality presets. Measured added median GPU time is
+0.15–1.60 ms; the prior Ryzen p95 misses remain known. No merge or deployment.
 [Long-forest checkpoint](docs/handoff/2026-10-13-long-forest.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).

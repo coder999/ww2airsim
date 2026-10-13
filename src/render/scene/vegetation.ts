@@ -196,7 +196,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   let lastX = 0, lastZ = 0, lastY = 0, topY = -Infinity
   const cull = () => {
     // A conservative upper bound on every crown: safe even over steep ground.
-    // Group visibility remains the independent DEV trees on/off switch.
+    // Group visibility is independent of the scenery tier.
     const visible = lastY - topY <= fadeEnd.value
     for (const mesh of meshes) mesh.visible = visible
   }
@@ -240,11 +240,14 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
       this.update(lastX, lastZ, lastY)
     },
     update(x, z, eyeY = 0): void {
-      far?.update(x, z, eyeY)
-      coarse?.update(x, z, eyeY)
       lastX = x
       lastZ = z
       lastY = eyeY
+      // Preserve the last eye for tier/cover changes, but skip all streaming
+      // and buffer uploads while the player's tree switch is off.
+      if (!object.visible) return
+      far?.update(x, z, eyeY)
+      coarse?.update(x, z, eyeY)
       const cx = Math.floor(x / TREE_CELL_M), cz = Math.floor(z / TREE_CELL_M)
       const key = `${cx},${cz}`
       if (key === previousKey) { cull(); return }

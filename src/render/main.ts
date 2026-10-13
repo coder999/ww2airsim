@@ -697,6 +697,7 @@ async function boot(): Promise<void> {
    * down, once those objects exist.
    */
   const quality = createBootQuality()
+  const forceTreesOff = import.meta.env.DEV && new URLSearchParams(location.search).get('trees') === 'off'
   // Spec §5 step 1: a saved choice means the probe (`adaptQuality`,
   // below) never runs at all -- the "probe once ever" rule -- so this starts
   // pre-latched in that path rather than the probe measuring and then
@@ -1520,6 +1521,9 @@ async function boot(): Promise<void> {
   // 2026-09-18 -- confirmed present in the deployed bundle). `let` still,
   // not `const`: `vegetation` is created later, once terrain level 4 lands.
   let vegetation: ReturnType<typeof createVegetation> | null = null
+  quality.bindTrees(enabled => {
+    if (vegetation !== null) vegetation.object.visible = enabled && !forceTreesOff
+  })
   // One `AirfieldHandle` per airfield (Plan 6b Task 8), populated the same
   // frame `vegetation` above is: both need the real terrain heightfield,
   // which arrives asynchronously (`loadTerrainProgressively` below).
@@ -3614,6 +3618,7 @@ async function boot(): Promise<void> {
       // `vegetation.update(current.eye...)` below finds a different cell and
       // recomposes a third time. One wasted recompose is cheap; this was two
       // (whole-branch review, 2026-09-18).
+      vegetation.object.visible = quality.settings.snapshot().treesEnabled && !forceTreesOff
       vegetation.update(next.eye.position.x, next.eye.position.z, next.eye.position.y)
       // The tier may already have been chosen by the time terrain arrives --
       // by the probe, or by a Settings pick made while the terrain loaded.
@@ -3621,7 +3626,6 @@ async function boot(): Promise<void> {
       // moment, since `vegetation` does not exist to receive it any earlier.
       vegetation.setTier(sceneryTier)
       if (cover !== null) vegetation.setCover(cover)
-      if (import.meta.env.DEV && new URLSearchParams(location.search).get('trees') === 'off') vegetation.object.visible = false
       scene.add(vegetation.object)
     }
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next

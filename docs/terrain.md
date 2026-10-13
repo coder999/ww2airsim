@@ -1,12 +1,13 @@
 # Terrain
 
-## Long-distance forest trial (2026-10-13, isolated branch)
+## Accepted long-distance forest (2026-10-13, isolated branch)
 
-DEV opt-in `?forestDistance=long` adds sparse crown groups beyond the accepted
-individual crowns. High fades groups in over approximately 1.5–2.6 miles and
+Mark accepted the longer forest and requested a Trees setting. Sparse crown
+groups now default on in DEV and production builds on this branch;
+`?forestDistance=off` retains the DEV shorter-range comparison. High fades groups in over approximately 1.5–2.6 miles and
 out over 5–11.2 miles; Medium uses 1–1.7 and 3.1–6.8 miles. Low has no crown
 geometry. The shader measures 3D camera distance, so altitude and horizontal
-separation both select the cheaper representation. Accepted defaults remain.
+separation both select the cheaper representation. Trees defaults On.
 
 The shared distant-tree controller now supports coarse cells: each contains
 16 original cells, taking only their first 14 placement candidates. Centers
@@ -27,10 +28,21 @@ the horizon is made. `canopy=on` retains its separate full-range experiment.
 
 `__ww2.vegetation().coarse` exposes loading and draw diagnostics; the existing
 parent visibility switch controls all tree geometry, but not terrain shading.
-`__ww2.canopy().enabled` is true for either canopy experiment. Existing capture
+`__ww2.canopy().enabled` is true for either the accepted distant canopy or the full-range canopy experiment. Existing capture
 and cost tools accept `FOREST_DISTANCE_CAPTURE=1`. The
 [checkpoint handoff](handoff/2026-10-13-long-forest.md) holds measurements,
 matched views, resource costs and limitations.
+
+The Trees On/Off row appears in title Settings and Pause → Visual Quality.
+It applies immediately and saves independently as `ww2airsim.trees.v1`.
+Off hides all three geometry layers and pauses their cell generation/uploads;
+allocated buffers are retained for re-enabling. Terrain ground cover remains.
+Low scenery hides trees regardless of this preference, with a note in the UI.
+Quality changes do not overwrite the preference. Missing, invalid or blocked
+storage defaults On, and a failed save does not prevent a live change.
+DEV `trees=off` still forces initial/UI visibility off; the diagnostic visibility
+setter remains available for controlled measurements. The known Ryzen p95
+misses remain in the handoff and were not reclassified by visual acceptance.
 
 ## Accepted distant crown stand-ins (2026-10-13, isolated branch)
 

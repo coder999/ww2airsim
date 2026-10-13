@@ -148,3 +148,17 @@ Measure three repeated GPU windows per view at 1440p on the exclusive Ryzen
 budget lock, against the accepted forest. Report full-scene cost separately
 from geometry-only tree visibility toggles, since those toggles cannot remove
 the new terrain shading. Send inspected captures and the live slot, then pause.
+
+
+## Acceptance and Trees setting (October 13)
+
+Mark passed the long-forest visual checkpoint and requested keeping it with
+an independent Trees control for slower GPUs. Enable the accepted extension
+by default on this isolated branch, retaining the DEV shorter-range comparison.
+Add On/Off in both title Settings and the pause Visual Quality tab. Apply
+immediately, persist per browser, preserve the choice across quality changes,
+and stop hidden-tree streaming. Low scenery continues to draw no trees.
+The prior Ryzen GPU budget misses remain documented; visual acceptance does
+not turn them into passes. Verify storage/boot wiring, all-layer visibility,
+quality interactions, reload and keyboard behavior, and inspect both layouts.
+No merge or deployment is requested.
