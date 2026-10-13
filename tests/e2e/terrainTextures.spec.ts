@@ -29,7 +29,7 @@ test('tree fade comparison preserves near trees and compiles all fragment paths'
   expect(consoleErrors).toEqual([])
 })
 
-test('canopy loads, stops distant tree draws, and falls back safely when its material is invalid', async ({ page }) => {
+test('canopy loads, culls out-of-range near trees, and falls back safely when its material is invalid', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
   page.on('pageerror', e => consoleErrors.push(e.message))

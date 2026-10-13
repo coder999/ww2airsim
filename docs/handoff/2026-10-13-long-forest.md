@@ -1,10 +1,11 @@
 # Long-distance forest checkpoint — October 13, 2026
 
-Accepted on `terrain-lighting`, slot 2. Mark requested a much
+Developed and visually accepted on `terrain-lighting`, slot 2. Mark requested a much
 farther forest with cheaper representations selected by actual viewer distance,
 including altitude. Mark passed the visual handoff and requested keeping the extension with a
-Trees toggle. It now defaults on in DEV and production builds on this branch.
-No merge or deployment. The prior GPU budget failures remain known.
+Trees toggle. It defaults on in DEV and production builds. The merge closeout
+below supersedes the checkpoint-only verification notes; deployment is separate.
+The prior GPU budget failures remain known.
 
 ## Review
 
@@ -166,3 +167,39 @@ no findings. Inspected captures: [desktop](2026-10-13-tree-settings-shots/trees-
 and [pause](2026-10-13-tree-settings-shots/trees-pause-settings.png).
 The build retains its existing large-chunk warning. No full-suite merge gate
 or new GPU timing pass was run for this setting/default change.
+
+
+## Merge closeout — October 13
+
+**Tests updated:** reconciled the complete branch against current main,
+including the E2E classification cleanup. Enrolled `terrainCostCapture.spec.ts`
+in the existing capture manifest, so correctness runs exclude this manual
+measurement tool. Extended the existing production-bundle test to reject the
+DEV forest-distance, distant-tree, fade and terrain-lighting query controls.
+Renamed the canopy altitude check to identify near-tree culling accurately;
+distant groups deliberately remain visible at that altitude.
+
+Changed contracts covered across the branch: soft fade as the production
+and DEV default; camera-distance and altitude transitions; stable incremental
+individual/coarse crown streaming; all-layer parent visibility and disabled
+streaming; new vegetation `distant`/`coarse` and fade/draw diagnostics; distant
+canopy loading and safe fallback; lighting opt-in/loading/fallback diagnostics;
+Trees storage, defaults, boot order, live title/pause controls, keyboard input,
+reload and independence from quality. Historical comparison queries remain
+DEV-only. No existing player control or route was removed.
+
+**Tests still valid:** near-tree placement, clearing exclusions, original art,
+scenery tiers, content attribution, unchanged terrain elevations/collision,
+texture fallback and the existing budget limits. The previous assertion that
+all tree materials are opaque was replaced by complementary opaque/transparent
+pair and shared-buffer assertions; asynchronous loader counters are tested as
+lifecycle behavior rather than fixed values. Terrain and settings browser
+checks retain their existing quality/persistence coverage.
+
+**Known gaps:** the prior High GPU timing misses remain failures against the
+unchanged limits. No new budget pass is claimed for this closeout. Other GPUs,
+long flights and the visual limitations above remain unverified. Hosted CI
+has no GPU; browser correctness and earlier locked measurements are separate.
+
+Focused deterministic verification: 110 tests passed across eight terrain,
+settings and classification files, plus both existing production-build tests.

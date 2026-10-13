@@ -1,9 +1,9 @@
 # Terrain
 
-## Accepted long-distance forest (2026-10-13, isolated branch)
+## Accepted long-distance forest (2026-10-13)
 
 Mark accepted the longer forest and requested a Trees setting. Sparse crown
-groups now default on in DEV and production builds on this branch;
+groups now default on in DEV and production builds;
 `?forestDistance=off` retains the DEV shorter-range comparison. High fades groups in over approximately 1.5–2.6 miles and
 out over 5–11.2 miles; Medium uses 1–1.7 and 3.1–6.8 miles. Low has no crown
 geometry. The shader measures 3D camera distance, so altitude and horizontal
@@ -44,11 +44,11 @@ DEV `trees=off` still forces initial/UI visibility off; the diagnostic visibilit
 setter remains available for controlled measurements. The known Ryzen p95
 misses remain in the handoff and were not reclassified by visual acceptance.
 
-## Accepted distant crown stand-ins (2026-10-13, isolated branch)
+## Accepted distant crown stand-ins (2026-10-13)
 
 Mark accepted the distant extension after the visual check-in. It now defaults
-on in DEV and production builds on this branch; `?distantTrees=off` retains
-the DEV comparison. It has not been merged or deployed.
+on in DEV and production builds; `?distantTrees=off` retains
+the DEV comparison.
 High extends crowns to approximately 2.6 miles, fading over the final
 1.1 miles; Medium extends to 1.7 miles, fading over the final 0.75 miles. Low
 draws neither representation. The near-tree range and appearance are unchanged.
@@ -80,17 +80,16 @@ trees-visible diagnostic controls both layers. `DISTANT_TREES_CAPTURE=1`
 enrolls on/off captures and isolated cost measurements in the existing tools.
 See the [distant-tree handoff](handoff/2026-10-13-distant-trees.md).
 
-## Accepted soft tree fade (2026-10-13, isolated branch)
+## Accepted soft tree fade (2026-10-13)
 
 Mark accepted the soft fade after finding pixel dissolve slightly better but
 disliking its stipple. The default is now soft in DEV and production builds:
 nearby trees stay opaque; trees in the original
 distance band blend continuously over the scene without a pixel mask.
 `treeFade=pixel` and `treeFade=whole` retain the previous comparisons.
-These query overrides are DEV-only. The accepted change is on the isolated
-branch; it has not been merged or deployed.
+These query overrides are DEV-only. The accepted soft fade is the default.
 
-The prototype submits an opaque crown/trunk pair plus a transparent pair
+The renderer submits an opaque crown/trunk pair plus a transparent pair
 sharing the same instance buffers. Their fragment masks are complementary:
 fully opaque coverage goes through the depth-writing pair; partial coverage
 goes through the blended pair without depth writes. Both pairs follow cell
@@ -104,10 +103,10 @@ from opaque trees. This is the tradeoff described in the
 It adds drawing work and leaves the far-field boundary unresolved. Measurements
 and review clips are in the [soft-fade handoff](handoff/2026-10-13-tree-soft.md).
 
-## Tree pixel-dissolve checkpoint (2026-10-13, isolated branch)
+## Tree pixel-dissolve checkpoint (2026-10-13)
 
 Mark preferred the original close-range trees and reported popping beneath
-the plane in the canopy trial. The worktree now restores original tree shapes,
+the plane in the canopy trial. The accepted renderer retains original tree shapes,
 colors, flat crown normals and tier distances. This checkpoint introduced
 `?treeFade=pixel`; `treeFade=whole` selects the original whole-instance fade.
 Both modes use the same material, placement and distance band. High starts
@@ -128,11 +127,12 @@ Both modes retain the conservative altitude draw cull. Diagnostics expose
 existing land/terrain-cost capture tools. Measurements and review clips are in
 the [pixel-dissolve handoff](handoff/2026-10-13-tree-fade.md).
 
-## Continuous canopy checkpoint (2026-10-13, isolated branch)
+## Continuous canopy checkpoint (2026-10-13)
 
-The canopy material is now **opt-in** with `?canopy=on`; the worktree defaults
-to the original ground. It no longer changes tree appearance or range.
-Production retains the original surface. `?trees=off` independently hides nearby meshes.
+The full-range canopy material remains **opt-in** with `?canopy=on`. The
+accepted default above uses it only at distance and retains the original near
+ground. It does not change tree appearance or range. `?trees=off` independently
+hides every tree geometry layer and suspends streaming.
 The [checkpoint handoff](handoff/2026-10-13-canopy.md) holds captures, costs and
 remaining visual limitations. The mountain-lighting trial below remains off.
 
@@ -157,11 +157,14 @@ instances and the separate DEV group-visibility override.
 Use `LAND_CANOPY_CAPTURE=1 E2E_CAPTURE=1` with `landGapCapture.spec.ts` for the
 three noon views plus recorded forward flights. Use the same flags with
 `terrainCostCapture.spec.ts` under the exclusive `ryzen-budget` lock for the
-matched cost comparison. `E2E_CAPTURE_DIR` selects durable artifact storage.
+matched cost comparison. Use `npm run capture:e2e -- landGapCapture` for
+images, or `hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run capture:e2e -- terrainCostCapture`
+for measurements, with the flags above and the shared Ryzen browser variables.
+`E2E_CAPTURE_DIR` selects durable artifact storage.
 
-## Terrain lighting prototype (2026-10-13, isolated branch)
+## Terrain lighting prototype (2026-10-13)
 
-`terrain-lighting` tests mountain self-shadow and diffuse sky enclosure with
+The archived terrain-lighting experiment tests mountain self-shadow and diffuse sky enclosure with
 shipping ground colors; no drape is enabled. The attended checkpoints and
 worktree/slot are in [the plan](superpowers/plans/2026-10-13-terrain-lighting.md).
 
@@ -185,8 +188,8 @@ errors and texture bytes. Terrain casts onto terrain only in this checkpoint;
 airplanes, trees and buildings do not receive these mountain shadows.
 Measured costs and the noon/canopy direction are in the
 [checkpoint feedback](handoff/2026-10-13-terrain-cost.md).
-`?trees=off` hides only tree draws in DEV; it preserves other scenery,
-terrain textures and CPU tree placement for a controlled comparison.
+`?trees=off` hides tree geometry and suspends its streaming in DEV; it
+preserves other scenery and terrain textures for a controlled comparison.
 
 The maps total 17,860,625 decoded bytes and 4,196,248 gzip bytes, excluding
 the 309-byte header. They retain Copernicus attribution. Ground elevation,
@@ -196,7 +199,7 @@ WebGPU's default 16 vertex-output-location limit.
 
 The existing `landGapCapture.spec.ts` supports `LAND_LIGHTING_CAPTURE=1` for
 matched morning/noon/afternoon views with the camera held at 6,000 ft.
-Use `E2E_CAPTURE=1`; `DRAPE_VARIANTS=off,on` selects the lighting modes in
+Use `npm run capture:e2e -- landGapCapture`; `DRAPE_VARIANTS=off,on` selects the lighting modes in
 this capture configuration. Screenshots are visual evidence; the correctness
 check in `terrainTextures.spec.ts` covers all four modes and an invalid map.
 

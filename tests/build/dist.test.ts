@@ -422,6 +422,10 @@ describe('the built artifact', () => {
       // whitelist, not bundle-text exclusion, is what keeps that safe.
       expect(bundle).not.toContain('ocean weather:')
       expect(bundle).not.toContain('sceneryView')
+      // Accepted forest defaults ship; historical visual-comparison queries do not.
+      for (const name of ['forestDistance', 'distantTrees', 'treeFade', 'terrainLighting']) {
+        expect(bundle).not.toContain(JSON.stringify(name))
+      }
       // The spawn override, by the parameter names the app actually parses
       // rather than by three literals -- renaming one in `spawn.ts` must not
       // quietly narrow what this test looks for.

@@ -161,4 +161,5 @@ and stop hidden-tree streaming. Low scenery continues to draw no trees.
 The prior Ryzen GPU budget misses remain documented; visual acceptance does
 not turn them into passes. Verify storage/boot wiring, all-layer visibility,
 quality interactions, reload and keyboard behavior, and inspect both layouts.
-No merge or deployment is requested.
+Mark subsequently requested merge, push, documentation/test reconciliation, CI
+and branch/worktree cleanup. Production deployment remains separate.

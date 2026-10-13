@@ -430,38 +430,20 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
 ---
 
 **L3. Land render quality (size M; measured and prototyped 2026-10-09 to 10, dev-only).**
-An isolated follow-up began 2026-10-13 on `terrain-lighting`, slot 2: mountain
-cast shadows and sky enclosure first, then canopy/texture repetition, with
-attended visual check-ins. Mark finds the earlier drape gain unconvincing and
-authorizes retaining or replacing it on visual merit. [Follow-up plan](docs/superpowers/plans/2026-10-13-terrain-lighting.md).
-Checkpoint 1 feedback: no perceived gain. Horizon lighting is now off by default
-(roughly 0.1–0.15 ms GPU overhead in the stable comparisons). Next focus is noon
-surface/canopy structure and the abrupt tree cutoff; trees cost about 0.59 ms
-in the low view and 0.45 ms of invisible work in the high view.
-[Measurement and limitations](docs/handoff/2026-10-13-terrain-cost.md).
-Checkpoint 2: Mark preferred original close-range trees; popping and the
-render line persisted. Canopy remains opt-in; its short-range tree treatment
-is removed. [Historical canopy handoff](docs/handoff/2026-10-13-canopy.md).
-The first attended follow-up restores original tree art/range and isolates
-pixel-level dissolve versus whole-tree switching, with altitude draw culling
-in both. [Pixel-dissolve handoff](docs/handoff/2026-10-13-tree-fade.md).
-Mark found a slight improvement but disliked pixelation. He then accepted the
-soft fade: continuous transparency only in the transition band, with near trees
-opaque. It is now the DEV and production-build default on the isolated branch,
-with measured added GPU cost of about 0.21–0.22 ms; the distant boundary remains.
-Not merged or deployed. [Soft-fade handoff](docs/handoff/2026-10-13-tree-soft.md).
-Mark accepted the distant crown extension: High now reaches approximately
-2.6 miles with a wide fade. It defaults on in DEV and production builds on
-the isolated branch, adding 0.07–0.29 ms median GPU time in the measured views.
-Not merged or deployed.
-[Distant-tree handoff](docs/handoff/2026-10-13-distant-trees.md).
-Mark accepted the roughly 11-mile extension after the visual handoff and
-requested retaining it with a Trees On/Off setting. It now defaults on in DEV
-and production builds on the isolated branch; title Settings and Pause → Visual
-Quality can disable all tree geometry and streaming immediately, with a saved
-preference independent of quality presets. Measured added median GPU time is
-0.15–1.60 ms; the prior Ryzen p95 misses remain known. No merge or deployment.
-[Long-forest checkpoint](docs/handoff/2026-10-13-long-forest.md).
+**October 13 follow-up accepted and merged:** soft tree fading, individual
+crown stand-ins and sparse distant groups now default on in DEV and production
+builds. High extends to roughly 11 miles; detail fades by actual 3D camera
+distance. A saved Trees On/Off control in title Settings and Pause → Visual
+Quality hides every tree geometry layer and suspends streaming independently
+of quality presets. Low scenery still draws no trees.
+The rejected mountain lighting and full-range canopy treatments remain DEV
+comparisons only; near tree art and near ground remain unchanged.
+The longer forest added 0.15–1.60 ms median GPU time in the measured views,
+with known Ryzen p95 misses. Mark accepted retaining it with the toggle;
+visual acceptance does not waive or weaken the budget tests. Production
+deployment remains separate.
+[Follow-up plan](docs/superpowers/plans/2026-10-13-terrain-lighting.md) and
+[measurements, test reconciliation and closeout](docs/handoff/2026-10-13-long-forest.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were
