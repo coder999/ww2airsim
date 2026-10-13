@@ -904,7 +904,38 @@ These are not base-layout requirements, but the proposed missions expose them:
 - campaign-owned persistent site state: owner, readiness, construction phase, and
   destroyed structure ids, all applied to one canonical layout per site
 
-## 6. Questions for the eventual design spec
+## 6. Decision log for the eventual design spec
+
+### 6.1 Decided
+
+#### Asset-first implementation gate — decided 13 October 2026
+
+Implementation begins by identifying every additional **individual reusable
+asset** the approved campaigns require. Any such asset that must be authored in
+Blender is built, enrolled in the Library/Hangar, and viewed there before work
+moves on to canonical base layouts, campaign mechanics, or mission scripting.
+
+This is an approval gate, not merely a modeling task:
+
+1. Reconcile the final mission set into one explicit asset inventory. Do not
+   build every possibility mentioned in this brainstorm by default.
+2. Build the missing aircraft, ships, vehicles, structures, and standalone
+   scenery/mission objects in Blender, with provenance and specifications
+   recorded through the existing asset pipeline.
+3. Enroll each reusable model in the Library/Hangar. Expose relevant animation
+   or articulation controls on the Hangar test bench.
+4. Use attended Hangar viewing checkpoints so Mark can approve or reject each
+   asset before it is depended on by a base or mission.
+5. Freeze the approved asset set, then build the canonical persistent sites and
+   shared campaign mechanics. Mission scripting and campaign progression follow
+   those foundations.
+
+Procedural or instanced treatments that are not individual Blender-authored
+models—such as mud, standing water, runway damage decals, or repeated clutter—do
+not need artificial Hangar entries. Their visual checkpoints belong with the
+base-layout work that uses them.
+
+### 6.2 Open questions
 
 1. Does one campaign pilot represent the broader air campaign and therefore switch
    among fighters, attack aircraft, and the Catalina, or do campaigns branch by
