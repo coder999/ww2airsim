@@ -126,6 +126,7 @@ import { createSky } from './scene/sky.js'
 import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
+import { canopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
@@ -1262,6 +1263,7 @@ async function boot(): Promise<void> {
       // Visual realism §2.1: read through the same closure-after-boot shape as
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
+      canopy: canopyStatus,
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
       setTreesVisible: visible => { if (vegetation !== null) vegetation.object.visible = visible },
@@ -3296,7 +3298,7 @@ async function boot(): Promise<void> {
     // works in world metres and lets `scene.position` do the shift, exactly
     // as the water and markers do.
     terrain.update(view.eye.position.x, view.eye.position.z)
-    vegetation?.update(view.eye.position.x, view.eye.position.z)
+    vegetation?.update(view.eye.position.x, view.eye.position.z, view.eye.position.y)
 
     // `oceanTime` (DEV-only, from `?oceanTime=`) is a fixed override for
     // reproducing one ocean state on demand and stays exactly as fixed as it
@@ -3612,7 +3614,7 @@ async function boot(): Promise<void> {
       // `vegetation.update(current.eye...)` below finds a different cell and
       // recomposes a third time. One wasted recompose is cheap; this was two
       // (whole-branch review, 2026-09-18).
-      vegetation.update(next.eye.position.x, next.eye.position.z)
+      vegetation.update(next.eye.position.x, next.eye.position.z, next.eye.position.y)
       // The tier may already have been chosen by the time terrain arrives --
       // by the probe, or by a Settings pick made while the terrain loaded.
       // `sceneryTier` is where `applySceneryTier` parks it for exactly this

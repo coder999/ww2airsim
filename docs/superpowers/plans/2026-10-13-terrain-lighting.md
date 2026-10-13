@@ -27,6 +27,16 @@ current trees still ship unchanged; a DEV-only `trees=off` link makes that
 choice reviewable. Verify any new canopy at the same low/middle/high views,
 measure its GPU cost, then pause for Mark as already agreed.
 
+Mark approved this canopy direction after reviewing the unchanged tree boundary.
+The DEV prototype (`canopy=on`, default in this worktree; `off` restores the
+previous surface and trees) replaces two forest texture reads with a packed
+procedural material containing crown relief, tone and gap enclosure. High
+nearby trees now blend over roughly 656–3,281 ft, with stable per-tree fade
+seeds, matched darker colors, and conservative altitude culling. The canopy
+surface continues beyond that band. Capture noon at the original three
+altitudes and a moving pass, verify fallback and placement invariants, then
+measure both modes under the exclusive GPU lock before checkpoint 2.
+
 ## Direction
 
 Make Leyte's mountains and ground read as a real landscape. Mark did not find

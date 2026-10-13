@@ -1,0 +1,254 @@
+[
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": true,
+    "repeat": 0,
+    "n": 286,
+    "p50": 3.49388,
+    "p95": 3.5098400000000005,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": false,
+    "repeat": 0,
+    "n": 314,
+    "p50": 2.89888,
+    "p95": 2.9198799999999996,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": false,
+    "repeat": 1,
+    "n": 322,
+    "p50": 2.8984,
+    "p95": 2.91472,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": true,
+    "repeat": 1,
+    "n": 269,
+    "p50": 3.4920799999999996,
+    "p95": 3.507239999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": true,
+    "repeat": 2,
+    "n": 280,
+    "p50": 3.4917599999999998,
+    "p95": 3.5075999999999996,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "trees": false,
+    "repeat": 2,
+    "n": 323,
+    "p50": 2.8965199999999998,
+    "p95": 2.9137200000000005,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": true,
+    "repeat": 0,
+    "n": 293,
+    "p50": 3.2484400000000004,
+    "p95": 3.4776800000000008,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": true,
+      "drawnInstances": 9040,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": false,
+    "repeat": 0,
+    "n": 301,
+    "p50": 2.9258,
+    "p95": 2.9465599999999994,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": false,
+    "repeat": 1,
+    "n": 294,
+    "p50": 2.92572,
+    "p95": 2.9416400000000005,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": true,
+    "repeat": 1,
+    "n": 300,
+    "p50": 3.247199999999999,
+    "p95": 3.2657999999999996,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": true,
+      "drawnInstances": 9040,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": true,
+    "repeat": 2,
+    "n": 309,
+    "p50": 3.2451599999999994,
+    "p95": 3.260719999999999,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": true,
+      "drawnInstances": 9040,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "on",
+    "trees": false,
+    "repeat": 2,
+    "n": 330,
+    "p50": 2.92752,
+    "p95": 2.9459199999999996,
+    "vegetation": {
+      "generated": 90,
+      "instances": 9040,
+      "visible": false,
+      "drawnInstances": 0,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  }
+]

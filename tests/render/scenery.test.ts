@@ -287,6 +287,42 @@ describe('scenery placement on the real Leyte field', () => {
     expect(residentCellOffsets(SCENERY_TIERS.medium.treeFadeEndM).length).toBeLessThan(residentCellOffsets().length)
   })
 
+  it('keeps canopy fade seeds attached to trees across repacking and culls invisible altitude work', () => {
+    const vegetation = createVegetation(field, [tacloban], [], true)
+    const crowns = vegetation.object.children[0] as InstancedMesh
+    const seeds = () => {
+      const result = new Map<string, number>()
+      const seed = crowns.geometry.getAttribute('treeFadeSeed')
+      for (let i = 0; i < crowns.count; i++) {
+        const m = crowns.instanceMatrix.array
+        result.set(`${m[i * 16 + 12]},${m[i * 16 + 14]}`, seed.getX(i))
+      }
+      return result
+    }
+    vegetation.update(-40900, -30666, 100)
+    const before = seeds()
+    expect(before.size).toBeGreaterThan(100)
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 100)
+    let overlap = 0
+    for (const [position, seed] of seeds()) if (before.has(position)) {
+      expect(seed).toBe(before.get(position))
+      overlap++
+    }
+    expect(overlap).toBeGreaterThan(100)
+    const generated = vegetation.stats().generated
+    const count = crowns.count
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 10000)
+    expect(vegetation.stats().drawnInstances).toBe(0)
+    expect(crowns.visible).toBe(false)
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 100)
+    expect(vegetation.stats().drawnInstances).toBe(count)
+    expect(vegetation.stats().generated).toBe(generated)
+    vegetation.setTier('low')
+    expect(vegetation.stats().drawnInstances).toBe(0)
+    vegetation.setTier('high')
+    expect(vegetation.stats().drawnInstances).toBe(count)
+  })
+
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {
     const vegetation = createVegetation(field, [tacloban])
     const crowns = vegetation.object.children[0] as InstancedMesh

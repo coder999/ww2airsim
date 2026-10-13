@@ -7,6 +7,7 @@ import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
 // Type-only: surfaceDetail.ts imports runtime values from this module, so a
 // value import back would be a cycle.
 import type { SurfaceDetailNodes } from './surfaceDetail.js'
+import { canopyEnabled, canopyNodes } from './canopy.js'
 
 export type CoverNodes = {
   readonly texture: DataTexture
@@ -342,7 +343,8 @@ const HYBRID_GAIN = 1.0
 const HYBRID_EXPOSURE = 1.15
 const HYBRID_HUE_MATCH = 0.55
 
-export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null }
+export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null;
+  readonly canopy?: { slope: Node<'vec2'>; weight: Node<'float'>; sky: Node<'float'> } }
 
 /** The terrain's albedo and, when there is texture detail, the texture
  *  slope, both blended by ONE set of weights built once here. With no
@@ -358,14 +360,17 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
   const drape = drapeNodes()
   const finish = (a: Node<'vec3'>): Node<'vec3'> => (drape ? applyDrape(a, xz, drape, height) : a)
   if (!detail) return { albedo: finish(composeSurface(c, w, mix3)), detailSlope: null }
+  const canopy = canopyEnabled() ? canopyNodes(xz, groundNoise(xz, 900).rg) : null
+  const forestColor = canopy ? mix(c.forest, mix(color(0x182c20), color(0x617449), canopy.tone).mul(noise.macro.mul(0.3).add(0.85)), canopy.ready) : c.forest
+  const mangroveColor = canopy ? mix(c.mangrove, forestColor.mul(0.85), canopy.ready) : c.mangrove
   // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
   // share a material share its texture (paddy is grass, mangrove is jungle,
   // the road is dirt); the river's wet bank and water stay procedural.
   const albedo = composeSurface({
     ...c,
     sand: c.sand.mul(detail.ratio('sand')), grass: c.grass.mul(detail.ratio('grass')),
-    forest: c.forest.mul(detail.ratio('jungle')), soil: c.soil.mul(detail.ratio('dirt')),
-    paddy: c.paddy.mul(detail.ratio('grass')), mangrove: c.mangrove.mul(detail.ratio('jungle')),
+    forest: forestColor.mul(detail.ratio('jungle')), soil: c.soil.mul(detail.ratio('dirt')),
+    paddy: c.paddy.mul(detail.ratio('grass')), mangrove: mangroveColor.mul(detail.ratio('jungle')),
     rock: c.rock.mul(detail.ratio('rock')), road: c.road.mul(detail.ratio('dirt')),
   }, w, mix3)
   // The texture normals, blended by the SAME weights as the albedo.
@@ -376,7 +381,14 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
     paddy: detail.slope('grass'), mangrove: detail.slope('jungle'), rock: detail.slope('rock'),
     wetBank: zero, water: zero, road: detail.slope('dirt'),
   }, w, mix2)
-  return { albedo: finish(albedo), detailSlope }
+  // The same composition masks crowns out of rock, beaches, roads and water.
+  const zeroWeight = float(0)
+  const canopyWeight = canopy ? composeSurface({ sand: zeroWeight, grass: zeroWeight, forest: canopy.ready,
+    soil: zeroWeight, paddy: zeroWeight, mangrove: canopy.ready, rock: zeroWeight,
+    wetBank: zeroWeight, water: zeroWeight, road: zeroWeight }, w,
+  (a: Node<'float'>, b: Node<'float'>, t: Node<'float'>) => mix(a, b, t)) : null
+  return { albedo: finish(albedo), detailSlope,
+    ...(canopy && canopyWeight ? { canopy: { slope: canopy.slope, weight: canopyWeight, sky: canopy.sky } } : {}) }
 }
 
 export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {

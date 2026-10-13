@@ -2,6 +2,23 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
+test('canopy loads, stops distant tree draws, and falls back safely when its material is invalid', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  await page.goto('/?spawnX=-38129&spawnY=3962&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&canopy=on')
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.canopy())).toEqual({ enabled: true, ready: true, error: null })
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ drawnInstances: 0, visible: true })
+  expect((await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()))!.instances).toBeGreaterThan(0)
+  await page.route('**/content/canopy/material.bin.gz', route => route.fulfill({ body: 'invalid' }))
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2?.canopy().error)).toContain('Invalid canopy material size')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.canopy().ready)).toBe(false)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
+
 test('default terrain omits experimental lighting and allows a trees-only comparison', async ({ page }) => {
   const lightingRequests: string[] = []
   page.on('request', request => { if (request.url().includes('/terrain-lighting/')) lightingRequests.push(request.url()) })
@@ -16,7 +33,7 @@ test('default terrain omits experimental lighting and allows a trees-only compar
   expect(before.vegetation!.instances).toBeGreaterThan(0)
   await page.evaluate(() => (window as DiagWindow).__ww2!.setTreesVisible(true))
   await page.waitForTimeout(300)
-  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toEqual({ ...before.vegetation, visible: true })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toEqual({ ...before.vegetation, visible: true, drawnInstances: before.vegetation!.instances })
   expect(lightingRequests).toEqual([])
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })

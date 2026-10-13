@@ -2,6 +2,7 @@ import { float, int, max, min, mix, smoothstep, texture, vec2, vec3 } from 'thre
 import type { Node } from 'three/webgpu'
 import { groundNoise } from './surface.js'
 import { SURFACE_LAYERS, type SurfaceLayer } from './surfaceManifest.js'
+import { canopyEnabled } from './canopy.js'
 // Type-only: surfaceTextures.ts pulls in KTX2Loader and import.meta.env,
 // neither of which belongs in this module's runtime graph or in the node
 // tests that import its CPU twins.
@@ -12,7 +13,9 @@ import type { SurfaceTextures } from './surfaceTextures.js'
  *
  * `ratio` is texel / layer mean, so multiplying a procedural color by it
  * keeps that color on average (composeSurface is a partition of unity) and
- * adds the photographed structure. It fades to exactly 1 with eye distance,
+ * adds the photographed structure. The DEV canopy trial replaces the jungle
+ * layer in surface.ts, so its old samples return neutral values here.
+ * Other detail fades to exactly 1 with eye distance,
  * and beyond ALBEDO_DETAIL_FAR_M the terrain is the pre-texture terrain.
  *
  * Anti-repetition: each layer is read at its real scan size, while the 2800 m
@@ -62,6 +65,7 @@ export function surfaceDetailNodes(t: SurfaceTextures, xz: Node<'vec2'>, eyeDist
   const slopes = new Map<SurfaceLayer, Node<'vec2'>>()
   return {
     ratio(layer) {
+      if (layer === 'jungle' && canopyEnabled()) return vec3(1)
       let n = ratios.get(layer)
       if (!n) {
         const i = index(layer)
@@ -76,6 +80,7 @@ export function surfaceDetailNodes(t: SurfaceTextures, xz: Node<'vec2'>, eyeDist
       return n
     },
     slope(layer) {
+      if (layer === 'jungle' && canopyEnabled()) return vec2(0)
       let n = slopes.get(layer)
       if (!n) {
         const i = index(layer)

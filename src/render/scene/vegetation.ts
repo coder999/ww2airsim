@@ -1,6 +1,7 @@
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
-import { float, hash, instanceIndex, length, positionWorld, smoothstep, uniform } from 'three/tsl'
+import { attribute, float, hash, instanceIndex, length, positionWorld, smoothstep, uniform } from 'three/tsl'
+import { canopyEnabled } from '../terrain/canopy.js'
 import { SCENERY_TIERS, TREE_FADE_END_M, type SceneryTierName } from './tiers.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
@@ -65,11 +66,13 @@ export function nearTownHut(huts: readonly HutFootprint[], x: number, z: number)
 }
 
 /** One cell's instances, composed once and copied on every later visit. */
-type PackedCell = { readonly count: number; readonly crowns: Float32Array; readonly trunks: Float32Array; readonly colors: Float32Array }
+type PackedCell = { readonly count: number; readonly crowns: Float32Array; readonly trunks: Float32Array; readonly colors: Float32Array; readonly seeds: Float32Array; readonly topY: number }
 
-function packCell(sites: readonly TreeSite[]): PackedCell {
+function packCell(sites: readonly TreeSite[], canopy = false): PackedCell {
   const dummy = new Object3D(), tint = new Color()
   const crowns = new Float32Array(sites.length * 16), trunks = new Float32Array(sites.length * 16), colors = new Float32Array(sites.length * 3)
+  const seeds = new Float32Array(sites.length)
+  let topY = -Infinity
   sites.forEach((t, i) => {
     dummy.position.set(t.x, t.y + t.height * 0.5, t.z)
     dummy.scale.set(1, t.height, 1)
@@ -82,9 +85,14 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
     dummy.updateMatrix()
     dummy.matrix.toArray(crowns, i * 16)
     tint.setHSL(0.25 + t.shade * 0.08, 0.24 + t.shade * 0.14, 0.16 + t.shade * 0.07)
+    // Linear RGB, in the terrain canopy's palette. The old HSL colors were
+    // much brighter than the ground and advertised every newly drawn tree.
+    if (canopy) tint.setRGB(0.035 + t.shade * 0.065, 0.06 + t.shade * 0.075, 0.025 + t.shade * 0.035)
     tint.toArray(colors, i * 3)
+    seeds[i] = t.shade
+    topY = Math.max(topY, t.y + t.height * 1.25)
   })
-  return { count: sites.length, crowns, trunks, colors }
+  return { count: sites.length, crowns, trunks, colors, seeds, topY }
 }
 
 /** Stable per-cell placement. Camera motion never rerolls the forest.
@@ -127,17 +135,17 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = []): {
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], canopy = canopyEnabled()): {
   object: Group
-  update(x: number, z: number): void
+  update(x: number, z: number, eyeY?: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
    *  for the eye's last position. */
   setTier(name: SceneryTierName): void
   /** Apply the land-cover raster (Plan 13b) once it has loaded: the cache is
    *  discarded and the forest is rebuilt at once for the eye's last position. */
   setCover(cover: CoverLookup): void
-  /** Cells generated so far: the crossing test reads it. */
-  stats(): { generated: number; instances: number; visible: boolean }
+  /** Resident and submitted tree counts; generated tracks cell-cache work. */
+  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number }
 } {
   const object = new Group()
   object.name = 'nearby jungle'
@@ -145,11 +153,13 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   const bark = new MeshStandardNodeMaterial({ color: 0x665340, roughness: 1 })
   // positionWorld includes the scene's -eye translation: this is distance
   // from the camera, not distance from the geographic world origin.
-  const fadeStart = uniform(TREE_FADE_END_M - TREE_FADE_BAND_M), fadeEnd = uniform(TREE_FADE_END_M)
+  const range = (name: SceneryTierName) => canopy ? ({ high: 1000, medium: 800, low: 0 }[name]) : SCENERY_TIERS[name].treeFadeEndM
+  const start = (end: number) => canopy ? end * 0.2 : Math.max(0, end - TREE_FADE_BAND_M)
+  const fadeStart = uniform(start(range('high'))), fadeEnd = uniform(range('high'))
   const fade = float(1).sub(smoothstep(fadeStart, fadeEnd, length(positionWorld)))
-  // A per-instance dissolve: tree i is drawn while fade > hash(i), so the
-  // forest thins one whole tree at a time across the 1400-1850 m band and no
-  // pixel is ever blended. NOT `alphaHash: true`: three r186's alpha hash
+  // Baseline dissolves across 1400-1850 m using hash(i). The canopy trial
+  // uses a wider 200-1000 m band and a stable site seed that survives buffer
+  // repacking. No pixel is blended. NOT `alphaHash: true`: three r186's alpha hash
   // takes dFdx/dFdy of the position and then discards, and on the reference
   // desktop (2026-09-17, Playwright 1.63 Chromium, RX 6700 XT) that shader
   // fails pipeline creation with "An error occurred while generating Tint
@@ -157,17 +167,26 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   // never drew, and the app's own error list showed only the downstream
   // "invalid due to a previous error" entries. tests/render/scenery.test.ts
   // guards it; the single-variable probe that found it is in the 13a notes.
-  const threshold = hash(instanceIndex)
+  const threshold = canopy ? attribute('treeFadeSeed', 'float') : hash(instanceIndex)
   for (const material of [leaves, bark]) {
     material.opacityNode = fade
     material.alphaTestNode = threshold
   }
-  const lobes = [new IcosahedronGeometry(1, 0),
-    new IcosahedronGeometry(0.8, 0).translate(0.5, -0.2, 0.25),
-    new IcosahedronGeometry(0.75, 0).translate(-0.45, -0.15, -0.35)]
+  const lobe = (radius: number) => {
+    const g = new IcosahedronGeometry(radius, 0)
+    if (canopy) {
+      const p = g.getAttribute('position'), n = g.getAttribute('normal')
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), len = Math.hypot(x, y, z)
+        n.setXYZ(i, x / len, y / len, z / len)
+      }
+    }
+    return g
+  }
+  const lobes = [lobe(1), lobe(0.8).translate(0.5, -0.2, 0.25), lobe(0.75).translate(-0.45, -0.15, -0.35)]
   const crownGeometry = mergeGeometries(lobes)!
   for (const lobe of lobes) lobe.dispose()
-  crownGeometry.computeVertexNormals()
+  if (!canopy) crownGeometry.computeVertexNormals()
   const crowns = new InstancedMesh(crownGeometry, leaves, CAPACITY)
   const trunks = new InstancedMesh(new CylinderGeometry(0.4, 0.65, 1, 5), bark, CAPACITY)
   crowns.instanceColor = new InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3)
@@ -181,10 +200,18 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   const crownArray = crowns.instanceMatrix.array as Float32Array
   const trunkArray = trunks.instanceMatrix.array as Float32Array
   const colorArray = crowns.instanceColor.array as Float32Array
+  const fadeSeeds = new InstancedBufferAttribute(new Float32Array(CAPACITY), 1).setUsage(DynamicDrawUsage)
+  if (canopy) for (const mesh of [crowns, trunks]) mesh.geometry.setAttribute('treeFadeSeed', fadeSeeds)
   let previousKey = ''
   let generated = 0
-  let offsets = residentCellOffsets()
-  let lastX = 0, lastZ = 0
+  let offsets = residentCellOffsets(range('high'))
+  let lastX = 0, lastZ = 0, lastY = 0, topY = -Infinity
+  const cull = () => {
+    // A conservative upper bound on every crown: safe even over steep ground.
+    // Group visibility remains the independent DEV trees on/off switch.
+    const visible = !canopy || lastY - topY <= fadeEnd.value
+    crowns.visible = trunks.visible = visible
+  }
   let cover: CoverLookup | undefined
   // Cells stay cached while resident. A crossing composes only the cells
   // that entered and copies the rest: the square window's full recompose of
@@ -192,47 +219,53 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   let cache = new Map<string, PackedCell>()
   return {
     object,
-    stats: () => ({ generated, instances: crowns.count, visible: object.visible }),
+    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0 }),
     setTier(name): void {
-      const endM = SCENERY_TIERS[name].treeFadeEndM
+      const endM = range(name)
       fadeEnd.value = endM
-      fadeStart.value = Math.max(0, endM - TREE_FADE_BAND_M)
+      fadeStart.value = start(endM)
       offsets = residentCellOffsets(endM)
       previousKey = ''
-      this.update(lastX, lastZ)
+      this.update(lastX, lastZ, lastY)
     },
     setCover(next): void {
       cover = next
       cache = new Map()
       previousKey = ''
-      this.update(lastX, lastZ)
+      this.update(lastX, lastZ, lastY)
     },
-    update(x, z): void {
+    update(x, z, eyeY = 0): void {
       lastX = x
       lastZ = z
+      lastY = eyeY
       const cx = Math.floor(x / TREE_CELL_M), cz = Math.floor(z / TREE_CELL_M)
       const key = `${cx},${cz}`
-      if (key === previousKey) return
+      if (key === previousKey) { cull(); return }
       previousKey = key
       const nextCache = new Map<string, PackedCell>()
       let index = 0
+      topY = -Infinity
       for (const [dx, dz] of offsets) {
         const k = `${cx + dx},${cz + dz}`
         let cell = cache.get(k)
         if (!cell) {
-          cell = packCell(treeSites(field, cx + dx, cz + dz, airfields, cover, huts))
+          cell = packCell(treeSites(field, cx + dx, cz + dz, airfields, cover, huts), canopy)
           generated++
         }
         nextCache.set(k, cell)
         crownArray.set(cell.crowns, index * 16)
         trunkArray.set(cell.trunks, index * 16)
         colorArray.set(cell.colors, index * 3)
+        if (canopy) (fadeSeeds.array as Float32Array).set(cell.seeds, index)
+        topY = Math.max(topY, cell.topY)
         index += cell.count
       }
       cache = nextCache
       crowns.count = trunks.count = index
       crowns.instanceMatrix.needsUpdate = trunks.instanceMatrix.needsUpdate = true
       crowns.instanceColor!.needsUpdate = true
+      fadeSeeds.needsUpdate = true
+      cull()
     },
   }
 }

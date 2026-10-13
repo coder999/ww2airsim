@@ -1,5 +1,38 @@
 # Terrain
 
+## Continuous canopy checkpoint (2026-10-13, isolated branch)
+
+The attended `terrain-lighting` worktree now defaults to a DEV canopy trial.
+`?canopy=off` restores the prior forest material and nearby-tree behavior;
+production remains unchanged. `?trees=off` independently hides nearby meshes.
+The [checkpoint handoff](handoff/2026-10-13-canopy.md) holds captures, costs and
+remaining visual limitations. The mountain-lighting trial below remains off.
+
+`tools/terrain/bakeCanopy.ts` produces an original, periodic 1024-square crown
+height material, encoded as slope/tone/enclosure rather than photographed
+color. Its tile spans approximately 1,680 ft, with slight coordinate
+distortion and mip filtering. One packed canopy sample replaces the forest's
+albedo/normal samples; a separate coarse noise sample varies its coordinates.
+Existing land-cover composition masks the material out of beaches, roads,
+rock and water. Crown normal relief fades between approximately 3.1 and 8.7
+miles; the color texture mips continuously into the far field. Terrain
+geometry and collision heights do not change. Missing or malformed material
+falls back to procedural forest color, with `__ww2.canopy()` reporting the error.
+
+The trial draws fewer nearby tree cells: High fades from roughly 656 to
+3,281 ft, Medium from 525 to 2,625 ft. Fade seeds now belong to the tree site,
+so repacking the instance buffers no longer changes their thresholds. Smooth
+crown normals and darker linear-RGB colors reduce the contrast with the ground
+canopy. A conservative upper bound on resident tree tops skips both draw calls
+when all trees are vertically beyond range. This does not skip CPU placement.
+`__ww2.vegetation().drawnInstances` distinguishes submitted meshes from resident
+instances and the separate DEV group-visibility override.
+
+Use `LAND_CANOPY_CAPTURE=1 E2E_CAPTURE=1` with `landGapCapture.spec.ts` for the
+three noon views plus recorded forward flights. Use the same flags with
+`terrainCostCapture.spec.ts` under the exclusive `ryzen-budget` lock for the
+matched cost comparison. `E2E_CAPTURE_DIR` selects durable artifact storage.
+
 ## Terrain lighting prototype (2026-10-13, isolated branch)
 
 `terrain-lighting` tests mountain self-shadow and diffuse sky enclosure with

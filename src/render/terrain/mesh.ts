@@ -49,6 +49,7 @@ import type { CloudShadowHandle } from '../scene/cloudShadow.js'
 import { COVER_HEADER } from '../landcover/load.js'
 import { coverByteLength } from '../landcover/cover.js'
 import { createTerrainOcclusion, type TerrainOcclusion } from './occlusion.js'
+import { canopyNormalFade } from './canopy.js'
 
 /**
  * The terrain, as three objects: a grid of quads shared by every patch, one
@@ -364,7 +365,8 @@ function createRingMaterial(
     const meshNormal = varying(normal)
     const procedural = detailSlopeNode(surfaceXZ)
     const summed = surf.detailSlope ? procedural.add(surf.detailSlope) : procedural
-    const detailSlope = clampSlopeNode(summed).mul(detailNormalFadeNode(varying(eyeDistanceM)))
+    const groundSlope = clampSlopeNode(summed).mul(detailNormalFadeNode(varying(eyeDistanceM)))
+    const detailSlope = surf.canopy ? mix(groundSlope, surf.canopy.slope.mul(canopyNormalFade(varying(eyeDistanceM))), surf.canopy.weight) : groundSlope
     const shadingNormal = normalize(meshNormal.div(meshNormal.y).sub(vec3(detailSlope.x, 0, detailSlope.y)))
     const sun = normalize(sunDirectionNode)
     const lambert = clamp(dot(shadingNormal, sun), 0, 1)
@@ -383,7 +385,8 @@ function createRingMaterial(
     // HemisphereLight's sky color does (photoreal Task 12, lighting.ts).
     const visibility = occlusion.nodes(surfaceXZ)
     const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode).mul(visibility.sky), shadingNormal.y.mul(0.5).add(0.5))
-    const lit = albedo.mul(1 / Math.PI).mul(ambient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))))
+    const enclosedAmbient = surf.canopy ? ambient.mul(mix(float(1), surf.canopy.sky, surf.canopy.weight)) : ambient
+    const lit = albedo.mul(1 / Math.PI).mul(enclosedAmbient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))))
 
     // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
     // interpolated like the old fog ramp: the LUT is 32x32 per slice and
