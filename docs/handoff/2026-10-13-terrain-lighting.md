@@ -1,5 +1,9 @@
 # Terrain lighting — checkpoint 1, 2026-10-13
 
+**Subsequent ruling:** Mark perceived no difference. The prototype is now off
+by default after measuring its added cost. See [feedback and tree cost](2026-10-13-terrain-cost.md).
+The captures below remain the historical experiment, not an accepted improvement.
+
 First visual checkpoint of the [attended plan](../superpowers/plans/2026-10-13-terrain-lighting.md).
 Worktree `terrain-lighting`, slot 2 (port 5175). Surface/canopy work waits for
 Mark's feedback. No merge or production deployment.

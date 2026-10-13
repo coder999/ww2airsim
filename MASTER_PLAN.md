@@ -424,6 +424,11 @@ An isolated follow-up began 2026-10-13 on `terrain-lighting`, slot 2: mountain
 cast shadows and sky enclosure first, then canopy/texture repetition, with
 attended visual check-ins. Mark finds the earlier drape gain unconvincing and
 authorizes retaining or replacing it on visual merit. [Follow-up plan](docs/superpowers/plans/2026-10-13-terrain-lighting.md).
+Checkpoint 1 feedback: no perceived gain. Horizon lighting is now off by default
+(roughly 0.1–0.15 ms GPU overhead in the stable comparisons). Next focus is noon
+surface/canopy structure and the abrupt tree cutoff; trees cost about 0.59 ms
+in the low view and 0.45 ms of invisible work in the high view.
+[Measurement and limitations](docs/handoff/2026-10-13-terrain-cost.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were

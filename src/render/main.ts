@@ -1263,6 +1263,8 @@ async function boot(): Promise<void> {
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
+      vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
+      setTreesVisible: visible => { if (vegetation !== null) vegetation.object.visible = visible },
       // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
         tier: fxTier, capacity: fxSystem?.capacity() ?? 0, live: fxSystem?.live() ?? 0,
@@ -3617,6 +3619,7 @@ async function boot(): Promise<void> {
       // moment, since `vegetation` does not exist to receive it any earlier.
       vegetation.setTier(sceneryTier)
       if (cover !== null) vegetation.setCover(cover)
+      if (import.meta.env.DEV && new URLSearchParams(location.search).get('trees') === 'off') vegetation.object.visible = false
       scene.add(vegetation.object)
     }
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next

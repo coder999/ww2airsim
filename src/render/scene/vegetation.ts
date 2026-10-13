@@ -137,7 +137,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
    *  discarded and the forest is rebuilt at once for the eye's last position. */
   setCover(cover: CoverLookup): void
   /** Cells generated so far: the crossing test reads it. */
-  stats(): { generated: number }
+  stats(): { generated: number; instances: number; visible: boolean }
 } {
   const object = new Group()
   object.name = 'nearby jungle'
@@ -192,7 +192,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   let cache = new Map<string, PackedCell>()
   return {
     object,
-    stats: () => ({ generated }),
+    stats: () => ({ generated, instances: crowns.count, visible: object.visible }),
     setTier(name): void {
       const endM = SCENERY_TIERS[name].treeFadeEndM
       fadeEnd.value = endM

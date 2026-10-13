@@ -17,10 +17,17 @@ physical size of the sun. More resolution may be warranted after review.
 
 `src/render/terrain/occlusion.ts` loads the maps asynchronously and retains
 baseline illumination on a missing or mismatched asset. The DEV-only modes
-are `?terrainLighting=off|sky|sun|on`; the worktree defaults to `on`, while a
-production build remains off. `__ww2.terrainLighting()` reports mode, readiness,
+are `?terrainLighting=off|sky|sun|on`; both DEV and production default to `off`.
+Mark perceived no improvement at checkpoint 1, so the experiment is shelved.
+The default path fetches no lighting maps and adds no shader texture reads;
+explicit DEV opt-in remains only for reproducing the comparison.
+`__ww2.terrainLighting()` reports mode, readiness,
 errors and texture bytes. Terrain casts onto terrain only in this checkpoint;
-airplanes, trees and buildings do not yet receive these mountain shadows.
+airplanes, trees and buildings do not receive these mountain shadows.
+Measured costs and the noon/canopy direction are in the
+[checkpoint feedback](handoff/2026-10-13-terrain-cost.md).
+`?trees=off` hides only tree draws in DEV; it preserves other scenery,
+terrain textures and CPU tree placement for a controlled comparison.
 
 The maps total 17,860,625 decoded bytes and 4,196,248 gzip bytes, excluding
 the 309-byte header. They retain Copernicus attribution. Ground elevation,

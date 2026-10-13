@@ -8,6 +8,25 @@ each checkpoint; viewing is not a test gate.
 **Checkout:** `terrain-lighting`, `ww2airsim-terrain-lighting`; slot 2, port 5175.
 The Vite hostname/port edit is local scratch, never committed.
 
+## Checkpoint 1 ruling and next comparison
+
+Mark perceived no difference and asked to roll back any added GPU cost.
+The prototype adds roughly 0.1–0.15 ms in stable reference-GPU comparisons;
+it is now disabled by default, with no map downloads or shader sampling.
+Explicit DEV opt-in is retained only for reproducing the rejected experiment.
+Mark also identified noon as weakest and questioned the cost and moving
+boundary of the nearby trees. [Tree measurements](../../handoff/2026-10-13-terrain-cost.md)
+compare trees alone, leaving ground materials and other scenery unchanged.
+
+Checkpoint 2 should prioritize noon: replace the repeated forest-floor pattern
+with irregular canopy-scale detail, shade gaps between crowns, and carry a
+consistent canopy appearance into the distance. Reuse or replace existing
+surface samples before adding more passes. Compare with and without nearby
+tree meshes; extending their draw distance is not the first remedy. The
+current trees still ship unchanged; a DEV-only `trees=off` link makes that
+choice reviewable. Verify any new canopy at the same low/middle/high views,
+measure its GPU cost, then pause for Mark as already agreed.
+
 ## Direction
 
 Make Leyte's mountains and ground read as a real landscape. Mark did not find

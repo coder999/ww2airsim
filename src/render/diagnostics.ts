@@ -484,6 +484,9 @@ export type Ww2Diagnostics = {
    *  under `?terrainTextures=off`, or after a failed load). */
   readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
   readonly terrainLighting: () => { readonly mode: string; readonly ready: boolean; readonly error: string | null; readonly bytes: number }
+  readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly visible: boolean; readonly tier: string } | null
+  /** DEV comparison: isolates tree draws without changing terrain materials or quality. */
+  readonly setTreesVisible: (visible: boolean) => void
   /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is
    *  the last frame's events + step + instance write, in milliseconds. */
   readonly fx: () => { readonly tier: string; readonly capacity: number; readonly live: number; readonly drawn: number; readonly sheetsFallback: boolean; readonly cpuMs: number }

@@ -13,10 +13,10 @@ export type TerrainOcclusion = {
   nodes(xz: Node<'vec2'>): { sun: Node<'float'>; sky: Node<'float'> }
 }
 
-/** Checkpoint prototype, DEV only; production retains the shipped lighting.
- * Explicit modes let the reviewer isolate diffuse enclosure and cast shadow. */
+/** Shelved after Mark's 2026-10-13 review: no perceived gain for its cost.
+ * Explicit DEV modes retain the experiment for reproducible comparisons. */
 export function terrainLightingMode(search: string): TerrainLightingMode {
-  const value = new URLSearchParams(search).get('terrainLighting') ?? 'on'
+  const value = new URLSearchParams(search).get('terrainLighting') ?? 'off'
   if (value === 'off' || value === 'sky' || value === 'sun' || value === 'on') return value
   throw new Error(`terrainLighting: ${JSON.stringify(value)} is not off, sky, sun or on`)
 }

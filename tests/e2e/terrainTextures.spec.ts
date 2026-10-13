@@ -2,6 +2,25 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
+test('default terrain omits experimental lighting and allows a trees-only comparison', async ({ page }) => {
+  const lightingRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('/terrain-lighting/')) lightingRequests.push(request.url()) })
+  await page.goto('/?spawnX=-36629&spawnY=305&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&trees=off')
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ visible: false, tier: 'high' })
+  const before = await page.evaluate(() => ({
+    lighting: (window as DiagWindow).__ww2!.terrainLighting(),
+    vegetation: (window as DiagWindow).__ww2!.vegetation(),
+  }))
+  expect(before.lighting).toEqual({ mode: 'off', ready: false, error: null, bytes: 0 })
+  expect(before.vegetation!.instances).toBeGreaterThan(0)
+  await page.evaluate(() => (window as DiagWindow).__ww2!.setTreesVisible(true))
+  await page.waitForTimeout(300)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toEqual({ ...before.vegetation, visible: true })
+  expect(lightingRequests).toEqual([])
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+})
+
 test('terrain lighting comparison modes load, compile and fail safely with an invalid map', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })

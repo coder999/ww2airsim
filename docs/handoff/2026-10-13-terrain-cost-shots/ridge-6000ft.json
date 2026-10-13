@@ -1,0 +1,230 @@
+[
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 0,
+    "n": 256,
+    "p50": 3.524279999999999,
+    "p95": 4.688,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 0,
+    "n": 237,
+    "p50": 3.2237199999999997,
+    "p95": 3.67264,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 1,
+    "n": 234,
+    "p50": 3.43528,
+    "p95": 3.76736,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 1,
+    "n": 275,
+    "p50": 3.5108800000000002,
+    "p95": 3.5298799999999995,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 2,
+    "n": 269,
+    "p50": 3.5121599999999997,
+    "p95": 3.7513599999999996,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 2,
+    "n": 229,
+    "p50": 3.42048,
+    "p95": 3.76324,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 0,
+    "n": 277,
+    "p50": 3.37016,
+    "p95": 4.0242,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 0,
+    "n": 235,
+    "p50": 3.2866,
+    "p95": 3.6260799999999995,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 1,
+    "n": 245,
+    "p50": 3.0672,
+    "p95": 3.6028000000000007,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 1,
+    "n": 273,
+    "p50": 3.36436,
+    "p95": 3.3821200000000005,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 2,
+    "n": 281,
+    "p50": 3.36472,
+    "p95": 3.3821200000000005,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 2,
+    "n": 232,
+    "p50": 3.26268,
+    "p95": 3.6059999999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 15955,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  }
+]
