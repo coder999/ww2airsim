@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test'
+import { CAPTURE_TEST_FILES } from './tests/e2e/captureTools.js'
 
 /**
  * E2E only. Runs on the Windows reference platform, never in hosted CI --
@@ -19,18 +20,10 @@ import { defineConfig } from '@playwright/test'
  * Chromium's newer headless mode instead, and is the exact binary the
  * README's `npx playwright install chromium` already installs.
  *
- * Beyond that: the day-0 spike ran in a headed Chrome tab; master spec §15
- * lists "the same adapter assertion holds under headless Chromium" as an open
- * day-0 question, and this config is the first attempt to run it headless at
- * all -- unverified as of 2026-09-13. If the adapter test still fails with
- * `channel: 'chromium'` in place, try `headless: false` next, to tell
- * "headless still lost the discrete GPU" apart from "this Chromium build has
- * no WebGPU at all"; if it's the former, try `--use-angle=d3d11` before
- * `d3d12`. `channel: 'chrome'` is a further option, but it needs a real
- * Google Chrome install on the reference platform -- the README's one-time
- * setup does not provide one, so do not reach for it before confirming Chrome
- * is actually there. Whichever of these turns out to matter, record it here,
- * dated, so this comment stops being a guess.
+ * The headed console/RDP route and the headless session-0 route are both now
+ * verified; their current launch recipes live in docs/testing.md. Session 0
+ * needs its separate d3d11 flag below. Do not revive the older, contradictory
+ * "unverified headless" guidance here.
  */
 /**
  * Chromium flags for the E2E browser.
@@ -38,24 +31,10 @@ import { defineConfig } from '@playwright/test'
  * The first two were already here and are about getting a real GPU at all
  * (see the block comment above).
  *
- * **The last two changed nothing, and are kept anyway. Do not read them as
- * load-bearing.** They were added in Task 11 expecting to uncap the frame
- * rate for a frame-time budget. They do not. Measured 2026-09-14 on a BLANK
- * page carrying no WebGPU at all -- no flags, `--disable-gpu-vsync` alone,
- * both of these, both plus `--disable-features=CalculateNativeWinOcclusion`,
- * and both plus `--disable-new-content-rendering-timeout` -- every one of the
- * five reported the same 9.9-10.0 ms median `requestAnimationFrame` interval.
- * The flags do reach the browser (`--disable-gpu` through this same header
- * made `navigator.gpu` vanish), so that is a real null result and not a
- * plumbing failure: the 10.0 ms cadence is Chromium's own and survives
- * removing both the GPU and the display. Design spec section 10.2 has the
- * evidence, including the 120 Hz the monitor actually runs at.
- *
- * They stay because they are free, correct, and may matter on a future
- * reference platform with a variable-refresh or windowed compositor. The
- * frame budget does NOT go through them: it is a WebGPU timestamp query on
- * the GPU's own clock (design spec section 10.3), which is why the cap being
- * immovable stopped mattering.
+ * The vsync/frame-rate flags are load-bearing for comparable measurements.
+ * Once the remote server was started with `--unsafe` and the args actually
+ * reached Chromium on 2026-09-18, rAF p95 fell from 10.1 ms to 1.5 ms. GPU
+ * numbers from before that correction are not comparable with later ones.
  *
  * NOTE these reach the browser ONLY through the `x-playwright-launch-options`
  * header below when `PW_REMOTE` is set. `use.launchOptions` is ignored on a
@@ -88,17 +67,6 @@ import { defineConfig } from '@playwright/test'
  * edge saw none of the failing loads and cloudflared on nexus logged nothing,
  * so neither is in the path. The resolver-side fix is a LAN answer with no
  * HTTPS record for that name; these flags make the harness independent of it.
- *
- * **2026-09-18, the day the args first applied: the "changed nothing" null
- * result above is void.** It was measured while `run-server` was silently
- * dropping every arg, so it measured nothing. With `--disable-gpu-vsync` and
- * `--disable-frame-rate-limit` actually in force the rAF interval p95 went
- * 10.1 ms -> 1.5 ms and the frame-time budget's gpu p95 read 1.377 ms against
- * the 5.177 ms every handoff up to Plan 14 recorded (entities 3.670 -> 0.890).
- * Whether the old figure included compositor wait inside the timestamp span
- * or the GPU simply clocks up when uncapped has not been separated. Treat
- * every GPU number dated before 2026-09-18 as measured under vsync and NOT
- * comparable with numbers after; the 6.0 ms ceiling stands until re-argued.
  */
 const CHROMIUM_ARGS = [
   // `--use-angle=d3d12` was here from Task 11 to 2026-09-18 and was REMOVED
@@ -140,62 +108,76 @@ const LOCAL_LINUX_ARGS = process.platform === 'linux' ? ['--use-angle=vulkan', '
  * when somebody invokes Playwright directly instead of using the nightly.
  */
 const BUDGET_TITLE_RE = /budget|p95|tripwire|frame time|\bHz\b/i
-const budgetRun = process.env.E2E_BUDGET_RUN === '1'
-const heldLocks = new Set((process.env.HWLOCK_HELD ?? '').split(/\s+/).filter(Boolean))
-if (budgetRun && !heldLocks.has('ryzen-budget')) {
-  throw new Error(
-    'E2E_BUDGET_RUN=1 requires the ryzen-budget lock; run '
-    + '`hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run test:e2e`.',
-  )
+const CAPTURE_TEST_PATTERNS = CAPTURE_TEST_FILES.map(file =>
+  new RegExp(`${file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+)
+
+export function createPlaywrightConfig(mode: 'test' | 'capture' = 'test') {
+  const budgetRun = process.env.E2E_BUDGET_RUN === '1'
+  const heldLocks = new Set((process.env.HWLOCK_HELD ?? '').split(/\s+/).filter(Boolean))
+  if (budgetRun && !heldLocks.has('ryzen-budget')) {
+    throw new Error(
+      'E2E_BUDGET_RUN=1 requires the ryzen-budget lock; run '
+      + '`hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run test:e2e`.',
+    )
+  }
+
+  return defineConfig({
+    testDir: 'tests/e2e',
+    // Capture/measurement programs share the harness but are not tests. The
+    // default suite excludes the manifest; the dedicated config selects it.
+    ...(mode === 'capture'
+      ? { testMatch: CAPTURE_TEST_PATTERNS }
+      : {
+          testIgnore: CAPTURE_TEST_PATTERNS,
+          // Correctness is the safe default. The locked budget invocation
+          // selects exactly the complementary title set.
+          ...(budgetRun
+            ? { grep: BUDGET_TITLE_RE }
+            : { grepInvert: BUDGET_TITLE_RE }),
+        }),
+    // Longer than the default per-action wait below (30s, left unchanged) so a
+    // genuinely stalled `waitForFunction` reports its own specific timeout
+    // message first, rather than the whole test being killed by the outer test
+    // timeout at the same moment with a less specific one.
+    timeout: 60_000,
+    // One at a time. Every test here shares one GPU on one desktop, and the
+    // frame-time budget in terrain.spec.ts measures that GPU: a second browser
+    // rendering 1440p beside it is contention the number would silently absorb.
+    // Playwright's default (half the CPU count) picked 2 on nexus, which is
+    // also two Chromium windows fighting for the same foreground on the remote
+    // machine. The suite is ~30 s serially, so this costs nothing worth having.
+    workers: 1,
+    use: {
+      connectOptions: process.env.PW_REMOTE
+        ? {
+            wsEndpoint: process.env.PW_REMOTE,
+            headers: {
+              'x-playwright-launch-options': JSON.stringify(
+                process.env.PW_SESSION0
+                  ? // A run-server in ryzen's session 0 (started over SSH, no console
+                    // login): no display, so headless, and ANGLE's default backend gets
+                    // no GPU there while d3d11 gets the real one. README's "E2E: the
+                    // GPU harness" has the recipe and what it is (not) good for.
+                    { channel: 'chromium', headless: true, args: [...CHROMIUM_ARGS, '--use-angle=d3d11'] }
+                  : { channel: 'chromium', headless: false, args: CHROMIUM_ARGS },
+              ),
+            },
+          }
+        : undefined,
+      baseURL: process.env.PW_BASE_URL ?? 'http://localhost:5173',
+      headless: true,
+      channel: 'chromium',
+      launchOptions: {
+        // Headless is the likeliest place to silently lose the discrete GPU,
+        // which is exactly what the adapter guard is watching for. Applies only
+        // to a LOCAL run; see CHROMIUM_ARGS above for why the remote path needs
+        // the same list in the header instead.
+        args: [...CHROMIUM_ARGS, ...LOCAL_LINUX_ARGS],
+      },
+    },
+    reporter: [['list']],
+  })
 }
 
-export default defineConfig({
-  testDir: 'tests/e2e',
-  // Correctness is the safe default. The locked budget invocation selects
-  // exactly the complementary title set, using the same contract as the
-  // nightly report classifier (docs/testing.md, "Philosophy").
-  ...(budgetRun
-    ? { grep: BUDGET_TITLE_RE }
-    : { grepInvert: BUDGET_TITLE_RE }),
-  // Longer than the default per-action wait below (30s, left unchanged) so a
-  // genuinely stalled `waitForFunction` reports its own specific timeout
-  // message first, rather than the whole test being killed by the outer test
-  // timeout at the same moment with a less specific one.
-  timeout: 60_000,
-  // One at a time. Every test here shares one GPU on one desktop, and the
-  // frame-time budget in terrain.spec.ts measures that GPU: a second browser
-  // rendering 1440p beside it is contention the number would silently absorb.
-  // Playwright's default (half the CPU count) picked 2 on nexus, which is
-  // also two Chromium windows fighting for the same foreground on the remote
-  // machine. The suite is ~30 s serially, so this costs nothing worth having.
-  workers: 1,
-  use: {
-    connectOptions: process.env.PW_REMOTE
-      ? {
-          wsEndpoint: process.env.PW_REMOTE,
-          headers: {
-            'x-playwright-launch-options': JSON.stringify(
-              process.env.PW_SESSION0
-                ? // A run-server in ryzen's session 0 (started over SSH, no console
-                  // login): no display, so headless, and ANGLE's default backend gets
-                  // no GPU there while d3d11 gets the real one. README's "E2E: the
-                  // GPU harness" has the recipe and what it is (not) good for.
-                  { channel: 'chromium', headless: true, args: [...CHROMIUM_ARGS, '--use-angle=d3d11'] }
-                : { channel: 'chromium', headless: false, args: CHROMIUM_ARGS },
-            ),
-          },
-        }
-      : undefined,
-    baseURL: process.env.PW_BASE_URL ?? 'http://localhost:5173',
-    headless: true,
-    channel: 'chromium',
-    launchOptions: {
-      // Headless is the likeliest place to silently lose the discrete GPU,
-      // which is exactly what the adapter guard is watching for. Applies only
-      // to a LOCAL run; see CHROMIUM_ARGS above for why the remote path needs
-      // the same list in the header instead.
-      args: [...CHROMIUM_ARGS, ...LOCAL_LINUX_ARGS],
-    },
-  },
-  reporter: [['list']],
-})
+export default createPlaywrightConfig()
