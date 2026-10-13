@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadScenario } from '../../tools/content/load.js'
 import { swarmFromQuery, withSwarm, SWARM_PROBE_ANCHOR, type Swarm, type SwarmAnchor } from '../../src/sim/swarm.js'
-import { isParkedAircraft } from '../../src/sim/scenario.js'
 import { terrainOrSkip } from './mission/fly.js'
 import { swarmWorld, timeTicks } from './swarmHarness.js'
 
@@ -56,7 +55,7 @@ describe('withSwarm', () => {
   it('tight: every airplane and hull starts inside the chase camera view (60 x 91 degrees)', () => {
     const s = withSwarm(base, MAX, a)
     for (const x of s.aircraft.filter((x) => x.id.startsWith('swarm-'))) {
-      if (isParkedAircraft(x)) throw new Error('parked')
+      if (!('airborneAt' in x)) throw new Error('swarm aircraft is not airborne')
       const [f, r, u] = local(a, ...x.airborneAt.position)
       expect(f).toBeGreaterThan(200)
       expect(Math.abs(r) / f).toBeLessThan(Math.tan((45 * Math.PI) / 180))
@@ -72,7 +71,7 @@ describe('withSwarm', () => {
   it('mission: the camera has one engagement near it, the rest of the sky is miles away', () => {
     const s = withSwarm(base, { ...MAX, layout: 'mission' }, a)
     const range = s.aircraft.filter((x) => x.id.startsWith('swarm-')).map((x) => {
-      if (isParkedAircraft(x)) throw new Error('parked')
+      if (!('airborneAt' in x)) throw new Error('swarm aircraft is not airborne')
       const [f, r] = local(a, ...x.airborneAt.position)
       return Math.hypot(f, r)
     })

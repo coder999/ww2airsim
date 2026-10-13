@@ -17,10 +17,11 @@ function mul(a: readonly number[], b: readonly number[]): number[] {
   return out
 }
 
-export function sceneTriangles(doc: Document, toSim: readonly number[]): Float64Array {
+export function sceneTriangles(doc: Document, toSim: readonly number[], excludeNode?: RegExp): Float64Array {
   const out: number[] = []
   const v = [0, 0, 0]
   for (const node of meshNodes(doc)) {
+    if (excludeNode?.test(node.getName())) continue
     const m = mul(toSim, node.getWorldMatrix() as unknown as number[])
     for (const prim of node.getMesh()!.listPrimitives()) {
       if (prim.getMode() !== TRIANGLES) continue

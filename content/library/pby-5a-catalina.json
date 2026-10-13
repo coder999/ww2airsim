@@ -1,0 +1,15 @@
+{
+  "id": "pby-5a-catalina",
+  "name": "Consolidated PBY-5A Catalina",
+  "rosterName": "PBY-5A Catalina",
+  "kind": "aircraft",
+  "side": "allied",
+  "spec": "pby-5a-catalina",
+  "model": { "kind": "aircraft", "id": "pby-5a-catalina" },
+  "blurb": "A long-range amphibious patrol bomber with retractable wheels and wingtip floats. It can operate from runways or open water and carries either four 1,000 lb bombs or two Mk 13 torpedoes.",
+  "history": "The PBY Catalina combined a flying-boat hull, a broad parasol wing and extraordinary endurance. The PBY-5A added retractable tricycle landing gear, making it an amphibian able to use both water anchorages and conventional runways. Patrol Bombing Squadron 33 operated PBY-5As and relocated to Leyte on 23 October 1944.\n\nThis airplane is built as original procedural Blender geometry from the public-domain U.S. Navy AN 01-5MA-2 three-view and station diagrams. Its two Pratt & Whitney R-1830-92 engines are modeled through the simulator's aggregate twin-engine power model, while both propellers and both RPM needles remain visible. The Navy handbook's 75-80 knot water takeoff and 76-83 knot water approach anchor the new hull-support model.\n\nThe four external bomb positions carry 1,000 lb AN-M65 bombs. A separate loadout substitutes two Mk 13 torpedoes, following the Navy maintenance handbook's alternate torpedo installation. Bow, waist and tunnel gun positions are static visual detail and do not aim or fire in this first release. The FLOATS control uses the existing flap key: floats must be down and wheels up for a supported water landing.",
+  "sources": [
+    { "title": "AN 01-5MA-1, Pilot's Handbook of Flight Operating Instructions for PBY-5A", "url": "https://aircorpslibrary.com/pilots-flight-operating-instructions-for-pby-5a/", "read": "2026-10-12" },
+    { "title": "AN 01-5MA-2, Handbook of Erection and Maintenance Instructions for PBY-5 and PBY-5A", "url": "https://www.usaf-sig.org/index.php/references/downloads/4-technical-orders/38-type-specific/42-pby-catalina", "read": "2026-10-12" }
+  ]
+}

@@ -1,5 +1,5 @@
 import type { AircraftSpec } from './flight/schema.js'
-import { isParkedAircraft, isShipParked, type Scenario, type ScenarioBundle } from './scenario.js'
+import { isAfloatAircraft, isParkedAircraft, isShipParked, type Scenario, type ScenarioBundle } from './scenario.js'
 import type { Loadout } from './weapons/stores.js'
 
 /**
@@ -8,7 +8,7 @@ import type { Loadout } from './weapons/stores.js'
  * quick-launch URL and main.ts's loader all ask these, so the rules cannot
  * differ between the two ways into a flight.
  */
-export type StartKind = 'carrier' | 'airfield' | 'airborne'
+export type StartKind = 'carrier' | 'airfield' | 'water' | 'airborne'
 export type AircraftNation = AircraftSpec['side']
 export type Cloudiness = 'sunny' | 'partly-cloudy' | 'cloudy' | 'overcast'
 /** `timeOfDay`: Form 2's takeoff hour (A3, solar hours); absent flies the scenario's own.
@@ -17,35 +17,40 @@ export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec:
   readonly cloudiness?: Cloudiness
   /** God mode (godMode.ts): only meaningful with `dev`; the title screen never sets it without. */
   readonly god?: boolean }
-export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'no-stations'
+export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'not-water-capable' | 'no-stations'
 export type SortieFacts = { readonly devScenario: boolean; readonly start: StartKind; readonly spec: AircraftSpec; readonly loadout: Loadout }
 
-export const ALL_LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']
+export const ALL_LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'torpedoes', 'rockets', 'both']
+const DEV_LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']
 /** SF-R2: the Dev stores layout is this spec's own `stores` block, read at runtime. */
 export const DEV_STORES_SPEC_ID = 'f6f-hellcat'
 /** SF-R3: the bundle key of a player spec given the Dev stores layout. */
 export const DEV_STORES_SUFFIX = '~dev-stores'
+export const TORPEDO_STORES_SUFFIX = '~torpedoes'
 
 export function startKindOf(scenario: Scenario): StartKind {
   const player = scenario.aircraft.find((a) => a.id === scenario.player)
   if (player === undefined) throw new Error(`scenario ${scenario.id}: no player aircraft ${scenario.player}`)
+  if (isAfloatAircraft(player)) return 'water'
   if (!isParkedAircraft(player)) return 'airborne'
   return isShipParked(player.parkedAt) ? 'carrier' : 'airfield'
 }
 
 export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKind, dev: boolean): AircraftSpec[] {
   if (dev) return [...specs]
-  return specs.filter((s) => s.side === 'allied' && (start !== 'carrier' || s.carrierCapable))
+  return specs.filter((s) => s.side === 'allied'
+    && (start !== 'carrier' || s.carrierCapable)
+    && (start !== 'water' || s.waterOperations !== undefined))
 }
 
 export function eligibleLoadouts(spec: AircraftSpec, dev: boolean): Loadout[] {
   // Dev lends the Hellcat layout only to an airplane with no stores of its own; one that has a
   // stores block (a bomber with no rails, say) offers what it really carries, in Dev too.
-  if (spec.stores === undefined) return dev ? [...ALL_LOADOUTS] : ['clean']
+  if (spec.stores === undefined) return dev ? [...DEV_LOADOUTS] : ['clean']
   // StoresSchema requires at least one rack and one rail, so a spec with a
   // stores block has both today; the checks stay per kind for the day it may not.
-  const racks = spec.stores.racks.length > 0, rails = spec.stores.rails.length > 0
-  return ALL_LOADOUTS.filter((l) => l === 'clean' || (l === 'bombs' && racks) || (l === 'rockets' && rails) || (l === 'both' && racks && rails))
+  const racks = spec.stores.racks.length > 0, torpedoes = (spec.stores.torpedoRacks?.length ?? 0) > 0, rails = spec.stores.rails.length > 0
+  return ALL_LOADOUTS.filter((l) => l === 'clean' || (l === 'bombs' && racks) || (l === 'torpedoes' && torpedoes) || (l === 'rockets' && rails) || (l === 'both' && racks && rails))
 }
 
 export function needsDevStores(spec: AircraftSpec, loadout: Loadout): boolean {
@@ -57,6 +62,7 @@ export function sortieRulesBroken(f: SortieFacts): SortieRule[] {
   if (f.devScenario) broken.push('dev-scenario')
   if (f.spec.side !== 'allied') broken.push('enemy-aircraft')
   if (f.start === 'carrier' && !f.spec.carrierCapable) broken.push('not-carrier-capable')
+  if (f.start === 'water' && f.spec.waterOperations === undefined) broken.push('not-water-capable')
   if (needsDevStores(f.spec, f.loadout)) broken.push('no-stations')
   return broken
 }
@@ -84,6 +90,17 @@ export function sortieBundle(bundle: ScenarioBundle, loadout: Loadout, devStores
   const s = bundle.scenario
   const key = s.aircraft.find((a) => a.id === s.player)!.spec
   const spec = bundle.aircraftSpecs[key]!
+  if (loadout === 'torpedoes' && spec.stores?.torpedoRacks !== undefined) {
+    const torpedoKey = `${key}${TORPEDO_STORES_SUFFIX}`
+    return {
+      ...bundle,
+      scenario: withPlayerSpec(s, torpedoKey),
+      aircraftSpecs: {
+        ...bundle.aircraftSpecs,
+        [torpedoKey]: { ...spec, stores: { ...spec.stores, racks: spec.stores.torpedoRacks } },
+      },
+    }
+  }
   if (!needsDevStores(spec, loadout)) return bundle
   if (devStores === undefined) throw new Error(`sortie: ${spec.id} needs the Dev stores layout (${DEV_STORES_SPEC_ID}) and none was loaded`)
   const devKey = `${key}${DEV_STORES_SUFFIX}`

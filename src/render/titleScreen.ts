@@ -143,6 +143,7 @@ export const NO_AIRCRAFT = 'No aircraft on the roster can fly this mission. Chec
 export const LOADOUT_OPTIONS: readonly { readonly value: Loadout; readonly label: string }[] = [
   { value: 'clean', label: 'Clean' },
   { value: 'bombs', label: 'Bombs' },
+  { value: 'torpedoes', label: 'Torpedoes' },
   { value: 'rockets', label: 'Rockets' },
   { value: 'both', label: 'Both' },
 ]
@@ -192,6 +193,7 @@ export type ScenarioOption = {
 export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'free-flight', label: 'Free Flight', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
   { value: 'deck-quals', label: 'Deck Quals', kind: 'range', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
+  { value: 'water-quals', label: 'Catalina Water Qualification', kind: 'mission', badge: { id: 'water-qualified', name: 'Catalina Water Qualified' }, dev: false, start: 'water', aircraft: 'pby-5a-catalina', recommendedLoadout: 'torpedoes' },
   { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'On a low run-in to Tacloban with two parked Hellcat targets on the runway. Strafe them, then land straight ahead.' },
   { value: 'pursuit-range', label: 'Air Combat', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Airborne, with a green-skill fighter on your tail. Shake it or shoot it down.' },
   { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'As Air Combat, against a veteran-skill pursuer.' },

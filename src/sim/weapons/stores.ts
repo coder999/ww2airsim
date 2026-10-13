@@ -3,7 +3,7 @@ import type { AircraftSpec } from '../flight/schema.js'
 export type StoresState = { readonly bombs: number; readonly rockets: number }
 export const emptyStores: StoresState = { bombs: 0, rockets: 0 }
 
-export type Loadout = 'clean' | 'bombs' | 'rockets' | 'both'
+export type Loadout = 'clean' | 'bombs' | 'torpedoes' | 'rockets' | 'both'
 
 /** What the racks carry, in a pilot's words: "Torpedo" where the racks hold a torpedo store (the
  *  Avenger, the Kate, the Betty), else "Bombs" (D3 T1, Mark 2026-10-09). The loadout picker, the
@@ -20,7 +20,7 @@ export function storesFromLoadout(spec: AircraftSpec, loadout: Loadout): StoresS
   const s = spec.stores
   if (s === undefined || loadout === 'clean') return emptyStores
   return {
-    bombs: loadout === 'bombs' || loadout === 'both' ? s.racks.length : 0,
+    bombs: loadout === 'bombs' || loadout === 'torpedoes' || loadout === 'both' ? s.racks.length : 0,
     rockets: loadout === 'rockets' || loadout === 'both' ? s.rails.length : 0,
   }
 }

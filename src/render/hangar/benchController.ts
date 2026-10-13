@@ -11,7 +11,7 @@ import type { PartPose } from './models.js'
  * the Hangar shows exactly the timing the game flies: one full travel takes
  * the spec's `gear.travelSeconds` / `flap.travelSeconds`.
  */
-export type CyclePart = 'gear' | 'flaps' | 'doors'
+export type CyclePart = 'gear' | 'floats' | 'flaps' | 'doors'
 
 export interface BenchState {
   readonly gearFraction: number
@@ -42,7 +42,7 @@ export interface BenchController {
   advance(frameS: number): PartPose | null
 }
 
-const FIELD = { gear: 'gearFraction', flaps: 'flapFraction', doors: 'bayDoorFraction' } as const
+const FIELD = { gear: 'gearFraction', floats: 'flapFraction', flaps: 'flapFraction', doors: 'bayDoorFraction' } as const
 
 export function createBenchController(spec: AircraftSpec | null): BenchController {
   let s: BenchState = REST
@@ -50,7 +50,7 @@ export function createBenchController(spec: AircraftSpec | null): BenchControlle
   return {
     state: () => s,
     set(p) {
-      const cancels = (p.gearFraction !== undefined && s.cycling === 'gear') || (p.flapFraction !== undefined && s.cycling === 'flaps') ||
+      const cancels = (p.gearFraction !== undefined && s.cycling === 'gear') || (p.flapFraction !== undefined && (s.cycling === 'flaps' || s.cycling === 'floats')) ||
         (p.bayDoorFraction !== undefined && s.cycling === 'doors')
       s = { ...s, ...p, cycling: cancels ? null : s.cycling }
       return p
@@ -67,7 +67,7 @@ export function createBenchController(spec: AircraftSpec | null): BenchControlle
       const part = s.cycling
       const down = target === 1
       const next = part === 'gear' ? gearAfter(spec, s.gearFraction, down, frameS)
-        : part === 'flaps' ? flapAfter(spec, s.flapFraction, down, frameS)
+        : part === 'flaps' || part === 'floats' ? flapAfter(spec, s.flapFraction, down, frameS)
         : bayDoorsAfter(spec, s.bayDoorFraction, down, frameS)
       const cycling = next === target ? null : part
       s = { ...s, [FIELD[part]]: next, cycling }

@@ -34,6 +34,8 @@ export const ROCKET_CHORD_FRACTION = 0.5
 export const MIN_CLEARANCE_M = 0.02
 /** Wing forward of this, tail surfaces aft (measured 2026-09-26: trailing edge >= 0.07 m, tailplane <= -4.1 m). */
 export const WING_MIN_X_M = -2
+/** Large-chord aircraft whose wing trailing edge lies aft of the normal tail-rejection clip. */
+const WING_MIN_X_BY_MODEL: Readonly<Record<string, number>> = { 'pby-5a-catalina': -6 }
 
 export const STORE_MESHES: Readonly<Record<string, () => MeshData>> = {
   'an-m65': anM65Mesh, hvar: hvarMesh, 'type98-no25': type98Mesh,
@@ -41,6 +43,8 @@ export const STORE_MESHES: Readonly<Record<string, () => MeshData>> = {
 }
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
+/** Moving appendages are not wing skin and must not set a rack's chord or vertical clearance. */
+const NON_WING_PART = /^(Prop\d*|GearL|GearR|GearNose|Tailwheel|Float[LR]|Turret\d+(Guns)?)$/
 
 export function wildcatSectionAt(): Promise<(z: number) => WingSection> {
   return sectionAtFor('wildcat')
@@ -48,12 +52,12 @@ export function wildcatSectionAt(): Promise<(z: number) => WingSection> {
 
 /** Wing sections of the model a spec draws: the Wildcat through its frame correction, any other
  *  (R3) model in its own glb frame, which is already the sim frame. Rejects an unknown model by name. */
-export async function sectionAtFor(model: string, minX: number = WING_MIN_X_M): Promise<(z: number) => WingSection> {
+export async function sectionAtFor(model: string, minX: number = WING_MIN_X_BY_MODEL[model] ?? WING_MIN_X_M): Promise<(z: number) => WingSection> {
   const path = model === 'wildcat' ? WILDCAT_GLB_PATH : `content/aircraft/${model}.glb`
   let bytes: Uint8Array
   try { bytes = new Uint8Array(readFileSync(path)) } catch { throw new Error(`mounts: no model glb for "${model}" at ${path}`) }
   const doc = await modelIO().readBinary(bytes)
-  const tris = sceneTriangles(doc, model === 'wildcat' ? wildcatToSimMatrix() : [...IDENTITY])
+  const tris = sceneTriangles(doc, model === 'wildcat' ? wildcatToSimMatrix() : [...IDENTITY], NON_WING_PART)
   const cache = new Map<number, WingSection>()
   return (z) => {
     const k = Math.round(z * 1000) / 1000
@@ -63,7 +67,7 @@ export async function sectionAtFor(model: string, minX: number = WING_MIN_X_M): 
   }
 }
 
-export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<Stores, 'racks' | 'rails'>, pitchRad: number = 0): { racks: MountFit[]; rails: MountFit[] } {
+export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<Stores, 'racks' | 'rails' | 'torpedoRacks'>, pitchRad: number = 0): { racks: MountFit[]; rails: MountFit[]; torpedoRacks: MountFit[] } {
   const mesh = (id: string): MeshData => {
     const make = STORE_MESHES[id]
     if (!make) throw new Error(`mounts: no generated mesh for store "${id}" (have ${Object.keys(STORE_MESHES).join(', ')})`)
@@ -71,17 +75,22 @@ export function fitStores(sectionAt: (z: number) => WingSection, stores: Pick<St
   }
   const fit = (m: { offset: readonly [number, number, number]; store: string }, f: number): MountFit =>
     fitMount(sectionAt, m.offset[2], f, pitchRad, mesh(m.store), MIN_CLEARANCE_M)
-  return { racks: stores.racks.map((m) => fit(m, BOMB_CHORD_FRACTION)), rails: stores.rails.map((m) => fit(m, ROCKET_CHORD_FRACTION)) }
+  return {
+    racks: stores.racks.map((m) => fit(m, BOMB_CHORD_FRACTION)),
+    rails: stores.rails.map((m) => fit(m, ROCKET_CHORD_FRACTION)),
+    torpedoRacks: (stores.torpedoRacks ?? []).map((m) => fit(m, BOMB_CHORD_FRACTION)),
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  for (const id of ['f6f-hellcat', 'f4f-wildcat', 'f4u-corsair', 'a6m2-zero', 'p-38-lightning', 'ki-43-oscar', 'ki-84-frank']) {
+  for (const id of ['f6f-hellcat', 'f4f-wildcat', 'f4u-corsair', 'a6m2-zero', 'p-38-lightning', 'pby-5a-catalina', 'ki-43-oscar', 'ki-84-frank']) {
     const spec = loadAircraftSpec(id)
     if (!spec.stores) continue
     const r = fitStores(await sectionAtFor(spec.view.model), spec.stores)
     console.log(`${id} (drawn as ${spec.view.model})`)
     spec.stores.racks.forEach((m, i) => console.log(`  ${m.id}: ${JSON.stringify(r.racks[i]!.offset)}  drop ${r.racks[i]!.dropM} m`))
     spec.stores.rails.forEach((m, i) => console.log(`  ${m.id}: ${JSON.stringify(r.rails[i]!.offset)}  drop ${r.rails[i]!.dropM} m`))
+    spec.stores.torpedoRacks?.forEach((m, i) => console.log(`  ${m.id}: ${JSON.stringify(r.torpedoRacks[i]!.offset)}  drop ${r.torpedoRacks[i]!.dropM} m`))
   }
 }
 

@@ -76,6 +76,7 @@ export const COCKPIT_ENROLLMENT: Readonly<Record<string, Enrollment>> = {
   'f6f-hellcat': { family: 'american-fighter', sight: true },
   'f4u-corsair': { family: 'american-fighter', sight: true },
   'p-38-lightning': { family: 'american-fighter', sight: true },
+  'pby-5a-catalina': { family: 'american-bomber', sight: false },
   'tbm-3-avenger': { family: 'american-bomber', sight: true },
   'b-17-flying-fortress': { family: 'american-bomber', sight: false },
   'b-29-superfortress': { family: 'american-bomber', sight: false },

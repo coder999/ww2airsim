@@ -18,7 +18,7 @@ import { VEHICLE_RIDERS, VEHICLE_RIGS, type VehiclePart, type VehicleRig } from 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
  *  the propeller; H2 adds stores (and Cycle, in the bench); turret aim (2026-10-09) turrets. */
 export interface PartSpec {
-  readonly id: 'gear' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores' | 'drive' | 'steer'
+  readonly id: 'gear' | 'floats' | 'flaps' | 'doors' | 'prop' | 'surfaces' | 'turrets' | 'stores' | 'drive' | 'steer'
   readonly label: string
   /** `stick`: three sliders, roll, pitch and yaw, each over `range` (C1). `aim`: bearing and elevation, degrees. */
   readonly kind: 'fraction' | 'rate' | 'toggle' | 'stick' | 'aim'
@@ -68,6 +68,7 @@ export interface HangarModel {
 
 const BENCH_PARTS: readonly Omit<PartSpec, 'modeled'>[] = [
   { id: 'gear', label: 'Landing gear', kind: 'fraction', range: [0, 1] },
+  { id: 'floats', label: 'Wingtip floats', kind: 'fraction', range: [0, 1] },
   { id: 'flaps', label: 'Flaps', kind: 'fraction', range: [0, 1] },
   { id: 'doors', label: 'Bay doors', kind: 'fraction', range: [0, 1] },
   { id: 'prop', label: 'Throttle (propeller)', kind: 'rate', range: [0, 1] },

@@ -98,7 +98,7 @@ describe('the title screen loadout picker (Plan 6b Task 9, spec §1)', () => {
   // this file's own top comment describes ("a pure model the Node suite
   // asserts on, thin DOM under it").
   it('offers clean, bombs, rockets and both, in that order, defaulting to both', () => {
-    expect(LOADOUT_OPTIONS.map((o) => o.value)).toEqual(['clean', 'bombs', 'rockets', 'both'])
+    expect(LOADOUT_OPTIONS.map((o) => o.value)).toEqual(['clean', 'bombs', 'torpedoes', 'rockets', 'both'])
     expect(DEFAULT_LOADOUT).toBe('both')
     // Every option carries a checked-by-default flag consistent with the
     // module default, since `createTitleScreen` renders the radio row
@@ -120,7 +120,7 @@ describe('the title screen scenario picker', () => {
   // is untested DOM, built straight off this array.
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
-      'free-flight', 'deck-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
+      'free-flight', 'deck-quals', 'water-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
       'flattop-hunt', 'escort', 'surigao-strait', 'dev-mission-ui', 'dev-mission-circuit',
     ])
@@ -134,6 +134,7 @@ describe('the title screen scenario picker', () => {
     const labels = Object.fromEntries(SCENARIO_OPTIONS.map((o) => [o.value, o.label]))
     expect(labels['free-flight']).toBe('Free Flight')
     expect(labels['deck-quals']).toBe('Deck Quals')
+    expect(labels['water-quals']).toBe('Catalina Water Qualification')
     expect(labels['gunnery-range']).toBe('Gunnery Range')
     expect(labels['pursuit-range']).toBe('Air Combat')
     expect(labels['pursuit-range-veteran']).toBe('Air Combat: Veteran')
@@ -162,6 +163,7 @@ describe('the title screen scenario picker', () => {
   it('without Dev, exactly the B4, M3, M4 and F2 missions, the tutorial first, each with its badge; every other row is a range (M2 R5, A1)', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
       .toEqual([
+        ['water-quals', { id: 'water-qualified', name: 'Catalina Water Qualified' }],
         ['tutorial', { id: 'basic-flying', name: 'Basic Flying' }],
         ['torpedo-qualification', { id: 'torpedo-qualified', name: 'Torpedo Qualified' }],
         ['deck-quals-mission', { id: 'carrier-qualified', name: 'Carrier Qualified' }],

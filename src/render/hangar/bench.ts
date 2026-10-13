@@ -59,7 +59,7 @@ export function mountBench(
   title.textContent = 'Test bench'
   slot.appendChild(title)
 
-  const sliders = new Map<'gear' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', HTMLInputElement>()
+  const sliders = new Map<'gear' | 'floats' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', HTMLInputElement>()
   const stores = new Map<'bombs' | 'rockets', HTMLInputElement>()
   const sticks = new Map<(typeof STICK)[number], HTMLInputElement>()
   const aims = new Map<(typeof AIM)[number][0], HTMLInputElement>()
@@ -125,12 +125,12 @@ export function mountBench(
       input.style.cssText = 'flex:1 1 90px;min-width:80px'
       input.addEventListener('input', () => {
         const v = Number(input.value)
-        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v }
+        h.onPose(id === 'gear' ? { gearFraction: v } : id === 'flaps' || id === 'floats' ? { flapFraction: v } : id === 'doors' ? { bayDoorFraction: v }
           : id === 'drive' ? { speedMph: v } : id === 'steer' ? { steer: v } : { throttle: v })
       })
       sliders.set(id, input)
       row.appendChild(input)
-      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'flaps' || id === 'doors')) {
+      if (cycleable && part.kind === 'fraction' && (id === 'gear' || id === 'floats' || id === 'flaps' || id === 'doors')) {
         const button = document.createElement('button')
         button.type = 'button'
         button.textContent = 'Cycle'
@@ -161,9 +161,10 @@ export function mountBench(
 
   return {
     sync(s): void {
-      const set = (id: 'gear' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
+      const set = (id: 'gear' | 'floats' | 'flaps' | 'doors' | 'prop' | 'drive' | 'steer', v: number): void => { const el = sliders.get(id); if (el) el.value = String(v) }
       set('gear', s.gearFraction)
       set('flaps', s.flapFraction)
+      set('floats', s.flapFraction)
       set('doors', s.bayDoorFraction)
       set('prop', s.throttle)
       set('drive', s.speedMph)

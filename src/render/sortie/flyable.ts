@@ -35,7 +35,8 @@ export function storesLine(spec: AircraftSpec, loadout: Loadout, names: Readonly
   const s = spec.stores
   if (s === undefined || loadout === 'clean') return 'Guns only: no bombs or rockets'
   const part = (n: number, id: string): string => `${n} × ${names[id] ?? id}`
-  const bombs = loadout === 'bombs' || loadout === 'both' ? [part(s.racks.length, s.racks[0]!.store)] : []
+  const selectedRacks = loadout === 'torpedoes' ? s.torpedoRacks ?? [] : s.racks
+  const bombs = loadout === 'bombs' || loadout === 'torpedoes' || loadout === 'both' ? [part(selectedRacks.length, selectedRacks[0]!.store)] : []
   const rockets = loadout === 'rockets' || loadout === 'both' ? [part(s.rails.length, s.rails[0]!.store)] : []
   return [...bombs, ...rockets].join(', ')
 }

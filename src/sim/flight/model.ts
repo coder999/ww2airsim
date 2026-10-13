@@ -18,6 +18,12 @@ import { groundUnder } from '../world/ground.js'
 import { insideTrapZone, type Deck } from '../world/deck.js'
 import { flapAfter, flapClIncrement, flapDragN } from '../flaps.js'
 import { bayDoorDragN, bayDoorsAfter } from '../bayDoors.js'
+import {
+  restOnWater,
+  supportedWaterContact,
+  waterBodyRates,
+  waterResistanceN,
+} from '../waterOperations.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
@@ -505,9 +511,12 @@ export function step(
   // threshold `supportedContact` already uses, rather than inventing a
   // second one.
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
+  let onWaterStart = false
   if (startGround !== null) {
     onGroundStart = onGround(spec, state, startGround.heightM, startGround.velocity)
     onLandStart = startGround.surface === 'land' || startGround.surface === 'deck'
+    onWaterStart = startGround.surface === 'water'
+      && supportedWaterContact(spec, state, startGround.heightM, startGround.velocity)
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -522,7 +531,8 @@ export function step(
     if (
       force.y < 0 &&
       state.velocity.y <= 0 &&
-      supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass)
+      (supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass)
+        || onWaterStart)
     ) {
       force = v3(force.x, 0, force.z)
     }
@@ -561,6 +571,20 @@ export function step(
         force = add(force, scale(trackDir, -clampedResistanceN))
       }
     }
+
+    // A water-capable hull gets displacement/planing resistance, never tire
+    // friction. As with the wheel term, clamp at the force that reaches zero
+    // this step so water drag cannot reverse a nearly stopped aircraft.
+    if (onWaterStart) {
+      const relStart = sub(state.velocity, startGround.velocity)
+      const track = v3(relStart.x, 0, relStart.z)
+      const trackSpeed = length(track)
+      if (trackSpeed > 1e-6) {
+        const resistanceN = waterResistanceN(spec, mass, trackSpeed)
+        const clampedResistanceN = Math.min(resistanceN, (trackSpeed * mass) / dt)
+        force = add(force, scale(normalize(track), -clampedResistanceN))
+      }
+    }
   }
 
   const accel = scale(force, 1 / mass)
@@ -586,6 +610,7 @@ export function step(
   // reads as at rest, not as rolling at the ship's speed.
   const ground = groundUnder(ctx.terrain ?? null, decks, position.x, position.z)
   let seated = false
+  let waterSeated = false
   if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
     if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
@@ -598,6 +623,14 @@ export function step(
       // decide both, which is why this sits inside this branch rather than
       // beside the rolling friction above.
       velocity = lateralGripAfter(spec, { ...rested, velocity: rested.velocity }, dt, ground.velocity)
+    } else if (
+      ground.surface === 'water'
+      && supportedWaterContact(spec, integrated, ground.heightM, ground.velocity)
+    ) {
+      waterSeated = true
+      const rested = restOnWater(spec, integrated, ground.heightM, ground.velocity)
+      position = rested.position
+      velocity = rested.velocity
     }
   }
 
@@ -728,8 +761,9 @@ export function step(
   // without this, an airplane that drove off the end of a runway kept its
   // wheels locked to zero roll and its tailwheel steering all the way across
   // the ocean.
-  const bodyRates =
-    startGround !== null && onGroundStart && wheelsDownStart && onLandStart
+  const bodyRates = startGround !== null && onWaterStart
+    ? waterBodyRates(spec, state, controls, ratesWithStall, startGround.velocity)
+    : startGround !== null && onGroundStart && wheelsDownStart && onLandStart
       ? groundBodyRates(spec, state, controls, ratesForGround, dt, startGround.velocity)
       : ratesWithStall
   // On the wheels the airplane turns about the WORLD vertical, not its own
@@ -741,7 +775,8 @@ export function step(
   // So the ground branch integrates roll and pitch in the body frame and
   // applies yaw as a rotation about world +Y.
   const onWheels = startGround !== null && onGroundStart && wheelsDownStart && onLandStart
-  const attitude = onWheels
+  const constrainedYaw = onWheels || onWaterStart
+  const attitude = constrainedYaw
     ? qNormalize(
         qMul(
           qFromAxisAngle(v3(0, 1, 0), bodyRates.y * dt),
@@ -761,6 +796,10 @@ export function step(
   // wheels were seated above: an unsupported arrival is `advance`'s business.
   if (seated && ground !== null) {
     const reseated = restOnSurface(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity)
+    position = reseated.position
+    velocity = reseated.velocity
+  } else if (waterSeated && ground !== null) {
+    const reseated = restOnWater(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity)
     position = reseated.position
     velocity = reseated.velocity
   }

@@ -8,7 +8,7 @@ import { deckOf } from './world/deck.js'
 import { restPitchRad } from './gearContact.js'
 import { deckParkSpots, runwayParkSpots } from './ai/parkSpots.js'
 import { armedForAttack } from './ai/attack.js'
-import { qFromAxisAngle } from './math/quat.js'
+import { qFromAxisAngle, qMul } from './math/quat.js'
 import { assertLoopOverWater, bearingTo, createShipState, type ShipSpec } from './world/ships.js'
 import { SEA_LEVEL_M, type TerrainField } from './world/terrain.js'
 import { emptyStores, storesFromLoadout, type Loadout, type StoresState } from './weapons/stores.js'
@@ -194,7 +194,20 @@ const AirborneAircraftObject = z.object({
   side: SideField,
   pilot: PilotObject.optional(),
 }).strict()
-const ScenarioAircraftObject = z.union([ParkedAircraftObject, AirborneAircraftObject])
+const AfloatAircraftObject = z.object({
+  id,
+  spec: id,
+  afloatAt: z.object({
+    /** Open-water world meters, `[x, z]`, at the flat sea level. */
+    position: z.tuple([finite, finite]),
+    /** True compass heading: 0 north (-Z), 90 east (+X). */
+    headingDeg: finite,
+  }).strict(),
+  tags: tagList,
+  side: SideField,
+  pilot: PilotObject.optional(),
+}).strict()
+const ScenarioAircraftObject = z.union([ParkedAircraftObject, AirborneAircraftObject, AfloatAircraftObject])
 
 /** A ship on a closed waypoint loop, OR -- when `speedMps` is 0 -- a single
  *  anchored point (Plan 6b's maru): the loop-closing second waypoint has no
@@ -430,9 +443,13 @@ export type Scenario = z.infer<typeof ScenarioObject>
 
 export type ScenarioAircraft = z.infer<typeof ScenarioAircraftObject>
 export type ParkedScenarioAircraft = z.infer<typeof ParkedAircraftObject>
+export type AfloatScenarioAircraft = z.infer<typeof AfloatAircraftObject>
 
 export const isParkedAircraft = (a: ScenarioAircraft): a is ParkedScenarioAircraft =>
   'parkedAt' in a
+
+export const isAfloatAircraft = (a: ScenarioAircraft): a is AfloatScenarioAircraft =>
+  'afloatAt' in a
 
 export const isShipParked = (p: ParkedScenarioAircraft['parkedAt']): p is { ship: string; spot: { x: number; z: number } } => 'ship' in p
 
@@ -499,9 +516,11 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   }
 
   const player = s.aircraft.find((a) => a.id === s.player)
-  const playerStart = player !== undefined && isParkedAircraft(player)
-    ? (isShipParked(player.parkedAt) ? player.parkedAt.ship : player.parkedAt.airfield)
-    : null
+  const playerStart = player !== undefined && isAfloatAircraft(player)
+    ? 'open-water'
+    : player !== undefined && isParkedAircraft(player)
+      ? (isShipParked(player.parkedAt) ? player.parkedAt.ship : player.parkedAt.airfield)
+      : null
   objectives.forEach((o, i) => {
     const path = ['objectives', i]
     if (o.after !== undefined && !objectives.slice(0, i).some((x) => x.id === o.after)) {
@@ -510,8 +529,8 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (o.kind === 'takeoff' && o.from !== playerStart) {
       issue(`takeoff.from must be where the player starts (${playerStart ?? 'airborne'}), not "${o.from}"`, [...path, 'from'])
     }
-    if (o.kind === 'land' && !s.airfields.includes(o.at) && !startShips.has(o.at)) {
-      issue(`land.at "${o.at}" is neither one of airfields nor a starting ship`, [...path, 'at'])
+    if (o.kind === 'land' && o.at !== 'open-water' && !s.airfields.includes(o.at) && !startShips.has(o.at)) {
+      issue(`land.at "${o.at}" is neither open-water, one of airfields nor a starting ship`, [...path, 'at'])
     }
     if (o.kind === 'land' && o.respot === true
         && !(player !== undefined && isParkedAircraft(player) && isShipParked(player.parkedAt) && player.parkedAt.ship === o.at)) {
@@ -690,6 +709,24 @@ function buildAircraft(
   bundle: ScenarioBundle, a: ScenarioAircraft, ships: readonly ShipEntity[], homes: ReadonlyMap<string, RecoveryHome>,
 ): AircraftEntity<undefined> {
   const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
+  if (isAfloatAircraft(a)) {
+    if (spec.waterOperations === undefined) throw new Error(`scenario floats "${a.id}" but aircraft spec "${spec.id}" has no waterOperations`)
+    const [x, z] = a.afloatAt.position
+    const headingRad = a.afloatAt.headingDeg * Math.PI / 180
+    const attitude = qMul(
+      qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - headingRad),
+      qFromAxisAngle(v3(0, 0, 1), spec.waterOperations.restPitchDeg * Math.PI / 180),
+    )
+    const state = createState({
+      position: v3(x, SEA_LEVEL_M + spec.waterOperations.hullDepthM, z),
+      velocity: v3(0, 0, 0),
+      attitude,
+      gearFraction: 0,
+      flapFraction: 1,
+    })
+    const controls: Controls = { ...NEUTRAL, gearDown: false, flapDown: true }
+    return { id: a.id, spec, state, previous: state, controls, assistMemory: undefined, impact: null, parked: true, pilot: pilotAssignmentFrom(a.id, a.pilot, bundle.airfields, homes, bundle.scenario.airfieldSides), ...sideFrom(a) }
+  }
   if (!isParkedAircraft(a)) {
     const [x, y, z] = a.airborneAt.position
     const headingRad = a.airborneAt.headingDeg * Math.PI / 180

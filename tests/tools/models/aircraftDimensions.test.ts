@@ -39,6 +39,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'tbm-3-avenger': { spanM: 16.51, lengthM: 12.48, tolerance: 0.01, source: "span: English Wikipedia 'Grumman TBF Avenger', Specifications; length: J. Rickard, 'Eastern TBM-3E Avenger', historyofwar.org; both read 2026-10-09" },
   'b5n2-kate': { spanM: 15.518, lengthM: 10.3, tolerance: 0.01, source: "English Wikipedia 'Nakajima B5N', Specifications (B5N2), citing Francillon 1970, read 2026-10-09" },
   'p-38-lightning': { spanM: 15.85, lengthM: 11.53, tolerance: 0.01, source: "English Wikipedia 'Lockheed P-38 Lightning', Specifications (P-38L): span 52 ft 0 in, length 37 ft 10 in, read 2026-09-27. An original Blender model: the Sketchfab pick measured +5.2% long at this span (R3 ledger, Task 8)" },
+  'pby-5a-catalina': { spanM: 31.699, lengthM: 19.468, tolerance: 0.01, source: 'U.S. Navy AN 01-5MA-2, Handbook of Erection and Maintenance Instructions, Navy Models PBY-5 and PBY-5A, Figure 1 and Section I pp. 1-4: span 104 ft, length 63 ft 10 7/16 in; read 2026-10-12' },
 }
 
 const aircraft = loadModelEntries().filter((e) => e.output.startsWith('content/aircraft/') && e.id !== 'wildcat')

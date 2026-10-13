@@ -71,14 +71,20 @@ const StoreTypeObject = z.object({
   .refine((t) => t.kind !== 'torpedo' || [t.fillerKg, t.maxDropSpeedMps, t.maxDropHeightM, t.runSpeedMps, t.runRangeM, t.runDepthM, t.armRunM].every((v) => v !== undefined),
     { message: 'a torpedo needs fillerKg, maxDropSpeedMps, maxDropHeightM, runSpeedMps, runRangeM, runDepthM and armRunM' })
 
+const StoreMountSchema = z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()
+
 const StoresSchema = z.object({
-  racks: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(1).max(8),
+  racks: z.array(StoreMountSchema).min(1).max(8),
+  /** Alternate rack installation selected as the `torpedoes` loadout. The PBY-5A's two
+   * Mark 13 racks replaced its bomb installation; they were not carried together. */
+  torpedoRacks: z.array(StoreMountSchema).min(1).max(4).optional(),
   // a racks-only airplane (the F4F-4, W1): no rockets, so no rails at all.
   rails: z.array(z.object({ id: z.string().min(1), offset: z.tuple([finite, finite, finite]), store: z.string().min(1) }).strict()).min(0).max(16),
   types: z.record(z.string(), StoreTypeObject),
   source: z.string().min(1),
 }).strict()
-  .refine((s) => [...s.racks, ...s.rails].every((m) => m.store in s.types), { message: 'every rack/rail store id must exist in types' })
+  .refine((s) => [...s.racks, ...(s.torpedoRacks ?? []), ...s.rails].every((m) => m.store in s.types), { message: 'every rack/rail store id must exist in types' })
+  .refine((s) => (s.torpedoRacks ?? []).every((m) => s.types[m.store]?.kind === 'torpedo'), { message: 'every alternate torpedo rack must carry a torpedo' })
   // A torpedo hangs on a rack and leaves it like a bomb (D1); a rail fires rockets only.
   .refine((s) => s.rails.every((m) => s.types[m.store]?.kind !== 'torpedo'), { message: 'a torpedo goes on a rack, not a rail' })
 
@@ -465,6 +471,49 @@ const AircraftSpecObject = z.object({
     dragAreaM2: positive,
     source: z.string().min(1),
   }).strict().optional(),
+  /**
+   * A hull that can carry this aircraft on open water. Absent means the
+   * existing terminal ditching path; presence opts the airframe into the
+   * reusable displacement/planing support model in `waterOperations.ts`.
+   */
+  waterOperations: z.object({
+    /** Body-origin-to-keel depth at the step, metres. */
+    hullDepthM: positive,
+    /** Half the lateral distance between the stabilising float contacts. */
+    floatHalfSpanM: positive,
+    /** Body-origin-to-float-bottom depth with the floats extended. */
+    floatDepthM: positive,
+    /** Displacement and on-step pitch targets. */
+    restPitchDeg: finite,
+    planingPitchDeg: finite,
+    /** Start of the planing blend and sourced water liftoff target. */
+    planingSpeedMps: positive,
+    takeoffSpeedMps: positive,
+    /** Safe-arrival limits. */
+    maxLandingSpeedMps: positive,
+    maxLandingSinkMps: positive,
+    /** Dimensionless weight fractions used as horizontal water resistance. */
+    displacementDragCoeff: positive,
+    planingDragCoeff: positive,
+    /** Full-rudder low-speed water taxi rate. */
+    taxiYawRateDegPerSec: positive,
+    source: z.string().min(1),
+  }).strict().superRefine((w, ctx) => {
+    if (w.planingSpeedMps >= w.takeoffSpeedMps) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['planingSpeedMps'],
+        message: 'planingSpeedMps must be below takeoffSpeedMps',
+      })
+    }
+    if (w.planingDragCoeff > w.displacementDragCoeff) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['planingDragCoeff'],
+        message: 'planing drag must not exceed displacement drag',
+      })
+    }
+  }).optional(),
   reference: z.object({
     source: z.string().min(1),
     /** Gross weight the cited trial was flown at, kg. Every reference figure

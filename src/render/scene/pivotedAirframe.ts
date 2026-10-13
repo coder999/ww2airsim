@@ -2,7 +2,7 @@
 import { Group, MeshStandardMaterial, Quaternion, Vector3, type Object3D } from 'three'
 import { propAngle, type Airframe, type PartId } from './airframe.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
-import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
+import { BAY_DOOR_OPEN_DEG, SURFACE_MAX_DEG, surfaceDrive, type AirframeRig, type FloatRig, type GearRig, type SurfaceInput, type TurretArc } from './airframeRigs.js'
 import { attachStores, primitiveStoreVisuals, type StoreMounts } from './stores.js'
 import { loadStoreVisuals } from './storeModels.js'
 import { createRng } from '../../sim/rng.js'
@@ -32,6 +32,12 @@ export function gearAngleRad(g: GearRig, gearFraction: number): number {
   return ((1 - f) * g.upAngleDeg * Math.PI) / 180
 }
 
+/** The float lever shares flapFraction: 1 deployed is its modeled rest, 0 retracted. */
+export function floatAngleRad(f: FloatRig, floatFraction: number): number {
+  const v = Math.min(1, Math.max(0, floatFraction))
+  return ((1 - v) * f.upAngleDeg * Math.PI) / 180
+}
+
 /** `rest` turned `angleRad` about `axis`, with the axis in the node's parent frame. */
 export function turnedAbout(rest: Quaternion, axis: Vector3, angleRad: number): Quaternion {
   return new Quaternion().setFromAxisAngle(axis, angleRad).multiply(rest)
@@ -43,6 +49,7 @@ export function rigParts(rig: AirframeRig): PartId[] {
   const inputs = new Set((rig.surfaces ?? []).map((n) => surfaceDrive(n).input))
   if (rig.props.length > 0) parts.push('prop')
   if (rig.gear.length > 0) parts.push('gear')
+  if ((rig.floats ?? []).length > 0) parts.push('floats')
   if (inputs.has('flap')) parts.push('flaps')
   if (inputs.has('roll') || inputs.has('pitch') || inputs.has('yaw')) parts.push('surfaces')
   if ((rig.doors ?? []).length > 0) parts.push('doors')
@@ -132,7 +139,7 @@ interface Turret {
   elevation: number
 }
 
-function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[]; surfaces: { posed: Posed; name: string; input: SurfaceInput }[]; doors: Posed[]; turrets: Turret[] } {
+function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { props: Posed[]; gear: { posed: Posed; rig: GearRig }[]; floats: { posed: Posed; rig: FloatRig }[]; surfaces: { posed: Posed; name: string; input: SurfaceInput }[]; doors: Posed[]; turrets: Turret[] } {
   const pose = (name: string): Posed => {
     const node = instance.node(name)
     return { node, axis: pivotAxisOf(node, modelId), rest: node.quaternion.clone() }
@@ -140,6 +147,7 @@ function bind(instance: ModelInstance, modelId: string, rig: AirframeRig): { pro
   return {
     props: rig.props.map((p) => pose(p.node)),
     gear: rig.gear.map((g) => ({ posed: pose(g.node), rig: g })),
+    floats: (rig.floats ?? []).map((f) => ({ posed: pose(f.node), rig: f })),
     surfaces: (rig.surfaces ?? []).map((n) => ({ posed: pose(n), name: n, input: surfaceDrive(n).input })),
     doors: (rig.doors ?? []).map(pose),
     turrets: Object.entries(rig.turretArcs ?? {}).map(([name, arc]) => {
@@ -200,7 +208,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
   const propRad: number[] = []
   const stick = { roll: 0, pitch: 0, yaw: 0 }
   // Damage stages (2026-10-09): what breaks away in a mid-air explosion, and where each sits whole.
-  const loose = [...bound.props, ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
+  const loose = [...bound.props, ...bound.floats.map((x) => x.posed), ...bound.surfaces.map((x) => x.posed)].map((p) => ({ node: p.node, restPosition: p.node.position.clone() }))
   const scratch = new Vector3()
   const fullRoots = [...root.children]
   const lod = createAirframeLod(url, root, instance.root, fullRoots, bound.gear.map((g) => g.posed.node))
@@ -216,6 +224,7 @@ export async function loadPivotedAirframe(modelId: string, url: string, rig: Air
         p.node.quaternion.copy(turnedAbout(p.rest, p.axis, propRad[i]!))
       })
       for (const g of bound.gear) g.posed.node.quaternion.copy(turnedAbout(g.posed.rest, g.posed.axis, gearAngleRad(g.rig, u.gearFraction)))
+      for (const f of bound.floats) f.posed.node.quaternion.copy(turnedAbout(f.posed.rest, f.posed.axis, floatAngleRad(f.rig, u.flapFraction)))
       // Bay doors (C2): the sim's door fraction, about each door's own hinge.
       const doorRad = (Math.min(1, Math.max(0, Number.isFinite(u.bayDoorFraction) ? u.bayDoorFraction : 0)) * BAY_DOOR_OPEN_DEG * Math.PI) / 180
       for (const d of bound.doors) d.node.quaternion.copy(turnedAbout(d.rest, d.axis, doorRad))

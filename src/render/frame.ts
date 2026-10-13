@@ -350,11 +350,11 @@ export function initialFrameStateFor(
     assistTogglesDown: NO_TOGGLES_DOWN,
     impactMarker,
     impactMarkerPressed: false,
-    gearDown: player.parked,
+    gearDown: player.state.gearFraction >= 0.5,
     gearPressed: false,
-    // Flaps UP on every spawn, parked included: unlike the gear, there is no
-    // configuration in which an airplane is left with its flaps hanging out.
-    flapDown: false,
+    // A water spawn uses this channel for the PBY's retractable wingtip
+    // floats, which must remain deployed at the modeled waterline.
+    flapDown: player.state.flapFraction >= 0.5,
     flapPressed: false,
     hookDown: false,
     hookPressed: false,
@@ -526,7 +526,9 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
   for (const a of frame.world.aircraft) {
     if (!a.parked) continue
     const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z)!
-    const contactHeightM = ground.heightM + wheelDepthOf(a.spec, a.state)
+    const contactHeightM = ground.heightM + (ground.surface === 'water' && a.spec.waterOperations !== undefined
+      ? a.spec.waterOperations.hullDepthM
+      : wheelDepthOf(a.spec, a.state))
     if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
     world = withAircraftState(world, a.id, settled)

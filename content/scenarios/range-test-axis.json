@@ -48,11 +48,11 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -28170,
+          -27969,
           730,
-          -45729
+          -45908
         ],
-        "headingDeg": 51.4,
+        "headingDeg": 45,
         "speedMps": 80.7,
         "throttle": 0.4
       },
@@ -69,11 +69,11 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -30200,
+          -29666,
           860,
-          -45265
+          -45205
         ],
-        "headingDeg": 102.9,
+        "headingDeg": 90,
         "speedMps": 56.6,
         "throttle": 0.4
       },
@@ -90,11 +90,11 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -31828,
+          -31363,
           990,
-          -46564
+          -45908
         ],
-        "headingDeg": 154.3,
+        "headingDeg": 135,
         "speedMps": 61.7,
         "throttle": 0.4
       },
@@ -111,11 +111,11 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -31828,
+          -32066,
           1120,
-          -48646
+          -47605
         ],
-        "headingDeg": 205.7,
+        "headingDeg": 180,
         "speedMps": 61.3,
         "throttle": 0.4
       },
@@ -132,12 +132,33 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -30200,
+          -31363,
           1250,
-          -49945
+          -49302
         ],
-        "headingDeg": 257.1,
+        "headingDeg": 225,
         "speedMps": 61.9,
+        "throttle": 0.4
+      },
+      "pilot": {
+        "skill": "green",
+        "passive": {
+          "orbitRadiusM": 2400
+        }
+      }
+    },
+    {
+      "id": "duck-pby-5a-catalina",
+      "spec": "pby-5a-catalina",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -29666,
+          1380,
+          -50005
+        ],
+        "headingDeg": 270,
+        "speedMps": 39.6,
         "throttle": 0.4
       },
       "pilot": {
@@ -153,11 +174,11 @@
       "side": "allied",
       "airborneAt": {
         "position": [
-          -28170,
-          1380,
-          -49481
+          -27969,
+          1510,
+          -49302
         ],
-        "headingDeg": 308.6,
+        "headingDeg": 315,
         "speedMps": 56.3,
         "throttle": 0.4
       },

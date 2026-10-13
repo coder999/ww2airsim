@@ -60,6 +60,21 @@ describe('the pivoted airframe (R3)', () => {
     expect(rigParts({ props: [], gear: [], turrets: [] })).toEqual([])
   })
 
+  it('rigs wingtip floats as their own bench part and drives them from the float/flap lever', async () => {
+    const rig: AirframeRig = { ...RIG, floats: [
+      { node: 'FloatL', upAngleDeg: -90, source: 'test' },
+      { node: 'FloatR', upAngleDeg: 90, source: 'test' },
+    ] }
+    expect(rigParts(rig)).toEqual(['prop', 'gear', 'floats'])
+    expect(PART_NAME.test('FloatL')).toBe(true)
+    const { inst } = fake({ Prop: [1, 0, 0], GearL: [0, 1, 0], GearR: [0, 1, 0], FloatL: [1, 0, 0], FloatR: [1, 0, 0] })
+    const a = await loadPivotedAirframe('float-toy', 'float-toy.glb', rig, undefined, async () => inst)
+    a.update({ ...zero, gearFraction: 0, flapFraction: 0, throttle: 0, frameS: 0 })
+    expectRotation(inst.node('FloatL').quaternion, new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2), 'FloatL up')
+    a.update({ ...zero, gearFraction: 0, flapFraction: 1, throttle: 0, frameS: 0 })
+    expectRotation(inst.node('FloatL').quaternion, new Quaternion(), 'FloatL down')
+  })
+
   it('turns each leg about its own baked axis, from its rest pose, and spins the prop by propAngle', async () => {
     // Three different baked axes, so a leg turned about the prop's axis, or about another leg's,
     // lands somewhere else and fails.

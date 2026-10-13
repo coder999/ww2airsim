@@ -28,7 +28,11 @@ describe('sceneCounts', () => {
 describe('partSpecsFor', () => {
   it("reports every bench part, modeled only where the airframe's parts say so", () => {
     const rows = partSpecsFor(['prop', 'gear', 'stores'])
-    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['flaps', false], ['doors', false], ['prop', true], ['surfaces', false], ['turrets', false], ['stores', true]])
+    expect(rows.map((r) => [r.id, r.modeled])).toEqual([['gear', true], ['floats', false], ['flaps', false], ['doors', false], ['prop', true], ['surfaces', false], ['turrets', false], ['stores', true]])
+  })
+  it('shows retractable wingtip floats as their own modeled control', () => {
+    const row = partSpecsFor(['floats']).find((p) => p.id === 'floats')
+    expect(row).toMatchObject({ label: 'Wingtip floats', kind: 'fraction', modeled: true })
   })
 })
 

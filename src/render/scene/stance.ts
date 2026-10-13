@@ -49,6 +49,8 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // drawn airplane rests level; the tail-boom first touch is 17.3 degrees, beyond any rotation the sim reaches. The drawn mains stand at
   // x +0.439 (a tricycle spec needs mainX below zero, see the P-38 spec source), so the drawing is left as committed.
   'p-38-lightning': { mainWheelXM: 0.439, tailDownPitchRad: 0 },
+  // Original PBY-5A model: tricycle mains and nose wheel all bottom at y -3.620 m.
+  'pby-5a-catalina': { mainWheelXM: -1.350, tailDownPitchRad: 0 },
   // Measured 2026-09-29 (G4M1 onboarding) with drawnPoints, the propellers and turret excluded: mains at x 1.569, the fixed
   // tailwheel the first aft point to touch at 4.943 degrees.
   'g4m-betty': { mainWheelXM: 1.569, tailDownPitchRad: 4.943 * DEG },

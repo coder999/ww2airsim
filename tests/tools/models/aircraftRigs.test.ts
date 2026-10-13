@@ -90,7 +90,7 @@ function retraction(points: readonly Vec3[], pivot: Vec3, axis: Vec3, g: GearRig
 it('AIRFRAME_RIGS has at least one rig, every part named per P6', () => {
   expect(Object.keys(AIRFRAME_RIGS).length).toBeGreaterThan(0)
   for (const [id, rig] of Object.entries(AIRFRAME_RIGS)) {
-    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...(rig.surfaces ?? [])]) expect(name, id).toMatch(PART_NAME)
+    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...(rig.floats ?? []).map((f) => f.node), ...rig.turrets, ...(rig.surfaces ?? [])]) expect(name, id).toMatch(PART_NAME)
   }
 })
 
@@ -106,10 +106,13 @@ it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
 // Pinned (C1 batches 1-3, 2026-10-08), so a filter that matches nothing fails rather than passing
 // empty. Batch 4 adds rows here as its models get surfaces. The F4F is not a rig (wildcat.ts draws
 // it): tests/render/wildcat.test.ts checks its surfaces the same two ways.
-it('control surfaces: exactly the batch-1 to batch-4 airframes, each driving roll, pitch, yaw and flaps', () => {
+it('control surfaces: exactly the promoted airframes, each driving its applicable axes', () => {
   const withSurfaces = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.surfaces ?? []).length > 0)
-  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'a6m2-zero-blender', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'd3a-val', 'd3a-val-blender', 'f4f-wildcat-blender', 'f4u-corsair', 'f4u-corsair-blender', 'f6f-hellcat', 'f6f-hellcat-blender', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-43-oscar-blender', 'ki-84-frank', 'p-38-lightning', 'tbm-3-avenger', 'b5n2-kate'].sort())
-  for (const [id, r] of withSurfaces) expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(['roll', 'pitch', 'yaw', 'flap']))
+  expect(withSurfaces.map(([id]) => id).sort()).toEqual(['a6m2-zero', 'a6m2-zero-blender', 'b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'd3a-val', 'd3a-val-blender', 'f4f-wildcat-blender', 'f4u-corsair', 'f4u-corsair-blender', 'f6f-hellcat', 'f6f-hellcat-blender', 'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-43-oscar-blender', 'ki-84-frank', 'p-38-lightning', 'pby-5a-catalina', 'tbm-3-avenger', 'b5n2-kate'].sort())
+  for (const [id, r] of withSurfaces) {
+    const expected = id === 'pby-5a-catalina' ? ['roll', 'pitch', 'yaw'] : ['roll', 'pitch', 'yaw', 'flap']
+    expect(new Set(r.surfaces!.map((n) => surfaceDrive(n).input)), id).toEqual(new Set(expected))
+  }
 })
 
 describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (R3)', (id, rig) => {
@@ -125,7 +128,7 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
   })
 
   it('names every rigged part exactly once, each with a unit pivot axis', () => {
-    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets]) {
+    for (const name of [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...(rig.floats ?? []).map((f) => f.node), ...rig.turrets]) {
       const { axis } = pivotOf(one(doc, name))
       expect(Math.hypot(...axis), `${name} axis length`).toBeCloseTo(1, 6)
     }
@@ -133,7 +136,7 @@ describe.each(Object.entries(AIRFRAME_RIGS))('rig %s against its committed glb (
 
   it('drives every part the glb names: no pivoted part is left out of the rig and silently static', () => {
     const inGlb = doc.getRoot().listNodes().map((n) => n.getName()).filter((n) => PART_NAME.test(n)).sort()
-    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...rig.turrets, ...rig.turrets.map((t) => `${t}Guns`), ...(rig.surfaces ?? []), ...(rig.doors ?? [])].sort()
+    const inRig = [...rig.props.map((p) => p.node), ...rig.gear.map((g) => g.node), ...(rig.floats ?? []).map((f) => f.node), ...rig.turrets, ...rig.turrets.map((t) => `${t}Guns`), ...(rig.surfaces ?? []), ...(rig.doors ?? [])].sort()
     expect(inGlb).toEqual(inRig)
   })
 
