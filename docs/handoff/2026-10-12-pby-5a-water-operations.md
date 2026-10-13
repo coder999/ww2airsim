@@ -42,8 +42,15 @@ VPB-33-inspired but does not claim one exact bureau number.
   aircraft remain on the original terminal ditch/crash path.
 - `src/sim/waterOperations.ts` owns safe arrival, displacement-to-planing
   drag, rest/planing attitude, low-speed rudder steering, float/gear gates and
-  takeoff separation. It uses flat sea level; rendered waves do not move the
-  physics plane.
+  takeoff separation. `src/sim/waterSurface.ts` supplies the deterministic
+  long-wave support surface shared by aircraft, ships and carrier decks. It
+  follows the rendered sea's Beaufort height table and simulation clock, but
+  intentionally does not reproduce the GPU ocean crest for crest.
+- Watercraft sit at an authored displacement/planing draft, heave and follow
+  filtered wave slopes, then release support while climbing at takeoff speed.
+  Ships filter the same samples by hull dimensions, so a carrier responds more
+  gently than a flying boat. Moving ships and water-supported aircraft leave a
+  speed-scaled stern wake; stationary craft receive subtle waterline lapping.
 - Scenarios can author `afloatAt`. World construction derives the hull height,
   rest pitch, zero velocity, gear-up and floats-down state from the spec.
 - Landing reports use `{ kind: 'water', id: 'open-water', name: 'Open water' }`.
@@ -140,6 +147,12 @@ draw calls.
   - final capture tool: 1 passed.
 - Final post-merge `npm run verify`: 434 test files passed; 6,370 tests passed
   and 12 skipped.
+- Shared-sea/wake follow-up in this worktree:
+  - full `npm run verify`: 435 test files passed; 6,379 tests passed and 12
+    skipped (typecheck, lint and dependency boundaries included);
+  - focused watercraft/wake/replay integration: 97 passed;
+  - Nexus Radeon 680M correctness E2E: Catalina water takeoff passed; the live
+    task force's translation and changing heave/pitch/roll passed.
 
 No budget-titled browser spec was changed or run. The browser checks above are
 correctness tests; the repository continues to require exclusive
@@ -170,7 +183,9 @@ shared claim so CPU work cannot overlap one.
 
 ### Known gaps
 
-- No wave forces, spray forces, porpoising, current, anchoring or beaching.
+- No crest-for-crest GPU-ocean coupling, spray force, porpoising, current,
+  anchoring or beaching. The support sea models long-wave height and slope;
+  lapping and wakes are visual particle effects rather than forces.
 - No AI taxi, takeoff or landing on water.
 - Floats share the flap input until a dedicated control is justified.
 - Defensive gun installations neither aim nor fire.

@@ -191,9 +191,10 @@ export type Ww2Diagnostics = {
    * the task force actually sailed, and that its heading is the bearing it is
    * sailing on.
    *
-   * `y` is deliberately absent: it is `SEA_LEVEL_M` for every ship by
-   * construction (`ShipState.position`), so reporting it would be reporting a
-   * constant as if it were a measurement.
+   * `y`, `pitchRad`, and `rollRad` expose the ship's shared support-sea pose.
+   * They let the browser tier prove the world/render seam is actually using
+   * the same heave and attitude model as amphibious aircraft rather than only
+   * checking a headless `stepShip` result.
    *
    * `hp` and `sinkingFraction` were added in Plan 6b Task 8, off
    * `World.combat.ships[s.id]` rather than the kinematic entity above: proving
@@ -203,7 +204,8 @@ export type Ww2Diagnostics = {
    * from "sunk and hidden" without reading pixels.
    */
   readonly ships: () => readonly {
-    readonly id: string; readonly x: number; readonly z: number; readonly headingRad: number
+    readonly id: string; readonly x: number; readonly y: number; readonly z: number
+    readonly headingRad: number; readonly pitchRad: number; readonly rollRad: number
     readonly hp: number; readonly sinkingFraction: number
     /** D3 T3: the flood list (positive to starboard, `floodListRad`) and the speed actually made. */
     readonly listRad: number; readonly speedMps: number

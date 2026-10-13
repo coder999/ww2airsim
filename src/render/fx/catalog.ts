@@ -16,12 +16,12 @@ import { FX_SHEETS } from './sheetManifest.js'
 export const RECIPE_IDS = [
   'bomb.land', 'bomb.water', 'rocket.land', 'rocket.water', 'rocket.motor',
   'round.land', 'round.water', 'round.deck', 'round.structure', 'round.ship', 'round.aircraft',
-  'crash.land', 'crash.water', 'crash.deck',
+  'crash.land', 'crash.water', 'crash.deck', 'water.lap', 'water.wake',
   'kill.air', 'flak.burst', 'muzzle.heavy', 'muzzle.light', 'engine.smoke', 'smoke.black', 'aircraft.fire', 'wreck.smoke', 'ship.fire', 'structure.collapse', 'torpedo.wake',
 ] as const
 export type RecipeId = (typeof RECIPE_IDS)[number]
 /** Recipes `events.ts` drives as state-driven emitters (they carry a sustained stream). */
-export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'wreck.smoke', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor', 'torpedo.wake']
+export const SUSTAINED_RECIPES: readonly RecipeId[] = ['engine.smoke', 'smoke.black', 'aircraft.fire', 'wreck.smoke', 'ship.fire', 'kill.air', 'structure.collapse', 'rocket.motor', 'torpedo.wake', 'water.lap', 'water.wake']
 
 const range = z.tuple([z.number().nonnegative(), z.number().nonnegative()]).refine(([a, b]) => a <= b, 'range must be [min, max]')
 const emitterSchema = z.object({
@@ -135,6 +135,14 @@ const RAW: Record<RecipeId, { emitters: RawEmitter[]; source: string }> = {
   // the renderer-only submergence while the crown and surface surge spread beyond the airframe.
   'crash.water': { emitters: [waterColumn(10, [18, 48]), crown(48, 1.6), surge(32, 1.6)], source: ESTIMATE },
   'crash.deck': { emitters: [fireball(6, [19, 44], [2.4, 3.6]), sparks(20)], source: ESTIMATE },
+  // Shared contact cues for every seaworthy craft. A stationary emitter leaves small, short-lived
+  // patches around the waterline; the moving emitter leaves world-stationary foam behind the stern.
+  'water.lap': { emitters: [
+    { mode: 'stream', sheet: 'spray', ratePerS: 4, lifeS: [1.2, 2.2], speedMps: [0, 0.35], direction: 'ring', spreadDeg: 5, radiusM: 1.2, sizeM: [1.2, 3.8], alpha: 0.24, tint: WATER, dragPerS: 2.5, accelYMps2: 0 },
+  ], source: 'gameplay estimate (shared seaworthiness, 2026-10-12): subtle waterline foam at rest' },
+  'water.wake': { emitters: [
+    { mode: 'stream', sheet: 'spray', ratePerS: 24, lifeS: [3.5, 7], speedMps: [0, 0.8], direction: 'ring', spreadDeg: 8, radiusM: 0.8, sizeM: [1.8, 7.5], alpha: 0.5, tint: WATER, dragPerS: 2, accelYMps2: 0 },
+  ], source: 'gameplay estimate (shared seaworthiness, 2026-10-12): stern foam scales by craft speed' },
   // Ruling R6: fireball on the kill edge; the trail is sustained at the wreck, which falls since
   // damage stages (2026-10-09). The dark fragments are the airframe's skin and spars going down.
   'kill.air': { emitters: [fireball(6, [16, 41], [2.4, 3.2]), sparks(16),

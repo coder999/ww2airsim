@@ -14,6 +14,7 @@ import { v3 } from '../../../src/sim/math/vec3.js'
 import { createTerrainField, SEA_LEVEL_M } from '../../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../../src/sim/world/schema.js'
 import { loadShipSpec } from '../../../tools/content/load.js'
+import { waterSurfaceContext } from '../../../src/sim/waterSurface.js'
 
 const cv = loadShipSpec('essex-cv')
 const dd = loadShipSpec('fletcher-dd')
@@ -159,6 +160,21 @@ describe('stepShip', () => {
       return s
     }
     expect(run()).toEqual(run())
+  })
+
+  it('heaves and rotates on the shared support sea while remaining deterministic', () => {
+    const run = () => {
+      let s = createShipState({ position: v3(250, 0, -180), headingRad: 0.7, speedMps: 5 })
+      for (let i = 0; i < 600; i++) {
+        s = stepShip(dd, s, straight(250, -180), {
+          dt: DT, tick: i + 1, water: waterSurfaceContext((i + 1) * DT, null),
+        })
+      }
+      return s
+    }
+    const state = run()
+    expect(state).toEqual(run())
+    expect(Math.abs(state.position.y) + Math.abs(state.pitchRad) + Math.abs(state.rollRad)).toBeGreaterThan(0)
   })
 })
 

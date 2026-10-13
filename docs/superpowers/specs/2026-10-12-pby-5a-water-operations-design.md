@@ -127,10 +127,12 @@ by the wheel model.
    the aircraft is above its water takeoff target with sufficient aerodynamic
    lift. No hidden launch impulse is applied.
 
-The model intentionally omits individual waves, spray forces, porpoising,
-crosswind weathervaning on the water, beaching, anchors, current, and damage
-from a gear-down water landing beyond the existing crash result. Rendered
-waves remain visual; flat sea level is the physics surface.
+The model intentionally omits crest-for-crest coupling to the rendered GPU
+ocean, spray forces, porpoising, crosswind weathervaning on the water,
+beaching, anchors, current, and damage from a gear-down water landing beyond
+the existing crash result. A deterministic, hull-filtered support sea drives
+the Catalina and ships from the same simulation clock and wind state; the
+rendered FFT remains a richer visual approximation of that shared sea state.
 
 ## Landing and mission semantics
 

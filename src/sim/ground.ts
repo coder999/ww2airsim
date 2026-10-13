@@ -253,10 +253,22 @@ export function restOnSurface(
   state: AircraftState,
   groundHeightM: number,
   surfaceVelocity: Vec3 = ZERO,
+  externallyDriven = false,
 ): AircraftState {
   const contactTargetM = groundHeightM + wheelDepthOf(spec, state)
   const dh = contactTargetM - state.position.y
   const rel = sub(state.velocity, surfaceVelocity)
+
+  // A ship's deck can do work on an airplane. Once supported, follow its
+  // heave/tilt within the ordinary contact band rather than applying the
+  // static-terrain no-energy-gain rule to an externally driven surface.
+  if (externallyDriven && Math.abs(dh) <= GROUND_CONTACT_TOLERANCE_M) {
+    return {
+      ...state,
+      position: v3(state.position.x, contactTargetM, state.position.z),
+      velocity: add(v3(rel.x, 0, rel.z), surfaceVelocity),
+    }
+  }
 
   if (dh <= 0) {
     // At or above the surface. A separating (climbing) airplane is left
@@ -656,6 +668,12 @@ export function groundBodyRates(
   airRates: Vec3,
   dt: number,
   surfaceVelocity: Vec3 = ZERO,
+  surfaceAttitude: {
+    readonly pitchRad: number
+    readonly rollRad: number
+    readonly pitchRateRadPerS: number
+    readonly rollRateRadPerS: number
+  } = { pitchRad: 0, rollRad: 0, pitchRateRadPerS: 0, rollRateRadPerS: 0 },
 ): Vec3 {
   const { gear } = spec
   // Plan 8: ground speed relative to the surface, not the world -- an
@@ -673,12 +691,14 @@ export function groundBodyRates(
   const airflowMps = Math.hypot(speed, gear.propWashSpeedMps * throttle)
   const lift = validSpeed ? Math.min(1, (airflowMps / gear.tailLiftSpeedMps) ** 2) : 0
 
-  const rest = restPitchRad(gear)
-  const floor = Math.min(rest, 0)
-  const ceiling = groundPitchCeilingRad(spec)
-  const pitch = attitudeAngles(state).pitchRad
+  const rest = restPitchRad(gear) + surfaceAttitude.pitchRad
+  const floor = Math.min(rest, surfaceAttitude.pitchRad)
+  const ceiling = groundPitchCeilingRad(spec) + surfaceAttitude.pitchRad
+  const angles = attitudeAngles(state)
+  const pitch = angles.pitchRad
+  const rollRate = surfaceAttitude.rollRateRadPerS + (surfaceAttitude.rollRad - angles.rollRad) * GROUND_PITCH_SETTLE_PER_S
 
-  const settle = (1 - lift) * GROUND_PITCH_SETTLE_PER_S * (rest - pitch)
+  const settle = surfaceAttitude.pitchRateRadPerS + (1 - lift) * GROUND_PITCH_SETTLE_PER_S * (rest - pitch)
   const raise = pitch > 0 ? -lift * (1 - pull) * GROUND_PITCH_RAISE_PER_S * pitch : 0
   const rotate = lift * pitchInput * spec.rates.maxPitchRateDegPerSec * GROUND_DEG
   // A broken attitude has no pitch to steer from: command no ground pitch at
@@ -713,7 +733,7 @@ export function groundBodyRates(
   const torqueDeg = gear.torqueYawRateDegPerSec * throttle * (1 - Math.min(1, speed / gear.tailLiftSpeedMps))
   const noseRightDeg = fade * (steerInput * (rudderDeg + steerDeg) + torqueDeg)
 
-  return v3(0, -noseRightDeg * GROUND_DEG + airRates.y, pitchRate)
+  return v3(rollRate, -noseRightDeg * GROUND_DEG + airRates.y, pitchRate)
 }
 
 /**

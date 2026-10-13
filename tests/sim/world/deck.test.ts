@@ -10,6 +10,7 @@ import { DT } from '../../../src/sim/flight/model.js'
 import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { stateOnDeck } from '../../../src/sim/mission/respot.js'
 import { wheelDepthOf } from '../../../src/sim/gearContact.js'
+import { groundUnder } from '../../../src/sim/world/ground.js'
 
 const cv = loadShipSpec('essex-cv')
 const dd = loadShipSpec('fletcher-dd')
@@ -106,6 +107,8 @@ describe('an airplane on a moving deck', () => {
     expect(Math.abs(world.ships[0]!.state.headingRad)).toBeGreaterThan(0.5)
     expect(worstDriftM).toBeLessThan(0.5)
     const end = world.aircraft[0]!.state
-    expect(end.position.y - wheelDepthOf(f6f, end)).toBeCloseTo(deck.center.y, 3)
+    const endDeck = deckOf(world.ships[0]!)!
+    const support = groundUnder(null, [endDeck], end.position.x, end.position.z)!
+    expect(end.position.y - wheelDepthOf(f6f, end)).toBeCloseTo(support.heightM, 3)
   })
 })

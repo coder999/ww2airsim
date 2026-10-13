@@ -2,6 +2,9 @@ import { type Vec3, sub, dot, ZERO } from './math/vec3.js'
 import type { AircraftSpec } from './flight/schema.js'
 import { type AircraftState, type Controls, clampFinite, step } from './flight/model.js'
 import type { SimContext } from './loop.js'
+import { supportedContact } from './ground.js'
+import { supportedWaterContact, waterSupportVelocity } from './waterOperations.js'
+import { groundUnder } from './world/ground.js'
 
 const G = 9.80665
 const ENERGY_EPS = 1e-3
@@ -70,6 +73,29 @@ export function isIdleThrottle(controls: Controls): boolean {
 }
 
 /**
+ * Whether the aircraft begins this step carried by a support surface that is
+ * itself allowed to do work on it. A heaving deck and a moving water surface
+ * exchange energy with a resting airframe; judging that exchange with the
+ * free-flight/land invariant would reject the first upward half of every
+ * bobbing cycle. Keep the exemption contact-scoped: an airborne Catalina
+ * over the same sea still has to satisfy the idle-energy invariant.
+ */
+export function externallySupported(
+  spec: AircraftSpec,
+  state: AircraftState,
+  ctx: SimContext,
+): boolean {
+  const ground = groundUnder(ctx.terrain ?? null, ctx.decks ?? [], state.position.x, state.position.z, ctx.water)
+  if (ground === null) return false
+  if (ground.surface === 'water') {
+    return spec.waterOperations !== undefined
+      && supportedWaterContact(spec, state, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, state.velocity))
+  }
+  return ground.surface === 'deck'
+    && supportedContact(spec, state, ground.heightM, ground.surface, ground.velocity, ground.landClass)
+}
+
+/**
  * step() with the spec §11 invariants asserted. Use this in tests and in the
  * soak harness; use the bare step() in the hot path of the running game.
  *
@@ -89,7 +115,7 @@ export function stepChecked(
   const before = specificEnergyAirmass(state, wind)
   const next = step(spec, state, controls, ctx)
   assertFinite(next, 'stepChecked')
-  if (isIdleThrottle(controls)) {
+  if (isIdleThrottle(controls) && !externallySupported(spec, state, ctx)) {
     const after = specificEnergyAirmass(next, wind)
     assertNoEnergyGain(before, after, 'stepChecked')
   }

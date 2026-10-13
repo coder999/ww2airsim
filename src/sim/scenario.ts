@@ -22,6 +22,7 @@ import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
 import { initialMainBattery } from './weapons/mainBattery.js'
 import { createVehicleState, type VehicleEntity, type VehicleSpec } from './world/vehicles.js'
+import { waterSurfaceAt, waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
  *  must name the same four values; a mismatch here is a compile error. */
@@ -198,7 +199,7 @@ const AfloatAircraftObject = z.object({
   id,
   spec: id,
   afloatAt: z.object({
-    /** Open-water world meters, `[x, z]`, at the flat sea level. */
+    /** Open-water world meters, `[x, z]`; the shared support sea supplies y. */
     position: z.tuple([finite, finite]),
     /** True compass heading: 0 north (-Z), 90 east (+X). */
     headingDeg: finite,
@@ -706,7 +707,11 @@ const sideFrom = (a: ScenarioAircraft): { side?: 'allied' | 'axis' } => (a.side 
  *  held one built at world creation (missions M1). Moved out of
  *  `worldFromScenario` verbatim. */
 function buildAircraft(
-  bundle: ScenarioBundle, a: ScenarioAircraft, ships: readonly ShipEntity[], homes: ReadonlyMap<string, RecoveryHome>,
+  bundle: ScenarioBundle,
+  a: ScenarioAircraft,
+  ships: readonly ShipEntity[],
+  homes: ReadonlyMap<string, RecoveryHome>,
+  water: WaterSurfaceContext,
 ): AircraftEntity<undefined> {
   const spec = lookup(bundle.aircraftSpecs, a.spec, 'aircraft spec')
   if (isAfloatAircraft(a)) {
@@ -718,8 +723,12 @@ function buildAircraft(
       qFromAxisAngle(v3(0, 0, 1), spec.waterOperations.restPitchDeg * Math.PI / 180),
     )
     const state = createState({
-      position: v3(x, SEA_LEVEL_M + spec.waterOperations.hullDepthM, z),
-      velocity: v3(0, 0, 0),
+      position: v3(
+        x,
+        waterSurfaceAt(water, x, z).heightM + spec.waterOperations.hullDepthM - spec.waterOperations.displacementDraftM,
+        z,
+      ),
+      velocity: v3(0, waterSurfaceAt(water, x, z).verticalSpeedMps, 0),
       attitude,
       gearFraction: 0,
       flapFraction: 1,
@@ -912,15 +921,16 @@ export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
 
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
+  const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
+  const water = waterSurfaceContext(0, wind)
   const airfields = s.airfields.map((a) => lookup(bundle.airfields, a, 'airfield'))
   const ships: ShipEntity[] = s.ships.map((sh) => buildShip(bundle, sh, terrain))
   const vehicles: VehicleEntity[] = s.vehicles.map((v) => buildVehicle(bundle, v, terrain))
 
   checkHomes(s, bundle, ships)
   const homes = homesFrom(s, bundle, ships)
-  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => buildAircraft(bundle, a, ships, homes))
+  const aircraft: AircraftEntity<undefined>[] = s.aircraft.map((a) => buildAircraft(bundle, a, ships, homes, water))
 
-  const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)
   const stores: Record<string, StoresState> = Object.fromEntries(
     aircraft.map((a) => [a.id, a.id === s.player ? storesFromLoadout(a.spec, loadout) : armedForAttack(a, aircraft) ? storesFromLoadout(a.spec, 'bombs') : emptyStores]),
   )
@@ -945,7 +955,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     }
     const held: HeldGroup<undefined>[] = (s.heldGroups ?? []).map((g) => ({
       id: g.id,
-      aircraft: (g.aircraft ?? []).map((a) => buildAircraft(bundle, a, ships, homes)),
+      aircraft: (g.aircraft ?? []).map((a) => buildAircraft(bundle, a, ships, homes, water)),
       ships: (g.ships ?? []).map((sh) => buildShip(bundle, sh, terrain)),
       vehicles: (g.vehicles ?? []).map((v) => buildVehicle(bundle, v, terrain)),
     }))

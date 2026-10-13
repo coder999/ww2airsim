@@ -35,6 +35,8 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { GodMode } from '../sim/godMode.js'
 import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/landing.js'
 import { bayDoorsShut } from '../sim/bayDoors.js'
+import { waterSurfaceContext } from '../sim/waterSurface.js'
+import { DT } from '../sim/flight/model.js'
 
 export type FrameState = {
   /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was
@@ -72,9 +74,7 @@ export type FrameState = {
    *  gauges, the cockpit group and the audio adapter all read it by that one
    *  name today. */
   readonly poses: readonly RenderState[]
-  /** One interpolated pose per `world.ships`, same order. A ship has no
-   *  attitude in this plan (`interpolateShip`'s own comment), so this is a
-   *  position and a heading rather than a `RenderState`. */
+  /** One interpolated wave-supported pose per `world.ships`, same order. */
   readonly shipPoses: readonly ShipPose[]
   readonly vehiclePoses: readonly VehiclePose[]
   readonly stepsRun: number
@@ -523,11 +523,12 @@ export function settleOnTerrain(frame: FrameState, terrain: TerrainField): Frame
   let world = frame.world
   let playerDeltaY = 0
   const decks = decksOf(world.ships)
+  const water = waterSurfaceContext(world.tick * DT, world.wind)
   for (const a of frame.world.aircraft) {
     if (!a.parked) continue
-    const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z)!
+    const ground = groundUnder(terrain, decks, a.state.position.x, a.state.position.z, water)!
     const contactHeightM = ground.heightM + (ground.surface === 'water' && a.spec.waterOperations !== undefined
-      ? a.spec.waterOperations.hullDepthM
+      ? a.spec.waterOperations.hullDepthM - a.spec.waterOperations.displacementDraftM
       : wheelDepthOf(a.spec, a.state))
     if (a.id === world.player) playerDeltaY = contactHeightM - a.state.position.y
     const settled = { ...a.state, position: v3(a.state.position.x, contactHeightM, a.state.position.z) }
@@ -821,6 +822,7 @@ export function nextFrameState(
     advanced.world.terrain,
     advanced.world.airfields,
     decks,
+    waterSurfaceContext(advanced.world.tick * DT, advanced.world.wind),
   )
 
   return {

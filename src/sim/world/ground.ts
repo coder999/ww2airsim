@@ -3,14 +3,17 @@ import { heightAt, type TerrainField } from './terrain.js'
 import { surfaceAt, type ContactSurface } from '../contact.js'
 import { landClassAt, type LandClass } from './cover.js'
 import { insideDeck, deckLocal, deckAxes, type Deck } from './deck.js'
+import { waterSurfaceAt, type WaterSurfaceContext, type WaterSurfaceSample } from '../waterSurface.js'
 
 /** What is under a point: its height, what kind of thing it is, and how fast
- *  it is moving. Land and water do not move; a deck moves with its ship. */
+ *  it is moving. Land is fixed; water and a ship's deck can heave and tilt. */
 export type GroundUnder = {
   readonly heightM: number
   readonly surface: ContactSurface
   readonly velocity: Vec3
   readonly deck: Deck | null
+  /** Present only for open water; the shared support-wave sample at this point. */
+  readonly water: WaterSurfaceSample | null
   /** What kind of land this is (`landClassAt`, cover.ts). `unclassified` for
    *  water and decks, and for land when no cover data is loaded. */
   readonly landClass: LandClass
@@ -35,7 +38,13 @@ export type GroundUnder = {
  * (`l.x === l.z === 0`) -- both pinned by
  * `tests/sim/world/ground.test.ts`.
  */
-export function groundUnder(terrain: TerrainField | null, decks: readonly Deck[], x: number, z: number): GroundUnder | null {
+export function groundUnder(
+  terrain: TerrainField | null,
+  decks: readonly Deck[],
+  x: number,
+  z: number,
+  waterContext?: WaterSurfaceContext,
+): GroundUnder | null {
   for (const deck of decks) {
     if (insideDeck(deck, x, z)) {
       const l = deckLocal(deck, x, z)
@@ -46,11 +55,24 @@ export function groundUnder(terrain: TerrainField | null, decks: readonly Deck[]
         0,
         deck.velocity.z + omega * (l.z * s.z - l.x * b.z),
       )
-      return { heightM: deck.center.y, surface: 'deck', velocity, deck, landClass: 'unclassified' }
+      const heightM = deck.center.y + l.z * Math.tan(deck.pitchRad) - l.x * Math.tan(deck.rollRad)
+      const vertical = deck.velocity.y + deck.pitchRateRadPerS * l.z - deck.rollRateRadPerS * l.x
+      return { heightM, surface: 'deck', velocity: v3(velocity.x, vertical, velocity.z), deck, water: null, landClass: 'unclassified' }
     }
   }
   if (terrain === null) return null
   const heightM = heightAt(terrain, x, z)
   const surface = surfaceAt(heightM)
-  return { heightM, surface, velocity: ZERO, deck: null, landClass: surface === 'land' ? landClassAt(terrain.cover, x, z) : 'unclassified' }
+  if (surface === 'water') {
+    const water = waterSurfaceAt(waterContext, x, z)
+    return {
+      heightM: water.heightM,
+      surface,
+      velocity: v3(0, water.verticalSpeedMps, 0),
+      deck: null,
+      water,
+      landClass: 'unclassified',
+    }
+  }
+  return { heightM, surface, velocity: ZERO, deck: null, water: null, landClass: landClassAt(terrain.cover, x, z) }
 }

@@ -11,7 +11,7 @@ import { qIntegrateBodyRates } from './math/quat.js'
 import { contactOutcome, type ContactSurface, type ContactKind } from './contact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from './ground.js'
 import { wheelDepthOf } from './gearContact.js'
-import { supportedWaterContact, waterContactHeightM } from './waterOperations.js'
+import { departingWater, safeWaterArrival, supportedWaterContact, waterContactHeightM, waterSupportVelocity } from './waterOperations.js'
 import type { ShipOrders, ShipSpec, ShipState } from './world/ships.js'
 import { stepShip } from './world/ships.js'
 import { floodSpeedFraction } from './weapons/flooding.js'
@@ -30,6 +30,7 @@ import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
 import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
+import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -78,6 +79,8 @@ export interface SimContext {
    * construction site.
    */
   readonly decks?: readonly Deck[]
+  /** Shared deterministic support sea for amphibians, ships and decks. */
+  readonly water?: WaterSurfaceContext
 }
 
 /**
@@ -709,6 +712,7 @@ function stepAircraftEntity<M>(
   tick: number,
   terrain: TerrainField | null,
   wind: Vec3 | null,
+  water: WaterSurfaceContext,
   decks: readonly Deck[],
   stepper: Stepper,
   assist: Assist<M>,
@@ -744,16 +748,16 @@ function stepAircraftEntity<M>(
   // With no wind this IS `entity.state`, the same object, so the calm path
   // is bit-identical (`tests/assists/windFrame.test.ts` pins the identity).
   const airState = wind == null ? entity.state : { ...entity.state, velocity: airVelocity(entity.state, wind) }
-  const groundAtStart = groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z)
+  const groundAtStart = groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z, water)
   const assistContext: AssistContext = {
     onGround: groundAtStart !== null
       && (supportedContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.surface, groundAtStart.velocity)
         || (groundAtStart.surface === 'water'
-          && supportedWaterContact(entity.spec, entity.state, groundAtStart.heightM, groundAtStart.velocity))),
+          && supportedWaterContact(entity.spec, entity.state, groundAtStart.heightM, waterSupportVelocity(groundAtStart.velocity, groundAtStart.water, entity.state.velocity)))),
   }
   const assisted = assist(airState, entity.spec, entity.controls, DT, entity.assistMemory, assistContext)
   const outputs = engineOutputs(damage, tick, entity.id, DT)
-  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, outputs), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks })
+  let current = stepper(storesSpec(damagedSpec(entity.spec, damage, outputs), stores), entity.state, assisted.controls, { dt: DT, tick, terrain, wind, decks, water })
   if (damage.fuel < 1 && entity.spec.combat !== undefined) {
     current = { ...current, fuelKg: Math.max(0, current.fuelKg - (1 - damage.fuel) * entity.spec.combat.fuelLeakKgPerS * DT) }
   }
@@ -799,11 +803,11 @@ function stepAircraftEntity<M>(
   // this asymmetry by subtracting the gear offset here; that would let an
   // airplane belly-flop into the runway with its wheels still notionally
   // above ground and have it read as a normal landing.
-  const ground = groundUnder(terrain, decks, current.position.x, current.position.z)
+  const ground = groundUnder(terrain, decks, current.position.x, current.position.z, water)
   if (ground !== null) {
     const supported = supportedContact(entity.spec, current, ground.heightM, ground.surface, ground.velocity, ground.landClass)
       || (ground.surface === 'water'
-        && supportedWaterContact(entity.spec, current, ground.heightM, ground.velocity))
+        && supportedWaterContact(entity.spec, current, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, current.velocity)))
     const unsupported = !supported
     // An airplane that was on its wheels at the start of the step and ends it
     // with them buried past the contact tolerance, no longer supported, has
@@ -812,7 +816,7 @@ function stepAircraftEntity<M>(
     // slope. Without this it sinks a full wheel depth (about 2 m) through the
     // ground before the origin test above catches it (T1 soak, 2026-09-29).
     // Land only: a deck is a moving surface and keeps its own rules.
-    const startGround = ground.surface === 'land' ? groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z) : null
+    const startGround = ground.surface === 'land' ? groundUnder(terrain, decks, entity.state.position.x, entity.state.position.z, water) : null
     const droveIntoTerrain =
       unsupported &&
       startGround !== null &&
@@ -821,7 +825,18 @@ function stepAircraftEntity<M>(
     const crossedSurface = ground.surface === 'water' && entity.spec.waterOperations !== undefined
       ? waterContactHeightM(entity.spec, current) <= ground.heightM
       : current.position.y <= ground.heightM
-    if ((crossedSurface && unsupported) || droveIntoTerrain) {
+    const enteredWater = ground.surface === 'water' && entity.spec.waterOperations !== undefined
+      && groundAtStart !== null
+        // A planing hull can skim millimetres above a trough without becoming
+        // airborne. Reserve the landing-speed gate for a genuine arrival from
+        // outside the established contact band.
+        && waterContactHeightM(entity.spec, entity.state) > groundAtStart.heightM + GROUND_CONTACT_TOLERANCE_M
+      && crossedSurface
+    const unsafeWaterArrival = enteredWater
+      && !safeWaterArrival(entity.spec, current, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, current.velocity))
+      const planingDeparture = ground.surface === 'water'
+        && departingWater(entity.spec, current, waterSupportVelocity(ground.velocity, ground.water, current.velocity))
+      if ((crossedSurface && (unsafeWaterArrival || (unsupported && !planingDeparture))) || droveIntoTerrain) {
       if (bounce) {
         current = bounceState(current, ground.heightM)
         return { ...entity, state: current, previous: entity.state, assistMemory: assisted.memory }
@@ -967,6 +982,7 @@ export function advance<M>(
   let mission = world.mission
   for (let i = 0; i < owedSteps; i++) {
     tick += 1
+    const water = waterSurfaceContext(tick * DT, world.wind)
     // Ships first (spec §3.4): exogenous kinematics, reading nothing else --
     // except a destroyed ship's own orders, overridden here to hold position
     // and heading rather than sail on with no hull left (Task 6 is what can
@@ -980,7 +996,7 @@ export function advance<M>(
         // A flooded hull (D3 T3) makes only a share of its maximum speed.
         : dmg ? { ...s.orders, speedMps: Math.min(s.orders.speedMps, s.spec.maxSpeedMps) * floodSpeedFraction(dmg, s.spec.hullHp) }
         : s.orders
-      return { ...s, previous: s.state, state: stepShip(s.spec, s.state, orders, { dt: DT, tick }) }
+      return { ...s, previous: s.state, state: stepShip(s.spec, s.state, orders, { dt: DT, tick, water }) }
     })
     vehicles = vehicles.map((v) => ({
       ...v,
@@ -1014,7 +1030,7 @@ export function advance<M>(
       const doomed = a.id !== world.player && record.damage.burningSince !== null && record.damage.destroyedAt === null
       return stepAircraftEntity(
         doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
-        tick, world.terrain, world.wind, decks, stepper, assist,
+        tick, world.terrain, world.wind, water, decks, stepper, assist,
         record.damage, record.stores, god !== undefined && a.id === world.player,
       )
     })

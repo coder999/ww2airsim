@@ -23,10 +23,12 @@ import {
   supportedWaterContact,
   waterBodyRates,
   waterResistanceN,
+  waterSupportVelocity,
 } from '../waterOperations.js'
 import type { AircraftSpec } from './schema.js'
 import type { AircraftState, Controls } from './state.js'
 import type { SimContext } from '../loop.js'
+import { watercraftPoseAt } from '../waterSurface.js'
 
 export { createState } from './state.js'
 export type { AircraftState, Controls } from './state.js'
@@ -369,7 +371,7 @@ export function step(
   // still deck's `velocity` is `ZERO`, so this is bit-identical to the
   // pre-Plan-8 terrain-only lookup wherever no deck is present.
   const decks = ctx.decks ?? EMPTY_DECKS
-  const startGround = groundUnder(ctx.terrain ?? null, decks, state.position.x, state.position.z)
+  const startGround = groundUnder(ctx.terrain ?? null, decks, state.position.x, state.position.z, ctx.water)
   const startGroundHeightM = startGround === null ? null : startGround.heightM
   const rho = densityAt(state.position.y)
   const v = airspeed(air)
@@ -513,10 +515,11 @@ export function step(
   const wheelsDownStart = state.gearFraction >= GEAR_DOWN_FRACTION
   let onWaterStart = false
   if (startGround !== null) {
+    const startWaterVelocity = waterSupportVelocity(startGround.velocity, startGround.water, state.velocity)
     onGroundStart = onGround(spec, state, startGround.heightM, startGround.velocity)
     onLandStart = startGround.surface === 'land' || startGround.surface === 'deck'
     onWaterStart = startGround.surface === 'water'
-      && supportedWaterContact(spec, state, startGround.heightM, startGround.velocity)
+      && supportedWaterContact(spec, state, startGround.heightM, startWaterVelocity)
     // `state.velocity.y <= 0`: a unilateral contact force may act only while
     // the bodies are not separating (Finding 1, whole-branch review).
     // `supportedContact` bounds SINK but places no bound on CLIMB, so without
@@ -530,7 +533,7 @@ export function step(
     // still be recognized as supported once integrated.
     if (
       force.y < 0 &&
-      state.velocity.y <= 0 &&
+      state.velocity.y - (startGround.surface === 'water' ? startWaterVelocity.y : startGround.velocity.y) <= 0 &&
       (supportedContact(spec, state, startGround.heightM, startGround.surface, startGround.velocity, startGround.landClass)
         || onWaterStart)
     ) {
@@ -551,7 +554,7 @@ export function step(
     // too (Task 16): a wheel over open water gets no traction to roll
     // against either.
     if (onGroundStart && wheelsDownStart && onLandStart) {
-      const relStart = sub(state.velocity, startGround.velocity)
+      const relStart = sub(state.velocity, startWaterVelocity)
       const track = v3(relStart.x, 0, relStart.z)
       const trackSpeed = length(track)
       if (trackSpeed > 1e-6) {
@@ -608,14 +611,14 @@ export function step(
   // so a supported contact and the rest/grip below are judged and applied
   // RELATIVE TO THE DECK -- a chocked airplane matching the ship's velocity
   // reads as at rest, not as rolling at the ship's speed.
-  const ground = groundUnder(ctx.terrain ?? null, decks, position.x, position.z)
+  const ground = groundUnder(ctx.terrain ?? null, decks, position.x, position.z, ctx.water)
   let seated = false
   let waterSeated = false
   if (ground !== null) {
     const integrated: AircraftState = { ...state, position, velocity }
     if (supportedContact(spec, integrated, ground.heightM, ground.surface, ground.velocity, ground.landClass)) {
       seated = true
-      const rested = restOnSurface(spec, integrated, ground.heightM, ground.velocity)
+      const rested = restOnSurface(spec, integrated, ground.heightM, ground.velocity, ground.deck !== null)
       position = rested.position
       // Tire grip, applied ONLY while the wheels are carrying the airplane.
       // An airplane in the air has no tires on anything, and one arriving too
@@ -625,10 +628,10 @@ export function step(
       velocity = lateralGripAfter(spec, { ...rested, velocity: rested.velocity }, dt, ground.velocity)
     } else if (
       ground.surface === 'water'
-      && supportedWaterContact(spec, integrated, ground.heightM, ground.velocity)
+      && supportedWaterContact(spec, integrated, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, integrated.velocity))
     ) {
       waterSeated = true
-      const rested = restOnWater(spec, integrated, ground.heightM, ground.velocity)
+      const rested = restOnWater(spec, integrated, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, integrated.velocity))
       position = rested.position
       velocity = rested.velocity
     }
@@ -761,10 +764,25 @@ export function step(
   // without this, an airplane that drove off the end of a runway kept its
   // wheels locked to zero roll and its tailwheel steering all the way across
   // the ocean.
+  const waterPose = startGround !== null && onWaterStart && spec.waterOperations !== undefined
+    ? watercraftPoseAt(
+        ctx.water,
+        state.position.x,
+        state.position.z,
+        Math.atan2(forward.x, -forward.z),
+        spec.geometry.wingSpanM * 0.62,
+        spec.waterOperations.floatHalfSpanM * 2,
+      )
+    : null
   const bodyRates = startGround !== null && onWaterStart
-    ? waterBodyRates(spec, state, controls, ratesWithStall, startGround.velocity)
+    ? waterBodyRates(spec, state, controls, ratesWithStall, waterSupportVelocity(startGround.velocity, startGround.water, state.velocity), waterPose ?? undefined)
     : startGround !== null && onGroundStart && wheelsDownStart && onLandStart
-      ? groundBodyRates(spec, state, controls, ratesForGround, dt, startGround.velocity)
+      ? groundBodyRates(spec, state, controls, ratesForGround, dt, startGround.velocity, startGround.deck === null ? undefined : {
+          pitchRad: startGround.deck.pitchRad,
+          rollRad: startGround.deck.rollRad,
+          pitchRateRadPerS: startGround.deck.pitchRateRadPerS,
+          rollRateRadPerS: startGround.deck.rollRateRadPerS,
+        })
       : ratesWithStall
   // On the wheels the airplane turns about the WORLD vertical, not its own
   // body-up axis (T1 taxi regression, 2026-09-28). The two coincide at level
@@ -795,11 +813,12 @@ export function step(
   // loses energy, and nothing is done beyond contact tolerance. Only when the
   // wheels were seated above: an unsupported arrival is `advance`'s business.
   if (seated && ground !== null) {
-    const reseated = restOnSurface(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity)
+    const reseated = restOnSurface(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity, ground.deck !== null)
     position = reseated.position
     velocity = reseated.velocity
   } else if (waterSeated && ground !== null) {
-    const reseated = restOnWater(spec, { ...state, position, velocity, attitude }, ground.heightM, ground.velocity)
+    const waterState = { ...state, position, velocity, attitude }
+    const reseated = restOnWater(spec, waterState, ground.heightM, waterSupportVelocity(ground.velocity, ground.water, waterState.velocity))
     position = reseated.position
     velocity = reseated.velocity
   }

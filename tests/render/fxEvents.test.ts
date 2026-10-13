@@ -17,6 +17,7 @@ import { readFileSync } from 'node:fs'
 import type { Projectile } from '../../src/sim/weapons/combat.js'
 import { modelIO } from '../../tools/models/document.js'
 import { measureDocument } from '../../tools/models/measure.js'
+import { waterSurfaceAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
 
 const spec = loadAircraftSpec('f6f-hellcat')
 const craft = (id: string, position: Vec3) => {
@@ -30,6 +31,8 @@ const base = (): { combat: CombatState; aircraft: ReturnType<typeof craft>[] } =
 const view = (tick: number, combat: CombatState, aircraft: ReturnType<typeof craft>[], extra: Partial<FxWorldView> = {}): FxWorldView => ({
   tick, combat, aircraft,
   poses: aircraft.map((a) => ({ position: a.state.position, attitude: qIdentity() })),
+  ships: [],
+  shipPoses: [],
   shipSmokeOrigins: new Map([['maru', v3(9000, 20, 0)]]),
   structureAnchors: new Map([['hangar', v3(-500, 12, 40)]]),
   ...extra,
@@ -39,6 +42,36 @@ const hit = (tick: number, over: Partial<CombatImpact> = {}): CombatImpact =>
 const withImpacts = (c: CombatState, impacts: CombatImpact[]): CombatState => ({ ...c, impacts })
 
 describe('fx events (effects design §3.2)', () => {
+  it('gives every afloat ship lapping at rest and a speed-scaled stern wake underway', () => {
+    const { combat, aircraft } = base()
+    const pose = { position: v3(100, 0.25, 200), headingRad: 0, pitchRad: 0.01, rollRad: -0.02 }
+    const ship = (speedMps: number) => ({ id: 'maru', spec: { lengthM: 100, maxSpeedMps: 20 }, state: { speedMps } })
+    const still = nextFxEvents(NO_FX_MEMORY, view(1, combat, aircraft, { ships: [ship(0)], shipPoses: [pose] })).sustained
+    expect(still.find((s) => s.key === 'water:maru')).toMatchObject({ recipe: 'water.lap', intensity: 0.45, position: v3(100, 0.4, 248) })
+    const moving = nextFxEvents(NO_FX_MEMORY, view(1, combat, aircraft, { ships: [ship(10)], shipPoses: [pose] })).sustained
+    expect(moving.find((s) => s.key === 'water:maru')).toMatchObject({ recipe: 'water.wake', intensity: 0.8, position: v3(100, 0.4, 248) })
+    const sunk = { ...combat, ships: { ...combat.ships, maru: { ...combat.ships['maru']!, sinkingFraction: 1 } } }
+    expect(nextFxEvents(NO_FX_MEMORY, view(1, sunk, aircraft, { ships: [ship(10)], shipPoses: [pose] })).sustained.some((s) => s.key === 'water:maru')).toBe(false)
+  })
+
+  it('gives the Catalina lapping at rest and a wake while taxiing on the step', () => {
+    const pbySpec = loadAircraftSpec('pby-5a-catalina')
+    const water = pbySpec.waterOperations!
+    const support = waterSurfaceContext(7, v3(30, 0, 0))
+    const surface = waterSurfaceAt(support, 0, 0)
+    const afloat = (speedMps: number) => {
+      const planing = Math.max(0, Math.min(1, (speedMps - water.planingSpeedMps) / (water.takeoffSpeedMps - water.planingSpeedMps)))
+      const draft = water.displacementDraftM + planing * (water.planingDraftM - water.displacementDraftM)
+      const state = createState({ position: v3(0, surface.heightM + water.hullDepthM - draft, 0), velocity: v3(speedMps, surface.verticalSpeedMps, 0), gearFraction: 0, flapFraction: 1 })
+      return { id: 'pby', spec: pbySpec, state, previous: state, controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, impact: null as Impact | null }
+    }
+    for (const [speed, recipe] of [[0, 'water.lap'], [20, 'water.wake']] as const) {
+      const pby = afloat(speed)
+      const combat = createCombat([pby])
+      expect(nextFxEvents(NO_FX_MEMORY, view(1, combat, [pby], { water: support })).sustained.find((s) => s.key === 'water:pby')?.recipe).toBe(recipe)
+    }
+  })
+
   it('maps every impact to its recipe; expiries to nothing (Rulings R1, R4)', () => {
     expect(impactRecipe({ cause: 'bomb', outcome: 'detonated', surface: 'water' })).toBe('bomb.water')
     expect(impactRecipe({ cause: 'bomb', outcome: 'detonated', surface: 'ship' })).toBe('bomb.land')

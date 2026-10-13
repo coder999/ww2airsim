@@ -35,6 +35,10 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
     hull support and takeoff, the ordinary ground conformance table for their
     wheel path, and `flyableAll.spec.ts` for the browser path. `afloatAt` and
     water-only sortie eligibility are held in `tests/sim/sortie.test.ts`.
+  - `tests/sim/waterSurface.test.ts` pins the shared deterministic support sea,
+    motion across wave slopes and hull-size filtering. Ship tests cover
+    wave-supported heave/attitude, while FX event tests require lapping at rest
+    and speed-scaled wakes for ships and water-supported aircraft.
 - **A test is a correctness test or a budget test, never both.** Frame time is asserted only in `budget` (the gate: High gpu p95 ≤ 8.33 ms at 1440p in every view, H0 2026-10-08), `fx-budget`, `motionBudget`, `terrainTextures` and the frame-time tests in `terrain` and `strike`; every other spec records it with `recordFrameTime` (`tests/e2e/harness.ts`).
   - Budget test titles match `budget|p95|tripwire|frame time|Hz`. That is how the nightly tells budget misses apart (Overnight run, below), so keep those words out of other titles.
 - **Assert behavior, not constants.** A bare `expect(SOME_CONST).toBe(0.25)` fails on every intentional tweak and protects nothing. Prefer:

@@ -176,8 +176,10 @@ describe('the landing debrief', () => {
 it('credits a carrier only when touchdown and rest belong to the same ship', () => {
   const deck: Deck = {
     shipId: 'cv-1', center: v3(0, FIELD_M, 0), headingRad: 0,
+    pitchRad: 0, rollRad: 0,
     lengthM: 262.7, widthM: 32.9, velocity: v3(0, 0, 0),
-    yawRateRadPerS: 0, trapFromSternM: 30, trapToSternM: 130,
+    yawRateRadPerS: 0, pitchRateRadPerS: 0, rollRateRadPerS: 0,
+    trapFromSternM: 30, trapToSternM: 130,
   }
   const tracking = {
     airborne: true, report: null,

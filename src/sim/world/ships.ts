@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { SimContext } from '../loop.js'
 import { type Vec3, v3 } from '../math/vec3.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from './terrain.js'
+import { watercraftPoseAt } from '../waterSurface.js'
 
 /**
  * Ships: pure kinematics on a closed waypoint loop (spec §5).
@@ -138,11 +139,13 @@ export function parseShipSpec(raw: unknown): ShipSpec {
 }
 
 export type ShipState = {
-  /** World meters. `y` is always `SEA_LEVEL_M`: the sim has no waves. */
+  /** World meters. `y` is the support sea's heave at the hull reference point. */
   readonly position: Vec3
   /** Compass heading: 0 north (-z), pi/2 east (+x) -- the gauges' own
    *  `atan2(forward.x, -forward.z)`. Kept in (-pi, pi] by `wrapPi`. */
   readonly headingRad: number
+  readonly pitchRad: number
+  readonly rollRad: number
   readonly speedMps: number
   /** Index into `ShipOrders.waypoints` of the point currently steered for. */
   readonly waypoint: number
@@ -162,6 +165,8 @@ export type ShipOrders = {
 export const createShipState = (init: Partial<ShipState> = {}): ShipState => ({
   position: init.position ?? v3(0, SEA_LEVEL_M, 0),
   headingRad: init.headingRad ?? 0,
+  pitchRad: init.pitchRad ?? 0,
+  rollRad: init.rollRad ?? 0,
   speedMps: init.speedMps ?? 0,
   waypoint: init.waypoint ?? 0,
   tick: init.tick ?? 0,
@@ -219,9 +224,18 @@ export function stepShip(spec: ShipSpec, state: ShipState, orders: ShipOrders, c
   const speedMps = ordered < 0 ? 0 : ordered > spec.maxSpeedMps ? spec.maxSpeedMps : ordered
 
   const velocity = shipVelocity(headingRad, speedMps)
+  const x = state.position.x + velocity.x * dt
+  const z = state.position.z + velocity.z * dt
+  const sea = watercraftPoseAt(ctx.water, x, z, headingRad, spec.lengthM, spec.beamM)
+  // A hull does not copy the instantaneous support-plane angle. Its mass filters the sea; the
+  // length-scaled first-order response also keeps a carrier deck's end-point velocity physical.
+  const responseSeconds = Math.max(0.6, Math.min(3.5, spec.lengthM / 80))
+  const response = ctx.water === undefined ? 1 : 1 - Math.exp(-dt / responseSeconds)
   return {
-    position: v3(state.position.x + velocity.x * dt, SEA_LEVEL_M, state.position.z + velocity.z * dt),
+    position: v3(x, state.position.y + (SEA_LEVEL_M + sea.heightM - state.position.y) * response, z),
     headingRad,
+    pitchRad: state.pitchRad + (sea.pitchRad - state.pitchRad) * response,
+    rollRad: state.rollRad + (sea.rollRad - state.rollRad) * response,
     speedMps,
     waypoint,
     tick: ctx.tick,

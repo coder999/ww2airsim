@@ -40,7 +40,7 @@ test('Catalina Hangar and water-operation views', async ({ page }) => {
   await waitForTerrain(page)
   await page.waitForTimeout(500)
   await page.screenshot({ path: `${OUT}/pby-5a-afloat-torpedoes.png` })
-  const restY = await page.evaluate(() => (window as DiagWindow).__ww2!.playerFlight()!.spec.waterOperations!.hullDepthM)
+  const restY = await page.evaluate(() => (window as DiagWindow).__ww2!.playerFlight()!.state.position.y)
   await page.keyboard.down('Equal')
   await page.keyboard.down('ArrowDown')
   try {

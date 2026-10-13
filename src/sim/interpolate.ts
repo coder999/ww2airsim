@@ -98,17 +98,20 @@ export function interpolateAircraft(
   }
 }
 
-/** Where the renderer puts a hull between two ticks. A ship has no attitude
- *  in this plan -- no roll, no pitch, no waves -- so a heading is the whole
- *  of it. */
-export type ShipPose = { readonly position: Vec3; readonly headingRad: number }
+/** Where the renderer puts a wave-supported hull between two ticks. */
+export type ShipPose = {
+  readonly position: Vec3
+  readonly headingRad: number
+  readonly pitchRad: number
+  readonly rollRad: number
+}
 
 /** Between two ship ticks: linear in position, shortest-arc in heading. The
  *  same alpha clamp as `interpolateAircraft`, for the same reason. */
 export function interpolateShip(prev: ShipState, curr: ShipState, alpha: number): ShipPose {
   const t = alpha <= 0 ? 0 : alpha >= 1 ? 1 : alpha
-  if (t === 0) return { position: prev.position, headingRad: prev.headingRad }
-  if (t === 1) return { position: curr.position, headingRad: curr.headingRad }
+  if (t === 0) return { position: prev.position, headingRad: prev.headingRad, pitchRad: prev.pitchRad, rollRad: prev.rollRad }
+  if (t === 1) return { position: curr.position, headingRad: curr.headingRad, pitchRad: curr.pitchRad, rollRad: curr.rollRad }
   return {
     position: v3(
       prev.position.x + (curr.position.x - prev.position.x) * t,
@@ -116,6 +119,8 @@ export function interpolateShip(prev: ShipState, curr: ShipState, alpha: number)
       prev.position.z + (curr.position.z - prev.position.z) * t,
     ),
     headingRad: wrapPi(prev.headingRad + wrapPi(curr.headingRad - prev.headingRad) * t),
+    pitchRad: prev.pitchRad + (curr.pitchRad - prev.pitchRad) * t,
+    rollRad: prev.rollRad + (curr.rollRad - prev.rollRad) * t,
   }
 }
 

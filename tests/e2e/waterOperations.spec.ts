@@ -25,6 +25,7 @@ test('the Catalina starts afloat with torpedoes and makes a water takeoff', asyn
       gear: flight.state.gearFraction,
       floats: flight.state.flapFraction,
       hullDepth: flight.spec.waterOperations!.hullDepthM,
+      displacementDraft: flight.spec.waterOperations!.displacementDraftM,
       stores: d.combat()!.player.stores,
       impact: d.impact(),
       validationErrors: d.validationErrors,
@@ -34,7 +35,8 @@ test('the Catalina starts afloat with torpedoes and makes a water takeoff', asyn
     model: 'pby-5a-catalina', gear: 0, floats: 1,
     stores: { bombs: 2, rockets: 0 }, impact: null, validationErrors: [],
   })
-  expect(start.positionY).toBeCloseTo(start.hullDepth, 3)
+  expect(start.positionY).toBeGreaterThan(start.hullDepth - start.displacementDraft - 1)
+  expect(start.positionY).toBeLessThan(start.hullDepth + 1)
 
   await page.keyboard.down('Equal')
   await page.keyboard.down('ArrowDown')
@@ -44,7 +46,7 @@ test('the Catalina starts afloat with torpedoes and makes a water takeoff', asyn
         const flight = (window as DiagWindow).__ww2!.playerFlight()
         return flight !== null && flight.state.position.y > restY + 10 && flight.state.velocity.y > 0
       },
-      start.hullDepth,
+      start.positionY,
       { timeout: 120_000, polling: 250 },
     )
   } finally {

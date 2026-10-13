@@ -245,7 +245,7 @@ describe('supported contact requires land (Task 16, Mark drove off the runway on
     for (let i = 0; i < 300 && playerAircraft(w).impact === null; i++) w = advance(w, DT).world
 
     expect(playerAircraft(w).impact, 'kept rolling on top of the water instead of crashing').not.toBeNull()
-    expect(surfaceAt(playerAircraft(w).impact!.groundHeightM)).toBe('water')
+    expect(playerAircraft(w).impact!.surface).toBe('water')
     expect(playerAircraft(w).impact!.kind).toBe('destroyed')
   })
 })

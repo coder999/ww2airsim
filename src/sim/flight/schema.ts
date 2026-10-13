@@ -487,6 +487,9 @@ const AircraftSpecObject = z.object({
   waterOperations: z.object({
     /** Body-origin-to-keel depth at the step, metres. */
     hullDepthM: positive,
+    /** How far the keel sits below the mean surface at rest and on the step. */
+    displacementDraftM: positive,
+    planingDraftM: positive,
     /** Half the lateral distance between the stabilising float contacts. */
     floatHalfSpanM: positive,
     /** Body-origin-to-float-bottom depth with the floats extended. */
@@ -519,6 +522,13 @@ const AircraftSpecObject = z.object({
         code: z.ZodIssueCode.custom,
         path: ['planingDragCoeff'],
         message: 'planing drag must not exceed displacement drag',
+      })
+    }
+    if (w.planingDraftM > w.displacementDraftM || w.displacementDraftM >= w.hullDepthM) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['planingDraftM'],
+        message: 'planing draft must not exceed displacement draft, and displacement draft must be below hull depth',
       })
     }
   }).optional(),

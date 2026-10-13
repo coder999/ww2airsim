@@ -24,6 +24,7 @@ import { groundUnder } from '../../src/sim/world/ground.js'
 import { surfaceAt } from '../../src/sim/contact.js'
 import { wheelDepthM, wheelDepthOf } from '../../src/sim/gearContact.js'
 import { GROUND_CONTACT_TOLERANCE_M, supportedContact } from '../../src/sim/ground.js'
+import { watercraftPoseAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
 
 export type EntitySoakResult = { failures: string[]; iterations: number; steps: number }
 
@@ -488,11 +489,11 @@ const NEAR_GROUND_SPAWN_FRACTION = 0.3
  * under the same chaotic input the rest of the soak uses, not a scripted taxi.
  *
  * Per-tick, after `advance`, the invariant is checked from OUTSIDE `advance`'s
- * own state: `heightAt(terrain, ...)` is recomputed independently against the
- * position `advance` just produced, and if that says the airplane is at or
- * below the ground, the player's `impact` must already be non-null
- * (`advance` runs its own identical check first, in the same call, so a correct
- * implementation can never observe otherwise -- this is the same
+ * own state: `groundUnder(terrain, ..., water)` is recomputed independently
+ * against the position and simulation time `advance` just produced. If that
+ * says the airplane is at or below its surface, the player's `impact` must
+ * already be non-null (`advance` runs its own identical check first, in the
+ * same call, so a correct implementation can never observe otherwise -- this is the same
  * cross-check-by-recomputation shape `assertAuthorityHolds` above uses for
  * the assist stack, not an independent oracle). A flight stops the instant it
  * has one (nothing after the first impact is this task's concern -- see
@@ -600,7 +601,8 @@ export function runTerrainSoak(
           // `state`, `previous` and `impact` are what `World` itself carried
           // before Plan 12 generalized it to N entities.
           const player = playerAircraft(world)
-          const gh = groundUnder(terrain, [], player.state.position.x, player.state.position.z)!.heightM
+          const water = waterSurfaceContext(world.tick * DT, world.wind)
+          const gh = groundUnder(terrain, [], player.state.position.x, player.state.position.z, water)!.heightM
           // Task 10: `position.y <= gh` with `impact` still null is no longer
           // proof of a missed crash by itself -- `advance`'s own impact check
           // (src/sim/loop.ts) exempts a `supportedContact` state on purpose
@@ -644,7 +646,8 @@ export function runTerrainSoak(
           // let the airplane punch through the ground is still caught even
           // though the resulting position no longer looks anything like
           // "near the ground".
-          const ghPrev = groundUnder(terrain, [], player.previous.position.x, player.previous.position.z)!.heightM
+          const previousWater = waterSurfaceContext(Math.max(0, world.tick - 1) * DT, world.wind)
+          const ghPrev = groundUnder(terrain, [], player.previous.position.x, player.previous.position.z, previousWater)!.heightM
           // Task 15: gated on `supportedContact`, not the bare `onGround`.
           // `onGround` alone is a POSITION-only test, which was an adequate
           // proxy for "was genuinely resting" only because the pre-Task-15
@@ -708,7 +711,10 @@ export function runTerrainSoak(
         // Recomputed from outside `advance`, the same way this soak already
         // re-derives the ground height rather than trusting the one on the
         // world. A field that agrees with itself proves nothing.
-        const expectedSurface = surfaceAt(hit.groundHeightM)
+        // A water impact records the moving wave height, which may be above
+        // zero and therefore cannot be classified by `surfaceAt` itself.
+        // Re-sample the terrain column to identify land versus open water.
+        const expectedSurface = surfaceAt(heightAt(terrain, hit.position.x, hit.position.z))
         if (hit.surface !== expectedSurface) {
           failures.push(
             `iteration ${n} (seed ${seed}): impact surface ${hit.surface} but groundHeightM ` +
@@ -737,7 +743,7 @@ export function runTerrainSoak(
 
 /**
  * The multi-entity invariants (Plan 12 spec section 10): every active
- * entity shares the world's tick; ships stay at sea level and over water;
+ * entity shares the world's tick; ships stay in the support sea and over water;
  * chocked aircraft hold their spots; and a seed reproduces the whole world.
  */
 export function runEntitySoak(
@@ -791,8 +797,18 @@ export function runEntitySoak(
           if (ship.state.tick !== world.tick) {
             failures.push(`iteration ${iteration}: ship ${ship.id} tick ${ship.state.tick} != world tick ${world.tick}`)
           }
-          if (ship.state.position.y !== SEA_LEVEL_M) {
-            failures.push(`iteration ${iteration}: ship ${ship.id} left sea level: y ${ship.state.position.y}`)
+          const support = watercraftPoseAt(
+            waterSurfaceContext(world.tick * DT, world.wind),
+            ship.state.position.x,
+            ship.state.position.z,
+            ship.state.headingRad,
+            ship.spec.lengthM,
+            ship.spec.beamM,
+          )
+          if (![ship.state.position.y, ship.state.pitchRad, ship.state.rollRad].every(Number.isFinite)) {
+            failures.push(`iteration ${iteration}: ship ${ship.id} has a non-finite water pose`)
+          } else if (Math.abs(ship.state.position.y - (SEA_LEVEL_M + support.heightM)) > 1) {
+            failures.push(`iteration ${iteration}: ship ${ship.id} left its support sea: y ${ship.state.position.y}, support ${support.heightM}`)
           }
           const height = heightAt(terrain, ship.state.position.x, ship.state.position.z)
           if (height > SEA_LEVEL_M) {

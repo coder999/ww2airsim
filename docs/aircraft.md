@@ -107,7 +107,13 @@ landing gear remains ordinary wheel gear; hull support is available only over
 water with the wheels retracted. Retractable lateral floats are rig nodes
 `FloatL` and `FloatR`, driven by `flapFraction` until a dedicated float control
 exists. Such an aircraft therefore has no aerodynamic-flap lift increment and
-must start/land on water with floats down.
+must start/land on water with floats down. `displacementDraftM` and
+`planingDraftM` locate the hull in the shared deterministic support sea: the
+craft heaves and follows long wave slopes at rest, rises onto the step with
+speed, and releases support while climbing at `takeoffSpeedMps`. The rendered
+ocean remains richer than this contact model; it need not match individual
+crests. Ships use the same support sea, with hull-size response filtering, and
+all supported watercraft produce lapping spray at rest or a stern wake underway.
 
 ### D6. Engines
 

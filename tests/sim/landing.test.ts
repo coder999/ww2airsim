@@ -212,12 +212,15 @@ describe('an approach flown into Tacloban', () => {
     // Re-recorded 2026-10-11 after the Blender Hellcat promotion re-measured
     // mainX, thirdX and thirdHeightM from the drawing. The approach remains
     // gentle and centered; the new physical stance moves the rollout 1.64 m.
+    // Re-recorded 2026-10-12 after moving-water landing bookkeeping began
+    // sampling the previous contact point once and sharing it between the
+    // support and touchdown calculations. The change is under 3 micrometres.
     expect({ touchdownSinkMps, touchdownSpeedMps, restX: rest.position.x, restZ: rest.position.z }).toMatchInlineSnapshot(`
       {
         "restX": -29666,
-        "restZ": -47688.13543842732,
-        "touchdownSinkMps": 1.3583310317344388,
-        "touchdownSpeedMps": 37.59631425497266,
+        "restZ": -47688.13543591655,
+        "touchdownSinkMps": 1.3583310342695258,
+        "touchdownSpeedMps": 37.59631422882201,
       }
     `)
   })

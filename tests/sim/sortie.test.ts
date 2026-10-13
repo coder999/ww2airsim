@@ -5,6 +5,7 @@ import { ALL_LOADOUTS, DEV_STORES_SPEC_ID, DEV_STORES_SUFFIX, eligibleAircraft, 
 import { readdirSync } from 'node:fs'
 import { advance, withControls, type Stepper } from '../../src/sim/loop.js'
 import { DT } from '../../src/sim/flight/model.js'
+import { waterSurfaceAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
 
 const hellcat = loadAircraftSpec('f6f-hellcat')
 const wildcat = loadAircraftSpec('f4f-wildcat')
@@ -43,8 +44,13 @@ describe('startKindOf', () => {
   it('builds the Catalina afloat at its hull waterline with wheels up and floats down', () => {
     const world = worldFromScenario(loadScenarioBundle('water-quals'), null, 'clean')
     const player = world.aircraft.find((a) => a.id === world.player)!
-    expect(player.state.position).toEqual({ x: -13000, y: catalina.waterOperations!.hullDepthM, z: -36000 })
-    expect(player.state.velocity).toEqual({ x: 0, y: 0, z: 0 })
+    const water = waterSurfaceAt(waterSurfaceContext(0, world.wind), -13000, -36000)
+    expect(player.state.position).toEqual({
+      x: -13000,
+      y: water.heightM + catalina.waterOperations!.hullDepthM - catalina.waterOperations!.displacementDraftM,
+      z: -36000,
+    })
+    expect(player.state.velocity).toEqual({ x: 0, y: water.verticalSpeedMps, z: 0 })
     expect(player.state.gearFraction).toBe(0)
     expect(player.state.flapFraction).toBe(1)
     expect(player.controls).toMatchObject({ gearDown: false, flapDown: true, throttle: 0 })

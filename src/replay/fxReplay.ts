@@ -1,10 +1,10 @@
 import { DT } from '../sim/flight/model.js'
-import type { World } from '../sim/loop.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import { nextFxEvents, NO_FX_MEMORY, type FxMemory, type FxSustained, type FxWorldView } from '../render/fx/events.js'
 import type { FxSystem } from '../render/fx/system.js'
 import type { Recording } from './recorder.js'
 import { replayPosesAt, type ReplayPoses } from './view.js'
+import { waterSurfaceContext } from '../sim/waterSurface.js'
 
 /**
  * Instant replay ruling R-3: the live fx system is reseeded with this fixed
@@ -28,8 +28,15 @@ export type FxAnchors = {
   readonly muzzles?: NonNullable<FxWorldView['muzzles']>
 }
 
-const viewOf = (w: World<undefined>, poses: ReplayPoses['poses'], anchors: FxAnchors): FxWorldView => ({
-  tick: w.tick, combat: w.combat, aircraft: w.aircraft, poses, ...anchors,
+const viewOf = (pose: ReplayPoses, anchors: FxAnchors): FxWorldView => ({
+  tick: pose.world.tick,
+  combat: pose.world.combat,
+  aircraft: pose.world.aircraft,
+  poses: pose.poses,
+  ships: pose.world.ships,
+  shipPoses: pose.shipPoses,
+  water: waterSurfaceContext(pose.tickTimeS, pose.world.wind),
+  ...anchors,
 })
 
 /**
@@ -46,7 +53,7 @@ export function stepReplayFx(
   anchors: FxAnchors,
   extraSustained: readonly FxSustained[] = [],
 ): FxMemory {
-  const events = nextFxEvents(memory, viewOf(pose.world, pose.poses, anchors))
+  const events = nextFxEvents(memory, viewOf(pose, anchors))
   for (const t of events.triggers) fx.trigger(t.recipe, t.position, t.velocity)
   fx.setSustained([...events.sustained, ...extraSustained])
   fx.step(dtS)
@@ -78,7 +85,7 @@ export function rebuildReplayFx(
   const worlds = rec.worlds
   const first = worlds[0]!
   const firstPose = replayPosesAt(rec, first.tick * DT)
-  let memory = nextFxEvents(NO_FX_MEMORY, viewOf(first, firstPose.poses, anchors)).memory
+  let memory = nextFxEvents(NO_FX_MEMORY, viewOf(firstPose, anchors)).memory
   let prevTick = first.tick
   let i = 1
   for (; i < worlds.length && worlds[i]!.tick * DT <= tS; i++) {
@@ -90,7 +97,7 @@ export function rebuildReplayFx(
   // Internal re-simulation deliberately excludes renderer-owned emitters. At the requested frame,
   // combine them with the recorded world's state-driven sources before stepping the fractional tail.
   const currentPose = replayPosesAt(rec, tS)
-  const currentEvents = nextFxEvents(memory, viewOf(currentPose.world, currentPose.poses, anchors))
+  const currentEvents = nextFxEvents(memory, viewOf(currentPose, anchors))
   fx.setSustained([...currentEvents.sustained, ...extraSustained])
   const tailS = tS - prevTick * DT
   if (tailS > 0) fx.step(tailS)

@@ -1,6 +1,6 @@
 import type { ContactSurface } from '../../sim/contact.js'
 import { DT } from '../../sim/flight/model.js'
-import type { RenderState } from '../../sim/interpolate.js'
+import type { RenderState, ShipPose } from '../../sim/interpolate.js'
 import type { Impact } from '../../sim/loop.js'
 import { qRotate } from '../../sim/math/quat.js'
 import { add, length, scale, v3, ZERO, type Vec3 } from '../../sim/math/vec3.js'
@@ -9,6 +9,8 @@ import type { CombatImpact } from '../../sim/weapons/impacts.js'
 import { SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import type { RecipeId } from './catalog.js'
 import { engineHealths, smokeLevel } from '../../sim/damage/model.js'
+import type { AircraftSpec } from '../../sim/flight/schema.js'
+import { waterSurfaceAt, type WaterSurfaceContext } from '../../sim/waterSurface.js'
 
 /**
  * Sim state -> effect events (ordnance-and-effects design §3.2). Pure. One
@@ -34,10 +36,19 @@ export type FxWorldView = {
   readonly aircraft: readonly {
     readonly id: string; readonly impact: Impact | null; readonly state: { readonly velocity: Vec3 }
     /** For a multi-engine airplane's engine points; absent reads as single-engine. */
-    readonly spec?: { readonly combat?: { readonly zones: readonly { readonly center: readonly [number, number, number]; readonly system: string; readonly engine?: number | undefined }[] } | undefined }
+    readonly spec: AircraftSpec
   }[]
   /** Parallel to `aircraft`: this frame's interpolated poses (frame.ts `posesFor`). */
   readonly poses: readonly RenderState[]
+  readonly ships: readonly {
+    readonly id: string
+    readonly spec: { readonly lengthM: number; readonly maxSpeedMps: number }
+    readonly state: { readonly speedMps: number }
+  }[]
+  /** Parallel to `ships`: wave-supported render poses. */
+  readonly shipPoses: readonly ShipPose[]
+  /** The same deterministic support sea that positioned the craft. */
+  readonly water?: WaterSurfaceContext
   /** World metres, per ship id: the view's smoke origin (Ruling R13). */
   readonly shipSmokeOrigins: ReadonlyMap<string, Vec3>
   /** World metres, per structure id: the rendered building's smoke anchor (Ruling R13). */
@@ -138,6 +149,30 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
     const pose = w.poses[index]
     const rec = w.combat.aircraft[a.id]
     if (pose === undefined || rec === undefined) return
+    const water = a.spec.waterOperations
+    if (water !== undefined && a.impact === null) {
+      const speed = Math.hypot(a.state.velocity.x, a.state.velocity.z)
+      const planing = clamp01((speed - water.planingSpeedMps) / (water.takeoffSpeedMps - water.planingSpeedMps))
+      const draftM = water.displacementDraftM + planing * (water.planingDraftM - water.displacementDraftM)
+      const waterlineY = pose.position.y - water.hullDepthM + draftM
+      const surfaceY = waterSurfaceAt(w.water, pose.position.x, pose.position.z).heightM
+      // Compare with the shared support sea, not datum zero: a Catalina keeps its wake through
+      // a high-sea crest, while a departing hull drops the cue promptly.
+      if (Math.abs(waterlineY - surfaceY) < 1) {
+        const aft = speed > 0.2
+          ? v3(-a.state.velocity.x / speed, 0, -a.state.velocity.z / speed)
+          : qRotate(pose.attitude, v3(-1, 0, 0))
+        const lengthM = a.spec.geometry.wingSpanM * 0.62
+        const position = v3(pose.position.x + aft.x * lengthM * 0.42, waterlineY + 0.12, pose.position.z + aft.z * lengthM * 0.42)
+        sustained.push({
+          key: `water:${a.id}`,
+          recipe: speed > 1 ? 'water.wake' : 'water.lap',
+          intensity: speed > 1 ? clamp01(0.25 + speed / water.takeoffSpeedMps) : 0.65,
+          position,
+          velocity: ZERO,
+        })
+      }
+    }
     if (a.impact !== null && seenCrashTick[a.id] !== a.impact.tick) {
       seenCrashTick[a.id] = a.impact.tick
       triggers.push({ recipe: crashRecipe(a.impact.surface), position: a.impact.position, velocity: ZERO })
@@ -180,6 +215,27 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
         smoke(`engine:${a.id}`, smokeLevel({ ...rec.damage, engine: 1 }), ZERO)
       }
     }
+  })
+
+  // Every ship uses the same stern-water contract as a flying boat: lapping at rest, a foam trail
+  // once underway. Particles inherit no hull velocity, so the moving emitter leaves a wake behind.
+  w.ships.forEach((ship, index) => {
+    const pose = w.shipPoses[index]
+    if (pose === undefined || (w.combat.ships[ship.id]?.sinkingFraction ?? 0) >= 1) return
+    const speed = ship.state.speedMps
+    const bowX = Math.sin(pose.headingRad), bowZ = -Math.cos(pose.headingRad)
+    const position = v3(
+      pose.position.x - bowX * ship.spec.lengthM * 0.48,
+      pose.position.y + 0.15,
+      pose.position.z - bowZ * ship.spec.lengthM * 0.48,
+    )
+    sustained.push({
+      key: `water:${ship.id}`,
+      recipe: speed > 0.5 ? 'water.wake' : 'water.lap',
+      intensity: speed > 0.5 ? clamp01(0.3 + speed / ship.spec.maxSpeedMps) : 0.45,
+      position,
+      velocity: ZERO,
+    })
   })
 
   for (const p of w.combat.projectiles) {

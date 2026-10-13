@@ -1,4 +1,4 @@
-import { airVelocity } from '../flight/model.js'
+import { airVelocity, DT } from '../flight/model.js'
 import { length } from '../math/vec3.js'
 import { nextLandingTracking, NO_LANDING, type LandingReport, type LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
@@ -13,6 +13,7 @@ import { RESPOT_CLIMB_MESSAGE, RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder 
 import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
 import type { PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
+import { waterSurfaceContext } from '../waterSurface.js'
 
 /**
  * What one tick of a mission reads: `advance`'s loop locals after combat has
@@ -198,7 +199,16 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   let recovery = m.recovery
   let landing: LandingReport | null = null
   if (alive) {
-    recovery = nextLandingTracking(player.spec, m.recovery, player.previous, player.state, t.terrain, t.airfields, t.decks)
+    recovery = nextLandingTracking(
+      player.spec,
+      m.recovery,
+      player.previous,
+      player.state,
+      t.terrain,
+      t.airfields,
+      t.decks,
+      waterSurfaceContext(t.tick * DT, t.wind),
+    )
     if (recovery.report !== null) {
       landing = recovery.report
       recovery = NO_LANDING

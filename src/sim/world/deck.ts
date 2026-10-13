@@ -23,6 +23,8 @@ export type Deck = {
   readonly shipId: string
   readonly center: Vec3
   readonly headingRad: number
+  readonly pitchRad: number
+  readonly rollRad: number
   readonly lengthM: number
   readonly widthM: number
   /**
@@ -51,6 +53,8 @@ export type Deck = {
    * that field's own doc comment.
    */
   readonly yawRateRadPerS: number
+  readonly pitchRateRadPerS: number
+  readonly rollRateRadPerS: number
   readonly trapFromSternM: number
   readonly trapToSternM: number
 }
@@ -59,15 +63,19 @@ export function deckOf(ship: ShipEntity): Deck | null {
   const fd = ship.spec.flightDeck
   if (fd === undefined) return null
   const zone = ship.spec.trapZone ?? { fromSternM: 0, toSternM: 0 }
-  const { position, headingRad, speedMps } = ship.state
+  const { position, headingRad, pitchRad, rollRad, speedMps } = ship.state
   return {
     shipId: ship.id,
     center: v3(position.x, position.y + fd.heightM, position.z),
     headingRad,
+    pitchRad,
+    rollRad,
     lengthM: fd.lengthM,
     widthM: fd.widthM,
-    velocity: shipVelocity(headingRad, speedMps),
+    velocity: v3(shipVelocity(headingRad, speedMps).x, (ship.state.position.y - ship.previous.position.y) / DT, shipVelocity(headingRad, speedMps).z),
     yawRateRadPerS: wrapPi(headingRad - ship.previous.headingRad) / DT,
+    pitchRateRadPerS: (pitchRad - ship.previous.pitchRad) / DT,
+    rollRateRadPerS: (rollRad - ship.previous.rollRad) / DT,
     trapFromSternM: zone.fromSternM,
     trapToSternM: zone.toSternM,
   }

@@ -144,6 +144,7 @@ import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
 import { rebuildStructures } from '../sim/weapons/structures.js'
 import { airVelocity, step, DT } from '../sim/flight/model.js'
+import { waterSurfaceContext } from '../sim/waterSurface.js'
 import { stepChecked } from '../sim/invariants.js'
 import { heightAt, SEA_LEVEL_M, type TerrainField } from '../sim/world/terrain.js'
 import { onGround, supportedContact } from '../sim/ground.js'
@@ -1114,8 +1115,11 @@ async function boot(): Promise<void> {
           return {
             id: s.id,
             x: s.state.position.x,
+            y: s.state.position.y,
             z: s.state.position.z,
             headingRad: s.state.headingRad,
+            pitchRad: s.state.pitchRad,
+            rollRad: s.state.rollRad,
             hp: damage?.hp ?? s.spec.hullHp,
             sinkingFraction: damage?.sinkingFraction ?? 0,
             listRad: damage === undefined ? 0 : floodListRad(damage, s.spec.hullHp),
@@ -2867,15 +2871,16 @@ async function boot(): Promise<void> {
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
     })
-    // The hulls. A ship has no attitude in this plan (`interpolateShip`), only
-    // a heading, and `createShipMesh` puts its bow along local +x -- so the
-    // yaw is the same `pi/2 - headingRad` about +y that `parkedAttitude` gives
-    // a parked airplane, from the same compass convention.
+    // The hulls share the simulation support sea with amphibians and carrier
+    // decks. Models point along local +x, with pitch about +z and roll about +x.
     setEnsignTime(performance.now() / 1000)
     view.shipPoses.forEach((pose, i) => {
       const m = shipHandles[i]!.root
       m.position.set(pose.position.x, pose.position.y, pose.position.z)
-      const q = qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad)
+      const q = qMul(
+        qFromAxisAngle(v3(0, 1, 0), Math.PI / 2 - pose.headingRad),
+        qMul(qFromAxisAngle(v3(0, 0, 1), pose.pitchRad), qFromAxisAngle(v3(1, 0, 0), pose.rollRad)),
+      )
       m.quaternion.set(q.x, q.y, q.z, q.w)
     })
     view.vehiclePoses.forEach((pose, i) => {
@@ -3113,6 +3118,8 @@ async function boot(): Promise<void> {
       if (replay === null) {
         const events = nextFxEvents(fxMemory, {
           tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
+          ships: view.world.ships, shipPoses: view.shipPoses,
+          water: waterSurfaceContext(view.world.tick * DT + view.world.accumulatorSeconds, view.world.wind),
           shipSmokeOrigins, structureAnchors, muzzles,
         })
         fxMemory = events.memory

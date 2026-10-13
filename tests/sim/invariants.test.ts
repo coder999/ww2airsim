@@ -6,13 +6,27 @@ import {
   specificEnergyAirmass,
   assertFinite,
   assertNoEnergyGain,
+  externallySupported,
   isIdleThrottle,
   stepChecked,
 } from '../../src/sim/invariants.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
+import { waterSurfaceAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
+import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
+const catalina = loadAircraftSpec('pby-5a-catalina')
 const IDLE: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
+const sea = createTerrainField(parseTerrainHeader({
+  centreLatDeg: 0,
+  centreLonDeg: 0,
+  halfExtentM: 100,
+  finestSamples: 8193,
+  levels: 13,
+  encoding: 'int16-decimetres',
+}), 12, new Int16Array(9))
 
 describe('airmass-frame specific energy (spec §11)', () => {
   it('ignores a uniform wind, unlike the ground frame', () => {
@@ -113,6 +127,29 @@ describe('isIdleThrottle', () => {
 
   it('is false for a positive throttle', () => {
     expect(isIdleThrottle({ pitch: 0, roll: 0, yaw: 0, throttle: 0.5 })).toBe(false)
+  })
+})
+
+describe('moving-surface energy exchange', () => {
+  const water = waterSurfaceContext(0, null)
+  const sample = waterSurfaceAt(water, 0, 0)
+  const operations = catalina.waterOperations!
+  const afloat = createState({
+    position: v3(0, sample.heightM + operations.hullDepthM - operations.displacementDraftM, 0),
+    velocity: v3(0, sample.verticalSpeedMps, 0),
+    attitude: qFromAxisAngle(v3(0, 0, 1), operations.restPitchDeg * Math.PI / 180),
+    gearFraction: 0,
+    flapFraction: 1,
+  })
+
+  it('recognizes a supported hull but not the same aircraft clear of the sea', () => {
+    const ctx = { dt: DT, tick: 1, terrain: sea, water }
+    expect(externallySupported(catalina, afloat, ctx)).toBe(true)
+    expect(externallySupported(catalina, { ...afloat, position: v3(0, afloat.position.y + 10, 0) }, ctx)).toBe(false)
+  })
+
+  it('allows a resting hull to follow a rising support wave at idle', () => {
+    expect(() => stepChecked(catalina, afloat, IDLE, { dt: DT, tick: 1, terrain: sea, water })).not.toThrow()
   })
 })
 

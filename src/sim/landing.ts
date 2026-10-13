@@ -9,7 +9,8 @@ import { deckLocal, type Deck } from './world/deck.js'
 import type { TerrainField } from './world/terrain.js'
 import type { LandClass } from './world/cover.js'
 import { sub, length } from './math/vec3.js'
-import { supportedWaterContact, waterContactHeightM } from './waterOperations.js'
+import { supportedWaterContact, waterContactHeightM, waterSupportVelocity } from './waterOperations.js'
+import type { WaterSurfaceContext } from './waterSurface.js'
 
 /**
  * Where a flight touched down, and what it looked like at that instant.
@@ -94,17 +95,20 @@ export const AIRBORNE_LATCH_M = 10
  *  figure `tests/sim/landing.test.ts` stops its roll-out at. */
 export const LANDED_SPEED_MPS = 1
 
-const groundFor = (terrain: TerrainField | null, decks: readonly Deck[], s: AircraftState) =>
-  groundUnder(terrain, decks, s.position.x, s.position.z)
+const groundFor = (terrain: TerrainField | null, decks: readonly Deck[], s: AircraftState, water?: WaterSurfaceContext) =>
+  groundUnder(terrain, decks, s.position.x, s.position.z, water)
 
 const contactHeightM = (spec: AircraftSpec, s: AircraftState, g: GroundUnder): number =>
   g.surface === 'water' && spec.waterOperations !== undefined
     ? waterContactHeightM(spec, s) - g.heightM
     : s.position.y - wheelDepthOf(spec, s) - g.heightM
 
+const supportVelocity = (g: GroundUnder, s: AircraftState) =>
+  g.surface === 'water' ? waterSupportVelocity(g.velocity, g.water, s.velocity) : g.velocity
+
 const supported = (spec: AircraftSpec, s: AircraftState, g: GroundUnder | null): boolean =>
   g !== null && (supportedContact(spec, s, g.heightM, g.surface, g.velocity, g.landClass)
-    || (g.surface === 'water' && supportedWaterContact(spec, s, g.heightM, g.velocity)))
+    || (g.surface === 'water' && supportedWaterContact(spec, s, g.heightM, supportVelocity(g, s))))
 
 /**
  * One frame of landing bookkeeping. Pure: `before` and `after` are the
@@ -120,22 +124,25 @@ export function nextLandingTracking(
   terrain: TerrainField | null,
   airfields: readonly Airfield[],
   decks: readonly Deck[] = [],
+  water?: WaterSurfaceContext,
 ): LandingTracking {
   if (prev.report !== null) return prev
-  const gAfter = groundFor(terrain, decks, after)
+  const gAfter = groundFor(terrain, decks, after, water)
   if (gAfter === null) return prev
 
   const height = contactHeightM(spec, after, gAfter)
   const airborne = prev.airborne || height > AIRBORNE_LATCH_M
   const onWheelsNow = supported(spec, after, gAfter)
+  const gBefore = groundFor(terrain, decks, before, water)
 
   let touchdown = prev.touchdown
   if (height > AIRBORNE_LATCH_M) {
     touchdown = null
-  } else if (airborne && touchdown === null && onWheelsNow && !supported(spec, before, groundFor(terrain, decks, before))) {
+  } else if (airborne && touchdown === null && onWheelsNow && !supported(spec, before, gBefore)) {
+    const arrivalVelocity = supportVelocity(gBefore ?? gAfter, before)
     touchdown = {
-      sinkMps: -(before.velocity.y - gAfter.velocity.y),
-      speedMps: airspeed({ ...before, velocity: sub(before.velocity, gAfter.velocity) }),
+      sinkMps: -(before.velocity.y - arrivalVelocity.y),
+      speedMps: airspeed({ ...before, velocity: sub(before.velocity, arrivalVelocity) }),
       x: after.position.x,
       z: after.position.z,
       tick: after.tick,
@@ -145,7 +152,7 @@ export function nextLandingTracking(
   }
 
   // At rest RELATIVE to what it landed on: a trapped airplane sails at 15 kn.
-  const restSpeed = length(sub(after.velocity, gAfter.velocity))
+  const restSpeed = length(sub(after.velocity, supportVelocity(gAfter, after)))
   const report =
     touchdown !== null && onWheelsNow && restSpeed < LANDED_SPEED_MPS
       ? {

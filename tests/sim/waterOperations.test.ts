@@ -13,10 +13,12 @@ import {
   onWater,
   planingFraction,
   restOnWater,
+  safeWaterArrival,
   supportedWaterContact,
   waterBodyRates,
   waterResistanceN,
 } from '../../src/sim/waterOperations.js'
+import { waterSurfaceAt, waterSurfaceContext } from '../../src/sim/waterSurface.js'
 
 const base = loadAircraftSpec('p-38-lightning')
 const catalina = loadAircraftSpec('pby-5a-catalina')
@@ -24,6 +26,8 @@ const spec: AircraftSpec = {
   ...base,
   waterOperations: {
     hullDepthM: 2.5,
+    displacementDraftM: 0.5,
+    planingDraftM: 0.1,
     floatHalfSpanM: 13.6,
     floatDepthM: 2.3,
     restPitchDeg: 3,
@@ -39,7 +43,7 @@ const spec: AircraftSpec = {
   },
 }
 
-const afloat = createState({ position: v3(0, 2.5, 0), gearFraction: 0, flapFraction: 1 })
+const afloat = createState({ position: v3(0, 2, 0), gearFraction: 0, flapFraction: 1 })
 const sea = createTerrainField(parseTerrainHeader({
   centreLatDeg: 0,
   centreLonDeg: 0,
@@ -56,7 +60,7 @@ describe('water operations', () => {
     expect(supportedWaterContact(spec, { ...afloat, gearFraction: 1 }, 0)).toBe(false)
     expect(supportedWaterContact(spec, { ...afloat, flapFraction: 0 }, 0)).toBe(false)
     expect(supportedWaterContact(spec, { ...afloat, velocity: v3(20, -3.01, 0) }, 0)).toBe(false)
-    expect(supportedWaterContact(spec, { ...afloat, velocity: v3(46, -1, 0) }, 0)).toBe(false)
+    expect(safeWaterArrival(spec, { ...afloat, position: v3(0, 2.5, 0), velocity: v3(46, -1, 0) }, 0)).toBe(false)
     expect(supportedWaterContact(spec, { ...afloat, velocity: v3(46, 0, 0) }, 0)).toBe(true)
     const banked = { ...afloat, attitude: qFromAxisAngle(v3(1, 0, 0), 11 * Math.PI / 180) }
     expect(supportedWaterContact(spec, banked, 0)).toBe(false)
@@ -70,12 +74,12 @@ describe('water operations', () => {
     expect(waterResistanceN(spec, 1000, 50)).toBeCloseTo(196.133)
   })
 
-  it('rests on the authored keel datum and removes sink', () => {
+  it('rests at the speed-dependent authored draft and removes sink', () => {
     const sunk = { ...afloat, position: v3(4, 2.49, 7), velocity: v3(25, -1, 0) }
     const rested = restOnWater(spec, sunk, 0)
-    expect(rested.position).toEqual(v3(4, 2.5, 7))
+    expect(rested.position).toEqual(v3(4, 2.1, 7))
     expect(rested.velocity.y).toBe(0)
-    expect(rested.velocity.x).toBeLessThan(25)
+    expect(rested.velocity.x).toBe(25)
   })
 
   it('settles roll/pitch and provides low-speed taxi yaw that fades', () => {
@@ -93,9 +97,15 @@ describe('water operations', () => {
   })
 
   it('stays active and afloat through the real fixed-step/impact seam', () => {
+    const water0 = waterSurfaceAt(waterSurfaceContext(0, null), 0, 0)
+    const waveAfloat = {
+      ...afloat,
+      position: v3(0, water0.heightM + spec.waterOperations!.hullDepthM - spec.waterOperations!.displacementDraftM, 0),
+      velocity: v3(0, water0.verticalSpeedMps, 0),
+    }
     let world = createWorldOf({
       aircraft: [{
-        id: 'amphibian', spec, state: afloat, previous: afloat,
+        id: 'amphibian', spec, state: waveAfloat, previous: waveAfloat,
         controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0 },
         assistMemory: undefined, impact: null, parked: false,
       }],
@@ -104,14 +114,17 @@ describe('water operations', () => {
     })
     for (let i = 0; i < 180; i++) world = advance(world, DT).world
     const airplane = playerAircraft(world)
+    const support = waterSurfaceAt(waterSurfaceContext(world.tick * DT, world.wind), airplane.state.position.x, airplane.state.position.z)
     expect(airplane.impact).toBeNull()
-    expect(airplane.state.position.y).toBeCloseTo(2.5, 6)
-    expect(airplane.state.velocity.y).toBeCloseTo(0, 9)
+    expect(airplane.state.position.y).toBeCloseTo(support.heightM + 2, 4)
+    expect(airplane.state.velocity.y).toBeCloseTo(support.verticalSpeedMps, 4)
   })
 
   it('accelerates the real Catalina from displacement through planing and takes off', () => {
+    const water0 = waterSurfaceAt(waterSurfaceContext(0, null), 0, 0)
     const start = createState({
-      position: v3(0, catalina.waterOperations!.hullDepthM, 0),
+      position: v3(0, water0.heightM + catalina.waterOperations!.hullDepthM - catalina.waterOperations!.displacementDraftM, 0),
+      velocity: v3(0, water0.verticalSpeedMps, 0),
       attitude: qFromAxisAngle(v3(0, 0, 1), catalina.waterOperations!.restPitchDeg * Math.PI / 180),
       gearFraction: 0,
       flapFraction: 1,

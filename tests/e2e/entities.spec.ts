@@ -29,6 +29,8 @@ test('the task force sails: every ship moves by speed * elapsed, with zero WebGP
     // A turn makes the chord slightly shorter than the arc, never longer.
     expect(moved, `${ship.id} moved ${moved} m in ${elapsedS} s`).toBeLessThanOrEqual(ship.speedMps * elapsedS + 1)
     expect(moved).toBeGreaterThan(ship.speedMps * elapsedS * 0.9)
+    expect([after.y, after.pitchRad, after.rollRad].every(Number.isFinite)).toBe(true)
+    expect(Math.abs(after.y - before.y) + Math.abs(after.pitchRad - before.pitchRad) + Math.abs(after.rollRad - before.rollRad), `${ship.id} support-sea pose changed`).toBeGreaterThan(1e-5)
   }
   await flySweep(page)
   const c = await read()
