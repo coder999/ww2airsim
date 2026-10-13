@@ -5,10 +5,10 @@ what has been tried and with what result, the traps, and what is next.
 Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
-on 2026-10-11 for the opt-in Takram integrations, the full TSL merge and the
-Flight Conditions cloudiness selector; §3.10 records the effects
-dense-depth ordering and idle 4K measurement. When you change the cloud system, update the
-relevant section here in the same commit.
+on 2026-10-13 for the Takram default, the Flight Conditions cloudiness
+selector and retirement of the unmerged K1 legacy-edge experiment; §3.10
+records the effects dense-depth ordering and idle 4K measurement. When you
+change the cloud system, update the relevant section here in the same commit.
 
 ## 1. What ships (2026-09-26)
 
@@ -89,7 +89,7 @@ clouds off plus that native pass), under the 4.0 ms cloud-only gate and the
 8.33 ms whole-frame gate. See
 `docs/handoff/2026-10-10-k-clouds-v3-game-integration.md`.
 
-### 1.2 Full TSL port experiment (2026-10-11)
+### 1.2 Full TSL port and default renderer (2026-10-11)
 
 Merged main commit `1c654889` adds a second DEV-only selector,
 `?cloudRenderer=takram-tsl`. It is a complete Three Shader Language port of
@@ -152,8 +152,8 @@ measures this renderer from now on; the last locked TSL numbers were 5.75 to
 | Tiers, the march, light march, early-outs | `src/render/scene/clouds.ts` |
 | Density (weather decode, archetype, noise, coverage twin) | `src/render/scene/cloudField.ts` |
 | Reduced-res pass, amortized update, reprojection, resolve, composite | `src/render/scene/cloudPass.ts` |
-| Opt-in Takram raw-WebGPU pass and game adapter | `src/render/scene/takramCloudPass.ts`, `takramGameShaders.ts` |
-| Experimental full TSL Takram port and Three texture loader | `src/render/scene/takramTslCloudPass.ts`, `takramTslAssets.ts` |
+| Comparison-only Takram raw-WebGPU pass and game adapter | `src/render/scene/takramCloudPass.ts`, `takramGameShaders.ts` |
+| Default full TSL Takram port and Three texture loader | `src/render/scene/takramTslCloudPass.ts`, `takramTslAssets.ts` |
 | History targets | `src/render/scene/cloudHistory.ts` |
 | Effects dense depth, the cloud march limit's second input | `src/render/fx/fxPass.ts` (`FxCloudLimit`) |
 | Shadow map (sun-view transmittance) | `src/render/scene/cloudShadow.ts` |
@@ -355,7 +355,59 @@ arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
 currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
 reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
-### 3.11 Full TSL Takram port (2026-10-11)
+### 3.11 K1 legacy edge and lighting experiment (2026-10-10; retired 2026-10-13)
+
+K1 investigated whether the legacy renderer's blocky silhouettes could be
+improved cheaply enough to stay within the cloud budget. It produced useful
+pipeline and lighting results, but its best budget-compliant visual candidate
+made **no perceptible difference** in flight. No K1 renderer code was merged;
+the later Takram TSL renderer superseded this line of work and became the
+default. The `k1-cloud-edges` worktree and local/remote branches were removed
+on 2026-10-13 after the durable findings below were preserved.
+
+- **Blender/OpenVDB round-tripping worked.** Blender 5.0.1's bundled
+  `openvdb` imported and rendered the legacy archetype in Cycles and exported
+  it byte-exact; a Blender volume also exported to the game's `.bin.gz`
+  format. A file-backed grid needs an explicit Attribute node feeding
+  Principled Volume density, and a Geometry Nodes Bake node with no bake item
+  silently writes nothing.
+- **A per-voxel order-2 real spherical-harmonic lighting bake was rejected.**
+  Across 128 Fibonacci-distributed hemisphere directions, its transmittance
+  fit had mean error 0.049, p90 0.117, p99 0.276 and maximum 0.740; 2.6% of
+  voxel/direction pairs exceeded 0.2. Restricting evaluation to sun elevations
+  of at least 15 degrees did not fix the narrow lit/shadow terminator at edges
+  and overhangs. The bake peaked at 3.7 GB RSS on Nexus.
+- **Marching sunlight in each stretched and rotated archetype's cube frame
+  was a real performance win.** It avoided weather/noise reads at each light
+  sample. On the reference GPU at 1440p High, whole-frame p95 changed from
+  9.41 to 6.52 ms in-deck, 6.70 to 5.93 ms at runway, and 6.29 to 5.39 ms in
+  `photo`; cloud cost stayed at or below 3.7 ms. The daytime `photo` mean
+  absolute image difference was 2.8 gray levels and bright-cloud luminance
+  ratio was 0.98.
+- **Low sun still needed one far-neighbour sample.** Cube-local shadowing
+  lost dark undersides at a 15-degree sun elevation (sunset mean absolute
+  difference 10.71). One full-field sample from cube exit to three cloud
+  thicknesses restored neighbouring-cloud shadow. Weighting it fully below
+  15 degrees and to zero above 30 reduced the sunset difference to 6.17 while
+  leaving the daytime `photo` result effectively unchanged (about 2.19). The
+  final whole-frame p95s were 6.41 ms in-deck, 5.57 ms runway and 4.92 ms
+  `photo`, all within their gates.
+- **The edge-quality ladder did not justify shipping.** Raising render scale
+  to 0.65 cost about 0.9–1.5 ms and exceeded the 4 ms cloud budget in the
+  worst views; 0.75 cost 1.8–2.5 ms. Marching every texel each frame at 0.5
+  was about 10 ms. A four-frame/96-step candidate reached a 6.10 ms runway
+  whole-frame median and 3.73 ms cloud cost, but Mark saw no perceptible
+  improvement in flight, so it was rejected.
+- **Measurement trap:** Chrome occlusion throttling reduced a six-second
+  capture from roughly 400–480 frames to 110–150 while GPU p95 still appeared
+  normal at about 5 ms. Check captured sample count before trusting p95.
+
+The dirty worktree also contained two explicitly throwaway browser probes and
+an unmeasured Geometry Nodes cumulus sketch (ellipsoid lobes, fractal/fine
+noise and a flattened base). They had no validated result or reusable game
+integration and were deliberately discarded with the worktree.
+
+### 3.12 Full TSL Takram port (2026-10-11)
 
 The full port proved that Three r186 TSL can express the complete accepted
 renderer without a hidden raw-WGSL escape hatch. The important working pieces
@@ -379,9 +431,10 @@ compared against the same cloud-on scene. Keeping the 3D volumes in R8 and
 making the explicit-LOD weather-tile fetches conditional cut march p95 by
 45–46% and whole-frame p95 by about 18%. Optimized TSL measured
 5.746–5.772 ms versus same-scene native estimates of 5.890–5.915 ms and
-therefore passed the plan's performance criterion. The native renderer remains
-authoritative because the work intentionally stays on a research branch, not
-because TSL missed budget.
+therefore passed the plan's performance criterion. At this checkpoint the
+native renderer remained authoritative only because the work was still on a
+research branch; the accepted TSL implementation was subsequently merged and
+promoted to the default as recorded in §1.2.
 
 ## 4. Traps
 
@@ -465,15 +518,15 @@ because TSL missed budget.
 | --- | --- | --- |
 | 1 | **Page-load freeze on `main`** (26–56 s TSL build). Fixed at 1.24 s cold on `worktree-loading-dossier` (`db044e1`, §3.9); `main` merged into that branch 2026-09-26 and re-measured at 1.08 s | Fixed: `db044e1` is on `main` (checked 2026-10-08) |
 | 2 | **Auto tier picks Low on Mark's desktop** (`docs/incidents/2026-09-20-low-tier-hides-trees.md`) | Open; Mark: "leave it for now" (2026-09-26) |
-| 3 | **Low shimmers at cloud edges** | Open, cosmetic, Low-only |
-| 4 | **High in-cloud frame pacing:** stutter reported, then "no apparent loss of fps" after the fixes | Unmeasured since the fixes |
-| 5 | **`photo` at High has 0.6 ms of margin** | Watch; any cloud cost increase lands here first |
+| 3 | **Low shimmers at cloud edges** | Open, cosmetic, Low-only on the legacy comparison path; Takram's separate thin-wisp trade is issue 11 |
+| 4 | **Legacy High in-cloud frame pacing:** stutter reported, then "no apparent loss of fps" after the fixes | Unmeasured since the fixes; legacy is no longer the default |
+| 5 | **Legacy `photo` at High had 0.6 ms of margin** | Closed as a shipping concern when Takram TSL became the default; K1 separately proved a faster legacy light march but no worthwhile visual improvement |
 | 6 | **Views from below read cloudier than the old clouds** (sky fraction is correct) | Mark's call: free-flight `coverage` |
 | 7 | **16b/16c look calls:** shadow darkness, `OCEAN_SHADOW_FLOOR` 0.6, sea scaled not tinted at dusk, crimson dusk clouds | Mark's calls, not made |
 | 8 | **16b limits:** shadow fade uses the lowest layer only; cirrus casts no shadow; cockpit panel unshadowed; pass runs every frame | Known, unscheduled |
 | 9 | **Docs debt:** photoreal Task 14 (handoff, supersede notes) never run, re-filed into `MASTER_PLAN.md` track H0 (2026-10-08); 16d documents lack "superseded" | Housekeeping |
 | 10 | **A scenario picked from the title keeps the boot scenario's clouds.** `main.ts` sets `cloudLayers` once at boot, from the boot bundle (free-flight), and builds the cloud field, clouds and shadow pass from it once; `loadScenario` never touches them. Every title-launched scenario therefore flies under free-flight's cumulus and cirrus, although free-flight is the only one that declares clouds. Found 2026-09-26 on `worktree-friendly-fire`: `friendly-fire-range` (no clouds) showed cumulus in a capture and measured gpu p95 6.9 ms when launched from the title, against 2.0 ms booted by `?scenario=` on the reference GPU. The reverse case (a cloudless URL boot, then free-flight from the title, showing no clouds) follows from the same code but was not run. The time of day has the same flaw: `scenarioTimeOfDay` is also assigned only at boot (`main.ts`, one assignment, read 2026-09-26), so a title-launched `strike-range` keeps free-flight's 10:00 sun rather than its own 14:00. Fix: rebuild both from the new scenario's `weather` in the switch. Fixed 2026-10-08 by A2 (`7249619f`): `loadScenario` applies the new scenario's weather; the cloud pass is routed into the output only while there is a deck | Fixed (2026-10-08) |
-| 11 | **Takram resolve softens the dense cloud center and the thinnest moving wisps can retain slight breakup.** This is the accepted trade for eliminating the harsh pixelated/flickering boundary in the initial port | Accepted for the opt-in checkpoint; revisit only after flight evaluation |
+| 11 | **Takram resolve softens the dense cloud center and the thinnest moving wisps can retain slight breakup.** This is the accepted trade for eliminating the harsh pixelated/flickering boundary in the initial port | Accepted in flight and promoted with the default renderer on 2026-10-11; revisit only if it becomes objectionable in play |
 
 ## 6. Proposed next steps
 
@@ -481,30 +534,24 @@ In the order I would take them. Items marked (Mark) need his decision first.
 
 1. **Boot-freeze fix (issue 1): done.** `db044e1` is on `main` (checked
    2026-10-08).
-2. **Fly the opt-in Takram path in normal play.** Judge motion, aircraft/effect
-   ordering, weather transitions and the accepted soft-core trade before making
-   it the default. Do not start thunderheads until the plain-cloud result is
-   accepted in the game.
-3. **Measure legacy High in-cloud frame pacing** (issue 4): p50, p95 and p99, plus
-   frame-to-frame deltas, in-deck on the reference GPU. If the variance is
-   still large, the next lever is the amortized schedule inside cloud.
-4. **Auto tier (Mark)** (issue 2): measure after New game, show the chosen
+2. **Takram flight evaluation and default promotion: done.** Mark accepted the
+   result in play and `takram-tsl` became the DEV and production default on
+   2026-10-11 (§1.2).
+3. **Auto tier (Mark)** (issue 2): measure after New game, show the chosen
    tier, and add an E2E test that Mark's Chrome gets High. This does
    more for how the clouds look on his desktop than any shader work.
-5. **Low edge shimmer** (issue 3): try a neighborhood-clamped history on
-   Low, or a slightly higher Low resolution within its budget. Check each
-   back-to-back against a frozen-scene flicker burst (the method in §3.8).
-6. **Win back margin on legacy `photo`/High** (issue 5): priced by H0 (2026-10-10,
-   `docs/handoff/2026-10-08-h0-render-budget.md`). The immediate marches at
-   cloud silhouettes are the biggest single cost (1.3-3.2 ms at 1440p High);
-   Mark took the skip as the default on 2026-10-10, accepting more frozen-scene
-   edge flicker; DEV `?h0EdgeMarch=1` compares. Not yet tried: cheaper
-   archetype reads.
-7. **Unify the GPU lock file** across sessions, and chase the
+4. **Low edge shimmer** (issue 3): if the legacy comparison renderer remains
+   worth maintaining, try a neighborhood-clamped history or a slightly higher
+   Low resolution within its budget. Check each back-to-back against a
+   frozen-scene flicker burst (the method in §3.8).
+5. **Legacy performance work is parked.** K1 found a cheaper light march but
+   no perceptible edge improvement (§3.11). Do not resume issue 4 or 5 unless
+   the legacy renderer is being reactivated for shipping.
+6. **Unify the GPU lock file** across sessions, and chase the
    `waitForTerrain` flake.
-8. **Housekeeping** (issue 9), and the stale comments listed in the
+7. **Housekeeping** (issue 9), and the stale comments listed in the
    2026-09-26 reconciliation.
-9. **Look pass with Mark (Mark)** (issues 6 and 7): one sitting, a fixed set
+8. **Look pass with Mark (Mark)** (issues 6 and 7): one sitting, a fixed set
    of back-to-back captures, decisions recorded here.
 
 ## 7. Outside references

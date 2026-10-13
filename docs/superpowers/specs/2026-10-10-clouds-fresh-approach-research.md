@@ -3,8 +3,9 @@
 **Status:** research deliverable (Phase 1 of Mark's 2026-10-10 handoff brief), for his
 approval before any implementation. Nothing here is built. Supersedes the Track K plan
 (`docs/superpowers/plans/2026-10-10-k-cloud-edges-impostors-thunderheads.md`), whose
-Phase 1 produced a budget win and no visible improvement; branch `k1-cloud-edges` is
-parked, unmerged.
+Phase 1 produced a budget win and no visible improvement. No K1 implementation was
+merged; its durable results are summarized in `docs/clouds.md` §3.11, and the
+`k1-cloud-edges` worktree and local/remote branches were retired on 2026-10-13.
 
 **Why this exists.** Every in-house cloud attempt since 2026-09-19 has been a variant of
 one design (a TSL ray march of a baked stacked-sphere archetype with 3D noise, temporal
