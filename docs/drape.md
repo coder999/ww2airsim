@@ -19,8 +19,9 @@ of record; `MASTER_PLAN.md` owns the plan.
 
 Code: `src/render/terrain/surface.ts` (variant whitelist; synthetic variants use
 raw color and a 40-220 m fade), `tools/drape/` (`bake.py`, `gen.py`,
-`detail.py`), `tests/e2e/drapeSpike.spec.ts` (four views, screenshots to
-`test-results/drape/`; skipped unless `E2E_CAPTURE=1`). Baked textures live in `content/drape-spike/`, which is
+`detail.py`), `tests/e2e/drapeSpike.spec.ts` (four views, including the
+still-unique `1944` comparison; run through `npm run capture:e2e`; screenshots
+to `test-results/drape/`). Baked textures live in `content/drape-spike/`, which is
 git-excluded and exists only where it was baked; regenerate with the commands
 in each script's header.
 
