@@ -1,3 +1,4 @@
+import { longForestEnabled } from './forestDistance.js'
 import { TREE_CELL_M, TREES_PER_CELL, residentCellOffsets } from './treeCells.js'
 import { createDistantTrees, distantTreesEnabled, type DistantTreeStats } from './distantTrees.js'
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
@@ -87,14 +88,14 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
  *  `huts` (Plan 13d Task 3) defaults to empty so every existing caller --
  *  this file's own tests included -- is unaffected; only `createVegetation`
  *  (via `main.ts`, which also builds the town huts) passes a real list. */
-export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup, huts: readonly HutFootprint[] = []): TreeSite[] {
+export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup, huts: readonly HutFootprint[] = [], candidates = TREES_PER_CELL): TreeSite[] {
   let seed = (Math.imul(cellX, 73856093) ^ Math.imul(cellZ, 19349663) ^ 1944) >>> 0
   const random = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
     return seed / 4294967296
   }
   const sites: TreeSite[] = []
-  for (let i = 0; i < TREES_PER_CELL; i++) {
+  for (let i = 0; i < candidates; i++) {
     const x = (cellX + random()) * TREE_CELL_M, z = (cellZ + random()) * TREE_CELL_M
     const height = 12 + random() * 15, radius = 6 + random() * 5, shade = random()
     const roll = random()
@@ -111,7 +112,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode(), distant = distantTreesEnabled()): {
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode(), distant = distantTreesEnabled(), longForest = longForestEnabled()): {
   object: Group
   update(x: number, z: number, eyeY?: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -121,7 +122,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
    *  discarded and the forest is rebuilt at once for the eye's last position. */
   setCover(cover: CoverLookup): void
   /** Resident and submitted tree counts; generated tracks cell-cache work. */
-  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number; distant: DistantTreeStats }
+  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number; distant: DistantTreeStats; coarse: DistantTreeStats }
 } {
   const object = new Group()
   object.name = 'nearby jungle'
@@ -202,15 +203,27 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   let cover: CoverLookup | undefined
   const far = distant ? createDistantTrees((cx, cz) => treeSites(field, cx, cz, airfields, cover, huts)) : null
   if (far) object.add(far.object)
+  // A coarse cell contains 16 original cells. Taking only the first 14
+  // candidates preserves canonical locations and all placement exclusions.
+  const coarse = longForest ? createDistantTrees((cx, cz) => {
+    const sites: TreeSite[] = []
+    for (let dz = 0; dz < 4; dz++) for (let dx = 0; dx < 4; dx++) {
+      sites.push(...treeSites(field, cx * 4 + dx, cz * 4 + dz, airfields, cover, huts, 14))
+    }
+    return sites
+  }, true) : null
+  if (coarse) object.add(coarse.object)
+  const disabled: DistantTreeStats = { enabled: false, ready: true, instances: 0, drawnInstances: 0, pending: 0, generated: 0, maxUpdateMs: 0, fadeEndM: 0 }
   // Cells stay cached while resident. A crossing composes only the cells
   // that entered and copies the rest: the square window's full recompose of
   // every instance cost 4.7-7.2 ms per crossing in node (2026-09-17).
   let cache = new Map<string, PackedCell>()
   return {
     object,
-    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value, distant: far?.stats(object.visible) ?? { enabled: false, ready: true, instances: 0, drawnInstances: 0, pending: 0, generated: 0, maxUpdateMs: 0, fadeEndM: 0 } }),
+    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value, distant: far?.stats(object.visible) ?? disabled, coarse: coarse?.stats(object.visible) ?? disabled }),
     setTier(name): void {
       far?.setTier(name)
+      coarse?.setTier(name)
       const endM = range(name)
       fadeEnd.value = endM
       fadeStart.value = start(endM)
@@ -221,12 +234,14 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     setCover(next): void {
       cover = next
       far?.reset()
+      coarse?.reset()
       cache = new Map()
       previousKey = ''
       this.update(lastX, lastZ, lastY)
     },
     update(x, z, eyeY = 0): void {
       far?.update(x, z, eyeY)
+      coarse?.update(x, z, eyeY)
       lastX = x
       lastZ = z
       lastY = eyeY

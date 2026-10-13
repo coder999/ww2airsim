@@ -36,6 +36,18 @@ const tacloban = loadAirfield('tacloban')
 const dulag = loadAirfield('dulag')
 
 describe('scenery placement on the real Leyte field', () => {
+  it('coarse crown candidates remain a sparse subset of the canonical forest', () => {
+    let count = 0
+    for (let z = -80; z < -76; z++) for (let x = -106; x < -102; x++) {
+      const all = treeSites(field, x, z, [tacloban, dulag])
+      const sparse = treeSites(field, x, z, [tacloban, dulag], undefined, [], 14)
+      expect(sparse.length).toBeLessThanOrEqual(14)
+      for (const site of sparse) expect(all).toContainEqual(site)
+      count += sparse.length
+    }
+    expect(count).toBeGreaterThan(0)
+  })
+
   it('keeps all building footprints on land and outside the runway', () => {
     // Plan 6b split the old 7-entry AIRFIELD_BUILDINGS table into content
     // `buildings` (hangars, tower) plus AIRFIELD_HUTS (decorative); this

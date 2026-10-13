@@ -8,7 +8,7 @@ import type { TreeSite } from './vegetation.js'
 const FAR_RANGES = { high: [2400, 4200], medium: [1600, 2800], low: [0, 0] } as const
 const CELL_BATCH = 4
 const LOAD_SLICE_MS = 1
-const MAX_CELLS = residentCellOffsets(FAR_RANGES.high[1]).length
+const GROVE_RANGES = { high: [8000, 18000], medium: [5000, 11000], low: [0, 0] } as const
 
 export function distantTreesEnabled(): boolean {
   return !(import.meta.env?.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('distantTrees') === 'off')
@@ -22,8 +22,12 @@ export type DistantTreeStats = {
 /** Two-triangle, analytically shaded crowns. Stable cell slots avoid rewriting
  * the whole forest at each crossing; only four newly resident cells are built
  * per frame. No images, per-tree objects, shadows or stipple mask. */
-export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly TreeSite[]) {
-  const capacity = MAX_CELLS * TREES_PER_CELL
+export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly TreeSite[], groves = false) {
+  const cellSize = groves ? 1600 : TREE_CELL_M
+  const perCell = groves ? 224 : TREES_PER_CELL
+  const ranges = groves ? GROVE_RANGES : FAR_RANGES
+  const maxCells = residentCellOffsets(ranges.high[1], cellSize).length
+  const capacity = maxCells * perCell
   const centers = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3).setUsage(DynamicDrawUsage)
   const sizes = new InstancedBufferAttribute(new Float32Array(capacity * 2), 2).setUsage(DynamicDrawUsage)
   const colors = new InstancedBufferAttribute(new Float32Array(capacity * 3), 3).setUsage(DynamicDrawUsage)
@@ -33,8 +37,8 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
   geometry.attributes = { ...plane.attributes, treeCenter: centers, treeSize: sizes, treeColor: colors }
   geometry.instanceCount = capacity
   const material = new MeshStandardNodeMaterial({ transparent: true, depthWrite: false, roughness: 1 })
-  const nearStart = uniform(1400), nearEnd = uniform(1850)
-  const farStart = uniform(FAR_RANGES.high[0] as number), farEnd = uniform(FAR_RANGES.high[1] as number)
+  const nearStart = uniform(groves ? 2400 : 1400), nearEnd = uniform(groves ? 4200 : 1850)
+  const farStart = uniform(ranges.high[0] as number), farEnd = uniform(ranges.high[1] as number)
   const center = attribute('treeCenter', 'vec3'), size = attribute('treeSize', 'vec2')
   // Scene objects are translated by -eye with no rotation. Camera axes are
   // therefore also the correct local axes for these crown cards.
@@ -60,9 +64,9 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
     .mul(float(1).sub(smoothstep(farStart, farEnd, distance))).mul(edge)
   material.alphaTestNode = float(0)
   const object = new Mesh(geometry, material)
-  object.name = 'distant tree crowns'
+  object.name = groves ? 'distant crown groups' : 'distant tree crowns'
   object.frustumCulled = false
-  object.renderOrder = -1 // Draw distant cards before the nearby blended crowns.
+  object.renderOrder = groves ? -2 : -1 // Draw distant cards before the nearby blended crowns.
   const tint = new Color()
   type Cell = { slot: number; count: number; top: number }
   const cells = new Map<string, Cell>()
@@ -71,17 +75,17 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
   let previousKey = '', tier: SceneryTierName = 'high', generated = 0, maxUpdateMs = 0
   let count = 0, top = -Infinity
   const dirty = (a: InstancedBufferAttribute, slot: number) => {
-    a.addUpdateRange(slot * TREES_PER_CELL * a.itemSize, TREES_PER_CELL * a.itemSize)
+    a.addUpdateRange(slot * perCell * a.itemSize, perCell * a.itemSize)
     a.needsUpdate = true
   }
   const clear = (slot: number) => {
-    (sizes.array as Float32Array).fill(0, slot * TREES_PER_CELL * 2, (slot + 1) * TREES_PER_CELL * 2)
+    (sizes.array as Float32Array).fill(0, slot * perCell * 2, (slot + 1) * perCell * 2)
     dirty(sizes, slot)
   }
   const reset = () => {
     for (const cell of cells.values()) clear(cell.slot)
     cells.clear()
-    free = Array.from({ length: MAX_CELLS }, (_, i) => MAX_CELLS - i - 1)
+    free = Array.from({ length: maxCells }, (_, i) => maxCells - i - 1)
     pending = []
     previousKey = ''
     count = 0
@@ -93,10 +97,10 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
     reset,
     setTier(name: SceneryTierName) {
       tier = name
-      nearEnd.value = SCENERY_TIERS[name].treeFadeEndM
-      nearStart.value = Math.max(0, nearEnd.value - 450)
-      farStart.value = FAR_RANGES[name][0]
-      farEnd.value = FAR_RANGES[name][1]
+      nearEnd.value = groves ? FAR_RANGES[name][1] : SCENERY_TIERS[name].treeFadeEndM
+      nearStart.value = groves ? FAR_RANGES[name][0] : Math.max(0, nearEnd.value - 450)
+      farStart.value = ranges[name][0]
+      farEnd.value = ranges[name][1]
       reset()
     },
     stats(parentVisible = true): DistantTreeStats {
@@ -107,11 +111,11 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
     update(x: number, z: number, eyeY: number) {
       if (tier === 'low') { object.visible = false; return }
       const started = performance.now()
-      const cx = Math.floor(x / TREE_CELL_M), cz = Math.floor(z / TREE_CELL_M)
+      const cx = Math.floor(x / cellSize), cz = Math.floor(z / cellSize)
       const key = `${cx},${cz}`
       if (key !== previousKey) {
         previousKey = key
-        const wanted = residentCellOffsets(farEnd.value).map(([dx, dz]) => ({ key: `${cx + dx},${cz + dz}`, cx: cx + dx, cz: cz + dz }))
+        const wanted = residentCellOffsets(farEnd.value, cellSize).map(([dx, dz]) => ({ key: `${cx + dx},${cz + dz}`, cx: cx + dx, cz: cz + dz }))
         const keys = new Set(wanted.map(cell => cell.key))
         for (const [k, cell] of cells) if (!keys.has(k)) {
           clear(cell.slot)
@@ -127,12 +131,12 @@ export function createDistantTrees(sitesAt: (cx: number, cz: number) => readonly
         const sites = sitesAt(next.cx, next.cz)
         let cellTop = -Infinity
         sites.forEach((t, i) => {
-          const at = slot * TREES_PER_CELL + i
+          const at = slot * perCell + i
           centers.setXYZ(at, t.x, t.y + t.height * 0.84, t.z)
-          sizes.setXY(at, t.radius * 1.4, t.height * 0.36)
+          sizes.setXY(at, t.radius * (groves ? 4.2 : 1.4), t.height * (groves ? 0.5 : 0.36))
           tint.setHSL(0.25 + t.shade * 0.08, 0.24 + t.shade * 0.14, 0.16 + t.shade * 0.07)
           colors.setXYZ(at, tint.r, tint.g, tint.b)
-          cellTop = Math.max(cellTop, t.y + t.height + t.radius * 2)
+          cellTop = Math.max(cellTop, t.y + t.height + t.radius * (groves ? 5 : 2))
         })
         cells.set(next.key, { slot, count: sites.length, top: cellTop })
         for (const a of [centers, sizes, colors]) dirty(a, slot)

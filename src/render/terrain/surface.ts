@@ -1,3 +1,4 @@
+import { longForestEnabled } from '../scene/forestDistance.js'
 import { ClampToEdgeWrapping, DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping, RGBAFormat, SRGBColorSpace, TextureLoader, Vector4 } from 'three'
 import type { Texture } from 'three'
 import { color, float, length, max, min, mix, positionView, smoothstep, texture, uniform, vec2, vec3 } from 'three/tsl'
@@ -360,9 +361,12 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
   const drape = drapeNodes()
   const finish = (a: Node<'vec3'>): Node<'vec3'> => (drape ? applyDrape(a, xz, drape, height) : a)
   if (!detail) return { albedo: finish(composeSurface(c, w, mix3)), detailSlope: null }
-  const canopy = canopyEnabled() ? canopyNodes(xz, groundNoise(xz, 900).rg) : null
-  const forestColor = canopy ? mix(c.forest, mix(color(0x182c20), color(0x617449), canopy.tone).mul(noise.macro.mul(0.3).add(0.85)), canopy.ready) : c.forest
-  const mangroveColor = canopy ? mix(c.mangrove, forestColor.mul(0.85), canopy.ready) : c.mangrove
+  const canopy = canopyEnabled() || longForestEnabled() ? canopyNodes(xz, groundNoise(xz, 900).rg) : null
+  // Use true view distance: altitude and lateral separation share the same
+  // transition. Near ground retains the accepted material and texture detail.
+  const canopyBlend = canopy ? canopy.ready.mul(canopyEnabled() ? float(1) : smoothstep(2400, 12000, length(positionView))) : float(0)
+  const forestColor = canopy ? mix(c.forest, mix(color(0x182c20), color(0x617449), canopy.tone).mul(noise.macro.mul(0.3).add(0.85)), canopyBlend) : c.forest
+  const mangroveColor = canopy ? mix(c.mangrove, forestColor.mul(0.85), canopyBlend) : c.mangrove
   // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
   // share a material share its texture (paddy is grass, mangrove is jungle,
   // the road is dirt); the river's wet bank and water stay procedural.
@@ -383,8 +387,8 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
   }, w, mix2)
   // The same composition masks crowns out of rock, beaches, roads and water.
   const zeroWeight = float(0)
-  const canopyWeight = canopy ? composeSurface({ sand: zeroWeight, grass: zeroWeight, forest: canopy.ready,
-    soil: zeroWeight, paddy: zeroWeight, mangrove: canopy.ready, rock: zeroWeight,
+  const canopyWeight = canopy ? composeSurface({ sand: zeroWeight, grass: zeroWeight, forest: canopyBlend,
+    soil: zeroWeight, paddy: zeroWeight, mangrove: canopyBlend, rock: zeroWeight,
     wetBank: zeroWeight, water: zeroWeight, road: zeroWeight }, w,
   (a: Node<'float'>, b: Node<'float'>, t: Node<'float'>) => mix(a, b, t)) : null
   return { albedo: finish(albedo), detailSlope,

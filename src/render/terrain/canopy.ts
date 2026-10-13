@@ -1,3 +1,4 @@
+import { longForestEnabled } from '../scene/forestDistance.js'
 import { DataTexture, LinearFilter, LinearMipmapLinearFilter, RepeatWrapping } from 'three'
 import { float, mix, smoothstep, texture, uniform } from 'three/tsl'
 import type { Node } from 'three/webgpu'
@@ -11,7 +12,7 @@ export function canopyEnabled(): boolean {
 let material: DataTexture | null = null
 const ready = uniform(0)
 let error: string | null = null
-export const canopyStatus = () => ({ enabled: canopyEnabled(), ready: ready.value === 1, error })
+export const canopyStatus = () => ({ enabled: canopyEnabled() || longForestEnabled(), ready: ready.value === 1, error })
 
 function canopyTexture(): DataTexture {
   if (material) return material

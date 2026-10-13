@@ -1,5 +1,37 @@
 # Terrain
 
+## Long-distance forest trial (2026-10-13, isolated branch)
+
+DEV opt-in `?forestDistance=long` adds sparse crown groups beyond the accepted
+individual crowns. High fades groups in over approximately 1.5–2.6 miles and
+out over 5–11.2 miles; Medium uses 1–1.7 and 3.1–6.8 miles. Low has no crown
+geometry. The shader measures 3D camera distance, so altitude and horizontal
+separation both select the cheaper representation. Accepted defaults remain.
+
+The shared distant-tree controller now supports coarse cells: each contains
+16 original cells, taking only their first 14 placement candidates. Centers
+retain the original land-cover, slope, water and clearing exclusions, but the
+wider group footprint is approximate. Each group is still one two-triangle
+card, three times an individual stand-in's radius. This adds one transparent
+draw and no shadows. Stable slots and incremental loading are shared with the
+accepted layer. The new layer has its own roughly 1 ms loader slice, not a
+single combined slice with the accepted trees.
+
+A mipmapped canopy material blends onto forest/mangrove terrain by camera
+distance, over roughly 1.5–7.5 miles. It reuses the earlier procedural canopy
+asset, keeps the accepted near ground, and falls back when the asset is not
+ready. This requires terrain texture detail to be enabled. The distant ground
+stage has no tree silhouettes; actual visible coverage depends on haze,
+altitude, occlusion and the terrain draw range. No claim of a fixed fraction of
+the horizon is made. `canopy=on` retains its separate full-range experiment.
+
+`__ww2.vegetation().coarse` exposes loading and draw diagnostics; the existing
+parent visibility switch controls all tree geometry, but not terrain shading.
+`__ww2.canopy().enabled` is true for either canopy experiment. Existing capture
+and cost tools accept `FOREST_DISTANCE_CAPTURE=1`. The
+[checkpoint handoff](handoff/2026-10-13-long-forest.md) holds measurements,
+matched views, resource costs and limitations.
+
 ## Accepted distant crown stand-ins (2026-10-13, isolated branch)
 
 Mark accepted the distant extension after the visual check-in. It now defaults

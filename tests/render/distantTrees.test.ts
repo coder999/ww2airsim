@@ -1,3 +1,4 @@
+import { longForestEnabled } from '../../src/render/scene/forestDistance.js'
 import { expect, it, vi } from 'vitest'
 import { createDistantTrees, distantTreesEnabled } from '../../src/render/scene/distantTrees.js'
 import { residentCellOffsets, TREE_CELL_M } from '../../src/render/scene/treeCells.js'
@@ -7,9 +8,13 @@ it('defaults to the accepted extension and limits the off comparison to DEV', ()
     vi.stubEnv('DEV', true)
     vi.stubGlobal('location', { search: '' })
     expect(distantTreesEnabled()).toBe(true)
+    expect(longForestEnabled()).toBe(false)
     vi.stubGlobal('location', { search: '?distantTrees=off' })
     expect(distantTreesEnabled()).toBe(false)
+    vi.stubGlobal('location', { search: '?distantTrees=off&forestDistance=long' })
+    expect(longForestEnabled()).toBe(true)
     vi.stubEnv('DEV', false)
+    expect(longForestEnabled()).toBe(false)
     expect(distantTreesEnabled()).toBe(true)
   } finally {
     vi.unstubAllGlobals()
@@ -17,13 +22,14 @@ it('defaults to the accepted extension and limits the off comparison to DEV', ()
   }
 })
 
-it('fills incrementally, preserves resident slots, and clears reused slots and quality changes', () => {
+it.each([false, true])('fills incrementally, preserves resident slots, and clears reused slots and quality changes (groves=%s)', groves => {
+  const cellSize = groves ? 1600 : TREE_CELL_M
   let barren = false
   const forest = createDistantTrees((cx, cz) => barren ? [] : [
-    { x: cx * TREE_CELL_M + 100, z: cz * TREE_CELL_M + 100, y: 100, height: 20, radius: 8, shade: 0.4 },
-  ])
+    { x: cx * cellSize + 100, z: cz * cellSize + 100, y: 100, height: 20, radius: 8, shade: 0.4 },
+  ], groves)
   const fill = (x = 0, y = 200) => {
-    for (let i = 0; i < 300; i++) {
+    for (let i = 0; i < 700; i++) {
       forest.update(x, 0, y)
       if (forest.stats().ready) return
     }
@@ -34,7 +40,7 @@ it('fills incrementally, preserves resident slots, and clears reused slots and q
   expect(forest.stats().pending).toBeGreaterThan(0)
   fill()
   const before = forest.stats()
-  expect(before.instances).toBe(residentCellOffsets(before.fadeEndM).length)
+  expect(before.instances).toBe(residentCellOffsets(before.fadeEndM, cellSize).length)
   expect(forest.object.geometry.index!.count).toBe(6)
   const active = () => {
     const center = forest.object.geometry.getAttribute('treeCenter')
@@ -44,7 +50,7 @@ it('fills incrementally, preserves resident slots, and clears reused slots and q
     return slots
   }
   const slots = active()
-  fill(TREE_CELL_M)
+  fill(cellSize)
   let overlap = 0
   for (const [site, slot] of active()) if (slots.has(site)) {
     expect(slot).toBe(slots.get(site))
@@ -52,9 +58,9 @@ it('fills incrementally, preserves resident slots, and clears reused slots and q
   }
   expect(overlap).toBeGreaterThan(before.instances / 2)
   expect(forest.stats().generated - before.generated).toBeLessThan(before.generated / 2)
-  forest.update(TREE_CELL_M, 0, 10000)
+  forest.update(cellSize, 0, 30000)
   expect(forest.stats().drawnInstances).toBe(0)
-  forest.update(TREE_CELL_M, 0, 200)
+  forest.update(cellSize, 0, 200)
   expect(forest.stats().drawnInstances).toBeGreaterThan(0)
   expect(forest.stats(false).drawnInstances).toBe(0)
   forest.setTier('medium')

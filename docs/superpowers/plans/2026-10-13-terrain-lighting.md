@@ -123,3 +123,28 @@ This separates changes in lighting from the subsequent surface work.
 CPU baking/tests go through `remote-run` with overflow disabled. GPU captures
 use the Ryzen Playwright server; GPU budget measurements take the exclusive
 `ryzen-budget` lock. Leave shared tunnels and Playwright servers running.
+
+
+## Long-distance forest experiment (October 13)
+
+Attended checkpoint remains in force. Mark requests a farther forest with
+cost measured against the accepted soft trees and 2.6-mile crown stand-ins.
+Prototype a sparse crown-group layer to about 11 miles on High (about 6.8 on
+Medium), then a shaded terrain canopy extending into the distant landscape.
+Use actual camera distance for transitions so altitude also reduces fidelity.
+Keep near ground unchanged and the entire extension DEV opt-in with
+`forestDistance=long`. No production/default change before visual review.
+
+Reuse two-triangle cards, stable cell slots, incremental loading, canonical
+placement and exclusions. Coarse cells contain 16 original cells with 14
+candidates each: 224 possible groups, compared with 220 individual crowns per
+original cell. Group radius is three times an individual stand-in's radius.
+Land-cover masking and mipmapped canopy shading provide the farthest stage;
+this is not individual 3D trees all the way to the horizon.
+
+Capture matched low, ridge, high and moving comparisons. Verify placement,
+quality/reset/culling behavior, production isolation and shader compilation.
+Measure three repeated GPU windows per view at 1440p on the exclusive Ryzen
+budget lock, against the accepted forest. Report full-scene cost separately
+from geometry-only tree visibility toggles, since those toggles cannot remove
+the new terrain shading. Send inspected captures and the live slot, then pause.

@@ -1,0 +1,30 @@
+{
+  "generated": 218,
+  "instances": 19165,
+  "visible": true,
+  "drawnInstances": 0,
+  "fadeMode": "soft",
+  "fadeStartM": 1400,
+  "fadeEndM": 1850,
+  "distant": {
+    "enabled": true,
+    "ready": true,
+    "instances": 57704,
+    "drawnInstances": 57704,
+    "pending": 0,
+    "generated": 439,
+    "maxUpdateMs": 3.9000000059604645,
+    "fadeEndM": 4200
+  },
+  "coarse": {
+    "enabled": false,
+    "ready": true,
+    "instances": 0,
+    "drawnInstances": 0,
+    "pending": 0,
+    "generated": 0,
+    "maxUpdateMs": 0,
+    "fadeEndM": 0
+  },
+  "tier": "high"
+}

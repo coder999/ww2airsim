@@ -1,0 +1,566 @@
+[
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": true,
+    "repeat": 0,
+    "n": 222,
+    "p50": 3.90292,
+    "p95": 4.996560000000001,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": false,
+    "repeat": 0,
+    "n": 289,
+    "p50": 2.81424,
+    "p95": 3.049879999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": false,
+    "repeat": 1,
+    "n": 295,
+    "p50": 2.8146799999999996,
+    "p95": 3.0476799999999997,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": true,
+    "repeat": 1,
+    "n": 228,
+    "p50": 3.90048,
+    "p95": 4.699999999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": true,
+    "repeat": 2,
+    "n": 216,
+    "p50": 3.9034400000000002,
+    "p95": 5.000040000000002,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "off",
+    "trees": false,
+    "repeat": 2,
+    "n": 291,
+    "p50": 2.8140800000000006,
+    "p95": 3.3393600000000006,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3.399999976158142,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": false,
+        "ready": true,
+        "instances": 0,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 0,
+        "maxUpdateMs": 0,
+        "fadeEndM": 0
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": true,
+    "repeat": 0,
+    "n": 187,
+    "p50": 4.43388,
+    "p95": 7.565280000000001,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 49175,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": false,
+    "repeat": 0,
+    "n": 295,
+    "p50": 2.9097599999999995,
+    "p95": 3.15088,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": false,
+    "repeat": 1,
+    "n": 292,
+    "p50": 2.9104400000000004,
+    "p95": 3.2261599999999997,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": true,
+    "repeat": 1,
+    "n": 180,
+    "p50": 4.4612,
+    "p95": 10.81864,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 49175,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": true,
+    "repeat": 2,
+    "n": 177,
+    "p50": 4.425359999999999,
+    "p95": 11.397879999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 56404,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 49175,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "distantTrees": "on",
+    "forestDistance": "long",
+    "trees": false,
+    "repeat": 2,
+    "n": 295,
+    "p50": 2.9080399999999997,
+    "p95": 3.15876,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "distant": {
+        "enabled": true,
+        "ready": true,
+        "instances": 56404,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 439,
+        "maxUpdateMs": 3,
+        "fadeEndM": 4200
+      },
+      "coarse": {
+        "enabled": true,
+        "ready": true,
+        "instances": 49175,
+        "drawnInstances": 0,
+        "pending": 0,
+        "generated": 499,
+        "maxUpdateMs": 2.5,
+        "fadeEndM": 18000
+      },
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  }
+]
