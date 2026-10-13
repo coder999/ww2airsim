@@ -4,7 +4,7 @@
 approval before any implementation. Nothing here is built. Supersedes the Track K plan
 (`docs/superpowers/plans/2026-10-10-k-cloud-edges-impostors-thunderheads.md`), whose
 Phase 1 produced a budget win and no visible improvement. No K1 implementation was
-merged; its durable results are summarized in `docs/clouds.md` §3.11, and the
+merged; its durable results are summarized in `docs/clouds.md` §3.12, and the
 `k1-cloud-edges` worktree and local/remote branches were retired on 2026-10-13.
 
 **Why this exists.** Every in-house cloud attempt since 2026-09-19 has been a variant of

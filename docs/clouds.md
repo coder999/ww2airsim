@@ -6,9 +6,10 @@ Read this before touching anything under `src/render/scene/cloud*` or
 `tools/sky/`. Dated handoffs remain the record of each step. This file
 points at them and does not replace them. Last reconciled against the repo
 on 2026-10-13 for the Takram default, the Flight Conditions cloudiness
-selector and retirement of the unmerged K1 legacy-edge experiment; §3.10
-records the effects dense-depth ordering and idle 4K measurement. When you
-change the cloud system, update the relevant section here in the same commit.
+selector, the retired K1 experiment and the earlier clouds-v2 Blender/LOD
+findings; §3.10 records the effects dense-depth ordering and idle 4K
+measurement. When you change the cloud system, update the relevant section
+here in the same commit.
 
 ## 1. What ships (2026-09-26)
 
@@ -355,7 +356,60 @@ arm remains inside the 16.67 ms 4K budget. The full High in-cloud view is
 currently 20.328–20.580 ms against its 20.0 ms tripwire; current `main`
 reproduces that drift at 20.152–20.309 ms, so E1 did not change the gate.
 
-### 3.11 K1 legacy edge and lighting experiment (2026-10-10; retired 2026-10-13)
+### 3.11 Clouds-v2 Blender source and continuous-LOD experiment (2026-10-10)
+
+The first half of `clouds-v2-blender-lod` tested a Blender-authored source
+volume and far/mid/near runtime representations in an isolated spike. None of
+that renderer entered production. The branch's later Takram work took a
+different architectural direction; its accepted game integration is already
+preserved on `main` and summarized in §1.1.
+
+- **Blender was validated as deterministic offline cloud tooling.** Blender
+  5.0.1 Geometry Nodes produced named density fields, baked them to OpenVDB,
+  mapped normalized grids into physical bounds, saved `.blend` and JSON
+  manifests, and rendered repeatable lighting/inspection views. The final
+  cumulus occupied a 2.2 × 1.8 × 1.4 km envelope on a 192 × 160 × 144 grid;
+  the cumulonimbus occupied 12.0 × 9.5 × 11.2 km on a 192 × 160 × 224 grid.
+  Mark approved the source-render checkpoint as the best clouds seen to that
+  point, which authorized only the isolated runtime proof—not production use.
+- **The procedural source still exposed an authoring limit.** More voxels did
+  not add missing small-scale structure: the smooth-union/ellipsoid field
+  itself produced stacked bands, clean anvil rims and overly uniform internal
+  extinction. Blender is useful plumbing and a Cycles truth/inspection tool;
+  Geometry Nodes alone does not guarantee a convincing density model.
+- **The compact LOD asset proof worked mechanically.** A single approved VDB
+  generated a far proxy, a 14-direction relightable deep-impostor atlas, a
+  64 × 48 × 48 near volume stored as 127 active 8³ bricks out of 288, and a
+  conservative empty-brick skip field. The complete runtime assets were
+  336 KiB raw / 101 KiB gzip, with held-out opacity MAE 0.0469. Persistent
+  world-cell records retained cloud identity, seed, placement, bounds, yaw,
+  density and wind after leaving and re-entering an area; far/mid/near weights
+  used hysteresis and conserved to one.
+- **The attended runtime checkpoint was rejected.** Atlas rows were flipped
+  vertically during baking while the WGSL sampler treated increasing local up
+  as increasing texture V, so the clouds appeared upside down. That invalidated
+  the visual captures and established a simple gate for future pipelines:
+  verify orientation before broader LOD or lighting evaluation.
+- **Correcting steep-view cards did not solve the transition.** Expanding the
+  atlas from eight azimuth views to 14 directions and blending the nearest two
+  bases removed the worst flattening from above and below, but the mid/near
+  overlap still showed two soft silhouettes. Conserving optical-depth weights
+  is insufficient when projected density support does not coincide. A future
+  approach would need deep-impostor depth to seed or terminate the spatial
+  march as one optical interval rather than summing two observations.
+- **The far renderer had the wrong cost shape.** A full-screen fragment pass
+  tested as many as 32 records per pixel. Contaminated but still diagnostic RX
+  6700 XT measurements put far incremental p95 near 4.31 ms against its 1 ms
+  target, while near exterior and inside were more promising at about 2.18 and
+  2.20 ms against the complete-cloud 4 ms target. A production far field must
+  rasterize instanced conservative bounds so clear pixels do no cloud work.
+
+The useful conclusion is architectural, not a request to revive this branch:
+keep deterministic Blender/VDB inspection and persistent world identity in the
+toolbox, but do not reuse the inverted impostor assets, the blended two-image
+transition, or the full-screen far loop.
+
+### 3.12 K1 legacy edge and lighting experiment (2026-10-10; retired 2026-10-13)
 
 K1 investigated whether the legacy renderer's blocky silhouettes could be
 improved cheaply enough to stay within the cloud budget. It produced useful
@@ -407,7 +461,7 @@ an unmeasured Geometry Nodes cumulus sketch (ellipsoid lobes, fractal/fine
 noise and a flattened base). They had no validated result or reusable game
 integration and were deliberately discarded with the worktree.
 
-### 3.12 Full TSL Takram port (2026-10-11)
+### 3.13 Full TSL Takram port (2026-10-11)
 
 The full port proved that Three r186 TSL can express the complete accepted
 renderer without a hidden raw-WGSL escape hatch. The important working pieces
@@ -545,7 +599,7 @@ In the order I would take them. Items marked (Mark) need his decision first.
    Low resolution within its budget. Check each back-to-back against a
    frozen-scene flicker burst (the method in §3.8).
 5. **Legacy performance work is parked.** K1 found a cheaper light march but
-   no perceptible edge improvement (§3.11). Do not resume issue 4 or 5 unless
+   no perceptible edge improvement (§3.12). Do not resume issue 4 or 5 unless
    the legacy renderer is being reactivated for shipping.
 6. **Unify the GPU lock file** across sessions, and chase the
    `waitForTerrain` flake.
