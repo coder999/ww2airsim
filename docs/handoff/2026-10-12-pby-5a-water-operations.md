@@ -28,6 +28,9 @@ combat sortie.
 - *Handbook of Erection and Maintenance Instructions, Navy Models PBY-5 and
   PBY-5A*, AN 01-5MA-2, 15 May 1945: Figure 1 and station geometry, hull,
   floats, gear, propellers, armament installations, bomb and torpedo loads.
+- [Catalina Preservation Society specifications](https://pbycatalina.com/specifications/):
+  manufacturer-calculation figures include the 10 ft 2.5 in hull beam and a
+  0.8 m (2 ft 9 in) draught at 27,000 lb.
 - *Naval Aviation Squadron Histories, Volume 2*, VPB-33: PBY-5A assignment
   and the squadron's move to Leyte on 23 October 1944.
 
@@ -51,6 +54,12 @@ VPB-33-inspired but does not claim one exact bureau number.
   Ships filter the same samples by hull dimensions, so a carrier responds more
   gently than a flying boat. Moving ships and water-supported aircraft leave a
   speed-scaled stern wake; stationary craft receive subtle waterline lapping.
+- Post-flight visual review seats the PBY at the sourced 0.8 m displacement
+  draught, derives heave from its 3.111 m boat hull rather than averaging it
+  across the 27.229 m float tread, and uses the mission's Beaufort-3 sea so
+  rest motion reads clearly. Twin waterline trails, brighter foam and a
+  dedicated planing-spray emitter keep water interaction visible through the
+  takeoff run.
 - Scenarios can author `afloatAt`. World construction derives the hull height,
   rest pitch, zero velocity, gear-up and floats-down state from the spec.
 - Landing reports use `{ kind: 'water', id: 'open-water', name: 'Open water' }`.
@@ -130,6 +139,7 @@ draw calls.
 - [Gear and floats down, four bombs](captures/2026-10-12-pby-5a/pby-5a-hangar-gear-floats-down-bombs.png)
 - [Clean side profile](captures/2026-10-12-pby-5a/pby-5a-hangar-clean-side.png)
 - [Afloat with two Mk 13 torpedoes](captures/2026-10-12-pby-5a/pby-5a-afloat-torpedoes.png)
+- [On the step with twin wake and planing spray](captures/2026-10-12-pby-5a/pby-5a-on-step-wake-torpedoes.png)
 - [Water takeoff with torpedoes](captures/2026-10-12-pby-5a/pby-5a-water-takeoff-torpedoes.png)
 
 ## Verification
@@ -153,6 +163,16 @@ draw calls.
   - focused watercraft/wake/replay integration: 97 passed;
   - Nexus Radeon 680M correctness E2E: Catalina water takeoff passed; the live
     task force's translation and changing heave/pitch/roll passed.
+- Player-review follow-up: the safe sink estimate is now 3.5 m/s (689 ft/min),
+  while the sourced 83-knot approach ceiling remains unchanged. Mission text
+  gives the equivalent 95 mph shown by the HUD and states the sink, bank and
+  pitch expectations instead of hiding them in the contact model.
+- Final player-review gate: 435 test files passed; 6,381 tests passed and 12
+  intentionally skipped, with typecheck, lint, dependency boundaries and all
+  byte-identical Blender rebuilds included. The Nexus Radeon 680M water-path
+  E2E and the three-checkpoint afloat/on-step/airborne capture E2E also passed.
+  The gate caught and repaired both stale radio-silence keys after the mission
+  landing instructions were clarified.
 
 No budget-titled browser spec was changed or run. The browser checks above are
 correctness tests; the repository continues to require exclusive

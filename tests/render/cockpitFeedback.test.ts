@@ -158,7 +158,7 @@ describe('follow camera and numeric data', () => {
 
   it('labels the same lever as FLOATS for a water-capable aircraft', () => {
     const amphibian = { ...spec, waterOperations: {
-      hullDepthM: 2.5, displacementDraftM: 0.5, planingDraftM: 0.1, floatHalfSpanM: 13.6, floatDepthM: 2.3,
+      hullDepthM: 2.5, hullBeamM: 3.1, displacementDraftM: 0.5, planingDraftM: 0.1, floatHalfSpanM: 13.6, floatDepthM: 2.3,
       restPitchDeg: 3, planingPitchDeg: 6, planingSpeedMps: 20, takeoffSpeedMps: 40,
       maxLandingSpeedMps: 45, maxLandingSinkMps: 3, displacementDragCoeff: 0.08,
       planingDragCoeff: 0.02, taxiYawRateDegPerSec: 8, source: 'test',

@@ -772,6 +772,7 @@ export function step(
         Math.atan2(forward.x, -forward.z),
         spec.geometry.wingSpanM * 0.62,
         spec.waterOperations.floatHalfSpanM * 2,
+        spec.waterOperations.hullBeamM,
       )
     : null
   const bodyRates = startGround !== null && onWaterStart

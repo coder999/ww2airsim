@@ -15,7 +15,7 @@
   "ships": [],
   "weather": {
     "windFromDeg": 120,
-    "windMps": 3.1,
+    "windMps": 4.4,
     "timeOfDay": 8.25,
     "clouds": [
       {
@@ -54,7 +54,7 @@
     },
     {
       "id": "landing-config",
-      "label": "Wheels up, floats down, below 83 knots",
+      "label": "Wheels up, floats down, below 95 mph (83 knots)",
       "priority": "primary",
       "kind": "state",
       "gear": "up",
@@ -97,14 +97,14 @@
       "id": "return",
       "when": { "completed": "circuit" },
       "then": [
-        { "message": "Instructor: Turn back over the bay. Wheels stay up; lower the floats with F and slow below 83 knots." }
+        { "message": "Instructor: Turn back over the bay. Wheels stay up; lower the floats with F and slow below 95 mph (83 knots)." }
       ]
     },
     {
       "id": "cleared",
       "when": { "completed": "landing-config" },
       "then": [
-        { "message": "Instructor: Cleared to land anywhere on open water. Hold a shallow nose-up attitude and settle the hull gently." }
+        { "message": "Instructor: Cleared to land anywhere on open water. Hold 0-10 degrees nose-up, wings nearly level, and keep the sink rate below 690 feet per minute." }
       ]
     }
   ],
@@ -113,7 +113,7 @@
     "name": "Catalina Water Qualified"
   },
   "briefing": {
-    "situation": "Catalina Water Qualification. Begin afloat in San Pedro Bay with wheels retracted and wingtip floats deployed. Make a water takeoff, fly the marked circuit, return below 83 knots in the correct water-landing configuration, and settle onto open water. Two Mk 13 torpedoes are the recommended operational loadout, though no weapons release is required for this qualification.",
+    "situation": "Catalina Water Qualification. Begin afloat in San Pedro Bay with wheels retracted and wingtip floats deployed. Make a water takeoff, fly the marked circuit, return below 95 mph (83 knots) in the correct water-landing configuration, then touch down wings-level with less than 690 feet per minute of sink. Two Mk 13 torpedoes are the recommended operational loadout, though no weapons release is required for this qualification.",
     "loadout": "torpedoes"
   },
   "history": {

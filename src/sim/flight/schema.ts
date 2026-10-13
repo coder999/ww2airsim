@@ -487,6 +487,9 @@ const AircraftSpecObject = z.object({
   waterOperations: z.object({
     /** Body-origin-to-keel depth at the step, metres. */
     hullDepthM: positive,
+    /** Maximum hull beam at the waterline. Kept separate from the much wider
+     * stabilising-float tread so heave follows the main boat hull. */
+    hullBeamM: positive,
     /** How far the keel sits below the mean surface at rest and on the step. */
     displacementDraftM: positive,
     planingDraftM: positive,

@@ -26,6 +26,7 @@ const spec: AircraftSpec = {
   ...base,
   waterOperations: {
     hullDepthM: 2.5,
+    hullBeamM: 3.1,
     displacementDraftM: 0.5,
     planingDraftM: 0.1,
     floatHalfSpanM: 13.6,
@@ -153,6 +154,38 @@ describe('water operations', () => {
     }
     expect(maxSpeedMps, 'the hull never reached its authored water takeoff speed').toBeGreaterThanOrEqual(catalina.waterOperations!.takeoffSpeedMps)
     expect(airborneTick, 'the Catalina did not climb 10 m clear of the water within 60 seconds').not.toBeNull()
+  })
+
+  it('carries a configured Catalina arrival through the real impact seam and rejects an overspeed one', () => {
+    const arrive = (speedMps: number, sinkMps: number, pitchDeg = 5) => {
+      const start = createState({
+        position: v3(0, catalina.waterOperations!.hullDepthM + 0.3, 0),
+        velocity: v3(speedMps, -sinkMps, 0),
+        attitude: qFromAxisAngle(v3(0, 0, 1), pitchDeg * Math.PI / 180),
+        gearFraction: 0,
+        flapFraction: 1,
+        fuelKg: 1800,
+      })
+      let world = createWorldOf({
+        aircraft: [{
+          id: 'catalina', spec: catalina, state: start, previous: start,
+          controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: false, flapDown: true },
+          assistMemory: undefined, impact: null, parked: false,
+        }],
+        player: 'catalina', terrain: sea, wind: v3(0, 0, 0),
+      })
+      for (let i = 0; i < 12; i++) world = advance(world, DT).world
+      return playerAircraft(world)
+    }
+
+    const safe = arrive(40, 3.4, -1)
+    expect(safe.impact).toBeNull()
+    expect(onWater(catalina, safe.state, 0)).toBe(true)
+    expect(safeWaterArrival(catalina, {
+      ...safe.state,
+      position: v3(0, catalina.waterOperations!.hullDepthM, 0),
+      velocity: v3(50, -1, 0),
+    }, 0)).toBe(false)
   })
 
   it('records a completed open-water landing rather than an airfield recovery', () => {

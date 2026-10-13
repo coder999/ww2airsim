@@ -84,6 +84,10 @@ all existing behavior byte-for-byte.
 The block stores only aircraft facts and explicit gameplay estimates:
 
 - `hullDepthM`: body-origin-to-keel contact depth at the step;
+- `hullBeamM`: the main boat hull's beam used to filter heave separately from
+  the much wider float-supported roll sample;
+- `displacementDraftM` and `planingDraftM`: immersed keel depth at rest and on
+  the step;
 - `floatHalfSpanM` and `floatDepthM`: stabilizing float contact geometry;
 - `restPitchDeg`: displacement-rest attitude;
 - `planingPitchDeg`: target pitch once on the step;

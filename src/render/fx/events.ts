@@ -162,15 +162,31 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
         const aft = speed > 0.2
           ? v3(-a.state.velocity.x / speed, 0, -a.state.velocity.z / speed)
           : qRotate(pose.attitude, v3(-1, 0, 0))
+        const right = qRotate(pose.attitude, v3(0, 0, 1))
         const lengthM = a.spec.geometry.wingSpanM * 0.62
-        const position = v3(pose.position.x + aft.x * lengthM * 0.42, waterlineY + 0.12, pose.position.z + aft.z * lengthM * 0.42)
-        sustained.push({
-          key: `water:${a.id}`,
-          recipe: speed > 1 ? 'water.wake' : 'water.lap',
-          intensity: speed > 1 ? clamp01(0.25 + speed / water.takeoffSpeedMps) : 0.65,
-          position,
-          velocity: ZERO,
-        })
+        const visibleY = Math.max(waterlineY, surfaceY, SEA_LEVEL_M) + 0.3
+        const stern = v3(pose.position.x + aft.x * lengthM * 0.42, visibleY, pose.position.z + aft.z * lengthM * 0.42)
+        const halfWakeM = water.hullBeamM * 0.34
+        const recipe = speed > 1 ? 'water.wake' : 'water.lap'
+        const intensity = speed > 1 ? clamp01(0.25 + speed / water.takeoffSpeedMps) : 0.65
+        for (const [side, name] of [[-1, 'port'], [1, 'starboard']] as const) {
+          sustained.push({
+            key: `water:${a.id}:${name}`,
+            recipe,
+            intensity,
+            position: add(stern, scale(right, side * halfWakeM)),
+            velocity: ZERO,
+          })
+        }
+        if (planing > 0) {
+          sustained.push({
+            key: `water-planing:${a.id}`,
+            recipe: 'water.planing',
+            intensity: Math.max(0.25, planing),
+            position: v3(pose.position.x + aft.x * lengthM * 0.1, visibleY, pose.position.z + aft.z * lengthM * 0.1),
+            velocity: ZERO,
+          })
+        }
       }
     }
     if (a.impact !== null && seenCrashTick[a.id] !== a.impact.tick) {
@@ -226,7 +242,7 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
     const bowX = Math.sin(pose.headingRad), bowZ = -Math.cos(pose.headingRad)
     const position = v3(
       pose.position.x - bowX * ship.spec.lengthM * 0.48,
-      pose.position.y + 0.15,
+      Math.max(pose.position.y, SEA_LEVEL_M) + 0.3,
       pose.position.z - bowZ * ship.spec.lengthM * 0.48,
     )
     sustained.push({

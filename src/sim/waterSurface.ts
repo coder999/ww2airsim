@@ -105,12 +105,14 @@ export function watercraftPoseAt(
   headingRad: number,
   lengthM: number,
   beamM: number,
+  heaveBeamM: number = beamM,
 ): WatercraftPose {
   if (ctx === undefined) return { heightM: 0, verticalSpeedMps: 0, pitchRad: 0, rollRad: 0 }
   const bow = { x: Math.sin(headingRad), z: -Math.cos(headingRad) }
   const starboard = { x: Math.cos(headingRad), z: Math.sin(headingRad) }
   const halfLength = Math.max(1, lengthM * 0.38)
   const halfBeam = Math.max(1, beamM * 0.42)
+  const halfHeaveBeam = Math.max(1, Math.min(halfBeam, heaveBeamM * 0.42))
   const sample = (along: number, across: number) => waterSurfaceAt(
     ctx,
     x + bow.x * along + starboard.x * across,
@@ -119,12 +121,13 @@ export function watercraftPoseAt(
   const center = sample(0, 0)
   const fore = sample(halfLength, 0), aft = sample(-halfLength, 0)
   const stbd = sample(0, halfBeam), port = sample(0, -halfBeam)
+  const heaveStbd = sample(0, halfHeaveBeam), heavePort = sample(0, -halfHeaveBeam)
   const inertiaResponse = clamp(75 / Math.max(15, lengthM), 0.22, 1)
   const maxPitch = (2.5 * Math.PI / 180) * inertiaResponse
   const maxRoll = (4 * Math.PI / 180) * inertiaResponse
   return {
-    heightM: (2 * center.heightM + fore.heightM + aft.heightM + stbd.heightM + port.heightM) / 6,
-    verticalSpeedMps: (2 * center.verticalSpeedMps + fore.verticalSpeedMps + aft.verticalSpeedMps + stbd.verticalSpeedMps + port.verticalSpeedMps) / 6,
+    heightM: (2 * center.heightM + fore.heightM + aft.heightM + heaveStbd.heightM + heavePort.heightM) / 6,
+    verticalSpeedMps: (2 * center.verticalSpeedMps + fore.verticalSpeedMps + aft.verticalSpeedMps + heaveStbd.verticalSpeedMps + heavePort.verticalSpeedMps) / 6,
     pitchRad: clamp(Math.atan2(fore.heightM - aft.heightM, 2 * halfLength) * inertiaResponse, -maxPitch, maxPitch),
     // Positive body roll lowers starboard in the project's x-forward/y-up/z-starboard frame.
     rollRad: clamp(Math.atan2(port.heightM - stbd.heightM, 2 * halfBeam) * inertiaResponse, -maxRoll, maxRoll),

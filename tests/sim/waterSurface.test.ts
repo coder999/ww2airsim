@@ -32,4 +32,17 @@ describe('shared support sea', () => {
     expect(Math.abs(carrier.pitchRad)).toBeLessThan(Math.abs(small.pitchRad))
     expect(Math.abs(carrier.rollRad)).toBeLessThan(Math.abs(small.rollRad))
   })
+
+  it('can derive flying-boat heave from the hull without shrinking its float-supported roll span', () => {
+    const ctx = waterSurfaceContext(9, v3(4.4, 0, 0))
+    const floatAveraged = watercraftPoseAt(ctx, 150, -70, 0.6, 20, 27.2)
+    const hullAveraged = watercraftPoseAt(ctx, 150, -70, 0.6, 20, 27.2, 3.1)
+    expect(hullAveraged.heightM).not.toBeCloseTo(floatAveraged.heightM, 6)
+    expect(hullAveraged.verticalSpeedMps).not.toBeCloseTo(floatAveraged.verticalSpeedMps, 6)
+    expect(hullAveraged.rollRad).toBeCloseTo(floatAveraged.rollRad, 12)
+    const bob = Array.from({ length: 601 }, (_, tick) => watercraftPoseAt(
+      waterSurfaceContext(tick / 60, v3(4.4, 0, 0)), 150, -70, 0.6, 20, 27.2, 3.1,
+    ).heightM)
+    expect(Math.max(...bob) - Math.min(...bob)).toBeGreaterThan(0.2)
+  })
 })
