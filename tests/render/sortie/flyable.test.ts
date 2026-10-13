@@ -13,7 +13,7 @@ const names = ordnanceNames(library)
 
 describe('the flyable catalog (sortie spec, Form 3)', () => {
   it('lists the allied aircraft by name, then the Japanese (the Val, the Zero, the G4M, the Ki-21, the Kate, the Ki-43, the Ki-84)', () => {
-    expect(flyable.map((f) => f.spec.id)).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'f4f-wildcat', 'f6f-hellcat', 'tbm-3-avenger', 'p-38-lightning', 'pby-5a-catalina', 'f4u-corsair', 'd3a-val', 'a6m2-zero', 'g4m-betty', 'ki-21-sally', 'b5n2-kate', 'ki-43-oscar', 'ki-84-frank'])
+    expect(flyable.map((f) => f.spec.id)).toEqual(['b-17-flying-fortress', 'b-29-superfortress', 'pby-5a-catalina', 'f4f-wildcat', 'f6f-hellcat', 'tbm-3-avenger', 'p-38-lightning', 'f4u-corsair', 'd3a-val', 'a6m2-zero', 'g4m-betty', 'ki-21-sally', 'b5n2-kate', 'ki-43-oscar', 'ki-84-frank'])
   })
   it.each(specs.map((s) => s.id))('%s: its Library card has the blurb, history and sources Forms 3 and 4 and the Hangar show', (id) => {
     const card = library.find((e) => e.spec === id)!
