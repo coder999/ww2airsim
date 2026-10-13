@@ -52,14 +52,16 @@ VPB-33-inspired but does not claim one exact bureau number.
 - Watercraft sit at an authored displacement/planing draft, heave and follow
   filtered wave slopes, then release support while climbing at takeoff speed.
   Ships filter the same samples by hull dimensions, so a carrier responds more
-  gently than a flying boat. Moving ships and water-supported aircraft leave a
-  speed-scaled stern wake; stationary craft receive subtle waterline lapping.
+  gently than a flying boat. Moving ships and water-supported aircraft feed one
+  persistent, water-aligned wake renderer: a broken centre-churn trail and
+  widening Kelvin-style crest arms whose count follows the effects tier.
+  Stationary craft retain subtle waterline lapping.
 - Post-flight visual review seats the PBY at the sourced 0.8 m displacement
   draught, derives heave from its 3.111 m boat hull rather than averaging it
   across the 27.229 m float tread, and uses the mission's Beaufort-3 sea so
-  rest motion reads clearly. Twin waterline trails, brighter foam and a
-  dedicated planing-spray emitter keep water interaction visible through the
-  takeoff run.
+  rest motion reads clearly. Low surface crests, turbulent centre foam and a
+  dedicated airborne planing-spray emitter keep water interaction visible
+  through the takeoff run without reading as white smoke above the sea.
 - Scenarios can author `afloatAt`. World construction derives the hull height,
   rest pitch, zero velocity, gear-up and floats-down state from the spec.
 - Landing reports use `{ kind: 'water', id: 'open-water', name: 'Open water' }`.
@@ -222,7 +224,7 @@ shared claim so CPU work cannot overlap one.
 
 - No crest-for-crest GPU-ocean coupling, spray force, porpoising, current,
   anchoring or beaching. The support sea models long-wave height and slope;
-  lapping and wakes are visual particle effects rather than forces.
+  lapping, wake geometry and spray are visual effects rather than forces.
 - No AI taxi, takeoff or landing on water.
 - Floats share the flap input until a dedicated control is justified.
 - Defensive gun installations neither aim nor fire.

@@ -24,6 +24,7 @@ import type { MissionDiagnostics } from './mission/hud.js'
 import type { ReplayCameraId } from '../replay/cameras.js'
 import type { GraphicsCheckRecord, GraphicsCheckSnapshot } from './graphicsCheck.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
+import type { WaterWakeStats } from './scene/waterWake.js'
 
 export type ImpactMarkerDiagnostics = {
   readonly on: boolean
@@ -153,6 +154,8 @@ export type Ww2Diagnostics = {
   readonly replay: () => ReplayDiagnostics | null
   /** CPU milliseconds spent rebuilding deterministic replay effects after the latest jump. */
   readonly replayFxRebuildMs: () => number
+  /** Shared surface-wake workload, for correctness and the locked GPU budget. */
+  readonly waterWake: () => WaterWakeStats
   /**
    * The world position of the player's airframe root AS DRAWN this frame --
    * unlike `aircraftPositionM`, which is the live simulated state. In a

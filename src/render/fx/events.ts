@@ -10,7 +10,8 @@ import { SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import type { RecipeId } from './catalog.js'
 import { engineHealths, smokeLevel } from '../../sim/damage/model.js'
 import type { AircraftSpec } from '../../sim/flight/schema.js'
-import { waterSurfaceAt, type WaterSurfaceContext } from '../../sim/waterSurface.js'
+import type { WaterSurfaceContext } from '../../sim/waterSurface.js'
+import { aircraftWaterContact } from '../scene/waterWake.js'
 
 /**
  * Sim state -> effect events (ordnance-and-effects design §3.2). Pure. One
@@ -151,39 +152,32 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
     if (pose === undefined || rec === undefined) return
     const water = a.spec.waterOperations
     if (water !== undefined && a.impact === null) {
-      const speed = Math.hypot(a.state.velocity.x, a.state.velocity.z)
-      const planing = clamp01((speed - water.planingSpeedMps) / (water.takeoffSpeedMps - water.planingSpeedMps))
-      const draftM = water.displacementDraftM + planing * (water.planingDraftM - water.displacementDraftM)
-      const waterlineY = pose.position.y - water.hullDepthM + draftM
-      const surfaceY = waterSurfaceAt(w.water, pose.position.x, pose.position.z).heightM
-      // Compare with the shared support sea, not datum zero: a Catalina keeps its wake through
-      // a high-sea crest, while a departing hull drops the cue promptly.
-      if (Math.abs(waterlineY - surfaceY) < 1) {
-        const aft = speed > 0.2
-          ? v3(-a.state.velocity.x / speed, 0, -a.state.velocity.z / speed)
-          : qRotate(pose.attitude, v3(-1, 0, 0))
-        const right = qRotate(pose.attitude, v3(0, 0, 1))
-        const lengthM = a.spec.geometry.wingSpanM * 0.62
-        const visibleY = Math.max(waterlineY, surfaceY, SEA_LEVEL_M) + 0.3
-        const stern = v3(pose.position.x + aft.x * lengthM * 0.42, visibleY, pose.position.z + aft.z * lengthM * 0.42)
-        const halfWakeM = water.hullBeamM * 0.34
-        const recipe = speed > 1 ? 'water.wake' : 'water.lap'
-        const intensity = speed > 1 ? clamp01(0.25 + speed / water.takeoffSpeedMps) : 0.65
-        for (const [side, name] of [[-1, 'port'], [1, 'starboard']] as const) {
-          sustained.push({
-            key: `water:${a.id}:${name}`,
-            recipe,
-            intensity,
-            position: add(stern, scale(right, side * halfWakeM)),
-            velocity: ZERO,
-          })
+      const contact = aircraftWaterContact(a, pose, w.water)
+      if (contact !== null) {
+        // Underway wakes are surface geometry (`scene/waterWake.ts`), not
+        // billboard spray. Keep only the small at-rest waterline patches here.
+        if (contact.speedMps <= 1) {
+          const halfWakeM = water.hullBeamM * 0.34
+          for (const [side, name] of [[-1, 'port'], [1, 'starboard']] as const) {
+            sustained.push({
+              key: `water:${a.id}:${name}`,
+              recipe: 'water.lap',
+              intensity: 0.65,
+              position: add(contact.stern, scale(contact.right, side * halfWakeM)),
+              velocity: ZERO,
+            })
+          }
         }
-        if (planing > 0) {
+        if (contact.planing > 0) {
           sustained.push({
             key: `water-planing:${a.id}`,
             recipe: 'water.planing',
-            intensity: Math.max(0.25, planing),
-            position: v3(pose.position.x + aft.x * lengthM * 0.1, visibleY, pose.position.z + aft.z * lengthM * 0.1),
+            intensity: Math.max(0.25, contact.planing),
+            position: v3(
+              pose.position.x + contact.aft.x * contact.lengthM * 0.1,
+              contact.visibleY,
+              pose.position.z + contact.aft.z * contact.lengthM * 0.1,
+            ),
             velocity: ZERO,
           })
         }
@@ -233,8 +227,8 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
     }
   })
 
-  // Every ship uses the same stern-water contract as a flying boat: lapping at rest, a foam trail
-  // once underway. Particles inherit no hull velocity, so the moving emitter leaves a wake behind.
+  // Every ship uses the same low-speed lapping cue as a flying boat. Its
+  // underway trail is the shared surface wake (`scene/waterWake.ts`).
   w.ships.forEach((ship, index) => {
     const pose = w.shipPoses[index]
     if (pose === undefined || (w.combat.ships[ship.id]?.sinkingFraction ?? 0) >= 1) return
@@ -245,13 +239,7 @@ export function nextFxEvents(prev: FxMemory, w: FxWorldView): { readonly memory:
       Math.max(pose.position.y, SEA_LEVEL_M) + 0.3,
       pose.position.z - bowZ * ship.spec.lengthM * 0.48,
     )
-    sustained.push({
-      key: `water:${ship.id}`,
-      recipe: speed > 0.5 ? 'water.wake' : 'water.lap',
-      intensity: speed > 0.5 ? clamp01(0.3 + speed / ship.spec.maxSpeedMps) : 0.45,
-      position,
-      velocity: ZERO,
-    })
+    if (speed <= 0.5) sustained.push({ key: `water:${ship.id}`, recipe: 'water.lap', intensity: 0.45, position, velocity: ZERO })
   })
 
   for (const p of w.combat.projectiles) {

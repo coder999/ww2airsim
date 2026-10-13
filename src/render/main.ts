@@ -134,6 +134,7 @@ import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
+import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
@@ -1105,6 +1106,7 @@ async function boot(): Promise<void> {
         targetId: replay.camera.targetId,
       },
       replayFxRebuildMs: () => lastFxRebuildMs,
+      waterWake: () => waterWake.stats(),
       renderedPlayerPositionM: () => renderedPlayerPosition,
       playerAirframeVisible: () => scenarioEntities?.player.root.visible ?? false,
       // Plan 12: every entity, not just the player's airplane. See the two
@@ -1555,6 +1557,10 @@ async function boot(): Promise<void> {
   if (import.meta.env.DEV) clouds.setDebug(cloudDebugFromQuery(location.search))
   let water = createOcean(oceanDepth, beaufort, cascades, terrain.levelTexture(terrain.wholeLevel), shadow)
   scene.add(water)
+  // A surface wake is geometry shared by ships and water-supported aircraft,
+  // not a cloud of FX billboards. It remains a fixed two draws at every tier.
+  const waterWake = createWaterWake(fxTier)
+  scene.add(waterWake.object)
   /**
    * Swap the ocean onto `name`'s cascades, live. Extracted from the probe
    * (where this whole body used to live inline) because the Settings dialog
@@ -1653,6 +1659,7 @@ async function boot(): Promise<void> {
     fxTier = name
     fxSystem?.setCapacity(FX_TIERS[name].capacity)
     fxPass?.setTier(FX_TIERS[name])
+    waterWake.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
   // read here and mutated below -- see that declaration for why.
@@ -2223,6 +2230,7 @@ async function boot(): Promise<void> {
     // edges, but only the pool can drop what is already drawn.
     fxSystem?.clear()
     fxMemory = NO_FX_MEMORY
+    waterWake.clear()
     wreckVisuals.clear()
     fxStress = null
     missionHud.reset()
@@ -2411,6 +2419,7 @@ async function boot(): Promise<void> {
     clearMapInput()
     replayHeld.clear()
     fxSystem?.clear()
+    waterWake.clear()
     audio.hold(true)
     root.classList.add(REPLAYING_CLASS)
     replayBar.show(replayBarModel(player, camera))
@@ -2422,6 +2431,7 @@ async function boot(): Promise<void> {
     const session = replay
     if (session === null) return null
     fxSystem?.clear()
+    waterWake.clear()
     fxMemory = session.liveFxMemory
     audio.restore(session.liveAudio)
     audio.hold(session.liveWasPaused)
@@ -3093,6 +3103,19 @@ async function boot(): Promise<void> {
       if (swarmHidden && s.id.startsWith('swarm-')) shipHandles[i]!.root.visible = false // after setDamage, which sets it
       applyShipGunLaying(s.id, shipHandles[i]!.mounts, view.world.combat.aa.laying)
     })
+    const wakeWater = waterSurfaceContext(view.world.tick * DT + view.world.accumulatorSeconds, view.world.wind)
+    if (replay?.jumpedThisFrame === true) waterWake.clear()
+    const wakeDtS = replay === null
+      ? fxDtSeconds(frameMs / 1000, view.paused, view.timeScale)
+      : replay.player.playing ? (frameMs / 1000) * replay.player.speed : 0
+    waterWake.update(waterWakeSources({
+      combat: view.world.combat,
+      aircraft: view.world.aircraft,
+      poses: view.poses,
+      ships: view.world.ships,
+      shipPoses: view.shipPoses,
+      water: wakeWater,
+    }), wakeWater, wakeDtS)
     // Structures: like the sinking/burning ships above, `sync` is handed the
     // CURRENT `World.combat.structures` map unconditionally every frame
     // (airfield.ts's own doc comment on `AirfieldHandle.sync`) rather than
@@ -3119,7 +3142,7 @@ async function boot(): Promise<void> {
         const events = nextFxEvents(fxMemory, {
           tick: view.world.tick, combat: view.world.combat, aircraft: view.world.aircraft, poses: view.poses,
           ships: view.world.ships, shipPoses: view.shipPoses,
-          water: waterSurfaceContext(view.world.tick * DT + view.world.accumulatorSeconds, view.world.wind),
+          water: wakeWater,
           shipSmokeOrigins, structureAnchors, muzzles,
         })
         fxMemory = events.memory

@@ -113,9 +113,12 @@ sea while `floatHalfSpanM` retains the full roll-support tread: the craft
 heaves and follows long wave slopes at rest, rises onto the step with
 speed, and releases support while climbing at `takeoffSpeedMps`. The rendered
 ocean remains richer than this contact model; it need not match individual
-crests. Ships use the same support sea, with hull-size response filtering, and
-all supported watercraft produce lapping spray at rest or a stern wake underway;
-planing aircraft also throw visible step spray until liftoff.
+crests. Ships use the same support sea, with hull-size response filtering. All
+supported watercraft produce lapping spray at rest and feed the same persistent
+surface-wake renderer underway: a turbulent centre trail inside widening,
+low-profile Kelvin-style crest arms. Planing aircraft additionally throw short-
+lived airborne step spray until liftoff. Wake geometry samples the support-sea
+height every frame but remains a visual cue rather than a force.
 
 ### D6. Engines
 

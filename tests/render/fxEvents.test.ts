@@ -42,19 +42,19 @@ const hit = (tick: number, over: Partial<CombatImpact> = {}): CombatImpact =>
 const withImpacts = (c: CombatState, impacts: CombatImpact[]): CombatState => ({ ...c, impacts })
 
 describe('fx events (effects design §3.2)', () => {
-  it('gives every afloat ship lapping at rest and a speed-scaled stern wake underway', () => {
+  it('keeps particle lapping at rest and leaves an underway ship to the surface-wake renderer', () => {
     const { combat, aircraft } = base()
     const pose = { position: v3(100, 0.25, 200), headingRad: 0, pitchRad: 0.01, rollRad: -0.02 }
     const ship = (speedMps: number) => ({ id: 'maru', spec: { lengthM: 100, maxSpeedMps: 20 }, state: { speedMps } })
     const still = nextFxEvents(NO_FX_MEMORY, view(1, combat, aircraft, { ships: [ship(0)], shipPoses: [pose] })).sustained
     expect(still.find((s) => s.key === 'water:maru')).toMatchObject({ recipe: 'water.lap', intensity: 0.45, position: v3(100, 0.55, 248) })
     const moving = nextFxEvents(NO_FX_MEMORY, view(1, combat, aircraft, { ships: [ship(10)], shipPoses: [pose] })).sustained
-    expect(moving.find((s) => s.key === 'water:maru')).toMatchObject({ recipe: 'water.wake', intensity: 0.8, position: v3(100, 0.55, 248) })
+    expect(moving.some((s) => s.key === 'water:maru')).toBe(false)
     const sunk = { ...combat, ships: { ...combat.ships, maru: { ...combat.ships['maru']!, sinkingFraction: 1 } } }
     expect(nextFxEvents(NO_FX_MEMORY, view(1, sunk, aircraft, { ships: [ship(10)], shipPoses: [pose] })).sustained.some((s) => s.key === 'water:maru')).toBe(false)
   })
 
-  it('gives the Catalina lapping at rest and a wake while taxiing on the step', () => {
+  it('keeps Catalina lapping and planing spray separate from its surface wake', () => {
     const pbySpec = loadAircraftSpec('pby-5a-catalina')
     const water = pbySpec.waterOperations!
     const support = waterSurfaceContext(7, v3(30, 0, 0))
@@ -65,11 +65,11 @@ describe('fx events (effects design §3.2)', () => {
       const state = createState({ position: v3(0, surface.heightM + water.hullDepthM - draft, 0), velocity: v3(speedMps, surface.verticalSpeedMps, 0), gearFraction: 0, flapFraction: 1 })
       return { id: 'pby', spec: pbySpec, state, previous: state, controls: { pitch: 0, roll: 0, yaw: 0, throttle: 0 }, impact: null as Impact | null }
     }
-    for (const [speed, recipe] of [[0, 'water.lap'], [20, 'water.wake'], [30, 'water.wake']] as const) {
+    for (const speed of [0, 20, 30]) {
       const pby = afloat(speed)
       const combat = createCombat([pby])
       const sustained = nextFxEvents(NO_FX_MEMORY, view(1, combat, [pby], { water: support })).sustained
-      expect(sustained.filter((s) => s.key.startsWith('water:pby:')).map((s) => s.recipe)).toEqual([recipe, recipe])
+      expect(sustained.filter((s) => s.key.startsWith('water:pby:')).map((s) => s.recipe)).toEqual(speed === 0 ? ['water.lap', 'water.lap'] : [])
       expect(sustained.some((s) => s.key === 'water-planing:pby')).toBe(speed > water.planingSpeedMps)
     }
   })
