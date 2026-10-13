@@ -34,8 +34,7 @@ export type { RenderScale } from './graphicsCheck.js'
  * screen, to read settings at boot and push the graphics check's result back in.
  * `titleScreen.ts` owns only the button that opens it.
  *
- * WHERE EACH SETTING PERSISTS, since this dialog writes three separate
- * things and the answer is deliberately not uniform:
+ * WHERE EACH SETTING PERSISTS; the storage keys are deliberately separate:
  * - Render Quality -> `quality.ts`'s `ww2airsim.quality.v1` (pre-existing).
  * - Asset Quality  -> `quality.ts`'s `ww2airsim.assetQuality.v1`, a sibling
  *   key; that function's own comment says why it is not a field on
@@ -45,12 +44,32 @@ export type { RenderScale } from './graphicsCheck.js'
  *   gameplay consequence toggle that happens to share this dialog. Folding
  *   it into a module called `quality` would make the module's name a lie
  *   and would tempt the boot sequence into treating it as probe-related.
+ * - Trees          -> `ww2airsim.trees.v1`, independent of quality presets.
  * - Render Scale   -> `ww2airsim.renderScale.v1`, below (A5, 2026-10-10).
  *   A6's check recommends it together with Render Quality, but it remains a
  *   separate persisted axis so an explicit user choice can change it live.
  * - Difficulty     -> `ww2airsim.difficulty.v1`, below (M5, 2026-10-10): a
  *   gameplay setting like Damage Model.
  */
+
+const TREES_KEY = 'ww2airsim.trees.v1'
+
+/** Independent of quality presets; missing or invalid storage keeps trees on. */
+export function loadTreesEnabled(): boolean {
+  try {
+    return window.localStorage.getItem(TREES_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+export function saveTreesEnabled(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(TREES_KEY, enabled ? 'on' : 'off')
+  } catch (err) {
+    console.warn('tree visibility could not be saved to localStorage:', err)
+  }
+}
 
 const DAMAGE_MODEL_KEY = 'ww2airsim.damageModel.v1'
 
@@ -272,6 +291,7 @@ export type SettingsSnapshot = {
    *  threaded in as a parameter -- visual-realism spec §1. */
   readonly arcadeDamage: boolean
   readonly renderScale: RenderScale
+  readonly treesEnabled: boolean
   /** Automatic lets a graphics check update the active profile. Custom is a
    * player override and is never moved by a later result. */
   readonly graphicsMode: GraphicsMode
@@ -297,6 +317,7 @@ export type SettingsSnapshot = {
 }
 
 export type SettingsCallbacks = {
+  readonly onTreesChange?: (enabled: boolean) => void
   /** Fired on every Simple/Advanced pick, with the full new settings.
    *  `main.ts` turns this into its live `setTier` calls; persistence has
    *  already happened by the time it runs. */
@@ -327,6 +348,7 @@ export type SettingsModel = {
   selectAssetQuality(tier: AssetQualityTierName): void
   selectDamageModel(model: DamageModel): void
   selectRenderScale(scale: RenderScale): void
+  selectTreesEnabled(enabled: boolean): void
   selectDifficulty(difficulty: Difficulty): void
   /** Applies a measured profile without turning it into a player override. */
   previewAutomaticProfile(profile: GraphicsProfile): void
@@ -381,6 +403,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
   let assetQuality: AssetQualityTierName = loadAssetQualityTier() ?? INTERIM_ASSET_QUALITY_TIER
   let damageModel: DamageModel = loadDamageModel() ?? DEFAULT_DAMAGE_MODEL
   let renderScale: RenderScale = savedScaleAtStart ?? DEFAULT_RENDER_SCALE
+  let treesEnabled = loadTreesEnabled()
   let difficulty: Difficulty = loadDifficulty() ?? DEFAULT_DIFFICULTY
   // Old builds had no mode marker. Preserve any old saved quality/scale as a
   // custom choice rather than allowing a new benchmark to overwrite it.
@@ -423,6 +446,7 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       damageModel,
       arcadeDamage: damageModel === 'arcade',
       renderScale,
+      treesEnabled,
       graphicsMode,
       graphicsCheck,
       recommendedProfile,
@@ -460,6 +484,12 @@ export function createSettingsModel(callbacks: SettingsCallbacks = {}): Settings
       saveGraphicsMode(graphicsMode)
       saveRenderScale(scale)
       callbacks.onRenderScaleChange?.(scale)
+      changed()
+    },
+    selectTreesEnabled: (enabled: boolean): void => {
+      treesEnabled = enabled
+      saveTreesEnabled(enabled)
+      callbacks.onTreesChange?.(enabled)
       changed()
     },
     selectDifficulty: (next: Difficulty): void => {
@@ -651,6 +681,24 @@ export function createSettingsDialog(
   recommendationNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
   sheet.appendChild(recommendationNote)
 
+  // Tree visibility is independent of the tier and applies in-flight.
+  sheet.appendChild(sectionTitle('Trees'))
+  const treesGroup = radioGroup('Trees')
+  const treeOptions = new Map<boolean, HTMLDivElement>()
+  for (const [enabled, label, note] of [
+    [true, 'On', 'Show nearby trees and distant crowns.'],
+    [false, 'Off', 'Hide tree detail for smoother flight.'],
+  ] as const) {
+    const el = ballotOption(label, note, () => model.selectTreesEnabled(enabled))
+    treeOptions.set(enabled, el)
+    treesGroup.appendChild(el)
+  }
+  const treeNote = document.createElement('p')
+  treeNote.className = 'fine-print'
+  treeNote.style.cssText = 'margin-top:6px;padding-top:0;border-top:none'
+  treeNote.textContent = 'Trees are hidden while Scenery quality is Low.'
+  sheet.append(treesGroup, treeNote)
+
   // ---- Advanced disclosure ----
   const advancedToggle = document.createElement('button')
   advancedToggle.className = 'ink-button'
@@ -775,6 +823,8 @@ export function createSettingsDialog(
     for (const system of ADVANCED_SYSTEMS) {
       markGroup(systemOptions.get(system.value) ?? new Map(), s.quality[system.value])
     }
+    markGroup(treeOptions, s.treesEnabled)
+    treeNote.style.display = s.quality.scenery === 'low' ? 'block' : 'none'
     markGroup(scaleOptions, s.renderScale)
     markGroup(assetOptions, s.assetQuality)
     markGroup(damageOptions, s.damageModel)

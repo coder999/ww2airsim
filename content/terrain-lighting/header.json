@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "samples": 1025,
+  "directions": 16,
+  "halfExtentM": 100000,
+  "reachM": 25000,
+  "sourceLevel": 1,
+  "sourceSha256": "3942839c84e3a4233137e38426dae3895090d071ab2000cea935b042efef2ae6",
+  "encoding": "uint8-angle-half-pi",
+  "source": "Copernicus GLO-30; see content/terrain/NOTICE.md"
+}

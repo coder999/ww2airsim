@@ -1,4 +1,4 @@
-/** Furthest a tree is ever drawn, metres from the eye: the high tier's
+/** Furthest a detailed tree is drawn, metres from the eye: the high tier's
  *  dissolve end. Lives here rather than in vegetation.ts so the tier table
  *  does not import the module that imports it. */
 export const TREE_FADE_END_M = 1850

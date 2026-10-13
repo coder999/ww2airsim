@@ -2,6 +2,94 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
+test('tree fade comparison preserves near trees and compiles all fragment paths', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  let originalCount = 0
+  for (const [mode, distant, forest = 'off'] of [['whole', 'off'], ['pixel', 'off'], ['soft', 'off'], ['soft', 'on'], ['soft', 'on', 'long']]) {
+    await page.goto(`/?spawnX=-36629&spawnY=457&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&canopy=off&treeFade=${mode}&distantTrees=${distant}&forestDistance=${forest}`)
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ fadeMode: mode, fadeStartM: 1400, fadeEndM: 1850, visible: true })
+    const stats = await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())
+    expect(stats!.drawnInstances).toBeGreaterThan(0)
+    if (mode === 'whole') originalCount = stats!.instances
+    else expect(stats!.instances).toBe(originalCount)
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()?.distant), { timeout: 30000 }).toMatchObject({ enabled: distant === 'on', ready: true })
+    if (distant === 'on') expect(await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()!.distant.drawnInstances)).toBeGreaterThan(0)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.canopy().enabled)).toBe(forest === 'long')
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()?.coarse), { timeout: 30000 }).toMatchObject({ enabled: forest === 'long', ready: true })
+    if (forest === 'long') {
+      await page.waitForFunction(() => (window as DiagWindow).__ww2!.canopy().ready)
+      expect(await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()!.coarse.drawnInstances)).toBeGreaterThan(0)
+    }
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  }
+  expect(consoleErrors).toEqual([])
+})
+
+test('canopy loads, culls out-of-range near trees, and falls back safely when its material is invalid', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  await page.goto('/?spawnX=-38129&spawnY=3962&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&canopy=on')
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.canopy())).toEqual({ enabled: true, ready: true, error: null })
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ drawnInstances: 0, visible: true })
+  expect((await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation()))!.instances).toBeGreaterThan(0)
+  await page.route('**/content/canopy/material.bin.gz', route => route.fulfill({ body: 'invalid' }))
+  await page.reload()
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2?.canopy().error)).toContain('Invalid canopy material size')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.canopy().ready)).toBe(false)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
+
+test('default terrain omits experimental lighting and allows a trees-only comparison', async ({ page }) => {
+  const lightingRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('/terrain-lighting/')) lightingRequests.push(request.url()) })
+  await page.goto('/?spawnX=-36629&spawnY=305&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&trees=off')
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ visible: false, tier: 'high' })
+  const before = await page.evaluate(() => ({
+    lighting: (window as DiagWindow).__ww2!.terrainLighting(),
+    vegetation: (window as DiagWindow).__ww2!.vegetation(),
+  }))
+  expect(before.lighting).toEqual({ mode: 'off', ready: false, error: null, bytes: 0 })
+  expect(before.vegetation!.instances).toBe(0)
+  await page.evaluate(() => (window as DiagWindow).__ww2!.setTreesVisible(true))
+  await page.waitForTimeout(300)
+  const after = await page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())
+  expect(after!.visible).toBe(true)
+  expect(after!.drawnInstances).toBeGreaterThan(0)
+  expect(before.vegetation!.distant.drawnInstances).toBe(0)
+  expect(after!.distant.drawnInstances).toBe(after!.distant.instances)
+  expect(after!.distant.drawnInstances).toBeGreaterThan(0)
+  expect(lightingRequests).toEqual([])
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+})
+
+test('terrain lighting comparison modes load, compile and fail safely with an invalid map', async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('pageerror', e => consoleErrors.push(e.message))
+  for (const mode of ['off', 'sky', 'sun', 'on']) {
+    await page.goto(`/?spawnX=-63000&spawnY=1829&spawnZ=-32000&sceneryView=1&launch=1&cloudTier=off&terrainLighting=${mode}`)
+    await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+    await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.terrainLighting())).toMatchObject({ mode, ready: mode !== 'off', error: null })
+    await page.waitForTimeout(300)
+    expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  }
+  await page.route('**/terrain-lighting/header.json', route => route.fulfill({ contentType: 'application/json', body: '{"version":-1}' }))
+  await page.reload()
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2?.terrainLighting().error)).toContain('does not match')
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.terrainLighting().ready)).toBe(false)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
+
 const surface = (page: Page) =>
   page.evaluate(() => (window as DiagWindow).__ww2!.terrainSurface())
 const errors = (page: Page) =>

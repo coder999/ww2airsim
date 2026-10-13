@@ -36,6 +36,39 @@ const tacloban = loadAirfield('tacloban')
 const dulag = loadAirfield('dulag')
 
 describe('scenery placement on the real Leyte field', () => {
+  it('suspends every tree loader while hidden and resumes at the current eye', () => {
+    const forest = createVegetation(field, [tacloban])
+    forest.object.visible = false
+    forest.update(-40900, -30666, 100)
+    forest.setTier('medium')
+    expect(forest.stats()).toMatchObject({ generated: 0, instances: 0,
+      distant: { generated: 0, drawnInstances: 0 }, coarse: { generated: 0, drawnInstances: 0 } })
+    forest.object.visible = true
+    forest.update(-40900, -30666, 100)
+    expect(forest.stats().drawnInstances).toBeGreaterThan(0)
+    const loaded = forest.stats()
+    forest.object.visible = false
+    forest.update(-40900 + TREE_CELL_M * 4, -30666, 100)
+    expect(forest.stats().generated).toBe(loaded.generated)
+    expect(forest.stats().distant.generated).toBe(loaded.distant.generated)
+    expect(forest.stats().coarse.generated).toBe(loaded.coarse.generated)
+    forest.object.visible = true
+    forest.update(-40900 + TREE_CELL_M * 4, -30666, 100)
+    expect(forest.stats().generated).toBeGreaterThan(loaded.generated)
+  })
+
+  it('coarse crown candidates remain a sparse subset of the canonical forest', () => {
+    let count = 0
+    for (let z = -80; z < -76; z++) for (let x = -106; x < -102; x++) {
+      const all = treeSites(field, x, z, [tacloban, dulag])
+      const sparse = treeSites(field, x, z, [tacloban, dulag], undefined, [], 14)
+      expect(sparse.length).toBeLessThanOrEqual(14)
+      for (const site of sparse) expect(all).toContainEqual(site)
+      count += sparse.length
+    }
+    expect(count).toBeGreaterThan(0)
+  })
+
   it('keeps all building footprints on land and outside the runway', () => {
     // Plan 6b split the old 7-entry AIRFIELD_BUILDINGS table into content
     // `buildings` (hangars, tower) plus AIRFIELD_HUTS (decorative); this
@@ -188,15 +221,16 @@ describe('scenery placement on the real Leyte field', () => {
     // 8 validation errors to 0 on the reference desktop (Playwright 1.63
     // Chromium, RX 6700 XT). three r186's hash takes dFdx/dFdy of the
     // position and then discards; the terrain's own Discard, which takes no
-    // derivatives, compiles fine. The fade is therefore a per-instance alpha
-    // test on `hash(instanceIndex)` against the distance fade: no
-    // derivatives, no blending, one opaque pipeline.
+    // derivatives, compiles fine. All fade modes must avoid that derivative
+    // path. The accepted soft mode (2026-10-13) adds an ordinary blended
+    // transition pair while retaining opaque near trees.
     const vegetation = createVegetation(field, [tacloban])
     for (const mesh of vegetation.object.children as InstancedMesh[]) {
       const material = mesh.material as MeshStandardNodeMaterial
       expect(material.alphaHash, `${mesh.name || 'tree mesh'} still sets alphaHash`).toBe(false)
-      expect(material.transparent, 'the fade must not need a blended pipeline').toBe(false)
-      expect(material.alphaTestNode, 'per-instance dissolve threshold missing').not.toBeNull()
+      // Soft fade deliberately blends the transition pair; the lifecycle
+      // test below protects its depth-write split from the opaque near pair.
+      expect(material.alphaTestNode, 'fade-region discard threshold missing').not.toBeNull()
       expect(material.opacityNode, 'distance fade missing').not.toBeNull()
     }
   })
@@ -285,6 +319,75 @@ describe('scenery placement on the real Leyte field', () => {
     vegetation.update(-40900, -30666)
     expect(crowns.count).toBe(high)
     expect(residentCellOffsets(SCENERY_TIERS.medium.treeFadeEndM).length).toBeLessThan(residentCellOffsets().length)
+  })
+
+  it('keeps pixel fade seeds attached to trees across repacking and culls invisible altitude work', () => {
+    const vegetation = createVegetation(field, [tacloban], [], 'pixel')
+    const crowns = vegetation.object.children[0] as InstancedMesh
+    const seeds = () => {
+      const result = new Map<string, number>()
+      const seed = crowns.geometry.getAttribute('treeFadeSeed')
+      for (let i = 0; i < crowns.count; i++) {
+        const m = crowns.instanceMatrix.array
+        result.set(`${m[i * 16 + 12]},${m[i * 16 + 14]}`, seed.getX(i))
+      }
+      return result
+    }
+    vegetation.update(-40900, -30666, 100)
+    expect(vegetation.stats()).toMatchObject({ fadeMode: 'pixel', fadeStartM: 1400, fadeEndM: 1850 })
+    const baseline = createVegetation(field, [tacloban], [], 'whole')
+    baseline.update(-40900, -30666, 100)
+    const original = baseline.object.children[0] as InstancedMesh
+    expect(crowns.count).toBe(original.count)
+    expect(crowns.instanceMatrix.array).toEqual(original.instanceMatrix.array)
+    expect(crowns.instanceColor!.array).toEqual(original.instanceColor!.array)
+    expect(crowns.geometry.getAttribute('normal').array).toEqual(original.geometry.getAttribute('normal').array)
+    const before = seeds()
+    expect(before.size).toBeGreaterThan(100)
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 100)
+    let overlap = 0
+    for (const [position, seed] of seeds()) if (before.has(position)) {
+      expect(seed).toBe(before.get(position))
+      overlap++
+    }
+    expect(overlap).toBeGreaterThan(100)
+    const generated = vegetation.stats().generated
+    const count = crowns.count
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 10000)
+    expect(vegetation.stats().drawnInstances).toBe(0)
+    expect(crowns.visible).toBe(false)
+    vegetation.update(-40900 + TREE_CELL_M, -30666, 100)
+    expect(vegetation.stats().drawnInstances).toBe(count)
+    expect(vegetation.stats().generated).toBe(generated)
+    vegetation.setTier('low')
+    expect(vegetation.stats().drawnInstances).toBe(0)
+    vegetation.setTier('high')
+    expect(vegetation.stats().drawnInstances).toBe(count)
+  })
+
+  it('keeps the soft transition aligned with opaque trees through movement, tiers and altitude culling', () => {
+    const vegetation = createVegetation(field, [tacloban], [], 'soft', false, false)
+    const meshes = vegetation.object.children as InstancedMesh[]
+    expect(meshes).toHaveLength(4)
+    for (const i of [0, 1]) {
+      expect(meshes[i + 2]!.instanceMatrix).toBe(meshes[i]!.instanceMatrix)
+      expect(meshes[i + 2]!.instanceColor).toBe(meshes[i]!.instanceColor)
+      expect(meshes[i]!.material).toMatchObject({ transparent: false, depthWrite: true })
+      expect(meshes[i + 2]!.material).toMatchObject({ transparent: true, depthWrite: false })
+    }
+    for (const [x, y] of [[-31000, 100], [-31000 + TREE_CELL_M, 100], [-31000 + TREE_CELL_M, 10000]]) {
+      vegetation.update(x!, -47000, y!)
+      expect(meshes[0]!.count).toBeGreaterThan(100)
+      for (const mesh of meshes) {
+        expect(mesh.count).toBe(meshes[0]!.count)
+        expect(mesh.visible).toBe(y! < 10000)
+      }
+    }
+    vegetation.setTier('low')
+    expect(meshes.every(mesh => mesh.count === 0)).toBe(true)
+    vegetation.update(-31000, -47000, 100)
+    vegetation.setTier('high')
+    expect(meshes.every(mesh => mesh.count > 100 && mesh.visible)).toBe(true)
   })
 
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {

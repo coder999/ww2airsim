@@ -430,6 +430,20 @@ Mark's items (2026-10-08): better ship models, turrets that work and fire, and A
 ---
 
 **L3. Land render quality (size M; measured and prototyped 2026-10-09 to 10, dev-only).**
+**October 13 follow-up accepted and merged:** soft tree fading, individual
+crown stand-ins and sparse distant groups now default on in DEV and production
+builds. High extends to roughly 11 miles; detail fades by actual 3D camera
+distance. A saved Trees On/Off control in title Settings and Pause → Visual
+Quality hides every tree geometry layer and suspends streaming independently
+of quality presets. Low scenery still draws no trees.
+The rejected mountain lighting and full-range canopy treatments remain DEV
+comparisons only; near tree art and near ground remain unchanged.
+The longer forest added 0.15–1.60 ms median GPU time in the measured views,
+with known Ryzen p95 misses. Mark accepted retaining it with the toggle;
+visual acceptance does not waive or weaken the budget tests. Production
+deployment remains separate.
+[Follow-up plan](docs/superpowers/plans/2026-10-13-terrain-lighting.md) and
+[measurements, test reconciliation and closeout](docs/handoff/2026-10-13-long-forest.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were

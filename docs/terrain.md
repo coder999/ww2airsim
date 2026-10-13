@@ -1,5 +1,208 @@
 # Terrain
 
+## Accepted long-distance forest (2026-10-13)
+
+Mark accepted the longer forest and requested a Trees setting. Sparse crown
+groups now default on in DEV and production builds;
+`?forestDistance=off` retains the DEV shorter-range comparison. High fades groups in over approximately 1.5–2.6 miles and
+out over 5–11.2 miles; Medium uses 1–1.7 and 3.1–6.8 miles. Low has no crown
+geometry. The shader measures 3D camera distance, so altitude and horizontal
+separation both select the cheaper representation. Trees defaults On.
+
+The shared distant-tree controller now supports coarse cells: each contains
+16 original cells, taking only their first 14 placement candidates. Centers
+retain the original land-cover, slope, water and clearing exclusions, but the
+wider group footprint is approximate. Each group is still one two-triangle
+card, three times an individual stand-in's radius. This adds one transparent
+draw and no shadows. Stable slots and incremental loading are shared with the
+accepted layer. The new layer has its own roughly 1 ms loader slice, not a
+single combined slice with the accepted trees.
+
+A mipmapped canopy material blends onto forest/mangrove terrain by camera
+distance, over roughly 1.5–7.5 miles. It reuses the earlier procedural canopy
+asset, keeps the accepted near ground, and falls back when the asset is not
+ready. This requires terrain texture detail to be enabled. The distant ground
+stage has no tree silhouettes; actual visible coverage depends on haze,
+altitude, occlusion and the terrain draw range. No claim of a fixed fraction of
+the horizon is made. `canopy=on` retains its separate full-range experiment.
+
+`__ww2.vegetation().coarse` exposes loading and draw diagnostics; the existing
+parent visibility switch controls all tree geometry, but not terrain shading.
+`__ww2.canopy().enabled` is true for either the accepted distant canopy or the full-range canopy experiment. Existing capture
+and cost tools accept `FOREST_DISTANCE_CAPTURE=1`. The
+[checkpoint handoff](handoff/2026-10-13-long-forest.md) holds measurements,
+matched views, resource costs and limitations.
+
+The Trees On/Off row appears in title Settings and Pause → Visual Quality.
+It applies immediately and saves independently as `ww2airsim.trees.v1`.
+Off hides all three geometry layers and pauses their cell generation/uploads;
+allocated buffers are retained for re-enabling. Terrain ground cover remains.
+Low scenery hides trees regardless of this preference, with a note in the UI.
+Quality changes do not overwrite the preference. Missing, invalid or blocked
+storage defaults On, and a failed save does not prevent a live change.
+DEV `trees=off` still forces initial/UI visibility off; the diagnostic visibility
+setter remains available for controlled measurements. The known Ryzen p95
+misses remain in the handoff and were not reclassified by visual acceptance.
+
+## Accepted distant crown stand-ins (2026-10-13)
+
+Mark accepted the distant extension after the visual check-in. It now defaults
+on in DEV and production builds; `?distantTrees=off` retains
+the DEV comparison.
+High extends crowns to approximately 2.6 miles, fading over the final
+1.1 miles; Medium extends to 1.7 miles, fading over the final 0.75 miles. Low
+draws neither representation. The near-tree range and appearance are unchanged.
+
+Each stand-in is a camera-facing two-triangle crown with a three-lobe analytic
+silhouette, a soft edge and rounded normal. It uses the existing sun/sky/fog
+lighting and the same deterministic sites, palette, land cover and exclusions
+as the detailed trees. It has no trunk, texture asset or shadow draw. The
+stand-ins blend in across the near-tree fade band and blend out at their outer
+range; they are rounder than the detailed tree art and do not guarantee an
+invisible transition. Camera roll does not change their crown proportions.
+
+`scene/treeCells.ts` now owns the shared cell constants and distance-disc
+selection; `vegetation.ts` reexports them for existing callers. The distant
+layer keeps 437 stable cell slots on High (96,140 potential crowns, about
+2.93 MiB of CPU instance attributes plus their GPU copies). Unused slots
+collapse to zero-size triangles. Up to four newly resident cells load per update,
+stopping before another cell after roughly 1 ms of CPU work; an individual cell
+can exceed that slice. This was added after initial-load updates reached 7.6 ms.
+Only changed slot ranges upload. The near and far layers currently evaluate
+the shared placement function separately. Cover or tier changes clear the
+distant slots and refill incrementally. Initial loading is progressive.
+
+`__ww2.vegetation().distant` exposes enabled/ready, pending cells, generated
+cells, populated tree counts, draw visibility, outer range and the maximum
+CPU update duration observed since construction. Draw counts describe
+populated sites, while the GPU submits the fixed slot capacity. The existing
+trees-visible diagnostic controls both layers. `DISTANT_TREES_CAPTURE=1`
+enrolls on/off captures and isolated cost measurements in the existing tools.
+See the [distant-tree handoff](handoff/2026-10-13-distant-trees.md).
+
+## Accepted soft tree fade (2026-10-13)
+
+Mark accepted the soft fade after finding pixel dissolve slightly better but
+disliking its stipple. The default is now soft in DEV and production builds:
+nearby trees stay opaque; trees in the original
+distance band blend continuously over the scene without a pixel mask.
+`treeFade=pixel` and `treeFade=whole` retain the previous comparisons.
+These query overrides are DEV-only. The accepted soft fade is the default.
+
+The renderer submits an opaque crown/trunk pair plus a transparent pair
+sharing the same instance buffers. Their fragment masks are complementary:
+fully opaque coverage goes through the depth-writing pair; partial coverage
+goes through the blended pair without depth writes. Both pairs follow cell
+repacking, quality tiers and altitude culling. `drawnInstances` still counts
+tree sites, not the number of draw submissions.
+
+This is transparency, not optical blur. Individual transparent instances and
+crown lobes are not sorted, so overlapping transition trees can look different
+from opaque trees. This is the tradeoff described in the
+[Three.js transparency manual](https://threejs.org/manual/pages/transparency.html).
+It adds drawing work and leaves the far-field boundary unresolved. Measurements
+and review clips are in the [soft-fade handoff](handoff/2026-10-13-tree-soft.md).
+
+## Tree pixel-dissolve checkpoint (2026-10-13)
+
+Mark preferred the original close-range trees and reported popping beneath
+the plane in the canopy trial. The accepted renderer retains original tree shapes,
+colors, flat crown normals and tier distances. This checkpoint introduced
+`?treeFade=pixel`; `treeFade=whole` selects the original whole-instance fade.
+Both modes use the same material, placement and distance band. High starts
+fading at approximately 0.87 miles and ends at 1.15 miles; Medium fades from
+approximately 0.47 to 0.75 miles. Neither adds a distant tree representation.
+
+`scene/treeFade.ts` supplies derivative-free interleaved gradient noise for
+the fragment alpha threshold. Its screen-pixel pattern has no temporal jitter;
+a stable site seed decorrelates overlapping crowns. Partial coverage trades
+whole-crown switching for visible stipple in the transition band. The existing
+derivative-based `alphaHash` path stays disabled because it failed Tint shader
+compilation on the reference GPU. This earlier trial left production on the
+whole-instance fade; the accepted soft fade above supersedes that choice.
+
+Both modes retain the conservative altitude draw cull. Diagnostics expose
+`fadeMode`, `fadeStartM`, `fadeEndM`, resident instances and submitted instances.
+`TREE_FADE_CAPTURE=1 E2E_CAPTURE=1` enrolls the matched comparisons in the
+existing land/terrain-cost capture tools. Measurements and review clips are in
+the [pixel-dissolve handoff](handoff/2026-10-13-tree-fade.md).
+
+## Continuous canopy checkpoint (2026-10-13)
+
+The full-range canopy material remains **opt-in** with `?canopy=on`. The
+accepted default above uses it only at distance and retains the original near
+ground. It does not change tree appearance or range. `?trees=off` independently
+hides every tree geometry layer and suspends streaming.
+The [checkpoint handoff](handoff/2026-10-13-canopy.md) holds captures, costs and
+remaining visual limitations. The mountain-lighting trial below remains off.
+
+`tools/terrain/bakeCanopy.ts` produces an original, periodic 1024-square crown
+height material, encoded as slope/tone/enclosure rather than photographed
+color. Its tile spans approximately 1,680 ft, with slight coordinate
+distortion and mip filtering. One packed canopy sample replaces the forest's
+albedo/normal samples; a separate coarse noise sample varies its coordinates.
+Existing land-cover composition masks the material out of beaches, roads,
+rock and water. Crown normal relief fades between approximately 3.1 and 8.7
+miles; the color texture mips continuously into the far field. Terrain
+geometry and collision heights do not change. Missing or malformed material
+falls back to procedural forest color, with `__ww2.canopy()` reporting the error.
+
+The shorter-range, dark, smooth tree treatment shown in the historical canopy
+captures was rejected and removed. A conservative upper bound on resident tree
+tops still skips both draw calls when all trees are vertically beyond range.
+This does not skip CPU placement.
+`__ww2.vegetation().drawnInstances` distinguishes submitted meshes from resident
+instances and the separate DEV group-visibility override.
+
+Use `LAND_CANOPY_CAPTURE=1 E2E_CAPTURE=1` with `landGapCapture.spec.ts` for the
+three noon views plus recorded forward flights. Use the same flags with
+`terrainCostCapture.spec.ts` under the exclusive `ryzen-budget` lock for the
+matched cost comparison. Use `npm run capture:e2e -- landGapCapture` for
+images, or `hwlock ryzen-budget env E2E_BUDGET_RUN=1 npm run capture:e2e -- terrainCostCapture`
+for measurements, with the flags above and the shared Ryzen browser variables.
+`E2E_CAPTURE_DIR` selects durable artifact storage.
+
+## Terrain lighting prototype (2026-10-13)
+
+The archived terrain-lighting experiment tests mountain self-shadow and diffuse sky enclosure with
+shipping ground colors; no drape is enabled. The attended checkpoints and
+worktree/slot are in [the plan](superpowers/plans/2026-10-13-terrain-lighting.md).
+
+`tools/terrain/bakeHorizons.ts` derives 16 directional horizons from the L1
+DEM out to 15.5 miles, plus an integrated sky-visibility map normalized against
+the receiver's local slope. An open inclined plane remains fully sky-lit.
+The 1025-square output spans the whole theater at roughly 641 ft spacing;
+it captures large landforms, not individual trees or narrow gullies. Directions
+are interpolated and the sun transition is filtered over three degrees to
+soften finite-raster artifacts. This is reconstruction filtering, not the
+physical size of the sun. More resolution may be warranted after review.
+
+`src/render/terrain/occlusion.ts` loads the maps asynchronously and retains
+baseline illumination on a missing or mismatched asset. The DEV-only modes
+are `?terrainLighting=off|sky|sun|on`; both DEV and production default to `off`.
+Mark perceived no improvement at checkpoint 1, so the experiment is shelved.
+The default path fetches no lighting maps and adds no shader texture reads;
+explicit DEV opt-in remains only for reproducing the comparison.
+`__ww2.terrainLighting()` reports mode, readiness,
+errors and texture bytes. Terrain casts onto terrain only in this checkpoint;
+airplanes, trees and buildings do not receive these mountain shadows.
+Measured costs and the noon/canopy direction are in the
+[checkpoint feedback](handoff/2026-10-13-terrain-cost.md).
+`?trees=off` hides tree geometry and suspends its streaming in DEV; it
+preserves other scenery and terrain textures for a controlled comparison.
+
+The maps total 17,860,625 decoded bytes and 4,196,248 gzip bytes, excluding
+the 309-byte header. They retain Copernicus attribution. Ground elevation,
+collision, material colors, clouds and atmosphere are unchanged. The terrain
+shader shares its existing world-coordinate interpolator to remain under
+WebGPU's default 16 vertex-output-location limit.
+
+The existing `landGapCapture.spec.ts` supports `LAND_LIGHTING_CAPTURE=1` for
+matched morning/noon/afternoon views with the camera held at 6,000 ft.
+Use `npm run capture:e2e -- landGapCapture`; `DRAPE_VARIANTS=off,on` selects the lighting modes in
+this capture configuration. Screenshots are visual evidence; the correctness
+check in `terrainTextures.spec.ts` covers all four modes and an invalid map.
+
 **What it is.** Copernicus GLO-30 elevation, resampled offline into one
 8193 × 8193 heightfield — a 200 × 200 km tangent plane at 24.4 m posting,
 centred on 10.8 N 125.3 E — drawn as a CDLOD quadtree out to 100 km with

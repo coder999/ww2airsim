@@ -443,3 +443,17 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
     expect(source.match(/(?<!`)vegetation[?]?\.setTier\(/g)).toHaveLength(2)
   })
 })
+
+
+it('applies tree picks made before binding, subsequent picks, and saved choices at boot', () => {
+  const quality = createBootQuality()
+  quality.settings.selectTreesEnabled(false)
+  const seen: boolean[] = []
+  quality.bindTrees(value => { seen.push(value) })
+  expect(seen).toEqual([false])
+  quality.settings.selectTreesEnabled(true)
+  expect(seen).toEqual([false, true])
+  quality.settings.selectTreesEnabled(false)
+  createBootQuality().bindTrees(value => { seen.push(value) })
+  expect(seen).toEqual([false, true, false, false])
+})

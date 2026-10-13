@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
-  createSettingsModel,
+  createSettingsModel, loadTreesEnabled, saveTreesEnabled,
   loadDamageModel, saveDamageModel, clearDamageModel,
   RENDER_QUALITY_OPTIONS, ADVANCED_SYSTEMS, ASSET_QUALITY_OPTIONS, DAMAGE_MODEL_OPTIONS,
   ASSET_QUALITY_EFFECT_NOTE, DEFAULT_DAMAGE_MODEL,
@@ -467,5 +467,38 @@ describe('the Settings dialog model (render-quality-selector spec §6)', () => {
     reloaded.resetToAutoDetect()
     expect(reloaded.snapshot().recommendedTier).toBeNull()
     expect(createSettingsModel().snapshot().recommendedTier).toBeNull()
+  })
+})
+
+
+describe('independent tree visibility', () => {
+  it('defaults on and preserves an off choice across reload and quality changes', () => {
+    const calls: boolean[] = []
+    const model = createSettingsModel({ onTreesChange: value => { calls.push(value) } })
+    expect(model.snapshot().treesEnabled).toBe(true)
+    model.selectTreesEnabled(false)
+    expect(calls).toEqual([false])
+    expect(createSettingsModel().snapshot().treesEnabled).toBe(false)
+    model.selectSimpleTier('low')
+    model.selectSimpleTier('high')
+    model.previewAutomaticProfile({ quality: 'medium', renderScale: 0.75 })
+    expect(model.snapshot().treesEnabled).toBe(false)
+    model.selectTreesEnabled(true)
+    expect(calls).toEqual([false, true])
+    expect(loadTreesEnabled()).toBe(true)
+  })
+
+  it('tolerates invalid or unavailable storage while still applying the live pick', () => {
+    window.localStorage.setItem('ww2airsim.trees.v1', 'bad')
+    expect(loadTreesEnabled()).toBe(true)
+    window.localStorage.getItem = () => { throw new Error('storage denied') }
+    expect(loadTreesEnabled()).toBe(true)
+    window.localStorage.setItem = () => { throw new Error('storage denied') }
+    expect(() => saveTreesEnabled(false)).not.toThrow()
+    const calls: boolean[] = []
+    const model = createSettingsModel({ onTreesChange: value => { calls.push(value) } })
+    model.selectTreesEnabled(false)
+    expect(model.snapshot().treesEnabled).toBe(false)
+    expect(calls).toEqual([false])
   })
 })

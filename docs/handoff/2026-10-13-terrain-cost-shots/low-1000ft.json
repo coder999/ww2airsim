@@ -1,0 +1,230 @@
+[
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 0,
+    "n": 288,
+    "p50": 3.4960399999999994,
+    "p95": 3.5114399999999995,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 0,
+    "n": 329,
+    "p50": 2.8978,
+    "p95": 2.9188400000000003,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 1,
+    "n": 334,
+    "p50": 2.90092,
+    "p95": 2.9185599999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 1,
+    "n": 284,
+    "p50": 3.4916799999999992,
+    "p95": 3.5054399999999992,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": true,
+    "repeat": 2,
+    "n": 282,
+    "p50": 3.4918399999999994,
+    "p95": 3.5097199999999993,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "trees": false,
+    "repeat": 2,
+    "n": 332,
+    "p50": 2.9000400000000006,
+    "p95": 2.9180400000000004,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 0,
+    "n": 288,
+    "p50": 3.6077600000000003,
+    "p95": 3.62268,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 0,
+    "n": 300,
+    "p50": 3.0118800000000006,
+    "p95": 3.2265199999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 1,
+    "n": 289,
+    "p50": 3.01112,
+    "p95": 3.02788,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 1,
+    "n": 287,
+    "p50": 3.6068800000000003,
+    "p95": 3.6228,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": true,
+    "repeat": 2,
+    "n": 296,
+    "p50": 3.60804,
+    "p95": 3.6289199999999995,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "on",
+    "trees": false,
+    "repeat": 2,
+    "n": 321,
+    "p50": 3.010999999999999,
+    "p95": 3.03012,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  }
+]

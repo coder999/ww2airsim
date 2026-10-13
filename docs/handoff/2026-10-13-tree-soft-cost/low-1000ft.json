@@ -1,0 +1,302 @@
+[
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": true,
+    "repeat": 0,
+    "n": 289,
+    "p50": 3.4675199999999995,
+    "p95": 3.48356,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": false,
+    "repeat": 0,
+    "n": 323,
+    "p50": 2.8966800000000004,
+    "p95": 2.9140400000000004,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": false,
+    "repeat": 1,
+    "n": 313,
+    "p50": 2.9000399999999997,
+    "p95": 2.917839999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": true,
+    "repeat": 1,
+    "n": 268,
+    "p50": 3.46672,
+    "p95": 3.4805199999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": true,
+    "repeat": 2,
+    "n": 278,
+    "p50": 3.46608,
+    "p95": 3.479919999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "pixel",
+    "trees": false,
+    "repeat": 2,
+    "n": 332,
+    "p50": 2.9019199999999996,
+    "p95": 2.9185599999999994,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "pixel",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": true,
+    "repeat": 0,
+    "n": 262,
+    "p50": 3.675520000000001,
+    "p95": 3.917720000000001,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": false,
+    "repeat": 0,
+    "n": 315,
+    "p50": 2.8980800000000007,
+    "p95": 2.91852,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": false,
+    "repeat": 1,
+    "n": 293,
+    "p50": 2.904680000000001,
+    "p95": 2.9255199999999997,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": true,
+    "repeat": 1,
+    "n": 276,
+    "p50": 3.67716,
+    "p95": 3.701680000000001,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": true,
+    "repeat": 2,
+    "n": 282,
+    "p50": 3.6733599999999993,
+    "p95": 3.6905599999999996,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": true,
+      "drawnInstances": 20181,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  },
+  {
+    "view": "low-1000ft",
+    "lighting": "off",
+    "canopy": "off",
+    "treeFade": "soft",
+    "trees": false,
+    "repeat": 2,
+    "n": 331,
+    "p50": 2.90496,
+    "p95": 2.922839999999999,
+    "vegetation": {
+      "generated": 218,
+      "instances": 20181,
+      "visible": false,
+      "drawnInstances": 0,
+      "fadeMode": "soft",
+      "fadeStartM": 1400,
+      "fadeEndM": 1850,
+      "tier": "high"
+    },
+    "surface": {
+      "texturesLoaded": true,
+      "detail": true
+    }
+  }
+]
