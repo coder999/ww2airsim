@@ -1,5 +1,40 @@
 # Terrain
 
+## Distant crown stand-ins (2026-10-13, opt-in prototype)
+
+`?distantTrees=on` adds a DEV-only forest extension beyond the accepted soft
+near trees. Production and an ordinary DEV visit keep it off pending visual
+review. High extends crowns to approximately 2.6 miles, fading over the final
+1.1 miles; Medium extends to 1.7 miles, fading over the final 0.75 miles. Low
+draws neither representation. The near-tree range and appearance are unchanged.
+
+Each stand-in is a camera-facing two-triangle crown with a three-lobe analytic
+silhouette, a soft edge and rounded normal. It uses the existing sun/sky/fog
+lighting and the same deterministic sites, palette, land cover and exclusions
+as the detailed trees. It has no trunk, texture asset or shadow draw. The
+stand-ins blend in across the near-tree fade band and blend out at their outer
+range; they are rounder than the detailed tree art and do not guarantee an
+invisible transition. Camera roll does not change their crown proportions.
+
+`scene/treeCells.ts` now owns the shared cell constants and distance-disc
+selection; `vegetation.ts` reexports them for existing callers. The distant
+layer keeps 437 stable cell slots on High (96,140 potential crowns, about
+2.93 MiB of CPU instance attributes plus their GPU copies). Unused slots
+collapse to zero-size triangles. Up to four newly resident cells load per update,
+stopping before another cell after roughly 1 ms of CPU work; an individual cell
+can exceed that slice. This was added after initial-load updates reached 7.6 ms.
+Only changed slot ranges upload. The near and far layers currently evaluate
+the shared placement function separately. Cover or tier changes clear the
+distant slots and refill incrementally. Initial loading is progressive.
+
+`__ww2.vegetation().distant` exposes enabled/ready, pending cells, generated
+cells, populated tree counts, draw visibility, outer range and the maximum
+CPU update duration observed since construction. Draw counts describe
+populated sites, while the GPU submits the fixed slot capacity. The existing
+trees-visible diagnostic controls both layers. `DISTANT_TREES_CAPTURE=1`
+enrolls on/off captures and isolated cost measurements in the existing tools.
+See the [distant-tree handoff](handoff/2026-10-13-distant-trees.md).
+
 ## Accepted soft tree fade (2026-10-13, isolated branch)
 
 Mark accepted the soft fade after finding pixel dissolve slightly better but

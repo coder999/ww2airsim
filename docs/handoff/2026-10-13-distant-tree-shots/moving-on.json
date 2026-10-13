@@ -1,0 +1,20 @@
+{
+  "generated": 251,
+  "instances": 16111,
+  "visible": true,
+  "drawnInstances": 16111,
+  "fadeMode": "soft",
+  "fadeStartM": 1400,
+  "fadeEndM": 1850,
+  "distant": {
+    "enabled": true,
+    "ready": true,
+    "instances": 49876,
+    "drawnInstances": 49876,
+    "pending": 0,
+    "generated": 508,
+    "maxUpdateMs": 3.7000000029802322,
+    "fadeEndM": 4200
+  },
+  "tier": "high"
+}

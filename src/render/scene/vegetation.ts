@@ -1,3 +1,5 @@
+import { TREE_CELL_M, TREES_PER_CELL, residentCellOffsets } from './treeCells.js'
+import { createDistantTrees, distantTreesEnabled, type DistantTreeStats } from './distantTrees.js'
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { float, hash, instanceIndex, length, positionWorld, smoothstep, uniform } from 'three/tsl'
@@ -23,34 +25,11 @@ export function coverLookup(data: Uint8Array, header: CoverHeader = COVER_HEADER
   return { fractionsAt: (x, z) => coverFractionsAt(data, header, x, z) }
 }
 
-export const TREE_CELL_M = 400
-export const TREE_CELL_RADIUS = 5
-export const TREES_PER_CELL = 220
-/** The per-instance dissolve runs over the last TREE_FADE_BAND_M metres
- *  before the tier's `treeFadeEndM` (scene/tiers.ts, at most
- *  TREE_FADE_END_M); beyond it every fragment of a tree is discarded. */
+export { TREE_CELL_M, TREE_CELL_RADIUS, TREES_PER_CELL, residentCellOffsets } from './treeCells.js'
 export const TREE_FADE_BAND_M = 450
 export { TREE_FADE_END_M }
 export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number }
 
-/**
- * Cell offsets from the eye's cell that can still show a tree: those whose
- * nearest point to any position inside the eye's cell is within the fade.
- * A disc, not the 11x11 square Codex shipped, whose corner cells sit
- * 1.8-2.3 km out and contributed only discarded fragments and matrix
- * rewrites (measured 2026-09-17, tests/render/scenery.test.ts).
- */
-export function residentCellOffsets(fadeEndM = TREE_FADE_END_M): readonly (readonly [number, number])[] {
-  const offsets: [number, number][] = []
-  if (fadeEndM <= 0) return offsets
-  for (let dz = -TREE_CELL_RADIUS; dz <= TREE_CELL_RADIUS; dz++) {
-    for (let dx = -TREE_CELL_RADIUS; dx <= TREE_CELL_RADIUS; dx++) {
-      const nearest = Math.hypot(Math.max(0, Math.abs(dx) - 1), Math.max(0, Math.abs(dz) - 1)) * TREE_CELL_M
-      if (nearest <= fadeEndM) offsets.push([dx, dz])
-    }
-  }
-  return offsets
-}
 const CAPACITY = residentCellOffsets().length * TREES_PER_CELL
 
 /** Keeps a candidate tree out of a town or village hut's footprint (Plan 13d
@@ -132,7 +111,7 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode()): {
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode(), distant = distantTreesEnabled()): {
   object: Group
   update(x: number, z: number, eyeY?: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -142,7 +121,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
    *  discarded and the forest is rebuilt at once for the eye's last position. */
   setCover(cover: CoverLookup): void
   /** Resident and submitted tree counts; generated tracks cell-cache work. */
-  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number }
+  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number; distant: DistantTreeStats }
 } {
   const object = new Group()
   object.name = 'nearby jungle'
@@ -221,14 +200,17 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     for (const mesh of meshes) mesh.visible = visible
   }
   let cover: CoverLookup | undefined
+  const far = distant ? createDistantTrees((cx, cz) => treeSites(field, cx, cz, airfields, cover, huts)) : null
+  if (far) object.add(far.object)
   // Cells stay cached while resident. A crossing composes only the cells
   // that entered and copies the rest: the square window's full recompose of
   // every instance cost 4.7-7.2 ms per crossing in node (2026-09-17).
   let cache = new Map<string, PackedCell>()
   return {
     object,
-    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value }),
+    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value, distant: far?.stats(object.visible) ?? { enabled: false, ready: true, instances: 0, drawnInstances: 0, pending: 0, generated: 0, maxUpdateMs: 0, fadeEndM: 0 } }),
     setTier(name): void {
+      far?.setTier(name)
       const endM = range(name)
       fadeEnd.value = endM
       fadeStart.value = start(endM)
@@ -238,11 +220,13 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     },
     setCover(next): void {
       cover = next
+      far?.reset()
       cache = new Map()
       previousKey = ''
       this.update(lastX, lastZ, lastY)
     },
     update(x, z, eyeY = 0): void {
+      far?.update(x, z, eyeY)
       lastX = x
       lastZ = z
       lastY = eyeY

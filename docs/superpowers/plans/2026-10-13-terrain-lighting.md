@@ -10,6 +10,18 @@ The Vite hostname/port edit is local scratch, never committed.
 
 ## Checkpoint 1 ruling and next comparison
 
+**Next attended experiment:** Mark asks whether cheap stand-ins can hide the
+remaining tree border. Add opt-in `distantTrees=on`: two-triangle crown cards
+at the same deterministic tree sites, existing sun/sky shading, continuous
+blend from the accepted near trees, then a broad outer fade. Try High ending
+at about 2.6 miles and Medium at 1.7 miles; Low stays off. Generate new cells
+incrementally and retain stable buffer slots to avoid whole-forest repacking.
+Compare on/off at the same noon ridge and moving views; measure isolated GPU
+cost plus the CPU update high-water mark. Aim for a small added cost, roughly
+0.3 ms or less, without treating the target as a measured claim. Verify
+placement, buffer reuse, quality switching, culling and shader compilation.
+Pause for review; this is not accepted or enabled in production yet.
+
 **Acceptance ruling:** Mark reviewed the soft fade and said, "it looks slightly
 better. i think we keep it." Keep the measured soft implementation and make it
 the default in DEV and production builds on this branch. Retain DEV comparison
