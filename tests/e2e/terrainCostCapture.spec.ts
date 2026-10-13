@@ -23,7 +23,7 @@ for (const view of VIEWS) {
     const records: object[] = []
     // Reverse the shader order in the middle view, then repeat each state
     // with both trees-on-first and trees-off-first to expose timing drift.
-    const modes = treeFadeCapture ? ['whole', 'pixel'] : ['off', 'on']
+    const modes = treeFadeCapture ? (process.env.TREE_FADE_VARIANTS ?? 'whole,pixel').split(',') : ['off', 'on']
     if (view.name === 'ridge-6000ft') modes.reverse()
     for (const mode of modes) {
       const lighting = canopyCapture || treeFadeCapture ? 'off' : mode

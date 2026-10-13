@@ -1,10 +1,32 @@
 # Terrain
 
+## Soft tree fade checkpoint (2026-10-13, isolated branch)
+
+Mark found pixel dissolve slightly better but disliked its stipple. The DEV
+default is now `treeFade=soft`: nearby trees stay opaque; trees in the original
+distance band blend continuously over the scene without a pixel mask.
+`treeFade=pixel` and `treeFade=whole` retain the previous comparisons.
+Production still uses `whole`.
+
+The prototype submits an opaque crown/trunk pair plus a transparent pair
+sharing the same instance buffers. Their fragment masks are complementary:
+fully opaque coverage goes through the depth-writing pair; partial coverage
+goes through the blended pair without depth writes. Both pairs follow cell
+repacking, quality tiers and altitude culling. `drawnInstances` still counts
+tree sites, not the number of draw submissions.
+
+This is transparency, not optical blur. Individual transparent instances and
+crown lobes are not sorted, so overlapping transition trees can look different
+from opaque trees. This is the tradeoff described in the
+[Three.js transparency manual](https://threejs.org/manual/pages/transparency.html).
+It adds drawing work and leaves the far-field boundary unresolved. Measurements
+and review clips are in the [soft-fade handoff](handoff/2026-10-13-tree-soft.md).
+
 ## Tree pixel-dissolve checkpoint (2026-10-13, isolated branch)
 
 Mark preferred the original close-range trees and reported popping beneath
 the plane in the canopy trial. The worktree now restores original tree shapes,
-colors, flat crown normals and tier distances. The new DEV default is
+colors, flat crown normals and tier distances. This checkpoint introduced
 `?treeFade=pixel`; `treeFade=whole` selects the original whole-instance fade.
 Both modes use the same material, placement and distance band. High starts
 fading at approximately 0.87 miles and ends at 1.15 miles; Medium fades from

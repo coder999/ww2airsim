@@ -10,6 +10,14 @@ The Vite hostname/port edit is local scratch, never committed.
 
 ## Checkpoint 1 ruling and next comparison
 
+**Latest dissolve ruling:** Mark sees a slight improvement but rejects the
+visible pixelation, asking for a softer, coming-into-focus effect. Compare
+`treeFade=soft` (continuous alpha blending only in the transition band, opaque
+near trees) with `treeFade=pixel`. Keep original tree art/range and ground.
+Check overlap artifacts in moving and ridge captures, measure the added draw
+cost, then pause for the next attended review. This is a fade, not optical
+defocus, and still does not add distant forest. Keep production on `whole`.
+
 **Subsequent checkpoint 2 ruling:** Mark prefers the original close-range trees
 and still sees popping and a tree boundary. He approved a narrower follow-up:
 restore original tree shapes, palette and draw range; compare whole-tree

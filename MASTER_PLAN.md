@@ -432,9 +432,12 @@ in the low view and 0.45 ms of invisible work in the high view.
 Checkpoint 2: Mark preferred original close-range trees; popping and the
 render line persisted. Canopy remains opt-in; its short-range tree treatment
 is removed. [Historical canopy handoff](docs/handoff/2026-10-13-canopy.md).
-The current attended follow-up restores original tree art/range and isolates
+The first attended follow-up restores original tree art/range and isolates
 pixel-level dissolve versus whole-tree switching, with altitude draw culling
 in both. [Pixel-dissolve handoff](docs/handoff/2026-10-13-tree-fade.md).
+Mark found a slight improvement but disliked pixelation. The next attended
+comparison uses continuous transparency only in the transition band and keeps
+near trees opaque. [Soft-fade handoff](docs/handoff/2026-10-13-tree-soft.md).
 Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is not a goal.
 [Plan](docs/superpowers/plans/2026-10-09-l3-land-quality.md).
 - **Measured, nothing to do:** the DEM is not the weak link, and rivers and roads as ribbons were

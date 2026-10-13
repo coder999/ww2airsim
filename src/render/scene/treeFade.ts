@@ -1,11 +1,11 @@
 import { attribute, float, fract, screenCoordinate } from 'three/tsl'
 import type { Node } from 'three/webgpu'
 
-export type TreeFadeMode = 'whole' | 'pixel'
+export type TreeFadeMode = 'whole' | 'pixel' | 'soft'
 
 export function treeFadeFromQuery(search: string): TreeFadeMode {
-  const mode = new URLSearchParams(search).get('treeFade') ?? 'pixel'
-  if (mode === 'whole' || mode === 'pixel') return mode
+  const mode = new URLSearchParams(search).get('treeFade') ?? 'soft'
+  if (mode === 'whole' || mode === 'pixel' || mode === 'soft') return mode
   throw new Error(`Unknown treeFade: ${mode}`)
 }
 

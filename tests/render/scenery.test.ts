@@ -331,6 +331,31 @@ describe('scenery placement on the real Leyte field', () => {
     expect(vegetation.stats().drawnInstances).toBe(count)
   })
 
+  it('keeps the soft transition aligned with opaque trees through movement, tiers and altitude culling', () => {
+    const vegetation = createVegetation(field, [tacloban], [], 'soft')
+    const meshes = vegetation.object.children as InstancedMesh[]
+    expect(meshes).toHaveLength(4)
+    for (const i of [0, 1]) {
+      expect(meshes[i + 2]!.instanceMatrix).toBe(meshes[i]!.instanceMatrix)
+      expect(meshes[i + 2]!.instanceColor).toBe(meshes[i]!.instanceColor)
+      expect(meshes[i]!.material).toMatchObject({ transparent: false, depthWrite: true })
+      expect(meshes[i + 2]!.material).toMatchObject({ transparent: true, depthWrite: false })
+    }
+    for (const [x, y] of [[-31000, 100], [-31000 + TREE_CELL_M, 100], [-31000 + TREE_CELL_M, 10000]]) {
+      vegetation.update(x!, -47000, y!)
+      expect(meshes[0]!.count).toBeGreaterThan(100)
+      for (const mesh of meshes) {
+        expect(mesh.count).toBe(meshes[0]!.count)
+        expect(mesh.visible).toBe(y! < 10000)
+      }
+    }
+    vegetation.setTier('low')
+    expect(meshes.every(mesh => mesh.count === 0)).toBe(true)
+    vegetation.update(-31000, -47000, 100)
+    vegetation.setTier('high')
+    expect(meshes.every(mesh => mesh.count > 100 && mesh.visible)).toBe(true)
+  })
+
   it('removes stale tree instances when flying over open ocean and restores the same forest', () => {
     const vegetation = createVegetation(field, [tacloban])
     const crowns = vegetation.object.children[0] as InstancedMesh

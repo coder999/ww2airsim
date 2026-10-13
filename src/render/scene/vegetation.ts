@@ -166,8 +166,8 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   // guards it; the single-variable probe that found it is in the 13a notes.
   const threshold = fadeMode === 'pixel' ? treePixelThreshold() : hash(instanceIndex)
   for (const material of [leaves, bark]) {
-    material.opacityNode = fade
-    material.alphaTestNode = threshold
+    material.opacityNode = fadeMode === 'soft' ? fade.greaterThanEqual(1).select(1, 0) : fade
+    material.alphaTestNode = fadeMode === 'soft' ? float(0.5) : threshold
   }
   const lobes = [new IcosahedronGeometry(1, 0),
     new IcosahedronGeometry(0.8, 0).translate(0.5, -0.2, 0.25),
@@ -185,6 +185,26 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     mesh.count = 0
     object.add(mesh)
   }
+  // Keep the near forest in the opaque depth pass. Only the distance band
+  // blends; shared buffers keep both representations aligned across cell changes.
+  // The blended band has no per-instance sorting: inspect overlapping crowns
+  // in motion before promoting this DEV experiment (2026-10-13).
+  const fading: InstancedMesh[] = []
+  if (fadeMode === 'soft') for (const solid of [crowns, trunks]) {
+    const material = (solid.material as MeshStandardNodeMaterial).clone()
+    material.transparent = true
+    material.depthWrite = false
+    material.opacityNode = fade.lessThan(1).select(fade, 0)
+    material.alphaTestNode = float(0)
+    const mesh = new InstancedMesh(solid.geometry, material, 0)
+    mesh.instanceMatrix = solid.instanceMatrix
+    mesh.instanceColor = solid.instanceColor
+    mesh.frustumCulled = false
+    mesh.receiveShadow = true
+    object.add(mesh)
+    fading.push(mesh)
+  }
+  const meshes = [crowns, trunks, ...fading]
   const crownArray = crowns.instanceMatrix.array as Float32Array
   const trunkArray = trunks.instanceMatrix.array as Float32Array
   const colorArray = crowns.instanceColor.array as Float32Array
@@ -198,7 +218,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     // A conservative upper bound on every crown: safe even over steep ground.
     // Group visibility remains the independent DEV trees on/off switch.
     const visible = lastY - topY <= fadeEnd.value
-    crowns.visible = trunks.visible = visible
+    for (const mesh of meshes) mesh.visible = visible
   }
   let cover: CoverLookup | undefined
   // Cells stay cached while resident. A crossing composes only the cells
@@ -249,7 +269,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
         index += cell.count
       }
       cache = nextCache
-      crowns.count = trunks.count = index
+      for (const mesh of meshes) mesh.count = index
       crowns.instanceMatrix.needsUpdate = trunks.instanceMatrix.needsUpdate = true
       crowns.instanceColor!.needsUpdate = true
       fadeSeeds.needsUpdate = true

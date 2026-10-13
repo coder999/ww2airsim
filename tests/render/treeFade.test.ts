@@ -14,7 +14,9 @@ it('dissolves coverage progressively instead of toggling a whole crown', () => {
 })
 
 it('offers an explicit baseline and rejects invalid comparison modes', () => {
-  expect(treeFadeFromQuery('')).toBe('pixel')
+  expect(treeFadeFromQuery('')).toBe('soft')
   expect(treeFadeFromQuery('?treeFade=whole')).toBe('whole')
+  expect(treeFadeFromQuery('?treeFade=pixel')).toBe('pixel')
+  expect(treeFadeFromQuery('?treeFade=soft')).toBe('soft')
   expect(() => treeFadeFromQuery('?treeFade=typo')).toThrow('Unknown treeFade')
 })

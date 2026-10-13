@@ -2,12 +2,12 @@ import { expect, test, type Page } from '@playwright/test'
 import { percentile, TRIPWIRE_1440P_P95_MS, waitForTerrain, type DiagWindow } from './harness.js'
 import { VIEWS } from './views.js'
 
-test('tree fade comparison preserves near trees and compiles both fragment paths', async ({ page }) => {
+test('tree fade comparison preserves near trees and compiles all fragment paths', async ({ page }) => {
   const consoleErrors: string[] = []
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
   page.on('pageerror', e => consoleErrors.push(e.message))
   let originalCount = 0
-  for (const mode of ['whole', 'pixel']) {
+  for (const mode of ['whole', 'pixel', 'soft']) {
     await page.goto(`/?spawnX=-36629&spawnY=457&spawnZ=-47829&sceneryView=1&launch=1&cloudTier=off&oceanTier=high&canopy=off&treeFade=${mode}`)
     await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null)
     await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ fadeMode: mode, fadeStartM: 1400, fadeEndM: 1850, visible: true })
