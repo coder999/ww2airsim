@@ -274,6 +274,19 @@ describe('Dev Flight Recorder', () => {
     expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
   })
 
+  it('checksums the last simulated tick, not controls a later no-step frame applied', () => {
+    const initial = start()
+    const recorder = createDevFlightRecorder(header(), initial)
+    let world = initial
+    for (let i = 0; i < 90; i++) {
+      world = advance(withControls(world, world.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    }
+    // A held or paused frame: new controls land on the world, but no fixed step runs.
+    const later = withControls(world, world.player, { ...controls, pitch: -0.4, throttle: 0 })
+    const record = recorder.finish(later)
+    expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 90 })
+  })
+
   it('marks a dropped-step recording invalid and refuses to verify it', () => {
     const initial = start()
     const recorder = createDevFlightRecorder(header(), initial)

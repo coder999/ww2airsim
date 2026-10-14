@@ -123,7 +123,12 @@ export function createDevFlightRecorder<M>(header: FlightRecordHeader, initial: 
     invalidate(reason) { if (!issues.includes(reason)) { issues.push(reason); revision++ } },
     finish(world, debrief = null) {
       if (pendingActions.length > 0) issues.push('record ended with actions that were never applied to a fixed tick')
-      final = { checksum: worldChecksum(world), summary: worldSummary(world), debrief }
+      // The frame loop applies each frame's controls to the world BEFORE advancing, and a frame that runs
+      // no fixed step (paused, holding after an impact, a sub-step frame) returns that world untouched. So
+      // `world` here can carry controls newer than the last recorded tick, which the verifier cannot
+      // know. The last observed world of the same tick is the simulation state to checksum.
+      const settled = previous.tick === world.tick ? previous : world
+      final = { checksum: worldChecksum(settled), summary: worldSummary(settled), debrief }
       revision++
       return build()
     },
