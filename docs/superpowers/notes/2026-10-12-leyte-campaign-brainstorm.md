@@ -1026,8 +1026,11 @@ later clock value and not near-black imagery that forces the player to fly blind
 
 Treat these aircraft as wartime aircraft, not cars with forward headlights:
 
+- every flyable aircraft receives dim, player-adjustable cockpit/instrument
+  illumination so its night missions remain operable
 - aircraft may have airframe-specific landing lights, navigation lights, and
-  formation lights where historical references support them
+  formation/recognition/search lights only where historical references support
+  the specific equipment
 - landing lights illuminate only a relatively short approach/taxi region and make
   the aircraft easier for enemies to see; they should normally be used late in an
   approach, not throughout a combat sortie
@@ -1037,6 +1040,10 @@ Treat these aircraft as wartime aircraft, not cars with forward headlights:
   out the outside view
 - the aircraft data model should declare which lights exist rather than giving
   every model an invented universal light set
+- AI wingmen may use nonvisual formation assistance at night so historical absence
+  of a light does not make a formation mechanically incapable of holding station
+- the reference/source pass must approve the exact external fixtures and their
+  placement before corresponding Blender work begins
 
 ### 6.3 Runway, ship, and target lighting
 
@@ -1720,6 +1727,16 @@ does not use modern demographic percentages. Ethnicity is neither a stored pilot
 attribute nor a gameplay variable; representation emerges only from the curated
 given-name and surname data.
 
+#### Historically sourced aircraft lights — decided 13 October 2026
+
+Every flyable aircraft receives dimmable cockpit/instrument lighting for night
+playability. External navigation, landing, formation, recognition, and search
+lights are airframe-specific and require historical support; aircraft do not
+receive invented universal headlights. External lights can be extinguished under
+blackout conditions. AI may receive invisible formation assistance, and the exact
+fixture inventory and placement are approved during the source pass before an
+airframe is modified in Blender.
+
 #### Faction-bound independent campaign careers — decided 13 October 2026
 
 The player chooses American or Japanese when creating a campaign, and that choice
@@ -1839,11 +1856,9 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Night and recovery
 
-2. Which aircraft receive landing, navigation, and formation lights after the
-    airframe source pass?
-3. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+2. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-4. Should rescue/capture be fully deterministic from world control and proximity,
+3. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
