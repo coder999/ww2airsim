@@ -1299,10 +1299,13 @@ classes and modestly increasing two ship values:
 | Battleship | 3,000 |
 | Carrier | 5,000 |
 
-When the assigned player aircraft receives direct destruction credit, the full
-table value enters both that pilot's career ledger and the human player's campaign
-ledger. Objective awards, assists, and AI-formation destruction credit are
-separate rules rather than hidden multipliers on this table.
+Any enemy target that takes actual durability damage from the assigned player
+aircraft is marked for full credit. If it is destroyed later in the same sortie—
+whether by the player, a friendly, a crash, or continuing damage—the full table
+value enters both that pilot's career ledger and the human player's campaign
+ledger exactly once. Merely hitting without causing damage earns no tag; a tagged
+target that survives earns no points. Friendly destruction of a target the player
+never damaged earns no points.
 
 It currently promotes one persistent pilot at 0 / 2,500 / 7,500 / 17,500 /
 35,000 / 60,000 points through Captain, then continues into flag ranks. Death,
@@ -1388,7 +1391,6 @@ thresholds and mission score budgets create stakes without forcing repetitive
 grinding. Finalize:
 
 - any additional mission-specific completion bonuses
-- formation and assist credit
 - live-roster-rank bonus formula and when it is banked
 - whether difficulty modifies points (working recommendation: no)
 - friendly-fire and deliberate-abandonment penalties
@@ -1799,14 +1801,22 @@ Wall of Fame may rank raw total and points per sortie separately.
 
 #### Campaign destruction-point baseline — decided 13 October 2026
 
-Direct player destruction awards 100 points for a truck/car/light vehicle; 150
+Player-credited destruction awards 100 points for a truck/car/light vehicle; 150
 for a building; 250 for a landing craft/small patrol boat or AAA battery; 300 for
 a tank; 500 for a fighter/attack aircraft, runway, or transport/cargo ship; 750
 for a bomber/transport aircraft; 1,000 for a destroyer; 1,500 for a cruiser;
-3,000 for a battleship; and 5,000 for a carrier. The same direct-destruction value
-enters the assigned pilot and human-player ledgers. There are no generic objective,
-survival, or recovery awards; assists and AI formation credit remain separate
-rules.
+3,000 for a battleship; and 5,000 for a carrier. The same value enters the assigned
+pilot and human-player ledgers. There are no generic objective, survival, or
+recovery awards.
+
+#### Full credit for every player-damaged target — decided 13 October 2026
+
+Any actual player-caused damage tags an enemy target for the duration of that
+sortie. If the target is eventually destroyed by any cause, both the assigned
+pilot and human player receive its full destruction value exactly once. There is
+no percentage threshold, partial assist award, final-blow requirement, or extra
+command credit for untouched wingman kills. A damaged target that survives the
+sortie awards nothing.
 
 #### Damage-led scoring and authored exceptions — decided 13 October 2026
 
@@ -1988,8 +1998,8 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What formation/assist credit, live-roster bonus, difficulty treatment, and
-    friendly-fire/abandonment penalties produce acceptable progression?
+1. What live-roster bonus, difficulty treatment, and friendly-fire/abandonment
+    penalties produce acceptable progression?
 
 ## 15. Proposed migration into the master plan
 
