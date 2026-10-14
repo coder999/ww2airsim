@@ -1339,24 +1339,46 @@ reuse does not make those mechanics free.
 
 ## 10. In-engine campaign cutscenes
 
-Campaign chapters may open or close with short authored scenes rendered in the
-real game world. These are not prerendered movies:
+These are authored scenes rendered in the real game world, not prerendered movies.
+They use canonical bases, approved aircraft/vehicles/ships, real weather and
+lighting, scripted entity motion, radio/text, and authored camera paths.
 
-- use canonical bases, approved aircraft/vehicles/ships, real weather/lighting,
-  scripted entity motion, radio/text, and authored camera paths
-- keep ordinary scenes roughly 10–30 seconds and always skippable
-- avoid delaying the 5–7 minute time-to-action budget; a skipped cutscene launches
-  immediately
-- use end scenes only after the game has safely banked the result
-- provide distinct American and Japanese campaign-victory scenes
-- make the alternate-history Japanese victory framing explicit
+### 10.1 Fixed scene inventory
+
+- All twelve campaign chapters receive one **10–20 second skippable opening** that
+  establishes the location, immediate danger, and primary objective.
+- The A1 and J1 openings also introduce the respective campaign's historical
+  situation and point of view; a separate campaign-introduction movie is not
+  required.
+- Ordinary chapters have no bespoke ending cinematic. Their debrief, headquarters
+  log, map, and persistent world changes carry the result into the next chapter.
+- A6 and J6 receive full victory scenes only after the player completes the primary
+  objective and authored recovery condition. The game safely banks the result
+  before playback begins.
+- Every scene is skippable without changing simulation, score, roster, campaign, or
+  world-state results. Skipping an opening launches immediately and must not consume
+  any of the 5–7 minute time-to-action budget.
+
+### 10.2 Victory scenes and epilogues
+
+The **American victory** opens at dawn over the surviving Leyte airfields. The
+player's aircraft and other returning formations recover while repair crews work,
+transports unload, and the secured American fleet operates in the gulf. A concise
+historical epilogue explains that the airfield counterattack failed and the
+American position on Leyte continued to consolidate.
+
+The **Japanese victory** begins with the player landing at captured Buri or Bayug.
+Japanese aircraft and ground forces consolidate the fields, fires mark the damage
+around Tacloban, and American ships withdraw from the beachhead. The closing text
+must explicitly label this as alternate history and identify the successful J5/J6
+coordination as the point of divergence from the historical Japanese defeat.
 
 There is no current cutscene framework. The instant-replay camera and deterministic
 world snapshots may supply reusable camera/interpolation ideas, but campaign
 timelines, scripted actions, skip/restore behavior, subtitles, audio policy, and
-tests are new work. Each mission definition should state whether it needs no
-scene, an opening scene, an ending scene, or the campaign victory scene before
-asset production is frozen.
+tests are new work. Freeze each opening's shot list, actors, radio/text, duration,
+and skip state during final mission definition so asset production does not discover
+new dependencies late.
 
 ## 11. Persistence and mid-flight saves
 
@@ -1723,30 +1745,39 @@ beachhead; neither path adds a playable post-finale chapter. Ormoc and Tanauan s
 in the canonical location and asset plan with historically appropriate states, and
 may support a later expansion beyond 7 December.
 
+#### Twelve openings and two victory scenes — decided 13 October 2026
+
+Every campaign chapter receives one 10–20 second skippable in-engine opening that
+establishes place, danger, and objective; A1 and J1 also introduce their campaign's
+story. Ordinary chapters rely on debriefs and persistent headquarters/world changes
+instead of ending cinematics. Only A6 and J6 receive full victory scenes, played
+after the successful recovery and after the result is safely banked.
+
+The American ending shows dawn over held airfields, returning aircraft, repairs,
+unloading transports, and a secure fleet before a concise historical epilogue. The
+Japanese ending shows a landing at captured Buri or Bayug, consolidation of the
+fields, damaged Tacloban, and withdrawing American ships before an explicit
+alternate-history epilogue naming the J5/J6 point of divergence.
+
 ### 14.2 Open questions
-
-#### Campaign and mission content
-
-1. Which chapters need opening/ending scenes, and what happens in each victory
-   scene?
 
 #### Player, roster, and progression
 
-2. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-3. What exact pilot-rank, player-rating, target, objective, recovery, and
+1. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+2. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-4. Does a captured pilot remain permanently archived in the initial campaign, or
+3. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-5. How strictly should the American name pool mirror the historical demographic
+4. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-6. Which aircraft receive landing, navigation, and formation lights after the
+5. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-7. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+6. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-8. Should rescue/capture be fully deterministic from world control and proximity,
+7. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
@@ -1784,7 +1815,8 @@ acceptance gates:
 9. **Canonical campaign world:** persistent base/port/beachhead layouts,
    construction/ownership/damage states, scenery, and attended visual approval.
 10. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
-   skip behavior, bank-before-scene safety, and victory sequences.
+    invariant skip behavior, bank-before-scene safety, twelve chapter openings,
+    and the two approved victory sequences and epilogues.
 11. **Campaign mission production:** implement and approve chapters in sequence,
      require primary-objective and authored-recovery success for progression, seed
      the existing scenarios as the non-campaign promotion pool, and enforce the 5–7
