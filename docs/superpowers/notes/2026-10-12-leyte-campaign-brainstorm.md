@@ -1106,7 +1106,8 @@ may create another campaign for the other side, but each campaign is an independ
 career that owns:
 
 - its selected nation and campaign progress
-- cumulative player points and prestige/command rating earned in that campaign
+- cumulative player points and command rating earned in that campaign, including
+  its future public high-score standing
 - mission badges and campaign victory records earned in that campaign
 - aggregate kills, losses, rescues, captures, and completed sorties
 - its five-pilot live roster and archived pilot records
@@ -1123,17 +1124,26 @@ statistics, living roster strength, and a chronological campaign log.
 
 The player uses **command appointments**, not a second set of pilot naval ranks,
 so the interface never implies that the persistent player personally survived
-every sortie. The five-step prestige ladder is:
+every sortie. The five-step command-rating ladder is:
 
-1. Squadron Commander
-2. Air Group Commander
-3. Wing Commander
-4. Task Force Air Commander
-5. Fleet Air Commander
+| Command appointment | Cumulative player points |
+|---|---:|
+| Squadron Commander | 0 |
+| Air Group Commander | 20,000 |
+| Wing Commander | 50,000 |
+| Task Force Air Commander | 90,000 |
+| Fleet Air Commander | 140,000 |
 
 "Field Commander" is a land-force term and is a poor fit for this naval-air
-metagame. These titles are prestige only in the initial campaign; they must not
-unlock combat capability. Their point thresholds remain a balancing decision.
+metagame. Command appointments must not unlock combat capability. They provide a
+durable measure of the human player's campaign performance and are intended to
+become the rank labels for a future public high-score Wall of Fame.
+
+Online identity, score submission, verification, moderation, and anti-cheat are
+future public-game work rather than dependencies of the initial campaign. The
+save schema should nevertheless preserve the campaign side, cumulative player
+score, command appointment, scoring-rules version, and relevant difficulty/config
+metadata so later leaderboards do not mix incompatible scoring eras or campaigns.
 
 ### 7.2 Headquarters and mission-first selection
 
@@ -1212,7 +1222,7 @@ and Navy personnel holdings—then separately decide how strictly the game shoul
 mirror the exclusions and segregation of the 1944 services. Do not attach an
 ethnicity field or gameplay effect to a name.
 
-## 8. Scoring, pilot promotion, and player prestige
+## 8. Scoring, pilot promotion, and player command rating
 
 The current game awards destruction points only:
 
@@ -1256,12 +1266,12 @@ pilot ranks above Captain.
   A killed or captured pilot's final points remain in the archived dossier but can
   no longer produce a live-roster promotion.
 - **Human-player points** persist across every pilot in that one campaign. They
-  drive its prestige/command rating and absorb its agreed live-roster-rank bonus,
-  but never carry into a campaign for the other nation.
+  drive its command rating and future Wall of Fame standing and absorb its agreed
+  live-roster-rank bonus, but never carry into a campaign for the other nation.
 
 One event can feed both ledgers, but the formulas must be explicit and tested.
 The player ledger must not let farming a single easy non-campaign mission dominate
-career prestige.
+competitive standing.
 
 ### 8.2 Reward more than destruction
 
@@ -1290,7 +1300,6 @@ two pilot losses, and side-mission recovery from a roster with only Ensigns.
 Choose promotion thresholds so rank gates create stakes without forcing repetitive
 grinding. Finalize:
 
-- points required for each player command rating
 - exact object, objective, survival, and recovery values
 - live-roster-rank bonus formula and when it is banked
 - whether difficulty modifies points (working recommendation: no)
@@ -1596,8 +1605,9 @@ Within each faction-bound campaign, the human player and the pilots are separate
 records:
 
 - The human player retains cumulative points, player rank, campaign progress,
-  mission badges, and aggregate results. For now, player rank is prestige only
-  and unlocks no command abilities.
+  mission badges, and aggregate results. Player rank unlocks no command abilities,
+  but is the durable competitive standing intended for a future public high-score
+  Wall of Fame.
 - The campaign owns a roster of named pilots. Death permanently closes that
   pilot's record; campaign progress and the human player's accumulated points do
   not reset.
@@ -1670,9 +1680,13 @@ transfers between campaigns.
 The persistent human player advances through Squadron Commander, Air Group
 Commander, Wing Commander, Task Force Air Commander, and Fleet Air Commander.
 These are command appointments rather than a second set of pilot naval ranks. They
-are prestige-only in the initial campaign and unlock no aircraft, missions,
-weapons, sights, or command abilities. Exact point thresholds remain part of the
-progression balance pass.
+unlock no aircraft, missions, weapons, sights, or command abilities. Their
+cumulative player-point thresholds are 0, 20,000, 50,000, 90,000, and 140,000.
+The rating is a durable competitive achievement and is intended to label the
+future public high-score Wall of Fame. Public score submission, identity,
+verification, moderation, and anti-cheat remain future work; the initial campaign
+must preserve scoring-version metadata so later boards can compare compatible
+records.
 
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
@@ -1797,8 +1811,8 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What exact pilot-rank, player-rating, target, objective, recovery, and
-    live-roster-bonus values produce acceptable progression without grind?
+1. What exact target, objective, recovery, and live-roster-bonus values produce
+    acceptable progression without grind?
 2. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
 3. How strictly should the American name pool mirror the historical demographic
@@ -1838,8 +1852,9 @@ acceptance gates:
    selection, mission cards and locks, pilot assignment, authored
    conditions/loadout, and launch flow.
 6. **Scoring and progression:** two score ledgers, objective rewards, target
-   values, six pilot ranks, player prestige ratings, roster bonus, balance
-   simulations, and anti-grind tests.
+   values, six pilot ranks, player command ratings, roster bonus, score-version
+   metadata for the future Wall of Fame, balance simulations, and anti-grind
+   tests.
 7. **Night rendering and gameplay:** sky/exposure, moon/stars, local lights,
    aircraft/cockpit/runway/deck lighting, flares, visibility/AI, performance, and
    visual approval.
