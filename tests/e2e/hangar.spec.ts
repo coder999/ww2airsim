@@ -293,8 +293,9 @@ test.describe('the Hangar', () => {
       // different PNG byte streams even though every rendered pixel is unchanged.
       expect(Math.max(restoredDiff.xor01, restoredDiff.changed01), `${id}: stowing did not restore the frame`).toBe(0)
     }
-    // The Chi-Ha's turret joined V1 (2026-10-09); the M4 joined V2 (2026-10-11).
-    expect(turreted.sort()).toEqual(['b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'g4m-betty', 'ki-21-sally', 'm4-sherman', 'tbm-3-avenger', 'type97-chi-ha'])
+    // The Chi-Ha's turret joined V1 (2026-10-09); the M4 joined V2 (2026-10-11). F4 (2026-10-14) added the
+    // D7 blade, LCVP ramp, searchlight and Type 38 gun, whose train/elevation or articulation the bench drives as 'turrets'.
+    expect(turreted.sort()).toEqual(['b-17-flying-fortress-blender', 'b-29-superfortress', 'b5n2-kate', 'caterpillar-d7-3t', 'g4m-betty', 'ki-21-sally', 'lcvp', 'm1942-60in-searchlight', 'm4-sherman', 'tbm-3-avenger', 'type38-75mm-field-gun', 'type97-chi-ha'])
   })
 
   test("7b. every bay bomber's doors Cycle open over the spec's travel and visibly open, from the side (C2)", async ({ page }) => {
@@ -323,8 +324,8 @@ test.describe('the Hangar', () => {
       // Measured 2026-10-08: 88 px (B-17, its cut doors) to 207 px (G4M) at the side preset; nothing moves at all if the doors are not drawn.
       expect(m.xor01, `${id} open differs from shut`).toBeGreaterThan(50)
     }
-    // The five flyable bay aircraft, including the promoted Blender B-17.
-    expect(bombers).toBe(5)
+    // The five flyable bay aircraft, including the promoted Blender B-17, plus the Hangar-only Ki-57 Topsy (F4, 2026-10-14).
+    expect(bombers).toBe(6)
   })
 
   test('8. wireframe changes every model, and switching models keeps the setting', async ({ page }) => {
@@ -536,15 +537,26 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test('18. the ground vehicles move: both tanks train and elevate; the Chi-Ha drives; the jeep steers with its driver\'s hands on the wheel (V1, M4)', async ({ page }) => {
+  test('18. the ground vehicles move: both tanks train, elevate and drive their wheels and tracks; the jeep steers with its driver\'s hands on the wheel (V1, M4)', async ({ page }) => {
     const state = () => page.evaluate(() => (window as HangarWindow).__hangar!.vehicle())
     await select(page, 'm4-sherman')
-    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets'])
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])
     await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
     const shermanAimed = (await state())!
     expect(shermanAimed['turretYawRad']).toBeCloseTo(-Math.PI / 2, 6)
     expect(shermanAimed['gunElevationRad']).toBeCloseTo((25 * Math.PI) / 180, 6)
+    // F4R: the Sherman's wheels turn in the hull's vertex shader and its track shoes slide in the track's.
+    await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+    await pose(page, { speedMph: 10 })
+    const shermanBefore = await shot(page)
+    await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.25))
+    const shermanAfter = await shot(page)
+    expect(shermanAfter.equals(shermanBefore), 'a quarter second at 10 mph moved neither the Sherman\'s wheels nor its shoes').toBe(false)
+    const shermanRan = (await state())!
+    expect(shermanRan['wheelTravelM']).toBeCloseTo(10 * 0.44704 * 0.25, 6)
+    expect(shermanRan['trackPhase']).toBeCloseTo(((10 * 0.44704 * 0.25) / shermanRan['trackPitchM']!) % 1, 6)
+    expect(shermanRan['wheelShells']).toBe(26)
 
     await select(page, 'type97-chi-ha')
     expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])

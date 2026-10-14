@@ -333,6 +333,17 @@ export const AIRFRAME_RIGS: Readonly<Record<string, AirframeRig>> = {
     doors: ['BayDoor1L', 'BayDoor1R'],
     surfaces: surfaces(2),
   },
+  'ki-57-ii-topsy': {
+    props: [{ node: 'Prop1', blades: 3 }, { node: 'Prop2', blades: 3 }],
+    gear: [
+      { node: 'GearL', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-57-ii-topsy.py header)' },
+      { node: 'GearR', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-57-ii-topsy.py header)' },
+      { node: 'Tailwheel', upAngleDeg: 90, retracts: 'forward', source: 'ESTIMATE (ki-57-ii-topsy.py header)' }
+    ],
+    turrets: [],
+    surfaces: surfaces(1),
+    doors: ['BayDoor1L', 'BayDoor1R']
+  },
   'ki-43-oscar': {
     // A translucent 3-blade motion-blur disc plus its spinner, as the Corsair's: symmetryTolerance
     // is the metric's 2% cap and the hub-offset check carries Review Focus 1 (R3 ledger, Task 7).

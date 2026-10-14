@@ -1,0 +1,10 @@
+{
+  "id": "m24-aircraft-parachute-flare",
+  "name": "M24 Aircraft Parachute Flare",
+  "kind": "equipment",
+  "side": "allied",
+  "model": { "kind": "equipment", "id": "m24-aircraft-parachute-flare" },
+  "blurb": "A Hangar-only aircraft parachute flare with deployed canopy and a geometry-only burning-lamp marker; it adds no beam, smoke or illumination effect.",
+  "history": "The M24 was an aircraft-dropped parachute flare documented by the U.S. War Department. The manual fixes the canister's overall dimensions and weight; this model uses those values and clearly marks the deployed canopy and lamp form as estimates.",
+  "sources": [{ "title": "TM 9-981: Aircraft Parachute Flares (War Department, 1944)", "url": "https://radionerds.com/images/0/08/TM_9-981.pdf", "read": "2026-10-14" }]
+}

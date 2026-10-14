@@ -315,7 +315,16 @@ small wreck lean/squash without mutating shared model materials.
 The Type 95 Kurogane (`tools/models/blender/type95-kurogane.py`) is an original,
 deterministic Blender model. It deliberately reuses the jeep wheel/steering rig
 seam and has no rider; that keeps the scenario target light and avoids creating
-a second seated figure solely for decoration.
+a second seated figure solely for decoration. Reworked 2026-10-14 (`f4r-ground`) to the Willys
+jeep's fidelity class (5,800 triangles against the jeep's 9,432): fenders with arches, louvered
+hood, seats, folded top, spare wheel, treaded wheels and a fuller chassis. Only the cited length,
+width and height are sourced; every added detail is a labeled ESTIMATE in the script header.
+
+The F4 ground trucks and the D7 (`f4-ground-assets.py`) and the Kurogane share
+`tools/models/blender/ground_parts.py`: a polygon `prism`, a treaded `tire` whose hub is painted by
+a `hub` marking rather than a second node (a kept node is one material, and a second role under it
+would cost a draw call), a toothed `gear` and `track_shoes` that lays individual cleated shoes along
+two circles joined by their tangents.
 
 ## Authoring in Blender
 

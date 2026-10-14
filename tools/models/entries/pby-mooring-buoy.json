@@ -1,0 +1,5 @@
+{
+  "id":"pby-mooring-buoy","output":"content/equipment/pby-mooring-buoy.glb",
+  "source":{"kind":"blender","script":"tools/models/blender/f4-maritime-assets.py","dimensions":"1.1 m body diameter and 1.55 m overall height are ESTIMATES for the F3-approved PBY mooring-buoy silhouette","license":"AGPL-3.0-or-later"},
+  "keep":[{"node":"Buoy"},{"node":"MooringEye"}],"skin":true,"textures":{"maxSize":512,"format":"webp"},"budget":{"maxBytes":500000,"maxTriangles":5000,"maxDrawCalls":4}
+}

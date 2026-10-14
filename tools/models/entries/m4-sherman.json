@@ -10,9 +10,10 @@
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 5.8938 } },
   "keep": [
     { "node": "Turret1", "pivot": { "point": [0, 2.06, 0], "axis": "+y" } },
-    { "node": "Gun1", "pivot": { "point": [0.7, 2.31, 0], "axis": "+z" } }
+    { "node": "Gun1", "pivot": { "point": [0.7, 2.31, 0], "axis": "+z" } },
+    { "node": "Tracks" }
   ],
   "skin": true,
-  "textures": { "maxSize": 512, "format": "webp" },
+  "textures": { "maxSize": 1024, "format": "webp" },
   "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
 }

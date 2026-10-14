@@ -1,0 +1,14 @@
+{
+  "id": "m24-aircraft-parachute-flare",
+  "output": "content/equipment/m24-aircraft-parachute-flare.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/m24-aircraft-parachute-flare.py",
+    "dimensions": "37 in overall length, 8 in diameter and 47 lb: War Department TM 9-981 Aircraft Parachute Flares (1944), read 2026-10-14; deployed canopy and lamp marker geometry are ESTIMATES",
+    "license": "AGPL-3.0-or-later"
+  },
+  "keep": [{ "node": "Canister" }, { "node": "CanopyDeployed" }, { "node": "LampBurningMarker" }, { "node": "SuspensionLines" }],
+  "skin": true,
+  "textures": { "maxSize": 512, "format": "webp" },
+  "budget": { "maxBytes": 750000, "maxTriangles": 12000, "maxDrawCalls": 10 }
+}

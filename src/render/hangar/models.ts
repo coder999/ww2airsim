@@ -13,7 +13,7 @@ import { figureModelUrl, ordnanceModelUrl } from '../content.js'
 import type { CatalogEntry } from './catalog.js'
 import type { ModelRef } from './library.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
-import { VEHICLE_RIDERS, VEHICLE_RIGS, type VehiclePart, type VehicleRig } from '../scene/vehicleRig.js'
+import { EQUIPMENT_RIGS, VEHICLE_RIDERS, VEHICLE_RIGS, type VehiclePart, type VehicleRig } from '../scene/vehicleRig.js'
 
 /** What a bench row can drive (Hangar spec §8). H1 exposes gear, flaps and
  *  the propeller; H2 adds stores (and Cycle, in the bench); turret aim (2026-10-09) turrets. */
@@ -198,7 +198,7 @@ const loadRegisteredRider: LoadRider = (id) => acquireModel(figureModelUrl(id))
 /** The committed glb a display model resolves to, through its kind's registry. */
 export function displayModelUrl(ref: ModelRef): string {
   if (ref.kind === 'ship') return shipModelUrlFor(ref.id)
-  if (ref.kind === 'building' || ref.kind === 'vehicle') return staticModelUrlFor(ref.kind, ref.id)
+  if (ref.kind === 'building' || ref.kind === 'vehicle' || ref.kind === 'equipment') return staticModelUrlFor(ref.kind, ref.id)
   if (ref.kind === 'ordnance') return ordnanceModelUrl(ref.id)
   throw new Error(`displayModelUrl: aircraft model "${ref.id}" loads through the airframe registry, not as a static model`)
 }
@@ -220,7 +220,7 @@ async function displayModel(ref: ModelRef, loadAirframe: LoadAirframe, loadDispl
   }
   const instance = await loadDisplay(ref)
   if (ref.kind === 'ordnance') return ordnanceStand(instance)
-  const rigFor = ref.kind === 'vehicle' ? VEHICLE_RIGS[ref.id] : undefined
+  const rigFor = ref.kind === 'vehicle' ? VEHICLE_RIGS[ref.id] : ref.kind === 'equipment' ? EQUIPMENT_RIGS[ref.id] : undefined
   if (rigFor) {
     // Riders sit at the vehicle's origin, in its frame, before the rig looks for their arms.
     const riders = await Promise.all((VEHICLE_RIDERS[ref.id] ?? []).map(loadRider))

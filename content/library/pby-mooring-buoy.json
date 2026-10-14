@@ -1,0 +1,6 @@
+{
+  "id":"pby-mooring-buoy","name":"PBY Mooring Buoy","kind":"equipment","side":"allied","model":{"kind":"equipment","id":"pby-mooring-buoy"},
+  "blurb":"A fixed Hangar-only mooring buoy for flying-boat anchorages, intentionally without articulation or water effects.",
+  "history":"Flying boats used prepared moorings near seaplane bases and sheltered operating waters. This buoy is an estimated campaign dressing object rather than a claim for one standardized Catalina buoy pattern.",
+  "sources":[{"title":"United States Coast Pilot, Philippine Islands","url":"https://upload.wikimedia.org/wikipedia/commons/3/39/United_States_coast_pilot%2C_Philippine_Islands_%28IA_cu31924007510633%29.pdf","read":"2026-10-14"}]
+}

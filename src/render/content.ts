@@ -130,8 +130,9 @@ export const ordnanceModelPath = (id: string): string => `content/ordnance/${id}
 export const ordnanceModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${ordnanceModelPath(id)}`
 
 /** R1: a Library-only building or vehicle model (model-roster spec §4.3). */
-export const staticModelPath = (kind: 'building' | 'vehicle', id: string): string => `content/${kind}s/${id}.glb`
-export const staticModelUrl = (kind: 'building' | 'vehicle', id: string): string => `${import.meta.env.BASE_URL}${staticModelPath(kind, id)}`
+export const staticModelPath = (kind: 'building' | 'vehicle' | 'equipment', id: string): string =>
+  `content/${kind === 'equipment' ? 'equipment' : `${kind}s`}/${id}.glb`
+export const staticModelUrl = (kind: 'building' | 'vehicle' | 'equipment', id: string): string => `${import.meta.env.BASE_URL}${staticModelPath(kind, id)}`
 /** A figure that rides in a vehicle (V1): content/figures/<id>.glb, built in that vehicle's frame. */
 export const figureModelPath = (id: string): string => `content/figures/${id}.glb`
 export const figureModelUrl = (id: string): string => `${import.meta.env.BASE_URL}${figureModelPath(id)}`
