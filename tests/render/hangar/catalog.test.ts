@@ -13,9 +13,9 @@ describe('buildCatalog', () => {
     expect(kinds.indexOf('ship')).toBeGreaterThan(kinds.lastIndexOf('aircraft'))
     expect(kinds.indexOf('building')).toBeGreaterThan(kinds.lastIndexOf('ship'))
     const aircraft = catalog.filter((e) => e.library.kind === 'aircraft')
-    const firstOut = aircraft.findIndex((e) => e.subject === null)
-    // Once every airframe is flyable there is no model-only card left, and the ordering rule holds vacuously.
-    if (firstOut >= 0) expect(aircraft.slice(firstOut).every((e) => e.subject === null)).toBe(true)
+    const firstOut = aircraft.findIndex((e) => availability(e) !== 'in-game')
+    // Comparison cards can retain a subject while sorting with model-only cards; availability is the ordering contract.
+    if (firstOut >= 0) expect(aircraft.slice(firstOut).every((e) => availability(e) !== 'in-game')).toBe(true)
   })
 
   it('resolves a building kind to every placement across content/bases', () => {

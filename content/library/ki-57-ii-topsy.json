@@ -1,0 +1,10 @@
+{
+  "id": "ki-57-ii-topsy",
+  "name": "Mitsubishi Ki-57-II Topsy",
+  "kind": "aircraft",
+  "side": "japanese",
+  "model": { "kind": "aircraft", "id": "ki-57-ii-topsy" },
+  "blurb": "A twin-engine Army transport prepared as a Hangar-only Leyte campaign asset, with working propellers, landing gear, cargo doors and primary control surfaces.",
+  "history": "The Ki-57 was Mitsubishi's transport development of the Ki-21 bomber family. The later Ki-57-II used Ha-102 engines and was known to the Allies as Topsy; a civil derivative was designated MC-20-II. This original model is a campaign-library representation, not yet a flyable aircraft.",
+  "sources": [{ "title": "Mitsubishi Type 1 Ha-31 Model 21 (Ha-102), Smithsonian National Air and Space Museum", "url": "https://airandspace.si.edu/collection-objects/mitsubishi-type-1-ha-31-model-21-ha-102-2-row-radial-14-engine/nasm_A19600334004", "read": "2026-10-14" }]
+}

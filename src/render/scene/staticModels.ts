@@ -1,6 +1,6 @@
 import { staticModelUrl } from '../content.js'
 
-export type StaticModelKind = 'building' | 'vehicle'
+export type StaticModelKind = 'building' | 'vehicle' | 'equipment'
 
 /**
  * Model id to committed glb, for the kinds with no sim module (model-roster spec §4.3): buildings
@@ -26,6 +26,11 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     'type95-kurogane': { url: staticModelUrl('vehicle', 'type95-kurogane') },
     'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
+  },
+  equipment: {
+    'm24-aircraft-parachute-flare': { url: staticModelUrl('equipment', 'm24-aircraft-parachute-flare') },
+    'parachuting-person-rig': { url: staticModelUrl('equipment', 'parachuting-person-rig') },
+    'paratrooper-supply-bundle': { url: staticModelUrl('equipment', 'paratrooper-supply-bundle') },
   },
 }
 
