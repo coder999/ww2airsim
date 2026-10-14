@@ -536,15 +536,26 @@ test.describe('the Hangar', () => {
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
   })
 
-  test('18. the ground vehicles move: both tanks train and elevate; the Chi-Ha drives; the jeep steers with its driver\'s hands on the wheel (V1, M4)', async ({ page }) => {
+  test('18. the ground vehicles move: both tanks train, elevate and drive their wheels and tracks; the jeep steers with its driver\'s hands on the wheel (V1, M4)', async ({ page }) => {
     const state = () => page.evaluate(() => (window as HangarWindow).__hangar!.vehicle())
     await select(page, 'm4-sherman')
-    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets'])
+    expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.gunMounts())).toEqual(['Turret1'])
     await pose(page, { turretBearingDeg: 90, turretElevationDeg: 30 })
     const shermanAimed = (await state())!
     expect(shermanAimed['turretYawRad']).toBeCloseTo(-Math.PI / 2, 6)
     expect(shermanAimed['gunElevationRad']).toBeCloseTo((25 * Math.PI) / 180, 6)
+    // F4R: the Sherman's wheels turn in the hull's vertex shader and its track shoes slide in the track's.
+    await page.evaluate((c) => (window as HangarWindow).__hangar!.camera(c), 'side' as const)
+    await pose(page, { speedMph: 10 })
+    const shermanBefore = await shot(page)
+    await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.25))
+    const shermanAfter = await shot(page)
+    expect(shermanAfter.equals(shermanBefore), 'a quarter second at 10 mph moved neither the Sherman\'s wheels nor its shoes').toBe(false)
+    const shermanRan = (await state())!
+    expect(shermanRan['wheelTravelM']).toBeCloseTo(10 * 0.44704 * 0.25, 6)
+    expect(shermanRan['trackPhase']).toBeCloseTo(((10 * 0.44704 * 0.25) / shermanRan['trackPitchM']!) % 1, 6)
+    expect(shermanRan['wheelShells']).toBe(26)
 
     await select(page, 'type97-chi-ha')
     expect((await current(page)).parts.map((p) => p.id)).toEqual(['turrets', 'drive'])

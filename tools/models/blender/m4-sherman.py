@@ -32,16 +32,24 @@ the bogie centers, drawn trailing them; box track runs, drawn as a belt.
 FM 30-40's text: "vertical sides; slopes down gently in rear, abruptly in front", so the
 upper hull sides are vertical and the engine deck falls 0.21 m to the rear plate.
 Frame: +x forward, +y up, +z starboard, meters, ground y = 0.
+
+F4R (2026-10-14): the belt is now its shoes, one prism per link, in the kept node `Tracks`. The rig (vehicleRig.ts
+rigSherman) slides each shoe to its neighbor's place as the tank travels, so the shoes must be
+identical solids in creation order along the belt: link j of a side sits j pitches along the closed
+path, starting under the rear road wheel and heading forward (+x) along the ground run. Weld beads,
+stowage, a bent lamp guard and the baked wear (mud, dust, scuffs, chips, rust streaks, dent smudges)
+are ESTIMATES from wartime and museum photographs of Philippine-theater Shermans, not measurements.
 """
 import math
 import os
+import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kit  # noqa: E402
 
 out, _opts = kit.cli_args()
-m = kit.Model('m4-sherman', skin=512)
+m = kit.Model('m4-sherman', skin=1024)
 
 OLIVE = 'oliveDrab'
 
@@ -125,9 +133,37 @@ def disc_prism(role, center, z0, z1, outline, node):
     loft(role, [[(cx + x, cy + y, z) for x, y in outline] for z in (z0, z1)], node)
 
 
-def belt(z, node):
-    """The track: a TRACK_T x TRACK_W belt along a closed path in the side plane, wrapped round
-    the front sprocket and rear idler, flat under the road wheels and over the return rollers."""
+def roof_y(x):
+    """(roof height, slope angle) of the upper hull's top at x, from the drawn ROOF profile."""
+    if x >= ROOF[-1][0]:
+        return ROOF[-1][1], 0.0
+    for (x0, y0), (x1, y1) in zip(ROOF, ROOF[1:]):
+        if x0 <= x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0), math.atan2(y1 - y0, x1 - x0)
+    raise ValueError(f'roof_y: x {x} is off the hull')
+
+
+def obox(role, c, ax, ay, half, node):
+    """A box centered on c with half-sizes `half` along the orthonormal axes ax, ay and az = ax x ay."""
+    az = kit._cross(ax, ay)
+    hx, hy, hz = half
+    v = [tuple(c[i] + sx * hx * ax[i] + sy * hy * ay[i] + sz * hz * az[i] for i in range(3))
+         for sx, sy, sz in ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1), (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))]
+    f = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (3, 7, 6, 2), (0, 4, 7, 3), (1, 2, 6, 5)]
+    assert _signed_volume(v, f) > 0, f'{node}: obox wound inward'
+    m._part(role, v, f, node)
+
+
+def weld(points, r=0.009):
+    """A weld bead: a chain of thin diamond-section struts through `points` (ESTIMATE: 1.8 cm across)."""
+    for p0, p1 in zip(points, points[1:]):
+        m.strut(OLIVE, p0, p1, r, sides=4, node='ShermanWelds')
+
+
+def track_path(h):
+    """The closed centerline of the track in the side plane, counterclockwise seen from +z: from under
+    the rear road wheel forward along the ground run, up round the sprocket, back over the rollers and
+    down round the idler. `h` is the centerline's distance outside the wheels' running surface."""
     def tangent(a, ra, b, rb):
         dx, dy = b[0] - a[0], b[1] - a[1]
         L = math.hypot(dx, dy)
@@ -142,7 +178,6 @@ def belt(z, node):
         n = max(1, int(math.ceil((a1 - a0) / step)))
         return [(c[0] + r * math.cos(a0 + (a1 - a0) * i / n), c[1] + r * math.sin(a0 + (a1 - a0) * i / n)) for i in range(n + 1)]
 
-    h = TRACK_T / 2
     wheel = lambda x: ((x, WHEEL_Y), WHEEL_R + h)
     rear, front = wheel(WHEEL_X[0]), wheel(WHEEL_X[-1])
     spr, idl = (SPROCKET, SPROCKET_R + h), (IDLER, IDLER_R + h)
@@ -163,15 +198,57 @@ def belt(z, node):
         path.append(b)
     path += arc(*idl, t_ri, t_iw)[1:]
     path += arc(*rear, t_iw, bottom)[:-1]
-    rings = []
-    n = len(path)
-    for i, (px, py) in enumerate(path + path[:1]):
-        (ax, ay), (bx, by) = path[(i - 1) % n], path[(i + 1) % n]
-        tl = math.hypot(bx - ax, by - ay)
-        tx, ty = (bx - ax) / tl, (by - ay) / tl
-        rx, ry = -ty, tx
-        rings.append([(px + a * h * rx, py + a * h * ry, z + b * TRACK_W / 2) for a, b in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
-    loft('dark', rings, node)
+    return path
+
+
+LINK_PITCH_M = 0.1524            # 6 in: the M4's T48 track block pitch (ESTIMATE from photographs)
+
+
+def link_shoes():
+    """The shoe centers and frames along the closed track path: (center xy, tangent, inward normal)
+    for each of N evenly spaced shoes, N chosen so the pitch is as near 6 in as the path allows."""
+    path = track_path(TRACK_T / 2)
+    pts = path + path[:1]
+    cum = [0.0]
+    for a, b in zip(pts, pts[1:]):
+        cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    total = cum[-1]
+    count = round(total / LINK_PITCH_M)
+    pitch = total / count
+
+    def at(sv):
+        sv %= total
+        k = max(i for i in range(len(cum) - 1) if cum[i] <= sv)
+        f = (sv - cum[k]) / (cum[k + 1] - cum[k])
+        return (pts[k][0] + f * (pts[k + 1][0] - pts[k][0]), pts[k][1] + f * (pts[k + 1][1] - pts[k][1]))
+
+    out = []
+    for j in range(count):
+        sv = (j + 0.5) * pitch
+        c = at(sv)
+        a, b = at(sv - 0.04), at(sv + 0.04)
+        tl = math.hypot(b[0] - a[0], b[1] - a[1])
+        tx, ty = (b[0] - a[0]) / tl, (b[1] - a[1]) / tl
+        out.append((c, (tx, ty), (-ty, tx)))
+    return pitch, out
+
+
+def links(z0):
+    """One side's track shoes: a plate with a raised grouser, identical solids in order along the
+    path (the rig pairs each shoe's vertices with the previous shoe's). Frame: ex along the track,
+    ey inward to the wheels, ez = +z; the shoe spans d = 0 (the wheels' side) to TRACK_T outward."""
+    pitch, shoes = link_shoes()
+    hx = pitch / 2 - 0.002   # shoes nearly touch, so no daylight shows between them
+    profile = [(-hx, 0.0), (hx, 0.0), (hx, 0.036), (0.024, 0.036), (0.024, TRACK_T), (-0.024, TRACK_T), (-0.024, 0.036), (-hx, 0.036)]
+    for (cx, cy), (tx, ty), (nx, ny) in shoes:
+        # d outward from the inner face: centerline (TRACK_T / 2 outside it) minus d.
+        ring = lambda zz: [(cx + a * tx - (d - TRACK_T / 2) * nx, cy + a * ty - (d - TRACK_T / 2) * ny, zz) for a, d in profile]
+        verts, faces = kit._loft([ring(z0 - TRACK_W / 2), ring(z0 + TRACK_W / 2)])
+        plain = [f for f, _ in faces]
+        if _signed_volume(verts, plain) < 0:
+            plain = [tuple(reversed(f)) for f in plain]
+        m._part('dark', verts, plain, 'Tracks')
+    return len(shoes)
 
 
 def dual_wheel(role, x, y, side, r, node, segments=12):
@@ -182,6 +259,14 @@ def dual_wheel(role, x, y, side, r, node, segments=12):
             (0.212, 0.57 * r), (0.218, 0.95 * r), (0.225, r), (0.316, r), (0.323, 0.95 * r), (0.33, 0.70 * r),
             (0.345, 0.38 * r), (0.37, 0.30 * r)]
     m.revolve(role, (x, y, side * t0), (0, 0, side), prof, segments, node=node)
+    # Five hub bolt heads on the outboard cap, so the wheel's turning shows (separate small solids: the rig
+    # turns every fragment standing on a wheel's outboard face with that wheel).
+    zb = side * (t0 + 0.328)
+    with m.shared_chart():
+        for k in range(5):
+            a = 2 * math.pi * k / 5 + 0.3
+            bx, by = x + 0.58 * r * math.cos(a), y + 0.58 * r * math.sin(a)
+            m.strut('steel', (bx, by, zb), (bx, by, zb + side * 0.022), 0.017, sides=4, node='ShermanWheelBolts')
 
 
 # Hull: welded lower tub between the tracks, the cast nose, and the full-width upper hull.
@@ -230,7 +315,9 @@ with m.tagged('fittings'):
         m.revolve('steel', (gx(1.47) - 0.02, 1.47, lz), (1, 0, 0), [(0.0, 0.065), (0.12, 0.075), (0.14, 0.06)],
                   10, node='ShermanLamps')
         m.strut('steel', (gx(1.40) + 0.02, 1.40, lz - side * 0.09), (gx(1.40) + 0.16, 1.47, lz), 0.012, sides=4, node='ShermanLamps')
-        m.strut('steel', (gx(1.40) + 0.02, 1.40, lz + side * 0.09), (gx(1.40) + 0.16, 1.47, lz), 0.012, sides=4, node='ShermanLamps')
+        # The starboard guard's inboard stay is bent down and out where something struck it (a dent, ESTIMATE).
+        bent = (gx(1.40) + 0.13, 1.405, lz + 0.015) if side == 1 else (gx(1.40) + 0.16, 1.47, lz)
+        m.strut('steel', (gx(1.40) + 0.02, 1.40, lz + side * 0.09), bent, 0.012, sides=4, node='ShermanLamps')
         # Front tow shackle brackets (top view 0.59-0.85 m off center, to 2.87 m).
         m.box(OLIVE, (2.80, 0.62, side * 0.72), (0.14, 0.16, 0.10), node='ShermanFittings')
     # Rear exhaust deflector (drawn 1.32-1.38 m, to 3.00 m aft; kept inside the 2.945 m track end).
@@ -273,9 +360,78 @@ with m.tagged('running'):
         for zc in (TRACK_Z - TRACK_W / 2 - 0.018, TRACK_Z + TRACK_W / 2 + 0.018):
             disc_prism('dark', SPROCKET, side * zc - 0.015, side * zc + 0.015, teeth, 'ShermanRunningGear')
 
-with m.tagged('tracks'):
+# The moving shoes: one node, both sides, port first. All their faces share one atlas chart.
+with m.tagged('links'), m.shared_chart():
     for side in (-1, 1):
-        belt(side * TRACK_Z, 'ShermanTracks')
+        N_LINKS = links(side * TRACK_Z)
+
+# Welds, stowage and field-worn details. Every one is an ESTIMATE from photographs of Leyte-era Shermans:
+# beads along the plate joints of the welded rear hull and at the cast front's joint, an engine deck with
+# louvers and access plates, a rolled tarpaulin and gasoline cans lashed aft, spare track blocks on the
+# glacis, entrenching tools clamped to the hull sides. All small solids share one chart per role.
+with m.tagged('fittings'), m.shared_chart():
+    inset = HALF_WIDTH - 0.004
+    for side in (-1, 1):
+        z = side * inset
+        # Upper hull: the top seam just under the roof edge, a seam along the sponson, the cast joint at
+        # x = 0.55 (where the roof's rounding up into the casting begins) and the rear corner.
+        weld([(x, roof_y(x)[0] - 0.05, z) for x in (-2.70, -2.2, -1.6, -1.0, -0.3, 0.45)])
+        weld([(-2.74, 1.52, z), (0.50, 1.52, z)])
+        for x in (-1.40, 0.55):
+            weld([(x, SPONSON_Y + 0.02, z), (x, roof_y(x)[0] - 0.06, z)])
+        weld([(-2.80, SPONSON_Y + 0.03, z * 0.995), (-2.74, roof_y(-2.74)[0] - 0.04, z * 0.995)])
+        # The lower hull's plate joints, between the tracks' bogies.
+        for x in (-1.05, 1.25):
+            weld([(x, 0.55, side * (LOWER_HW + 0.003)), (x, 1.30, side * (LOWER_HW + 0.003))])
+    # Engine deck seams across the roof, and the rear plate's seam.
+    for x in (-2.55, -1.05):
+        weld([(x, roof_y(x)[0] + 0.004, zz) for zz in (-1.22, 0.0, 1.22)])
+    (rx0, ry0), (rx1, ry1) = REAR_PLATE
+    xr = lambda y: rx0 + (y - ry0) * (rx1 - rx0) / (ry1 - ry0)
+    weld([(xr(1.58) - 0.004, 1.58, zz) for zz in (-1.22, 0.0, 1.22)])
+
+    def deck_box(role, x, z, half, node, pitch=0.0, lift=None):
+        """A box lying on the engine deck at x, tilted to its slope (plus `pitch`)."""
+        y, a = roof_y(x)
+        a += pitch
+        ax, ay = (math.cos(a), math.sin(a), 0.0), (-math.sin(a), math.cos(a), 0.0)
+        obox(role, (x, y + (half[1] * math.cos(pitch) if lift is None else lift), z), ax, ay, half, node)
+
+    # Louver bars over each radiator, and an access plate with its handle.
+    for z in (-0.5, 0.5):
+        for x in (-2.50, -2.40, -2.30, -2.20):
+            deck_box(OLIVE, x, z, (0.014, 0.014, 0.30), 'ShermanStowOlive', pitch=0.45)
+        deck_box(OLIVE, -1.95, z, (0.22, 0.010, 0.30), 'ShermanStowOlive')
+        deck_box('steel', -1.95, z, (0.025, 0.02, 0.10), 'ShermanStowSteel', lift=0.03)
+    # Gasoline cans lashed to the rear deck.
+    for z in (-1.0, -0.62, 1.0):
+        deck_box(OLIVE, -2.62, z, (0.085, 0.17, 0.17), 'ShermanStowOlive')
+        deck_box('steel', -2.62, z, (0.02, 0.02, 0.06), 'ShermanStowSteel', lift=0.35)
+    # A rolled tarpaulin across the deck behind the turret, with two lashings.
+    ty, _ = roof_y(-1.45)
+    m.strut('webbing', (-1.45, ty + 0.12, -0.88), (-1.45, ty + 0.12, 0.88), 0.125, sides=10, node='ShermanStowCanvas')
+    for z in (-0.45, 0.45):
+        m.strut('steel', (-1.45, ty + 0.12, z - 0.015), (-1.45, ty + 0.12, z + 0.015), 0.133, sides=10, node='ShermanStowSteel')
+    # Spare track blocks bolted to the glacis, two columns of three, and their straps.
+    sl, nl = (-GLACIS_DXDY, 1.0, 0.0), (1.0, GLACIS_DXDY, 0.0)
+    sl = tuple(c / math.hypot(sl[0], sl[1]) for c in sl)
+    nl = tuple(c / math.hypot(nl[0], nl[1]) for c in nl)
+    for z in (0.72, 0.94):
+        for y in (1.64, 1.75, 1.86):
+            obox(OLIVE, (gx(y) + 0.018 * nl[0], y + 0.018 * nl[1], z), sl, nl, (0.05, 0.016, 0.10), 'ShermanStowOlive')
+    for y in (1.69, 1.81):
+        obox('steel', (gx(y) + 0.036 * nl[0], y + 0.036 * nl[1], 0.83), sl, nl, (0.008, 0.008, 0.19), 'ShermanStowSteel')
+    # Entrenching tools clamped to the hull sides: a shovel to port, a pick and an axe to starboard.
+    hz = HALF_WIDTH + 0.002
+    m.strut('timber', (0.30, 1.58, -hz), (1.12, 1.58, -hz), 0.014, sides=6, node='ShermanStowTimber')
+    obox(OLIVE, (1.26, 1.58, -hz), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.13, 0.095, 0.006), 'ShermanStowOlive')
+    m.strut('timber', (0.45, 1.66, hz), (1.40, 1.66, hz), 0.014, sides=6, node='ShermanStowTimber')
+    m.strut('steel', (1.30, 1.66 - 0.11, hz), (1.30, 1.66 + 0.11, hz), 0.016, sides=4, node='ShermanStowSteel')
+    m.strut('timber', (0.50, 1.46, hz), (1.22, 1.46, hz), 0.014, sides=6, node='ShermanStowTimber')
+    obox(OLIVE, (1.30, 1.46, hz), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.07, 0.05, 0.006), 'ShermanStowOlive')
+    for x in (0.60, 1.00):
+        for side, yy in ((-1, 1.58), (1, 1.66), (1, 1.46)):
+            obox(OLIVE, (x, yy, side * HALF_WIDTH), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.025, 0.035, 0.012), 'ShermanStowOlive')
 
 # Turret: one node, so its hatch and stowed .50 train with it. Plan from the top view (a 0.925 m
 # circle about x = 0, a bustle tapering to 0.45 m half-width at -1.10 m); heights from the side
@@ -301,6 +457,18 @@ with m.tagged('turret'):
     m.strut(OLIVE, (-1.62, 2.595, pz), (-2.30, 2.50, pz), 0.022, 0.018, sides=8, node='Turret1')
     m.strut(OLIVE, (-2.30, 2.50, pz), (-2.40, 2.486, pz), 0.03, sides=8, node='Turret1')
 
+with m.tagged('turret'), m.shared_chart():
+    # The loader's hatch ring, a rolled bedroll in a wire basket on the bustle's rear face (ESTIMATES).
+    m.revolve(OLIVE, (-0.15, 2.715, -0.45), (0, 1, 0), [(0.0, 0.30), (0.035, 0.30), (0.04, 0.27)], 18, node='Turret1')
+    for z in (-0.30, 0.0, 0.30):
+        m.strut(OLIVE, (-1.30, 2.30, z), (-1.30, 2.62, z), 0.010, sides=4, node='Turret1')
+    for y in (2.30, 2.62):
+        m.strut(OLIVE, (-1.30, y, -0.30), (-1.30, y, 0.30), 0.010, sides=4, node='Turret1')
+    obox(OLIVE, (-1.20, 2.295, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.12, 0.012, 0.30), 'Turret1')
+    m.strut(OLIVE, (-1.19, 2.42, -0.26), (-1.19, 2.42, 0.26), 0.085, sides=8, node='Turret1')
+    for z in (-0.30, 0.30):
+        m.strut(OLIVE, (-1.12, 2.30, z), (-1.30, 2.30, z), 0.010, sides=4, node='Turret1')
+
 # M34A1 mantlet and 75 mm M3, hinged together at the trunnion (Gun1, the entry's pivot).
 with m.tagged('gun'):
     loft(OLIVE, [rrect(lambda y, x=x: x, yb, yt, hw, 0.10, rb=0.10) for x, hw, yb, yt in (
@@ -318,8 +486,56 @@ for i in range(10):
 for side in (-1, 1):
     m.marking('polygon', tags=['hull'], origin=(-0.60, 1.66, side * HALF_WIDTH), axis=(0, 0, side), uDir=(1, 0, 0),
               points=star, color='usaaInsigniaWhite')
-m.marking('slab', tags=['tracks', 'running'], axis='y', fromM=-0.1, toM=0.42,
-          color='exhaustSoot', effect='stain', opacity=0.30, featherM=0.18)
-m.marking('grid', tags=['tracks'], spacingM=[0.18, None, None], widthM=0.018, depth=0.45)
+
+# Wear, baked into the skin (kit markings; every position and size an ESTIMATE from photographs).
+# Mud thrown up from the tracks: heaviest on the running gear, fading up the lower hull and sponson edges.
+m.marking('slab', tags=['running', 'links'], axis='y', fromM=-0.1, toM=0.60, color='mudBrown', effect='stain', opacity=0.5, featherM=0.25)
+m.marking('slab', tags=['hull', 'fittings'], axis='y', fromM=-0.1, toM=1.05, color='mudBrown', effect='stain', opacity=0.55, featherM=0.45)
+m.marking('slab', tags=['hull', 'fittings'], axis='y', fromM=1.0, toM=1.62, color='dustTan', effect='stain', opacity=0.42, featherM=0.35)
+# Dust settled on the track shoes everywhere, and on the roof, engine deck and turret top.
+m.marking('slab', tags=['links'], axis='y', fromM=-1.0, toM=3.0, color='dustTan', effect='stain', opacity=0.16, featherM=0.0)
+m.marking('slab', tags=['hull', 'fittings', 'turret', 'gun'], axis='y', fromM=1.72, toM=3.0, color='dustTan', effect='stain', opacity=0.22, featherM=0.30)
+m.marking('slab', tags=['links', 'running'], axis='y', fromM=-0.1, toM=0.2, color='exhaustSoot', effect='stain', opacity=0.20, featherM=0.1)
+# Exhaust soot on the rear plate round the deflector.
+m.marking('disc', tags=['hull'], center=(-2.90, 1.45, 0.0), axis=(-1, 0, 0), radiusM=0.40, color='exhaustSoot', effect='stain', opacity=0.55, featherM=0.22)
+
+rng = random.Random(0x4D34)   # fixed seed: the same scuffs on every build
+EDGE = lambda x: roof_y(max(x, -2.74))[0]
+for side in (-1, 1):
+    n = (0, 0, side)
+    # Scuffed, chipped paint along the hull's top and sponson edges, and round the hatches and fittings.
+    for _ in range(14):
+        x = rng.uniform(-2.6, 2.1)
+        y = min(EDGE(x) - 0.05, 1.98) if x < 0.5 else rng.uniform(1.5, 1.9)
+        m.marking('disc', tags=['hull'], center=(x, y - rng.uniform(0.0, 0.05), side * HALF_WIDTH), axis=n,
+                  radiusM=rng.uniform(0.015, 0.045), color='bareSteel', effect='paint', opacity=rng.uniform(0.55, 0.85), featherM=0.012)
+    for _ in range(10):
+        x = rng.uniform(-2.7, 2.2)
+        m.marking('disc', tags=['hull'], center=(x, SPONSON_Y + rng.uniform(0.03, 0.09), side * HALF_WIDTH), axis=n,
+                  radiusM=rng.uniform(0.03, 0.08), color='bareSteel', effect='paint', opacity=rng.uniform(0.5, 0.85), featherM=0.015)
+    for _ in range(6):
+        m.marking('disc', tags=['hull'], center=(rng.uniform(-2.4, 1.6), rng.uniform(1.5, 1.85), side * HALF_WIDTH), axis=n,
+                  radiusM=rng.uniform(0.10, 0.22), color='dustTan', effect='wear', opacity=rng.uniform(0.5, 0.9), featherM=0.07)
+    # Rust bleeding down from the weld beads and the sponson edge.
+    for x in (-2.74, -1.40, 0.55, -0.95, 1.30, -2.0):
+        top = roof_y(x)[0] - 0.05 if x <= 0.55 else 1.52
+        w = rng.uniform(0.02, 0.035)
+        length = rng.uniform(0.18, 0.45)
+        m.marking('polygon', tags=['hull'], origin=(x, top, side * HALF_WIDTH), axis=n, uDir=(side, 0, 0),
+                  points=[(-w, 0.0), (w, 0.0), (0.4 * w, -length), (-0.4 * w, -length)], color='rustStain', effect='stain', opacity=0.9, featherM=0.01)
+    # Dents: a dark shaded smudge with a worn, lighter rim, one low on the side and one beside the star.
+    for dx, dy, r in ((rng.uniform(0.2, 1.4), 1.78, 0.11), (rng.uniform(-2.2, -1.2), 1.62, 0.09)):
+        m.marking('disc', tags=['hull'], center=(dx, dy, side * HALF_WIDTH), axis=n, radiusM=r * 1.6, color='dustTan', effect='wear', opacity=0.7, featherM=0.05)
+        m.marking('disc', tags=['hull'], center=(dx, dy, side * HALF_WIDTH), axis=n, radiusM=r, color='dullBlackBK', effect='stain', opacity=0.55, featherM=0.06)
+# Chips and a dent on the turret and its mantlet.
+for _ in range(10):
+    ang = rng.uniform(0, 2 * math.pi)
+    x, z = 0.9 * math.cos(ang), 0.9 * math.sin(ang)
+    m.marking('disc', tags=['turret'], center=(x, rng.uniform(2.2, 2.65), z), axis=(math.cos(ang), 0, math.sin(ang)),
+              radiusM=rng.uniform(0.02, 0.05), color='bareSteel', effect='paint', opacity=rng.uniform(0.6, 0.9), featherM=0.012)
+m.marking('disc', tags=['turret'], center=(0.55, 2.45, 0.80), axis=(0.5, 0, 0.87), radiusM=0.12, color='dullBlackBK', effect='stain', opacity=0.5, featherM=0.06)
+m.marking('disc', tags=['gun'], center=(1.0, 2.45, 0.0), axis=(0, 1, 0), radiusM=0.10, color='bareSteel', effect='paint', opacity=0.7, featherM=0.03)
+# Scuffs on the road wheels' hub caps and the sprocket (the rubber is already dark).
+m.marking('slab', tags=['running'], axis='y', fromM=0.55, toM=1.1, color='rustStain', effect='stain', opacity=0.28, featherM=0.15)
 
 m.export(out)
