@@ -1383,6 +1383,26 @@ on top. Spawning, repeating a checkpoint, and destroying a practice target never
 award campaign points. Friendly-fire treatment remains part of the scoring rules
 still to finalize.
 
+After every badge-earning campaign or in-campaign non-campaign sortie, award the
+human-player ledger a living-roster bonus based on the post-sortie five-pilot
+roster:
+
+| Living pilot rank | Human-player bonus |
+|---|---:|
+| Ensign / Kaigun Shōi | 0 |
+| Lieutenant (junior grade) / Kaigun Chūi | 100 |
+| Lieutenant / Kaigun Taii | 200 |
+| Lieutenant Commander / Kaigun Shōsa | 300 |
+| Commander / Kaigun Chūsa | 400 |
+| Captain / Kaigun Taisa | 500 |
+
+Sum all five living pilots, for a current maximum of 2,500 points. The award goes
+only to the human-player ledger and therefore cannot promote a pilot. Failure,
+abandonment, bailout, POW, KIA, or any result without the badge conditions earns
+no roster bonus. Losing a senior pilot lowers future awards but never subtracts
+points already banked. The 100-point step is an initial balance value; simulations
+may tune its magnitude without changing those structural rules.
+
 ### 8.3 Balancing work
 
 Simulate a reasonable campaign run, a run with one or two pilot losses, and
@@ -1391,7 +1411,6 @@ thresholds and mission score budgets create stakes without forcing repetitive
 grinding. Finalize:
 
 - any additional mission-specific completion bonuses
-- live-roster-rank bonus formula and when it is banked
 - whether difficulty modifies points (working recommendation: no)
 - friendly-fire and deliberate-abandonment penalties
 
@@ -1829,6 +1848,16 @@ low-damage mission may explicitly define a completion bonus gated by full badge
 conditions. A4's PBY rescue is the initial exception at 2,500 points to both
 ledgers.
 
+#### Badge-gated living-roster bonus — decided 13 October 2026
+
+After a badge-earning sortie, the human-player ledger receives 0 / 100 / 200 /
+300 / 400 / 500 points for each living Ensign through Captain counterpart in the
+post-sortie five-pilot roster, summed to a current maximum of 2,500. Pilot ledgers
+receive none of this award. Failed recovery, abandonment, bailout, POW, KIA, and
+other non-badge outcomes earn no roster bonus. Senior-pilot loss reduces future
+bonuses but does not remove banked points. Balance testing may tune the 100-point
+step while preserving this structure.
+
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
 American and Japanese pilots advance through equivalent six-tier naval ladders
@@ -1998,8 +2027,8 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What live-roster bonus, difficulty treatment, and friendly-fire/abandonment
-    penalties produce acceptable progression?
+1. What difficulty treatment and friendly-fire/abandonment penalties produce
+    acceptable progression?
 
 ## 15. Proposed migration into the master plan
 
