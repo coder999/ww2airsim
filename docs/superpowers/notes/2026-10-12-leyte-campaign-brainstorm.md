@@ -916,7 +916,7 @@ The missions expose the following shared content and mechanics:
 - campaign-owned persistent site state: owner, readiness, construction phase, and
   destroyed structure ids, all applied to one canonical layout per site
 
-The asset-first gate in section 13 remains controlling: reconcile this list, build
+The asset-first gate in section 14 remains controlling: reconcile this list, build
 and approve every needed reusable Blender asset in the Hangar, and only then make
 campaign missions depend on those assets.
 
@@ -1326,9 +1326,102 @@ the current roster screen. The later `GAMEPLAY.md` rewrite must remove
 resurrection and document the new player profile, roster lifecycle, mission-first
 flow, scoring, bailout results, night behavior, and campaign persistence.
 
-## 13. Decision log for the eventual design spec
+## 13. Dev Flight Recorder
 
-### 13.1 Decided
+Queue a compact deterministic flight recorder as shared development tooling before
+campaign mission production. It is for reproducing simulation, mission, AI,
+collision, scoring, and visual inconsistencies reported during testing; it is not
+a mid-flight save system and is not a normal player-facing feature.
+
+### 13.1 Access and lifecycle
+
+- Expose the recorder only when the existing Dev mode is active.
+- Start it automatically for every Dev sortie after the scenario, terrain, and
+  selected flight configuration are settled. A bug cannot be recorded after the
+  player notices it if the required history was never captured.
+- Retain only the current or most recently completed Dev flight in memory.
+- Provide **Export flight record** from Pause and Debrief. Starting another flight
+  may discard an unexported record after a clear warning.
+- Import belongs in a Dev reproduction/playback surface, not in the ordinary
+  campaign menus.
+
+### 13.2 Compact deterministic V1
+
+Do not extend the current full-world instant-replay ring across the entire flight.
+Its worst existing test retains about 66.8 MB for ten seconds of a gun-heavy
+scenario, which would scale to gigabytes for a complete mission.
+
+Instead, export a versioned compressed `.ww2flight` record containing:
+
+- recorder schema version, exact Git/build identity, and content hashes
+- scenario id, aircraft, loadout, time, weather, difficulty, assists, and relevant
+  Dev settings
+- browser, operating-system, GPU, and graphics settings needed to diagnose visual
+  problems
+- one initial deterministic world state captured after terrain settlement
+- the final control packet actually applied to every fixed simulation tick—not
+  merely raw key-down events
+- tick-stamped discrete actions such as gear, flaps, hook, bay doors, weapon
+  release, wingman orders, pause, and time compression
+- deterministic mission/combat events and a world checksum at a fixed interval,
+  initially once per simulated second
+- the final world checksum/state summary and debrief result
+
+Recording applied controls is essential. The current keyboard layer ramps axes
+using render-frame elapsed time, so identical key events on two machines can
+produce different control deflections. The recorder must tap the fixed-step path,
+or expand each frame's final controls over the exact ticks that consumed them, so
+render rate and dropped-frame behavior do not change the reproduction.
+
+Static terrain and asset payloads should normally be referenced by content hash,
+not embedded. Playback should reject an unavailable or mismatched original build
+with a precise explanation rather than silently claim an exact reproduction.
+
+### 13.3 Reproduction modes
+
+- **Headless verification:** rebuild the initial world, apply recorded controls and
+  actions, compare periodic checksums, and report the first divergent tick and
+  subsystem-visible events around it.
+- **In-game playback:** resimulate the record and use the existing replay cameras
+  to inspect the reproduced flight.
+- **Fix comparison:** first reproduce against the recorded commit, then run the
+  same record against a candidate fix and report the intentional divergence.
+
+The checksums are diagnostic evidence, not correction points. Playback must not
+snap the simulation back into agreement and conceal nondeterminism.
+
+### 13.4 Keyframe ruling for V1
+
+V1 includes the initial state and final state summary but **no periodic compressed
+world keyframes**. Deterministic headless resimulation can run much faster than
+real time, and the campaign's short-mission target makes replaying from takeoff
+reasonable.
+
+Periodic keyframes would later add fast seeking, permit inspection of recorded
+late-flight state after an earlier divergence, and provide better evidence across
+code revisions. They also add substantially larger files, compression work,
+schema/version complexity, and a risk of masking the very divergence being
+investigated. If measurements later justify them, add an independent Dev option
+with sparse 30–60 second keyframes rather than making them part of the base format.
+
+### 13.5 Acceptance gates
+
+- A representative recorded flight re-simulates bit-identically on the same build
+  through takeoff, combat, mission triggers, landing/crash, and debrief.
+- Tests cover pause, triple time, a frame hitch/dropped steps, continuous guns,
+  one-shot ordnance, wingman commands, held/spawned mission groups, and terrain
+  settlement.
+- A corrupted file, unknown schema, missing build, or content-hash mismatch fails
+  safely with an actionable message.
+- A deliberate simulation perturbation produces a first-divergence report at the
+  expected tick.
+- CPU, memory, and export-size budgets are established by prototype measurement,
+  with no perceptible input or frame-time regression in Dev flight.
+- Normal non-Dev sessions allocate no recorder buffers and expose no recorder UI.
+
+## 14. Decision log for the eventual design spec
+
+### 14.1 Decided
 
 #### Asset-first implementation gate — decided 13 October 2026
 
@@ -1414,7 +1507,7 @@ not part of the initial campaign design. The initial progression must be balance
 around earning every promotion through play and must not manufacture grind in
 anticipation of monetization.
 
-### 13.2 Open questions
+### 14.2 Open questions
 
 #### Campaign and mission content
 
@@ -1457,7 +1550,7 @@ anticipation of monetization.
     or include a small visible seeded chance?
 18. Is the working decision to defer mid-flight saves approved?
 
-## 14. Proposed migration into the master plan
+## 15. Proposed migration into the master plan
 
 Do not copy this brainstorm wholesale into `MASTER_PLAN.md`. After the open
 questions above are answered, turn the approved portions into bounded tracks with
@@ -1469,27 +1562,31 @@ acceptance gates:
 2. **Reusable asset production:** source, build, Library/Hangar-enroll, inspect,
    and attend-approve every required Blender asset, including Ki-57, parachute rig,
    vehicles, structures, and mission objects.
-3. **Player profile and campaign persistence:** versioned player/campaign schema,
+3. **Dev Flight Recorder:** implement the compact same-build deterministic record,
+   export/import, headless checksum verification, in-game playback, corruption and
+   mismatch handling, and measured performance gates before campaign test volume
+   grows.
+4. **Player profile and campaign persistence:** versioned player/campaign schema,
    migration from the old roster, fixed side rosters, archive/replacement rules,
    generated names, dossier screens, import/export, and autosave.
-4. **Mission-first headquarters UI:** campaign/side/single/training selection,
+5. **Mission-first headquarters UI:** campaign/side/single/training selection,
    mission cards and locks, pilot assignment, authored conditions/loadout, and
    launch flow.
-5. **Scoring and progression:** two score ledgers, objective rewards, target
+6. **Scoring and progression:** two score ledgers, objective rewards, target
    values, six pilot ranks, player prestige ratings, roster bonus, balance
    simulations, and anti-grind tests.
-6. **Night rendering and gameplay:** sky/exposure, moon/stars, local lights,
+7. **Night rendering and gameplay:** sky/exposure, moon/stars, local lights,
    aircraft/cockpit/runway/deck lighting, flares, visibility/AI, performance, and
    visual approval.
-7. **Bailout, POW, and rescue:** simulation, parachute visuals, outcome resolver,
+8. **Bailout, POW, and rescue:** simulation, parachute visuals, outcome resolver,
    debrief/roster integration, and shared paratrooper foundations.
-8. **Canonical campaign world:** persistent base/port/beachhead layouts,
+9. **Canonical campaign world:** persistent base/port/beachhead layouts,
    construction/ownership/damage states, scenery, and attended visual approval.
-9. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
+10. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
    skip behavior, bank-before-scene safety, and victory sequences.
-10. **Campaign mission production:** implement and approve chapters in sequence,
+11. **Campaign mission production:** implement and approve chapters in sequence,
     enforcing the 5–7 minute action cap and staged-finale performance budget.
-11. **Campaign validation and release:** full progression/loss/replacement runs,
+12. **Campaign validation and release:** full progression/loss/replacement runs,
     night accessibility, save migration, deterministic tests, browser/E2E coverage,
     balance review, and final `GAMEPLAY.md` reconciliation.
 
