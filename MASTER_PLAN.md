@@ -239,6 +239,13 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 
 #### F3. Campaign definition and source lock (S)
 
+**In review on branch `f3-campaign-lock` (2026-10-14):** the twelve chapter rows,
+canonical site states, 17-item reusable-asset inventory, four parallel F4 groups
+and dependency-checked execution count are frozen in the
+[design lock](docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md).
+The [execution plan](docs/superpowers/plans/2026-10-14-f3-campaign-definition-source-lock.md)
+stops at Mark's review gate; no F4 asset work has begun.
+
 Freeze the six American and six Japanese chapters, their historical-action /
 historical-composite / alternate-history labels, dates, aircraft, minimum pilot
 ranks, objective and recovery graphs, orders of battle, first-action time budgets,
@@ -649,9 +656,12 @@ prerequisites are met.
 | 15 | F11 campaign validation and release reconciliation | Full-career, loss, migration, night, deterministic, E2E and finale-performance gates |
 | 16 | G1 world abstraction; G2 Midway (adds SBD and TBD; B5N already ships) | Last, because it multiplies the content every earlier track has to support |
 
-F3–F11 and N2 are expected to require roughly 10–16 execution plans; F3 must
-replace that estimate with a dependency-checked plan count after the mission and
-asset inventories are frozen.
+F3–F11 and N2 require **22 execution plans including F3**, now that the mission and
+asset inventories are frozen for review. The dependency table is in the
+[F3 design lock](docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#11-dependency-checked-plan-count):
+four F4 asset groups may run in parallel after approval; N2 then precedes mission
+production; F5/F6/F7 foundations may overlap; F8, F9, F10 and F11 retain their
+gated order.
 
 ---
 
