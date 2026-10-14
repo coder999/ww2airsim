@@ -234,14 +234,16 @@ Philippines](https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.ht
 **Date and label:** early November 1944 — historical composite  
 **Player aircraft:** PBY-5A Catalina  
 **Mission type:** air-sea rescue  
+**Time of day:** night
+**Minimum pilot rank:** Lieutenant (junior grade)
 **Target time to action:** 5–6 minutes including water takeoff
 
 **Where the player starts**
 
-Afloat at the San Pedro Bay seaplane anchorage. The aircraft taxis onto the step,
-takes off, and flies 8–10 miles to the last reported position of a downed crew.
-The search area is small enough that the player begins looking for smoke, dye, or
-a flare by the fifth minute.
+Afloat at the lighted San Pedro Bay seaplane anchorage. The aircraft taxis onto the
+step, takes off, and flies 8–10 miles to the last reported position of a downed
+crew. The search area is small enough that the player begins looking for a survivor
+flare by the fifth minute.
 
 **Mission objective**
 
@@ -266,8 +268,8 @@ way home.
 
 **Where the player is supposed to end up**
 
-Afloat inside the marked San Pedro Bay anchorage, engines stopped after the rescue
-launch reaches the Catalina.
+Afloat inside the marked and lighted San Pedro Bay anchorage, engines stopped after
+the rescue launch reaches the Catalina.
 
 **Historical blurb**
 
@@ -589,13 +591,16 @@ was present. See the Army Air Forces account,
 **Date and label:** early December 1944 — historical composite  
 **Player aircraft:** B5N2 Kate with torpedo  
 **Mission type:** torpedo attack inside a ship-to-ship engagement  
+**Time of day:** night
+**Minimum pilot rank:** Kaigun Chūi
 **Target time to action:** less than 2 minutes
 
 **Where the player starts**
 
 Airborne west of Ormoc Bay as Japanese destroyers engage an American destroyer
-group. The gun battle is already visible; the player begins far enough out to set
-up one deliberate torpedo run.
+group. The gun battle is visible through gun flashes, tracers, burning ships, and a
+timed illumination flare; the player begins far enough out to set up one deliberate
+torpedo run.
 
 **Mission objective**
 
@@ -994,14 +999,16 @@ modern beacon is not.
 
 ### 6.5 Night mission requirement
 
-The final campaign set must contain at least one American and one Japanese night
-chapter so the Lieutenant (junior grade) rank gate has authored campaign content.
-Adapt or replace an existing candidate rather than increasing either campaign's
-chapter count. Prefer at least one single-engine night mission so the night unlock
-is not silently superseded by the higher Lieutenant requirement for multi-engine
-aircraft. Select the two chapters during final mission reconciliation; do not
-change a historical daylight action into night without relabeling it as a
-composite or replacing it with a better-supported action.
+The American night chapter is **A4, Dumbo in the Gulf**, using a survivor flare and
+lighted seaplane anchorage for a PBY rescue. The Japanese night chapter is **J5,
+Destroyers in the Bay**, using naval gunfire, tracers, fires, and a timed
+illumination flare to reveal the torpedo target. Both are historical composites, so
+the night settings must be stated plainly rather than attributed to a particular
+documented sortie.
+
+Both chapters require the corresponding Lieutenant (junior grade) rank. The PBY is
+multi-engine but is deliberately not rank-gated as an advanced aircraft; engine
+count alone does not determine aircraft eligibility.
 
 Night implementation also requires:
 
@@ -1498,10 +1505,15 @@ cumulative:
 |---:|---|---|---|
 | 1 | Ensign | Kaigun Shōi | Daytime, single-engine missions |
 | 2 | Lieutenant (junior grade) | Kaigun Chūi | Night missions |
-| 3 | Lieutenant | Kaigun Taii | Multi-engine aircraft |
+| 3 | Lieutenant | Kaigun Taii | Advanced aircraft |
 | 4 | Lieutenant Commander | Kaigun Shōsa | Bombsight and torpedosight |
 | 5 | Commander | Kaigun Chūsa | Leads coordinated operations containing multiple formations or aircraft types |
 | 6 | Captain | Kaigun Taisa | Eligible to fly the campaign finale |
+
+"Advanced aircraft" is a curated eligibility category, not a synonym for
+multi-engine. The aircraft/rank reconciliation pass must classify each flyable
+airframe from its complexity and campaign role. The PBY-5A is explicitly available
+to a Lieutenant (junior grade) in A4 despite having two engines.
 
 The Lieutenant Commander's ordnance sights are rank-gated information aids, not
 separate qualifications. With bombs selected, the bombsight marks the predicted
@@ -1577,40 +1589,52 @@ unlock chapters or alter canonical campaign state. Each campaign must always off
 at least one entry-rank non-campaign mission so roster losses cannot deadlock
 progression.
 
+#### Night chapters and advanced-aircraft rank gate — decided 13 October 2026
+
+A4, **Dumbo in the Gulf**, is the American night chapter, using a survivor flare
+and lighted seaplane anchorage to support the PBY rescue. J5, **Destroyers in the
+Bay**, is the Japanese night chapter, using naval gunfire, tracers, fires, and a
+timed illumination flare to expose the torpedo target. Both require the respective
+Lieutenant (junior grade) rank.
+
+Lieutenant now unlocks a curated **advanced aircraft** category rather than all
+multi-engine aircraft. Engine count alone does not set rank eligibility, and the
+PBY is available to a Lieutenant (junior grade) for A4. The exact advanced-aircraft
+list remains part of the aircraft/rank reconciliation pass.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. Which American and Japanese candidates become the required night chapters?
-2. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
+1. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
    chapter so the two campaigns remain equal in length?
-3. Is the Catalina rescue a required pacing chapter or an optional sortie?
-4. Should carrier and airfield landings remain mandatory for campaign credit, or
+2. Should carrier and airfield landings remain mandatory for campaign credit, or
    should a safe egress complete missions whose historical home base is outside the
    playable world?
-5. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+3. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-6. Does the campaign stop after 7 December, or later extend through the capture of
+4. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
-7. Which chapters need opening/ending scenes, and what happens in each victory
+5. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-8. What exact pilot-rank, player-rating, target, objective, recovery, and
+6. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+7. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-9. Does a captured pilot remain permanently archived in the initial campaign, or
+8. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-10. How strictly should the American name pool mirror the historical demographic
+9. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-11. Which aircraft receive landing, navigation, and formation lights after the
+10. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-12. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+11. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-13. Should rescue/capture be fully deterministic from world control and proximity,
+12. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
