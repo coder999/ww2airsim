@@ -1352,19 +1352,28 @@ A bailout can resolve as:
 - **killed/missing** — bailout failed because of altitude, impact, fire, terrain,
   water conditions, or failed recovery
 
-The odds should be based on understandable world state, not a hidden coin flip
-alone:
+The outcome uses deterministic rules at clear extremes and a recorded seeded roll
+only in contested situations. Friendly-base, friendly-carrier, or active friendly
+rescue-patrol coverage makes rescue effectively certain unless the bailout itself
+fails. Deep enemy-controlled territory with no plausible friendly rescue presence
+makes capture effectively certain. Between those extremes, the seeded resolver
+weighs:
 
 - distance to the nearest friendly and enemy airfield, ship, and controlled site
 - which side controls the terrain/water region
 - friendly rescue craft or search aircraft present in the mission
 - enemy ground/ship presence near the landing point
 - whether the pilot lands on land or water
+- daylight, visibility, weather, and sea state
 
-The debrief should show the factors and result. A small seeded random component may
-prevent certainty, but proximity and control must dominate so the player's choice
-matters. The campaign needs a clear bailout command, safety constraints, and
-feedback when escape is impossible or too late.
+Before the player bails out, the HUD shows a qualitative assessment such as
+**RESCUE LIKELY**, **CONTESTED**, or **CAPTURE LIKELY** rather than an unexplained
+percentage. The debrief shows the material factors and result. Proximity and
+control dominate the contested roll so the player's choice matters. The random
+seed and complete resolver inputs are stored in campaign/debug data and the Dev
+Flight Recorder, making the result exactly reproducible. The campaign also needs
+a clear bailout command, safety constraints, and feedback when escape is
+impossible or too late.
 
 ### 9.2 Shared parachute asset
 
@@ -1736,6 +1745,16 @@ entry-rank replacement fills the vacancy. No initial authored mission, rescue,
 exchange, or random event can return that pilot. Prisoner recovery remains a
 possible later expansion and must not complicate the initial roster lifecycle.
 
+#### Deterministic-extremes, seeded-contested bailout resolver — decided 13 October 2026
+
+Bailout rescue or capture is deterministic where friendly rescue or enemy control
+is overwhelming. Contested outcomes use a recorded seeded roll weighted by world
+control, nearby bases and ships, rescue and enemy assets, surface type, weather,
+visibility, and time. The HUD presents a qualitative risk cue before bailout, and
+the debrief explains the decisive factors. Seeds and resolver inputs are retained
+for exact Dev Flight Recorder reproduction. A capture result then follows the
+permanent initial-campaign POW rule.
+
 #### Historically grounded, inclusive American names — decided 13 October 2026
 
 The American pilot-name pool uses authentic names appropriate to 1940s America
@@ -1880,11 +1899,6 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 1. What exact target, objective, recovery, and live-roster-bonus values produce
     acceptable progression without grind?
-
-#### Night and recovery
-
-2. Should rescue/capture be fully deterministic from world control and proximity,
-    or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
 
