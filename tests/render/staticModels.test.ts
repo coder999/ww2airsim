@@ -8,7 +8,7 @@ const entries = loadModelEntries()
 
 describe('the static-model registry (model-roster spec §4.3)', () => {
   it('every registered id has its manifest entry, writing to its own folder, and its committed glb', () => {
-    for (const kind of ['building', 'vehicle'] as const) {
+    for (const kind of ['building', 'vehicle', 'equipment'] as const) {
       for (const [id, { url }] of Object.entries(STATIC_MODELS[kind])) {
         const entry = entries.find((e) => e.id === id)
         expect(entry?.output, `${kind} ${id}`).toBe(staticModelPath(kind, id))
@@ -21,6 +21,7 @@ describe('the static-model registry (model-roster spec §4.3)', () => {
   it('registers the hangar', () => {
     expect(staticModelUrlFor('building', 'hangar')).toBe(staticModelUrl('building', 'hangar'))
     expect(staticModelPath('vehicle', 'willys-mb-jeep')).toBe('content/vehicles/willys-mb-jeep.glb')
+    expect(staticModelPath('equipment', 'parachuting-person-rig')).toBe('content/equipment/parachuting-person-rig.glb')
   })
 
   it('an unregistered or prototype-named id throws, naming the kind and the registry', () => {

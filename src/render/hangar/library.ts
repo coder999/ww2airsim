@@ -11,11 +11,11 @@ import type { ProvenanceTable } from './provenance.js'
  * only: every figure a card shows is read from sim content at load (§4.2,
  * `stats.ts`), so a gameplay rebalance can never leave the library wrong.
  */
-export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'ordnance'] as const
+export const LIBRARY_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'equipment', 'ordnance'] as const
 export type LibraryKind = (typeof LIBRARY_KINDS)[number]
 /** The kinds that can carry their own model (model-roster spec §4.3). Ordnance in a spec draws its
  *  store model by that spec (O1); ordnance no spec carries yet (the torpedoes, V1) names its own. */
-export const MODEL_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'ordnance'] as const
+export const MODEL_KINDS = ['aircraft', 'ship', 'building', 'vehicle', 'equipment', 'ordnance'] as const
 export type ModelKind = (typeof MODEL_KINDS)[number]
 export interface ModelRef { readonly kind: ModelKind; readonly id: string }
 export const SIDES = ['allied', 'japanese'] as const
@@ -60,6 +60,7 @@ export const LibraryEntrySchema = z.object({
   if (e.displayOnly && (e.spec === undefined || e.model === undefined)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['displayOnly'], message: 'requires both a spec and an own model' })
   if (e.status === 'archived' && e.displayOnly !== true) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['status'], message: 'archived entries must be display-only' })
   if (e.kind === 'vehicle' && e.spec !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['spec'], message: 'no vehicle is in the sim: a vehicle entry takes no spec' })
+  if (e.kind === 'equipment' && e.spec !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['spec'], message: 'equipment is display-only: an equipment entry takes no spec' })
 })
 
 export type LibraryEntry = z.infer<typeof LibraryEntrySchema>
