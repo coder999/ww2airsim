@@ -1,5 +1,1 @@
-{
-  "id":"type-a3-life-raft-survivors","output":"content/equipment/type-a3-life-raft-survivors.glb",
-  "source":{"kind":"blender","script":"tools/models/blender/f4-maritime-assets.py","dimensions":"Type A-3 five-person identity from Wright Field specification 40420-A and 1947 Federal Register; 2.6 x 1.7 m raft and survivor poses ESTIMATE, read 2026-10-14","license":"AGPL-3.0-or-later"},
-  "keep":[{"node":"Raft"},{"node":"Survivors"},{"node":"SurvivorHeads"}],"skin":true,"textures":{"maxSize":512,"format":"webp"},"budget":{"maxBytes":750000,"maxTriangles":12000,"maxDrawCalls":8}
-}
+{"id":"type-a3-life-raft-survivors","output":"content/equipment/type-a3-life-raft-survivors.glb","source":{"kind":"blender","script":"tools/models/blender/f4-maritime-assets.py","dimensions":"Type A-3 five-person identity from Wright Field specification 40420-A and 1947 Federal Register. ESTIMATES (no drawing read): 2.60 x 1.70 m overall, 0.40 m tube, rounded-rectangular plan, seams, lifeline loops, boarding handles, CO2 cylinder, paddle, dye marker and survivor poses; F4R rework 2026-10-14","license":"AGPL-3.0-or-later"},"keep":[{"node":"Raft"},{"node":"Survivors"},{"node":"SurvivorHeads"},{"node":"SurvivorVests"}],"skin":true,"textures":{"maxSize":512,"format":"webp"},"budget":{"maxBytes":750000,"maxTriangles":12000,"maxDrawCalls":8}}

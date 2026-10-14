@@ -17,6 +17,7 @@ export const CAPTURE_TEST_FILES = [
   'cockpitFamiliesCapture.spec.ts',
   'drapeSpike.spec.ts',
   'entityScalingCapture.spec.ts',
+  'f4rMaritimeCapture.spec.ts',
   'gunLayingCapture.spec.ts',
   'impactMarkerCapture.spec.ts',
   'l1l2Capture.spec.ts',
