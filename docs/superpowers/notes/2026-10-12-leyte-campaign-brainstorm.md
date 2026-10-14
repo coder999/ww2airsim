@@ -93,6 +93,24 @@ recorded. The mission grants no campaign badge, applies no successful canonical
 world-state transition, unlocks no new chapter, and remains available to retry with
 an eligible living pilot.
 
+### 1.5 Finale population and performance envelope
+
+Each finale initially targets **24 total airborne aircraft, including the player,
+plus 10 ships simultaneously present**. No more than 16 aircraft should occupy the
+player's close combat area at once; the rest remain visible in distant formations,
+approach or depart, or wait for an authored wave transition. Departed, landed, and
+destroyed groups may be replaced by later waves without exceeding either
+simultaneous cap.
+
+The numbers are content targets, not a new engine-wide hard limit. Acceptance must
+be measured in each completed finale at 2560 × 1440 on High using the reference
+hardware. Both GPU p95 and live main-thread work p95 must remain within the 16.7 ms
+60 FPS budget with cockpit rendering, clouds, terrain, AAA, ground vehicles, fires,
+tracers, ship weapons, damage effects, and mission scripting active. A synthetic
+swarm pass alone is insufficient. If the authored scene misses the budget, optimize
+or restage it; do not silently lower visual settings or ship/aircraft counts without
+a new design decision.
+
 ## 2. American campaign candidates
 
 The six missions below deliberately alternate air defense, anti-shipping, ground
@@ -385,6 +403,8 @@ The finale has linked phases rather than one enormous furball:
 - American AAA at Tacloban, Bayug, Buri, and San Pablo according to field state
 - M4 Sherman tanks, jeeps, trucks, and base personnel defending the fields
 - an AI fighter-bomber element attacking the ground lodgment
+- an American ten-ship support and transport group in Leyte Gulf/San Pedro Bay,
+  with mission-relevant naval gunfire and AAA active
 
 **Enemies**
 
@@ -719,6 +739,8 @@ and the American beachhead is eventually evacuated.
 - American AAA at each operational field
 - parked American aircraft, fuel, ammunition, and radio facilities
 - M4 Sherman tanks and support vehicles counterattacking near the strips
+- an American ten-ship support and transport group off Tacloban and the beachhead,
+  contributing visible naval gunfire and AAA
 
 **Where the player is supposed to end up**
 
@@ -1663,34 +1685,47 @@ still banks legitimate points and records the sortie, but awards no campaign bad
 applies no successful world-state transition, unlocks no chapter, and leaves the
 mission available to retry.
 
+#### Finale mixed-force population target — decided 13 October 2026
+
+Each completed finale initially targets 24 total airborne aircraft, including the
+player, plus 10 simultaneously present ships. At most 16 aircraft occupy the close
+combat area; the remainder use distant formations and staged transitions so the
+battle reads larger without becoming one undifferentiated furball. Both finales
+include an American naval support/transport group in Leyte Gulf or San Pedro Bay,
+with mission-relevant ship weapons and AAA active.
+
+The completed authored scene—not only the synthetic swarm—must keep GPU p95 and
+live main-thread work p95 within the 16.7 ms 60 FPS budget at 2560 × 1440 High on
+the reference hardware while cockpit, clouds, terrain, vehicles, weapons, fires,
+damage effects, and mission logic are active. Any count reduction requires a later
+explicit design decision.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. How many simultaneous nearby aircraft qualifies as the desired "large" finale
-   after performance and AI-behavior measurements?
-2. Does the campaign stop after 7 December, or later extend through the capture of
+1. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
-3. Which chapters need opening/ending scenes, and what happens in each victory
+2. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-4. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-5. What exact pilot-rank, player-rating, target, objective, recovery, and
+3. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+4. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-6. Does a captured pilot remain permanently archived in the initial campaign, or
+5. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-7. How strictly should the American name pool mirror the historical demographic
+6. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-8. Which aircraft receive landing, navigation, and formation lights after the
+7. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-9. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+8. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-10. Should rescue/capture be fully deterministic from world control and proximity,
+9. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
@@ -1731,10 +1766,11 @@ acceptance gates:
 11. **Campaign mission production:** implement and approve chapters in sequence,
      require primary-objective and authored-recovery success for progression, seed
      the existing scenarios as the non-campaign promotion pool, and enforce the 5–7
-     minute action cap and staged-finale performance budget.
+     minute action cap and the measured 24-aircraft/10-ship staged-finale envelope.
 12. **Campaign validation and release:** full progression/loss/replacement runs,
-    night accessibility, save migration, deterministic tests, browser/E2E coverage,
-    balance review, and final `GAMEPLAY.md` reconciliation.
+     actual-scene finale performance, night accessibility, save migration,
+     deterministic tests, browser/E2E coverage, balance review, and final
+     `GAMEPLAY.md` reconciliation.
 
 The corresponding `GAMEPLAY.md` rewrite should replace, rather than layer on top
 of, the current resurrection-era sections for Roster, Rank, Starting a flight,
