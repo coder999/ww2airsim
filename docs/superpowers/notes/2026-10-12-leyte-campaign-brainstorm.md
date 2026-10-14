@@ -1,6 +1,7 @@
 # Leyte campaign mission brainstorm
 
-**Status:** brainstorming draft, not an approved design or implementation plan  
+**Status:** brainstorming draft with foundational decisions resolved; not yet an
+approved implementation plan
 **Date:** 2026-10-12  
 **Scope:** one American and one Japanese campaign set around Leyte, using different
 sorties rather than replaying the same missions from opposite sides
@@ -86,12 +87,15 @@ egress boundary counts as recovery. Mission definitions must identify the exact
 recovery target and may not substitute a convenient egress boundary for an
 available in-world landing.
 
-If the player is killed, captured, rescued after bailout, safely ditches, or
-otherwise fails the authored recovery after achieving the primary objective, all
-legitimately earned player and pilot points are still banked and the outcome is
-recorded. The mission grants no campaign badge, applies no successful canonical
-world-state transition, unlocks no new chapter, and remains available to retry with
-an eligible living pilot.
+If the player is killed, captured, rescued after bailout, safely ditches, lands
+without completing the objective, or otherwise reaches a normal debrief without
+satisfying the primary objective and authored recovery, legitimately earned
+destruction points are still banked and the outcome is recorded. The mission
+grants no campaign badge, successful canonical world-state transition, chapter
+unlock, roster bonus, difficulty bonus, or authored completion bonus, and remains
+available to retry with an eligible living pilot. Explicitly quitting or
+abandoning a sortie before its normal debrief instead forfeits all points earned
+during that attempt.
 
 ### 1.5 Finale population and performance envelope
 
@@ -331,7 +335,8 @@ Because this mission deliberately offers little opportunity for destruction
 points, award 2,500 points to both the assigned pilot and human-player ledgers
 only when the primary rescue and authored anchorage recovery both succeed. A
 partial rescue, bailout, ditching, POW result, or failed return keeps any ordinary
-destruction points but does not earn this completion bonus.
+destruction points but does not earn this completion bonus. Explicitly abandoning
+the sortie forfeits both.
 
 **Historical blurb**
 
@@ -1303,9 +1308,11 @@ Any enemy target that takes actual durability damage from the assigned player
 aircraft is marked for full credit. If it is destroyed later in the same sortie—
 whether by the player, a friendly, a crash, or continuing damage—the full table
 value enters both that pilot's career ledger and the human player's campaign
-ledger exactly once. Merely hitting without causing damage earns no tag; a tagged
-target that survives earns no points. Friendly destruction of a target the player
-never damaged earns no points.
+ledger exactly once when the sortie reaches a normal debrief. Merely hitting
+without causing damage earns no tag; a tagged target that survives earns no
+points. Friendly destruction of a target the player never damaged earns no
+points. Explicit abandonment or a friendly-destruction discharge forfeits the
+sortie's entire score.
 
 It currently promotes one persistent pilot at 0 / 2,500 / 7,500 / 17,500 /
 35,000 / 60,000 points through Captain, then continues into flag ranks. Death,
@@ -1353,10 +1360,12 @@ Destruction is the default source of points. There are no generic point awards f
 a primary objective, secondary objective, protected friendly, survivor, recovery,
 or first campaign completion. Successful primary objectives plus authored
 recovery award the mission badge and campaign advancement, which are meaningful
-rewards independent of score. Completing objectives and then bailing out,
-ditching, being rescued, becoming POW, or dying keeps legitimately earned
-destruction points but awards neither badge nor campaign advancement unless the
-mission explicitly defines that outcome as its authored recovery.
+rewards independent of score. A sortie that reaches a normal debrief banks its
+legitimate destruction points even if the player lands without completing the
+objective, bails out, ditches, is rescued, becomes POW, or dies. It awards no badge
+or campaign advancement unless it satisfies the mission's authored completion
+conditions. Explicitly quitting or abandoning before a normal debrief forfeits
+the entire sortie score.
 
 Author each mission so the expected destruction credited to the player is roughly
 one rank interval appropriate to its minimum eligible pilot:
@@ -1380,8 +1389,16 @@ awarded to both ledgers, and gated by the same primary-objective and authored-
 recovery conditions as its badge. A4, **Dumbo in the Gulf**, is the initial case
 and awards 2,500 points. There is no general objective or recovery bonus to stack
 on top. Spawning, repeating a checkpoint, and destroying a practice target never
-award campaign points. Friendly-fire treatment remains part of the scoring rules
-still to finalize.
+award campaign points.
+
+Friendly-fire consequences are categorical rather than proportional. Actual
+nonfatal damage to a friendly aircraft, ship, structure, or vehicle produces an
+immediate warning but no score deduction or discharge by itself. If the player
+causes a friendly target's destruction, the assigned pilot is dishonorably
+discharged, the dossier is archived with that status, the live-roster vacancy is
+filled under the normal replacement rule, and the sortie banks zero points and no
+badge or completion awards. This uses actual player-caused friendly destruction,
+not the more generous enemy-target damage-tag rule.
 
 After every badge-earning campaign or in-campaign non-campaign sortie, award the
 human-player ledger a living-roster bonus based on the post-sortie five-pilot
@@ -1424,10 +1441,9 @@ graphics settings, and other non-difficulty preferences never change score.
 Simulate a reasonable campaign run, a run with one or two pilot losses, and
 side-mission recovery from a roster with only Ensigns. Confirm that the approved
 thresholds and mission score budgets create stakes without forcing repetitive
-grinding. Finalize:
-
-- any additional mission-specific completion bonuses
-- friendly-fire and deliberate-abandonment penalties
+grinding. Finalize any additional mission-specific completion bonuses as a
+content-balancing pass; the explicit-abandonment forfeiture and friendly-fire
+conduct rules are already decided.
 
 ## 9. Bailout, capture, and rescue
 
@@ -1440,10 +1456,12 @@ landing, ditching, and death.
 
 A bailout can resolve as:
 
-- **rescued** — pilot returns to the live roster, keeps sortie points, may be
-  promoted, but receives no mission badge because the aircraft was not returned
+- **rescued** — pilot returns to the live roster, keeps legitimately earned
+  destruction points, may be promoted, but receives no mission badge because the
+  aircraft was not returned unless rescue is the mission's authored recovery
 - **captured/POW** — pilot is removed from the live roster and archived as POW;
-  the human player keeps the sortie's player-level points
+  the closed pilot dossier and human-player ledger retain their legitimately
+  earned sortie points
 - **killed/missing** — bailout failed because of altitude, impact, fire, terrain,
   water conditions, or failed recovery
 
@@ -1588,6 +1606,10 @@ The code review behind this brainstorm found:
   bailout, parachute, POW, or rescue system exists
 - scoring already has the target table in section 8, but no general objective
   point system
+- current friendly-fire bookkeeping records the first friendly hit and the debrief
+  then forfeits the sortie and discharges a surviving pilot for any friendly
+  damage; campaign implementation must narrow discharge to player-caused friendly
+  destruction while retaining the existing immediate warning for nonfatal damage
 - time-of-day content exposes Morning, Midday, and Dusk only; the sun/exposure and
   sky code intentionally clamp to a readable twilight floor because true night
   lighting does not exist
@@ -1960,10 +1982,11 @@ complete and stable.
 Campaign missions unlock and must be completed in sequence. The next chapter opens
 only when the current mission's primary objective and authored recovery condition
 both succeed; a failed or abandoned attempt does not advance into an alternate
-campaign branch. It is recorded in the campaign log, legitimately earned player
-points and pilot points are banked, and the current mission remains available to
-retry. A failed attempt grants no campaign mission badge and does not apply the
-mission's successful canonical world-state transition.
+campaign branch. A normally concluded failed attempt banks legitimately earned
+player and pilot destruction points, while explicit mid-sortie abandonment banks
+zero points. In either case, the current mission remains available to retry, no
+campaign mission badge is granted, and no successful canonical world-state
+transition is applied.
 
 The existing scenario set becomes the initial repeatable Non-Campaign Mission pool.
 These missions let the player earn points and promote surviving or replacement
@@ -2046,16 +2069,38 @@ Japanese ending shows a landing at captured Buri or Bayug, consolidation of the
 fields, damaged Tacloban, and withdrawing American ships before an explicit
 alternate-history epilogue naming the J5/J6 point of divergence.
 
-### 14.2 Open questions
+#### Normal failure, explicit abandonment, and friendly fire — decided 13 October 2026
 
-#### Player, roster, and progression
+A score-eligible sortie that reaches its normal debrief banks legitimately earned
+destruction points even when its primary objective or authored recovery fails. For
+example, shooting down an enemy aircraft and returning to land without completing
+the objective banks the aircraft's value, but earns no badge, campaign advancement,
+roster bonus, difficulty bonus, or authored completion bonus. Bailout, ditching,
+rescue, POW, and KIA likewise retain legitimate destruction points while remaining
+mission failures unless the mission explicitly defines the outcome as valid
+recovery.
 
-1. What friendly-fire and abandonment penalties produce acceptable progression?
+Choosing the mid-sortie quit/abandon action is different: it records a zero-point
+attempt, forfeits the entire sortie score, grants no completion-related award, and
+still increments the adjusted-score sortie denominator. This prevents a player
+from destroying easy targets and quitting to bank them.
+
+Nonfatal friendly damage elicits an immediate warning but causes no numerical
+penalty or discharge. Player-caused destruction of a friendly target dishonorably
+discharges the assigned pilot, archives that dossier, invokes the normal
+entry-rank replacement rule, and forfeits the sortie's points and completion
+awards. The discharge is the conduct penalty; no separate negative score is added.
+
+### 14.2 Foundational questions resolved
+
+The foundational campaign questions identified during this brainstorm are now
+resolved. Per-mission authored completion bonuses and exact content tuning remain
+normal mission-definition and balance work rather than unresolved system design.
 
 ## 15. Proposed migration into the master plan
 
-Do not copy this brainstorm wholesale into `MASTER_PLAN.md`. After the open
-questions above are answered, turn the approved portions into bounded tracks with
+Do not copy this brainstorm wholesale into `MASTER_PLAN.md`. Turn the approved
+portions into bounded tracks with
 acceptance gates:
 
 1. **Campaign definition and source lock:** final six-versus-six mission matrix,
