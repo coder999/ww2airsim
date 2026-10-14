@@ -24,17 +24,21 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
   vehicle: {
     'caterpillar-d7-3t': { url: staticModelUrl('vehicle', 'caterpillar-d7-3t') },
     'gmc-cckw-353': { url: staticModelUrl('vehicle', 'gmc-cckw-353') },
+    lcvp: { url: staticModelUrl('vehicle', 'lcvp') },
     'm4-sherman': { url: staticModelUrl('vehicle', 'm4-sherman') },
     'type38-75mm-field-gun': { url: staticModelUrl('vehicle', 'type38-75mm-field-gun') },
     'type94-cargo-truck': { url: staticModelUrl('vehicle', 'type94-cargo-truck') },
     'type95-kurogane': { url: staticModelUrl('vehicle', 'type95-kurogane') },
     'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
+    'usaaf-63ft-rescue-boat': { url: staticModelUrl('vehicle', 'usaaf-63ft-rescue-boat') },
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
   },
   equipment: {
     'm24-aircraft-parachute-flare': { url: staticModelUrl('equipment', 'm24-aircraft-parachute-flare') },
     'parachuting-person-rig': { url: staticModelUrl('equipment', 'parachuting-person-rig') },
     'paratrooper-supply-bundle': { url: staticModelUrl('equipment', 'paratrooper-supply-bundle') },
+    'pby-mooring-buoy': { url: staticModelUrl('equipment', 'pby-mooring-buoy') },
+    'type-a3-life-raft-survivors': { url: staticModelUrl('equipment', 'type-a3-life-raft-survivors') },
   },
 }
 

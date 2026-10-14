@@ -1,0 +1,6 @@
+{
+  "id":"type-a3-life-raft-survivors","name":"Type A-3 Life Raft with Survivors","kind":"equipment","side":"allied","model":{"kind":"equipment","id":"type-a3-life-raft-survivors"},
+  "blurb":"A Hangar-only five-person raft group with survivors isolated as removable review nodes.",
+  "history":"The Type A-3 was a five-person aircraft life raft associated with Wright Field specification 40420-A. Its official identity and carried equipment are documented; the inflated shape and survivor poses in this group are estimates.",
+  "sources":[{"title":"U.S. Government Publications Catalog, Wright Field specification 40420-A","url":"https://www.govinfo.gov/content/pkg/GOVPUB-GP3-cb543933f5231626ef166f18a253a1ad/pdf/GOVPUB-GP3-cb543933f5231626ef166f18a253a1ad.pdf","read":"2026-10-14"},{"title":"Federal Register, Type A-3 five-man life raft equipment","url":"https://www.govinfo.gov/content/pkg/FR-1947-08-20/pdf/FR-1947-08-20.pdf","read":"2026-10-14"}]
+}

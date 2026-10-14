@@ -24,7 +24,7 @@ describe('vehicle rigs (V1)', () => {
   it('every committed vehicle model is rigged', () => {
     const models = readdirSync('content/vehicles').filter((f) => f.endsWith('.glb')).map((f) => f.slice(0, -4)).sort()
     expect(Object.keys(VEHICLE_RIGS).sort()).toEqual(models)
-    expect(models).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
+    expect(models).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
   })
 })
 

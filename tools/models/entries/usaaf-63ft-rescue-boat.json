@@ -1,0 +1,5 @@
+{
+  "id":"usaaf-63ft-rescue-boat","output":"content/vehicles/usaaf-63ft-rescue-boat.glb",
+  "source":{"kind":"blender","script":"tools/models/blender/f4-maritime-assets.py","dimensions":"63 ft / 19.20 m class length from U.S. congressional transfer record; 4.65 m beam, 3.60 m height and details ESTIMATE, read 2026-10-14","license":"AGPL-3.0-or-later"},
+  "keep":[{"node":"Hull"},{"node":"Prop1"},{"node":"Prop2"},{"node":"Rudder1"},{"node":"Rudder2"},{"node":"Nose"}],"skin":true,"textures":{"maxSize":512,"format":"webp"},"budget":{"maxBytes":1000000,"maxTriangles":20000,"maxDrawCalls":8}
+}

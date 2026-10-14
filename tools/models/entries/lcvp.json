@@ -1,0 +1,5 @@
+{
+  "id":"lcvp","output":"content/vehicles/lcvp.glb",
+  "source":{"kind":"blender","script":"tools/models/blender/f4-maritime-assets.py","dimensions":"36 ft 4 in length and 10 ft 9 in beam: U.S. Naval History and Heritage Command Ship-to-Shore Movement / landing-boat manual, read 2026-10-14; height and details ESTIMATE","license":"AGPL-3.0-or-later"},
+  "keep":[{"node":"Hull"},{"node":"Ramp"},{"node":"Nose"}],"skin":true,"textures":{"maxSize":512,"format":"webp"},"budget":{"maxBytes":1000000,"maxTriangles":20000,"maxDrawCalls":8}
+}
