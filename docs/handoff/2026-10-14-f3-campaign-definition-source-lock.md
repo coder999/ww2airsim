@@ -51,7 +51,7 @@ Exact runway coordinates, terrain fit, and per-asset geometry provenance remain 
 - Full repository verification: passed on the Ryzen worker with `REMOTE_RUN_OVERFLOW=0 /home/mark/.local/bin/remote-run npm run verify` — typecheck, lint, dependency checks, 441 test files, and 6,413 tests passed; 12 tests were skipped by their existing conditions.
 - Tests added or changed: none. This change is documentation-only, and a permanent source-grep test would add brittle duplication rather than protect shipped behavior.
 - Existing tests remain valid because no runtime code, generated content, asset, or scenario data changed.
-- Required HTML document email: pending. The execution environment blocked the send because the configured recipients were not exposed for verification; explicit user approval is required before retrying.
+- Required HTML document email: plan, specification, and handoff sent to the explicitly authorized `marktuttle1@gmail.com`; all three sends returned `msmtp exit 0`.
 
 ## Review gate
 

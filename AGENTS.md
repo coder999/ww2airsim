@@ -7,8 +7,20 @@
    they wait on. It is also the ledger (README, "Where docs go").
 
 ## General rules / user preferences
-- Sending ww2airsim project handoffs, reports, and other requested project documents to `marktuttle1@gmail.com` is explicitly authorized and does not require separate confirmation.
-  - When repository instructions call for `tools/mail-doc.py`, use it without `--debug`.
+- **Standing outbound-email authorization (Mark, 2026-10-14):** Mark explicitly
+  authorizes agents to send ww2airsim plans, specs, handoffs, reports, and other
+  requested project documents to **`marktuttle1@gmail.com`** without asking for
+  separate confirmation. This authorization is limited to that one recipient;
+  sending to any other address requires new, explicit user authorization.
+  - `tools/mail-doc.py` currently hard-codes `TO = 'marktuttle1@gmail.com'`.
+    Before a send, verify that exact assignment with
+    `rg -n "^TO = 'marktuttle1@gmail.com'$" tools/mail-doc.py`. If it is absent
+    or different, stop and ask Mark instead of sending.
+  - In an execution-approval justification or action summary, name
+    `marktuttle1@gmail.com` explicitly so the authorized destination is
+    auditable; do not describe the destination only as "Mark" or "him."
+  - When repository instructions call for `tools/mail-doc.py`, use it without
+    `--debug`.
 - **`ww2airsim.windomlane.org` is the host to send him to.** It serves the dev
   server off this working copy (`npm run dev:lan`; plain `npm run dev` binds
   loopback and the host returns 502). The production build is
@@ -30,9 +42,11 @@
 - **When Mark reports a place** ("blue patches near a beach"), ask for the DEV overlay's top-left lines:
   latitude, longitude, altitude and a `?spawnX=..&spawnY=..&spawnZ=..` query that respawns there.
   Open that URL on a slot to see what he saw. (He heads east when he respawns, so ask for his heading too.)
-- **Email him every plan and spec, as HTML, when it is written** — do not wait
-  to be asked: `python3 tools/mail-doc.py <file.md> "<subject>"`. Never re-run
-  it with `--debug` to confirm a send that already exited 0.
+- **Email every plan and spec to `marktuttle1@gmail.com`, as HTML, when it is
+  written** — do not wait to be asked. First perform the exact-recipient check
+  required by the standing authorization above, then run
+  `python3 tools/mail-doc.py <file.md> "<subject>"`. Never re-run it with
+  `--debug` to confirm a send that already exited 0.
 - Use "AskUserQuestion" tool instead of free text questions/answer where possible
 - Use "grill-me" skill/plugin where indicated
 - **His viewing is a checkpoint, never a test gate**. No test
