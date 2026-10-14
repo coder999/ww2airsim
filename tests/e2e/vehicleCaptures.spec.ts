@@ -18,9 +18,10 @@ const SHOTS: readonly (readonly [string, readonly View[], (h: NonNullable<Hangar
   ['type91', [['side', [-0.2, 1.3, 10.5], [-0.2, 0.5, 0]], ['tail', [-4.1, 1.0, 1.4], [-2.6, 0.5, 0]]], () => {}],
   ['type98-no25', [['side', [0.8, 1.0, 2.8], [-0.2, 0.4, 0]]], () => {}],
   ['a6m2-zero-blender', [['racks', [2.5, -0.4, 6.5], [-0.4, 0.9, 1.5]]], () => {}],
-  ['m4-sherman', [['traverse', [6.1, 3.5, 6.1], [0, 1.2, 0]], ['side', [0.2, 2.3, 9.5], [0, 1.2, 0]]],
-    (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 18 })],
-  ['type97-chi-ha', [['traverse', [5.5, 3.2, 5.5], [0, 1.1, 0]], ['tracks', [0.5, 0.8, 5.0], [0, 0.5, 0]]],
+  ['m4-sherman', [['traverse', [6.1, 3.5, 6.1], [0, 1.2, 0]], ['side', [0.2, 2.3, 9.5], [0, 1.2, 0]], ['tracks', [0.5, 0.8, 5.0], [0, 0.5, 0]],
+    ['seq', [1.0, 0.55, 3.4], [1.0, 0.32, 0]], ['rear', [-6.0, 3.2, 4.5], [-1.5, 1.6, 0]], ['front', [7.0, 2.6, -4.0], [1.2, 1.5, 0]], ['port', [0.3, 1.9, -5.5], [0.3, 1.5, 0]]],
+    (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 18, speedMph: 6 })],
+  ['type97-chi-ha', [['traverse', [5.5, 3.2, 5.5], [0, 1.1, 0]], ['tracks', [0.5, 0.8, 5.0], [0, 0.5, 0]], ['seq', [1.0, 0.55, 3.4], [1.0, 0.32, 0]]],
     (h) => h.pose({ turretBearingDeg: 50, turretElevationDeg: 12, speedMph: 6 })],
   ['willys-mb-jeep', [['left', [3.6, 2.0, -3.6], [0, 0.7, 0]], ['right', [3.6, 2.0, 3.6], [0, 0.7, 0]], ['driver', [1.6, 1.7, -1.9], [-0.2, 1.0, -0.3]]],
     (h) => h.pose({ steer: -1 })],
@@ -48,7 +49,15 @@ test('vehicle captures: ordnance, the Zero\'s Type 98s, both tanks and both scou
       await page.evaluate(([e, t]) => (window as HangarWindow).__hangar!.aim(e, t), [eye, target] as const)
       await settle()
       await page.locator('#hangar-canvas').screenshot({ path: `${out}/${id}-${view}.png` })
-      if (id === 'type97-chi-ha' && view === 'tracks') {
+      if (view === 'seq') {
+        // The track-motion sequence: frame 0 at rest pose, then five more 0.02 s apart at 6 mph (0.054 m each).
+        for (let k = 1; k < 6; k++) {
+          await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.02))
+          await settle()
+          await page.locator('#hangar-canvas').screenshot({ path: `${out}/${id}-seq${k}.png` })
+        }
+      }
+      if ((id === 'type97-chi-ha' || id === 'm4-sherman') && view === 'tracks') {
         // A second frame half a second on at the held speed: the tread and the wheels have moved.
         await page.evaluate(() => (window as HangarWindow).__hangar!.tick(0.5))
         await settle()
