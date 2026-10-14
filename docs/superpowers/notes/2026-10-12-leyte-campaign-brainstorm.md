@@ -72,6 +72,27 @@ Implementation implications:
   start to the first action area and fail campaign content that exceeds the agreed
   cap.
 
+### 1.4 Campaign completion and recovery
+
+A campaign mission is completed only when both conditions succeed:
+
+1. The primary objective is achieved.
+2. The player satisfies the mission's authored recovery condition.
+
+When the assigned carrier, runway, or seaplane anchorage is reasonably reachable
+inside the playable world, the player must land there safely. When the historically
+appropriate recovery base lies outside the world, crossing a designated friendly
+egress boundary counts as recovery. Mission definitions must identify the exact
+recovery target and may not substitute a convenient egress boundary for an
+available in-world landing.
+
+If the player is killed, captured, rescued after bailout, safely ditches, or
+otherwise fails the authored recovery after achieving the primary objective, all
+legitimately earned player and pilot points are still banked and the outcome is
+recorded. The mission grants no campaign badge, applies no successful canonical
+world-state transition, unlocks no new chapter, and remains available to retry with
+an eligible living pilot.
+
 ## 2. American campaign candidates
 
 The six missions below deliberately alternate air defense, anti-shipping, ground
@@ -1594,12 +1615,12 @@ complete and stable.
 #### Sequential victory gates and repeatable non-campaign missions — decided 13 October 2026
 
 Campaign missions unlock and must be completed in sequence. The next chapter opens
-only when the current mission's primary objective succeeds; a failed or abandoned
-attempt does not advance into an alternate campaign branch. It is recorded in the
-campaign log, legitimately earned player points and pilot points are banked, and
-the current mission remains available to retry. A failed attempt grants no campaign
-mission badge and does not apply the mission's successful canonical world-state
-transition.
+only when the current mission's primary objective and authored recovery condition
+both succeed; a failed or abandoned attempt does not advance into an alternate
+campaign branch. It is recorded in the campaign log, legitimately earned player
+points and pilot points are banked, and the current mission remains available to
+retry. A failed attempt grants no campaign mission badge and does not apply the
+mission's successful canonical world-state transition.
 
 The existing scenario set becomes the initial repeatable Non-Campaign Mission pool.
 These missions let the player earn points and promote surviving or replacement
@@ -1631,37 +1652,45 @@ reinforcement-route story. J5 becomes **Night Drop on Burauen**, a player-flown
 Ki-57 paratrooper mission whose successful lodgment carries directly into the J6
 Operation Te-Go finale. The campaigns remain equal at six chapters each.
 
+#### Authored campaign recovery gates — decided 13 October 2026
+
+Campaign completion requires both primary-objective success and the mission's
+authored recovery. A reachable in-world carrier, runway, or seaplane anchorage must
+be used; a designated friendly egress boundary counts only when the historically
+appropriate recovery base lies outside the playable world. Bailout, rescue,
+capture, death, ditching, or any other recovery failure after objective success
+still banks legitimate points and records the sortie, but awards no campaign badge,
+applies no successful world-state transition, unlocks no chapter, and leaves the
+mission available to retry.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. Should carrier and airfield landings remain mandatory for campaign credit, or
-   should a safe egress complete missions whose historical home base is outside the
-   playable world?
-2. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+1. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-3. Does the campaign stop after 7 December, or later extend through the capture of
+2. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
-4. Which chapters need opening/ending scenes, and what happens in each victory
+3. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-5. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-6. What exact pilot-rank, player-rating, target, objective, recovery, and
+4. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+5. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-7. Does a captured pilot remain permanently archived in the initial campaign, or
+6. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-8. How strictly should the American name pool mirror the historical demographic
+7. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-9. Which aircraft receive landing, navigation, and formation lights after the
+8. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-10. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+9. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-11. Should rescue/capture be fully deterministic from world control and proximity,
+10. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
@@ -1700,9 +1729,9 @@ acceptance gates:
 10. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
    skip behavior, bank-before-scene safety, and victory sequences.
 11. **Campaign mission production:** implement and approve chapters in sequence,
-     require primary-objective success for progression, seed the existing scenarios
-     as the non-campaign promotion pool, and enforce the 5–7 minute action cap and
-     staged-finale performance budget.
+     require primary-objective and authored-recovery success for progression, seed
+     the existing scenarios as the non-campaign promotion pool, and enforce the 5–7
+     minute action cap and staged-finale performance budget.
 12. **Campaign validation and release:** full progression/loss/replacement runs,
     night accessibility, save migration, deterministic tests, browser/E2E coverage,
     balance review, and final `GAMEPLAY.md` reconciliation.
