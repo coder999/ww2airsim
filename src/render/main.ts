@@ -2843,7 +2843,6 @@ async function boot(): Promise<void> {
       inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
       activeFlightRecorder?.observe,
     )
-    if (current.droppedSteps > 0) activeFlightRecorder?.invalidate(`dropped ${current.droppedSteps} fixed steps at tick ${current.world.tick}`)
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }

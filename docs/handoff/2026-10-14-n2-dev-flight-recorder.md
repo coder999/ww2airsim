@@ -56,8 +56,8 @@ world, and allocates no packet buffer.
 - Added `tests/flightRecorder/recorder.test.ts`: canonical hashing, entity-order
   and structure-damage checksums, gzip round-trip, held guns, one-shot stores,
   release evidence, pause, triple time, export revision tracking, wingman target,
-  held-group spawn, inspection seek, corruption/mismatch, divergence, and hitch
-  invalidation.
+  held-group spawn, inspection seek, corruption/mismatch, divergence, and frame
+  hitches (dropped fixed steps do not invalidate a record).
 - Added `tests/render/flightRecorderSurface.test.ts` for opt-in route gating.
 - Added `tests/e2e/flightRecorder.spec.ts` for no recorder/UI in ordinary play,
   Dev automatic capture, Pause download, Node decode/schema validation, in-game
@@ -95,3 +95,13 @@ world, and allocates no packet buffer.
   browser checkbox, preventing accidental mismatch acceptance.
 - The peak-heap figure is process sampling and includes runtime allocation
   noise; retained JSON and compressed bytes are the stable size measures.
+
+## Frame hitches (revised 2026-10-14)
+
+The first build marked a record invalid whenever the loop dropped fixed steps. Mark's
+GPU-less laptop (software rendering) produced thousands of drops and every export
+failed verification. A dropped step never advances a tick, so the per-tick consumed
+controls still reproduce the run; a recording with 1,333 dropped steps and changing
+keys verified bit-identically (`recorder.test.ts`, "frame hitches"). `main.ts` no
+longer invalidates on drops. `recorder.invalidate` remains for genuine problems
+(fixed-tick gaps, unapplied actions).

@@ -253,6 +253,27 @@ describe('Dev Flight Recorder', () => {
     expect(() => parseFlightRecord({ ...record, version: 99 })).toThrow('version')
   })
 
+  it('verifies bit-identically after frame hitches that dropped fixed steps while keys changed', () => {
+    let frame = initialFrameStateFor(start(), header().launch.assists)
+    const initial = frame.world
+    const recorder = createDevFlightRecorder(header(), initial)
+    let dropped = 0
+    const keys = [BINDINGS.pitchUp, BINDINGS.rollLeft, BINDINGS.yawRight, BINDINGS.throttleUp]
+    for (let i = 0; i < 300; i++) {
+      // Hitch every seventh frame: far longer than the loop's catch-up cap, so steps are dropped.
+      const elapsed = i % 7 === 3 ? 0.6 : 1 / 60
+      const pressed = new Set(keys.filter((_, k) => (i >> (k % 3 + 1)) % 2 === k % 2).flatMap((k) => [...k]))
+      frame = nextFrameState(frame, elapsed, pressed, undefined, false, undefined, undefined, recorder.observe)
+      dropped += frame.droppedSteps
+    }
+    const record = recorder.finish(frame.world)
+    expect(record.valid).toBe(true)
+    // Dropped steps never advance a tick, so the per-tick consumed controls still reproduce the run
+    // (measured 2026-10-14: 1,333 dropped steps, bit-identical). A slow, GPU-less machine stays valid.
+    expect(dropped).toBeGreaterThan(0)
+    expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
+  })
+
   it('marks a dropped-step recording invalid and refuses to verify it', () => {
     const initial = start()
     const recorder = createDevFlightRecorder(header(), initial)
