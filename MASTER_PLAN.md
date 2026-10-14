@@ -41,7 +41,7 @@ render quality with auto-detect.
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
 **A3. Time-of-day picker (S-M). Done 2026-10-09; moved to dedicated Flight Conditions Form 4 on 2026-10-11** (merge of `a3a4-launch`): the form offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
-- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **There is no night lighting**, so night is a separate rendering plan if wanted.
+- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **There is no night lighting.** The approved campaign adds it under F6 rather than extending A3 in isolation.
 
 **A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
@@ -203,7 +203,7 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
    - ~~`disengageThreshold` unread (7b)~~ **Deleted (E4):** `energyDiscipline` already is the energy disengage.
    - E4: plan `docs/superpowers/plans/2026-10-10-e4-ai-fixes.md`; handoff `docs/handoff/2026-10-10-e4-ai-fixes.md`.
 
-### Track F: Missions and a campaign (M then L)
+### Track F: Missions and Leyte campaigns (existing missions done; campaign program)
 
 - **Today:**
   - 13 missions and 6 ranges ship on `main` (counted in `SCENARIO_OPTIONS` 2026-10-12).
@@ -231,7 +231,143 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
   | ~~Tank Buster~~ | done 2026-10-11; Track V vehicles, stationary 48-HP Chi-Ha targets and carrier recovery |
   | ~~Torpedo Qualification~~ | done and merged 2026-10-11 (`001a5a9d`); D torpedoes/flooding, instructor state objectives and USS Crow's practice-target seam |
 
-- **Campaign by day** (missions spec §6.2): needs per-day airfield ownership plus the above. Build it after the missions, not before.
+- **The former “campaign by day” placeholder is superseded.** The approved Leyte
+  campaign program below replaces it. Player-facing rules live in
+  [`GAMEPLAY.md`](GAMEPLAY.md#planned-leyte-campaigns-not-yet-shipped); the detailed
+  twelve-mission and asset brainstorm remains
+  [`docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md`](docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md).
+
+#### F3. Campaign definition and source lock (S)
+
+Freeze the six American and six Japanese chapters, their historical-action /
+historical-composite / alternate-history labels, dates, aircraft, minimum pilot
+ranks, objective and recovery graphs, orders of battle, first-action time budgets,
+canonical site states, opening and victory scenes, and cited briefing text. Both
+campaigns end with the 6–7 December airfield battle; each must reach meaningful
+action within 5–7 minutes at 1× speed. Produce one exact reusable-asset inventory
+and distinguish individual Blender assets from procedural base-layout work.
+
+**Acceptance gate:** every mission row is internally consistent, historically
+sourced or candidly labeled, has a bounded performance population, and names every
+new reusable model it depends on. No campaign asset or system implementation begins
+until this lock is reviewed.
+
+#### F4. Reusable campaign assets and Hangar approval (L; hard gate)
+
+Build the frozen inventory before campaign systems or mission scripting. It must
+include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
+new reusable aircraft, vehicle, ship, structure, light, flare, rescue, landing-craft,
+or standalone mission object selected by F3. Use the existing sourced Blender
+pipeline, enroll each item in the Library/Hangar, expose relevant articulation on
+the test bench, and obtain attended visual approval for each reusable model.
+Procedural mud, standing water, damage decals, repeated clutter, and whole-base
+layouts receive later scene checkpoints rather than artificial Hangar cards.
+
+**Acceptance gate:** every frozen individual asset has provenance, limits, a
+Library entry, automated enrollment/budget coverage, and Mark's Hangar approval.
+Only then may F5–F10 implementation begin.
+
+#### F5. Campaign identity, persistence, headquarters, scoring, and progression (L)
+
+Replace the resurrection-era front end with faction-bound campaign records: player
+name and permanent nation choice; independent American/Japanese careers; a
+human-player dossier; exactly five living pilots plus closed archives and automatic
+entry-rank replacements; historically grounded generated names; mission-first then
+pilot-assignment flow; sequential chapters plus repeatable non-campaign missions;
+versioned persistence, migration, and UI import/export. Implement the six-tier
+American/Japanese naval pilot ladders and their unlocks, five human command ratings,
+two score ledgers, adjusted points per sortie, destruction credit, completion
+bonuses, badge/world-state gates, warning-only nonfatal friendly fire, destruction-
+triggered dishonorable discharge, and zero-point explicit abandonment exactly as
+specified in `GAMEPLAY.md`.
+
+**Acceptance gate:** loss, POW, discharge, replacement, cross-faction isolation,
+rank eligibility, mission locks, every score path, old-save migration, and
+export/import are deterministic and covered. A campaign with five replacement
+Ensigns can always reach an entry-rank non-campaign mission and cannot deadlock.
+
+#### F6. Night operations (L)
+
+Add a playable low-light night state, moon and stars, exposure and visibility
+rules, dimmable cockpit/instrument lighting, historically supported aircraft lights,
+temporary runway and seaplane-anchorage lights, ship lighting, blackout control,
+flares, and nighttime AI/perception consequences. Use the approved wartime
+navigation-light roster; do not invent universal aircraft headlights. A4, J4, and
+J5 are the initial night consumers. Lieutenant Commander bombsight/torpedosight
+prediction is part of the same campaign ability surface but reuses the sim's real
+weapon predictions rather than changing weapon physics.
+
+**Acceptance gate:** A4/J4/J5 can be flown without zero-light frustration, blackout
+still matters, every installed light has source support or an explicit gameplay
+label, the aids obey rank gates, and representative night scenes meet the rendering
+budget and accessibility checks.
+
+#### F7. Bailout, POW, rescue, and paratroopers (L)
+
+Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
+parachute descent and surface contact, deterministic extreme rescue/capture results,
+recorded seeded contested results, qualitative pre-bailout risk, debrief evidence,
+permanent initial-campaign POW archives, and five-pilot roster replacement. Reuse
+the approved pilot/parachute rig and simulation foundation for J5's paratrooper
+drop. There is no modern ejection seat and no initial prisoner-recovery mission.
+
+**Acceptance gate:** impossible and low-altitude bailout, friendly rescue, capture,
+water and land contact, score/badge behavior, archive/replacement, recorder replay,
+and paratrooper spawning are deterministic and tested.
+
+#### F8. Canonical Leyte campaign world (L)
+
+Build persistent, historically reconciled states for Tacloban, Dulag, Buri, Bayug,
+San Pablo, Tanauan, Ormoc, the beachhead and naval/seaplane areas. Expand the
+threadbare bases with the F3-approved structures, roads, revetments, supplies,
+lights, defenses, parked assets, construction, mud, damage, ownership, and takeover
+states. The same canonical layout persists between chapters; only authored
+construction, destruction, damage, and control changes.
+
+**Acceptance gate:** each dated state has an attended scene checkpoint, mission
+navigation and collision use the visible layout, campaign transitions reproduce
+after save/load, and historical/site-source claims pass final reconciliation.
+
+#### F9. In-engine campaign scenes (M)
+
+Create a reusable camera/timeline/action/subtitle/radio framework over the real
+world renderer. Author twelve skippable 10–20 second openings, with A1/J1 also
+introducing their campaigns, and two full victory scenes/epilogues after safely
+banking the A6/J6 result. Ordinary chapters use debrief and persistent world change,
+not a bespoke ending cinematic.
+
+**Acceptance gate:** skip and completion paths produce identical persisted state,
+missing assets or audio fail safely, save banking precedes victory playback, and
+all fourteen scenes are visually approved.
+
+#### F10. Campaign mission production (L, several plans)
+
+Implement the frozen American and Japanese chapters in narrative order while
+keeping their mission sets asymmetric. Seed the existing scenario set as the
+repeatable in-campaign non-campaign pool. Each campaign mission must enforce its
+primary objective, authored recovery, rank eligibility, badge, canonical state
+transition, first-action cap, historical label, briefing source, opening scene, and
+performance population. Stage both finales at 24 total airborne aircraft including
+the player plus 10 ships, with no more than 16 aircraft in close combat, unless a
+later explicit design ruling changes those numbers.
+
+**Acceptance gate:** complete success, normal failure, explicit abandonment, KIA,
+POW, bailout, discharge, restart, and retry paths are proven for every chapter;
+actual finale scenes hold GPU and live main-thread p95 within 16.7 ms at 2560×1440
+High on the reference hardware.
+
+#### F11. Campaign validation and release reconciliation (M)
+
+Run full American and Japanese careers, senior-pilot loss and five-Ensign recovery,
+cross-faction isolation, repeated side-mission farming, points-per-sortie, night
+accessibility, save migration/export, deterministic recorder reproduction, finale
+performance, and browser E2E coverage. Reconcile all superseded resurrection-era
+tests and player-facing documentation; keep Single Missions and Training explicitly
+separate where they retain free-form behavior.
+
+**Acceptance gate:** `GAMEPLAY.md` describes shipped behavior rather than a planned
+overlay, `npm run verify` and the classified E2E/budget gates pass, no known
+campaign-critical gap is hidden in a handoff, and deployment remains Mark's call.
 
 ### Track G: Other theaters (L, after F)
 
@@ -459,7 +595,7 @@ Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is 
   rulings landed; H0's `high-6000` budget view now reads 6.20 ms (H0 handoff), and L3's view has not been
   re-measured since. Re-measure it before clearing either prototype against the budget.
 
-### Track N: Dev tools (S). Done 2026-10-10
+### Track N: Dev tools (M)
 
 **N1. God mode and the Range Test.** [Plan](docs/superpowers/plans/2026-10-10-god-mode-range-test.md),
 [handoff](docs/handoff/2026-10-10-range-test-god-mode.md).
@@ -470,6 +606,23 @@ Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is 
   chosen.
 - **Open:** damage, smoke and sinking were proven in the sim but not captured in the browser; a true
   neutral side (the cargo ship is "always a legal target" instead) is not built.
+
+**N2. Dev Flight Recorder (M; after F4, before campaign mission production).**
+Build a Dev-only compact deterministic `.ww2flight` record rather than retaining
+full replay snapshots for an entire sortie. Record the initial world, exact build
+and content hashes, scenario/settings, fixed-tick applied controls, discrete
+actions, mission/combat events, one-second checksums, final state summary and
+debrief. Export from Pause and Debrief; import into a Dev reproduction surface.
+Provide headless first-divergence verification and in-game resimulation through the
+existing replay cameras. V1 has no periodic compressed keyframes; reconsider sparse
+30–60 second keyframes only after measured file size and seek costs justify them.
+
+**Acceptance gate:** a representative flight re-simulates bit-identically on the
+same build through takeoff, combat, mission triggers and debrief; pause, time
+compression, frame hitches, guns, ordnance and wingman orders are covered; corrupt,
+unknown or mismatched records fail with actionable messages; normal non-Dev play
+allocates no recorder buffer and exposes no recorder UI. Detailed contract:
+[`campaign brainstorm §13`](docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md#13-dev-flight-recorder).
 
 ## 2. Proposed order
 
@@ -486,16 +639,25 @@ prerequisites are met.
 | 5 | ~~F missions that were unblocked (Single Combat, Scramble)~~ done 2026-10-09 (F2); ~~L1 terrain allocation and compression~~ done 2026-10-10 (L1.1, L1.1a); ~~L1 building materials~~ done 2026-10-11; **open:** real crowns/leaf/bark after the rejected costlier pass, and default-TSL in-cloud pacing | |
 | 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; ~~F Escort~~ done 2026-10-10 (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
 | 7 | ~~D torpedoes (Avenger); M4 main batteries; F Surigao Strait~~ done by 2026-10-11; ~~K default renderer, L2 smooth shore, and L2 animated surf/shallow water~~ done; **open:** K's remaining visual steps | |
-| 8 | F campaign by day; ~~C3 four-family cockpit panels~~ done and merged 2026-10-12 | |
-| 9 | G1 world abstraction; G2 Midway (adds SBD, TBD, B5N) | Last, because it multiplies the content every earlier track has to support |
+| 8 | F3 campaign definition/source lock; ~~C3 four-family cockpit panels~~ done and merged 2026-10-12 | Freeze the twelve chapters and exact reusable inventory before producing content |
+| 9 | F4 reusable campaign assets and attended Hangar approvals | Mark's asset-first gate: no campaign system or mission scripting proceeds before the frozen individual models are approved |
+| 10 | N2 Dev Flight Recorder | Reproduction tooling lands before campaign test volume and state complexity grow |
+| 11 | F5 campaign foundation; F6 night operations; F7 bailout/POW/rescue | These share approved contracts but can proceed in separate worktrees after the asset gate |
+| 12 | F8 canonical Leyte campaign world | Persistent bases and site states consume the approved assets and foundation |
+| 13 | F9 in-engine campaign scenes | The scene framework consumes canonical locations and persistence but precedes chapter production |
+| 14 | F10 campaign mission production | Build and approve chapters against finished shared systems, sites and scene framework |
+| 15 | F11 campaign validation and release reconciliation | Full-career, loss, migration, night, deterministic, E2E and finale-performance gates |
+| 16 | G1 world abstraction; G2 Midway (adds SBD and TBD; B5N already ships) | Last, because it multiplies the content every earlier track has to support |
 
-A rough total by the size key: about 30-40 plans.
+F3–F11 and N2 are expected to require roughly 10–16 execution plans; F3 must
+replace that estimate with a dependency-checked plan count after the mission and
+asset inventories are frozen.
 
 ---
 
 ## 3. Not in this plan, deliberately
 
-- **Night lighting, weather beyond clouds, multiplayer, a mission editor.** None was on Mark's list. The missions spec rules out an editor (`missions-design.md:167`).
+- **Weather beyond clouds, multiplayer, and a mission editor.** The missions spec rules out an editor (`missions-design.md:167`). Night lighting is now in scope under F6 because the approved campaigns require it.
 - **Re-deriving flight models.** The graded cards and the `plan1-rulings.md` decisions stand.
 - **Engine start and taxi sequences.** Taxiing isn't modeled for AI either (7g §6.5). This would be its own track if wanted.
 
@@ -516,3 +678,13 @@ All decided 2026-10-08 (grilling session); the tracks above carry each answer.
 9. ~~**This document's authority.**~~ Decided 2026-10-08: it lives at the repo root and is the plan and ledger; master spec §15 is frozen as history (README).
 10. ~~**T1 and W1.**~~ Keep both. Mark hand-flew T1 2026-10-08: the landing and the hands-off torque swing are right. Settled.
 11. ~~**Escort pursuit.**~~ The spec's "takes hits" becomes "fires within gun solution" (`formationCover.test.ts` skip; 7f handoff §4.2; `docs/testing.md`, "Known gaps").
+12. ~~**Leyte campaign foundation.**~~ Decided through 2026-10-13: two
+    independent six-chapter faction careers, mission-first pilot assignment,
+    fixed five-pilot rosters without resurrection, naval-rank eligibility,
+    separate pilot/human ledgers, repeatable non-campaign promotion missions,
+    authored recovery gates, night chapters, bailout/POW, canonical bases,
+    in-engine scenes, Dev flight recording, and an asset-first implementation
+    gate. Player-facing rulings are in
+    [`GAMEPLAY.md`](GAMEPLAY.md#planned-leyte-campaigns-not-yet-shipped); detailed
+    mission/source notes are in the
+    [campaign brainstorm](docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md).

@@ -140,6 +140,198 @@ points** and list total engine power in horsepower. Stores feed their real mass
 and drag into the flight model, so the loadout screen is a performance
 decision, not decoration.
 
+### Planned Leyte campaigns (not yet shipped)
+
+Track F replaces the current resurrection-era metagame with two independent,
+story-driven Leyte campaigns while preserving Single Missions and Training as
+free-form play. Everything in this subsection is approved player-facing design,
+not current behavior. Implementation status and order remain in
+[`MASTER_PLAN.md`](MASTER_PLAN.md); the
+detailed mission and historical-source working record is the
+[campaign brainstorm](docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md).
+
+#### Campaign and player identity
+
+Creating a campaign requires the human player's name and a permanent choice of
+American or Japanese service. The same person may create a separate campaign for
+the other side, but player points, command rating, badges, mission progress,
+canonical world state, pilots, archives, and roster bonuses never cross between
+campaigns.
+
+The human player is distinct from the pilots flown. The campaign owns exactly five
+living pilots. A pilot who is killed, captured, or dishonorably discharged leaves
+the live roster permanently and keeps a closed dossier in the archive. Headquarters
+automatically fills each vacancy with a newly generated entry-rank pilot who
+inherits nothing. Names come from curated, period-grounded American or Japanese
+given-name and surname lists; the American generator may add Jr., Sr., III, or IV.
+American representation is inclusive without making ethnicity a stored attribute
+or gameplay variable. Japanese names do not use those American-style suffixes.
+
+The human-player dossier holds cumulative and adjusted scores, command rating,
+campaign badges, aggregate results, roster strength, campaign victory, and a
+chronological log. Its five command titles are competitive standing only and
+unlock no gameplay:
+
+| Human-player command title | Campaign points |
+| --- | ---: |
+| Squadron Commander | 0 |
+| Air Group Commander | 20,000 |
+| Wing Commander | 50,000 |
+| Task Force Air Commander | 90,000 |
+| Fleet Air Commander | 140,000 |
+
+Raw player score is cumulative and may be farmed indefinitely through eligible
+non-campaign missions. **Adjusted score** is player points divided by score-eligible
+sorties launched. The denominator increments at launch and therefore includes
+success, failure, abandonment, KIA, POW, and zero-point attempts. Training,
+developer scenarios, and Single Missions outside a campaign affect neither score.
+Both measures are intended for a future public Wall of Fame; submission identity,
+verification, moderation, and anti-cheat are later work.
+
+#### Pilot ranks and unlocks
+
+Rank is the only pilot progression variable. There are no specialties,
+qualifications, proficiency ratings, or statistical skill bonuses; the human still
+flies the aircraft. The game uses naval ranks for both sides and every aviation
+branch so the system stays legible:
+
+| Tier | American rank | Japanese rank | Pilot points | Newly eligible play |
+| ---: | --- | --- | ---: | --- |
+| 1 | Ensign | Kaigun Shōi | 0 | Daytime, single-engine missions |
+| 2 | Lieutenant (junior grade) | Kaigun Chūi | 2,500 | Night missions |
+| 3 | Lieutenant | Kaigun Taii | 7,500 | Advanced aircraft |
+| 4 | Lieutenant Commander | Kaigun Shōsa | 15,000 | Bombsight and torpedosight |
+| 5 | Commander | Kaigun Chūsa | 25,000 | Coordinated operations with multiple formations or aircraft types |
+| 6 | Captain | Kaigun Taisa | 40,000 | Campaign finale |
+
+“Advanced” is an authored category, not a synonym for multi-engine. Its initial
+American list is the P-38, B-17, and B-29; its Japanese list is the G4M, Ki-21,
+and planned Ki-57. The PBY-5A is explicitly available to a Lieutenant (junior
+grade) for the American night-rescue chapter. Lieutenant Commander's bombsight
+marks the predicted ground impact point for a bomb released now; the torpedosight
+shows water-entry/intercept prediction and whether the current release is valid.
+They are information aids, do not change weapon physics or dispersion, and are
+unavailable to lower-ranked pilots even though those pilots may still release the
+weapons.
+
+#### Campaign scoring and conduct
+
+The campaign replaces the current target table with:
+
+| Destroyed object | Points | Destroyed object | Points |
+| --- | ---: | --- | ---: |
+| Truck, car, or light vehicle | 100 | Fighter or attack aircraft | 500 |
+| Building | 150 | Runway | 500 |
+| Landing craft or small patrol boat | 250 | Transport or cargo ship | 500 |
+| AAA battery | 250 | Bomber or transport aircraft | 750 |
+| Tank | 300 | Destroyer | 1,000 |
+| Cruiser | 1,500 | Battleship | 3,000 |
+| Carrier | 5,000 | | |
+
+Any actual player-caused durability damage tags an enemy for full credit during
+that sortie. If it is later destroyed by the player, a friendly, a crash, fire, or
+another cause, its full value is credited once to both the assigned pilot and human
+player. A target that survives earns nothing; an untouched wingman kill earns
+nothing; there are no fractional assists or final-blow bonuses.
+
+A sortie that reaches its normal debrief banks legitimate destruction points even
+when the primary objective or authored recovery fails. A player who shoots down an
+enemy, returns, and lands without completing the objective keeps that enemy's
+value, but receives no mission badge, campaign advancement, roster bonus,
+difficulty bonus, or authored completion bonus. KIA, bailout, rescue, ditching, and
+POW likewise retain legitimate destruction points unless the player explicitly
+chooses **Quit/Abandon sortie**. Explicit mid-sortie abandonment forfeits the whole
+sortie score and still increments the adjusted-score denominator.
+
+Nonfatal friendly damage produces an immediate warning and nothing more. If the
+player causes a friendly aircraft, ship, structure, or vehicle to be destroyed,
+the assigned pilot is dishonorably discharged, the sortie scores zero and earns no
+completion award, and headquarters supplies an entry-rank replacement. There is no
+additional negative score.
+
+A badge-earning sortie adds a fixed difficulty bonus to both ledgers: 0 on Recruit,
+500 on Veteran, or 1,000 on Ace. Difficulty never multiplies target values. It also
+adds a human-player-only living-roster bonus after the sortie: 0 / 100 / 200 / 300 /
+400 / 500 points for each living Ensign-through-Captain counterpart, summed across
+the five pilots. A mission with little destruction may define a visible completion
+bonus; **Dumbo in the Gulf** initially awards 2,500 points to both ledgers. All
+completion bonuses require the same primary-objective and authored-recovery success
+as the badge. Accessibility, control assists, and graphics settings never change
+score.
+
+#### Campaign structure and missions
+
+Campaign chapters unlock and must be completed in sequence. Success requires both
+the primary objective and the mission's authored recovery: use the reachable
+carrier, runway, or seaplane anchorage when it exists; a friendly egress boundary
+is valid only when the historically appropriate recovery point lies outside the
+playable world. A normal failure banks destruction points but does not award the
+badge, change canonical campaign state, or unlock the next chapter. The chapter
+remains available to retry with any eligible living pilot.
+
+Repeatable **Non-Campaign Missions** are always available inside headquarters to
+earn points and develop replacement pilots without advancing the story or changing
+canonical world state. Each side always has an entry-rank option, so losing the
+senior roster cannot deadlock a campaign. The existing scenario set seeds this
+pool. **Single Missions** and **Training** outside a campaign do not affect a
+campaign record.
+
+Each side has six different chapters rather than the same missions with flags
+reversed:
+
+| Chapter | Mission | Player aircraft | Core action |
+| --- | --- | --- | --- |
+| A1 | Over the Beaches | F6F Hellcat | Defend the invasion fleet in a combat air patrol |
+| A2 | Taffy 3 | TBM-3 Avenger | Bomb or torpedo a surface force during the Battle off Samar |
+| A3 | The Long Column | P-38 Lightning | Attack a Japanese armored column |
+| A4 | Dumbo in the Gulf | PBY-5A Catalina | Night air-sea rescue and anchorage recovery |
+| A5 | Close the Ormoc Lifeline | F6F Hellcat | Escort bombers against the reinforcement route |
+| A6 | Battle for the Airfields | P-38 Lightning | Large bombing-and-dogfight finale |
+| J1 | Defend the Fields | A6M2 Zero | Defend Japanese-held airfields |
+| J2 | Break the Landing | B5N2 Kate | Strike American invasion shipping |
+| J3 | Road to Burauen | Ki-43 Oscar | Defend an armored column from air attack |
+| J4 | Destroyers in the Bay | B5N2 Kate | Night torpedo attack amid a surface engagement |
+| J5 | Night Drop on Burauen | Mitsubishi Ki-57 “Topsy” | Fly and release a paratrooper drop at night |
+| J6 | Operation Te-Go | Ki-43 Oscar or A6M2 Zero | Alternate-history combined bombing-and-dogfight finale |
+
+Every chapter is labeled Historical action, Historical composite, or Alternate
+history and carries a cited briefing. When the action is fabricated, the briefing
+explains the real wartime role of its aircraft and the events that inspired it.
+Meaningful action begins within 5–7 minutes at 1× speed, preferably 2–4; uneventful
+transit may already have occurred before an airborne start. Both campaigns end with
+the 6–7 December battle for the airfields. The American ending follows the
+historical consolidation; the Japanese ending explicitly identifies its divergence
+before an alternate expulsion of the beachhead.
+
+#### Night, bailout, world state, and scenes
+
+Night is low light, not complete darkness. Cockpit instruments are dimmable;
+aircraft receive only historically supported navigation, landing, formation,
+recognition, or search lights rather than universal headlights. Temporary runway
+and anchorage lamps, blackout-controlled ship and harbor lights, documented Leyte
+navigation lights, fires, tracers, and authored flares make the night chapters
+playable. A4, J4, and J5 are the initial night missions.
+
+The pilot may deliberately bail out of a still-airborne aircraft. Friendly rescue
+or overwhelming enemy control gives deterministic rescue or capture; contested
+locations use a recorded seeded decision based on territory, nearby bases and
+ships, rescue/enemy assets, surface, weather, visibility, and time. A rescued pilot
+returns; a captured pilot is permanently archived as POW in the initial campaign;
+KIA, POW, and discharge all trigger replacement. There is no modern ejection seat
+and no initial prisoner-recovery mission.
+
+Tacloban, Dulag, Buri, Bayug, San Pablo, Tanauan, Ormoc, the beachhead, ports, and
+naval/seaplane areas use consistent canonical layouts. Construction, damage,
+ownership, and takeover may change by chapter, but a base is not rebuilt into a
+different arrangement for each mission. Every chapter receives a skippable 10–20
+second opening rendered in the real world. Only A6 and J6 receive full victory
+scenes and epilogues, after their results are safely banked.
+
+Campaign state autosaves between sorties in a versioned, exportable record. The
+initial campaign does not support mid-flight save/resume: an active sortie must be
+completed, abandoned, or restarted. Development flight recordings are diagnostic
+replays, not player save slots.
+
 ### In-flight guidance
 
 The objective line names the current job. The steering cue sits in the scene:

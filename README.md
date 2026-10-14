@@ -130,8 +130,10 @@ This is a hobbyist game. Depth is allocated unevenly and on purpose:
 | Combat AI — pursuit, energy awareness, a maneuver set, formation, takeoff and landing | Basic |
 | Content — thirteen missions, six ranges, fifteen flyable aircraft | Minimal |
 
-Explicitly not in scope: multiplayer, a persistent strategic campaign,
-study-level aerodynamics, mobile, or VR.
+Explicitly not in scope: multiplayer, a dynamic grand-strategy campaign,
+study-level aerodynamics, mobile, or VR. The planned Leyte campaigns are authored
+sequential pilot careers with persistent results and world states, not a strategic
+war simulation.
 
 ## Requirements
 
