@@ -150,3 +150,45 @@ describe('Willys MB jeep and its driver', () => {
     }
   })
 })
+
+describe('F4R ground rework (2026-10-14): rigs turn about the right points', () => {
+  const center = (o: { updateWorldMatrix(a: boolean, b: boolean): void }): Vector3 => new Box3().setFromObject(o as never).getCenter(new Vector3())
+  const meshCenter = (root: { getObjectByName(n: string): unknown }, name: string): Vector3 => center(root.getObjectByName(name) as never)
+
+  it.each(['gmc-cckw-353', 'type95-kurogane'])('%s: every wheel spins about its own axle, and only the front pair steers', async (id) => {
+    const root = await glbScene(`content/vehicles/${id}.glb`)
+    const rig = VEHICLE_RIGS[id]!(root)
+    const names = ['WheelFL', 'WheelFR', ...(id === 'gmc-cckw-353' ? ['WheelR1L', 'WheelR1R', 'WheelR2L', 'WheelR2R'] : ['WheelRL', 'WheelRR'])]
+    root.updateMatrixWorld(true)
+    const before = names.map((n) => meshCenter(root, n))
+    rig.drive(3, 1)
+    root.updateMatrixWorld(true)
+    names.forEach((n, i) => expect(meshCenter(root, n).distanceTo(before[i]!), `${id} ${n} center moved`).toBeLessThan(0.02))
+    expect(rig.state()['wheelSpinRad']).toBeLessThan(-3)
+    expect(Math.abs(rig.state()['frontSteerRad'] as number)).toBeCloseTo(JEEP_STEERING.lockRad, 9)
+    const rear = root.getObjectByName(names[names.length - 1]!)!
+    expect(rear.rotation.y, 'a rear wheel must not steer').toBe(0)
+  })
+
+  it('caterpillar-d7-3t: the sprockets turn in place, the blade rises with its arms, and tilts about its own center', async () => {
+    const root = await glbScene('content/vehicles/caterpillar-d7-3t.glb')
+    const rig = VEHICLE_RIGS['caterpillar-d7-3t']!(root)
+    root.updateMatrixWorld(true)
+    const sprockets = ['TrackL', 'TrackR'].map((n) => meshCenter(root, n))
+    const blade = meshCenter(root, 'BladeTilt'), arms = meshCenter(root, 'BladeRaise')
+    rig.drive(2, 0)
+    root.updateMatrixWorld(true)
+    ;['TrackL', 'TrackR'].forEach((n, i) => expect(meshCenter(root, n).distanceTo(sprockets[i]!), `${n} center`).toBeLessThan(0.02))
+    expect(rig.state()['trackSpinRad']).toBeCloseTo(-2 / 0.36, 9)
+    const [mount] = rig.mounts
+    mount!.setElevation(Math.PI / 6)
+    root.updateMatrixWorld(true)
+    expect(meshCenter(root, 'BladeTilt').y - blade.y, 'the blade rose').toBeGreaterThan(0.3)
+    expect(meshCenter(root, 'BladeRaise').y - arms.y, 'the arms rose').toBeGreaterThan(0.1)
+    const raised = meshCenter(root, 'BladeTilt')
+    mount!.setTraining(Math.PI / 12)
+    root.updateMatrixWorld(true)
+    expect(meshCenter(root, 'BladeTilt').distanceTo(raised), 'tilt pivots about the blade center').toBeLessThan(0.05)
+    expect(rig.state()['bladeTiltRad']).toBeCloseTo(Math.PI / 12, 6)
+  })
+})

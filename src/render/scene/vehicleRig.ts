@@ -376,6 +376,8 @@ function rigDozer(root: Object3D): VehicleRig {
   const tracks = ['TrackL', 'TrackR'].map((n) => need(root.getObjectByName(n), n))
   const raise = need(root.getObjectByName('BladeRaise'), 'BladeRaise')
   const tilt = need(root.getObjectByName('BladeTilt'), 'BladeTilt')
+  // The moldboard rides on the push arms: raising turns it with them, then it tilts on its own pivot.
+  raise.attach(tilt)
   const rest = { raise: raise.quaternion.clone(), tilt: tilt.quaternion.clone() }
   const X = new Vector3(1, 0, 0), Z = new Vector3(0, 0, 1), q = new Quaternion()
   const mount: ShipMountView = {
