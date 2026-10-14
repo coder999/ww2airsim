@@ -903,6 +903,15 @@ These are not base-layout requirements, but the proposed missions expose them:
   in the expensive active-combat set for the entire mission
 - campaign-owned persistent site state: owner, readiness, construction phase, and
   destroyed structure ids, all applied to one canonical layout per site
+- night operations, which are not supported by the current morning/noon/dusk
+  environment set: add a true night time state and establish readable night sky,
+  terrain/water, aircraft, cockpit, runway/deck, navigation, tracer, fire, and
+  target lighting; reconcile exposure and AI/target visibility; and add visual,
+  mission, and automated-test checkpoints. The final mission set must contain at
+  least one American and one Japanese night campaign mission so the Lieutenant
+  (junior grade) rank gate has authored campaign content. Either night mission may
+  adapt an otherwise approved campaign candidate rather than add another chapter;
+  choose the candidates during the final historical and mission-flow pass.
 
 ## 6. Decision log for the eventual design spec
 
