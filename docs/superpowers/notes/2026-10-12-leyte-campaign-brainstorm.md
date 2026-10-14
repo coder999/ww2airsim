@@ -1215,13 +1215,17 @@ Japanese honorific suffixes are forms of address, not generational name suffixes
 The [Embassy of Japan naming guide](https://www.az.emb-japan.go.jp/files/000180840.pdf)
 is a useful convention reference.
 
-For the American pool, "era-appropriate diversity" requires a documented content
-pass rather than modern census percentages or stereotyped name buckets. Build the
-pool from period officer, unit, casualty, and muster sources—starting with the
-[National Archives' World War II records](https://www.archives.gov/research/military/ww2)
-and Navy personnel holdings—then separately decide how strictly the game should
-mirror the exclusions and segregation of the 1944 services. Do not attach an
-ethnicity field or gameplay effect to a name.
+For the American pool, "era-appropriate diversity" means historically grounded
+but not historically exclusionary. Build an inclusive pool of authentic 1940s
+American names from period officer, unit, casualty, census, and muster sources—
+starting with the [National Archives' World War II records](https://www.archives.gov/research/military/ww2)
+and Navy personnel holdings. It should naturally include names associated with
+Black, Hispanic, Native American, Asian-American, European immigrant-family, and
+other American communities without imposing modern demographic percentages or
+stereotyped name buckets. The campaign does not reproduce the discriminatory
+officer-access restrictions of the 1944 services. Do not store or display an
+ethnicity field, apply quotas in the interface, or attach any gameplay effect to
+a name.
 
 ## 8. Scoring, pilot promotion, and player command rating
 
@@ -1707,6 +1711,15 @@ entry-rank replacement fills the vacancy. No initial authored mission, rescue,
 exchange, or random event can return that pilot. Prisoner recovery remains a
 possible later expansion and must not complicate the initial roster lifecycle.
 
+#### Historically grounded, inclusive American names — decided 13 October 2026
+
+The American pilot-name pool uses authentic names appropriate to 1940s America
+and includes modest representation from the country's varied communities. It
+does not mechanically recreate discriminatory wartime officer demographics and
+does not use modern demographic percentages. Ethnicity is neither a stored pilot
+attribute nor a gameplay variable; representation emerges only from the curated
+given-name and surname data.
+
 #### Faction-bound independent campaign careers — decided 13 October 2026
 
 The player chooses American or Japanese when creating a campaign, and that choice
@@ -1823,16 +1836,14 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 1. What exact target, objective, recovery, and live-roster-bonus values produce
     acceptable progression without grind?
-2. How strictly should the American name pool mirror the historical demographic
-    restrictions of the 1944 services?
 
 #### Night and recovery
 
-3. Which aircraft receive landing, navigation, and formation lights after the
+2. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-4. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+3. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-5. Should rescue/capture be fully deterministic from world control and proximity,
+4. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
