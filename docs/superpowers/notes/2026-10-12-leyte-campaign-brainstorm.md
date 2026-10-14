@@ -21,10 +21,13 @@ becomes a design spec.
   attacks on the landing force, protection of reinforcement routes, and an
   alternate-history version of the December counteroffensive that can drive the
   Americans from Leyte.
-- Existing scenarios remain available as **Single Missions** or **Training
-  Grounds**. Campaign scenarios may reuse their systems and arrangements, but
-  should have campaign-specific dates, base states, briefings, radio traffic, and
-  outcomes.
+- The existing scenario set becomes the foundation of the repeatable
+  **Non-Campaign Missions** available from campaign headquarters. These sorties
+  bank player and pilot points but never advance the campaign chapter or change its
+  canonical world state. The same content may remain available outside a campaign
+  as **Single Missions** or **Training Grounds**, where it has no career effect.
+- Campaign scenarios may reuse existing systems and arrangements, but should have
+  campaign-specific dates, base states, briefings, radio traffic, and outcomes.
 
 ### 1.2 Historical honesty
 
@@ -1058,7 +1061,7 @@ the pilot rows no longer contain **New mission** buttons. The primary action is
    enter Training. Creating a campaign requires a player name and a permanent choice
    of American or Japanese.
 2. From campaign headquarters, choose the next Campaign Mission or an available
-   Side Mission.
+   Non-Campaign Mission.
 3. Choose the mission. The card shows its story position, objective, aircraft,
    time/weather, minimum pilot rank, locked/unlocked reason, and expected first
    action time.
@@ -1159,8 +1162,8 @@ for resurrection and do not fit the new roster.
   but never carry into a campaign for the other nation.
 
 One event can feed both ledgers, but the formulas must be explicit and tested.
-The player ledger must not let farming a single easy side mission dominate campaign
-progress or prestige.
+The player ledger must not let farming a single easy non-campaign mission dominate
+career prestige.
 
 ### 8.2 Reward more than destruction
 
@@ -1465,9 +1468,10 @@ base-layout work that uses them.
 
 Campaign victory means completing the authored campaign missions in sequence.
 Those missions may require a living roster pilot of a specified minimum rank.
-Repeatable side missions remain available without advancing the campaign so the
-player can earn points and promote surviving or replacement pilots until someone
-is eligible for the next campaign mission.
+Repeatable non-campaign missions, based initially on the existing mission set,
+remain available without advancing the campaign so the player can earn points and
+promote surviving or replacement pilots until someone is eligible for the next
+campaign mission.
 
 Within each faction-bound campaign, the human player and the pilots are separate
 records:
@@ -1509,10 +1513,10 @@ or remove normal weapon dispersion. Lower-ranked pilots may still release either
 weapon, but receive no predicted solution.
 
 This replaces an automatic qualified-replacement safeguard: if no living pilot
-meets the next campaign mission's requirement, the player uses side missions to
-develop one. Every campaign must therefore retain accessible entry-rank side
-missions, and their promotion pacing must not turn recovery from pilot loss into
-an excessive grind.
+meets the next campaign mission's requirement, the player uses non-campaign
+missions to develop one. Every campaign must therefore retain accessible entry-rank
+non-campaign missions, and their promotion pacing must not turn recovery from pilot
+loss into an excessive grind.
 
 Directly purchasing pilot promotions is only a distant possible freemium feature,
 not part of the initial campaign design. The initial progression must be balanced
@@ -1556,42 +1560,57 @@ scope as development-only reproduction and playback tooling, not as a player-fac
 save system. A single suspend-sortie slot may be reconsidered after the campaign is
 complete and stable.
 
+#### Sequential victory gates and repeatable non-campaign missions — decided 13 October 2026
+
+Campaign missions unlock and must be completed in sequence. The next chapter opens
+only when the current mission's primary objective succeeds; a failed or abandoned
+attempt does not advance into an alternate campaign branch. It is recorded in the
+campaign log, legitimately earned player points and pilot points are banked, and
+the current mission remains available to retry. A failed attempt grants no campaign
+mission badge and does not apply the mission's successful canonical world-state
+transition.
+
+The existing scenario set becomes the initial repeatable Non-Campaign Mission pool.
+These missions let the player earn points and promote surviving or replacement
+pilots until one meets the next campaign mission's rank requirement. They do not
+unlock chapters or alter canonical campaign state. Each campaign must always offer
+at least one entry-rank non-campaign mission so roster losses cannot deadlock
+progression.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. Must every primary objective succeed before the next chapter unlocks, or may a
-   failed result advance into a less favorable authored state?
-2. Which American and Japanese candidates become the required night chapters?
-3. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
+1. Which American and Japanese candidates become the required night chapters?
+2. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
    chapter so the two campaigns remain equal in length?
-4. Is the Catalina rescue a required pacing chapter or an optional sortie?
-5. Should carrier and airfield landings remain mandatory for campaign credit, or
+3. Is the Catalina rescue a required pacing chapter or an optional sortie?
+4. Should carrier and airfield landings remain mandatory for campaign credit, or
    should a safe egress complete missions whose historical home base is outside the
    playable world?
-6. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+5. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-7. Does the campaign stop after 7 December, or later extend through the capture of
+6. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
-8. Which chapters need opening/ending scenes, and what happens in each victory
+7. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-9. What exact pilot-rank, player-rating, target, objective, recovery, and
+8. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-10. Does a captured pilot remain permanently archived in the initial campaign, or
+9. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-11. How strictly should the American name pool mirror the historical demographic
+10. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-12. Which aircraft receive landing, navigation, and formation lights after the
+11. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-13. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+12. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-14. Should rescue/capture be fully deterministic from world control and proximity,
+13. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
@@ -1614,9 +1633,9 @@ acceptance gates:
    American/Japanese save schema, migration from the old roster, fixed campaign
    rosters, archive/replacement rules, generated names, dossier screens,
    import/export, and autosave.
-5. **Mission-first headquarters UI:** campaign/side/single/training selection,
-   mission cards and locks, pilot assignment, authored conditions/loadout, and
-   launch flow.
+5. **Mission-first headquarters UI:** campaign/non-campaign/single/training
+   selection, mission cards and locks, pilot assignment, authored
+   conditions/loadout, and launch flow.
 6. **Scoring and progression:** two score ledgers, objective rewards, target
    values, six pilot ranks, player prestige ratings, roster bonus, balance
    simulations, and anti-grind tests.
@@ -1630,7 +1649,9 @@ acceptance gates:
 10. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
    skip behavior, bank-before-scene safety, and victory sequences.
 11. **Campaign mission production:** implement and approve chapters in sequence,
-    enforcing the 5–7 minute action cap and staged-finale performance budget.
+     require primary-objective success for progression, seed the existing scenarios
+     as the non-campaign promotion pool, and enforce the 5–7 minute action cap and
+     staged-finale performance budget.
 12. **Campaign validation and release:** full progression/loss/replacement runs,
     night accessibility, save migration, deterministic tests, browser/E2E coverage,
     balance review, and final `GAMEPLAY.md` reconciliation.
