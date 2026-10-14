@@ -325,6 +325,14 @@ way home.
 Afloat inside the marked and lighted San Pedro Bay anchorage, engines stopped after
 the rescue launch reaches the Catalina.
 
+**Authored scoring exception**
+
+Because this mission deliberately offers little opportunity for destruction
+points, award 2,500 points to both the assigned pilot and human-player ledgers
+only when the primary rescue and authored anchorage recovery both succeed. A
+partial rescue, bailout, ditching, POW result, or failed return keeps any ordinary
+destruction points but does not earn this completion bonus.
+
 **Historical blurb**
 
 This is a fabricated rescue built from documented Catalina work rather than one
@@ -1336,36 +1344,54 @@ scenarios, and Single Missions outside the campaign record count toward neither
 value. The future Wall of Fame may expose separate raw-total and points-per-sortie
 boards rather than pretending the two achievements are interchangeable.
 
-### 8.2 Reward more than destruction
+### 8.2 Destruction score; badges for mission success
 
-Campaign play includes rescue, escort, protection, reconnaissance, formation
-leadership, and safe recovery. A destruction-only table would make the intended
-way to play several missions score worse than abandoning the objective to chase
-kills. The balance pass therefore needs:
+Destruction is the default source of points. There are no generic point awards for
+a primary objective, secondary objective, protected friendly, survivor, recovery,
+or first campaign completion. Successful primary objectives plus authored
+recovery award the mission badge and campaign advancement, which are meaningful
+rewards independent of score. Completing objectives and then bailing out,
+ditching, being rescued, becoming POW, or dying keeps legitimately earned
+destruction points but awards neither badge nor campaign advancement unless the
+mission explicitly defines that outcome as its authored recovery.
 
-- target values reconciled against time-to-kill and mission availability
-- primary and secondary objective awards
-- protected-friendly/survivor awards for escort and rescue missions
-- safe landing or authored safe-egress awards
-- penalties or forfeiture for friendly fire and deliberate abandonment
-- no points merely for spawning, repeating a checkpoint, or destroying a
-  practice target
+Author each mission so the expected destruction credited to the player is roughly
+one rank interval appropriate to its minimum eligible pilot:
 
-Badges remain stricter than points. Completing objectives and then bailing out,
-ditching, being rescued, or reaching an egress without returning the aircraft may
-earn points but not the mission badge unless a particular authored mission
-explicitly defines safe egress as its proper recovery.
+| Mission's minimum rank | Typical player-credited destruction budget |
+|---|---:|
+| Ensign / Kaigun Shōi | approximately 2,500 |
+| Lieutenant (junior grade) / Kaigun Chūi | approximately 5,000 |
+| Lieutenant / Kaigun Taii | approximately 7,500 |
+| Lieutenant Commander / Kaigun Shōsa | approximately 10,000 |
+| Commander / Kaigun Chūsa | approximately 15,000 |
+| Captain / Kaigun Taisa finale | not progression-limited |
+
+These are authoring targets, not caps. Exceptional performance may cross more than
+one rank threshold, and later ranks may still take multiple sorties when a pilot
+earns less than the mission's expected budget.
+
+A mission with structurally little or no opportunity for destruction may declare
+an explicit completion bonus. It must be justified and visible in mission content,
+awarded to both ledgers, and gated by the same primary-objective and authored-
+recovery conditions as its badge. A4, **Dumbo in the Gulf**, is the initial case
+and awards 2,500 points. There is no general objective or recovery bonus to stack
+on top. Spawning, repeating a checkpoint, and destroying a practice target never
+award campaign points. Friendly-fire treatment remains part of the scoring rules
+still to finalize.
 
 ### 8.3 Balancing work
 
-Before fixing thresholds, simulate a reasonable campaign run, a run with one or
-two pilot losses, and side-mission recovery from a roster with only Ensigns.
-Choose promotion thresholds so rank gates create stakes without forcing repetitive
+Simulate a reasonable campaign run, a run with one or two pilot losses, and
+side-mission recovery from a roster with only Ensigns. Confirm that the approved
+thresholds and mission score budgets create stakes without forcing repetitive
 grinding. Finalize:
 
-- exact objective, survival, and recovery values
+- any additional mission-specific completion bonuses
+- formation and assist credit
 - live-roster-rank bonus formula and when it is banked
 - whether difficulty modifies points (working recommendation: no)
+- friendly-fire and deliberate-abandonment penalties
 
 ## 9. Bailout, capture, and rescue
 
@@ -1778,8 +1804,20 @@ for a building; 250 for a landing craft/small patrol boat or AAA battery; 300 fo
 a tank; 500 for a fighter/attack aircraft, runway, or transport/cargo ship; 750
 for a bomber/transport aircraft; 1,000 for a destroyer; 1,500 for a cruiser;
 3,000 for a battleship; and 5,000 for a carrier. The same direct-destruction value
-enters the assigned pilot and human-player ledgers. Objectives, assists, and AI
-formation credit remain separate awards.
+enters the assigned pilot and human-player ledgers. There are no generic objective,
+survival, or recovery awards; assists and AI formation credit remain separate
+rules.
+
+#### Damage-led scoring and authored exceptions — decided 13 October 2026
+
+Mission badges and campaign advancement, rather than generic bonus points, reward
+completion of primary objectives and authored recovery. Mission authors budget
+typical player-credited destruction at approximately 2,500 / 5,000 / 7,500 /
+10,000 / 15,000 points for Ensign through Commander content; the Captain finale
+is not progression-limited. These are targets, not promotion caps. A structurally
+low-damage mission may explicitly define a completion bonus gated by full badge
+conditions. A4's PBY rescue is the initial exception at 2,500 points to both
+ledgers.
 
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
@@ -1950,8 +1988,8 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What exact objective, recovery, formation-credit, and live-roster-bonus values
-    produce acceptable progression without grind?
+1. What formation/assist credit, live-roster bonus, difficulty treatment, and
+    friendly-fire/abandonment penalties produce acceptable progression?
 
 ## 15. Proposed migration into the master plan
 
