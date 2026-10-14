@@ -968,9 +968,18 @@ cumulative:
 | 1 | Ensign | Kaigun Shōi | Daytime, single-engine missions |
 | 2 | Lieutenant (junior grade) | Kaigun Chūi | Night missions |
 | 3 | Lieutenant | Kaigun Taii | Multi-engine aircraft |
-| 4 | Lieutenant Commander | Kaigun Shōsa | Leads a single-type formation |
+| 4 | Lieutenant Commander | Kaigun Shōsa | Bombsight and torpedosight |
 | 5 | Commander | Kaigun Chūsa | Leads coordinated operations containing multiple formations or aircraft types |
 | 6 | Captain | Kaigun Taisa | Eligible to fly the campaign finale |
+
+The Lieutenant Commander's ordnance sights are rank-gated information aids, not
+separate qualifications. With bombs selected, the bombsight marks the predicted
+ground impact point for a release at that instant. With a torpedo selected, the
+torpedosight shows the current water-entry/intercept solution and whether the
+aircraft is inside the valid release envelope. Each prediction uses current
+aircraft, weapon, and target motion; it does not anticipate later target evasion
+or remove normal weapon dispersion. Lower-ranked pilots may still release either
+weapon, but receive no predicted solution.
 
 This replaces an automatic qualified-replacement safeguard: if no living pilot
 meets the next campaign mission's requirement, the player uses side missions to
