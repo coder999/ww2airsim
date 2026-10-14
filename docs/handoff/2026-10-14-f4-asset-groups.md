@@ -1,7 +1,8 @@
 # F4 asset groups — implementation handoff
 
 **Date:** 2026-10-14  
-**Integration branch:** `f4-night-site-assets`  
+**Status:** approved by Mark and merged to `main` 2026-10-14 after the rework round below.  
+**Integration branch:** `f4-night-site-assets` (deleted after merge)  
 **Base:** `main` at `d6d0ff9e`  
 **Attendance:** unattended implementation followed by an attended Hangar checkpoint. The checkpoint revisions below remain on the integration branch for final approval before merging F4 to `main`.
 
@@ -95,3 +96,16 @@ Acceptance checklist:
 
 If this checkpoint passes, fast-forward or merge `f4-night-site-assets` into `main`, run the normal gate once more from `main`, and push.
 
+
+## Rework round (approved 2026-10-14)
+
+Mark's Hangar review asked for better meshes, with all contracts approved as-is. Four branches ran in parallel from the integration branch and merged back before `main`:
+
+| Branch | Handoff | Result |
+| --- | --- | --- |
+| `f4r-airborne` | [f4r-airborne](2026-10-14-f4r-airborne.md) | round-bell parachutes, detailed paratrooper (5,868 tris), visible Ki-57 windscreen (it had been buried inside the fuselage skin) |
+| `f4r-ground` | [f4r-ground](2026-10-14-f4r-ground.md) | CCKW 7,756, D7 6,628, Type 95 Kurogane 5,800 tris; pivots added to CCKW and D7; `rigDozer` raises the blade with its arms |
+| `f4r-maritime` | [f4r-maritime](2026-10-14-f4r-maritime.md) | LCVP, rescue boat, A-3 raft and lighthouse rebuilt from scratch; pivots added to LCVP and boat |
+| `f4r-tracks` | [f4r-tracks](2026-10-14-f4r-tracks.md) | Sherman hull wear and animated running gear; Chi-Ha unchanged (already animated) |
+
+Test reconciliation: Hangar E2E 7c now enrolls the D7, LCVP, searchlight and Type 38 gun as `turrets` rigs, and 7b counts the Ki-57 as a sixth bay-door model (both are self-enrolling lists that F4 extended; the turret-aim and bay-door pixel checks themselves passed for every new entry). Hangar test 3 needs `--timeout 600000` on nexus's local GPU. Known gaps: rework handoffs list the rest.

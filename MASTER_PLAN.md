@@ -239,12 +239,12 @@ Mark's item is "improved AI". In priority order, by what other tracks need:
 
 #### F3. Campaign definition and source lock (S)
 
-**In review on branch `f3-campaign-lock` (2026-10-14):** the twelve chapter rows,
+**Approved and merged to `main` 2026-10-14:** the twelve chapter rows,
 canonical site states, 17-item reusable-asset inventory, four parallel F4 groups
 and dependency-checked execution count are frozen in the
 [design lock](docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md).
 The [execution plan](docs/superpowers/plans/2026-10-14-f3-campaign-definition-source-lock.md)
-stops at Mark's review gate; no F4 asset work has begun.
+records the review gate, which has passed.
 
 Freeze the six American and six Japanese chapters, their historical-action /
 historical-composite / alternate-history labels, dates, aircraft, minimum pilot
@@ -260,6 +260,16 @@ new reusable model it depends on. No campaign asset or system implementation beg
 until this lock is reviewed.
 
 #### F4. Reusable campaign assets and Hangar approval (L; hard gate)
+
+**Done 2026-10-14 (Mark approved all 17 in the live Hangar after one rework round).**
+The first build was judged too low-fidelity in places, so four focused rework
+branches (airborne, ground, maritime, tracks) rebuilt the weak meshes under frozen
+contracts (ids, paths, rig nodes, origins, forward axes, cited dimensions) and were
+merged before `main`. Sherman running gear (83 sliding shoes per side, spinning
+wheels) and Sherman hull wear came with it; the Chi-Ha's tracks already moved.
+Handoffs: [F4](docs/handoff/2026-10-14-f4-asset-groups.md) and its `f4r-*`
+rework handoffs. Remaining gaps, all deliberate: gameplay parachute flutter,
+dual CCKW rear wheels, track-shoe shading normals. F5–F10 may now begin.
 
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
