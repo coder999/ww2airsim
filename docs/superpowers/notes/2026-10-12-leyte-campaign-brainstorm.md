@@ -1069,10 +1069,9 @@ of the current free-form conditions/aircraft/ordnance flow.
 
 ### 7.3 Pilot roster lifecycle
 
-The working roster size is **five living pilots per side**. Five is large enough
-to preserve senior pilots and make losses matter, but small enough that every
-record remains recognizable. Confirm this during progression simulation before it
-becomes final.
+Each national side has exactly **five living pilots**. Five is large enough to
+preserve senior pilots and make losses matter, but small enough that every record
+remains recognizable.
 
 - A new side campaign starts with five generated Ensign/Kaigun Shōi pilots.
 - A killed or captured pilot leaves the live roster permanently and remains in
@@ -1507,6 +1506,16 @@ not part of the initial campaign design. The initial progression must be balance
 around earning every promotion through play and must not manufacture grind in
 anticipation of monetization.
 
+#### Fixed five-pilot side rosters — decided 13 October 2026
+
+The American and Japanese campaigns each maintain exactly five living pilots.
+When a pilot becomes KIA, POW, or discharged, that pilot's closed dossier remains
+in the appropriate side's archive. On return to headquarters, the vacancy is
+automatically filled by a newly generated entry-rank pilot who inherits none of
+the predecessor's points, rank, badges, or statistics. The two national rosters
+remain separate even though the persistent human-player profile may later be
+decided to span both campaigns.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
@@ -1529,26 +1538,25 @@ anticipation of monetization.
 
 #### Player, roster, and progression
 
-9. Confirm five living pilots per side, or choose another fixed roster size.
-10. Approve or replace the proposed player command-title ladder.
-11. Are the human-player profile and points shared across both national campaigns,
+9. Approve or replace the proposed player command-title ladder.
+10. Are the human-player profile and points shared across both national campaigns,
     as recommended, or does each side have a separate player record?
-12. What exact pilot-rank, player-rating, target, objective, recovery, and
+11. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-13. Does a captured pilot remain permanently archived in the initial campaign, or
+12. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-14. How strictly should the American name pool mirror the historical demographic
+13. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night, recovery, and persistence
 
-15. Which aircraft receive landing, navigation, and formation lights after the
+14. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-16. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+15. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-17. Should rescue/capture be fully deterministic from world control and proximity,
+16. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
-18. Is the working decision to defer mid-flight saves approved?
+17. Is the working decision to defer mid-flight saves approved?
 
 ## 15. Proposed migration into the master plan
 
