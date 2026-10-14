@@ -3,10 +3,14 @@
 Frame: glTF +x forward, +y up, +z starboard, metres. The 22.6 m span and 16.1 m
 length are working estimates pending a primary Mitsubishi drawing. The Ha-102-powered
 MC-20-II identity is supported by the Smithsonian National Air and Space Museum engine
-catalogue, read 2026-10-14. All section shapes, stations, 3.2 m propellers, gear geometry,
-door outline, glazing, finish and control-surface proportions are ESTIMATES. Scope is a
-recognisable Hangar review model, not a cockpit, cabin, antennas or weapons fit.
+catalogue, read 2026-10-14. Australian War Memorial photograph P02284.003 identifies a
+Ki-57 in operational IJA service; the six white-bordered Hinomaru placement follows the
+project's Ki-21 IJA convention and is an ESTIMATE, not a trace of that photograph. All
+section shapes, stations, 3.2 m propellers, gear geometry, door outline, glazing, finish,
+marking sizes and control-surface proportions are ESTIMATES. Scope is a recognisable
+Hangar review model, not a cockpit, cabin, antennas or weapons fit.
 """
+import math
 import os
 import sys
 
@@ -51,9 +55,44 @@ with m.tagged('tailwheel'):
 
 with m.tagged('cockpit'):
     m.faired_canopy('glazing', 'ijaGreen', [
-        (3.25, .63, .30, .58, .62, .34, .69, .72),
-        (4.05, .50, .25, .44, .65, .24, .73, .76),
-        (4.55, .18, .18, .16, .45, .10, .50, .52),
-    ], [3.7, 4.15], bar=.045)
+        (3.15, .69, .28, .64, .66, .39, .78, .83),
+        (3.90, .61, .25, .55, .67, .34, .79, .84),
+        (4.48, .48, .20, .43, .58, .27, .68, .72),
+    ], [3.50, 3.86, 4.18], bar=.055, node='CockpitGlass', frame_node='CockpitFrames')
+
+    # Explicit inset front and side panes make the transport windshield read at
+    # normal Hangar distance instead of disappearing into the dark-green nose.
+    for z0 in (-.49, .03):
+        m.box('glazing', (4.44, .27, z0), (.12, .43, .46), node='CockpitGlass')
+    for side in (-1, 1):
+        m.box('glazing', (3.54, .34, side * .60 - .04), (.66, .38, .08), node='CockpitGlass')
+
+# Six white-bordered Hinomaru, the established IJA aircraft treatment in this
+# repository. Placement and size remain explicitly estimated for this Ki-57.
+def wing_chord(z):
+    return 4.1 + (1.35 - 4.1) * abs(z) / (22.6 / 2)
+
+
+def wing_le(z):
+    return 2.4 - abs(z) * math.tan(math.radians(7))
+
+
+def wing_y(z):
+    return .15 + abs(z) * math.tan(math.radians(4))
+
+
+for side in (-1, 1):
+    z = side * 6.75
+    x = wing_le(z) - .45 * wing_chord(z)
+    for up in (1.0, -1.0):
+        m.marking('disc', tags=['wing'], center=(x, wing_y(z), z), axis=(0, up, 0),
+                  radiusM=1.02, color='insigniaWhite')
+        m.marking('disc', tags=['wing'], center=(x, wing_y(z), z), axis=(0, up, 0),
+                  radiusM=.90, color='hinomaruRed')
+    fuselage_center = (-3.15, .04, side * .91)
+    m.marking('disc', tags=['fuselage'], center=fuselage_center, axis=(0, 0, float(side)),
+              radiusM=.82, color='insigniaWhite')
+    m.marking('disc', tags=['fuselage'], center=fuselage_center, axis=(0, 0, float(side)),
+              radiusM=.70, color='hinomaruRed')
 
 m.export(out)

@@ -7,7 +7,7 @@
     "dimensions": "F3 approved Leyte campaign silhouette; bundle dimensions, 16 ft cargo canopy and suspension geometry are explicitly ESTIMATES in the script header",
     "license": "AGPL-3.0-or-later"
   },
-  "keep": [{ "node": "Bundle" }, { "node": "CanopyOpen" }, { "node": "CanopyClosed" }, { "node": "SuspensionLines" }, { "node": "Lashings" }],
+  "keep": [{ "node": "Bundle" }, { "node": "CanopyOpen" }, { "node": "CanopyRibs" }, { "node": "CanopyClosed" }, { "node": "SuspensionLines" }, { "node": "Lashings" }],
   "skin": true,
   "textures": { "maxSize": 512, "format": "webp" },
   "budget": { "maxBytes": 1000000, "maxTriangles": 16000, "maxDrawCalls": 12 }

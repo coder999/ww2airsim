@@ -3,8 +3,11 @@
 The form follows wartime cargo-parachute practice but no primary drawing for this
 specific bundle was located in the F3 source gate. Bundle dimensions, lashings, 16 ft
 canopy, suspension spacing and colors are ESTIMATES. CanopyOpen and CanopyClosed are
-named review nodes; the packed canopy is attached to the bundle.
+named review nodes; the packed canopy is attached to the bundle. The inflated
+bell/teardrop profile and radial ribs are ESTIMATES. CanopyOpen, CanopyRibs and
+SuspensionLines remain separate for later low-amplitude gameplay wind animation.
 """
+import math
 import os
 import sys
 
@@ -20,8 +23,20 @@ for x in (-.35, .35):
 for z in (-.25, .25):
     m.box('webbing', (-.63, .39, z - .035), (1.26, .07, .07), node='Lashings')
 
-m.revolve('underside', (0, 3.0, 0), (0, 1, 0), [(0, .12), (.28, 1.1), (.58, 2.05), (.72, 2.4384)], 28, node='CanopyOpen')
-for z in (-.28, .28):
-    for x in (-.35, .35):
-        m.strut('webbing', (x, 1.25, z), (x * 1.8, 3.02, z * 2.1), .012, node='SuspensionLines')
+canopy_y = 2.90
+profile = [
+    (0.00, 1.78), (0.24, 2.22), (0.48, 2.4384), (0.78, 2.30),
+    (1.12, 1.92), (1.44, 1.36), (1.70, .70), (1.84, .08),
+]
+m.revolve('underside', (0, canopy_y, 0), (0, 1, 0), profile, 32, node='CanopyOpen')
+for gore in range(10):
+    a = 2 * math.pi * gore / 10
+    points = [(math.cos(a) * (r + .014), canopy_y + t, math.sin(a) * (r + .014)) for t, r in profile]
+    for p0, p1 in zip(points, points[1:]):
+        m.strut('webbing', p0, p1, .010, sides=5, node='CanopyRibs')
+for line in range(8):
+    a = 2 * math.pi * line / 8
+    lower = (.38 * math.cos(a), 1.27, .28 * math.sin(a))
+    upper = (1.76 * math.cos(a), canopy_y + .03, 1.76 * math.sin(a))
+    m.strut('webbing', lower, upper, .010, sides=5, node='SuspensionLines')
 m.export(out)

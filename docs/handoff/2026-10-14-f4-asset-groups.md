@@ -3,11 +3,11 @@
 **Date:** 2026-10-14  
 **Integration branch:** `f4-night-site-assets`  
 **Base:** `main` at `d6d0ff9e`  
-**Attendance:** unattended implementation; one final attended Hangar checkpoint remains before merging F4 to `main`.
+**Attendance:** unattended implementation followed by an attended Hangar checkpoint. The checkpoint revisions below remain on the integration branch for final approval before merging F4 to `main`.
 
 ## Outcome
 
-F4 is implemented as 17 original, deterministic Blender assets in four independently reviewable groups. The three first groups were built on Ryzen; the final night/site group was built on Nexus. The integration branch contains all four groups, the new `equipment` library kind, render registration, rigs, provenance, and generated GLBs.
+F4 is implemented as 17 original, deterministic Blender assets in four independently reviewable groups. The three first groups were built on Ryzen; the final night/site group was built on Nexus. The integration branch contains all four groups, the new `equipment` library kind, render registration, rigs, provenance, and generated GLBs. The attended checkpoint requested fuller parachute canopies and visible Topsy glazing and markings; those revisions were regenerated on Ryzen and reviewed in the live Hangar.
 
 No third-party mesh or texture was incorporated. Every generator records cited facts and labels estimates; every GLB records its script and `AGPL-3.0-or-later` provenance.
 
@@ -28,9 +28,9 @@ The integration branch merges the first three branches before the night/site imp
 
 | Asset ID | Output | Size | Triangles | Draws | Review motion |
 | --- | --- | ---: | ---: | ---: | --- |
-| `ki-57-ii-topsy` | `content/aircraft/ki-57-ii-topsy.glb` | 327,360 B | 5,678 | 21 | propellers, gear, bay doors, flight surfaces |
-| `parachuting-person-rig` | `content/equipment/parachuting-person-rig.glb` | 42,224 B | 560 | 5 | fixed deployed rig |
-| `paratrooper-supply-bundle` | `content/equipment/paratrooper-supply-bundle.glb` | 43,476 B | 468 | 5 | fixed deployed bundle |
+| `ki-57-ii-topsy` | `content/aircraft/ki-57-ii-topsy.glb` | 347,892 B | 5,758 | 21 | propellers, gear, bay doors, flight surfaces |
+| `parachuting-person-rig` | `content/equipment/parachuting-person-rig.glb` | 156,464 B | 2,576 | 6 | static review pose; gameplay wind motion deferred |
+| `paratrooper-supply-bundle` | `content/equipment/paratrooper-supply-bundle.glb` | 132,128 B | 1,956 | 6 | static review pose; gameplay wind motion deferred |
 | `m24-aircraft-parachute-flare` | `content/equipment/m24-aircraft-parachute-flare.glb` | 28,656 B | 324 | 4 | fixed deployed flare |
 
 ### Ground support
@@ -63,6 +63,12 @@ The integration branch merges the first three branches before the night/site imp
 
 The red and warm lamp surfaces are deliberately flat review colors, not emissive gameplay lighting. Gameplay placement, light projection, survivor behavior, parachute descent, and mission scripting remain later-phase work.
 
+### Attended-checkpoint revisions
+
+- Both troop and supply parachutes now use deep, loaded bell/teardrop profiles with tucked skirts, fuller crowns, radial gore seams, and eight suspension groups. `CanopyOpen`, `CanopyRibs`, and `SuspensionLines` remain separate nodes.
+- The Hangar pose intentionally stays static. When parachute entities enter gameplay, their descent renderer should drive low-amplitude canopy/rib flutter and suspension sway from wind and relative airspeed; this must not become an always-running Hangar animation.
+- The Topsy now has explicit front and side glass panes plus cockpit framing. Six white-bordered Hinomaru (both wing surfaces and both fuselage sides) follow the existing Ki-21 IJA convention. Australian War Memorial item P02284.003 supports the operational IJA context; exact marking dimensions and placement remain labeled estimates.
+
 ## Verification
 
 - Every one of the repository's 57 Blender entries rebuilt byte-identically to its committed output on Nexus; the F4 assets therefore pass deterministic-build verification.
@@ -72,6 +78,7 @@ The red and warm lamp surfaces are deliberately flat review colors, not emissive
 - Maritime focused suite: 118 tests pass; typecheck and lint pass.
 - Night/site focused suite: 123 tests pass; typecheck, lint, and dependency-cruiser pass.
 - Final integrated `npm test`: 441 test files passed; 6,608 tests passed and 12 expected tests skipped (6,620 total). The run included byte-identical rebuilds of all 57 Blender entries.
+- Attended-checkpoint revision suite: 69 files and 2,006 tests pass, including model/Hangar budgets, provenance, catalog, airframe rigs, and byte-identical rebuilds of all 57 Blender entries on Ryzen.
 
 ## Final attended Hangar checkpoint
 
