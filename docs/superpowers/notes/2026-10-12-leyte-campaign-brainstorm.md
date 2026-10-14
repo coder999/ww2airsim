@@ -238,6 +238,7 @@ and the Naval History and Heritage Command's
 **Date and label:** 3 November 1944 — historical action  
 **Player aircraft:** P-38 Lightning  
 **Mission type:** armored-column attack  
+**Minimum pilot rank:** Lieutenant
 **Target time to action:** 2–3 minutes
 
 **Where the player starts**
@@ -1609,9 +1610,18 @@ cumulative:
 | 6 | Captain | Kaigun Taisa | Eligible to fly the campaign finale |
 
 "Advanced aircraft" is a curated eligibility category, not a synonym for
-multi-engine. The aircraft/rank reconciliation pass must classify each flyable
-airframe from its complexity and campaign role. The PBY-5A is explicitly available
-to a Lieutenant (junior grade) in A4 despite having two engines.
+multi-engine. The initial category is fixed as:
+
+| Side | Lieutenant-gated advanced aircraft |
+|---|---|
+| American | P-38 Lightning; B-17 Flying Fortress; B-29 Superfortress |
+| Japanese | G4M1 Betty; Ki-21-IIb Sally; Mitsubishi Ki-57 "Topsy" |
+
+The PBY-5A is not advanced and is explicitly available to a Lieutenant (junior
+grade) in the A4 night chapter despite having two engines. The F4F, F6F, F4U, TBM,
+A6M2, Ki-43, Ki-84, D3A, and B5N likewise have no advanced-aircraft gate; their
+night, command, or authored mission requirements may still demand a higher rank.
+Future aircraft require an explicit classification decision when onboarded.
 
 The Lieutenant Commander's ordnance sights are rank-gated information aids, not
 separate qualifications. With bombs selected, the bombsight marks the predicted
@@ -1699,8 +1709,10 @@ advanced aircraft.
 
 Lieutenant now unlocks a curated **advanced aircraft** category rather than all
 multi-engine aircraft. Engine count alone does not set rank eligibility, and the
-PBY is available to a Lieutenant (junior grade) for A4. The exact advanced-aircraft
-list remains part of the aircraft/rank reconciliation pass.
+PBY is available to a Lieutenant (junior grade) for A4. The fixed initial advanced
+list is P-38, B-17, and B-29 for the Americans and G4M1, Ki-21-IIb, and Ki-57 for
+the Japanese. A3 introduces the American gate with the P-38; J5 introduces the
+Japanese gate with the Ki-57.
 
 #### Japanese late-campaign mission reconciliation — decided 13 October 2026
 
@@ -1763,21 +1775,20 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-2. What exact pilot-rank, player-rating, target, objective, recovery, and
+1. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-3. Does a captured pilot remain permanently archived in the initial campaign, or
+2. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-4. How strictly should the American name pool mirror the historical demographic
+3. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-5. Which aircraft receive landing, navigation, and formation lights after the
+4. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-6. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+5. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-7. Should rescue/capture be fully deterministic from world control and proximity,
+6. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
