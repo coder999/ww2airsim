@@ -279,20 +279,20 @@ campaign record.
 Each side has six different chapters rather than the same missions with flags
 reversed:
 
-| Chapter | Mission | Player aircraft | Core action |
-| --- | --- | --- | --- |
-| A1 | Over the Beaches | F6F Hellcat | Defend the invasion fleet in a combat air patrol |
-| A2 | Taffy 3 | TBM-3 Avenger | Bomb or torpedo a surface force during the Battle off Samar |
-| A3 | The Long Column | P-38 Lightning | Attack a Japanese armored column |
-| A4 | Dumbo in the Gulf | PBY-5A Catalina | Night air-sea rescue and anchorage recovery |
-| A5 | Close the Ormoc Lifeline | F6F Hellcat | Escort bombers against the reinforcement route |
-| A6 | Battle for the Airfields | P-38 Lightning | Large bombing-and-dogfight finale |
-| J1 | Defend the Fields | A6M2 Zero | Defend Japanese-held airfields |
-| J2 | Break the Landing | B5N2 Kate | Strike American invasion shipping |
-| J3 | Road to Burauen | Ki-43 Oscar | Defend an armored column from air attack |
-| J4 | Destroyers in the Bay | B5N2 Kate | Night torpedo attack amid a surface engagement |
-| J5 | Night Drop on Burauen | Mitsubishi Ki-57 “Topsy” | Fly and release a paratrooper drop at night |
-| J6 | Operation Te-Go | Ki-43 Oscar or A6M2 Zero | Alternate-history combined bombing-and-dogfight finale |
+| Chapter | Date / label | Mission | Player aircraft | Minimum pilot rank | Core action |
+| --- | --- | --- | --- | --- | --- |
+| A1 | 20 Oct / historical composite | Over the Beaches | F6F Hellcat | Ensign | Defend the invasion fleet in a combat air patrol |
+| A2 | 25 Oct / historical action, compressed | Taffy 3 | TBM-3 Avenger | Ensign | Bomb or torpedo a surface force during the Battle off Samar |
+| A3 | 3 Nov / historical action, compressed | The Long Column | P-38 Lightning | Lieutenant | Attack a Japanese armored column |
+| A4 | 5 Nov / historical composite | Dumbo in the Gulf | PBY-5A Catalina | Lieutenant (junior grade) | Night air-sea rescue and anchorage recovery |
+| A5 | 11 Nov / historical composite | Close the Ormoc Lifeline | F6F Hellcat | Commander | Escort bombers against the reinforcement route |
+| A6 | 6–7 Dec / historical action, compressed | Battle for the Airfields | P-38 Lightning | Captain | Large bombing-and-dogfight finale |
+| J1 | 18 Oct / historical composite | Defend the Fields | A6M2 Zero | Kaigun Shōi | Defend Japanese-held airfields |
+| J2 | 20 Oct / historical composite | Break the Landing | B5N2 Kate | Kaigun Shōi | Strike American invasion shipping |
+| J3 | 3 Nov / historical composite | Road to Burauen | Ki-43 Oscar | Kaigun Shōi | Defend an armored column from air attack |
+| J4 | 3 Dec / historical composite | Destroyers in the Bay | B5N2 Kate | Kaigun Chūi | Night torpedo attack amid a surface engagement |
+| J5 | 6 Dec / historical composite | Night Drop on Burauen | Mitsubishi Ki-57 “Topsy” | Kaigun Taii | Fly and release a paratrooper drop at night |
+| J6 | 7 Dec / alternate history | Operation Te-Go | Ki-43 Oscar or A6M2 Zero | Kaigun Taisa | Alternate-history combined bombing-and-dogfight finale |
 
 Every chapter is labeled Historical action, Historical composite, or Alternate
 history and carries a cited briefing. When the action is fabricated, the briefing
