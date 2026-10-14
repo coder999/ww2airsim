@@ -1,6 +1,6 @@
 import { staticModelUrl } from '../content.js'
 
-export type StaticModelKind = 'building' | 'vehicle'
+export type StaticModelKind = 'building' | 'vehicle' | 'equipment'
 
 /**
  * Model id to committed glb, for the kinds with no sim module (model-roster spec §4.3): buildings
@@ -22,10 +22,28 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     tower: { url: staticModelUrl('building', 'tower') },
   },
   vehicle: {
+    'caterpillar-d7-3t': { url: staticModelUrl('vehicle', 'caterpillar-d7-3t') },
+    'gmc-cckw-353': { url: staticModelUrl('vehicle', 'gmc-cckw-353') },
+    lcvp: { url: staticModelUrl('vehicle', 'lcvp') },
     'm4-sherman': { url: staticModelUrl('vehicle', 'm4-sherman') },
+    'type38-75mm-field-gun': { url: staticModelUrl('vehicle', 'type38-75mm-field-gun') },
+    'type94-cargo-truck': { url: staticModelUrl('vehicle', 'type94-cargo-truck') },
     'type95-kurogane': { url: staticModelUrl('vehicle', 'type95-kurogane') },
     'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
+    'usaaf-63ft-rescue-boat': { url: staticModelUrl('vehicle', 'usaaf-63ft-rescue-boat') },
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
+  },
+  equipment: {
+    'm1942-60in-searchlight': { url: staticModelUrl('equipment', 'm1942-60in-searchlight') },
+    'm24-aircraft-parachute-flare': { url: staticModelUrl('equipment', 'm24-aircraft-parachute-flare') },
+    'parachuting-person-rig': { url: staticModelUrl('equipment', 'parachuting-person-rig') },
+    'paratrooper-supply-bundle': { url: staticModelUrl('equipment', 'paratrooper-supply-bundle') },
+    'panirugan-red-harbor-light': { url: staticModelUrl('equipment', 'panirugan-red-harbor-light') },
+    'pby-mooring-buoy': { url: staticModelUrl('equipment', 'pby-mooring-buoy') },
+    'portable-runway-flare-pot': { url: staticModelUrl('equipment', 'portable-runway-flare-pot') },
+    'ranger-temporary-nav-light': { url: staticModelUrl('equipment', 'ranger-temporary-nav-light') },
+    'suluan-damaged-lighthouse': { url: staticModelUrl('equipment', 'suluan-damaged-lighthouse') },
+    'type-a3-life-raft-survivors': { url: staticModelUrl('equipment', 'type-a3-life-raft-survivors') },
   },
 }
 

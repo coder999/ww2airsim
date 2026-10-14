@@ -1,0 +1,7 @@
+{
+  "id": "type94-cargo-truck", "name": "Type 94 Cargo Truck", "kind": "vehicle", "side": "japanese",
+  "model": { "kind": "vehicle", "id": "type94-cargo-truck" },
+  "blurb": "A Hangar-only Japanese cargo truck with rolling wheels and steerable front wheels for Leyte logistics scenes.",
+  "history": "Japanese forces relied on standardized Army cargo trucks to move men and supplies. This model represents the F3-approved Type 94 silhouette; its overall envelope and body details remain explicitly estimated until a primary Japanese drawing is locked.",
+  "sources": [{ "title": "Handbook on Japanese Military Forces, U.S. War Department", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-W-PURL-gpo119422/pdf/GOVPUB-W-PURL-gpo119422.pdf", "read": "2026-10-14" }]
+}

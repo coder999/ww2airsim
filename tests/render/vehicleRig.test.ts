@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { Box3, Vector3, type Mesh } from 'three'
-import { CHI_HA_GUN, HAND_FOLLOW_RAD, JEEP_STEERING, M4_75_GUN, VEHICLE_RIDERS, VEHICLE_RIGS, treadUPerMeter, wheelShells } from '../../src/render/scene/vehicleRig.js'
+import { CHI_HA_GUN, HAND_FOLLOW_RAD, JEEP_STEERING, M4_75_GUN, VEHICLE_RIDERS, VEHICLE_RIGS, trackShoes, treadUPerMeter, wheelShells } from '../../src/render/scene/vehicleRig.js'
 import { glbScene } from './_wildcatCache.js'
 
 /**
@@ -24,7 +24,7 @@ describe('vehicle rigs (V1)', () => {
   it('every committed vehicle model is rigged', () => {
     const models = readdirSync('content/vehicles').filter((f) => f.endsWith('.glb')).map((f) => f.slice(0, -4)).sort()
     expect(Object.keys(VEHICLE_RIGS).sort()).toEqual(models)
-    expect(models).toEqual(['m4-sherman', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
+    expect(models).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
   })
 })
 
@@ -101,6 +101,78 @@ describe('M4 Composite Sherman', () => {
   })
 })
 
+describe('M4 Composite Sherman running gear (F4R)', () => {
+  const parts = async () => {
+    const { root, rig } = await sherman()
+    const mesh = (n: string) => root.getObjectByName(n) as unknown as { geometry: Parameters<typeof wheelShells>[0] }
+    const hull = root.children.find((o) => !['Turret1', 'Gun1', 'Tracks'].includes(o.name)) as unknown as { geometry: Parameters<typeof wheelShells>[0] }
+    return { rig, hull, tracks: mesh('Tracks') }
+  }
+
+  it('turns exactly the wheels: roller, road wheel, idler and sprocket shells on both sides, no suspension box', async () => {
+    const { rig, hull } = await parts()
+    const shells = wheelShells(hull.geometry, 0.75, 1.2, true)
+    // Per side (measured on the committed glb 2026-10-14): six road wheels, three rollers, the idler, and
+    // three sprocket shells (the hub and the two tooth rings). Mirrored port and starboard.
+    expect(shells.length).toBe(26)
+    expect(rig.state()['wheelShells']).toBe(26)
+    const radii = new Set(shells.map((s) => s.radius.toFixed(2)))
+    expect([...radii].sort()).toEqual(['0.10', '0.25', '0.26', '0.33'].sort().filter((r) => radii.has(r)))
+    expect(shells.filter((s) => s.radius > 0.22 && s.radius < 0.28).length).toBe(2 * (6 + 1) + 2)
+    // Without `exact` the 0.40 x 0.35 m bogie brackets pass the squareness test and would be spun with the wheels.
+    expect(wheelShells(hull.geometry, 0.75, 1.2, false).length).toBeGreaterThan(shells.length)
+  })
+
+  it('a road wheel carries its five hub bolt heads, which turn with it', async () => {
+    const { hull } = await parts()
+    const plain = wheelShells(hull.geometry, 0.75, 1.2, false)
+    const exact = wheelShells(hull.geometry, 0.75, 1.2, true)
+    const at = (list: typeof plain) => list.find((s) => Math.abs(s.cx - 0.65) < 0.01 && s.radius > 0.24 && s.radius < 0.25 && hull.geometry.getAttribute('position').getZ(s.vertices[0]!) > 0)!
+    expect(at(exact).vertices.length).toBeGreaterThan(at(plain).vertices.length)
+    // A bolt is a four-sided prism: 6 faces of 4 corners each, 24 vertices, five of them.
+    expect(at(exact).vertices.length - at(plain).vertices.length).toBe(5 * 24)
+  })
+
+  it('has identical track shoes, a side after a side, six inches apart', async () => {
+    const { rig, tracks } = await parts()
+    const shoes = trackShoes(tracks.geometry)
+    expect(shoes.perSide).toBeGreaterThan(70)
+    expect(shoes.pitchM).toBeGreaterThan(0.14)
+    expect(shoes.pitchM).toBeLessThan(0.16)
+    expect(rig.state()['trackShoesPerSide']).toBe(shoes.perSide)
+  })
+
+  it('moves each shoe toward the one behind it, so the ground run goes aft as the tank goes forward', async () => {
+    const { tracks } = await parts()
+    const shoes = trackShoes(tracks.geometry)
+    const pos = tracks.geometry.getAttribute('position')
+    let aft = 0, ground = 0
+    for (let i = 0; i < pos.count; i++) {
+      const own = new Vector3(pos.getX(i), pos.getY(i), pos.getZ(i))
+      const prev = new Vector3(shoes.prev[3 * i]!, shoes.prev[3 * i + 1]!, shoes.prev[3 * i + 2]!)
+      // One shoe over, never the length of the track: one pitch on the centerline, a little more on the outer face and less on the inner face of the sprocket and idler turns.
+      expect(own.distanceTo(prev), `vertex ${i}`).toBeLessThan(shoes.pitchM * 1.2)
+      expect(own.distanceTo(prev)).toBeGreaterThan(shoes.pitchM * 0.8)
+      expect(prev.z).toBeCloseTo(own.z, 5)
+      if (own.y < 0.05) { ground++; if (prev.x < own.x) aft++ }
+    }
+    expect(ground).toBeGreaterThan(1000)
+    expect(aft, 'every vertex on the ground run has its previous shoe aft of it').toBe(ground)
+  })
+
+  it('wraps the shoes every pitch of travel and turns the wheels the same distance', async () => {
+    const { rig, tracks } = await parts()
+    const pitch = trackShoes(tracks.geometry).pitchM
+    rig.drive(2.25 * pitch, 0)
+    expect(rig.state()['trackPhase']).toBeCloseTo(0.25, 9)
+    expect(rig.state()['wheelTravelM']).toBeCloseTo(2.25 * pitch, 9)
+    rig.drive(-0.25 * pitch, 0)
+    expect(rig.state()['trackPhase'], 'backing up wraps the same way').toBeCloseTo(0.75, 9)
+    rig.drive(0, 0)
+    expect(rig.state()['trackPhase']).toBe(0)
+  })
+})
+
 describe('Willys MB jeep and its driver', () => {
   it('full right lock turns the front wheels and the steering wheel by the gear ratio; the rear wheels only roll', async () => {
     const { root, rig } = await jeep()
@@ -148,5 +220,47 @@ describe('Willys MB jeep and its driver', () => {
       // A swing about the shoulder, not a reach: measured 2026-10-09, 3.9 cm (left turn) and 3.0 cm (right) at 90% of the follow.
       expect(rig.state()['handOffRimM'], `steer ${s}`).toBeLessThan(0.04)
     }
+  })
+})
+
+describe('F4R ground rework (2026-10-14): rigs turn about the right points', () => {
+  const center = (o: { updateWorldMatrix(a: boolean, b: boolean): void }): Vector3 => new Box3().setFromObject(o as never).getCenter(new Vector3())
+  const meshCenter = (root: { getObjectByName(n: string): unknown }, name: string): Vector3 => center(root.getObjectByName(name) as never)
+
+  it.each(['gmc-cckw-353', 'type95-kurogane'])('%s: every wheel spins about its own axle, and only the front pair steers', async (id) => {
+    const root = await glbScene(`content/vehicles/${id}.glb`)
+    const rig = VEHICLE_RIGS[id]!(root)
+    const names = ['WheelFL', 'WheelFR', ...(id === 'gmc-cckw-353' ? ['WheelR1L', 'WheelR1R', 'WheelR2L', 'WheelR2R'] : ['WheelRL', 'WheelRR'])]
+    root.updateMatrixWorld(true)
+    const before = names.map((n) => meshCenter(root, n))
+    rig.drive(3, 1)
+    root.updateMatrixWorld(true)
+    names.forEach((n, i) => expect(meshCenter(root, n).distanceTo(before[i]!), `${id} ${n} center moved`).toBeLessThan(0.02))
+    expect(rig.state()['wheelSpinRad']).toBeLessThan(-3)
+    expect(Math.abs(rig.state()['frontSteerRad'] as number)).toBeCloseTo(JEEP_STEERING.lockRad, 9)
+    const rear = root.getObjectByName(names[names.length - 1]!)!
+    expect(rear.rotation.y, 'a rear wheel must not steer').toBe(0)
+  })
+
+  it('caterpillar-d7-3t: the sprockets turn in place, the blade rises with its arms, and tilts about its own center', async () => {
+    const root = await glbScene('content/vehicles/caterpillar-d7-3t.glb')
+    const rig = VEHICLE_RIGS['caterpillar-d7-3t']!(root)
+    root.updateMatrixWorld(true)
+    const sprockets = ['TrackL', 'TrackR'].map((n) => meshCenter(root, n))
+    const blade = meshCenter(root, 'BladeTilt'), arms = meshCenter(root, 'BladeRaise')
+    rig.drive(2, 0)
+    root.updateMatrixWorld(true)
+    ;['TrackL', 'TrackR'].forEach((n, i) => expect(meshCenter(root, n).distanceTo(sprockets[i]!), `${n} center`).toBeLessThan(0.02))
+    expect(rig.state()['trackSpinRad']).toBeCloseTo(-2 / 0.36, 9)
+    const [mount] = rig.mounts
+    mount!.setElevation(Math.PI / 6)
+    root.updateMatrixWorld(true)
+    expect(meshCenter(root, 'BladeTilt').y - blade.y, 'the blade rose').toBeGreaterThan(0.3)
+    expect(meshCenter(root, 'BladeRaise').y - arms.y, 'the arms rose').toBeGreaterThan(0.1)
+    const raised = meshCenter(root, 'BladeTilt')
+    mount!.setTraining(Math.PI / 12)
+    root.updateMatrixWorld(true)
+    expect(meshCenter(root, 'BladeTilt').distanceTo(raised), 'tilt pivots about the blade center').toBeLessThan(0.05)
+    expect(rig.state()['bladeTiltRad']).toBeCloseTo(Math.PI / 12, 6)
   })
 })

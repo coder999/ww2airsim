@@ -60,6 +60,13 @@ PALETTE = {
     'webbing': (0x9A / 255, 0x8C / 255, 0x64 / 255),
     'boots': (0x5C / 255, 0x3A / 255, 0x21 / 255),
     'skin': (0xC4 / 255, 0x9A / 255, 0x7A / 255),
+    # F4 night-site markers: flat review colors only. Runtime glow and illumination are out of scope.
+    'signalRed': (0x8F / 255, 0x18 / 255, 0x18 / 255),
+    'warmLight': (0xF0 / 255, 0xB8 / 255, 0x4A / 255),
+    # F4 rework (2026-10-14): a weathered yellow rubberized raft tube and a brighter life-vest yellow
+    # (ESTIMATES: no chip read; the Type A-3 raft and its vest were issued in yellow).
+    'raftYellow': (0xB9 / 255, 0x95 / 255, 0x2B / 255),
+    'vestYellow': (0xE2 / 255, 0xB1 / 255, 0x28 / 255),
 }
 
 

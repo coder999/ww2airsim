@@ -14,7 +14,7 @@ import { nodeHangarContent } from './content.js'
  */
 
 const FOLDER: Readonly<Record<ModelRef['kind'], string>> = {
-  aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/', ordnance: 'content/ordnance/',
+  aircraft: 'content/aircraft/', ship: 'content/ships/', building: 'content/buildings/', vehicle: 'content/vehicles/', equipment: 'content/equipment/', ordnance: 'content/ordnance/',
 }
 
 /** Why `ref` does not resolve to a registered model with its manifest entry and committed glb; null if it does. */
@@ -40,8 +40,8 @@ describe('the roster is done: every Library entry is drawn (model-roster spec §
     expect(catalog.filter((e) => !drawable(e)).map((e) => e.library.id)).toEqual([])
   })
 
-  it('every building and vehicle names its own model', () => {
-    for (const e of content.library.filter((x) => x.kind === 'building' || x.kind === 'vehicle')) {
+  it('every building, vehicle and equipment entry names its own model', () => {
+    for (const e of content.library.filter((x) => x.kind === 'building' || x.kind === 'vehicle' || x.kind === 'equipment')) {
       expect(e.model, e.id).toEqual({ kind: e.kind, id: e.id })
     }
   })

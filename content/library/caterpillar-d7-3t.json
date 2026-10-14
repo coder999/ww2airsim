@@ -1,0 +1,7 @@
+{
+  "id": "caterpillar-d7-3t", "name": "Caterpillar D7 3T Tractor", "kind": "vehicle", "side": "allied",
+  "model": { "kind": "vehicle", "id": "caterpillar-d7-3t" },
+  "blurb": "A Hangar-only wartime crawler tractor with moving tracks and a reviewable raised and tilted dozer blade.",
+  "history": "D7 tractors were essential engineering machines for road and airfield construction. The War Department maintenance manual establishes the wartime tractor family; this model's blade arrangement and displayed envelope are conservative estimates.",
+  "sources": [{ "title": "TM 9-1773C1: Ordnance Maintenance, Caterpillar Diesel Engines and Tractors", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-W-d7932a5f9745e08e70dc93ea338d4fe1/pdf/GOVPUB-W-d7932a5f9745e08e70dc93ea338d4fe1.pdf", "read": "2026-10-14" }]
+}

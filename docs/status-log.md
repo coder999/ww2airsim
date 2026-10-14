@@ -500,3 +500,9 @@ capture includes close side and three-quarter views, and the focused generator,
 dimension, rig and duplicate-model suite passes 525/525. See the updated
 [fighter-model handoff](handoff/2026-10-11-blender-fighter-duplicates.md).
 
+**F3 and F4 merged 2026-10-14.** The Leyte campaign source lock (F3) and the 17
+reusable campaign assets (F4) are on `main`; Mark approved every model in the live
+Hangar after one rework round that rebuilt the weak meshes under frozen contracts
+and animated the Sherman's tracks. See the
+[F4 handoff](handoff/2026-10-14-f4-asset-groups.md); MASTER_PLAN F3/F4 is the
+authoritative status. Not deployed.

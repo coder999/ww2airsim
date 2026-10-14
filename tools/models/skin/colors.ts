@@ -33,6 +33,10 @@ export const MARKING_COLORS = {
   ijnCamoGreen: [0x3e, 0x48, 0x36], // ESTIMATE: a dark green over the Kure gray
   ijnCamoLight: [0x8a, 0x8e, 0x86], // ESTIMATE: a light green-gray
   ijnCamoDark: [0x3a, 0x3c, 0x3a], // ESTIMATE: a black-gray (the flight deck's darkest bands)
+  // F4R (2026-10-14): the M4 Sherman's field wear. All ESTIMATES of weathered sRGB from wartime photographs.
+  mudBrown: [0x5a, 0x48, 0x32], // ESTIMATE: wet Philippine soil thrown up from the tracks
+  dustTan: [0x9a, 0x8a, 0x68], // ESTIMATE: dry road dust
+  bareSteel: [0x74, 0x78, 0x76], // ESTIMATE: scuffed armor plate showing through the paint
 } as const satisfies Record<string, readonly [number, number, number]>
 
 export type MarkingColor = keyof typeof MARKING_COLORS

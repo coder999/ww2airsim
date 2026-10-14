@@ -1,0 +1,12 @@
+{
+  "id": "gmc-cckw-353", "output": "content/vehicles/gmc-cckw-353.glb",
+  "source": { "kind": "blender", "script": "tools/models/blender/f4-ground-assets.py", "dimensions": "6.86 m length, 2.24 m width and 2.36 m cab height follow the CCKW-353 working envelope associated with TM 10-1253; cab, fenders, hood, grille, bed, canvas cover, chassis, wheel and tread sizes are ESTIMATES, read 2026-10-14 and reworked 2026-10-14 (f4r-ground)", "license": "AGPL-3.0-or-later" },
+  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 6.86 } },
+  "keep": [
+    {"node":"Body"},{"node":"Nose"},
+    {"node":"WheelR1L","pivot":{"point":[-2.05,0.5,-0.95],"axis":"+z"}},{"node":"WheelR1R","pivot":{"point":[-2.05,0.5,0.95],"axis":"+z"}},
+    {"node":"WheelR2L","pivot":{"point":[-1.15,0.5,-0.95],"axis":"+z"}},{"node":"WheelR2R","pivot":{"point":[-1.15,0.5,0.95],"axis":"+z"}},
+    {"node":"WheelFL","pivot":{"point":[2.05,0.5,-0.95],"axis":"+z"}},{"node":"WheelFR","pivot":{"point":[2.05,0.5,0.95],"axis":"+z"}}
+  ],
+  "skin": true, "textures": { "maxSize": 512, "format": "webp" }, "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 9 }
+}
