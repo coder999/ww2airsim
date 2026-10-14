@@ -16,6 +16,9 @@ import { worldTriangles } from './buildingGeometry.js'
 
 /** Spec §4.4, plus ruling V1's draw calls. Raised only with a measured reason, here and in the ledger. */
 const VEHICLE_BUDGET = { maxBytes: 1_000_000, maxTriangles: 20_000, maxDrawCalls: 8 } as const
+/** Per-vehicle draw-call ceilings above the default. The CCKW keeps eight kept nodes (Body, Nose, six wheels, each one
+ *  draw) and its steel, glass, wood, canvas and chassis parts join into one more (f4r-ground rework, 2026-10-14). */
+const DRAW_CALLS: Readonly<Record<string, number>> = { 'gmc-cckw-353': 9 }
 
 interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly widthTol: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
 /** Rulings V2, V4 and V6: tolerances are per cited row and preserve the authoritative fit axis. */
@@ -109,7 +112,7 @@ describe.each(vehicles.map((e) => [e.id, e] as const))('vehicle %s (R5)', (id, e
     const m = measureDocument(await read(e))
     expect(e.budget.maxBytes, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxBytes)
     expect(e.budget.maxTriangles, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxTriangles)
-    expect(e.budget.maxDrawCalls, id).toBeLessThanOrEqual(VEHICLE_BUDGET.maxDrawCalls)
+    expect(e.budget.maxDrawCalls, id).toBeLessThanOrEqual(DRAW_CALLS[id] ?? VEHICLE_BUDGET.maxDrawCalls)
     expect(statSync(e.output).size).toBeLessThanOrEqual(e.budget.maxBytes)
     expect(m.triangles).toBeLessThanOrEqual(e.budget.maxTriangles)
     expect(m.drawCalls).toBeLessThanOrEqual(e.budget.maxDrawCalls)

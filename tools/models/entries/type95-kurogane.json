@@ -4,7 +4,7 @@
   "source": {
     "kind": "blender",
     "script": "tools/models/blender/type95-kurogane.py",
-    "dimensions": "length 3.60 m, width 1.52 m, height 1.68 m: German Wikipedia article 'Typ 95 Aufklarungswagen', read 2026-10-11; identity cross-check: Australian War Memorial collection record C110415; all other figures are ESTIMATES labeled in the script header",
+    "dimensions": "length 3.60 m, width 1.52 m, height 1.68 m: German Wikipedia article 'Typ 95 Aufklarungswagen', read 2026-10-11; identity cross-check: Australian War Memorial collection record C110415; all other figures, including the 2026-10-14 fidelity rework (f4r-ground), are ESTIMATES labeled in the script header",
     "license": "AGPL-3.0-or-later"
   },
   "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "length", "meters": 3.6 } },
