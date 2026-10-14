@@ -391,14 +391,43 @@ function rigDozer(root: Object3D): VehicleRig {
   }
 }
 
+function rigLandingCraft(root: Object3D): VehicleRig {
+  const ramp = need(root.getObjectByName('Ramp'), 'Ramp')
+  const rest = ramp.quaternion.clone(), Z = new Vector3(0, 0, 1), q = new Quaternion()
+  const mount: ShipMountView = {
+    name: 'Ramp', kit: 'lcvp-bow-ramp', maxElevationRad: 0,
+    setTraining() {},
+    setElevation(rad) { ramp.quaternion.copy(rest).multiply(q.setFromAxisAngle(Z, Math.min(Math.max(rad, -Math.PI / 2), 0))) },
+  }
+  return {
+    parts: ['turrets'], mounts: [mount], drive() {},
+    state: () => ({ rampRad: angleAbout(ramp.quaternion, Z) }), dispose() {},
+  }
+}
+
+function rigRescueBoat(root: Object3D): VehicleRig {
+  const props = ['Prop1', 'Prop2'].map((n) => need(root.getObjectByName(n), n))
+  const rudders = ['Rudder1', 'Rudder2'].map((n) => need(root.getObjectByName(n), n))
+  return {
+    parts: ['drive', 'steer'], mounts: [],
+    drive(distanceM, steer) {
+      for (const p of props) p.rotation.x = distanceM * 5
+      for (const r of rudders) r.rotation.y = -Math.min(Math.max(steer, -1), 1) * Math.PI / 6
+    },
+    state: () => ({ propRad: props[0]!.rotation.x, rudderRad: rudders[0]!.rotation.y }), dispose() {},
+  }
+}
+
 /** Each animated vehicle's rig, by its model id (STATIC_MODELS.vehicle). */
 export const VEHICLE_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
   'caterpillar-d7-3t': rigDozer,
   'gmc-cckw-353': rigSimpleWheeled,
+  lcvp: rigLandingCraft,
   'm4-sherman': rigSherman,
   'type97-chi-ha': rigChiHa,
   'type95-kurogane': rigJeep,
   'type38-75mm-field-gun': rigFieldGun,
   'type94-cargo-truck': rigSimpleWheeled,
+  'usaaf-63ft-rescue-boat': rigRescueBoat,
   'willys-mb-jeep': rigJeep,
 }

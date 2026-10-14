@@ -1,0 +1,6 @@
+{
+  "id":"lcvp","name":"Landing Craft, Vehicle, Personnel (LCVP)","kind":"vehicle","side":"allied","model":{"kind":"vehicle","id":"lcvp"},
+  "blurb":"A Hangar-only Higgins-type landing craft with a reviewable bow ramp for ship-to-shore Leyte scenes.",
+  "history":"The LCVP carried troops and vehicles directly onto beaches through its bow ramp. U.S. Navy material fixes its overall length and beam; this original model keeps the upper works deliberately simple and labels their dimensions as estimates.",
+  "sources":[{"title":"Ship-to-Shore Movement, Naval History and Heritage Command","url":"https://www.history.navy.mil/research/library/online-reading-room/title-list-alphabetically/s/ship-to-shore-movement0.html","read":"2026-10-14"}]
+}

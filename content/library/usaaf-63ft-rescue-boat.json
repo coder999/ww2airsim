@@ -1,0 +1,6 @@
+{
+  "id":"usaaf-63ft-rescue-boat","name":"USAAF 63-foot Rescue Boat","kind":"vehicle","side":"allied","model":{"kind":"vehicle","id":"usaaf-63ft-rescue-boat"},
+  "blurb":"A Hangar-only twin-screw air-sea rescue launch with turning propellers and steerable rudders.",
+  "history":"Fast rescue launches supported downed aircrew recovery around wartime operating areas. The sixty-three-foot class identity is documented in a U.S. transfer record; the beam, deckhouse and fittings here remain estimates pending a primary builder's plan.",
+  "sources":[{"title":"Congressional Record, transfer of 63-foot aircraft rescue boats","url":"https://www.govinfo.gov/content/pkg/GPO-CRECB-1957-pt8/pdf/GPO-CRECB-1957-pt8-2.pdf","read":"2026-10-14"}]
+}
