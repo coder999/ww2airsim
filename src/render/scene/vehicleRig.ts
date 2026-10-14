@@ -418,6 +418,31 @@ function rigRescueBoat(root: Object3D): VehicleRig {
   }
 }
 
+function rigSearchlight(root: Object3D): VehicleRig {
+  const train = need(root.getObjectByName('Train'), 'Train')
+  const lamp = need(root.getObjectByName('Lamp'), 'Lamp')
+  const face = need(root.getObjectByName('LampFace'), 'LampFace')
+  const marker = need(root.getObjectByName('BeamMarker'), 'BeamMarker')
+  train.attach(lamp); lamp.attach(face); lamp.attach(marker)
+  const rest = { train: train.quaternion.clone(), lamp: lamp.quaternion.clone() }
+  const Y = new Vector3(0, 1, 0), Z = new Vector3(0, 0, 1), q = new Quaternion()
+  const mount: ShipMountView = {
+    name: 'Searchlight', kit: 'm1942-60in', maxElevationRad: Math.PI / 2,
+    setTraining(rad) { train.quaternion.copy(rest.train).multiply(q.setFromAxisAngle(Y, rad)) },
+    setElevation(rad) { lamp.quaternion.copy(rest.lamp).multiply(q.setFromAxisAngle(Z, Math.min(Math.max(rad, -Math.PI / 12), Math.PI / 2))) },
+  }
+  return {
+    parts: ['turrets'], mounts: [mount], drive() {},
+    state: () => ({ trainRad: angleAbout(train.quaternion, Y), elevationRad: angleAbout(lamp.quaternion, Z) }),
+    dispose() {},
+  }
+}
+
+/** Display-only field equipment that exposes a Hangar review rig. */
+export const EQUIPMENT_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
+  'm1942-60in-searchlight': rigSearchlight,
+}
+
 /** Each animated vehicle's rig, by its model id (STATIC_MODELS.vehicle). */
 export const VEHICLE_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
   'caterpillar-d7-3t': rigDozer,

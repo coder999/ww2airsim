@@ -35,6 +35,7 @@ const CITED: Readonly<Record<string, Cited>> = {
   'ki-21-sally': { spanM: 22.5, lengthM: 16.0, tolerance: 0.01, source: "English Wikipedia 'Mitsubishi Ki-21', Specifications (Ki-21-IIb), read 2026-09-27" },
   'ki-43-oscar': { spanM: 10.84, lengthM: 8.92, tolerance: 0.04, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-09-27" },
   'ki-43-oscar-blender': { spanM: 10.84, lengthM: 8.92, tolerance: 0.01, source: "English Wikipedia 'Nakajima Ki-43 Hayabusa', Specifications (Ki-43-IIb), read 2026-10-11" },
+  'ki-57-ii-topsy': { spanM: 22.6, lengthM: 16.1, tolerance: 0.01, source: 'Provisional F4 geometry estimates pending a primary Mitsubishi drawing; Smithsonian NASM collection A19600334004 supports the Ha-102-powered MC-20-II / Topsy identity, read 2026-10-14' },
   'ki-84-frank': { spanM: 11.238, lengthM: 9.92, tolerance: 0.01, source: "English Wikipedia 'Nakajima Ki-84 Hayate', Specifications (Ki-84-Ia), read 2026-09-27" },
   'tbm-3-avenger': { spanM: 16.51, lengthM: 12.48, tolerance: 0.01, source: "span: English Wikipedia 'Grumman TBF Avenger', Specifications; length: J. Rickard, 'Eastern TBM-3E Avenger', historyofwar.org; both read 2026-10-09" },
   'b5n2-kate': { spanM: 15.518, lengthM: 10.3, tolerance: 0.01, source: "English Wikipedia 'Nakajima B5N', Specifications (B5N2), citing Francillon 1970, read 2026-10-09" },

@@ -41,6 +41,9 @@ export const ROLE_SURFACE: Readonly<Record<string, Surface>> = {
   // measured 0.089x flat on the P-38). Aluminum here is a satin bare-metal paint chip, so metallic 0.25.
   naturalMetal: { scan: 'painted-metal', roughness: 0.4, metallic: 0.25, fade: 0, chip: 0, rivets: true, scanNormal: 0.4 },
   dark: { scan: 'painted-metal', roughness: 0.55, metallic: 0, fade: 0.05, chip: 0.005, rivets: false, scanNormal: 0.5 },
+  // F4 review markers are colored surfaces, not emissive runtime lights.
+  signalRed: { scan: null, roughness: 0.32, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
+  warmLight: { scan: null, roughness: 0.28, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
   glazing: { scan: null, roughness: 0.08, metallic: 0, fade: 0, chip: 0, rivets: false, scanNormal: 0 },
   steel: { scan: 'corrugated-iron', roughness: 0.7, metallic: 0, fade: 0.1, chip: 0.04, rivets: false, scanNormal: 1 },
   concrete: { scan: 'concrete', roughness: 0.9, metallic: 0, fade: 0.04, chip: 0, rivets: false, scanNormal: 1 },

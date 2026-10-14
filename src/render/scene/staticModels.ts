@@ -34,10 +34,15 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },
   },
   equipment: {
+    'm1942-60in-searchlight': { url: staticModelUrl('equipment', 'm1942-60in-searchlight') },
     'm24-aircraft-parachute-flare': { url: staticModelUrl('equipment', 'm24-aircraft-parachute-flare') },
     'parachuting-person-rig': { url: staticModelUrl('equipment', 'parachuting-person-rig') },
     'paratrooper-supply-bundle': { url: staticModelUrl('equipment', 'paratrooper-supply-bundle') },
+    'panirugan-red-harbor-light': { url: staticModelUrl('equipment', 'panirugan-red-harbor-light') },
     'pby-mooring-buoy': { url: staticModelUrl('equipment', 'pby-mooring-buoy') },
+    'portable-runway-flare-pot': { url: staticModelUrl('equipment', 'portable-runway-flare-pot') },
+    'ranger-temporary-nav-light': { url: staticModelUrl('equipment', 'ranger-temporary-nav-light') },
+    'suluan-damaged-lighthouse': { url: staticModelUrl('equipment', 'suluan-damaged-lighthouse') },
     'type-a3-life-raft-survivors': { url: staticModelUrl('equipment', 'type-a3-life-raft-survivors') },
   },
 }
