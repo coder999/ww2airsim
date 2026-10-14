@@ -1,0 +1,7 @@
+{
+  "id": "type38-75mm-field-gun", "name": "Type 38 75 mm Field Gun", "kind": "vehicle", "side": "japanese",
+  "model": { "kind": "vehicle", "id": "type38-75mm-field-gun" },
+  "blurb": "A Hangar-only field piece with traversing upper carriage and elevating barrel, prepared for Leyte defensive-site dressing.",
+  "history": "The Type 38 was a Japanese seventy-five-millimetre field gun derived from a Krupp design. This review model preserves the split-trail, shieldless working silhouette selected in F3 while marking its envelope and carriage geometry as estimates.",
+  "sources": [{ "title": "Handbook on Japanese Military Forces, U.S. War Department", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-W-PURL-gpo119422/pdf/GOVPUB-W-PURL-gpo119422.pdf", "read": "2026-10-14" }]
+}

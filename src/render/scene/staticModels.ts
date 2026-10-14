@@ -22,7 +22,11 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
     tower: { url: staticModelUrl('building', 'tower') },
   },
   vehicle: {
+    'caterpillar-d7-3t': { url: staticModelUrl('vehicle', 'caterpillar-d7-3t') },
+    'gmc-cckw-353': { url: staticModelUrl('vehicle', 'gmc-cckw-353') },
     'm4-sherman': { url: staticModelUrl('vehicle', 'm4-sherman') },
+    'type38-75mm-field-gun': { url: staticModelUrl('vehicle', 'type38-75mm-field-gun') },
+    'type94-cargo-truck': { url: staticModelUrl('vehicle', 'type94-cargo-truck') },
     'type95-kurogane': { url: staticModelUrl('vehicle', 'type95-kurogane') },
     'type97-chi-ha': { url: staticModelUrl('vehicle', 'type97-chi-ha') },
     'willys-mb-jeep': { url: staticModelUrl('vehicle', 'willys-mb-jeep') },

@@ -1,0 +1,6 @@
+{
+  "id": "caterpillar-d7-3t", "output": "content/vehicles/caterpillar-d7-3t.glb",
+  "source": { "kind": "blender", "script": "tools/models/blender/f4-ground-assets.py", "dimensions": "4.08 x 2.45 x 1.90 m display envelope is an ESTIMATE around the wartime Caterpillar D7 3T identified by TM 9-1773C1; blade, track and body geometry are ESTIMATES, read 2026-10-14", "license": "AGPL-3.0-or-later" },
+  "keep": [{"node":"Body"},{"node":"TrackL"},{"node":"TrackR"},{"node":"BladeRaise"},{"node":"BladeTilt"},{"node":"Nose"}],
+  "skin": true, "textures": { "maxSize": 512, "format": "webp" }, "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+}

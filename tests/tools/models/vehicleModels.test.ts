@@ -20,9 +20,13 @@ const VEHICLE_BUDGET = { maxBytes: 1_000_000, maxTriangles: 20_000, maxDrawCalls
 interface Cited { readonly lengthM: number; readonly lengthTol: number; readonly widthM: number; readonly widthTol: number; readonly heightM: number; readonly heightTol: number; readonly source: string }
 /** Rulings V2, V4 and V6: tolerances are per cited row and preserve the authoritative fit axis. */
 const CITED: Readonly<Record<string, Cited>> = {
+  'caterpillar-d7-3t': { lengthM: 4.08, lengthTol: 0.02, widthM: 2.45, widthTol: 0.02, heightM: 1.90, heightTol: 0.08, source: 'TM 9-1773C1 identifies the wartime D7 3T family; displayed overall envelope is ESTIMATE, read 2026-10-14' },
+  'gmc-cckw-353': { lengthM: 6.86, lengthTol: 0.02, widthM: 2.24, widthTol: 0.02, heightM: 2.36, heightTol: 0.08, source: 'TM 10-1253 CCKW-353 working envelope, read 2026-10-14' },
   'm4-sherman': { lengthM: 5.8938, lengthTol: 0.01, widthM: 2.6162, widthTol: 0.02, heightM: 2.7432, heightTol: 0.02, source: "U.S. Army Standard Ordnance Items Catalog, Volume 1 (1944), Medium Tank M4 Series: length 19 ft 4 in, width 8 ft 7 in, height 9 ft, read 2026-10-11" },
   'type95-kurogane': { lengthM: 3.6, lengthTol: 0.01, widthM: 1.52, widthTol: 0.02, heightM: 1.68, heightTol: 0.02, source: "German Wikipedia article 'Typ 95 Aufklarungswagen': length 3.60 m, width 1.52 m, height 1.68 m, read 2026-10-11" },
   'type97-chi-ha': { lengthM: 5.5, lengthTol: 0.01, widthM: 2.33, widthTol: 0.06, heightM: 2.21, heightTol: 0.08, source: "English Wikipedia 'Type 97 Chi-Ha medium tank', infobox (Tomczyk 2007, p. 19): length 5.50 m, width 2.33 m, height 2.21 m, read 2026-09-27. The download measures +7.5% tall at the cited length, all of it in the turret node's top (R5 plan, V2)" },
+  'type38-75mm-field-gun': { lengthM: 5.63, lengthTol: 0.03, widthM: 2.10, widthTol: 0.03, heightM: 1.34, heightTol: 0.08, source: 'F3 approved Type 38 field-gun displayed envelope is ESTIMATE, read 2026-10-14' },
+  'type94-cargo-truck': { lengthM: 5.35, lengthTol: 0.02, widthM: 1.90, widthTol: 0.02, heightM: 2.25, heightTol: 0.08, source: 'F3 approved Type 94 cargo-truck displayed envelope is ESTIMATE, read 2026-10-14' },
   'willys-mb-jeep': { lengthM: 3.35, lengthTol: 0.04, widthM: 1.57, widthTol: 0.07, heightM: 1.32, heightTol: 0.08, source: "English Wikipedia 'Willys MB', infobox: length 132 in (3.35 m), width 62 in (1.57 m), height reducible to 52 in (1.32 m, top down); the article's 80 in (2.032 m) wheelbase is the fit (R5 plan, V4), read 2026-09-27. At that exact wheelbase fit the source model measures 1.670 m wide (+6.4%), so its measured row uses 7% (V6)" },
 }
 
@@ -31,6 +35,8 @@ const TURRETS: Readonly<Record<string, readonly string[]>> = { 'm4-sherman': ['T
 
 /** Each vehicle's own proof that its nose is at +x; a model turned 180° fails it. */
 const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail: string }>> = {
+  'caterpillar-d7-3t': (doc) => { const b = getBounds(findNode(doc, 'Nose')); return { ok: b.min[0] > 1, detail: `Nose x ${b.min[0].toFixed(3)}` } },
+  'gmc-cckw-353': (doc) => { const b = getBounds(findNode(doc, 'Nose')); return { ok: b.min[0] > 3, detail: `Nose x ${b.min[0].toFixed(3)}` } },
   // The 75 mm muzzle is drawn 2.68 m forward of mid-length (FM 30-40 three-view, re-read 2026-10-11).
   'm4-sherman': (doc) => {
     const b = getBounds(findNode(doc, 'Gun1'))
@@ -47,6 +53,8 @@ const FORWARD: Readonly<Record<string, (doc: Document) => { ok: boolean; detail:
     const b = getBounds(findNode(doc, 'Gun1'))
     return { ok: b.min[0] > 0.5, detail: `Gun1 x ${b.min[0].toFixed(3)}..${b.max[0].toFixed(3)}` }
   },
+  'type38-75mm-field-gun': (doc) => { const b = getBounds(findNode(doc, 'Nose')); return { ok: b.min[0] > 2.5, detail: `Nose x ${b.min[0].toFixed(3)}` } },
+  'type94-cargo-truck': (doc) => { const b = getBounds(findNode(doc, 'Nose')); return { ok: b.min[0] > 2, detail: `Nose x ${b.min[0].toFixed(3)}` } },
   // The spare tire rides on the rear panel, higher than any road wheel: the highest Tires vertex is aft.
   'willys-mb-jeep': (doc) => {
     const tires = meshNodes(doc).filter((n) => n.getMesh()!.listPrimitives().some((p) => p.getMaterial()?.getName() === 'Tires'))
