@@ -1403,6 +1403,22 @@ no roster bonus. Losing a senior pilot lowers future awards but never subtracts
 points already banked. The 100-point step is an initial balance value; simulations
 may tune its magnitude without changing those structural rules.
 
+Difficulty never multiplies destruction values. Instead, every badge-earning
+sortie receives a fixed completion bonus based on the difficulty selected and
+stored at launch:
+
+| Difficulty | Pilot and human-player completion bonus |
+|---|---:|
+| Recruit (`easy`) | 0 |
+| Veteran (`normal`) | 500 |
+| Ace (`hard`) | 1,000 |
+
+The bonus applies to campaign and in-campaign non-campaign sorties, including
+eligible repeats, and is paid to both ledgers. It stacks with an explicitly
+authored low-damage exception such as A4's 2,500-point PBY award. Changing a
+setting after launch cannot alter the bonus. Accessibility, control assists,
+graphics settings, and other non-difficulty preferences never change score.
+
 ### 8.3 Balancing work
 
 Simulate a reasonable campaign run, a run with one or two pilot losses, and
@@ -1411,7 +1427,6 @@ thresholds and mission score budgets create stakes without forcing repetitive
 grinding. Finalize:
 
 - any additional mission-specific completion bonuses
-- whether difficulty modifies points (working recommendation: no)
 - friendly-fire and deliberate-abandonment penalties
 
 ## 9. Bailout, capture, and rescue
@@ -1858,6 +1873,14 @@ other non-badge outcomes earn no roster bonus. Senior-pilot loss reduces future
 bonuses but does not remove banked points. Balance testing may tune the 100-point
 step while preserving this structure.
 
+#### Fixed graded difficulty completion bonus — decided 13 October 2026
+
+Destruction values are identical on every difficulty. A badge-earning sortie adds
+0 points on Recruit, 500 on Veteran, or 1,000 on Ace to both the assigned pilot
+and human-player ledgers. The launch-time difficulty fixes the award, which applies
+to eligible campaign and non-campaign repeats and stacks with an authored mission
+exception. Accessibility and control assists do not modify score.
+
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
 American and Japanese pilots advance through equivalent six-tier naval ladders
@@ -2027,8 +2050,7 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What difficulty treatment and friendly-fire/abandonment penalties produce
-    acceptable progression?
+1. What friendly-fire and abandonment penalties produce acceptable progression?
 
 ## 15. Proposed migration into the master plan
 
