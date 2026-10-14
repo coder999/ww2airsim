@@ -1233,7 +1233,21 @@ The current game awards destruction points only:
 It currently promotes one persistent pilot at 0 / 2,500 / 7,500 / 17,500 /
 35,000 / 60,000 points through Captain, then continues into flag ranks. Death,
 ditching, and landing all use a full 1.0 score multiplier. Those rules were built
-for resurrection and do not fit the new roster.
+for resurrection and do not fit the new roster. The campaign system replaces that
+curve with the following shared six-tier progression:
+
+| Tier | American rank | Japanese counterpart | Total pilot points |
+|---:|---|---|---:|
+| 1 | Ensign | Kaigun Shōi | 0 |
+| 2 | Lieutenant (junior grade) | Kaigun Chūi | 2,500 |
+| 3 | Lieutenant | Kaigun Taii | 7,500 |
+| 4 | Lieutenant Commander | Kaigun Shōsa | 15,000 |
+| 5 | Commander | Kaigun Chūsa | 25,000 |
+| 6 | Captain | Kaigun Taisa | 40,000 |
+
+American and Japanese pilots use identical point requirements and promotion
+mechanics. Only their displayed naval rank titles differ. There are no campaign
+pilot ranks above Captain.
 
 ### 8.1 Two score ledgers
 
@@ -1276,7 +1290,6 @@ two pilot losses, and side-mission recovery from a roster with only Ensigns.
 Choose promotion thresholds so rank gates create stakes without forcing repetitive
 grinding. Finalize:
 
-- points required for each pilot rank
 - points required for each player command rating
 - exact object, objective, survival, and recovery values
 - live-roster-rank bonus formula and when it is banked
@@ -1600,14 +1613,14 @@ The game deliberately uses only naval rank ladders, including for pilots flying
 aircraft that historically belonged to an army air service. Requirements are
 cumulative:
 
-| Tier | American rank | Japanese rank | Newly eligible mission class |
-|---:|---|---|---|
-| 1 | Ensign | Kaigun Shōi | Daytime, single-engine missions |
-| 2 | Lieutenant (junior grade) | Kaigun Chūi | Night missions |
-| 3 | Lieutenant | Kaigun Taii | Advanced aircraft |
-| 4 | Lieutenant Commander | Kaigun Shōsa | Bombsight and torpedosight |
-| 5 | Commander | Kaigun Chūsa | Leads coordinated operations containing multiple formations or aircraft types |
-| 6 | Captain | Kaigun Taisa | Eligible to fly the campaign finale |
+| Tier | American rank | Japanese rank | Total pilot points | Newly eligible mission class |
+|---:|---|---|---:|---|
+| 1 | Ensign | Kaigun Shōi | 0 | Daytime, single-engine missions |
+| 2 | Lieutenant (junior grade) | Kaigun Chūi | 2,500 | Night missions |
+| 3 | Lieutenant | Kaigun Taii | 7,500 | Advanced aircraft |
+| 4 | Lieutenant Commander | Kaigun Shōsa | 15,000 | Bombsight and torpedosight |
+| 5 | Commander | Kaigun Chūsa | 25,000 | Leads coordinated operations containing multiple formations or aircraft types |
+| 6 | Captain | Kaigun Taisa | 40,000 | Eligible to fly the campaign finale |
 
 "Advanced aircraft" is a curated eligibility category, not a synonym for
 multi-engine. The initial category is fixed as:
@@ -1660,6 +1673,15 @@ These are command appointments rather than a second set of pilot naval ranks. Th
 are prestige-only in the initial campaign and unlock no aircraft, missions,
 weapons, sights, or command abilities. Exact point thresholds remain part of the
 progression balance pass.
+
+#### Shared national pilot-promotion thresholds — decided 13 October 2026
+
+American and Japanese pilots advance through equivalent six-tier naval ladders
+at the same cumulative pilot-point thresholds: 0, 2,500, 7,500, 15,000, 25,000,
+and 40,000. The displayed ranks are Ensign through Captain for Americans and
+Kaigun Shōi through Kaigun Taisa for Japanese pilots. Captain is the highest
+campaign pilot rank; flag ranks from the current resurrection-era system do not
+carry into the campaign design.
 
 #### Faction-bound independent campaign careers — decided 13 October 2026
 
