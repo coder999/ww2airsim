@@ -607,7 +607,13 @@ Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is 
 - **Open:** damage, smoke and sinking were proven in the sim but not captured in the browser; a true
   neutral side (the cargo ship is "always a legal target" instead) is not built.
 
-**N2. Dev Flight Recorder (M; after F4, before campaign mission production).**
+**N2. Dev Flight Recorder (M; parallel with F4, before campaign mission production).**
+Mark approved the parallel start on 2026-10-14: F4 adds stable content ids and
+hashed content, while N2 builds asset-agnostic recording machinery around those
+ids and rejects mismatched builds/content. F4 remains the hard gate for campaign
+systems and mission production, not for recorder tooling. Design and execution:
+[`2026-10-14-n2-dev-flight-recorder-design.md`](docs/superpowers/specs/2026-10-14-n2-dev-flight-recorder-design.md),
+[`2026-10-14-n2-dev-flight-recorder.md`](docs/superpowers/plans/2026-10-14-n2-dev-flight-recorder.md).
 Build a Dev-only compact deterministic `.ww2flight` record rather than retaining
 full replay snapshots for an entire sortie. Record the initial world, exact build
 and content hashes, scenario/settings, fixed-tick applied controls, discrete
@@ -640,14 +646,13 @@ prerequisites are met.
 | 6 | ~~E2 attack AI; C2 bomb bays; E3 bombers and turrets~~ done; ~~F Escort~~ done 2026-10-10 (Kamikaze Watch is deferred) | Bays and bomber AI meet in Escort |
 | 7 | ~~D torpedoes (Avenger); M4 main batteries; F Surigao Strait~~ done by 2026-10-11; ~~K default renderer, L2 smooth shore, and L2 animated surf/shallow water~~ done; **open:** K's remaining visual steps | |
 | 8 | F3 campaign definition/source lock; ~~C3 four-family cockpit panels~~ done and merged 2026-10-12 | Freeze the twelve chapters and exact reusable inventory before producing content |
-| 9 | F4 reusable campaign assets and attended Hangar approvals | Mark's asset-first gate: no campaign system or mission scripting proceeds before the frozen individual models are approved |
-| 10 | N2 Dev Flight Recorder | Reproduction tooling lands before campaign test volume and state complexity grow |
-| 11 | F5 campaign foundation; F6 night operations; F7 bailout/POW/rescue | These share approved contracts but can proceed in separate worktrees after the asset gate |
-| 12 | F8 canonical Leyte campaign world | Persistent bases and site states consume the approved assets and foundation |
-| 13 | F9 in-engine campaign scenes | The scene framework consumes canonical locations and persistence but precedes chapter production |
-| 14 | F10 campaign mission production | Build and approve chapters against finished shared systems, sites and scene framework |
-| 15 | F11 campaign validation and release reconciliation | Full-career, loss, migration, night, deterministic, E2E and finale-performance gates |
-| 16 | G1 world abstraction; G2 Midway (adds SBD and TBD; B5N already ships) | Last, because it multiplies the content every earlier track has to support |
+| 9 | F4 reusable campaign assets and attended Hangar approvals; N2 Dev Flight Recorder in a parallel worktree | Asset production and asset-agnostic reproduction tooling do not block each other; both land before campaign systems grow the state space |
+| 10 | F5 campaign foundation; F6 night operations; F7 bailout/POW/rescue | These share approved contracts but proceed only after the F4 asset gate and N2 recorder foundation |
+| 11 | F8 canonical Leyte campaign world | Persistent bases and site states consume the approved assets and foundation |
+| 12 | F9 in-engine campaign scenes | The scene framework consumes canonical locations and persistence but precedes chapter production |
+| 13 | F10 campaign mission production | Build and approve chapters against finished shared systems, sites and scene framework |
+| 14 | F11 campaign validation and release reconciliation | Full-career, loss, migration, night, deterministic, E2E and finale-performance gates |
+| 15 | G1 world abstraction; G2 Midway (adds SBD and TBD; B5N already ships) | Last, because it multiplies the content every earlier track has to support |
 
 F3–F11 and N2 are expected to require roughly 10–16 execution plans; F3 must
 replace that estimate with a dependency-checked plan count after the mission and

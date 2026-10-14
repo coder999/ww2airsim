@@ -322,7 +322,7 @@ export type DebriefHandle = {
    * landing included, since spec §1 says the debrief gains this "rather than
    * only offering Restart," not as a landing-only substitute for Continue.
    */
-  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void, onWatchReplay?: () => void): void
+  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void, onWatchReplay?: () => void, onExportFlightRecord?: () => void): void
   hide(): void
 }
 
@@ -490,16 +490,27 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
     watchReplayAction(onWatchReplay)?.run()
   })
 
+  const exportFlight = document.createElement('button')
+  exportFlight.className = 'ink-button'
+  exportFlight.textContent = 'Export flight record'
+  let onExportFlightRecord: (() => void) | undefined
+  exportFlight.addEventListener('click', () => {
+    exportFlight.blur()
+    onExportFlightRecord?.()
+  })
+
   return {
     show(
       model: DebriefModel,
       continueHandler?: () => void,
       returnToTitleHandler?: () => void,
       watchReplayHandler?: () => void,
+      exportFlightRecordHandler?: () => void,
     ): void {
       onContinue = continueHandler
       onReturnToTitle = returnToTitleHandler
       onWatchReplay = watchReplayHandler
+      onExportFlightRecord = exportFlightRecordHandler
       panel.textContent = ''
 
       const sheet = document.createElement('div')
@@ -667,6 +678,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         buttons.appendChild(cont)
       }
       if (watchReplayAction(onWatchReplay) !== null) buttons.appendChild(watchReplay)
+      if (onExportFlightRecord !== undefined) buttons.appendChild(exportFlight)
       buttons.append(restart, returnToTitle)
       sheet.appendChild(buttons)
 
