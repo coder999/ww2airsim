@@ -886,43 +886,449 @@ importance—surrounded by batched or instanced decorative clutter. Destroying a
 functional fuel farm or radio station matters; every tent and crate does not need
 individual hit points.
 
-## 5. Other enabling objects and mechanics
+## 5. Enabling content and mission reconciliation
 
-These are not base-layout requirements, but the proposed missions expose them:
+Before implementation, reconcile the six-versus-six candidate list into exact
+mission definitions. For each chapter, freeze the date and historical label,
+player aircraft and minimum pilot rank, start and recovery point, objective graph,
+friendly and enemy order of battle, first-action time budget, base state, weather
+and time of day, briefing blurb, and cutscene needs.
+
+The missions expose the following shared content and mechanics:
 
 - moving road columns with route following, spacing, stopping/scattering behavior,
   and mission-visible survival counts
-- truck, artillery, and command-vehicle objects beyond the existing tank, jeep/car
-  types
+- truck, artillery, and command-vehicle objects beyond the existing tank and
+  jeep/car types
 - survivor/raft pickup state and Catalina rescue dwell logic
 - onboard a player-flyable Mitsubishi Ki-57 "Topsy" through the same sourced
   aircraft-specification and deterministic Blender pipeline used for the other
   fleet aircraft; enroll it in the Library/Hangar, expose relevant transport/drop
   articulation on the test bench, and require attended visual approval before
-  mission work depends on it. Use it for a Japanese paratroop-drop mission tied to
-  Operation Te-Go. This does **not** increase the Japanese campaign's mission
-  count: during final mission reconciliation, replace or consolidate one existing
-  Japanese candidate so the American and Japanese campaigns contain the same
-  number of missions.
+  mission work depends on it
+- use the Ki-57 for a Japanese paratroop-drop mission tied to Operation Te-Go,
+  but do **not** increase the Japanese campaign's chapter count; replace or
+  consolidate one Japanese candidate so both campaigns remain the same length
 - landing craft and a seaplane tender/rescue launch if they are to be more than
   distant scenery
 - staged formation waves so the finales feel large without keeping every aircraft
   in the expensive active-combat set for the entire mission
 - campaign-owned persistent site state: owner, readiness, construction phase, and
   destroyed structure ids, all applied to one canonical layout per site
-- night operations, which are not supported by the current morning/noon/dusk
-  environment set: add a true night time state and establish readable night sky,
-  terrain/water, aircraft, cockpit, runway/deck, navigation, tracer, fire, and
-  target lighting; reconcile exposure and AI/target visibility; and add visual,
-  mission, and automated-test checkpoints. The final mission set must contain at
-  least one American and one Japanese night campaign mission so the Lieutenant
-  (junior grade) rank gate has authored campaign content. Either night mission may
-  adapt an otherwise approved campaign candidate rather than add another chapter;
-  choose the candidates during the final historical and mission-flow pass.
 
-## 6. Decision log for the eventual design spec
+The asset-first gate in section 13 remains controlling: reconcile this list, build
+and approve every needed reusable Blender asset in the Hangar, and only then make
+campaign missions depend on those assets.
 
-### 6.1 Decided
+## 6. Night operations
+
+Night must be a distinct gameplay condition, not the current dusk palette with a
+later clock value and not near-black imagery that forces the player to fly blind.
+
+### 6.1 Visual target
+
+- Preserve a low moonlight/starlight floor so the horizon, large terrain masses,
+  ocean, cloud silhouettes, and nearby aircraft remain legible after the player's
+  eyes adapt.
+- Add moon and star presentation, night sky and haze colors, water reflections,
+  night exposure/adaptation, and cockpit instrument lighting.
+- Fire, explosions, tracers, searchlights, flares, and lit structures must cast or
+  contribute local light rather than merely use bright unlit textures.
+- Cloud cover and moon phase may change visibility, but the authored campaign
+  conditions must remain playable at the supported graphics settings.
+- Define visual checkpoints from cockpit, external, runway, carrier-deck, target,
+  and cloud-above/cloud-below views before building the night missions.
+
+### 6.2 Aircraft lighting
+
+Treat these aircraft as wartime aircraft, not cars with forward headlights:
+
+- aircraft may have airframe-specific landing lights, navigation lights, and
+  formation lights where historical references support them
+- landing lights illuminate only a relatively short approach/taxi region and make
+  the aircraft easier for enemies to see; they should normally be used late in an
+  approach, not throughout a combat sortie
+- navigation/formation lights need pilot controls and mission/AI policy, including
+  blackout conditions
+- cockpit gauges and placards need dimmable red/amber illumination without washing
+  out the outside view
+- the aircraft data model should declare which lights exist rather than giving
+  every model an invented universal light set
+
+### 6.3 Runway, ship, and target lighting
+
+- Airfields need period-appropriate runway-edge or flare-path lights, threshold
+  cues, a windsock/operations-area light, and a way for the mission to switch them
+  on briefly for takeoff or recovery.
+- Carriers need restrained deck-edge/recovery cues and signal lighting. Combat
+  ships and convoys should normally be darkened under threat; they should not sail
+  around as brightly illuminated modern cruise ships.
+- Ports and bases may expose blackout-controlled windows, fires, signal lamps,
+  vehicle lights, and searchlights when the mission calls for them.
+- Lighting state must affect detection and tactics: a lit runway helps the player
+  land but also identifies the field; a flare reveals the target and nearby
+  aircraft to both sides.
+
+### 6.4 Flares and navigation aids
+
+Aircraft-dropped illumination flares are historically credible and useful
+gameplay. A wartime U.S. Navy
+[anti-submarine and convoy escort manual](https://www.ibiblio.org/hyperwar/USN/ref/ASW-Convoy/ASW-Convoy-2.html)
+describes parachute-flare attacks and specifically includes TBF and PBY release
+procedures. The campaign can therefore stage an escort or lead aircraft dropping a
+flare over the target, followed by a timed attack window. The shared flare asset
+needs a descending canopy, delayed ignition, finite burn, drifting light volume,
+smoke, and an AI/mission trigger.
+
+Do not add a lighthouse merely because a modern light exists. A
+[1940 U.S. Coast Pilot](https://books.google.com/books?id=GsRBAAAAIAAJ)
+contains a Leyte section, and a
+[1944 Fifth Air Force navigation chart](https://www.awm.gov.au/collection/LIB100022056)
+explicitly marks marine lights. Use those and wartime light lists/charts to verify
+which aids were present and operating inside the playable footprint. Ormoc port
+and the San Juanico/Tacloban approaches are research candidates; an unverified
+modern beacon is not.
+
+### 6.5 Night mission requirement
+
+The final campaign set must contain at least one American and one Japanese night
+chapter so the Lieutenant (junior grade) rank gate has authored campaign content.
+Adapt or replace an existing candidate rather than increasing either campaign's
+chapter count. Prefer at least one single-engine night mission so the night unlock
+is not silently superseded by the higher Lieutenant requirement for multi-engine
+aircraft. Select the two chapters during final mission reconciliation; do not
+change a historical daylight action into night without relabeling it as a
+composite or replacing it with a better-supported action.
+
+Night implementation also requires:
+
+- AI visual detection ranges and identification behavior based on ambient light,
+  silhouettes, clouds, fires, tracers, searchlights, and aircraft lights
+- player target markers/mission cues that guide without turning night into a HUD
+  shooting gallery
+- night takeoff, approach, carrier recovery, AAA, formation, and objective tests
+- explicit performance budgets for local lights, shadows, flares, and tracers
+
+## 7. Campaign headquarters, player identity, and sortie flow
+
+### 7.1 Human player profile
+
+On first use, the player enters a human-player name. That profile persists across
+pilot deaths and owns:
+
+- American and Japanese campaign progress
+- cumulative player points and prestige/command rating
+- mission badges and campaign victory records
+- aggregate kills, losses, rescues, captures, and completed sorties
+- separate American and Japanese live-pilot rosters and archived pilot records
+
+The player needs a dossier distinct from every pilot dossier. It should show both
+campaigns, cumulative score, command rating, badges, aggregate statistics, living
+roster strength, and a chronological campaign log.
+
+The exact player command-title ladder is not yet decided. The working
+recommendation is to use **command appointments**, not a second set of pilot naval
+ranks, so the interface never implies that the persistent player personally
+survived every sortie. A possible five-step prestige ladder is:
+
+1. Squadron Commander
+2. Air Group Commander
+3. Wing Commander
+4. Task Force Air Commander
+5. Fleet Air Commander
+
+"Field Commander" is a land-force term and is a poor fit for this naval-air
+metagame. These titles are prestige only in the initial campaign; they must not
+unlock combat capability. Their wording, side-specific presentation, and point
+thresholds require a later approval.
+
+### 7.2 Headquarters and mission-first selection
+
+The opening campaign screen should still feel like a roster/headquarters desk, but
+the pilot rows no longer contain **New mission** buttons. The primary action is
+**Choose mission**:
+
+1. Choose American or Japanese campaign, Side Missions, Single Missions, or
+   Training.
+2. Choose the mission. The card shows its story position, objective, aircraft,
+   time/weather, minimum pilot rank, locked/unlocked reason, and expected first
+   action time.
+3. Assign a living pilot. Ineligible pilots remain visible but disabled with the
+   exact missing-rank explanation.
+4. Confirm aircraft/loadout and any choices the authored mission permits.
+5. View the briefing and launch.
+
+This order lets the player discover the requirement before choosing a pilot and
+gracefully explains when no living pilot is eligible. It also avoids the current
+failure mode of selecting a pilot, traversing several forms, and only later
+discovering that the intended mission cannot be flown.
+
+Campaign missions should normally own their date, time of day, weather range,
+aircraft choices, and loadout limits. Single Missions and Training may retain more
+of the current free-form conditions/aircraft/ordnance flow.
+
+### 7.3 Pilot roster lifecycle
+
+The working roster size is **five living pilots per side**. Five is large enough
+to preserve senior pilots and make losses matter, but small enough that every
+record remains recognizable. Confirm this during progression simulation before it
+becomes final.
+
+- A new side campaign starts with five generated Ensign/Kaigun Shōi pilots.
+- A killed or captured pilot leaves the live roster permanently and remains in
+  the archive with a closed dossier and final result.
+- On return to headquarters, each vacancy is filled automatically by a newly
+  generated entry-rank pilot. The live roster therefore returns to five before
+  the next sortie selection.
+- A replacement does not inherit points, rank, badges, or statistics.
+- Discharged pilots follow the same vacancy rule but keep a distinct archived
+  status.
+- American and Japanese rosters are separate. The persistent human player profile
+  is shared.
+
+If a future prisoner-rescue mission returns a captured pilot after a replacement
+has filled the slot, that pilot should enter a reserve/archive-ready state rather
+than silently expand the five-pilot active roster. Prisoner recovery is not
+required for the initial campaign.
+
+### 7.4 Generated pilot names
+
+Maintain curated, source-reviewed data sets rather than procedurally inventing
+syllables:
+
+- American given names, family names, and rare optional suffixes
+  (`Jr.`, `II`, `III`, `IV`; use `Sr.` only if the design deliberately
+  represents the matching family relationship)
+- Japanese family names and given names stored separately, displayed family-name
+  first, with approved romanization and optional kanji for dossiers
+- a deterministic seeded draw, duplicate prevention within the active and archived
+  campaign roster, and tests for formatting and exhausted pools
+
+Japanese names should not receive Western `Jr./Sr./II/III/IV` suffixes.
+Japanese honorific suffixes are forms of address, not generational name suffixes.
+The [Embassy of Japan naming guide](https://www.az.emb-japan.go.jp/files/000180840.pdf)
+is a useful convention reference.
+
+For the American pool, "era-appropriate diversity" requires a documented content
+pass rather than modern census percentages or stereotyped name buckets. Build the
+pool from period officer, unit, casualty, and muster sources—starting with the
+[National Archives' World War II records](https://www.archives.gov/research/military/ww2)
+and Navy personnel holdings—then separately decide how strictly the game should
+mirror the exclusions and segregation of the 1944 services. Do not attach an
+ethnicity field or gameplay effect to a name.
+
+## 8. Scoring, pilot promotion, and player prestige
+
+The current game awards destruction points only:
+
+| Target | Current points |
+|---|---:|
+| Fighter | 500 |
+| Bomber | 750 |
+| Cruiser | 1,500 |
+| Battleship | 3,000 |
+| Destroyer | 750 |
+| Transport | 400 |
+| AAA battery | 250 |
+| Runway | 500 |
+| Building | 150 |
+| Tank | 300 |
+| Carrier | 5,000 |
+
+It currently promotes one persistent pilot at 0 / 2,500 / 7,500 / 17,500 /
+35,000 / 60,000 points through Captain, then continues into flag ranks. Death,
+ditching, and landing all use a full 1.0 score multiplier. Those rules were built
+for resurrection and do not fit the new roster.
+
+### 8.1 Two score ledgers
+
+- **Pilot sortie/career points** belong to the assigned pilot and determine the
+  six approved pilot ranks. A living or rescued pilot can be promoted at debrief.
+  A killed or captured pilot's final points remain in the archived dossier but can
+  no longer produce a live-roster promotion.
+- **Human-player points** persist across every pilot and both campaign rosters.
+  They drive the prestige/command rating and absorb the agreed live-roster-rank
+  bonus.
+
+One event can feed both ledgers, but the formulas must be explicit and tested.
+The player ledger must not let farming a single easy side mission dominate campaign
+progress or prestige.
+
+### 8.2 Reward more than destruction
+
+Campaign play includes rescue, escort, protection, reconnaissance, formation
+leadership, and safe recovery. A destruction-only table would make the intended
+way to play several missions score worse than abandoning the objective to chase
+kills. The balance pass therefore needs:
+
+- target values reconciled against time-to-kill and mission availability
+- primary and secondary objective awards
+- protected-friendly/survivor awards for escort and rescue missions
+- safe landing or authored safe-egress awards
+- penalties or forfeiture for friendly fire and deliberate abandonment
+- no points merely for spawning, repeating a checkpoint, or destroying a
+  practice target
+
+Badges remain stricter than points. Completing objectives and then bailing out,
+ditching, being rescued, or reaching an egress without returning the aircraft may
+earn points but not the mission badge unless a particular authored mission
+explicitly defines safe egress as its proper recovery.
+
+### 8.3 Balancing work
+
+Before fixing thresholds, simulate a reasonable campaign run, a run with one or
+two pilot losses, and side-mission recovery from a roster with only Ensigns.
+Choose promotion thresholds so rank gates create stakes without forcing repetitive
+grinding. Finalize:
+
+- points required for each pilot rank
+- points required for each player command rating
+- exact object, objective, survival, and recovery values
+- live-roster-rank bonus formula and when it is banked
+- whether difficulty modifies points (working recommendation: no)
+
+## 9. Bailout, capture, and rescue
+
+Use **bailout**, not ejection: these aircraft do not have modern ejection seats.
+The player must deliberately leave a still-airborne aircraft, clear the airframe,
+and descend under a parachute. This adds a fourth recovery family alongside
+landing, ditching, and death.
+
+### 9.1 Outcome model
+
+A bailout can resolve as:
+
+- **rescued** — pilot returns to the live roster, keeps sortie points, may be
+  promoted, but receives no mission badge because the aircraft was not returned
+- **captured/POW** — pilot is removed from the live roster and archived as POW;
+  the human player keeps the sortie's player-level points
+- **killed/missing** — bailout failed because of altitude, impact, fire, terrain,
+  water conditions, or failed recovery
+
+The odds should be based on understandable world state, not a hidden coin flip
+alone:
+
+- distance to the nearest friendly and enemy airfield, ship, and controlled site
+- which side controls the terrain/water region
+- friendly rescue craft or search aircraft present in the mission
+- enemy ground/ship presence near the landing point
+- whether the pilot lands on land or water
+
+The debrief should show the factors and result. A small seeded random component may
+prevent certainty, but proximity and control must dominate so the player's choice
+matters. The campaign needs a clear bailout command, safety constraints, and
+feedback when escape is impossible or too late.
+
+### 9.2 Shared parachute asset
+
+Build one approved parachute canopy, harness, and suspended-person rig that can
+serve:
+
+- the player's bailout sequence
+- downed AI aircrew where performance permits
+- the Japanese Ki-57 paratrooper mission
+
+The paratrooper mission still needs formation exit, multiple descending entities,
+drop-zone objectives, landing/dispersal behavior, and performance controls; asset
+reuse does not make those mechanics free.
+
+### 9.3 System changes implied
+
+- new pilot-aircraft separation and bailout state in the simulation
+- parachute descent, drift, ground/water contact, and visual entity lifecycle
+- a recovery/capture resolver using scenario ownership and mobile ships
+- new mission recovery results, debrief language, dossier statuses, scoring, and
+  campaign replacement behavior
+- AI and mission hooks for rescue patrols, prisoner recovery, and paratroop drops
+- automated tests for impossible/low-altitude bailout, friendly rescue, capture,
+  water landing, roster replacement, scoring, and badge denial
+
+## 10. In-engine campaign cutscenes
+
+Campaign chapters may open or close with short authored scenes rendered in the
+real game world. These are not prerendered movies:
+
+- use canonical bases, approved aircraft/vehicles/ships, real weather/lighting,
+  scripted entity motion, radio/text, and authored camera paths
+- keep ordinary scenes roughly 10–30 seconds and always skippable
+- avoid delaying the 5–7 minute time-to-action budget; a skipped cutscene launches
+  immediately
+- use end scenes only after the game has safely banked the result
+- provide distinct American and Japanese campaign-victory scenes
+- make the alternate-history Japanese victory framing explicit
+
+There is no current cutscene framework. The instant-replay camera and deterministic
+world snapshots may supply reusable camera/interpolation ideas, but campaign
+timelines, scripted actions, skip/restore behavior, subtitles, audio policy, and
+tests are new work. Each mission definition should state whether it needs no
+scene, an opening scene, an ending scene, or the campaign victory scene before
+asset production is frozen.
+
+## 11. Persistence and mid-flight saves
+
+### 11.1 Required campaign persistence
+
+The headquarters state must autosave after every banked debrief and roster change:
+player profile, both campaign branches, unlocked chapter, canonical site state,
+live and archived pilots, scores, badges, and settings. Use a versioned schema and
+migration from the current `ww2airsim.roster.v1` data. Expose import/export in
+the UI so browser storage loss does not erase a long campaign.
+
+### 11.2 Mid-flight save assessment
+
+Mid-flight save/resume is feasible in principle but is a high-complexity feature,
+not a small extension of roster persistence. The core `World` is designed as
+plain cloneable state, but a complete resume also has to restore typed terrain
+arrays and sets, mission and AI state, control/assist memory, projectile/damage
+state, renderer effects, audio edge memory, replay recording, UI/debrief flow,
+input latches, clocks, asset identity, and schema compatibility across releases.
+A partial snapshot could resume into a visually or behaviorally different flight.
+
+**Working recommendation:** defer mid-flight saves for the initial campaign.
+Campaign and roster progress autosave between sorties; a flight in progress must
+be completed, abandoned, or restarted. The short mission and 5–7 minute
+time-to-action goals make that acceptable and let implementation effort go to
+campaign content.
+
+If this is revisited, use one **Suspend sortie** slot rather than unrestricted
+save/load. The player would not be forced to finish it before doing anything else,
+but starting another sortie in that same campaign would require explicitly
+abandoning the suspension. That prevents ambiguous parallel campaign states while
+avoiding a hard lock.
+
+## 12. Current-code reality check
+
+The code review behind this brainstorm found:
+
+- the title screen is pilot-first: each manually created pilot row has
+  **New game**, followed by Flight Type, Sortie Orders, Conditions, Aircraft, and
+  Ordnance forms
+- the roster permits unlimited manually named pilots and resurrects a dead pilot
+  when that pilot starts another sortie
+- one pilot record currently owns cumulative score/rank, badges, kills, status,
+  resurrection count, and career log in `localStorage`
+- the only recovery outcomes are `landed`, `ditched`, and `killed`; no
+  bailout, parachute, POW, or rescue system exists
+- scoring already has the target table in section 8, but no general objective
+  point system
+- time-of-day content exposes Morning, Midday, and Dusk only; the sun/exposure and
+  sky code intentionally clamp to a readable twilight floor because true night
+  lighting does not exist
+- the base scene uses sun and hemisphere lighting; there is no general local-light
+  system for runway lights, ship lights, landing lights, or flares
+- there is no campaign cutscene system
+- the simulation world is deliberately close to a complete deterministic flight
+  snapshot, which helps a future save system, but renderer/audio/replay/UI state
+  lives outside it and some world fields do not round-trip through plain JSON
+
+These are replacement-sized changes to the metagame and frontend, not additions to
+the current roster screen. The later `GAMEPLAY.md` rewrite must remove
+resurrection and document the new player profile, roster lifecycle, mission-first
+flow, scoring, bailout results, night behavior, and campaign persistence.
+
+## 13. Decision log for the eventual design spec
+
+### 13.1 Decided
 
 #### Asset-first implementation gate — decided 13 October 2026
 
@@ -1008,16 +1414,90 @@ not part of the initial campaign design. The initial progression must be balance
 around earning every promotion through play and must not manufacture grind in
 anticipation of monetization.
 
-### 6.2 Open questions
+### 13.2 Open questions
+
+#### Campaign and mission content
 
 1. Must every primary objective succeed before the next chapter unlocks, or may a
    failed result advance into a less favorable authored state?
-2. Is the Catalina rescue a required pacing chapter or an optional sortie?
-3. Should carrier and airfield landings remain mandatory for campaign credit, or
+2. Which American and Japanese candidates become the required night chapters?
+3. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
+   chapter so the two campaigns remain equal in length?
+4. Is the Catalina rescue a required pacing chapter or an optional sortie?
+5. Should carrier and airfield landings remain mandatory for campaign credit, or
    should a safe egress complete missions whose historical home base is outside the
    playable world?
-4. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+6. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-5. Does the campaign stop after 7 December, or later extend through the capture of
+7. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
+8. Which chapters need opening/ending scenes, and what happens in each victory
+   scene?
+
+#### Player, roster, and progression
+
+9. Confirm five living pilots per side, or choose another fixed roster size.
+10. Approve or replace the proposed player command-title ladder.
+11. Are the human-player profile and points shared across both national campaigns,
+    as recommended, or does each side have a separate player record?
+12. What exact pilot-rank, player-rating, target, objective, recovery, and
+    live-roster-bonus values produce acceptable progression without grind?
+13. Does a captured pilot remain permanently archived in the initial campaign, or
+    can authored rescue/exchange events return one?
+14. How strictly should the American name pool mirror the historical demographic
+    restrictions of the 1944 services?
+
+#### Night, recovery, and persistence
+
+15. Which aircraft receive landing, navigation, and formation lights after the
+    airframe source pass?
+16. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+    verified inside the playable footprint?
+17. Should rescue/capture be fully deterministic from world control and proximity,
+    or include a small visible seeded chance?
+18. Is the working decision to defer mid-flight saves approved?
+
+## 14. Proposed migration into the master plan
+
+Do not copy this brainstorm wholesale into `MASTER_PLAN.md`. After the open
+questions above are answered, turn the approved portions into bounded tracks with
+acceptance gates:
+
+1. **Campaign definition and source lock:** final six-versus-six mission matrix,
+   historical labels, night chapters, rank gates, orders of battle, time budgets,
+   site states, cutscene inventory, and one frozen reusable-asset inventory.
+2. **Reusable asset production:** source, build, Library/Hangar-enroll, inspect,
+   and attend-approve every required Blender asset, including Ki-57, parachute rig,
+   vehicles, structures, and mission objects.
+3. **Player profile and campaign persistence:** versioned player/campaign schema,
+   migration from the old roster, fixed side rosters, archive/replacement rules,
+   generated names, dossier screens, import/export, and autosave.
+4. **Mission-first headquarters UI:** campaign/side/single/training selection,
+   mission cards and locks, pilot assignment, authored conditions/loadout, and
+   launch flow.
+5. **Scoring and progression:** two score ledgers, objective rewards, target
+   values, six pilot ranks, player prestige ratings, roster bonus, balance
+   simulations, and anti-grind tests.
+6. **Night rendering and gameplay:** sky/exposure, moon/stars, local lights,
+   aircraft/cockpit/runway/deck lighting, flares, visibility/AI, performance, and
+   visual approval.
+7. **Bailout, POW, and rescue:** simulation, parachute visuals, outcome resolver,
+   debrief/roster integration, and shared paratrooper foundations.
+8. **Canonical campaign world:** persistent base/port/beachhead layouts,
+   construction/ownership/damage states, scenery, and attended visual approval.
+9. **Cutscene framework:** authored camera/timeline actions, subtitles/radio,
+   skip behavior, bank-before-scene safety, and victory sequences.
+10. **Campaign mission production:** implement and approve chapters in sequence,
+    enforcing the 5–7 minute action cap and staged-finale performance budget.
+11. **Campaign validation and release:** full progression/loss/replacement runs,
+    night accessibility, save migration, deterministic tests, browser/E2E coverage,
+    balance review, and final `GAMEPLAY.md` reconciliation.
+
+The corresponding `GAMEPLAY.md` rewrite should replace, rather than layer on top
+of, the current resurrection-era sections for Roster, Rank, Starting a flight,
+Scoring, Badges, and Persistence. It also needs new authoritative sections for
+Campaign structure, Player profile, Pilot loss/replacement, Bailout/POW/rescue,
+Night operations, mission-first selection, cutscenes, and campaign autosave. Keep
+Single Missions and Training behavior explicitly separate wherever they retain
+the current free-form setup.
 
