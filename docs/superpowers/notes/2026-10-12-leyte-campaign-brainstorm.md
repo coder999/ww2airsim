@@ -1294,11 +1294,12 @@ state, renderer effects, audio edge memory, replay recording, UI/debrief flow,
 input latches, clocks, asset identity, and schema compatibility across releases.
 A partial snapshot could resume into a visually or behaviorally different flight.
 
-**Working recommendation:** defer mid-flight saves for the initial campaign.
-Campaign and roster progress autosave between sorties; a flight in progress must
-be completed, abandoned, or restarted. The short mission and 5–7 minute
-time-to-action goals make that acceptable and let implementation effort go to
-campaign content.
+**Decision:** defer mid-flight save/resume from the initial campaign. Campaign and
+roster progress autosave between sorties; a flight in progress must be completed,
+abandoned, or restarted. The short mission and 5–7 minute time-to-action goals make
+that acceptable and let implementation effort go to campaign content. The Dev
+Flight Recorder remains required diagnostic tooling, but its recordings and
+compressed keyframes are not player save slots and cannot resume campaign play.
 
 If this is revisited, use one **Suspend sortie** slot rather than unrestricted
 save/load. The player would not be forced to finish it before doing anything else,
@@ -1546,6 +1547,15 @@ and roster-strength bonuses do not cross between American and Japanese campaigns
 Only non-progression conveniences such as app settings or a remembered player name
 may be shared.
 
+#### Mid-flight saves deferred — decided 13 October 2026
+
+The initial campaign will not support saving or resuming a sortie in progress. It
+will autosave durable campaign and roster state between sorties; an active sortie
+must be completed, abandoned, or restarted. The Dev Flight Recorder remains in
+scope as development-only reproduction and playback tooling, not as a player-facing
+save system. A single suspend-sortie slot may be reconsidered after the campaign is
+complete and stable.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
@@ -1575,7 +1585,7 @@ may be shared.
 11. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
-#### Night, recovery, and persistence
+#### Night and recovery
 
 12. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
@@ -1583,7 +1593,6 @@ may be shared.
     verified inside the playable footprint?
 14. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
-15. Is the working decision to defer mid-flight saves approved?
 
 ## 15. Proposed migration into the master plan
 
