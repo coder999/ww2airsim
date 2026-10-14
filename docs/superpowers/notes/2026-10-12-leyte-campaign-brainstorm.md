@@ -1070,14 +1070,32 @@ flare over the target, followed by a timed attack window. The shared flare asset
 needs a descending canopy, delayed ignition, finite burn, drifting light volume,
 smoke, and an AI/mission trigger.
 
-Do not add a lighthouse merely because a modern light exists. A
-[1940 U.S. Coast Pilot](https://books.google.com/books?id=GsRBAAAAIAAJ)
-contains a Leyte section, and a
+Do not add a lighthouse merely because a modern light exists. The approved
+initial roster is deliberately narrow:
+
+- **Tacloban harbor:** the prewar
+  [U.S. Coast Pilot](https://upload.wikimedia.org/wikipedia/commons/3/39/United_States_coast_pilot%2C_Philippine_Islands_%28IA_cu31924007510633%29.pdf)
+  documents a fixed red light near Panirugan Point as well as the harbor approach
+  and buoys. Model the fixture, but let occupation, blackout, damage, and mission
+  state determine whether it is illuminated.
+- **Dinagat and Homonhon:** the official Army history
+  [*Leyte: The Return to the Philippines*](https://history.army.mil/portals/143/Images/Publications/catalog/5-9.pdf)
+  records temporary steady-white navigation lights installed by the 6th Rangers
+  on 17–18 October 1944, with reported visibility of approximately twelve and ten
+  miles. They may appear in the invasion opening and early campaign state.
+- **Suluan:** the same history records its existing lighthouse as damaged by naval
+  bombardment. It may appear as damaged scenery, not a dependable operating aid.
+- **Ormoc:** a historical
+  [Notice to Mariners](https://www.jacar.archives.go.jp/acv/contents/pub/pdf/B11/B11092933500.b3_0098.3-2198.00000139.pdf)
+  documents a fixed red light at the customs building. Include it only if the
+  final source pass confirms that the fixture still existed in 1944; its wartime
+  illumination remains mission-controlled.
+
+Airfields use temporary portable lamps or flare paths, while the San Pedro Bay
+seaplane anchorage uses tender, ship, flare, and signal lights. No other permanent
+lighthouse or beacon enters the campaign without equivalent wartime evidence. A
 [1944 Fifth Air Force navigation chart](https://www.awm.gov.au/collection/LIB100022056)
-explicitly marks marine lights. Use those and wartime light lists/charts to verify
-which aids were present and operating inside the playable footprint. Ormoc port
-and the San Juanico/Tacloban approaches are research candidates; an unverified
-modern beacon is not.
+that marks marine lights is a cross-check for the final placement pass.
 
 ### 6.5 Night mission requirement
 
@@ -1737,6 +1755,15 @@ blackout conditions. AI may receive invisible formation assistance, and the exac
 fixture inventory and placement are approved during the source pass before an
 airframe is modified in Blender.
 
+#### Wartime navigation-light roster — decided 13 October 2026
+
+The initial world may use Tacloban's blackout-controlled harbor light, the
+temporary Dinagat and Homonhon invasion navigation lights, and the bomb-damaged
+Suluan lighthouse. Ormoc's customs-building red light remains conditional on a
+final 1944 existence check. Runways and the San Pedro Bay seaplane anchorage use
+temporary mission-controlled lights rather than invented permanent beacons. No
+modern light is sufficient evidence by itself.
+
 #### Faction-bound independent campaign careers — decided 13 October 2026
 
 The player chooses American or Japanese when creating a campaign, and that choice
@@ -1856,9 +1883,7 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Night and recovery
 
-2. Which wartime lighthouse, port light, beacon, or flare-path locations can be
-    verified inside the playable footprint?
-3. Should rescue/capture be fully deterministic from world control and proximity,
+2. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
