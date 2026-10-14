@@ -16,7 +16,7 @@ export interface HangarPanel {
   readonly detail: HTMLElement
 }
 
-const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', vehicle: 'Vehicles', ordnance: 'Ordnance' }
+const KIND_LABEL: Readonly<Record<string, string>> = { all: 'All', aircraft: 'Aircraft', ship: 'Ships', building: 'Buildings', vehicle: 'Vehicles', equipment: 'Equipment', ordnance: 'Ordnance' }
 const SIDE_LABEL: Readonly<Record<string, string>> = { all: 'Both sides', allied: 'Allied', japanese: 'Japanese' }
 const ORIGIN_LABEL: Readonly<Record<string, string>> = { all: 'All origins', internal: 'Internal', external: 'External' }
 
