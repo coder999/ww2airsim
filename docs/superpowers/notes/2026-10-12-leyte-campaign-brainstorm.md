@@ -895,8 +895,15 @@ These are not base-layout requirements, but the proposed missions expose them:
 - truck, artillery, and command-vehicle objects beyond the existing tank, jeep/car
   types
 - survivor/raft pickup state and Catalina rescue dwell logic
-- a Japanese Ki-57 transport or another honestly labeled transport model for the
-  finale
+- onboard a player-flyable Mitsubishi Ki-57 "Topsy" through the same sourced
+  aircraft-specification and deterministic Blender pipeline used for the other
+  fleet aircraft; enroll it in the Library/Hangar, expose relevant transport/drop
+  articulation on the test bench, and require attended visual approval before
+  mission work depends on it. Use it for a Japanese paratroop-drop mission tied to
+  Operation Te-Go. This does **not** increase the Japanese campaign's mission
+  count: during final mission reconciliation, replace or consolidate one existing
+  Japanese candidate so the American and Japanese campaigns contain the same
+  number of missions.
 - landing craft and a seaplane tender/rescue launch if they are to be more than
   distant scenery
 - staged formation waves so the finales feel large without keeping every aircraft
