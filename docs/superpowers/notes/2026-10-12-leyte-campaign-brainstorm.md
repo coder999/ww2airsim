@@ -111,6 +111,20 @@ swarm pass alone is insufficient. If the authored scene misses the budget, optim
 or restage it; do not silently lower visual settings or ship/aircraft counts without
 a new design decision.
 
+### 1.6 Initial campaign endpoint
+
+Both initial six-chapter campaigns end with the 6–7 December Battle for the
+Airfields / Operation Te-Go finale. Their victory scenes and epilogues summarize
+what follows: the historical consolidation of the American position, or the
+Japanese alternate-history isolation and evacuation of the American beachhead.
+They do not add playable post-finale chapters.
+
+Ormoc and Tanauan remain required canonical locations with their historically
+appropriate construction, ownership, and damage states. In the initial campaign
+they support scenery, objectives, briefings, and epilogue continuity rather than a
+later playable chapter. A future expansion may continue either campaign beyond 7
+December without changing the initial victory condition.
+
 ## 2. American campaign candidates
 
 The six missions below deliberately alternate air defense, anti-shipping, ground
@@ -1700,32 +1714,39 @@ the reference hardware while cockpit, clouds, terrain, vehicles, weapons, fires,
 damage effects, and mission logic are active. Any count reduction requires a later
 explicit design decision.
 
+#### Initial campaigns end on 7 December — decided 13 October 2026
+
+The initial American and Japanese campaigns each end with their 6–7 December
+sixth-chapter finale. Victory scenes and epilogues carry the narrative through the
+historical American consolidation or the alternate Japanese expulsion of the
+beachhead; neither path adds a playable post-finale chapter. Ormoc and Tanauan stay
+in the canonical location and asset plan with historically appropriate states, and
+may support a later expansion beyond 7 December.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. Does the campaign stop after 7 December, or later extend through the capture of
-   Ormoc and Tanauan becoming operational?
-2. Which chapters need opening/ending scenes, and what happens in each victory
+1. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-3. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-4. What exact pilot-rank, player-rating, target, objective, recovery, and
+2. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+3. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-5. Does a captured pilot remain permanently archived in the initial campaign, or
+4. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-6. How strictly should the American name pool mirror the historical demographic
+5. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-7. Which aircraft receive landing, navigation, and formation lights after the
+6. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-8. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+7. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-9. Should rescue/capture be fully deterministic from world control and proximity,
+8. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
@@ -1736,7 +1757,8 @@ acceptance gates:
 
 1. **Campaign definition and source lock:** final six-versus-six mission matrix,
    historical labels, night chapters, rank gates, orders of battle, time budgets,
-   site states, cutscene inventory, and one frozen reusable-asset inventory.
+   7 December endpoint and epilogues, site states, cutscene inventory, and one
+   frozen reusable-asset inventory.
 2. **Reusable asset production:** source, build, Library/Hangar-enroll, inspect,
    and attend-approve every required Blender asset, including Ki-57, parachute rig,
    vehicles, structures, and mission objects.
