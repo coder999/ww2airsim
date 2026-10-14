@@ -1134,7 +1134,8 @@ career that owns:
 - cumulative player points and command rating earned in that campaign, including
   its future public high-score standing
 - mission badges and campaign victory records earned in that campaign
-- aggregate kills, losses, rescues, captures, and completed sorties
+- aggregate kills, losses, rescues, captures, completed sorties, score-eligible
+  sorties launched, and derived points-per-sortie efficiency
 - its five-pilot live roster and archived pilot records
 - its canonical base, territory, and world-state progression
 
@@ -1167,8 +1168,9 @@ become the rank labels for a future public high-score Wall of Fame.
 Online identity, score submission, verification, moderation, and anti-cheat are
 future public-game work rather than dependencies of the initial campaign. The
 save schema should nevertheless preserve the campaign side, cumulative player
-score, command appointment, scoring-rules version, and relevant difficulty/config
-metadata so later leaderboards do not mix incompatible scoring eras or campaigns.
+score, score-eligible sortie count, command appointment, scoring-rules version,
+and relevant difficulty/config metadata so later leaderboards do not mix
+incompatible scoring eras or campaigns.
 
 ### 7.2 Headquarters and mission-first selection
 
@@ -1300,8 +1302,15 @@ pilot ranks above Captain.
   live-roster-rank bonus, but never carry into a campaign for the other nation.
 
 One event can feed both ledgers, but the formulas must be explicit and tested.
-The player ledger must not let farming a single easy non-campaign mission dominate
-competitive standing.
+Raw human-player points deliberately remain cumulative and unbounded: repeating a
+score-eligible non-campaign mission can continue adding points. Alongside that raw
+total, track **adjusted score** as cumulative human-player points divided by the
+number of score-eligible sorties launched. Increment and persist the denominator
+when a campaign or in-campaign non-campaign sortie begins, so completed, failed,
+abandoned, KIA, POW, and zero-point attempts all count. Training, developer
+scenarios, and Single Missions outside the campaign record count toward neither
+value. The future Wall of Fame may expose separate raw-total and points-per-sortie
+boards rather than pretending the two achievements are interchangeable.
 
 ### 8.2 Reward more than destruction
 
@@ -1728,6 +1737,16 @@ verification, moderation, and anti-cheat remain future work; the initial campaig
 must preserve scoring-version metadata so later boards can compare compatible
 records.
 
+#### Cumulative and adjusted public scores — decided 13 October 2026
+
+Human-player points remain unbounded cumulative career points; repeatable eligible
+missions may be used indefinitely. The campaign also derives adjusted score as
+player points divided by score-eligible sorties launched. The sortie counter is
+persisted at launch and includes success, failure, abandonment, KIA, POW, and
+zero-point results, preventing omitted losses from inflating efficiency. Training,
+developer scenarios, and out-of-campaign Single Missions are excluded. A future
+Wall of Fame may rank raw total and points per sortie separately.
+
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
 American and Japanese pilots advance through equivalent six-tier naval ladders
@@ -1926,8 +1945,8 @@ acceptance gates:
    conditions/loadout, and launch flow.
 6. **Scoring and progression:** two score ledgers, objective rewards, target
    values, six pilot ranks, player command ratings, roster bonus, score-version
-   metadata for the future Wall of Fame, balance simulations, and anti-grind
-   tests.
+   metadata and points-per-sortie accounting for the future Wall of Fame, balance
+   simulations, and counter-integrity tests.
 7. **Night rendering and gameplay:** sky/exposure, moon/stars, local lights,
    aircraft/cockpit/runway/deck lighting, flares, visibility/AI, performance, and
    visual approval.
