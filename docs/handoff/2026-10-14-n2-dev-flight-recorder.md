@@ -79,13 +79,13 @@ world, and allocates no packet buffer.
   final recorder file has 14 passing cases.
 - Focused build reconciliation: 3 files, 49 tests passed, including production
   bundle Dev-code exclusion.
-- Focused real-browser N2: both ordinary-play and Dev cases passed on nexus's
-  real Radeon 680M; the Dev case exported, decoded, imported, verified, and
-  entered replay.
-- Full `npm run verify`: typecheck, lint, and dependency cruise passed; the
-  first full test pass found build-diff buffering and two stale source-wiring
-  regexes. Those were fixed and the three affected suites passed. The final
-  full gate is recorded in the closing commit/push note.
+- Final real-browser N2 gate: 2/2 cases passed on nexus's real Radeon 680M in
+  23.5 s. The Dev case exported, decoded, imported, verified bit-exactly, and
+  entered replay; ordinary play exposed neither recorder state nor UI.
+- Final post-merge `npm run verify`: typecheck, lint, and dependency cruise
+  passed; Vitest passed 443/443 files and 6,428 tests (12 skipped) in 419.38 s.
+  The production distribution gate confirmed that Dev recorder code is absent
+  from the shipped bundle.
 
 ## Known gaps
 
