@@ -506,3 +506,9 @@ Hangar after one rework round that rebuilt the weak meshes under frozen contract
 and animated the Sherman's tracks. See the
 [F4 handoff](handoff/2026-10-14-f4-asset-groups.md); MASTER_PLAN F3/F4 is the
 authoritative status. Not deployed.
+
+**N2 Dev Flight Recorder merged 2026-10-14.** Dev sorties record automatically, export a
+`.ww2flight` from Pause or Debrief, and re-simulate bit-identically through
+`?flightRecorder=1`. Mark's hand test on a GPU-less laptop found and fixed three defects
+(see the [handoff](handoff/2026-10-14-n2-dev-flight-recorder.md)). MASTER_PLAN N2 is the
+authoritative status. Not deployed.

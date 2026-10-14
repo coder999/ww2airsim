@@ -625,6 +625,14 @@ Mark's bar: a plausible ground that looks as good as OpenSkyFlight; accuracy is 
   neutral side (the cargo ship is "always a legal target" instead) is not built.
 
 **N2. Dev Flight Recorder (M; parallel with F4, before campaign mission production).**
+
+**Done 2026-10-14; Mark verified record, export, import and replay by hand on a GPU-less laptop.**
+Hand-testing found and fixed three defects the suite had not: dropped fixed steps wrongly
+invalidated records on slow machines (dropped steps never advance a tick, so controls
+still reproduce the run); the reproduction replay drew behind the title/debrief overlays;
+and the final checksum read controls a later no-step frame had applied. Replay shows the
+ten seconds *ending* at the chosen tick (blank = the end); verification covers the whole
+flight. Handoff: [`docs/handoff/2026-10-14-n2-dev-flight-recorder.md`](docs/handoff/2026-10-14-n2-dev-flight-recorder.md).
 Mark approved the parallel start on 2026-10-14: F4 adds stable content ids and
 hashed content, while N2 builds asset-agnostic recording machinery around those
 ids and rejects mismatched builds/content. F4 remains the hard gate for campaign

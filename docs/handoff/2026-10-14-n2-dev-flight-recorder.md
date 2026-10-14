@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-14  
 **Branch:** `n2-flight-recorder`  
-**Status:** implemented and verified; not deployed
+**Status:** merged to `main` 2026-10-14 after Mark's hand test; not deployed
 
 ## Result
 
@@ -105,3 +105,15 @@ controls still reproduce the run; a recording with 1,333 dropped steps and chang
 keys verified bit-identically (`recorder.test.ts`, "frame hitches"). `main.ts` no
 longer invalidates on drops. `recorder.invalidate` remains for genuine problems
 (fixed-tick gaps, unapplied actions).
+
+## Hand-test fixes (2026-10-14, Mark on a GPU-less laptop)
+
+- Dropped steps no longer invalidate a record (section above).
+- Reproducing from the title or a debrief closes those overlays (they sit outside the replay's hide-everything rule) and returns to the title when the replay ends.
+- The final checksum uses the last observed world of the final tick. The frame loop applies each frame's controls before advancing, and a frame that runs no step (pause, hold after impact) returns that world, so `finish(frame.world)` could carry controls newer than the last tick. Test: "checksums the last simulated tick".
+- A final-only divergence now says whether the summary differs and the record's final tick.
+- Records made before this fix fail their final checksum; re-record.
+
+## Using the replay
+
+Blank "Inspect through tick" shows the final ten seconds; any tick shows the ten seconds ending there. The whole flight is verified either way. A longer replay needs replay history to grow (or the deferred keyframes) and is not planned.
