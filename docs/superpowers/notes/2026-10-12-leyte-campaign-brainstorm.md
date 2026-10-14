@@ -1026,10 +1026,9 @@ The player needs a dossier distinct from every pilot dossier. It should show bot
 campaigns, cumulative score, command rating, badges, aggregate statistics, living
 roster strength, and a chronological campaign log.
 
-The exact player command-title ladder is not yet decided. The working
-recommendation is to use **command appointments**, not a second set of pilot naval
-ranks, so the interface never implies that the persistent player personally
-survived every sortie. A possible five-step prestige ladder is:
+The player uses **command appointments**, not a second set of pilot naval ranks,
+so the interface never implies that the persistent player personally survived
+every sortie. The five-step prestige ladder is:
 
 1. Squadron Commander
 2. Air Group Commander
@@ -1039,8 +1038,7 @@ survived every sortie. A possible five-step prestige ladder is:
 
 "Field Commander" is a land-force term and is a poor fit for this naval-air
 metagame. These titles are prestige only in the initial campaign; they must not
-unlock combat capability. Their wording, side-specific presentation, and point
-thresholds require a later approval.
+unlock combat capability. Their point thresholds remain a balancing decision.
 
 ### 7.2 Headquarters and mission-first selection
 
@@ -1516,6 +1514,15 @@ the predecessor's points, rank, badges, or statistics. The two national rosters
 remain separate even though the persistent human-player profile may later be
 decided to span both campaigns.
 
+#### Human-player command-title ladder — decided 13 October 2026
+
+The persistent human player advances through Squadron Commander, Air Group
+Commander, Wing Commander, Task Force Air Commander, and Fleet Air Commander.
+These are command appointments rather than a second set of pilot naval ranks. They
+are prestige-only in the initial campaign and unlock no aircraft, missions,
+weapons, sights, or command abilities. Exact point thresholds remain part of the
+progression balance pass.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
@@ -1538,25 +1545,24 @@ decided to span both campaigns.
 
 #### Player, roster, and progression
 
-9. Approve or replace the proposed player command-title ladder.
-10. Are the human-player profile and points shared across both national campaigns,
+9. Are the human-player profile and points shared across both national campaigns,
     as recommended, or does each side have a separate player record?
-11. What exact pilot-rank, player-rating, target, objective, recovery, and
+10. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-12. Does a captured pilot remain permanently archived in the initial campaign, or
+11. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-13. How strictly should the American name pool mirror the historical demographic
+12. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night, recovery, and persistence
 
-14. Which aircraft receive landing, navigation, and formation lights after the
+13. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-15. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+14. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-16. Should rescue/capture be fully deterministic from world control and proximity,
+15. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
-17. Is the working decision to defer mid-flight saves approved?
+16. Is the working decision to defer mid-flight saves approved?
 
 ## 15. Proposed migration into the master plan
 
