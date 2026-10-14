@@ -1191,10 +1191,11 @@ remains recognizable.
 - Each roster belongs to one faction-bound campaign record. Pilots, roster state,
   points, and progression do not transfer between campaigns.
 
-If a future prisoner-rescue mission returns a captured pilot after a replacement
-has filled the slot, that pilot should enter a reserve/archive-ready state rather
-than silently expand the five-pilot active roster. Prisoner recovery is not
-required for the initial campaign.
+Capture is permanent for the initial campaign. A POW remains in the archive with
+a closed dossier, can never be selected again, and cannot be restored by an
+authored rescue or exchange event. A later expansion may add prisoner recovery;
+if it does, a returned pilot must enter a reserve/archive-ready state rather than
+silently expand the five-pilot active roster.
 
 ### 7.4 Generated pilot names
 
@@ -1356,7 +1357,8 @@ reuse does not make those mechanics free.
 - a recovery/capture resolver using scenario ownership and mobile ships
 - new mission recovery results, debrief language, dossier statuses, scoring, and
   campaign replacement behavior
-- AI and mission hooks for rescue patrols, prisoner recovery, and paratroop drops
+- AI and mission hooks for friendly rescue patrols and paratroop drops, plus a
+  clean future extension seam for prisoner recovery without implementing it
 - automated tests for impossible/low-altitude bailout, friendly rescue, capture,
   water landing, roster replacement, scoring, and badge denial
 
@@ -1697,6 +1699,14 @@ Kaigun Shōi through Kaigun Taisa for Japanese pilots. Captain is the highest
 campaign pilot rank; flag ranks from the current resurrection-era system do not
 carry into the campaign design.
 
+#### Permanent initial-campaign POW status — decided 13 October 2026
+
+A pilot captured during the initial campaign is permanently removed from the
+live roster and retained in the archive with a closed POW dossier. The normal
+entry-rank replacement fills the vacancy. No initial authored mission, rescue,
+exchange, or random event can return that pilot. Prisoner recovery remains a
+possible later expansion and must not complicate the initial roster lifecycle.
+
 #### Faction-bound independent campaign careers — decided 13 October 2026
 
 The player chooses American or Japanese when creating a campaign, and that choice
@@ -1813,18 +1823,16 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 1. What exact target, objective, recovery, and live-roster-bonus values produce
     acceptable progression without grind?
-2. Does a captured pilot remain permanently archived in the initial campaign, or
-    can authored rescue/exchange events return one?
-3. How strictly should the American name pool mirror the historical demographic
+2. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-4. Which aircraft receive landing, navigation, and formation lights after the
+3. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-5. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+4. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-6. Should rescue/capture be fully deterministic from world control and proximity,
+5. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
