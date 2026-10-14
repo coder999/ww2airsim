@@ -2571,7 +2571,12 @@ async function boot(): Promise<void> {
       activeFlightRecorder = null
       completedFlightRecord = record
       frame = withPaused(initialFrameStateFor(result.world, record.launch.assists), true)
-      startReplaySession('manual', () => { frame = withPaused(frame!, true) })
+      // The reproduction panel can be used from the title or a debrief, whose overlays live outside
+      // `root` and so ignore the replay's hide-everything rule: close them, and when the replay ends
+      // go back to the title instead of leaving a paused flight with no UI.
+      debrief.hide()
+      title.hide()
+      startReplaySession('manual', () => { frame = withPaused(frame!, true); returnToTitle() })
       return {
         inspectedTick: result.world.tick,
         message: `Verified ${result.ticks} ticks bit-identically; replay cameras show the ten seconds ending at tick ${result.world.tick}.`,

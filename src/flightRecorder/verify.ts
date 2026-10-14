@@ -3,7 +3,7 @@ import { orderWingmen } from '../sim/ai/wingmanOrders.js'
 import { DT } from '../sim/flight/model.js'
 import type { Controls } from '../sim/flight/state.js'
 import { advance, withControls, type Stepper, type World } from '../sim/loop.js'
-import { worldChecksum } from './checksum.js'
+import { worldChecksum, worldSummary } from './checksum.js'
 import type { FlightRecordV1 } from './schema.js'
 
 export type VerificationResult<M> =
@@ -88,7 +88,12 @@ export function verifyFlightRecord(
   if (record.final !== null && reachedEnd) {
     const actual = worldChecksum(world)
     if (actual !== record.final.checksum) {
-      return { ok: false, tick: world.tick, message: `final divergence at tick ${world.tick}`, expected: record.final.checksum, actual }
+      // Name what differs so a final-only divergence (every one-second checkpoint matched) is actionable.
+      const want = record.final.summary as Record<string, unknown>
+      const got = worldSummary(world) as unknown as Record<string, unknown>
+      const differs = Object.keys(want).filter((key) => JSON.stringify(want[key]) !== JSON.stringify(got[key]))
+      const detail = differs.length === 0 ? 'summary matches; the difference is in detailed state' : `summary differs in ${differs.join(', ')}`
+      return { ok: false, tick: world.tick, message: `final divergence at tick ${world.tick} (record's final tick ${record.final.summary.tick}; ${detail})`, expected: record.final.checksum, actual }
     }
   }
   return { ok: true, world, ticks }
