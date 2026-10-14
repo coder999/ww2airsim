@@ -369,8 +369,7 @@ The finale has linked phases rather than one enormous furball:
 
 - Ki-43 Oscars and A6M2 Zeros
 - Ki-21 Sally and G4M Betty bombers
-- Japanese transport aircraft; a Ki-57 model would be preferable to a false bomber
-  stand-in
+- Ki-57 transports introduced in J5, with no false bomber stand-in
 - landed paratroop/supply objects and Type 97 tanks or cars advancing on the fields
 
 **Where the player is supposed to end up**
@@ -539,54 +538,7 @@ without pretending it is a recorded engagement. Background: U.S. Army,
 [Leyte: The Return to the
 Philippines](https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.html).
 
-### J4. Ormoc Lifeline
-
-**Date and label:** 9 November 1944 — historical composite  
-**Player aircraft:** A6M2 Zero  
-**Mission type:** convoy air cover / escort  
-**Target time to action:** 1–2 minutes
-
-**Where the player starts**
-
-Airborne over a Japanese convoy entering Ormoc Bay. Radar or observers have just
-reported American aircraft approaching from the east.
-
-**Mission objective**
-
-Keep at least two troop transports afloat until they complete a timed unloading
-phase. The player must remain close enough to disrupt bombing runs rather than
-chasing escorts. A secondary objective protects the flagship destroyer.
-
-**Friendlies**
-
-- two or three Type B Maru transports
-- Kagero- and Shiratsuyu-class destroyer escorts
-- one Zero wingman
-- shore AAA and warehouses at Ormoc
-
-**Enemies**
-
-- P-38 Lightnings with bombs
-- TBM Avengers standing in for part of the wider American strike effort
-- an American fighter escort element
-
-**Where the player is supposed to end up**
-
-At a western safe-egress boundary once unloading completes, or at Buri after a
-compressed 5–7 minute return if the field remains Japanese-controlled in this
-campaign branch.
-
-**Historical blurb**
-
-Japan used a succession of convoys to reinforce Leyte through Ormoc Bay. On 9–10
-November a convoy carrying the 26th Division was attacked first near Ormoc and
-again after unloading; low-level B-25 strikes suffered serious losses but sank
-transports and escorts. This scenario gives the convoy representative fighter
-cover to create an escort mission; it does not claim that this exact Zero element
-was present. See the Army Air Forces account,
-[The Pacific: Guadalcanal to Saipan](https://www.ibiblio.org/hyperwar/AAF/V/AAF-V-12.html).
-
-### J5. Destroyers in the Bay
+### J4. Destroyers in the Bay
 
 **Date and label:** early December 1944 — historical composite  
 **Player aircraft:** B5N2 Kate with torpedo  
@@ -639,24 +591,88 @@ combines that aircraft's real role with the documented Ormoc naval campaign rath
 than asserting one particular Kate attack. Background: U.S. Army,
 [Leyte campaign summary](https://www.ibiblio.org/hyperwar/USA/USA-C-Leyte/).
 
+### J5. Night Drop on Burauen
+
+**Date and label:** 6 December 1944 — historical composite
+**Player aircraft:** Mitsubishi Ki-57 "Topsy"
+**Mission type:** night paratrooper transport and drop
+**Time of day:** night
+**Minimum pilot rank:** Kaigun Taii
+**Target time to action:** fighter interception in 2–3 minutes; drop zone in 5–6
+
+**Where the player starts**
+
+Airborne west of Leyte's central ridge with two additional Ki-57 transports and a
+small Ki-43/A6M escort. The long flight from a Japanese base outside the playable
+world has already occurred. Fires and signal flares beyond the ridge identify the
+Burauen airfield complex while American fighters climb to intercept.
+
+**Mission objective**
+
+Lead the transport formation through the interception and deliver the paratroopers
+into the marked corridor between San Pablo and Buri. A valid drop requires the
+player to hold the authored altitude, speed, heading, and drop window long enough
+for the troops to clear the aircraft. The primary objective succeeds when the
+player and at least one other transport complete effective drops. A secondary
+objective preserves all three transports or places a supply bundle inside a second
+marked landing zone.
+
+**Friendlies**
+
+- two AI Ki-57 transports carrying additional paratroopers and supplies
+- one Ki-43 Oscar and one A6M2 Zero escort element
+- Japanese ground forces west of the fields providing signal fires or flares
+- parachuting troops, supply bundles, and landed squad groups after release
+
+**Enemies**
+
+- P-38 Lightnings attempting to break up the transport formation
+- American AAA around San Pablo, Buri, and Bayug
+- searchlights, runway lighting, tracers, and fires that reveal both danger and the
+  drop corridor
+- American vehicles and base defenses visible around the intended landing zones
+
+**Where the player is supposed to end up**
+
+At a western safe-egress boundary 3–5 minutes after the drop. The launch base is
+outside the playable world, so mission credit does not require an invented Japanese
+landing field. A successful drop creates the initial Japanese lodgment inherited by
+J6; it does not by itself capture the airfields.
+
+**Historical blurb**
+
+On 6 December Japanese airborne troops attacked the Burauen airfields as ground
+forces advanced from the mountains. The raiders caused serious disruption but did
+not hold the fields or reverse the Leyte campaign. The Ki-57 was a Japanese Army
+transport used to carry personnel, cargo, and paratroopers; this historical
+composite uses it as a representative transport rather than claiming an exact
+tail-number reconstruction of one drop formation. The successful foothold carried
+into J6 is the campaign's point of divergence from the historical failure. See the
+U.S. Army account of the
+[Battle of the Airstrips](https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-17.html).
+
 ### J6. Operation Te-Go
 
 **Date and label:** 6–7 December 1944 — alternate-history finale  
 **Player aircraft:** Ki-43 Oscar or A6M2 Zero with a bomb  
 **Mission type:** large bombing, escort, and dogfight finale  
+**Time of day:** dawn following the J5 night drop
+**Minimum pilot rank:** Kaigun Taisa
 **Target time to action:** 2–3 minutes
 
 **Where the player starts**
 
-Airborne west of the Burauen fields beside the first bomber and transport wave.
-The player is close enough to see the target area but still has time to choose
-between protecting the formation and suppressing American fighters.
+Airborne west of the Burauen fields beside a follow-on bomber and transport wave.
+Fires and the J5 paratrooper lodgment identify the target area. The player is close
+enough to see the battle but still has time to choose between protecting the
+formation and suppressing American fighters.
 
 **Mission objective**
 
 The finale unfolds in waves:
 
-1. Escort bombers and transports to Bayug, Buri, and San Pablo.
+1. Reinforce the J5 lodgment by escorting bombers and follow-on transports to Bayug,
+   Buri, and San Pablo.
 2. Bomb Tacloban or suppress AAA and parked fighters at the inland fields.
 3. Defeat the American P-38 response while Japanese airborne troops secure the
    strips.
@@ -672,7 +688,7 @@ and the American beachhead is eventually evacuated.
 
 - Ki-21 Sally and G4M Betty bombers
 - A6M2 Zero and Ki-43 Oscar escorts arriving in separate waves
-- Japanese transport aircraft; a Ki-57 model is preferable
+- surviving J5 Ki-57s and follow-on Japanese transport aircraft
 - landed airborne troops, Type 97 tanks, cars, and supply objects
 - Japanese AAA activated at captured fields during the final phase
 
@@ -914,9 +930,10 @@ The missions expose the following shared content and mechanics:
   fleet aircraft; enroll it in the Library/Hangar, expose relevant transport/drop
   articulation on the test bench, and require attended visual approval before
   mission work depends on it
-- use the Ki-57 for a Japanese paratroop-drop mission tied to Operation Te-Go,
-  but do **not** increase the Japanese campaign's chapter count; replace or
-  consolidate one Japanese candidate so both campaigns remain the same length
+- use the Ki-57 for J5, **Night Drop on Burauen**, tied directly to Operation Te-Go;
+  the former Zero convoy-escort chapter is removed, while J4's Ormoc Bay surface
+  battle preserves the reinforcement-route story and both campaigns remain six
+  chapters long
 - landing craft and a seaplane tender/rescue launch if they are to be more than
   distant scenery
 - staged formation waves so the finales feel large without keeping every aircraft
@@ -1000,15 +1017,17 @@ modern beacon is not.
 ### 6.5 Night mission requirement
 
 The American night chapter is **A4, Dumbo in the Gulf**, using a survivor flare and
-lighted seaplane anchorage for a PBY rescue. The Japanese night chapter is **J5,
-Destroyers in the Bay**, using naval gunfire, tracers, fires, and a timed
-illumination flare to reveal the torpedo target. Both are historical composites, so
-the night settings must be stated plainly rather than attributed to a particular
-documented sortie.
+lighted seaplane anchorage for a PBY rescue. The first Japanese night chapter is
+**J4, Destroyers in the Bay**, using naval gunfire, tracers, fires, and a timed
+illumination flare to reveal the torpedo target. A4 and J4 require the corresponding
+Lieutenant (junior grade) rank. Both are historical composites, so the night
+settings must be stated plainly rather than attributed to a particular documented
+sortie.
 
-Both chapters require the corresponding Lieutenant (junior grade) rank. The PBY is
-multi-engine but is deliberately not rank-gated as an advanced aircraft; engine
-count alone does not determine aircraft eligibility.
+**J5, Night Drop on Burauen**, is a second Japanese night chapter and requires
+Lieutenant because the Ki-57 belongs to the advanced-aircraft category. The PBY is
+multi-engine but is deliberately not rank-gated as advanced; engine count alone
+does not determine aircraft eligibility.
 
 Night implementation also requires:
 
@@ -1592,49 +1611,57 @@ progression.
 #### Night chapters and advanced-aircraft rank gate — decided 13 October 2026
 
 A4, **Dumbo in the Gulf**, is the American night chapter, using a survivor flare
-and lighted seaplane anchorage to support the PBY rescue. J5, **Destroyers in the
-Bay**, is the Japanese night chapter, using naval gunfire, tracers, fires, and a
-timed illumination flare to expose the torpedo target. Both require the respective
-Lieutenant (junior grade) rank.
+and lighted seaplane anchorage to support the PBY rescue. J4, **Destroyers in the
+Bay**, is the first Japanese night chapter, using naval gunfire, tracers, fires, and
+a timed illumination flare to expose the torpedo target. Both require the
+respective Lieutenant (junior grade) rank. J5, **Night Drop on Burauen**, is a
+second Japanese night chapter and requires Lieutenant because the Ki-57 is an
+advanced aircraft.
 
 Lieutenant now unlocks a curated **advanced aircraft** category rather than all
 multi-engine aircraft. Engine count alone does not set rank eligibility, and the
 PBY is available to a Lieutenant (junior grade) for A4. The exact advanced-aircraft
 list remains part of the aircraft/rank reconciliation pass.
 
+#### Japanese late-campaign mission reconciliation — decided 13 October 2026
+
+The former J4 Zero convoy-escort mission, **Ormoc Lifeline**, is removed. The night
+torpedo mission **Destroyers in the Bay** becomes J4 and retains the Ormoc
+reinforcement-route story. J5 becomes **Night Drop on Burauen**, a player-flown
+Ki-57 paratrooper mission whose successful lodgment carries directly into the J6
+Operation Te-Go finale. The campaigns remain equal at six chapters each.
+
 ### 14.2 Open questions
 
 #### Campaign and mission content
 
-1. Which Japanese candidate is replaced or consolidated for the Ki-57 paratrooper
-   chapter so the two campaigns remain equal in length?
-2. Should carrier and airfield landings remain mandatory for campaign credit, or
+1. Should carrier and airfield landings remain mandatory for campaign credit, or
    should a safe egress complete missions whose historical home base is outside the
    playable world?
-3. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+2. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-4. Does the campaign stop after 7 December, or later extend through the capture of
+3. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
-5. Which chapters need opening/ending scenes, and what happens in each victory
+4. Which chapters need opening/ending scenes, and what happens in each victory
    scene?
 
 #### Player, roster, and progression
 
-6. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
-7. What exact pilot-rank, player-rating, target, objective, recovery, and
+5. Which flyable aircraft belong in the Lieutenant-gated advanced-aircraft category?
+6. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-8. Does a captured pilot remain permanently archived in the initial campaign, or
+7. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-9. How strictly should the American name pool mirror the historical demographic
+8. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night and recovery
 
-10. Which aircraft receive landing, navigation, and formation lights after the
+9. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-11. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+10. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-12. Should rescue/capture be fully deterministic from world control and proximity,
+11. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
 
 ## 15. Proposed migration into the master plan
