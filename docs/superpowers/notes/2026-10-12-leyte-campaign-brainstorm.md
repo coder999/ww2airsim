@@ -1272,6 +1272,30 @@ The current game awards destruction points only:
 | Tank | 300 |
 | Carrier | 5,000 |
 
+The approved campaign baseline preserves that scale while adding missing target
+classes and modestly increasing two ship values:
+
+| Destroyed object | Campaign points |
+|---|---:|
+| Truck, car, or light vehicle | 100 |
+| Building | 150 |
+| Landing craft or small patrol boat | 250 |
+| AAA battery | 250 |
+| Tank | 300 |
+| Fighter or attack aircraft | 500 |
+| Runway | 500 |
+| Transport or cargo ship | 500 |
+| Bomber or transport aircraft | 750 |
+| Destroyer | 1,000 |
+| Cruiser | 1,500 |
+| Battleship | 3,000 |
+| Carrier | 5,000 |
+
+When the assigned player aircraft receives direct destruction credit, the full
+table value enters both that pilot's career ledger and the human player's campaign
+ledger. Objective awards, assists, and AI-formation destruction credit are
+separate rules rather than hidden multipliers on this table.
+
 It currently promotes one persistent pilot at 0 / 2,500 / 7,500 / 17,500 /
 35,000 / 60,000 points through Captain, then continues into flag ranks. Death,
 ditching, and landing all use a full 1.0 score multiplier. Those rules were built
@@ -1339,7 +1363,7 @@ two pilot losses, and side-mission recovery from a roster with only Ensigns.
 Choose promotion thresholds so rank gates create stakes without forcing repetitive
 grinding. Finalize:
 
-- exact object, objective, survival, and recovery values
+- exact objective, survival, and recovery values
 - live-roster-rank bonus formula and when it is banked
 - whether difficulty modifies points (working recommendation: no)
 
@@ -1747,6 +1771,16 @@ zero-point results, preventing omitted losses from inflating efficiency. Trainin
 developer scenarios, and out-of-campaign Single Missions are excluded. A future
 Wall of Fame may rank raw total and points per sortie separately.
 
+#### Campaign destruction-point baseline — decided 13 October 2026
+
+Direct player destruction awards 100 points for a truck/car/light vehicle; 150
+for a building; 250 for a landing craft/small patrol boat or AAA battery; 300 for
+a tank; 500 for a fighter/attack aircraft, runway, or transport/cargo ship; 750
+for a bomber/transport aircraft; 1,000 for a destroyer; 1,500 for a cruiser;
+3,000 for a battleship; and 5,000 for a carrier. The same direct-destruction value
+enters the assigned pilot and human-player ledgers. Objectives, assists, and AI
+formation credit remain separate awards.
+
 #### Shared national pilot-promotion thresholds — decided 13 October 2026
 
 American and Japanese pilots advance through equivalent six-tier naval ladders
@@ -1916,8 +1950,8 @@ alternate-history epilogue naming the J5/J6 point of divergence.
 
 #### Player, roster, and progression
 
-1. What exact target, objective, recovery, and live-roster-bonus values produce
-    acceptable progression without grind?
+1. What exact objective, recovery, formation-credit, and live-roster-bonus values
+    produce acceptable progression without grind?
 
 ## 15. Proposed migration into the master plan
 
