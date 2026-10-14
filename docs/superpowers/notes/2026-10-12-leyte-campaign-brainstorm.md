@@ -1011,20 +1011,28 @@ Night implementation also requires:
 
 ## 7. Campaign headquarters, player identity, and sortie flow
 
-### 7.1 Human player profile
+### 7.1 Human player and faction-bound campaign records
 
-On first use, the player enters a human-player name. That profile persists across
-pilot deaths and owns:
+When creating a campaign, the human player enters a name and chooses American or
+Japanese. That nationality is permanent for the campaign record. The same person
+may create another campaign for the other side, but each campaign is an independent
+career that owns:
 
-- American and Japanese campaign progress
-- cumulative player points and prestige/command rating
-- mission badges and campaign victory records
+- its selected nation and campaign progress
+- cumulative player points and prestige/command rating earned in that campaign
+- mission badges and campaign victory records earned in that campaign
 - aggregate kills, losses, rescues, captures, and completed sorties
-- separate American and Japanese live-pilot rosters and archived pilot records
+- its five-pilot live roster and archived pilot records
+- its canonical base, territory, and world-state progression
 
-The player needs a dossier distinct from every pilot dossier. It should show both
-campaigns, cumulative score, command rating, badges, aggregate statistics, living
-roster strength, and a chronological campaign log.
+Points, command rating, badges, progression, site state, pilots, and roster-strength
+bonuses never transfer between American and Japanese campaigns. App preferences and
+a remembered player name may be shared for convenience, but they carry no gameplay
+progression.
+
+Each campaign needs a human-player dossier distinct from every pilot dossier. It
+should show the campaign nation, cumulative score, command rating, badges, aggregate
+statistics, living roster strength, and a chronological campaign log.
 
 The player uses **command appointments**, not a second set of pilot naval ranks,
 so the interface never implies that the persistent player personally survived
@@ -1046,15 +1054,18 @@ The opening campaign screen should still feel like a roster/headquarters desk, b
 the pilot rows no longer contain **New mission** buttons. The primary action is
 **Choose mission**:
 
-1. Choose American or Japanese campaign, Side Missions, Single Missions, or
-   Training.
-2. Choose the mission. The card shows its story position, objective, aircraft,
+1. Resume an existing campaign, create a new campaign, enter Single Missions, or
+   enter Training. Creating a campaign requires a player name and a permanent choice
+   of American or Japanese.
+2. From campaign headquarters, choose the next Campaign Mission or an available
+   Side Mission.
+3. Choose the mission. The card shows its story position, objective, aircraft,
    time/weather, minimum pilot rank, locked/unlocked reason, and expected first
    action time.
-3. Assign a living pilot. Ineligible pilots remain visible but disabled with the
-   exact missing-rank explanation.
-4. Confirm aircraft/loadout and any choices the authored mission permits.
-5. View the briefing and launch.
+4. Assign a living pilot from that campaign's roster. Ineligible pilots remain
+   visible but disabled with the exact missing-rank explanation.
+5. Confirm aircraft/loadout and any choices the authored mission permits.
+6. View the briefing and launch.
 
 This order lets the player discover the requirement before choosing a pilot and
 gracefully explains when no living pilot is eligible. It also avoids the current
@@ -1080,8 +1091,8 @@ remains recognizable.
 - A replacement does not inherit points, rank, badges, or statistics.
 - Discharged pilots follow the same vacancy rule but keep a distinct archived
   status.
-- American and Japanese rosters are separate. The persistent human player profile
-  is shared.
+- Each roster belongs to one faction-bound campaign record. Pilots, roster state,
+  points, and progression do not transfer between campaigns.
 
 If a future prisoner-rescue mission returns a captured pilot after a replacement
 has filled the slot, that pilot should enter a reserve/archive-ready state rather
@@ -1143,9 +1154,9 @@ for resurrection and do not fit the new roster.
   six approved pilot ranks. A living or rescued pilot can be promoted at debrief.
   A killed or captured pilot's final points remain in the archived dossier but can
   no longer produce a live-roster promotion.
-- **Human-player points** persist across every pilot and both campaign rosters.
-  They drive the prestige/command rating and absorb the agreed live-roster-rank
-  bonus.
+- **Human-player points** persist across every pilot in that one campaign. They
+  drive its prestige/command rating and absorb its agreed live-roster-rank bonus,
+  but never carry into a campaign for the other nation.
 
 One event can feed both ledgers, but the formulas must be explicit and tested.
 The player ledger must not let farming a single easy side mission dominate campaign
@@ -1265,11 +1276,13 @@ asset production is frozen.
 
 ### 11.1 Required campaign persistence
 
-The headquarters state must autosave after every banked debrief and roster change:
-player profile, both campaign branches, unlocked chapter, canonical site state,
-live and archived pilots, scores, badges, and settings. Use a versioned schema and
-migration from the current `ww2airsim.roster.v1` data. Expose import/export in
-the UI so browser storage loss does not erase a long campaign.
+Each faction-bound campaign record must autosave after every banked debrief and
+roster change. A campaign index may list several independent careers, but every
+save owns its selected nation, human-player identity, command score and rating,
+unlocked chapter, canonical site state, live and archived pilots, scores, and
+badges. No progression field is shared between campaign records. Use a versioned
+schema and migration from the current `ww2airsim.roster.v1` data. Expose campaign
+import/export in the UI so browser storage loss does not erase a long career.
 
 ### 11.2 Mid-flight save assessment
 
@@ -1455,7 +1468,8 @@ Repeatable side missions remain available without advancing the campaign so the
 player can earn points and promote surviving or replacement pilots until someone
 is eligible for the next campaign mission.
 
-The human player and the pilots are separate records:
+Within each faction-bound campaign, the human player and the pilots are separate
+records:
 
 - The human player retains cumulative points, player rank, campaign progress,
   mission badges, and aggregate results. For now, player rank is prestige only
@@ -1506,13 +1520,12 @@ anticipation of monetization.
 
 #### Fixed five-pilot side rosters — decided 13 October 2026
 
-The American and Japanese campaigns each maintain exactly five living pilots.
+Each American or Japanese campaign maintains exactly five living pilots.
 When a pilot becomes KIA, POW, or discharged, that pilot's closed dossier remains
-in the appropriate side's archive. On return to headquarters, the vacancy is
+in that campaign's archive. On return to headquarters, the vacancy is
 automatically filled by a newly generated entry-rank pilot who inherits none of
-the predecessor's points, rank, badges, or statistics. The two national rosters
-remain separate even though the persistent human-player profile may later be
-decided to span both campaigns.
+the predecessor's points, rank, badges, or statistics. A roster never spans or
+transfers between campaigns.
 
 #### Human-player command-title ladder — decided 13 October 2026
 
@@ -1522,6 +1535,16 @@ These are command appointments rather than a second set of pilot naval ranks. Th
 are prestige-only in the initial campaign and unlock no aircraft, missions,
 weapons, sights, or command abilities. Exact point thresholds remain part of the
 progression balance pass.
+
+#### Faction-bound independent campaign careers — decided 13 October 2026
+
+The player chooses American or Japanese when creating a campaign, and that choice
+cannot be changed within the campaign. The same person may create a second campaign
+for the other side, but it is a wholly independent career. Human-player points,
+command rating, badges, campaign progress, canonical site state, pilots, archives,
+and roster-strength bonuses do not cross between American and Japanese campaigns.
+Only non-progression conveniences such as app settings or a remembered player name
+may be shared.
 
 ### 14.2 Open questions
 
@@ -1545,24 +1568,22 @@ progression balance pass.
 
 #### Player, roster, and progression
 
-9. Are the human-player profile and points shared across both national campaigns,
-    as recommended, or does each side have a separate player record?
-10. What exact pilot-rank, player-rating, target, objective, recovery, and
+9. What exact pilot-rank, player-rating, target, objective, recovery, and
     live-roster-bonus values produce acceptable progression without grind?
-11. Does a captured pilot remain permanently archived in the initial campaign, or
+10. Does a captured pilot remain permanently archived in the initial campaign, or
     can authored rescue/exchange events return one?
-12. How strictly should the American name pool mirror the historical demographic
+11. How strictly should the American name pool mirror the historical demographic
     restrictions of the 1944 services?
 
 #### Night, recovery, and persistence
 
-13. Which aircraft receive landing, navigation, and formation lights after the
+12. Which aircraft receive landing, navigation, and formation lights after the
     airframe source pass?
-14. Which wartime lighthouse, port light, beacon, or flare-path locations can be
+13. Which wartime lighthouse, port light, beacon, or flare-path locations can be
     verified inside the playable footprint?
-15. Should rescue/capture be fully deterministic from world control and proximity,
+14. Should rescue/capture be fully deterministic from world control and proximity,
     or include a small visible seeded chance?
-16. Is the working decision to defer mid-flight saves approved?
+15. Is the working decision to defer mid-flight saves approved?
 
 ## 15. Proposed migration into the master plan
 
@@ -1580,9 +1601,10 @@ acceptance gates:
    export/import, headless checksum verification, in-game playback, corruption and
    mismatch handling, and measured performance gates before campaign test volume
    grows.
-4. **Player profile and campaign persistence:** versioned player/campaign schema,
-   migration from the old roster, fixed side rosters, archive/replacement rules,
-   generated names, dossier screens, import/export, and autosave.
+4. **Faction-bound campaign persistence:** versioned campaign index and independent
+   American/Japanese save schema, migration from the old roster, fixed campaign
+   rosters, archive/replacement rules, generated names, dossier screens,
+   import/export, and autosave.
 5. **Mission-first headquarters UI:** campaign/side/single/training selection,
    mission cards and locks, pilot assignment, authored conditions/loadout, and
    launch flow.
