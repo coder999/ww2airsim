@@ -198,7 +198,7 @@ const loadRegisteredRider: LoadRider = (id) => acquireModel(figureModelUrl(id))
 /** The committed glb a display model resolves to, through its kind's registry. */
 export function displayModelUrl(ref: ModelRef): string {
   if (ref.kind === 'ship') return shipModelUrlFor(ref.id)
-  if (ref.kind === 'building' || ref.kind === 'vehicle') return staticModelUrlFor(ref.kind, ref.id)
+  if (ref.kind === 'building' || ref.kind === 'vehicle' || ref.kind === 'equipment') return staticModelUrlFor(ref.kind, ref.id)
   if (ref.kind === 'ordnance') return ordnanceModelUrl(ref.id)
   throw new Error(`displayModelUrl: aircraft model "${ref.id}" loads through the airframe registry, not as a static model`)
 }

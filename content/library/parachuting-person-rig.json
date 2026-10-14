@@ -1,0 +1,13 @@
+{
+  "id": "parachuting-person-rig",
+  "name": "Parachuting Person Rig",
+  "kind": "equipment",
+  "side": "allied",
+  "model": { "kind": "equipment", "id": "parachuting-person-rig" },
+  "blurb": "A Hangar-only paratrooper silhouette under a deployed wartime personnel canopy, with the packed rig retained as a review node.",
+  "history": "War Department parachute guidance described several personnel-canopy sizes, including the twenty-eight-foot class represented here. The figure, harness and suspension pose are intentionally conservative estimates around that documented canopy size.",
+  "sources": [
+    { "title": "TM 1-440: Air Corps Parachutes (War Department, 1942)", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-W-bf30480e480a7c64e47b77c61b16acf8/pdf/GOVPUB-W-bf30480e480a7c64e47b77c61b16acf8.pdf", "read": "2026-10-14" },
+    { "title": "Department of Defense Handbook for Air Delivery Systems", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-D301-PURL-LPS103309/pdf/GOVPUB-D301-PURL-LPS103309.pdf", "read": "2026-10-14" }
+  ]
+}

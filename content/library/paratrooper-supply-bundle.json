@@ -1,0 +1,10 @@
+{
+  "id": "paratrooper-supply-bundle",
+  "name": "Paratrooper Supply Bundle",
+  "kind": "equipment",
+  "side": "allied",
+  "model": { "kind": "equipment", "id": "paratrooper-supply-bundle" },
+  "blurb": "A Hangar-only cargo bundle with deployed and packed canopy review nodes for Leyte airborne-delivery scenes.",
+  "history": "Airborne forces dropped supplies in bundles suspended beneath cargo parachutes. This model preserves that operational silhouette while labeling the bundle dimensions and canopy geometry as estimates because no type-specific primary drawing was locked in F3.",
+  "sources": [{ "title": "Department of Defense Handbook for Air Delivery Systems", "url": "https://www.govinfo.gov/content/pkg/GOVPUB-D301-PURL-LPS103309/pdf/GOVPUB-D301-PURL-LPS103309.pdf", "read": "2026-10-14" }]
+}
