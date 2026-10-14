@@ -7,7 +7,7 @@
     "dimensions": "28 ft main canopy: War Department TM 1-440 (1942) and DoD Handbook for Air Delivery Systems, read 2026-10-14; person, harness and suspension geometry are ESTIMATES",
     "license": "AGPL-3.0-or-later"
   },
-  "keep": [{ "node": "CanopyOpen" }, { "node": "CanopyRibs" }, { "node": "CanopyClosed" }, { "node": "Person" }, { "node": "PersonHead" }, { "node": "SuspensionLines" }],
+  "keep": [{ "node": "CanopyOpen" }, { "node": "CanopyRibs" }, { "node": "CanopyClosed" }, { "node": "Person" }, { "node": "PersonHead" }, { "node": "PersonHelmet" }, { "node": "PersonBoots" }, { "node": "SuspensionLines" }],
   "skin": true,
   "textures": { "maxSize": 512, "format": "webp" },
   "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 12 }

@@ -54,18 +54,17 @@ with m.tagged('tailwheel'):
     m.gear_leg('dark', (-8.25, -.10, 0), .72, .16, .10, node='Tailwheel')
 
 with m.tagged('cockpit'):
+    # 2026-10-14 diagnosis: the former canopy (crown y .83-.64) lay wholly inside the
+    # fuselage skin (top y 1.03 at x 3.15, .85 at x 4.5), so neither the glazing nor
+    # its frames reached the outside. The glazed hood now stands proud of the nose
+    # deck, its windscreen raked down onto the nose, with framing hoops. All
+    # section values are ESTIMATES.
     m.faired_canopy('glazing', 'ijaGreen', [
-        (3.15, .69, .28, .64, .66, .39, .78, .83),
-        (3.90, .61, .25, .55, .67, .34, .79, .84),
-        (4.48, .48, .20, .43, .58, .27, .68, .72),
-    ], [3.50, 3.86, 4.18], bar=.055, node='CockpitGlass', frame_node='CockpitFrames')
-
-    # Explicit inset front and side panes make the transport windshield read at
-    # normal Hangar distance instead of disappearing into the dark-green nose.
-    for z0 in (-.49, .03):
-        m.box('glazing', (4.44, .27, z0), (.12, .43, .46), node='CockpitGlass')
-    for side in (-1, 1):
-        m.box('glazing', (3.54, .34, side * .60 - .04), (.66, .38, .08), node='CockpitGlass')
+        (3.00, .62, .72, .58, 1.08, .40, 1.30, 1.36),
+        (3.80, .58, .62, .54, 1.00, .36, 1.20, 1.26),
+        (4.45, .48, .50, .43, .84, .28, 1.00, 1.06),
+        (4.85, .30, .36, .26, .62, .16, .76, .80),
+    ], [3.30, 3.70, 4.10, 4.50], bar=.04, node='CockpitGlass', frame_node='CockpitFrames')
 
 # Six white-bordered Hinomaru, the established IJA aircraft treatment in this
 # repository. Placement and size remain explicitly estimated for this Ki-57.

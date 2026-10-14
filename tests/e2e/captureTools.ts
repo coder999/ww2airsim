@@ -8,6 +8,7 @@
 export const CAPTURE_TEST_FILES = [
   'aaFrameTimeCapture.spec.ts',
   'aaRangeCapture.spec.ts',
+  'airborneCapture.spec.ts',
   'attackRangeCapture.spec.ts',
   'bayDoorsCapture.spec.ts',
   'beachesCapture.spec.ts',
