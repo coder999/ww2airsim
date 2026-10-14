@@ -935,19 +935,64 @@ models—such as mud, standing water, runway damage decals, or repeated clutter�
 not need artificial Hangar entries. Their visual checkpoints belong with the
 base-layout work that uses them.
 
+#### Campaign identity and pilot-rank progression — decided 13 October 2026
+
+Campaign victory means completing the authored campaign missions in sequence.
+Those missions may require a living roster pilot of a specified minimum rank.
+Repeatable side missions remain available without advancing the campaign so the
+player can earn points and promote surviving or replacement pilots until someone
+is eligible for the next campaign mission.
+
+The human player and the pilots are separate records:
+
+- The human player retains cumulative points, player rank, campaign progress,
+  mission badges, and aggregate results. For now, player rank is prestige only
+  and unlocks no command abilities.
+- The campaign owns a roster of named pilots. Death permanently closes that
+  pilot's record; campaign progress and the human player's accumulated points do
+  not reset.
+- **Rank is the pilots' only progression and eligibility variable.** There are no
+  fighter/bomber specialties, aircraft qualifications, proficiency ratings, or
+  skill bonuses. Any living pilot may fly any aircraft and mission allowed by
+  rank.
+- A human-player score bonus is derived from the number and ranks of living
+  pilots, giving the player an additional reason to preserve senior officers.
+  The exact formula and award timing remain balancing decisions.
+
+The game deliberately uses only naval rank ladders, including for pilots flying
+aircraft that historically belonged to an army air service. Requirements are
+cumulative:
+
+| Tier | American rank | Japanese rank | Newly eligible mission class |
+|---:|---|---|---|
+| 1 | Ensign | Kaigun Shōi | Daytime, single-engine missions |
+| 2 | Lieutenant (junior grade) | Kaigun Chūi | Night missions |
+| 3 | Lieutenant | Kaigun Taii | Multi-engine aircraft |
+| 4 | Lieutenant Commander | Kaigun Shōsa | Leads a single-type formation |
+| 5 | Commander | Kaigun Chūsa | Leads coordinated operations containing multiple formations or aircraft types |
+| 6 | Captain | Kaigun Taisa | Eligible to fly the campaign finale |
+
+This replaces an automatic qualified-replacement safeguard: if no living pilot
+meets the next campaign mission's requirement, the player uses side missions to
+develop one. Every campaign must therefore retain accessible entry-rank side
+missions, and their promotion pacing must not turn recovery from pilot loss into
+an excessive grind.
+
+Directly purchasing pilot promotions is only a distant possible freemium feature,
+not part of the initial campaign design. The initial progression must be balanced
+around earning every promotion through play and must not manufacture grind in
+anticipation of monetization.
+
 ### 6.2 Open questions
 
-1. Does one campaign pilot represent the broader air campaign and therefore switch
-   among fighters, attack aircraft, and the Catalina, or do campaigns branch by
-   role?
-2. Must every primary objective succeed before the next chapter unlocks, or may a
+1. Must every primary objective succeed before the next chapter unlocks, or may a
    failed result advance into a less favorable authored state?
-3. Is the Catalina rescue a required pacing chapter or an optional sortie?
-4. Should carrier and airfield landings remain mandatory for campaign credit, or
+2. Is the Catalina rescue a required pacing chapter or an optional sortie?
+3. Should carrier and airfield landings remain mandatory for campaign credit, or
    should a safe egress complete missions whose historical home base is outside the
    playable world?
-5. How many simultaneous nearby aircraft qualifies as the desired "large" finale
+4. How many simultaneous nearby aircraft qualifies as the desired "large" finale
    after performance and AI-behavior measurements?
-6. Does the campaign stop after 7 December, or later extend through the capture of
+5. Does the campaign stop after 7 December, or later extend through the capture of
    Ormoc and Tanauan becoming operational?
 
