@@ -1,0 +1,6 @@
+{
+  "id": "type38-75mm-field-gun", "output": "content/vehicles/type38-75mm-field-gun.glb",
+  "source": { "kind": "blender", "script": "tools/models/blender/f4-ground-assets.py", "dimensions": "5.63 x 2.10 x 1.34 m displayed envelope is an ESTIMATE for the F3-approved Type 38 75 mm field-gun silhouette; barrel and carriage limits are in the script header", "license": "AGPL-3.0-or-later" },
+  "keep": [{"node":"Carriage"},{"node":"WheelL"},{"node":"WheelR"},{"node":"Train"},{"node":"Barrel"},{"node":"Nose"}],
+  "skin": true, "textures": { "maxSize": 512, "format": "webp" }, "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+}

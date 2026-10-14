@@ -1,0 +1,6 @@
+{
+  "id": "type94-cargo-truck", "output": "content/vehicles/type94-cargo-truck.glb",
+  "source": { "kind": "blender", "script": "tools/models/blender/f4-ground-assets.py", "dimensions": "5.35 x 1.90 x 2.25 m overall envelope is an ESTIMATE for the F3-approved Type 94 cargo-truck silhouette; all geometry limits are in the script header", "license": "AGPL-3.0-or-later" },
+  "keep": [{"node":"Body"},{"node":"Nose"},{"node":"WheelR1L"},{"node":"WheelR1R"},{"node":"WheelFL"},{"node":"WheelFR"}],
+  "skin": true, "textures": { "maxSize": 512, "format": "webp" }, "budget": { "maxBytes": 1000000, "maxTriangles": 20000, "maxDrawCalls": 8 }
+}

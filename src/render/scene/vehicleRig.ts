@@ -328,10 +328,77 @@ function rigJeep(root: Object3D): VehicleRig {
   }
 }
 
+/** Original F4 wheeled assets: every Wheel* node rolls; WheelF* also steers. */
+function rigSimpleWheeled(root: Object3D): VehicleRig {
+  const wheels: Object3D[] = []
+  root.traverse((o) => { if (/^Wheel/.test(o.name)) wheels.push(o) })
+  if (wheels.length === 0) throw new Error('vehicle rig: no Wheel* nodes')
+  const front = wheels.filter((w) => /^WheelF/.test(w.name))
+  const radius = (o: Object3D): number => {
+    const m = need(meshesOf(o)[0], `${o.name} mesh`)
+    m.geometry.computeBoundingBox()
+    const b = m.geometry.boundingBox!
+    return Math.max(b.max.x - b.min.x, b.max.y - b.min.y) / 2
+  }
+  const radii = wheels.map(radius)
+  for (const w of wheels) w.rotation.order = 'YXZ'
+  return {
+    parts: front.length > 0 ? ['drive', 'steer'] : ['drive'],
+    mounts: [],
+    drive(distanceM, steer) {
+      wheels.forEach((w, i) => { w.rotation.z = -distanceM / radii[i]! })
+      for (const w of front) w.rotation.y = -Math.min(Math.max(steer, -1), 1) * JEEP_STEERING.lockRad
+    },
+    state: () => ({ wheelSpinRad: wheels[0]!.rotation.z, frontSteerRad: front[0]?.rotation.y ?? 0, wheels: wheels.length }),
+    dispose() {},
+  }
+}
+
+function rigFieldGun(root: Object3D): VehicleRig {
+  const train = need(root.getObjectByName('Train'), 'Train')
+  const barrel = need(root.getObjectByName('Barrel'), 'Barrel')
+  train.attach(barrel)
+  const rest = { train: train.quaternion.clone(), barrel: barrel.quaternion.clone() }
+  const Y = new Vector3(0, 1, 0), Z = new Vector3(0, 0, 1), q = new Quaternion()
+  const mount: ShipMountView = {
+    name: 'Train', kit: 'type38-75mm', maxElevationRad: Math.PI / 4,
+    setTraining(rad) { train.quaternion.copy(rest.train).multiply(q.setFromAxisAngle(Y, Math.min(Math.max(rad, -Math.PI / 12), Math.PI / 12))) },
+    setElevation(rad) { barrel.quaternion.copy(rest.barrel).multiply(q.setFromAxisAngle(Z, Math.min(Math.max(rad, -Math.PI / 12), Math.PI / 4))) },
+  }
+  return {
+    parts: ['turrets'], mounts: [mount], drive() {},
+    state: () => ({ traverseRad: angleAbout(train.quaternion, Y), elevationRad: angleAbout(barrel.quaternion, Z) }),
+    dispose() {},
+  }
+}
+
+function rigDozer(root: Object3D): VehicleRig {
+  const tracks = ['TrackL', 'TrackR'].map((n) => need(root.getObjectByName(n), n))
+  const raise = need(root.getObjectByName('BladeRaise'), 'BladeRaise')
+  const tilt = need(root.getObjectByName('BladeTilt'), 'BladeTilt')
+  const rest = { raise: raise.quaternion.clone(), tilt: tilt.quaternion.clone() }
+  const X = new Vector3(1, 0, 0), Z = new Vector3(0, 0, 1), q = new Quaternion()
+  const mount: ShipMountView = {
+    name: 'Blade', kit: 'd7-blade', maxElevationRad: Math.PI / 6,
+    setTraining(rad) { tilt.quaternion.copy(rest.tilt).multiply(q.setFromAxisAngle(X, Math.min(Math.max(rad, -Math.PI / 12), Math.PI / 12))) },
+    setElevation(rad) { raise.quaternion.copy(rest.raise).multiply(q.setFromAxisAngle(Z, Math.min(Math.max(rad, 0), Math.PI / 6))) },
+  }
+  return {
+    parts: ['turrets', 'drive'], mounts: [mount],
+    drive(distanceM) { for (const t of tracks) t.rotation.z = -distanceM / 0.36 },
+    state: () => ({ trackSpinRad: tracks[0]!.rotation.z, bladeRaiseRad: angleAbout(raise.quaternion, Z), bladeTiltRad: angleAbout(tilt.quaternion, X) }),
+    dispose() {},
+  }
+}
+
 /** Each animated vehicle's rig, by its model id (STATIC_MODELS.vehicle). */
 export const VEHICLE_RIGS: Readonly<Record<string, (root: Object3D) => VehicleRig>> = {
+  'caterpillar-d7-3t': rigDozer,
+  'gmc-cckw-353': rigSimpleWheeled,
   'm4-sherman': rigSherman,
   'type97-chi-ha': rigChiHa,
   'type95-kurogane': rigJeep,
+  'type38-75mm-field-gun': rigFieldGun,
+  'type94-cargo-truck': rigSimpleWheeled,
   'willys-mb-jeep': rigJeep,
 }

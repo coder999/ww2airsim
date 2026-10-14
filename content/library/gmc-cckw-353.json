@@ -1,0 +1,7 @@
+{
+  "id": "gmc-cckw-353", "name": "GMC CCKW-353", "kind": "vehicle", "side": "allied",
+  "model": { "kind": "vehicle", "id": "gmc-cckw-353" },
+  "blurb": "A Hangar-only long-wheelbase cargo truck with three driven wheel stations and steerable front wheels.",
+  "history": "The GMC CCKW family was the U.S. Army's workhorse two-and-a-half-ton truck. The 353 was the long-wheelbase cargo version represented here for airfield and road-support scenes.",
+  "sources": [{ "title": "U.S. Army Technical Manuals, TM 10 Quartermaster series (Library of Congress)", "url": "https://guides.loc.gov/us-army-technical-manuals/series-10-quartermaster", "read": "2026-10-14" }]
+}
