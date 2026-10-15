@@ -8,9 +8,12 @@
 export type TargetType =
   | 'fighter' | 'bomber' | 'cruiser' | 'battleship' | 'destroyer' | 'transport'
   | 'aaa' | 'runway' | 'building' | 'tank' | 'carrier'
+  // F5A (2026-10-14): the campaign table's two new rows (GAMEPLAY.md, "Campaign scoring and conduct").
+  | 'light-vehicle' | 'landing-craft'
 
 export const TARGET_TYPES: readonly TargetType[] = [
   'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'tank', 'carrier',
+  'light-vehicle', 'landing-craft',
 ]
 
 /** The score row a sunk hull of this role lands in: every role scores. */

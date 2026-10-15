@@ -53,6 +53,8 @@ const TARGET_LABELS: Readonly<Record<TargetType, string>> = {
   building: 'Buildings',
   tank: 'Tanks',
   carrier: 'Carriers',
+  'light-vehicle': 'Light vehicles',
+  'landing-craft': 'Landing craft',
 }
 
 const totalKills = (kills: Readonly<Record<TargetType, number>>): number =>

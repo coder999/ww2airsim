@@ -58,7 +58,7 @@ export type CombatVehicle = {
   readonly id: string
   readonly spec: {
     readonly lengthM: number; readonly widthM: number; readonly heightM: number
-    readonly targetType: 'building' | 'tank'
+    readonly targetType: 'building' | 'tank' | 'light-vehicle' | 'landing-craft'
   }
   readonly state: { readonly position: Vec3; readonly headingRad: number }
   readonly previous: { readonly position: Vec3; readonly headingRad: number }
@@ -92,6 +92,17 @@ export type AircraftCombat = {
    *  discharges the player (friendly-fire spec §4-§5). Only recorded when
    *  `stepCombat` is given sides. */
   readonly friendlyFire: FriendlyFire | null
+  /** F5A (campaign destruction credit, GAMEPLAY.md "Campaign scoring and conduct"): the ids of the
+   *  ENEMY aircraft, ships, structures and vehicles this aircraft's rounds, bombs, rockets, torpedoes
+   *  or blast did real durability damage to, in the order first damaged. A hit that changes nothing
+   *  (an already-destroyed target, a zero-damage graze) tags nothing, and neither does a collision.
+   *  Own-side targets are never tagged. */
+  readonly tagged: readonly string[]
+  /** F5A: tagged targets that have since been destroyed BY ANYONE, by score class. Credited once per
+   *  target, at the moment the sim calls it destroyed: the kill for an aircraft, structure or
+   *  vehicle, and the bottom of the 90 s sinking for a ship (ruling D15). Beside `killsByType`,
+   *  which keeps its last-blow rule until F5B retires it. */
+  readonly tagCredits: Readonly<Record<TargetType, number>>
   readonly stores: StoresState
   readonly shipsSunk: number
   readonly structuresDestroyed: number
@@ -171,7 +182,7 @@ export function createCombat(
     aircraft: Object.fromEntries(aircraft.map(a => [a.id, {
       guns: a.spec.combat?.guns.map(g => ({ ammo: g.rounds, cooldownS: 0, shots: 0 })) ?? [],
       damage: healthyDamage(engineCountOf(a.spec)), stress: initialStructuralStress(a.state, a.spec.limits),
-      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null,
+      shots: 0, hits: 0, kills: 0, lastHit: null, lastHitBy: null, killsByType: zeroKillsByType(), friendlyHits: 0, friendlyKills: 0, friendlyFire: null, tagged: [], tagCredits: zeroKillsByType(),
       stores: stores[a.id] ?? emptyStores, shipsSunk: 0, structuresDestroyed: 0,
       bombsDropped: 0, rocketsFired: 0, torpedoesDropped: 0, torpedoesBrokeUp: 0,
     }])),
@@ -736,6 +747,19 @@ export function stepCombat(
     if (rec !== undefined) records[owner] = withFriendlyFire(rec, { tick, kind, target })
   }
 
+  /** F5A: `owner` did real damage to an ENEMY `targetId`. Idempotent. Only aircraft have a record, so a
+   *  ship's or battery's rounds tag nothing. */
+  const tag = (owner: string, targetId: string): void => {
+    const rec = records[owner]
+    if (rec !== undefined && !rec.tagged.includes(targetId)) records[owner] = { ...rec, tagged: [...rec.tagged, targetId] }
+  }
+  /** F5A: `targetId` is destroyed, whoever did it: every aircraft that tagged it is credited, once. */
+  const creditTagged = (targetId: string, type: TargetType): void => {
+    for (const [id, rec] of Object.entries(records)) {
+      if (rec.tagged.includes(targetId)) records[id] = { ...rec, tagCredits: { ...rec.tagCredits, [type]: rec.tagCredits[type] + 1 } }
+    }
+  }
+
   /** A kill by anything -- a round, a direct bomb, or blast -- lands on the
    *  owner's record; `hits` stays the gunnery statistic it has always been. */
   const creditAircraftDamage = (
@@ -781,6 +805,7 @@ export function stepCombat(
     const lastHitBy = ownSide || rec.damage.burningSince !== null ? rec.lastHitBy : owner
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
     if (ownSide && owner !== target.id && damage !== rec.damage) noteFriendlyFire(owner, 'aircraft', target.id)
+    if (!ownSide && damage !== rec.damage) tag(owner, target.id)
     creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
   }
 
@@ -791,7 +816,10 @@ export function stepCombat(
     structureDamage[s.id] = now
     const friendly = ownSideTarget(sides, targetSides?.structures, owner, s.id)
     if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'structure', s.id)
+    const scored = enemyStructureIds === null || enemyStructureIds.has(s.id)
+    if (!friendly && scored && now.hp < was.hp) tag(owner, s.id)
     if (was.destroyedTick !== null || now.destroyedTick === null) return
+    if (scored) creditTagged(s.id, s.kind === 'aaa' ? 'aaa' : 'building')
     const shooter = records[owner]
     if (shooter === undefined) return
     // Own side: never RAZED or `killsByType` (ruling FF-4).
@@ -814,8 +842,11 @@ export function stepCombat(
     if (was === undefined) return
     // `shipsSunk` is NOT credited here: a hull is sunk when it reaches the
     // bottom 90 s later, off the attacker this blow fixed (spec §3.6).
-    shipDamage[ship.id] = damageShip(was, ship.spec.hullHp, amount, tick, owner)
-    if (was.destroyedTick === null && ownSideTarget(sides, targetSides?.ships, owner, ship.id)) noteFriendlyFire(owner, 'ship', ship.id)
+    const now = damageShip(was, ship.spec.hullHp, amount, tick, owner)
+    shipDamage[ship.id] = now
+    const friendly = ownSideTarget(sides, targetSides?.ships, owner, ship.id)
+    if (was.destroyedTick === null && friendly) noteFriendlyFire(owner, 'ship', ship.id)
+    if (!friendly && now.hp < was.hp) tag(owner, ship.id)
   }
 
   const damageVehicleAt = (vehicle: CombatVehicle, amount: number, owner: string): void => {
@@ -825,7 +856,9 @@ export function stepCombat(
     vehicleDamage[vehicle.id] = now
     const friendly = ownSideTarget(sides, targetSides?.vehicles, owner, vehicle.id)
     if (friendly && was.destroyedTick === null) noteFriendlyFire(owner, 'vehicle', vehicle.id)
+    if (!friendly && now.hp < was.hp) tag(owner, vehicle.id)
     if (was.destroyedTick !== null || now.destroyedTick === null) return
+    creditTagged(vehicle.id, vehicle.spec.targetType)
     const shooter = records[owner]
     if (shooter === undefined) return
     if (friendly) {
@@ -834,7 +867,7 @@ export function stepCombat(
     }
     records[owner] = {
       ...shooter,
-      structuresDestroyed: shooter.structuresDestroyed + (vehicle.spec.targetType === 'building' ? 1 : 0),
+      structuresDestroyed: shooter.structuresDestroyed + (vehicle.spec.targetType === 'tank' ? 0 : 1),
       killsByType: {
         ...shooter.killsByType,
         [vehicle.spec.targetType]: shooter.killsByType[vehicle.spec.targetType] + 1,
@@ -1146,7 +1179,11 @@ export function stepCombat(
     if (d.destroyedTick === null || d.sinkingFraction >= 1) continue
     const sinkingFraction = Math.min(1, d.sinkingFraction + dt / SINK_SECONDS)
     shipDamage[id] = { ...d, sinkingFraction }
-    if (sinkingFraction < 1 || d.attacker === null) continue
+    if (sinkingFraction < 1) continue
+    // F5A: bottom reached (ruling D15): every aircraft that tagged this hull is credited, once, whoever sank it.
+    const sunkRole = shipRoleById.get(id)
+    if (sunkRole !== undefined) creditTagged(id, shipTargetType(sunkRole))
+    if (d.attacker === null) continue
     const shooter = records[d.attacker]
     if (shooter === undefined) continue
     // Own side on the bottom: a friendly kill, never scored (ruling FF-4).
@@ -1218,6 +1255,19 @@ export function creditDownedAircraft(
   sides: Readonly<Record<string, Side>> | null = null,
 ): CombatState {
   let records: Record<string, AircraftCombat> | null = null
+  // F5A: a tagged aircraft that goes down this tick, by any cause (a kill, a crash, a burn-out, a
+  // break-up), is credited once to every aircraft that tagged it. The transition happens once.
+  for (const a of afterAircraft) {
+    if (!isAircraftDown(after.aircraft, a)) continue
+    const was = beforeAircraft.find((b) => b.id === a.id)
+    if (was === undefined || isAircraftDown(before.aircraft, was)) continue
+    for (const [id, rec] of Object.entries(records ?? after.aircraft)) {
+      if (!rec.tagged.includes(a.id)) continue
+      records ??= { ...after.aircraft }
+      const cur = records[id]!
+      records[id] = { ...cur, tagCredits: { ...cur.tagCredits, [a.spec.role]: cur.tagCredits[a.spec.role] + 1 } }
+    }
+  }
   for (const a of afterAircraft) {
     const rec = after.aircraft[a.id]
     if (rec === undefined) continue
