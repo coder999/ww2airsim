@@ -491,7 +491,7 @@ one representative kanji spelling each). Each file carries its own `sources` led
 
 | List | Sources named in the file | Terms | Status |
 | --- | --- | --- | --- |
-| American | SSA Popular Baby Names by Decade (1910s-1920s); Census Bureau Frequently Occurring Surnames (1990 and 2010) | US government works, public domain | **Compiled from recall of those rankings, not mechanically extracted or checked against the live tables. Needs Mark's review before F5B ships it.** |
-| Japanese | national common-surname rankings (Myoji Yurai); Meiji Yasuda Life name surveys and Taisho-era naming practice | names are facts; no text or table copied | Same caveat. Romanization is modified Hepburn with macrons; kanji are one representative spelling per given name. |
+| American | SSA Popular Baby Names by Decade (1910s-1920s); Census Bureau Frequently Occurring Surnames (1990 and 2010) | US government works, public domain | Compiled from recall of those rankings, not mechanically extracted or checked against the live tables. **Reviewed and approved by Mark 2026-10-14.** |
+| Japanese | national common-surname rankings (Myoji Yurai); Meiji Yasuda Life name surveys and Taisho-era naming practice | names are facts; no text or table copied | Same recall caveat; **reviewed and approved by Mark 2026-10-14.** Romanization is modified Hepburn with macrons; kanji are one representative spelling per given name. |
 
 No name is tied to a real service member, and no ethnicity is stored (the saved pilot carries a name only).

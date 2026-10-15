@@ -722,6 +722,7 @@ gated order.
 - **Weather beyond clouds, multiplayer, and a mission editor.** The missions spec rules out an editor (`missions-design.md:167`). Night lighting is now in scope under F6 because the approved campaigns require it.
 - **Re-deriving flight models.** The graded cards and the `plan1-rulings.md` decisions stand.
 - **Engine start and taxi sequences.** Taxiing isn't modeled for AI either (7g §6.5). This would be its own track if wanted.
+- **Pilot callsigns.** Mark (2026-10-14, after approving the F5A name lists): may add a callsign to generated pilots later; not in F5A or F5B's scope. A `callsign` field would be a schema version bump once F5A's schema is frozen.
 
 ---
 

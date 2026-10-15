@@ -15,7 +15,7 @@ describe('name lists', () => {
     expect(file.family.length).toBeGreaterThanOrEqual(150)
     expect(file.sources.length).toBeGreaterThanOrEqual(2)
     for (const s of file.sources) expect(s.name && s.terms && s.use).toBeTruthy()
-    expect(file.note).toMatch(/Needs Mark's review/)
+    expect(file.note).toMatch(/approved by Mark 2026-10-14/)
     const pool = DEFAULT_POOLS[f]
     expect(new Set(pool.given.map((e) => e.text)).size).toBe(pool.given.length)
     expect(new Set(pool.family.map((e) => e.text)).size).toBe(pool.family.length)
