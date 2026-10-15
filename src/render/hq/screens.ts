@@ -454,7 +454,8 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
     const c = current()
     const catalog = await deps.catalog()
     const h = hqModel(c, catalog)
-    const m = sheet('Bureau of Aeronautics', 'Air Group Headquarters', 'Form HQ-1', { text: 'Confidential', color: 'stamp--violet' })
+    // The Japanese heading is a placeholder (Mark's mockup C labeled it so); the real office name is a content call.
+    const m = sheet(c.faction === 'ja' ? 'Naval Aviation Bureau (placeholder heading)' : 'Bureau of Aeronautics', 'Air Group Headquarters', 'Form HQ-1', { text: c.faction === 'ja' ? 'Secret' : 'Confidential', color: 'stamp--violet' })
     const banner = saveBanner()
     if (banner !== null) m.sheet.appendChild(banner)
     m.sheet.appendChild(routing([['Service', h.service], ['Commander', h.commander], ['Current chapter', h.chapterText], ['Campaign file', h.revisionText]]))
