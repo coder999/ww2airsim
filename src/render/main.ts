@@ -304,9 +304,11 @@ async function boot(): Promise<void> {
   let pickedCloudiness: Cloudiness | undefined
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
+  let nightLightsOffQuery = false
   // DEV `?night=floor:1.4,moon:0.3`: the look's tunable constants (sky/night.ts), for CP1.
   if (import.meta.env.DEV) {
     const tuned = nightTuningFromQuery(location.search)
+    nightLightsOffQuery = tuned?.lightsOff === true
     Object.assign(nightTuning, tuned)
     if (tuned?.cockpitDim !== undefined) cockpitTuning.nightDim = tuned.cockpitDim
   }
@@ -383,6 +385,7 @@ async function boot(): Promise<void> {
   // F6A: the scenario's night lights (equipment models and one glow batch); lights are drawn from `lightsAt`, never stored.
   const nightLights = createNightLights(scene)
   const irradianceProbe = createIrradianceProbe()
+  if (nightLightsOffQuery) nightLights.setTier('off')
   // Plan 9 Task 7 round 2: hoisted together with `loadScenario` just below,
   // for the same TDZ reason as `roster` above and `frame`/`audio`/
   // `buildWorld` further down -- `loadScenario`'s only unguarded call site
