@@ -305,7 +305,7 @@ before an alternate expulsion of the beachhead.
 
 #### Night, bailout, world state, and scenes
 
-Night is low light, not complete darkness. Cockpit instruments are dimmable;
+Night is low light, not complete darkness. Cockpit instruments are dimmed at night (a fixed level, no control);
 aircraft receive only historically supported navigation, landing, formation,
 recognition, or search lights rather than universal headlights. Temporary runway
 and anchorage lamps, blackout-controlled ship and harbor lights, documented Leyte
