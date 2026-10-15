@@ -273,8 +273,7 @@ export function createSession(deps: SessionDeps): Session {
       const c = campaign
       if (c === null) throw new Error('launch: no campaign is open')
       if (a.unscored !== null) return { ok: false, campaign: c, error: { code: 'ineligible', message: `This sortie is not recorded (${UNSCORED_LABEL[a.unscored]}) and cannot be launched as a campaign sortie.` } }
-      const { unscored: _unscored, ...rest } = a
-      const r = launchSortie(c, { ...rest, now: deps.now() })
+      const r = launchSortie(c, { pilotId: a.pilotId, mission: a.mission, aircraft: a.aircraft, difficulty: a.difficulty, loadout: a.loadout, ...(a.facts === undefined ? {} : { facts: a.facts }), now: deps.now() })
       if (!r.ok) return r
       campaign = r.value
       persist(r.value)
