@@ -3,7 +3,7 @@ import { uniform } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { directAtmospherePalette, type SkyPalette } from '../sky/palette.js'
-import { moonIsKeyLight, moonWeight, starWeight } from '../sky/night.js'
+import { moonIsKeyLight, moonWeight, nightTuning, starWeight } from '../sky/night.js'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -70,11 +70,14 @@ export const trueSunDirectionNode = uniform(new Vector3(0, 1, 0))
 export const moonKeyNode = uniform(0)
 export const moonDiscNode = uniform(0)
 export const nightStarsNode = uniform(0)
+/** The moon's lit fraction (`nightTuning.moonPhase`), a uniform so the DEV `?night=phase:` takes effect with no rebuild. */
+export const moonPhaseNode = uniform(0.7)
 export function applyNight(trueSunDirection: Vec3, elevationDeg: number): void {
   trueSunDirectionNode.value.set(trueSunDirection.x, trueSunDirection.y, trueSunDirection.z)
   moonKeyNode.value = moonIsKeyLight(elevationDeg) ? 1 : 0
   moonDiscNode.value = moonWeight(elevationDeg)
   nightStarsNode.value = starWeight(elevationDeg)
+  moonPhaseNode.value = nightTuning.moonPhase
 }
 
 /**

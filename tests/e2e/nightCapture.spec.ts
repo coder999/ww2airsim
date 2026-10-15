@@ -35,12 +35,15 @@ for (const h of HOURS) {
 }
 
 // The fixed moon (az 250, el 40) for a plane heading 090: 160 deg to the right of the nose = look yaw +200 (left positive).
-test('capture moon', async ({ page }) => {
-  mkdirSync(OUT, { recursive: true })
-  await page.setViewportSize({ width: 1920, height: 1080 })
-  await heldView(page, withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '21', cloudTier: 'off', look: '200,40' }))
-  await page.screenshot({ path: `${OUT}/moon.png` })
-})
+for (const phase of ['0.7', '0.5', '0.25']) {
+  test(`capture moon phase ${phase}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true })
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await heldView(page, withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '21', cloudTier: 'off', look: '200,40', night: `phase:${phase}` }))
+    await page.screenshot({ path: `${OUT}/moon-${phase}.png`, clip: { x: 760, y: 340, width: 400, height: 400 } })
+    await page.screenshot({ path: `${OUT}/moon-${phase}-wide.png` })
+  })
+}
 
 const RANGE = { scenario: 'night-range', launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', cloudTier: 'off' }
 /** The night test bed (content/scenarios/night-range.json): every light kind, from the cockpit and from the air. */

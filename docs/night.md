@@ -18,7 +18,7 @@ for F6A once written; this file says what ships and where its numbers came from.
 | The renderer's half of the contract (models, glows, flicker) | `src/render/lights/nightLights.ts` |
 | The night test range (every kind but nav) | `content/scenarios/night-range.json`, picker row "Night Range (dev)" |
 
-DEV `?night=floor:1.3,moon:0.8,dusk:1.1,glow:1` overrides the four tunable scales for a session (floor and moon in `sky/night.ts`, glow scales every light's radiance).
+DEV `?night=floor:1.3,moon:0.8,dusk:1.1,glow:1,phase:0.7` overrides the tunables (`phase` is the moon's lit fraction: 0.7 gibbous by default, 0.25 a crescent) for a session (floor and moon in `sky/night.ts`, glow scales every light's radiance).
 `__ww2.lights()` lists the lights drawn last frame with the pixel each glow is centered on (the contrast specs read it).
 Look captures: `npm run capture:e2e -- nightCapture.spec.ts` (`NIGHT_QUERY` appends parameters).
 Correctness: `tests/e2e/night.spec.ts`, `tests/e2e/nightLights.spec.ts` (light legibility, WCAG contrast ratio on linear luminance), `tests/render/lights.test.ts`, `tests/render/night.test.ts`, `tests/sim/lights/lights.test.ts`.

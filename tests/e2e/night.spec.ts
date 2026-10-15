@@ -86,36 +86,73 @@ test('stars: point sources in a night sky, none in daylight', async ({ page }) =
   expect(day).toBe(0)
 })
 
-/** The lit limb saturates; the bloom halo around it does not. */
-const LIT = 235
-test('the moon disc is a half: lit on the left (waning), dark on the right', async ({ page }) => {
-  // Plane heading 090; the moon is at azimuth 250 = 160 deg right of the nose = look yaw +200 (left positive), 40 deg up.
-  const png = await view(page, 21, { look: '200,40' })
+/** The lit limb is bright; the bloom halo around it is not. */
+const LIT = 170
+/**
+ * The moon at a phase, read back from pixels: the lit part's bounding box, and the luminance of the
+ * UNLIT side of the disc against the sky just outside the disc. The plane heads 090; the moon is at
+ * azimuth 250 = 160 deg right of the nose = look yaw +200 (left positive), 40 deg up.
+ */
+async function moonAt(page: Page, phase: number) {
+  const png = await view(page, 21, { look: '200,40', night: `phase:${phase}` })
   const g = await lumaGrid(page, png, { x: 760, y: 340, w: 400, h: 400 })
-  // The disc: bright pixels near the middle of the window (stars are 1-3 px; the disc is ~60 px across).
-  let n = 0, sx = 0, sy = 0
-  g.luma.forEach((v, i) => { if (v > LIT) { n++; sx += i % g.w; sy += Math.floor(i / g.w) } })
-  expect(n, 'a moon is on screen').toBeGreaterThan(150)
-  const cx = Math.round(sx / n), cy = Math.round(sy / n)
-  // Bounding box of the bright pixels within 40 px of their centroid (stars elsewhere are excluded).
+  // The moon is the LARGEST connected bright component (stars are a few pixels each).
+  const seen = new Uint8Array(g.w * g.h)
+  let best: number[] = []
+  for (let i = 0; i < g.luma.length; i++) {
+    if (seen[i] || g.luma[i]! <= LIT) continue
+    const comp: number[] = [], stack = [i]
+    seen[i] = 1
+    while (stack.length > 0) {
+      const j = stack.pop()!
+      comp.push(j)
+      const x = j % g.w, y = Math.floor(j / g.w)
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + dx, ny = y + dy
+        if (nx < 0 || ny < 0 || nx >= g.w || ny >= g.h) continue
+        const k = ny * g.w + nx
+        if (!seen[k] && g.luma[k]! > LIT) { seen[k] = 1; stack.push(k) }
+      }
+    }
+    if (comp.length > best.length) best = comp
+  }
+  const n = best.length
+  expect(n, `a moon is on screen at phase ${phase}`).toBeGreaterThan(40)
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
-  for (let y = cy - 40; y <= cy + 40; y++) for (let x = cx - 40; x <= cx + 40; x++) {
-    if (x < 0 || y < 0 || x >= g.w || y >= g.h || g.luma[y * g.w + x]! <= LIT) continue
-    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y)
-  }
+  for (const j of best) { const x = j % g.w, y = Math.floor(j / g.w); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y) }
   const width = x1 - x0 + 1, height = y1 - y0 + 1
-  console.log('moon bright px', { n, width, height })
-  // A full disc is as wide as it is tall; a half disc with a straight terminator is half as wide.
-  expect(height, 'a moon-sized disc').toBeGreaterThan(20)
-  expect(width / height, 'half a disc').toBeGreaterThan(0.35)
-  expect(width / height, 'half a disc').toBeLessThan(0.65)
-  // Lit on the left: the round limb is on the left and the straight terminator on the right, so the
-  // right-most columns of the box are full height and the left-most ones taper.
-  const band = Math.max(3, Math.round(0.25 * width))
-  let leftBand = 0, rightBand = 0
-  for (let y = y0; y <= y1; y++) for (let k = 0; k < band; k++) {
-    if (g.luma[y * g.w + x0 + k]! > LIT) leftBand++
-    if (g.luma[y * g.w + x1 - k]! > LIT) rightBand++
+  // The disc is as tall as it is wide: its diameter is the lit part's height (a waning disc is lit to the top and bottom
+  // whatever the phase), and its centre is `diameter / 2` right of the lit part's left limb.
+  const R = height / 2, dcx = x0 + R, dcy = (y0 + y1) / 2
+  const mean = (inner: number, outer: number, side: 1 | -1): number => {
+    let s = 0, c = 0
+    for (let y = Math.floor(dcy - outer); y <= Math.ceil(dcy + outer); y++) for (let x = Math.floor(dcx - outer); x <= Math.ceil(dcx + outer); x++) {
+      const d = Math.hypot(x - dcx, y - dcy)
+      if (d < inner || d > outer || (x - dcx) * side < 0.25 * R) continue
+      s += g.luma[y * g.w + x]!; c++
+    }
+    return s / Math.max(c, 1)
   }
-  expect(rightBand, 'the terminator is on the right: the lit limb is on the left').toBeGreaterThan(1.3 * leftBand)
+  return { width, height, ratio: width / height, bright: n, dcx, dcy, R, g, mean }
+}
+
+for (const phase of [0.7, 0.5, 0.25]) {
+  test(`the moon at phase ${phase} is lit on the left by that fraction (width over diameter)`, async ({ page }) => {
+    const m = await moonAt(page, phase)
+    console.log('moon', phase, { width: m.width, height: m.height, ratio: m.ratio })
+    expect(m.height, 'a small disc').toBeGreaterThan(14)
+    expect(m.height, 'a small disc').toBeLessThan(50)
+    expect(Math.abs(m.ratio - phase), 'lit width / diameter is the phase').toBeLessThan(0.16)
+  })
+}
+
+test('the dark side of the moon is not visible: no dark disc, outline or earthshine', async ({ page }) => {
+  const m = await moonAt(page, 0.5) // the largest unlit half
+  // The unlit side of the disc (right of the terminator) against the sky 1.25 to 1.7 radii out on the same side.
+  const inside = m.mean(0.2 * m.R, 0.85 * m.R, 1)
+  const outside = m.mean(1.25 * m.R, 1.7 * m.R, 1)
+  console.log('dark side', { inside, outside })
+  // Bloom from the lit half makes the near side a touch brighter; a drawn dark disc would show a step the other way or a glow.
+  expect(inside - outside, 'no earthshine disc').toBeLessThan(10)
+  expect(outside - inside, 'no dark disc').toBeLessThan(10)
 })

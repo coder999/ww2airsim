@@ -1,8 +1,8 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
 import { clamp, color, cross, dot, float, floor, fract, length, mix, normalize, positionLocal, positionWorld, sin, smoothstep, sqrt, step, vec3 } from 'three/tsl'
-import { moonDiscNode, nightStarsNode, trueSunDirectionNode } from './lighting.js'
-import { MOON_ANGULAR_RADIUS_DEG, MOON_ILLUMINATED_FRACTION, moonDirection } from '../sky/night.js'
+import { moonDiscNode, moonPhaseNode, nightStarsNode, trueSunDirectionNode } from './lighting.js'
+import { MOON_ANGULAR_RADIUS_DEG, moonDirection } from '../sky/night.js'
 import { skyRadiance } from './atmosphereShading.js'
 import { getAtmosphereLuts } from '../sky/atmosphereLuts.js'
 import { SUN_ILLUMINANCE } from '../sky/palette.js'
@@ -66,7 +66,7 @@ const STAR_RADIUS_CELLS = 0.22
 const STAR_SHARE = 0.035
 /** HDR radiance of a star and of the moon's lit limb, scene units before exposure. */
 const STAR_RADIANCE = 1.1
-export const MOON_RADIANCE = 2.2
+export const MOON_RADIANCE = 1.1
 
 /** Procedural stars along a unit direction: a jittered 3-D lattice, one point per chosen cell. */
 function starField(dir: Node<'vec3'>): Node<'vec3'> {
@@ -82,10 +82,14 @@ function starField(dir: Node<'vec3'>): Node<'vec3'> {
 }
 
 /**
- * The fixed moon (D5): a disc of `MOON_ANGULAR_RADIUS_DEG` toward `moonDirection()`
- * with a straight terminator, lit on the LEFT (waning, as seen from the northern
- * hemisphere), `MOON_ILLUMINATED_FRACTION` of it lit; the dark limb is a faint
- * earthshine. Screen axes at the moon: right = moon x up.
+ * The fixed moon (D5, amended by Mark 2026-10-14 after CP1): a small disc of
+ * `MOON_ANGULAR_RADIUS_DEG` toward `moonDirection()`, WANING (lit limb on the
+ * left), `nightTuning.moonPhase` of it lit (0.7 = a gibbous). Only the LIT part is
+ * drawn: the dark side adds exactly nothing, so there is no dark disc, outline
+ * or earthshine against the sky. The terminator is a soft ellipse
+ * (x = k sqrt(1 - y^2), k = 2f - 1: 0 half, 1 full, negative a crescent), the limb
+ * darkens gently, and slow low-frequency "maria" break the flat shape.
+ * Screen axes at the moon: right = moon x up.
  */
 function moonDisc(dir: Node<'vec3'>): Node<'vec3'> {
   const m = moonDirection()
@@ -94,13 +98,17 @@ function moonDisc(dir: Node<'vec3'>): Node<'vec3'> {
   const up = cross(right, md)
   const sinR = Math.sin(MOON_ANGULAR_RADIUS_DEG * Math.PI / 180)
   const x = dot(dir, right).div(sinR), y = dot(dir, up).div(sinR)
-  const r = sqrt(x.mul(x).add(y.mul(y)))
-  const inside = float(1).sub(smoothstep(0.9, 1, r)).mul(step(0, dot(dir, md)))
-  // lit where x < t * sqrt(1 - y^2); t = 1 - 2 f is 0 for a half moon.
-  const t = 1 - 2 * MOON_ILLUMINATED_FRACTION
-  const edge = sqrt(clamp(float(1).sub(y.mul(y)), 0, 1)).mul(t).sub(x)
-  const lit = smoothstep(-0.06, 0.06, edge)
-  return vec3(0.82, 0.9, 1).mul(inside).mul(mix(float(0.015), float(1), lit)).mul(MOON_RADIANCE)
+  const r2 = x.mul(x).add(y.mul(y))
+  const r = sqrt(r2)
+  const inside = float(1).sub(smoothstep(0.88, 1, r)).mul(step(0, dot(dir, md)))
+  const k = moonPhaseNode.mul(2).sub(1)
+  const edge = sqrt(clamp(float(1).sub(y.mul(y)), 0, 1)).mul(k).sub(x)
+  const lit = smoothstep(-0.12, 0.12, edge)
+  // Limb darkening: 1 at the centre, 0.7 at the rim.
+  const limb = float(1).sub(float(0.3).mul(r2))
+  // Maria: a few slow sines, 12% deep, so the face is not a flat rigid shape.
+  const maria = float(1).sub(float(0.12).mul(sin(x.mul(3.1).add(y.mul(1.7))).mul(sin(y.mul(4.3).sub(x.mul(1.1)).add(1.3))).add(1).mul(0.5)))
+  return vec3(0.82, 0.9, 1).mul(inside).mul(lit).mul(limb).mul(maria).mul(MOON_RADIANCE)
 }
 
 /**
