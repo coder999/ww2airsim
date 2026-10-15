@@ -783,22 +783,15 @@ describe('the landing gates, tuned against a flown approach (Plan 11b Task 11)',
     expect(supportedContact(f6f, arriving(25, 38.4), 10)).toBe(false)
   })
 
-  it('scales the speed cap to the FLAPPED stall when the flaps are out', () => {
-    // With flaps the airplane stalls at 37.77 m/s, so the cap is 1.6 * that =
-    // 60.4 m/s; clean it is 1.6 * 43.81 = 70.1. A descending arrival BETWEEN
-    // those two is the one case that distinguishes the two readings, and it
-    // has to come out differently in the two configurations or the change did
-    // nothing.
+  it('does not lower the speed cap when the flaps are out (Mark 2026-10-15)', () => {
+    // The cap is 1.42 * the CLEAN stall at every flap setting. Between the old
+    // flapped cap and the clean cap, flaps out used to be rejected; now both pass.
     const flappedCap = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedFlapMps
     const cleanCap = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
     const between = (flappedCap + cleanCap) / 2
-    expect(between).toBeGreaterThan(flappedCap)
-    expect(between).toBeLessThan(cleanCap)
-    // Flaps out: above the configuration's cap, so this is an arrival too fast
-    // to be a landing.
-    expect(supportedContact(f6f, arriving(1.5, between, 1), 10)).toBe(false)
-    // Clean: inside it, because a clean wing genuinely needs more speed to fly.
+    expect(supportedContact(f6f, arriving(1.5, between, 1), 10)).toBe(true)
     expect(supportedContact(f6f, arriving(1.5, between, 0), 10)).toBe(true)
+    expect(supportedContact(f6f, arriving(1.5, cleanCap + 1, 1), 10)).toBe(false)
   })
 })
 
@@ -814,12 +807,11 @@ describe("Mark's 120 mph touchdown limit (2026-09-17)", () => {
       flapFraction: 1,
     })
 
-  it('accepts a touchdown just under 120 mph and rejects one just over, with the flaps out', () => {
-    // Mark's requirement, stated as a speed. It is stored as a multiple of the
-    // stall speed so the rule generalises to other aircraft, which means this
-    // test is what pins it to the figure he actually asked for.
-    expect(supportedContact(f6f, arrivingAt(119), 10)).toBe(true)
-    expect(supportedContact(f6f, arrivingAt(121), 10)).toBe(false)
+  it('accepts a touchdown just under 139 mph and rejects one just over, flaps out (was 120 mph; Mark 2026-10-15)', () => {
+    // Mark's 120 mph was the flap-adjusted figure; on 2026-10-15 he ruled flaps
+    // must not lower the limit, so it is the clean 139.2 mph at any setting.
+    expect(supportedContact(f6f, arrivingAt(138), 10)).toBe(true)
+    expect(supportedContact(f6f, arrivingAt(140), 10)).toBe(false)
   })
 
   it('leaves a flown approach well inside it', () => {
