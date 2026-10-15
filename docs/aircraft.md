@@ -658,8 +658,7 @@ Detail: [`docs/handoff/2026-10-14-ki57-onboard.md`](handoff/2026-10-14-ki57-onbo
   slice is clean wing, since the quarter-chord drifts with span.
 - **Manifest `pivot` points are in the source frame, not the output frame.** Shifting `origin` leaves them alone; moving them with it
   put the gear a metre off the wheels and failed `aircraftRigs.test.ts`.
-- **A transport enrolls with no `stores` and no `combat`, and no `bayDoors`.** `combat.test.ts` requires every spec with doors to drop
-  a bomb, so the Topsy's drawn cargo doors stay inert and `aircraftRigs.test.ts` exempts it. `role` is `bomber` until the schema has a
-  transport value. A new Japanese airplane also changes the generated Range Test scenarios: `npx tsx tools/scenarios/rangeTest.ts`.
+- **A transport enrolls with `role: "transport"`, no `stores` and no `combat`, and still takes `bayDoors`** for its cargo doors: the
+  doors lever is generic, and `combat.test.ts`'s bay-bomber pin counts only specs with doors and stores. A new Japanese airplane also changes the generated Range Test scenarios: `npx tsx tools/scenarios/rangeTest.ts`.
 - **OCR of the TAIC sheets drops digits.** Read the performance box from the page image (`pdftoppm -r 250`) and check a printed knots
   figure against the mph digit.

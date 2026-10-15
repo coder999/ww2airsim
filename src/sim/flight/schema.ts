@@ -117,7 +117,7 @@ const AircraftSpecObject = z.object({
   stores: StoresSchema.optional(),
   id: z.string().min(1),
   name: z.string().min(1),
-  role: z.enum(['fighter', 'bomber']),
+  role: z.enum(['fighter', 'bomber', 'transport']),
   /** Who flies it, in the Library's vocabulary (`SIDES`, hangar/library.ts).
    *  ELIGIBILITY ONLY (sortie spec 2026-09-27, ruling SF-R1): which aircraft
    *  the title offers with Dev off. A combat side is per scenario entity and

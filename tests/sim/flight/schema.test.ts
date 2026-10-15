@@ -166,13 +166,14 @@ describe('AircraftSpec validation (spec §9)', () => {
     expect(loadAircraftSpec('f6f-hellcat').role).toBe('fighter')
   })
 
-  it('requires role to be fighter or bomber', () => {
-    const bad: Record<string, unknown> = { ...valid, role: 'transport' }
+  it('requires role to be fighter, bomber or transport', () => {
+    const bad: Record<string, unknown> = { ...valid, role: 'tanker' }
     expect(() => parseAircraftSpec(bad)).toThrow(/role/)
     const missing: Record<string, unknown> = { ...valid }
     delete missing['role']
     expect(() => parseAircraftSpec(missing)).toThrow(/role/)
     expect(() => parseAircraftSpec({ ...valid, role: 'bomber' })).not.toThrow()
+    expect(() => parseAircraftSpec({ ...valid, role: 'transport' })).not.toThrow()
   })
 })
 

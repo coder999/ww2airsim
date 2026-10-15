@@ -100,7 +100,7 @@ it('bay doors: modeled on exactly the specs with bayDoors (C2)', () => {
   const modeled = Object.entries(AIRFRAME_RIGS).filter(([, r]) => (r.doors ?? []).length > 0).map(([id]) => id).sort()
   const specced = specIds.filter((s) => loadAircraftSpec(s).bayDoors !== undefined).sort()
   expect(modeled).toEqual(['b-17-flying-fortress', 'b-17-flying-fortress-blender', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'ki-57-ii-topsy', 'tbm-3-avenger'])
-  expect(specced).toEqual(modeled.filter((id) => id !== 'b-17-flying-fortress-blender' && id !== 'ki-57-ii-topsy'))
+  expect(specced).toEqual(modeled.filter((id) => id !== 'b-17-flying-fortress-blender'))
 })
 
 // Pinned (C1 batches 1-3, 2026-10-08), so a filter that matches nothing fails rather than passing
