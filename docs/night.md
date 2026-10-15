@@ -47,8 +47,8 @@ Anything below not tied to a citation is an ESTIMATE and is labeled where the nu
 | --- | --- | --- | --- |
 | 60-inch searchlight output | 800 million cd | Commonly cited peak for the US 60-inch carbon-arc light; a US Army manual-based description gives 990 million cd and 8,800 yd range. Sources: National Warplane Museum, GE carbon-arc searchlight; Steel Soldiers forum summary of the Army manual (read 2026-10-14, secondary) | 800e6 used; secondary source, TM 5-7045 itself (cited by F4 for the aperture) not re-read |
 | 60-inch beam half-angle | 2.5 degrees | none | ESTIMATE |
-| Parachute flare candlepower | 800,000 cd, 3 to 3.5 min | Navy OP 1664 via the National Museum of the USAF AN-M26 fact sheet (read 2026-10-14). That is the **AN-M26**, 50 in and 53 lb; the F4 model is the M24 (37 in, 47 lb, TM 9-981) | M24 value is an ESTIMATE borrowed from the M26 |
-| Flare descent rate | 2.4 m/s (about 8 ft/s) | none | ESTIMATE |
+| Parachute flare (the M24 the model depicts) | 800,000 cd, burns 3 min, falls 700 ft/min (3.556 m/s); 37.0 in, 47 lb (matches the F4 model) | **U.S. Explosive Ordnance, OP 1664, "Aircraft pyrotechnics (Army flares)", printed page 252 (PDF pages 9 to 10 of `inldigitallibrary.inl.gov/PRR/80965.pdf`), M24 row; the AN-M26 row on the same page gives the same 700 ft/min and 800,000 cp. Read 2026-10-14** | CITED. The M9 is 400 ft/min. |
+| Flare burn after landing on land | 25 s | Mark asked for a short tail (20 to 30 s) | ESTIMATE; it goes out at once in water |
 | Flare pot, harbor lantern, nav light, aircraft position light | 50 / 100 / 100 / 40 cd | none | ESTIMATE |
 | Aircraft position light colors | red port, green starboard, white tail | standard practice of the period; per-type layout not sourced | ESTIMATE for placement (Task 7) |
 | Twilight and moonlight illuminance for `ambientNightLevel` | anchors in `TWILIGHT_LUX`, half moon 0.05 lux | none | ESTIMATE |

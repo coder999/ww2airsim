@@ -50,6 +50,8 @@ export const LightSpecSchema = z.object({
   schedule: z.object({ onAtS: finite.optional(), offAtS: finite.optional(), burnS: finite.optional() }).strict().optional(),
   /** Searchlight only. Azimuth is a compass bearing (0 north, 90 east); `sweepDegPerS` turns it with sim time. */
   aim: z.object({ azimuthDeg: finite, elevationDeg: finite, sweepDegPerS: finite.optional() }).strict().optional(),
+  /** Flare only. `true` hangs the flare at its authored point for its whole burn (the night test range's lighting demo); absent, it behaves like a flare: it descends under its parachute, drifts with the wind, goes out in water and burns on the ground for `FLARE_GROUND_BURN_S`. */
+  fixed: z.boolean().optional(),
   blackoutExempt: z.boolean().optional(),
   /** GAMEPLAY.md: every installed light has source support or an explicit gameplay label. */
   source: z.enum(['historical', 'gameplay']),
@@ -62,6 +64,7 @@ export const LightSpecSchema = z.object({
   if (l.kind !== 'searchlight' && l.aim !== undefined) bad('only a searchlight has `aim`')
   if (l.kind === 'flare' && (l.schedule?.onAtS === undefined || l.schedule.burnS === undefined)) bad('a flare needs schedule.onAtS and schedule.burnS')
   if (l.kind !== 'flare' && l.schedule?.burnS !== undefined) bad('only a flare has schedule.burnS')
+  if (l.kind !== 'flare' && l.fixed !== undefined) bad('only a flare is `fixed`')
   if (l.kind === 'nav' && !('aircraft' in l.at)) bad('a nav light is placed on an aircraft point')
 })
 export type LightSpec = z.infer<typeof LightSpecSchema>
@@ -107,8 +110,19 @@ export const INTENSITY_CD = {
 } as const
 /** ESTIMATE: 60-inch beam half-angle after the reflector; real beams are about 2-3 degrees. */
 export const SEARCHLIGHT_HALF_ANGLE_RAD = (2.5 * Math.PI) / 180
-/** ESTIMATE: M26-class descent under its parachute, about 8 ft/s. */
-export const FLARE_DESCENT_MPS = 2.4
+/** M24 (and AN-M26) rate of fall after ignition: 700 ft/min = 3.556 m/s. U.S. Explosive Ordnance, OP 1664, "Aircraft pyrotechnics (Army flares)", printed page 252 (PDF pages 9 to 10), read 2026-10-14. Mark may scale it: DEV `?night=flarefall:`. */
+export const FLARE_DESCENT_MPS = (700 * 0.3048) / 60
+/**
+ * How long a parachute flare keeps burning once it lands on LAND, seconds. ESTIMATE (no source found): the
+ * M24's candle burns 3 minutes (OP 1664) whatever the canister does, but a canister lying on the ground with its
+ * canopy collapsed is a low, short-lived light, and Mark asked for a short tail (2026-10-14: 20 to 30 s). In water the
+ * light goes out at once. The burn time of the schedule still ends it earlier if shorter.
+ */
+export const FLARE_GROUND_BURN_S = 25
+/** Ground at or below this height is water: a flare landing there goes out. */
+export const WATER_HEIGHT_M = 0.2
+/** A landed flare lies this far above the surface, metres. */
+const LANDED_LIFT_M = 0.3
 /** Influence stops where a source gives less than this many lux. */
 export const MIN_LUX = 0.01
 export const MAX_RADIUS_M = 20_000
@@ -131,6 +145,10 @@ export type LightRuntime = {
 export type LightWorld = {
   readonly tick: number
   readonly dtS: number
+  /** The wind's velocity in the world frame, m/s (a flare drifts with it); absent is calm. */
+  readonly windMps?: Vec3
+  /** Multiplier on the flare's rate of fall (a DEV tuning knob; absent is 1). */
+  readonly flareFallScale?: number
   /** Ground (or sea) height under x,z for static lights with no altitude. */
   groundHeightM(x: number, z: number): number
   /** World position of an offset in a ship's frame, or null if that ship is gone. */
@@ -149,6 +167,37 @@ export function aimAxis(azimuthDeg: number, elevationDeg: number): Vec3 {
 
 function radiusFor(cd: number): number {
   return cd <= 0 ? 0 : Math.min(MAX_RADIUS_M, Math.sqrt(cd / MIN_LUX))
+}
+
+/**
+ * A flare's pose and state at sim time `t`: pure and deterministic from its content, the wind, the terrain
+ * and the clock (nothing is stored). `fixed` hangs at its authored point; otherwise it descends at
+ * `FLARE_DESCENT_MPS`, drifts with the wind, goes out the moment it touches water, and on land burns on for
+ * `FLARE_GROUND_BURN_S`; the schedule's `burnS` ends it earlier if shorter.
+ */
+export function flareAt(l: LightSpec, p0: Vec3, world: Pick<LightWorld, 'windMps' | 'groundHeightM' | 'flareFallScale'>, t: number): { readonly position: Vec3; readonly on: boolean } {
+  const t0 = l.schedule!.onAtS!, burnEnd = t0 + l.schedule!.burnS!
+  if (l.state !== 'on' || t < t0 || t >= burnEnd) return { position: p0, on: false }
+  if (l.fixed === true) return { position: p0, on: true }
+  const w = world.windMps ?? v3(0, 0, 0)
+  const fall = FLARE_DESCENT_MPS * (world.flareFallScale ?? 1)
+  const at = (dt: number): Vec3 => v3(p0.x + w.x * dt, p0.y - fall * dt, p0.z + w.z * dt)
+  const below = (dt: number): boolean => { const q = at(dt); return q.y <= world.groundHeightM(q.x, q.z) + LANDED_LIFT_M }
+  const burn = l.schedule!.burnS!
+  // First touchdown: ground sampled every 1 s (3.6 m of fall), then bisected. A ridge narrower than the horizontal drift in 1 s (the wind speed in metres) can be skipped: ACCEPTED, flares are not a collision query.
+  let landed = -1
+  if (below(0)) landed = 0
+  else for (let dt = 1; dt - 1 < burn; dt += 1) {
+    const hi = Math.min(dt, burn)
+    if (below(hi)) { let a = Math.max(0, dt - 1), b = hi; for (let i = 0; i < 12; i++) { const m = (a + b) / 2; if (below(m)) b = m; else a = m } landed = b; break }
+  }
+  const dt = t - t0
+  if (landed < 0 || dt < landed) return { position: at(dt), on: true }
+  const q = at(landed)
+  const ground = world.groundHeightM(q.x, q.z)
+  const rest = v3(q.x, ground + LANDED_LIFT_M, q.z)
+  if (ground <= WATER_HEIGHT_M) return { position: rest, on: false }
+  return { position: rest, on: dt < landed + FLARE_GROUND_BURN_S }
 }
 
 /** Is this light emitting at sim time `t`? */
@@ -191,8 +240,8 @@ export function lightsAt(specs: readonly LightSpec[], world: LightWorld): readon
     if ('ship' in l.at) p = world.shipPoint(l.at.ship, l.at.offset)
     else p = v3(l.at.x, l.at.altitudeM ?? world.groundHeightM(l.at.x, l.at.z), l.at.z)
     if (p === null) continue
-    const on = emitting(l, t)
-    if (l.kind === 'flare' && on) p = v3(p.x, p.y - FLARE_DESCENT_MPS * (t - l.schedule!.onAtS!), p.z)
+    let on = emitting(l, t)
+    if (l.kind === 'flare') { const f = flareAt(l, p, world, t); p = f.position; on = f.on }
     const cd = on ? INTENSITY_CD[l.kind] : 0
     let axis: Vec3 | undefined
     let cone: number | undefined

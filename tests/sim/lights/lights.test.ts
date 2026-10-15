@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   LIGHT_CAPS, LIGHT_CONTRACT_VERSION, LIGHT_KINDS, LightsSchema, ambientNightLevel, illuminanceAt, lightsAt, aimAxis,
-  INTENSITY_CD, FLARE_DESCENT_MPS, type LightSpec, type LightWorld,
+  INTENSITY_CD, FLARE_DESCENT_MPS, FLARE_GROUND_BURN_S, type LightSpec, type LightWorld,
 } from '../../../src/sim/lights/lights.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 
@@ -88,6 +88,88 @@ describe('lightsAt', () => {
     expect(l9.axis!.x).toBeCloseTo(aimAxis(180, 0).x, 6) // swept to south
     expect(l9.axis!.z).toBeCloseTo(1, 6) // +z is south
     expect(l0.coneHalfAngleRad).toBeGreaterThan(0)
+  })
+})
+
+describe('flares behave like flares (F6A, Mark 2026-10-14)', () => {
+  const flare = (extra: Partial<LightSpec> = {}, at = { x: 0, z: 0, altitudeM: 300 }, burnS = 240): LightSpec =>
+    ({ ...pot('f', 0), kind: 'flare', state: 'on', at, schedule: { onAtS: 10, burnS }, ...extra }) as LightSpec
+  const worldWith = (ground: (x: number, z: number) => number, wind = v3(0, 0, 0)): ((tick: number) => LightWorld) => (tick) => ({
+    tick, dtS: 1, windMps: wind, groundHeightM: ground, shipPoint: () => null, aircraftPoint: () => null,
+  })
+  const at = (spec: LightSpec, w: (tick: number) => LightWorld, t: number) => lightsAt([spec], w(t))[0]!
+
+  it('descends at the parachute rate and drifts with the wind', () => {
+    const w = worldWith(() => 0, v3(5, 0, -3))
+    const f = flare()
+    const a = at(f, w, 30), b = at(f, w, 70)
+    expect(a.positionM.y).toBeCloseTo(300 - FLARE_DESCENT_MPS * 20, 6)
+    expect(a.positionM.x).toBeCloseTo(5 * 20, 6); expect(a.positionM.z).toBeCloseTo(-3 * 20, 6)
+    expect((a.positionM.y - b.positionM.y) / 40, 'a constant descent rate').toBeCloseTo(FLARE_DESCENT_MPS, 6)
+    expect(a.intensityCd).toBe(INTENSITY_CD.flare)
+  })
+  it('goes out the moment it touches water, at the sea surface', () => {
+    const w = worldWith(() => 0)
+    const f = flare()
+    const touch = 10 + (300 - 0.3) / FLARE_DESCENT_MPS
+    expect(at(f, w, touch - 2).intensityCd).toBeGreaterThan(0)
+    expect(at(f, w, touch + 2).intensityCd, 'out in water').toBe(0)
+    expect(at(f, w, touch + 2).positionM.y).toBeCloseTo(0.3, 6)
+    // And a flare drifting from land out over the sea goes out where it lands, not where it started.
+    const coast = worldWith((x) => (x < 100 ? 20 : 0), v3(10, 0, 0))
+    expect(at(f, coast, 10 + 60).intensityCd, 'still falling over the water: lit').toBeGreaterThan(0)
+    expect(at(f, coast, 10 + 200).intensityCd, 'out once it has drifted over the water and touched it').toBe(0)
+  })
+  it('on land it lies there and keeps burning for FLARE_GROUND_BURN_S, then goes out; a shorter schedule ends it earlier', () => {
+    const w = worldWith(() => 50)
+    const f = flare({}, { x: 0, z: 0, altitudeM: 300 })
+    const touch = 10 + (300 - 50 - 0.3) / FLARE_DESCENT_MPS
+    expect(at(f, w, touch + 1).intensityCd).toBeGreaterThan(0)
+    expect(at(f, w, touch + 1).positionM.y).toBeCloseTo(50.3, 6)
+    expect(at(f, w, touch + FLARE_GROUND_BURN_S - 1).intensityCd, 'still burning on the ground').toBeGreaterThan(0)
+    expect(at(f, w, touch + FLARE_GROUND_BURN_S + 2).intensityCd, 'out after its ground burn').toBe(0)
+    const short = flare({}, { x: 0, z: 0, altitudeM: 300 }, 30)
+    expect(at(short, w, 10 + 29).intensityCd, 'burning while the schedule allows').toBeGreaterThan(0)
+    expect(at(short, w, 10 + 31).intensityCd, 'the schedule\'s burn time ends it before it lands').toBe(0)
+  })
+  it('falls at M24 speed: 700 ft/min, scalable for tuning', () => {
+    expect(FLARE_DESCENT_MPS).toBeCloseTo(3.556, 3)
+    const f = flare()
+    const slow = { ...worldWith(() => 0)(60), flareFallScale: 0.5 }
+    expect(lightsAt([f], slow)[0]!.positionM.y).toBeCloseTo(300 - 0.5 * FLARE_DESCENT_MPS * 50, 6)
+  })
+  it('lands on a sloping hillside where the slope meets it, not at the launch point\'s ground', () => {
+    const slope = (x: number) => 0.2 * x // rises 0.2 m per metre eastward
+    const f = flare()
+    const w = worldWith((x) => Math.max(0, slope(x)), v3(10, 0, 0))
+    const l = at(f, w, 10 + 40)
+    // After 40 s it has drifted 400 m east where the ground is 80 m up; it fell 142 m so is still above it, then lands later.
+    expect(l.positionM.x).toBeCloseTo(400, 6)
+    const late = at(f, w, 10 + 80)
+    expect(late.positionM.y, 'resting on the slope').toBeCloseTo(slope(late.positionM.x) + 0.3, 1)
+  })
+  it('a flare ignited below the terrain is on the ground at once', () => {
+    const f = flare({}, { x: 0, z: 0, altitudeM: 10 })
+    expect(at(f, worldWith(() => 30), 11).positionM.y).toBeCloseTo(30.3, 6)
+  })
+  it('a FIXED flare hangs at its authored point for its whole burn: no descent, drift or ground', () => {
+    const w = worldWith(() => 0, v3(8, 0, 8))
+    const f = flare({ fixed: true })
+    for (const t of [11, 100, 200, 249]) { const l = at(f, w, t); expect(l.positionM).toEqual(v3(0, 300, 0)); expect(l.intensityCd, `t ${t}`).toBe(INTENSITY_CD.flare) }
+    expect(at(f, w, 251).intensityCd).toBe(0)
+    expect(at(f, w, 5).intensityCd).toBe(0)
+  })
+  it('is deterministic: the same tick gives the same flare, in any order of evaluation', () => {
+    const w = worldWith((x, z) => 40 + Math.sin(x * 0.01) * 15 + z * 0.01, v3(4, 0, 2))
+    const f = flare()
+    const times = [10, 40, 90, 150, 150, 40]
+    const first = times.map((t) => at(f, w, t))
+    expect(first[1]).toEqual(first[5]); expect(first[3]).toEqual(first[4])
+    expect(times.map((t) => at(f, w, t))).toEqual(first)
+  })
+  it('only a flare may be `fixed`', () => {
+    expect(parse([{ ...pot('a', 0), fixed: true }]).success).toBe(false)
+    expect(parse([flare({ fixed: true })]).success).toBe(true)
   })
 })
 

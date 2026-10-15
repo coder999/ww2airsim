@@ -80,8 +80,8 @@
  ],
  "ships": [],
  "weather": {
-  "windFromDeg": 0,
-  "windMps": 0,
+  "windFromDeg": 90,
+  "windMps": 6,
   "timeOfDay": 21
  },
  "lights": [
@@ -517,10 +517,11 @@
    "state": "on",
    "schedule": {
     "onAtS": 1,
-    "burnS": 240
+    "burnS": 180
    },
    "source": "gameplay",
-   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout",
+   "fixed": true
   },
   {
    "id": "search-1",
@@ -587,6 +588,23 @@
    "blackoutExempt": false,
    "source": "gameplay",
    "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "flare-drift",
+   "kind": "flare",
+   "at": {
+    "x": -30066,
+    "z": -47905,
+    "altitudeM": 450
+   },
+   "color": "warm",
+   "state": "on",
+   "schedule": {
+    "onAtS": 1,
+    "burnS": 180
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: a flare that behaves like one (descends, drifts, goes out on water, burns briefly on land); flare-1 is the fixed lighting demo"
   }
  ]
 }
