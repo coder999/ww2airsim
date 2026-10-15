@@ -22,6 +22,7 @@ import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
 import { initialMainBattery } from './weapons/mainBattery.js'
 import { createVehicleState, type VehicleEntity, type VehicleSpec } from './world/vehicles.js'
+import { LightsSchema } from './lights/lights.js'
 import { waterSurfaceAt, waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
 
 /** The mission schema's loadout enum and the weapons module's `Loadout` type
@@ -294,6 +295,9 @@ const ScenarioShape = z.object({
      *  the RENDERER reads: `World` never sees it. */
     timeOfDay: finite.refine((t) => t >= 0 && t < 24, { message: 'timeOfDay must be in [0, 24)' }).optional(),
   }).strict(),
+  /** Night lights (F6A, docs/night.md): content the RENDERER and F6B read through
+   *  `lightsAt`; `World` never carries them, so the checksum cannot see them. Absent means none. */
+  lights: LightsSchema.optional(),
   /** Missions (spec 2026-09-25 §2). Present together or not at all:
    *  `checkMission` rejects triggers, held groups or a badge without
    *  objectives. `briefing` and `history` are display-only (M2); `World`
@@ -390,6 +394,18 @@ const ScenarioObject = ScenarioShape
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: `entity id "${entityId}" is already used; ids are unique across the whole scenario`, path: [] })
       }
     })
+    const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? []).map((e) => e.id)
+    const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? []).map((e) => e.id)
+    for (const [index, light] of (s.lights ?? []).entries()) {
+      const shipId = 'ship' in light.at ? light.at.ship : null
+      const planeId = 'aircraft' in light.at ? light.at.aircraft : null
+      if (shipId !== null && ![...s.ships.map((e) => e.id), ...heldShips].includes(shipId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `light "${light.id}" names unknown ship "${shipId}"`, path: ['lights', index] })
+      }
+      if (planeId !== null && ![...s.aircraft.map((e) => e.id), ...heldAircraft].includes(planeId)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `light "${light.id}" names unknown aircraft "${planeId}"`, path: ['lights', index] })
+      }
+    }
     const byId = new Map(s.aircraft.map((a) => [a.id, a]))
     for (const [index, aircraft] of s.aircraft.entries()) {
       const target = aircraft.pilot?.target
