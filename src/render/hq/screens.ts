@@ -40,7 +40,7 @@ export type HqDeps = {
   readonly onHide?: () => void
 }
 
-export type HqHandle = { show(): void; hide(): void; up(): boolean }
+export type HqHandle = { show(): void; /** Show again on the view it was hiding (Back from a sortie memo). */ reopen(): void; hide(): void; up(): boolean }
 
 type View =
   | { kind: 'files' } | { kind: 'new' } | { kind: 'hq' } | { kind: 'chapter' } | { kind: 'archive'; filter: ArchiveFilter }
@@ -831,9 +831,13 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
   }
 
   return {
+    show() { open(false) },
+    reopen() { open(true) },
     up: () => overlay !== null,
     hide,
-    show() {
+  }
+
+  function open(keepView: boolean): void {
       hide()
       ensureStampFilter()
       overlay = el('div')
@@ -846,7 +850,7 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
       stage.style.cssText = 'flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:16px 0 4vh'
       overlay.appendChild(stage)
       root.appendChild(overlay)
-      view = session.current() === null ? { kind: 'files' } : { kind: 'hq' }
+      if (!keepView || session.current() === null) view = session.current() === null ? { kind: 'files' } : { kind: 'hq' }
       onKey = (e: KeyboardEvent): void => {
         if (e.code !== 'Escape' || dossierClose !== null) return
         if (view.kind === 'hq' || view.kind === 'files') return
@@ -855,6 +859,5 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
       }
       window.addEventListener('keydown', onKey)
       void render()
-    },
   }
 }

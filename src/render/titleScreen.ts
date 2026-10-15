@@ -8,7 +8,7 @@ import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
 import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
 import { openDossier } from './dossier.js'
 import { insigniaElement, ribbonElement } from './insignia.js'
-import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
+import { DIFFICULTY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
 import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type DevTakeoffTime, type TakeoffTime } from './sky/sun.js'
@@ -127,6 +127,9 @@ export const TITLE_FORMS = {
   aircraft: { kicker: 'Bureau of Aeronautics', title: 'Aircraft Assignment', number: 'Form 5 of 6' },
   ordnance: { kicker: 'Bureau of Ordnance', title: 'Ordnance Requisition', number: 'Form 6 of 6' },
 } as const
+
+/** A headquarters sortie numbers its memos Step 3 to 5 of 5 (Steps 1 and 2 are the picker). */
+const CAMPAIGN_STEP: Readonly<Record<string, string>> = { 'Flight Conditions': 'Step 3 of 5', 'Aircraft Assignment': 'Step 4 of 5', 'Ordnance Requisition': 'Step 5 of 5' }
 
 export const NEW_PILOT_GUIDANCE =
   'New pilots should complete Basic Flying, Torpedo Qualification and Carrier Qualification before operational missions.'
@@ -349,7 +352,31 @@ export function isValidPilotName(name: string): boolean {
   return name.trim().length > 0
 }
 
+/**
+ * A scored or unscored sortie begun from the headquarters (plan F5B Task 8): the title shows only Forms 4 to 6 for
+ * it, as Steps 3 to 5 of 5, with Back returning to the headquarters' pilot step. `main.ts` is told nothing new:
+ * Launch still ends in `onNewGame`.
+ */
+export type CampaignSortie = {
+  readonly scenarioId: string
+  /** The assigned pilot as the forms name him: rank abbreviation, then name. */
+  readonly pilotLabel: string
+  readonly dev: boolean
+  readonly god: boolean
+  /** An authored night mission's hour, or null for the usual Morning, Midday and Dusk. */
+  readonly lockedHour: number | null
+  /** Form 5's gate on each aircraft for this pilot and mission. */
+  readonly aircraftGate: (specId: string) => { readonly ok: true } | { readonly ok: false; readonly text: string }
+  /** Why this sortie would not be recorded (shown on Form 6), or null if it is scored. */
+  readonly notRecorded: (choice: SortieChoice) => string | null
+  /** Called at Launch; returns an error message to show (and not launch), or null to go. */
+  readonly onLaunch: (choice: SortieChoice) => string | null
+  readonly onBack: () => void
+}
+
 export type TitleScreenHandle = {
+  /** Begins a sortie from the headquarters: rebuilds the overlay on Form 4 with this request. */
+  beginSortie(req: CampaignSortie): void
   /** Whether the title is still on screen; `main.ts` holds the world while it is. */
   readonly up: () => boolean
   /**
@@ -460,6 +487,8 @@ export function createTitleScreen(
   let dev = missions.options.find((o) => o.value === currentScenarioId)?.dev === true
   // God mode: session state like Dev, and only ever true while Dev is.
   let god = false
+  // F5B: a sortie begun from the headquarters; the title then shows Forms 4 to 6 only.
+  let campaign: CampaignSortie | null = null
 
   let isUp = false
   let onKey: ((e: KeyboardEvent) => void) | null = null
@@ -631,7 +660,7 @@ export function createTitleScreen(
       const memo = memoPanel()
       memo.panel.style.display = 'none'
       memo.panel.style.marginTop = 'auto'
-      memo.sheet.appendChild(letterhead(f.kicker, f.title, f.number))
+      memo.sheet.appendChild(letterhead(f.kicker, f.title, campaign === null ? f.number : CAMPAIGN_STEP[f.title] ?? f.number))
       const routing = document.createElement('dl')
       routing.className = 'routing'
       const routingTerm = document.createElement('dt')
@@ -764,6 +793,13 @@ export function createTitleScreen(
     const hourRequest = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
     const renderTakeoff = (): void => {
       takeoffGroup.replaceChildren()
+      if (campaign !== null && campaign.lockedHour !== null) {
+        // An authored night mission flies at its own hour: one row, no choice (Mark, ruling Q12).
+        const only = ballotOption(`Authored time (${hhmm(campaign.lockedHour)})`, 'This mission is flown at night', () => undefined)
+        only.setAttribute('aria-checked', 'true')
+        takeoffGroup.appendChild(only)
+        return
+      }
       const rows = new Map<TakeoffTime, HTMLDivElement>()
       const devRows = new Map<DevTakeoffTime, HTMLDivElement>()
       for (const t of Object.keys(takeoff) as TakeoffTime[]) {
@@ -893,16 +929,26 @@ export function createTitleScreen(
       aircraftGroup.replaceChildren()
       const rows = new Map<string, HTMLDivElement>()
       const offered = flowReady ? aircraftFor(ctx(), draft.scenarioId) : []
+      const gate = (id: string) => (campaign === null ? { ok: true as const } : campaign.aircraftGate(id))
+      // A pilot may not take a gated aircraft: the draft moves to the first one he may (Dev lifts the gate, unrecorded).
+      if (!dev && !gate(draft.aircraftSpec).ok) {
+        const first = offered.find((f) => gate(f.spec.id).ok)
+        if (first !== undefined) draft = withAircraft(ctx(), draft, first.spec.id)
+      }
       for (const f of offered) {
-        const el = ballotOption(aircraftRowLabel(f, dev), '', () => {
+        const g = gate(f.spec.id)
+        const blocked = !g.ok && !dev
+        const el = ballotOption(aircraftRowLabel(f, dev), g.ok ? '' : g.text, () => {
+          if (blocked) return
           draft = withAircraft(ctx(), draft, f.spec.id)
           renderAircraft()
         })
+        if (blocked) { el.style.opacity = '.5'; el.setAttribute('aria-disabled', 'true') }
         rows.set(f.spec.id, el)
         aircraftGroup.appendChild(el)
       }
       markGroup(rows, draft.aircraftSpec)
-      const chosen = offered.find((f) => f.spec.id === draft.aircraftSpec)
+      const chosen = offered.find((f) => f.spec.id === draft.aircraftSpec && (dev || gate(f.spec.id).ok))
       aircraftCard.replaceChildren(...(chosen === undefined ? [paragraph(NO_AIRCRAFT)] : [paragraph(chosen.blurb), figuresTable(chosen)]))
       enable(aircraftNext, chosen !== undefined)
     }
@@ -915,7 +961,10 @@ export function createTitleScreen(
     ordnanceForm.right.append(sectionTitle('Stores'), storesHost)
     const ordnanceBack = inkButton(m.back)
     const launchButton = inkButton(m.launch, true)
-    ordnanceForm.sheet.appendChild(buttonRow(ordnanceBack, launchButton))
+    const launchError = document.createElement('p')
+    launchError.setAttribute('aria-live', 'polite')
+    launchError.style.cssText = 'margin:8px 0 0;font-size:12px;color:var(--stamp-red);min-height:1.2em'
+    ordnanceForm.sheet.append(launchError, buttonRow(ordnanceBack, launchButton))
     const renderOrdnance = (): void => {
       loadoutGroup.replaceChildren()
       const rows = new Map<Loadout, HTMLDivElement>()
@@ -944,6 +993,12 @@ export function createTitleScreen(
         hangs.push(storesLine(drawn, draft.loadout, missions.ordnanceNames))
         const note = devLayoutNote(ctx(), f.spec.id, draft.loadout)
         if (note !== null) hangs.push(note)
+      }
+      if (campaign !== null) {
+        const d = DIFFICULTY_OPTIONS.find((o) => o.value === settings.snapshot().difficulty)
+        hangs.push(`Difficulty: ${d?.label ?? settings.snapshot().difficulty}. Change it in Settings.`)
+        const reason = campaign.notRecorded({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, ...(dev && god ? { god: true } : {}) })
+        if (reason !== null) hangs.push(`Not recorded: ${reason}.`)
       }
       storesHost.replaceChildren(...hangs.map(paragraph))
     }
@@ -1336,6 +1391,17 @@ export function createTitleScreen(
 
     // Launch: Form 6 -> the flight.
     const start = (): void => {
+      if (campaign !== null) {
+        const flying = missions.flyable.find((f) => f.spec.id === draft.aircraftSpec)
+        if (flying === undefined) return
+        const timeOfDay = campaign.lockedHour ?? (takeoffTime === null ? undefined : hourFor(takeoffTime))
+        const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
+        const refused = campaign.onLaunch(choice)
+        if (refused !== null) { launchError.textContent = refused; return }
+        hide()
+        onNewGame(choice, null)
+        return
+      }
       // Guards Enter (`onKey` below) the same way `advance` does: no pilot
       // selected, no flight -- `pilotId` has nothing to be.
       if (selectedPilotId === null) return
@@ -1365,7 +1431,7 @@ export function createTitleScreen(
     typeNext.addEventListener('click', nextFromType)
     ordersBack.addEventListener('click', () => showStep('type'))
     ordersNext.addEventListener('click', nextFromOrders)
-    conditionsBack.addEventListener('click', () => showStep('orders'))
+    conditionsBack.addEventListener('click', () => (campaign === null ? showStep('orders') : campaign.onBack()))
     conditionsNext.addEventListener('click', nextFromConditions)
     aircraftBack.addEventListener('click', () => showStep('conditions'))
     aircraftNext.addEventListener('click', nextFromAircraft)
@@ -1471,6 +1537,14 @@ export function createTitleScreen(
 
     window.addEventListener('keydown', onKey)
     isUp = true
+    if (campaign !== null) {
+      // A headquarters sortie: straight to Form 4 with this mission, pilot and gate; Forms 1 to 3 are not shown.
+      for (const el of routingPilots) el.textContent = campaign.pilotLabel
+      flightType = optionOf(draft.scenarioId)?.kind ?? 'mission'
+      hasStartedFlow = true
+      showStep('conditions')
+      return
+    }
     if (boot.ready) newPilotButton.focus()
   }
 
@@ -1487,7 +1561,15 @@ export function createTitleScreen(
     // reassignment here is exactly what the next `build()` call sees (Plan 9
     // Task 7 bugfix).
     show: (nextScenarioId: string): void => {
+      campaign = null
       currentScenarioId = nextScenarioId
+      build()
+    },
+    beginSortie: (req: CampaignSortie): void => {
+      campaign = req
+      dev = req.dev
+      god = req.god && req.dev
+      currentScenarioId = req.scenarioId
       build()
     },
   }

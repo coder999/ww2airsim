@@ -41,6 +41,7 @@ import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollisi
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createHeadquarters } from './hq/bootHq.js'
+import type { Session } from './campaignSession.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -929,10 +930,13 @@ async function boot(): Promise<void> {
   // so `currentPilotId` stays null and nothing banks. Audio stays suspended
   // until the first click, since no New game click supplied the gesture.
   if (quick !== null) title.hide()
+  let hqSession: Session | null = null
   // F5B CP1: the new headquarters is reachable with ?hq until Task 10 makes it the front door. It sits above the
   // title (which stays up, so the world is held and flight keys stay off); closing it drops back to the old title.
   if (new URLSearchParams(window.location.search).has('hq')) {
-    createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id) }).hq.show()
+    const booted = createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id), title, settings: quality.settings })
+    hqSession = booted.session
+    booted.hq.show()
   }
 
   const canvas = document.createElement('canvas')
@@ -1303,6 +1307,17 @@ async function boot(): Promise<void> {
       // `await buildScenarioEntities` (now a vehicle GLB fetch too) and the `.then(rebuildFrame)`, so
       // reading `bundle` alone reported the new id while `frame` still held the old roster.
       scenarioId: () => (swapPending ? null : bundle?.scenario.id ?? null),
+      campaign: () => {
+        const c = hqSession?.current() ?? null
+        if (c === null) return null
+        return {
+          id: c.id, faction: c.faction, revision: c.revision,
+          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty },
+          live: c.roster.live.map((id) => ({ id, points: c.pilots[id]!.points, sorties: c.pilots[id]!.sorties })),
+          archived: Object.keys(c.pilots).length - c.roster.live.length,
+          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned },
+        }
+      },
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
       // stamped by modelCache when there is one, rather than trusting the wrapper root's label.
       // The hand-built Wildcat has no cache URL and names its own root instead.

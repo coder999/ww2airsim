@@ -486,3 +486,25 @@ export async function diveToSea(page: Page, timeoutMs = 120_000): Promise<void> 
     if (held) await page.keyboard.up(key)
   }
 }
+
+/**
+ * The headquarters route (plan F5B). `/?hq` shows it above the title; the title is ready first, so the world is
+ * held and the launch really starts a sortie. Until Task 10 makes it the front door, `startGame` still walks
+ * the old title, and specs about the campaign use this.
+ */
+export async function openHeadquarters(page: Page): Promise<Locator> {
+  await page.goto('/?hq')
+  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await hq.waitFor({ timeout: 60_000 })
+  return hq
+}
+
+/** Dev on, a one-click dev campaign (U.S. or Japanese), and its Headquarters first view. */
+export async function openDevCampaign(page: Page, faction: 'us' | 'ja' = 'us'): Promise<Locator> {
+  const hq = await openHeadquarters(page)
+  await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
+  await hq.getByRole('button', { name: `Create dev campaign (${faction === 'us' ? 'U.S.' : 'Japanese'})` }).click()
+  await hq.getByText('Air Group Headquarters').waitFor()
+  return hq
+}
