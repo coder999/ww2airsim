@@ -2,14 +2,10 @@ import { Vector3, type Camera } from 'three'
 import type { Vec3 } from '../sim/math/vec3.js'
 
 /**
- * Short text beside the torpedosight's drawn elements (Mark 2026-10-15: "what is this green cross?"): ENTRY beside the
- * ring, ARMED <distance> beside the dashed bar. They are for sighted players only (`aria-hidden`): the verdict is announced
+ * Short text beside the torpedosight's drawn elements (Mark 2026-10-15: "what is this green cross?"): ENTRY beside the ring. They are for sighted players only (`aria-hidden`): the verdict is announced
  * from the badge's own live region, once, on a change.
  */
 export const FEET_PER_METRE = 3.28084
-
-/** The text beside the dashed arming bar, imperial, rounded to 10 ft. */
-export const armedLabel = (armRunM: number): string => `ARMED ${Math.round((armRunM * FEET_PER_METRE) / 10) * 10} FT`
 
 /** CSS pixel of a world point (the scene is shifted by `worldOffset`, as in the marker); null when behind the eye. */
 export function projectToScreen(p: Vec3, camera: Camera, worldOffset: Vec3, width: number, height: number): { readonly x: number; readonly y: number } | null {
@@ -20,8 +16,8 @@ export function projectToScreen(p: Vec3, camera: Camera, worldOffset: Vec3, widt
 }
 
 export type SightLabelsHandle = {
-  /** Either point null (or `null` for `tone`) hides that label. */
-  update(entry: { x: number; y: number } | null, armed: { x: number; y: number } | null, armedText: string, tone: 'ok' | 'bad' | null): void
+  /** `entry` null (or `tone` null) hides the label. */
+  update(entry: { x: number; y: number } | null, tone: 'ok' | 'bad' | null): void
 }
 
 export function createSightLabels(root: HTMLElement): SightLabelsHandle {
@@ -33,7 +29,7 @@ export function createSightLabels(root: HTMLElement): SightLabelsHandle {
     root.appendChild(el)
     return el
   }
-  const entryEl = make('ENTRY'), armedEl = make('ARMED')
+  const entryEl = make('ENTRY')
   const place = (el: HTMLDivElement, at: { x: number; y: number } | null, dx: number, color: string): void => {
     if (at === null) { el.style.display = 'none'; return }
     el.style.display = 'block'
@@ -41,11 +37,9 @@ export function createSightLabels(root: HTMLElement): SightLabelsHandle {
     el.style.transform = `translate(${Math.round(at.x + dx)}px, ${Math.round(at.y - 9)}px)`
   }
   return {
-    update(entry, armed, armedText, tone) {
+    update(entry, tone) {
       const color = tone === 'bad' ? '#ff9e97' : '#7ee787'
-      if (armedEl.textContent !== armedText) armedEl.textContent = armedText
       place(entryEl, tone === null ? null : entry, 26, color)
-      place(armedEl, tone === null ? null : armed, 34, color)
     },
   }
 }

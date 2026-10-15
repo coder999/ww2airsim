@@ -147,9 +147,9 @@ New `predictTorpedoDrop(spec, state, stores, terrain, wind, decks)` in `src/sim/
 HUD, in the same marker family as the bombsight (revised 2026-10-15 after Mark could not tell the elements apart; every element now has on-screen text):
 - **Entry ring** with a center dot, and the word ENTRY beside it. Plain green ring when `valid`; red ring with a solid X inside when not, so color is never the only signal.
 - **Run line**: a thin line from the ring along the drop heading.
-- **Arming bar**: a DASHED bar across the run line at `armRunM`, labeled `ARMED 590 FT` (imperial). Dashed and X-free on purpose, so it cannot be mistaken for the invalid X. A hit before it is a dud.
+- **No arming mark** (Mark 2026-10-15, arcade ruling: torpedoes arm on water entry; `armRunM` is 0 in content for every carrier). An earlier revision drew a dashed bar labeled ARMED <ft>; it was removed with the delay.
 - The small ring near the horizon in the captures is the existing gun pipper, not part of the sight.
-- Badge text, always present with the sight on and a torpedo loaded: `TORPEDOSIGHT DROP OK · ENTRY 0.3 MI · ARMS 591 FT` or `TORPEDOSIGHT NO DROP: TOO FAST 212 MPH (MAX 189)`, `TOO HIGH 640 FT (MAX 2,395)`, `NOT OVER OPEN SEA`, `BAY DOORS SHUT`.
+- Badge text, always present with the sight on and a torpedo loaded: `TORPEDOSIGHT DROP OK · ENTRY 0.3 MI` or `TORPEDOSIGHT NO DROP: TOO FAST 212 MPH (MAX 189)`, `TOO HIGH 640 FT (MAX 2,395)`, `NOT OVER OPEN SEA`, `BAY DOORS SHUT`.
 - The on-screen labels are `aria-hidden`; the screen-reader announcement is unchanged (verdict changes only, at most once a second).
 
 Known blind spot, stated on the HUD documentation and in decision D5: the real sim breaks a torpedo up if it falls onto a hull or deck; like B2 (`impactPrediction.ts:41-46`) the prediction ignores hulls, so a drop onto a ship shows green and breaks up.
@@ -301,6 +301,7 @@ Mark accepted every recommendation of the first draft's ambiguity batch. The pla
 | D15 | AI that loses sight | Drops the target and resumes patrol, with the 1.25x keep-sight factor | 9 |
 | D16 | Range values | Keep the starting values until CP1, then tune | 9, CP1 |
 | G1 | Dev UI | Dev uses the same UI as production; the Dev checkbox unlocks dev features within it | Task 8, Task 12, collisions |
+| A1 | Torpedo arming | **Arcade ruling (Mark 2026-10-15): torpedoes arm the moment they are in the water, every carrier including AI.** `armRunM` set to 0 in the four torpedo content entries; the sight drops its arming bar, label and badge text; torpedo hit and flooding tests updated; recorded-flight checksums of torpedo scenarios change | sights, content, combat tests |
 | G2 | Launch data | F5B merges first and provides `CampaignLaunch{pilotId, tier, facts}`; F6B adds `sights` | 4.1, 10 |
 
 **Stop-and-list items (version bumps):** none required. The accepted additive `sighted` evidence member and the new `night` field on night worlds are the two close calls (5.3).

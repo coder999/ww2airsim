@@ -50,7 +50,7 @@ test('torpedosight: valid inside the envelope (green, DROP OK), invalid too high
   await page.waitForFunction(() => (window as DiagWindow).__ww2!.impactMarker().torpedo?.valid === true, undefined, { timeout: 15_000 })
   const ok = await marker(page)
   expect(ok.torpedo!.valid, JSON.stringify(ok.torpedo!.reasons)).toBe(true)
-  expect(ok.label).toMatch(/^TORPEDOSIGHT DROP OK · ENTRY \d+\.\d MI · ARMS \d+ FT$/)
+  expect(ok.label).toMatch(/^TORPEDOSIGHT DROP OK · ENTRY \d+\.\d MI$/)
   expect(ok.shown).toBe(true)
   await open(page, url('tbm-3-avenger', 'bombs', 1200))
   await page.keyboard.press('KeyU')

@@ -49,10 +49,9 @@ export function torpedoLabel(on: boolean, p: TorpedoPrediction | null, from: Vec
   if (!on) return null
   if (p === null) return 'IMPACT MARKER'
   const entry = p.entry === null ? '' : ` · ENTRY ${milesOf(Math.hypot(p.entry.x - from.x, p.entry.z - from.z)).toFixed(1)} MI`
-  const arms = ` · ARMS ${Math.round(p.armRunM * FEET_PER_METRE)} FT`
-  if (p.valid) return `TORPEDOSIGHT DROP OK${entry}${arms}`
+  if (p.valid) return `TORPEDOSIGHT DROP OK${entry}`
   const text = REASON_TEXT(p)
-  return `TORPEDOSIGHT NO DROP: ${p.reasons.map((r) => text[r]).join(' / ')}${entry}${arms}`
+  return `TORPEDOSIGHT NO DROP: ${p.reasons.map((r) => text[r]).join(' / ')}${entry}`
 }
 /** What a screen reader hears, and the key that says when it has changed: the verdict and reasons only, never the changing miles. */
 export function torpedoVerdict(p: TorpedoPrediction | null): { readonly key: string; readonly text: string } | null {
@@ -85,8 +84,6 @@ export function createTorpedoPredictor(): (
     return value
   }
 }
-/** The arming bar is DASHED (this many dashes over 50 m) so it cannot be read as the invalid state's solid X. */
-export const ARM_DASHES = 7
 /** The marker's colors: bomb and rocket orange as before; a torpedo drop green when valid, red when not. */
 export const SIGHT_COLORS = { plain: 0xff7a45, valid: 0x66f08a, invalid: 0xd92b22 } as const
 
@@ -119,7 +116,7 @@ export function createImpactPredictor(): (
 }
 
 /** The torpedosight's look: `valid` null is the plain bomb marker; a run line goes from the entry point along `dir`. */
-export type SightStyle = { readonly valid: boolean | null; readonly run?: { readonly dir: Vec3; readonly armM: number; readonly lengthM: number } | null }
+export type SightStyle = { readonly valid: boolean | null; readonly run?: { readonly dir: Vec3; readonly lengthM: number } | null }
 export type ImpactMarker = {
   readonly root: Group
   /** Poses the marker for this frame; returns the shown flag for diagnostics. */
@@ -138,10 +135,10 @@ export function createImpactMarker(): ImpactMarker {
   const cross = new Group()
   cross.add(bar(Math.PI / 4), bar(-Math.PI / 4))
   cross.visible = false
-  // The run after entry: a line along the drop heading with a tick at the arming distance (a hit before it is a dud).
+  // The run after entry: a line along the drop heading. (No arming mark: torpedoes arm on water entry, Mark 2026-10-15.)
   const lineMaterial = new LineBasicMaterial({ color: SIGHT_COLORS.valid, depthTest: false, depthWrite: false, transparent: true, opacity: 0.92, fog: false })
   const lineGeometry = new BufferGeometry()
-  lineGeometry.setAttribute('position', new BufferAttribute(new Float32Array(3 * (2 + 2 * ARM_DASHES)), 3))
+  lineGeometry.setAttribute('position', new BufferAttribute(new Float32Array(6), 3))
   const runLine = new LineSegments(lineGeometry, lineMaterial)
   runLine.renderOrder = 10
   runLine.frustumCulled = false
@@ -168,16 +165,9 @@ export function createImpactMarker(): ImpactMarker {
       runLine.visible = run !== null
       if (run !== null) {
         const a = lineGeometry.getAttribute('position') as BufferAttribute
-        const d = run.dir, px = -d.z, pz = d.x // perpendicular, in the water plane
+        const d = run.dir
         const put = (i: number, x: number, z: number): void => { a.setXYZ(i, x, point.y + 0.5, z) }
         put(0, point.x, point.z); put(1, point.x + d.x * run.lengthM, point.z + d.z * run.lengthM)
-        const tx = point.x + d.x * run.armM, tz = point.z + d.z * run.armM
-        // Dashes across the run at the arming distance: 50 m wide, every other 50/(2n-1) m drawn.
-        const unit = 50 / (2 * ARM_DASHES - 1)
-        for (let k = 0; k < ARM_DASHES; k++) {
-          const a0 = -25 + 2 * k * unit, a1 = a0 + unit
-          put(2 + 2 * k, tx + px * a0, tz + pz * a0); put(3 + 2 * k, tx + px * a1, tz + pz * a1)
-        }
         a.needsUpdate = true
       }
       marker.position.set(point.x, point.y, point.z)

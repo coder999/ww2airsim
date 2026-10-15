@@ -143,7 +143,7 @@ import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
-import { armedLabel, createSightLabels, projectToScreen } from './sightLabels.js'
+import { createSightLabels, projectToScreen } from './sightLabels.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
@@ -3226,21 +3226,17 @@ async function boot(): Promise<void> {
       const point = torpedo !== null ? torpedo.entry : prediction?.point ?? null
       const shown = impactMarker.update(
         point, prediction?.armed ?? true, camera, worldOffset, on && point !== null,
-        torpedo === null ? undefined : { valid: torpedo.valid, run: torpedo.entry === null ? null : { dir: torpedo.runDir, armM: torpedo.armRunM, lengthM: Math.min(torpedo.runRangeM, 900) } },
+        torpedo === null ? undefined : { valid: torpedo.valid, run: torpedo.entry === null ? null : { dir: torpedo.runDir, lengthM: Math.min(torpedo.runRangeM, 900) } },
       )
       const label = torpedo !== null ? torpedoLabel(on, torpedo, me.state.position) : impactLabel(on, prediction, me.state.position)
       impactBadge.set(label, torpedo === null ? 'plain' : torpedo.valid ? 'ok' : 'bad')
       impactBadge.announce(announceVerdict(torpedoVerdict(torpedo), performance.now()))
-      // Text beside the drawn elements (ENTRY, ARMED <ft>), only while a torpedo sight is up.
+      // Text beside the entry ring (ENTRY), only while a torpedo sight is up.
       {
         const showLabels = on && torpedo !== null && torpedo.entry !== null && shown
         const e = showLabels ? torpedo!.entry! : null
         const w = window.innerWidth, h = window.innerHeight
-        const armPoint = e === null ? null : { x: e.x + torpedo!.runDir.x * torpedo!.armRunM, y: e.y, z: e.z + torpedo!.runDir.z * torpedo!.armRunM }
-        sightLabels.update(
-          e === null ? null : projectToScreen(e, camera, worldOffset, w, h), armPoint === null ? null : projectToScreen(armPoint, camera, worldOffset, w, h),
-          armedLabel(torpedo?.armRunM ?? 0), showLabels ? (torpedo!.valid ? 'ok' : 'bad') : null,
-        )
+        sightLabels.update(e === null ? null : projectToScreen(e, camera, worldOffset, w, h), showLabels ? (torpedo!.valid ? 'ok' : 'bad') : null)
       }
       const ring = current.world.combat.impacts
       const detonations: Vec3[] = []

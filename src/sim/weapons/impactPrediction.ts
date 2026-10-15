@@ -133,7 +133,6 @@ export type TorpedoPrediction = {
   /** Release height above the sea (the rack, as the sim judges it). */
   readonly heightM: number
   readonly maxHeightM: number
-  readonly armRunM: number
   readonly runRangeM: number
   /** Horizontal unit vector of the run after entry (the drop heading). */
   readonly runDir: Vec3
@@ -174,7 +173,7 @@ export function predictTorpedoDrop(
   const h = Math.hypot(state.velocity.x, state.velocity.z)
   return {
     entry: hit === null ? null : hit.point, timeS: hit === null ? 0 : hit.timeS, valid: reasons.length === 0, reasons,
-    speedMps, maxSpeedMps: type.maxDropSpeedMps!, heightM, maxHeightM: type.maxDropHeightM!, armRunM: type.armRunM!, runRangeM: type.runRangeM!,
+    speedMps, maxSpeedMps: type.maxDropSpeedMps!, heightM, maxHeightM: type.maxDropHeightM!, runRangeM: type.runRangeM!,
     runDir: h < 1e-6 ? v3(1, 0, 0) : v3(state.velocity.x / h, 0, state.velocity.z / h),
   }
 }
