@@ -130,6 +130,7 @@ import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
 import { createNightLights } from './lights/nightLights.js'
+import { LIGHT_GAIN, createIrradianceProbe, irradianceAtCpu } from './lights/irradiance.js'
 import { applyNight, applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
@@ -381,6 +382,7 @@ async function boot(): Promise<void> {
   const scene = new Scene()
   // F6A: the scenario's night lights (equipment models and one glow batch); lights are drawn from `lightsAt`, never stored.
   const nightLights = createNightLights(scene)
+  const irradianceProbe = createIrradianceProbe()
   // Plan 9 Task 7 round 2: hoisted together with `loadScenario` just below,
   // for the same TDZ reason as `roster` above and `frame`/`audio`/
   // `buildWorld` further down -- `loadScenario`'s only unguarded call site
@@ -1366,6 +1368,21 @@ async function boot(): Promise<void> {
       radarPixelAt: (bearingRad: number, rangeMi: number) => radarScope.readAt(renderer, bearingRad, rangeMi),
       // Plan 16c: the hour in force and where the sun is, for the specs.
       sun: () => sunState,
+      lightIrradianceAt: async (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => {
+        const n = normal === null ? null : { x: normal[0], y: normal[1], z: normal[2] }
+        const gpu = await irradianceProbe.read(renderer, { x, y, z }, n)
+        const sel = nightLights.selected()
+        return { gpu, cpu: irradianceAtCpu(sel, { x, y, z }, n, LIGHT_GAIN * nightTuning.lightScale), lit: sel.length }
+      },
+      beams: (fraction: number) => {
+        if (!frame) return []
+        const eye = frame.eye.position, size = renderer.getSize(new Vector2())
+        return nightLights.beamsDrawn().map((b) => {
+          const t = b.lengthM * fraction
+          const p = new Vector3(b.origin.x + b.axis.x * t - eye.x, b.origin.y + b.axis.y * t - eye.y, b.origin.z + b.axis.z * t - eye.z).project(camera)
+          return { lengthM: b.lengthM, axis: [b.axis.x, b.axis.y, b.axis.z], screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
+        })
+      },
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -3474,7 +3491,8 @@ async function boot(): Promise<void> {
     applySun(lights, withMoonLight(atmospherePalette(view.eye.position.y, elevationDeg), elevationDeg), keyDirection, elevationDeg,
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
-    nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height))
+    nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null))
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

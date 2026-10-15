@@ -1,3 +1,4 @@
+import { gameplayLights } from '../lights/irradiance.js'
 import {
   BufferAttribute,
   DataTexture,
@@ -375,7 +376,8 @@ function createRingMaterial(
     // The terrain already has TRUE world coordinates (`worldXZ` from
     // `nodeSpec`, `heightM` from the field), so it passes 'world' and the
     // node adds no eye offset. `varying` so the lookup is per fragment.
-    const shadowT = shadow ? shadow.node(varying(vec3(worldXZ.x, heightM, worldXZ.y)), 'world') : float(1)
+    const surfaceWorld = varying(vec3(worldXZ.x, heightM, worldXZ.y))
+    const shadowT = shadow ? shadow.node(surfaceWorld, 'world') : float(1)
     // Photoreal Task 9 (spec §4.3): Lambertian in scene units, albedo/pi x
     // irradiance -- three's BRDF_Lambert, so the terrain and the lit materials
     // parked on it agree. The ambient is the atmosphere's sky irradiance,
@@ -386,7 +388,8 @@ function createRingMaterial(
     const visibility = occlusion.nodes(surfaceXZ)
     const ambient = mix(skyIrradianceDownNode, skyIrradianceUpNode.add(cloudSkylightNode).mul(visibility.sky), shadingNormal.y.mul(0.5).add(0.5))
     const enclosedAmbient = surf.canopy ? ambient.mul(mix(float(1), surf.canopy.sky, surf.canopy.weight)) : ambient
-    const lit = albedo.mul(1 / Math.PI).mul(enclosedAmbient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))))
+    // F6A: the gameplay lights (flares, pots, beams), the one shared node (lights/irradiance.ts). Zero loop iterations when none is active.
+    const lit = albedo.mul(1 / Math.PI).mul(enclosedAmbient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))).add(gameplayLights(surfaceWorld, shadingNormal)))
 
     // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
     // interpolated like the old fog ramp: the LUT is 32x32 per slice and

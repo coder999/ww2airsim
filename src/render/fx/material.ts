@@ -1,3 +1,4 @@
+import { gameplayLights } from '../lights/irradiance.js'
 import { AddEquation, CustomBlending, DoubleSide, MaxEquation, OneFactor, OneMinusSrcAlphaFactor, Vector2, Vector3 } from 'three'
 import { NodeMaterial, type Node, type TextureNode, type UniformNode } from 'three/webgpu'
 import {
@@ -72,6 +73,8 @@ function particleNodes(i: FxMaterialInputs) {
     quadUv: varying(vec2(corner.x.mul(0.5).add(0.5), float(0.5).sub(corner.y.mul(0.5)))),
     cellOrigin: varying(vec2(mod(cell, cols), floor(cell.div(cols))).div(vec2(cols, rows))),
     lPos: varying(lp.mul(lp)), lNeg: varying(ln.mul(ln)),
+    // F6A: the gameplay lights on the sprite (omnidirectional), per vertex; zero cost with none active.
+    lightsIrr: varying(gameplayLights(position as unknown as Node<'vec3'>, null)),
     sunT: varying(i.shadow ? i.shadow.node(rel as unknown as Node<'vec3'>, 'eyeRelative') : float(1)),
     ap: varying(aerialPerspective(rel as unknown as Node<'vec3'>, length(rel) as unknown as Node<'float'>)),
     viewZ: varying(dot(rel, u.camBack).negate()),
@@ -101,7 +104,7 @@ function shade(i: FxMaterialInputs, v: ReturnType<typeof particleNodes>) {
   const B = mix(at(lightB, uvA, f0), at(lightB, uvB, f1), w)
   const skyUp = skyIrradianceUpNode.add(cloudSkylightNode)
   const direct = dot(v.lPos, vec3(A.r, A.b, B.b)).add(dot(v.lNeg, vec3(A.g, B.r, B.g)))
-  const ambient = skyUp.mul(A.b).add(skyIrradianceDownNode.mul(B.r)).add(skyUp.add(skyIrradianceDownNode).mul(0.125).mul(A.r.add(A.g).add(B.g).add(B.b)))
+  const ambient = skyUp.mul(A.b).add(skyIrradianceDownNode.mul(B.r)).add(skyUp.add(skyIrradianceDownNode).mul(0.125).mul(A.r.add(A.g).add(B.g).add(B.b))).add(v.lightsIrr)
   const e = B.a.mul(v.tint.a)
   const fire = vec3(e, e.mul(e).mul(0.6), e.mul(e).mul(e).mul(e).mul(0.3)).mul(FIRE_RADIANCE)
   const spriteLit = v.tint.rgb.mul(1 / Math.PI).mul(sunColorNode.mul(v.sunT).mul(direct).add(ambient))

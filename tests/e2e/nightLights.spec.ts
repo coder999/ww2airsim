@@ -45,7 +45,7 @@ const seen = (page: Page): Promise<Seen[]> => page.evaluate(() => (window as Dia
 const linear = (byteLuma: number): number => { const c = byteLuma / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
 
 /** Core and ring luminance around a light's glow. */
-async function contrast(page: Page, at: { x: number; y: number }, ringPx: readonly [number, number] = [25, 50]): Promise<{ core: number; ring: number; ratio: number }> {
+async function contrast(page: Page, at: { x: number; y: number }, ringPx: readonly [number, number] = [25, 50], coreHalfWidthPx = 4.5): Promise<{ core: number; ring: number; ratio: number }> {
   const R = ringPx[1]
   const x0 = Math.round(at.x) - R, y0 = Math.round(at.y) - R
   expect(x0 >= 0 && y0 >= 0 && x0 + 2 * R < 1920 && y0 + 2 * R < 1080, `the light at ${JSON.stringify(at)} is well inside the frame`).toBe(true)
@@ -54,7 +54,8 @@ async function contrast(page: Page, at: { x: number; y: number }, ringPx: readon
   const ring: number[] = []
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const d = Math.hypot(x - R, y - R), v = linear(g.luma[y * g.w + x]!)
-    if (d <= 4.5) core = Math.max(core, v)
+    // A beam sweeps, so its core is the brightest pixel along a short horizontal scan, not the projected point itself.
+    if (d <= coreHalfWidthPx || (coreHalfWidthPx > 5 && Math.abs(y - R) <= 2 && Math.abs(x - R) <= coreHalfWidthPx)) core = Math.max(core, v)
     else if (d >= ringPx[0] && d <= ringPx[1]) ring.push(v)
   }
   ring.sort((a, b) => a - b)
@@ -108,4 +109,54 @@ test('a parachute flare reads at least 8:1 over the sky well outside its halo wh
   const c = await contrast(page, flare.screen!, [150, 220])
   console.log('flare-1', c)
   expect(c.ratio).toBeGreaterThanOrEqual(8)
+})
+
+test('the shared lighting node on the GPU agrees with its CPU twin at known points (inverse square, cosine, fade)', async ({ page }) => {
+  await open(page, null)
+  const CX = -29666, CZ = -47605
+  // Under and around the parachute flare (CX+500, CZ-200, ~500 m up) with up-facing normals, near a pot with a sideways normal,
+  // and an omnidirectional receiver. Several distances, so an inverse-square or fade error cannot hide.
+  const probes: { at: [number, number, number]; normal: [number, number, number] | null }[] = [
+    { at: [CX + 500, 2, CZ - 200], normal: [0, 1, 0] },
+    { at: [CX + 500 + 300, 2, CZ - 200], normal: [0, 1, 0] },
+    { at: [CX + 500 + 900, 2, CZ - 200 + 400], normal: [0, 1, 0] },
+    { at: [CX + 500 - 1500, 2, CZ - 200], normal: [0, 1, 0] },
+    { at: [CX + 30, 2, CZ + 10], normal: [-1, 0, 0] },
+    { at: [CX + 400, 40, CZ - 200], normal: null },
+  ]
+  let strongest = 0
+  for (const p of probes) {
+    const r = await page.evaluate(([x, y, z, n]) => (window as DiagWindow).__ww2!.lightIrradianceAt(x as number, y as number, z as number, n as [number, number, number] | null), [...p.at, p.normal] as const)
+    expect(r.lit, 'lights are selected').toBeGreaterThan(0)
+    console.log('irradiance', JSON.stringify(p.at), 'gpu', r.gpu.map((v) => v.toFixed(5)).join(' '), 'cpu', r.cpu.map((v) => v.toFixed(5)).join(' '))
+    for (let c = 0; c < 3; c++) {
+      const tol = Math.max(1e-4, 0.02 * Math.abs(r.cpu[c]!))
+      expect(Math.abs(r.gpu[c]! - r.cpu[c]!), `channel ${c} at ${JSON.stringify(p.at)}`).toBeLessThanOrEqual(tol)
+    }
+    strongest = Math.max(strongest, r.cpu[0]!)
+  }
+  // Vacuous-pass guard: the lights really do light something at these points.
+  expect(strongest).toBeGreaterThan(0.01)
+})
+
+test('a searchlight beam reads at least 3:1 over the sky beside it (90 to 140 px out, past its own bloom), and its drawn axis is the light\'s aim', async ({ page }) => {
+  // Parked on the runway, looking back at the searchlight (south-west, behind the nose) and up the beam.
+  await open(page, null, { look: '149,28' })
+  // A point along the beam that is well inside the frame (the beam climbs out of the top of it).
+  let b: { lengthM: number; screen: { x: number; y: number } | null; axis: readonly number[] } | undefined
+  for (const f of [0.001, 0.002, 0.004, 0.008, 0.016, 0.03, 0.06, 0.12]) {
+    const list = await page.evaluate((fr) => (window as DiagWindow).__ww2!.beams(fr), f)
+    expect(list.length, 'one beam is drawn').toBe(1)
+    const s = list[0]!.screen
+    if (s !== null && s.x > 170 && s.x < 1750 && s.y > 170 && s.y < 900) { b = list[0]; break }
+  }
+  expect(b, 'some point of the beam is on screen').toBeDefined()
+  expect(b!.screen, 'the beam is in front of the eye').not.toBeNull()
+  expect(b!.lengthM, 'an unobstructed beam into a clear sky runs to its full length').toBeGreaterThan(5000)
+  // Axis: elevation 70, azimuth 20 + 4 deg/s x sim time (sweep): read it back from the drawn axis against the light's own aim.
+  const el = Math.asin(b!.axis[1]!) * 180 / Math.PI
+  expect(el).toBeCloseTo(70, 3)
+  const center = await contrast(page, b!.screen!, [90, 140], 40)
+  console.log('beam', center)
+  expect(center.ratio).toBeGreaterThanOrEqual(3)
 })

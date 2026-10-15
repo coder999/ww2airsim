@@ -542,6 +542,10 @@ export type Ww2Diagnostics = {
    *  elevation and azimuth (degrees, azimuth from north clockwise) and the
    *  unit direction toward it in the world frame (+z south). */
   readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number }; readonly keyLight: { readonly kind: 'sun' | 'moon'; readonly direction: { readonly x: number; readonly y: number; readonly z: number } } }
+  /** F6A: the gameplay-light irradiance at a world point and unit normal (null = omnidirectional), read back from the GPU and computed by the CPU twin from the same selected lights. */
+  readonly lightIrradianceAt: (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => Promise<{ readonly gpu: readonly number[]; readonly cpu: readonly number[]; readonly lit: number }>
+  /** F6A: the searchlight beams drawn last frame: length, what ends them, and the pixel a point `fraction` of the way along each is at (null if behind the eye). */
+  readonly beams: (fraction: number) => readonly { readonly lengthM: number; readonly screen: { readonly x: number; readonly y: number } | null; readonly axis: readonly number[] }[]
   /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
   readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the

@@ -76,3 +76,24 @@ export function lightLitMaterials(root: Object3D, model: string, rgb: readonly [
   }
   return made
 }
+
+/**
+ * Aims a 60-inch searchlight model at a compass azimuth and an elevation (radians). The model's lamp
+ * looks along +X; `Train` turns about the vertical, and the lamp tilts about ITS OWN pivot (the
+ * Hangar rig in vehicleRig.ts tilts about the model origin, which swings the lamp around the base, and
+ * is a review pose, not an aim). Returns the lamp face's model-space centre.
+ */
+export const SEARCHLIGHT_PIVOT_Y = 1.1
+export function aimSearchlight(root: Object3D, azimuthDeg: number, elevationDeg: number): void {
+  const train = need(root, 'm1942-60in-searchlight', 'Train')
+  const lamp = need(root, 'm1942-60in-searchlight', 'Lamp')
+  // Reparent at rest (attach keeps world transforms, so doing it after turning would cancel the turn).
+  if (lamp.parent !== train) train.attach(lamp)
+  for (const n of ['LampFace', 'BeamMarker']) { const f = need(root, 'm1942-60in-searchlight', n); if (f.parent !== lamp) lamp.attach(f) }
+  // Compass azimuth 0 is north (-z), 90 east (+x). +X rotated by theta about +Y goes to (cos, 0, -sin), so theta = 90 - azimuth.
+  train.rotation.set(0, ((90 - azimuthDeg) * Math.PI) / 180, 0)
+  const phi = (elevationDeg * Math.PI) / 180
+  lamp.rotation.set(0, 0, phi)
+  // Rotate about the lamp's pivot (0, SEARCHLIGHT_PIVOT_Y, 0): position = pivot - R * pivot.
+  lamp.position.set(SEARCHLIGHT_PIVOT_Y * Math.sin(phi), SEARCHLIGHT_PIVOT_Y * (1 - Math.cos(phi)), 0)
+}

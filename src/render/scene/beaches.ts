@@ -1,6 +1,7 @@
+import { eyeWorldNode, gameplayLights } from '../lights/irradiance.js'
 import { DoubleSide, Material, Mesh, Object3D, Vector2 } from 'three'
 import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu'
-import { color, float, fract, length, max, mix, normalize, positionLocal, sin, smoothstep, uniform, uv, vec3 } from 'three/tsl'
+import { color, float, fract, length, max, mix, normalize, positionLocal, positionWorld, sin, smoothstep, uniform, uv, vec3 } from 'three/tsl'
 import { BEACHES_URL } from '../content.js'
 import { horizonSinkNode } from '../horizon.js'
 import { parseGltf, type ParseModel } from '../models/modelCache.js'
@@ -69,7 +70,9 @@ function beachMaterials(eyeXZ: UniformNode<'vec2', Vector2>, timeS: UniformNode<
     positionLocal.z,
   )
   const illumination = skyIrradianceUpNode.add(cloudSkylightNode)
-    .add(sunColorNode.mul(max(normalize(sunDirectionNode).y, 0))).mul(1 / Math.PI)
+    .add(sunColorNode.mul(max(normalize(sunDirectionNode).y, 0)))
+    .add(gameplayLights(positionWorld.add(eyeWorldNode.xyz), vec3(0, 1, 0)))
+    .mul(1 / Math.PI)
   const make = (name: BeachRoleName, albedo: Node<'vec3'>): MeshBasicNodeMaterial => {
     const material = new MeshBasicNodeMaterial()
     material.name = name

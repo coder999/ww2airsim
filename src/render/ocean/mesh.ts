@@ -1,3 +1,4 @@
+import { gameplayLights } from '../lights/irradiance.js'
 import { BufferAttribute, BufferGeometry, DataTexture, FloatType, Mesh, NearestFilter, RedFormat, Vector2, type Texture, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node, type UniformNode } from 'three/webgpu'
 import { Fn, If, clamp, color, fract, max, normalize, dot, pow, reflect, float, floor, int, ivec2, length, min, mix, positionLocal, smoothstep, textureLoad, uniform, varying, vec3, vec4 } from 'three/tsl'
@@ -530,7 +531,8 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // the colors were chosen at; at dusk it falls with the light, as the old
   // palette's ambient scale did (without it the sea glowed turquoise under
   // a navy sky, read 2026-09-19).
-  const seaIrradiance = seaIrradianceOverPi()
+  // F6A: the gameplay lights on the surface the wave normal faces (lights/irradiance.ts); zero cost with none active.
+  const seaIrradiance = seaIrradianceOverPi().add(gameplayLights(vec3(worldXZ.x, 0, worldXZ.y), normal).mul(1 / Math.PI))
   const subsurface = waterColour.mul(seaIrradiance)
   // `color()`'s type admits only scalar `mul` (clouds.ts has the same cast).
   const foamColour = (color(0xe4eff0) as unknown as Node<'vec3'>).mul(seaIrradiance)

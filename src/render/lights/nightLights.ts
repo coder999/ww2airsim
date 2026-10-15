@@ -3,12 +3,17 @@ import { DT } from '../../sim/flight/model.js'
 import type { World } from '../../sim/loop.js'
 import { heightAt, SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
-import { lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
+import { LIGHT_CAPS, lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
 import { nightTuning } from '../sky/night.js'
+import { selectLit, limitGlows } from './select.js'
+import { writeLightUniforms } from './irradiance.js'
+import { LIGHT_GAIN } from './irradiance.js'
 import { createGlowBatch, type GlowBatch, type GlowInstance } from './glow.js'
-import { emitterCentre, equipmentModelFor, lightLitMaterials, setLamp } from './equipment.js'
+import { aimSearchlight, emitterCentre, equipmentModelFor, lightLitMaterials, setLamp } from './equipment.js'
+import { beamLength, createBeams, type BeamInstance, type Beams } from './beam.js'
+import { Box3, Vector3 as V3 } from 'three'
 
 /**
  * The renderer's half of the light contract (F6A): it owns the equipment
@@ -52,10 +57,14 @@ type Placed = {
 export type NightLights = {
   setScenario(specs: readonly LightSpec[]): Promise<void>
   /** Draws the frame's lights. `timeS` is render time (flicker only). */
-  update(world: World<undefined>, timeS: number, pixelAngle: number): void
+  update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null): void
+  /** The beams drawn at the last update (origin at the lamp face, axis, length): for tests. */
+  beamsDrawn(): readonly BeamInstance[]
   /** The runtime lights of the last update, for tests and F6B-facing diagnostics. */
   lights(): readonly LightRuntime[]
   /** Where each drawn light's glow sits (world metres) as of the last update: the E2E contrast tests project these to pixels. */
+  /** The (at most 8) lights that illuminated the world at the last update. */
+  selected(): readonly LightRuntime[]
   anchors(): readonly { readonly id: string; readonly kind: LightKind; readonly lit: boolean; readonly x: number; readonly y: number; readonly z: number }[]
   dispose(): void
 }
@@ -65,11 +74,16 @@ export function createNightLights(scene: Scene): NightLights {
   group.name = 'night lights'
   const glow: GlowBatch = createGlowBatch()
   group.add(glow.object)
+  const beams: Beams = createBeams((m) => group.add(m), (m) => group.remove(m))
+  const faceBox = new Box3(), faceCentre = new V3()
+  let beamList: BeamInstance[] = []
   scene.add(group)
   let placed: Placed[] = []
   let last: readonly LightRuntime[] = []
   let anchorList: { id: string; kind: LightKind; lit: boolean; x: number; y: number; z: number }[] = []
   let generation = 0
+  let litIds: ReadonlySet<string> = new Set()
+  let selectedList: readonly LightRuntime[] = []
 
   const clear = (): void => {
     for (const p of placed) {
@@ -96,7 +110,7 @@ export function createNightLights(scene: Scene): NightLights {
       clear()
       placed = next
     },
-    update(world, timeS, pixelAngle) {
+    update(world, timeS, pixelAngle, eye, cloudBaseM = null) {
       const field = world.terrain
       const lw: LightWorld = {
         tick: world.tick, dtS: DT,
@@ -117,8 +131,15 @@ export function createNightLights(scene: Scene): NightLights {
       const specs = placed.map((p) => p.spec)
       last = lightsAt(specs, lw)
       const byId = new Map(last.map((l) => [l.id, l]))
+      // The 8 lights that illuminate ground, sea and airframes (selection with hysteresis), as uniforms.
+      const chosen = selectLit(last, eye, litIds)
+      litIds = new Set(chosen.map((l) => l.id))
+      selectedList = chosen
+      writeLightUniforms(chosen, eye, LIGHT_GAIN * nightTuning.lightScale)
+      const drawn = new Set(limitGlows(last, eye).map((l) => l.id))
       const glows: GlowInstance[] = []
       anchorList = []
+      beamList = []
       for (const p of placed) {
         const l = byId.get(p.spec.id)
         if (l === undefined) { if (p.instance !== null) p.instance.root.visible = false; continue }
@@ -136,18 +157,40 @@ export function createNightLights(scene: Scene): NightLights {
             root.position.set(l.positionM.x, l.positionM.y, l.positionM.z)
             anchor = v3(l.positionM.x + e.x, l.positionM.y + e.y, l.positionM.z + e.z)
             setLamp(root, p.model, lit)
+            if (p.spec.kind === 'searchlight' && l.axis !== undefined) {
+              // Aim the model by the contract's axis; the beam and its glow leave the lamp face.
+              const el = (Math.asin(Math.max(-1, Math.min(1, l.axis.y))) * 180) / Math.PI
+              const az = (Math.atan2(l.axis.x, -l.axis.z) * 180) / Math.PI
+              aimSearchlight(root, az, el)
+              root.updateWorldMatrix(true, true)
+              const face = root.getObjectByName('LampFace')!
+              faceBox.setFromObject(face).getCenter(faceCentre)
+              faceCentre.sub(scene.position) // back from the camera-relative scene to true world metres
+              anchor = v3(faceCentre.x, faceCentre.y, faceCentre.z)
+              if (lit && beamList.length < LIGHT_CAPS.searchlights) {
+                const hit = beamLength(anchor, l.axis, lw.groundHeightM, cloudBaseM)
+                beamList.push({ origin: anchor, axis: l.axis, lengthM: hit.lengthM, gain: nightTuning.glowScale })
+                if (hit.hit !== null) {
+                  const e = hit.lengthM
+                  glows.push({ x: anchor.x + l.axis.x * e, y: anchor.y + l.axis.y * e, z: anchor.z + l.axis.z * e, sizeM: 90, maxAngle: 0.05, r: 14 * nightTuning.glowScale, g: 16 * nightTuning.glowScale, b: 18 * nightTuning.glowScale })
+                }
+              }
+            }
           }
         }
         anchorList.push({ id: l.id, kind: l.kind, lit, x: anchor.x, y: anchor.y, z: anchor.z })
-        if (!lit) continue
+        if (!lit || !drawn.has(l.id)) continue
         const k = GLOW_RADIANCE[l.kind] * nightTuning.glowScale * flicker(l.id, l.kind, timeS)
         glows.push({ x: anchor.x, y: anchor.y, z: anchor.z, sizeM: GLOW_SIZE_M[l.kind], maxAngle: GLOW_MAX_ANGLE[l.kind], r: l.color[0] * k, g: l.color[1] * k, b: l.color[2] * k })
       }
       glow.setPixelAngle(pixelAngle)
       glow.write(glows)
+      beams.update(beamList)
     },
     lights: () => last,
+    beamsDrawn: () => beamList,
     anchors: () => anchorList,
-    dispose() { generation++; clear(); group.remove(glow.object); scene.remove(group); glow.dispose() },
+    selected: () => selectedList,
+    dispose() { generation++; clear(); beams.dispose(); group.remove(glow.object); scene.remove(group); glow.dispose() },
   }
 }
