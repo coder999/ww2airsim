@@ -706,7 +706,7 @@ export const withNightFacts = <M>(world: World<M>, night: NightFacts | undefined
 /** F6B: the player's lights switch, applied at a fixed tick (`frame.ts`, `verify.ts`). On removes the flag. */
 export function withPlayerLights<M>(world: World<M>, on: boolean): World<M> {
   return withAircraft(world, world.player, (a) => {
-    if (on) { if (a.lightsOff === undefined) return a; const { lightsOff: _drop, ...rest } = a; return rest }
+    if (on) { if (a.lightsOff === undefined) return a; const rest: { -readonly [K in keyof typeof a]: (typeof a)[K] } = { ...a }; delete rest.lightsOff; return rest }
     return a.lightsOff === true ? a : { ...a, lightsOff: true }
   })
 }
