@@ -22,6 +22,8 @@ import { emitterCentre, equipmentModelFor, lightLitMaterials, setLamp } from './
  */
 export const GLOW_RADIANCE: Readonly<Record<LightKind, number>> = { pot: 26, fixture: 34, flare: 110, searchlight: 40, nav: 24 }
 export const GLOW_SIZE_M: Readonly<Record<LightKind, number>> = { pot: 3, fixture: 4.5, flare: 75, searchlight: 4, nav: 1.6 }
+/** Largest apparent diameter of a halo, radians (0.010 rad is about 0.6 degrees, 20 px at 1080p): without it a pot 50 m away is a 100 px blob. */
+export const GLOW_MAX_ANGLE: Readonly<Record<LightKind, number>> = { pot: 0.010, fixture: 0.012, flare: 0.06, searchlight: 0.012, nav: 0.008 }
 /** Equipment lit-node radiance: bright enough to bloom as a flame. */
 const LAMP_RADIANCE = 8
 
@@ -139,7 +141,7 @@ export function createNightLights(scene: Scene): NightLights {
         anchorList.push({ id: l.id, kind: l.kind, lit, x: anchor.x, y: anchor.y, z: anchor.z })
         if (!lit) continue
         const k = GLOW_RADIANCE[l.kind] * nightTuning.glowScale * flicker(l.id, l.kind, timeS)
-        glows.push({ x: anchor.x, y: anchor.y, z: anchor.z, sizeM: GLOW_SIZE_M[l.kind], r: l.color[0] * k, g: l.color[1] * k, b: l.color[2] * k })
+        glows.push({ x: anchor.x, y: anchor.y, z: anchor.z, sizeM: GLOW_SIZE_M[l.kind], maxAngle: GLOW_MAX_ANGLE[l.kind], r: l.color[0] * k, g: l.color[1] * k, b: l.color[2] * k })
       }
       glow.setPixelAngle(pixelAngle)
       glow.write(glows)

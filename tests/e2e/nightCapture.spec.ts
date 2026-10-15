@@ -65,3 +65,15 @@ for (const v of RANGE_VIEWS) {
     console.log(v.name, JSON.stringify(await frameStats(page, png)))
   })
 }
+
+// Mark's report 2026-10-14: the view from the runway centre with the bare spawn query. Lists every light's pixel and distance.
+test('capture spawn-runway (lights dump)', async ({ page }) => {
+  mkdirSync(OUT, { recursive: true })
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await heldView(page, withParams(spawnUrl({ x: TAC.x, y: 4, z: TAC.z }), { ...RANGE, ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
+  await page.waitForTimeout(1500)
+  await page.screenshot({ path: `${OUT}/spawn-runway.png` })
+  const lights = await page.evaluate(() => (window as DiagWindow).__ww2!.lights())
+  const near = lights.filter((l) => l.screen !== null && l.lit).sort((a, b) => a.distanceM - b.distanceM).slice(0, 12)
+  console.log('LIGHTS', JSON.stringify(near.map((l) => ({ id: l.id, d: Math.round(l.distanceM), x: Math.round(l.screen!.x), y: Math.round(l.screen!.y) }))))
+})

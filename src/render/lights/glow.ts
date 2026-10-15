@@ -1,7 +1,7 @@
 import { AdditiveBlending, DoubleSide, InstancedBufferAttribute, InstancedBufferGeometry, Mesh, PlaneGeometry } from 'three'
 import { NodeMaterial } from 'three/webgpu'
 import {
-  attribute, cameraProjectionMatrix, dot, exp, float, length, max, min, modelViewMatrix, positionGeometry, smoothstep, sqrt, uniform, varying, vec2, vec3, vec4,
+  attribute, cameraProjectionMatrix, dot, exp, float, length, max, min, mix, modelViewMatrix, positionGeometry, smoothstep, sqrt, uniform, varying, vec2, vec3, vec4,
 } from 'three/tsl'
 import { LIGHT_CAPS } from '../../sim/lights/lights.js'
 
@@ -21,11 +21,16 @@ import { LIGHT_CAPS } from '../../sim/lights/lights.js'
 export const GLOW_CAPACITY = LIGHT_CAPS.glowSprites + LIGHT_CAPS.navSprites
 /** Smallest drawn diameter, pixels. */
 export const MIN_PIXELS = 5
+/** Closer than this a glow dims toward `NEAR_FLOOR` of its radiance (look constants, tuned after Mark's 2026-10-14 report). */
+export const NEAR_FULL_M = 200
+export const NEAR_FLOOR = 0.3
 
 export type GlowInstance = {
   readonly x: number; readonly y: number; readonly z: number
   /** World diameter of the halo, metres. */
   readonly sizeM: number
+  /** Largest angular diameter the halo may take, radians: a near light keeps a believable size instead of swamping the frame. */
+  readonly maxAngle: number
   /** HDR radiance at the core, scene units before exposure. */
   readonly r: number; readonly g: number; readonly b: number
 }
@@ -56,7 +61,8 @@ export function createGlowBatch(): GlowBatch {
   const corner = positionGeometry.xy
   const viewCenter = modelViewMatrix.mul(vec4(ps.xyz, 1))
   const dist = length(viewCenter.xyz)
-  const size = max(ps.w, dist.mul(pixelAngle).mul(MIN_PIXELS))
+  // The halo's world size, capped by how big it may look from here (`maxAngle`), but never under the minimum pixel size.
+  const size = max(min(ps.w, dist.mul(cl.w)), dist.mul(pixelAngle).mul(MIN_PIXELS))
   // Pull the quad toward the eye by half its size so the lower half of a glow
   // sitting on the ground is not cut by the terrain's own depth.
   const toEye = min(size.mul(0.5), dist.mul(0.5))
@@ -70,7 +76,9 @@ export function createGlowBatch(): GlowBatch {
   // Faded to nothing before the quad's edge, or the halo shows the quad's square outline.
   const edge = float(1).sub(smoothstep(0.55, 1, sqrt(rr)))
   const shape = exp(rr.mul(-14)).add(exp(rr.mul(-6)).mul(0.05)).mul(edge)
-  material.fragmentNode = vec4(vec3(varying(cl.xyz)).mul(shape), float(1))
+  // Inside NEAR_FULL_M the radiance eases down to NEAR_FLOOR of itself: a light 50 m off is not a searchlight in the eye.
+  const near = mix(float(NEAR_FLOOR), float(1), smoothstep(NEAR_FULL_M * 0.15, NEAR_FULL_M, dist))
+  material.fragmentNode = vec4(vec3(varying(cl.xyz)).mul(shape).mul(varying(near)), float(1))
   material.transparent = true
   material.depthTest = true
   material.depthWrite = false
@@ -88,7 +96,7 @@ export function createGlowBatch(): GlowBatch {
       for (let i = 0; i < n; i++) {
         const g = instances[i]!
         pos.setXYZW(i, g.x, g.y, g.z, g.sizeM)
-        col.setXYZW(i, g.r, g.g, g.b, 1)
+        col.setXYZW(i, g.r, g.g, g.b, g.maxAngle)
       }
       pos.needsUpdate = true; col.needsUpdate = true
       geometry.instanceCount = n
