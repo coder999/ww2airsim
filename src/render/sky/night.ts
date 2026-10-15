@@ -4,7 +4,7 @@ import { sunDirectionWorld } from './sun.js'
 /**
  * The night look (F6A, docs/night.md; Mark's rulings D3 and D5, 2026-10-14).
  * Pure: no three, no DOM. Every number here is a TUNABLE STARTING VALUE chosen
- * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25` (phase is the moon's lit fraction; glow scales every light glow's radiance)
+ * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25,cockpit:0.35` (cockpit is the night brightness of the panel; phase is the moon's lit fraction; glow scales every light glow's radiance)
  * overrides them for a session (`nightTuningFromQuery`).
  *
  * D3: a "movie night": a readable blue floor that is never black and is not a
@@ -37,6 +37,7 @@ export const STARS_START_DEG = -4
 export const STARS_FULL_DEG = -9
 
 export type NightTuning = { floorScale: number; moonLightScale: number; duskScale: number; glowScale: number; moonPhase: number }
+export type NightQuery = Partial<NightTuning> & { cockpitDim?: number }
 /** Live values (DEV query can change them); the exported constants are the defaults. */
 export const nightTuning: NightTuning = { floorScale: NIGHT_FLOOR_SCALE, moonLightScale: MOON_LIGHT_SCALE, duskScale: DUSK_FLOOR_SCALE, glowScale: 1, moonPhase: MOON_ILLUMINATED_FRACTION }
 
@@ -56,12 +57,12 @@ export const moonIsKeyLight = (elevationDeg: number): boolean => elevationDeg < 
 /** Unit vector toward the moon: constant, whatever the sim time. +x east, +y up, +z south. */
 export function moonDirection(): Vec3 { return sunDirectionWorld(MOON_ELEVATION_DEG, MOON_AZIMUTH_DEG) }
 
-/** DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25` (phase is the moon's lit fraction; glow scales every light glow's radiance). Throws on a typo, like the other DEV parameters. */
+/** DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25,cockpit:0.35` (cockpit is the night brightness of the panel; phase is the moon's lit fraction; glow scales every light glow's radiance). Throws on a typo, like the other DEV parameters. */
 export const NIGHT_PARAM = 'night'
-export function nightTuningFromQuery(search: string): Partial<NightTuning> | undefined {
+export function nightTuningFromQuery(search: string): NightQuery | undefined {
   const raw = new URLSearchParams(search).get(NIGHT_PARAM)
   if (raw === null) return undefined
-  const out: Partial<NightTuning> = {}
+  const out: NightQuery = {}
   for (const part of raw.split(',')) {
     const [k, v] = part.split(':')
     const n = Number(v)
@@ -70,8 +71,9 @@ export function nightTuningFromQuery(search: string): Partial<NightTuning> | und
     else if (k === 'moon') out.moonLightScale = n
     else if (k === 'dusk') out.duskScale = n
     else if (k === 'glow') out.glowScale = n
+    else if (k === 'cockpit') { if (n > 1) throw new Error(`${NIGHT_PARAM}: cockpit is a brightness factor in [0, 1]`); out.cockpitDim = n }
     else if (k === 'phase') { if (n > 1) throw new Error(`${NIGHT_PARAM}: phase is a lit fraction in [0, 1]`); out.moonPhase = n }
-    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase)`)
+    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase, cockpit)`)
   }
   return out
 }

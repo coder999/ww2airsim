@@ -1,4 +1,4 @@
-import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type Object3D } from 'three'
+import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type MeshBasicMaterial, type Object3D } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
 import { applyRenderScale, initRenderer, normalizeGpuError, pixelRatioFor, rendererQueue, renderScaleFromQuery } from './renderer.js'
@@ -136,6 +136,7 @@ import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } f
 import { canopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
+import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockpitDim.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
@@ -303,7 +304,11 @@ async function boot(): Promise<void> {
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   // DEV `?night=floor:1.4,moon:0.3`: the look's tunable constants (sky/night.ts), for CP1.
-  if (import.meta.env.DEV) Object.assign(nightTuning, nightTuningFromQuery(location.search))
+  if (import.meta.env.DEV) {
+    const tuned = nightTuningFromQuery(location.search)
+    Object.assign(nightTuning, tuned)
+    if (tuned?.cockpitDim !== undefined) cockpitTuning.nightDim = tuned.cockpitDim
+  }
   /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
    *  to the live sky and ocean. Null until boot has built them; boot's own
    *  first `loadScenario` reads the bundle directly instead. */
@@ -1863,6 +1868,7 @@ async function boot(): Promise<void> {
   // same `frame.render` pose each frame.
   await ensureCockpitTextFont()
   let panel = createPanel(spec)
+  const cockpitDimmer = createCockpitDimmer()
   resizePanel(panel, window.innerWidth / window.innerHeight)
   let radarScope = createRadarScope()
   radarScope.attachTo(panel.radar.face)
@@ -3099,6 +3105,8 @@ async function boot(): Promise<void> {
       view.world.wind,
       view.world.combat.aircraft[viewPlayer.id] ?? null,
     )
+    // F6A: the panel's basic materials dim with the night (scene/cockpitDim.ts); after updatePanel, which rewrites the lamps.
+    cockpitDimmer.apply(panel.root, cockpitDimFor(sunState.elevationDeg), [panel.lights.gear, panel.lights.flap, panel.lights.hook, panel.lights.bay].map((m) => m.material as MeshBasicMaterial))
     audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     audio.setCameraZoom(view.cameraMode === 'cockpit' ? 1 : current.orbit.zoom)
     if (replay === null) {

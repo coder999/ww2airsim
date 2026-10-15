@@ -77,3 +77,16 @@ test('capture spawn-runway (lights dump)', async ({ page }) => {
   const near = lights.filter((l) => l.screen !== null && l.lit).sort((a, b) => a.distanceM - b.distanceM).slice(0, 12)
   console.log('LIGHTS', JSON.stringify(near.map((l) => ({ id: l.id, d: Math.round(l.distanceM), x: Math.round(l.screen!.x), y: Math.round(l.screen!.y) }))))
 })
+
+/** The panel at night against the same view by day (cockpit dimming, Mark 2026-10-14). Hellcat parked on the runway. */
+for (const [name, hour] of [['cockpit-day', '12'], ['cockpit-night', '21']] as const) {
+  test(`capture ${name}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true })
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await heldView(page, withParams('/', { ...RANGE, timeOfDay: hour, ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
+    for (let i = 0; i < 4 && (await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())) !== 'cockpit'; i++) await page.keyboard.press('KeyC')
+    await page.waitForTimeout(1200)
+    const png = await page.screenshot({ path: `${OUT}/${name}.png` })
+    console.log(name, JSON.stringify(await frameStats(page, png, { x: 560, y: 760, w: 800, h: 300 })))
+  })
+}

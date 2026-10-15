@@ -86,6 +86,7 @@ describe('DEV ?night= tuning', () => {
     expect(nightTuningFromQuery('')).toBeUndefined()
     expect(nightTuningFromQuery('?night=floor:1.5,moon:0.4,dusk:1,glow:2,phase:0.25')).toEqual({ floorScale: 1.5, moonLightScale: 0.4, duskScale: 1, glowScale: 2, moonPhase: 0.25 })
     expect(() => nightTuningFromQuery('?night=phase:1.5')).toThrow(/lit fraction/)
+    expect(nightTuningFromQuery('?night=cockpit:0.5')).toEqual({ cockpitDim: 0.5 })
     expect(() => nightTuningFromQuery('?night=flor:1')).toThrow(/unknown key/)
     expect(() => nightTuningFromQuery('?night=floor:x')).toThrow(/name:number/)
   })
