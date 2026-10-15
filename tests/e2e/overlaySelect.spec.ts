@@ -40,8 +40,8 @@ test('the dev overlay text can be selected and stays selected, and flight input 
   await page.waitForTimeout(600)
   await page.keyboard.up('Equal')
   expect(await throttle(), 'the throttle key moved the throttle').toBeGreaterThan(t0)
-  // Clearing the selection lets the overlay update again.
-  await page.evaluate(() => window.getSelection()!.removeAllRanges())
+  // Clicking elsewhere releases the box and it updates again.
+  await page.mouse.click(900, 500)
   await page.waitForTimeout(500)
   expect(await overlay.textContent()).not.toBe(before)
 })

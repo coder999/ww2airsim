@@ -29,12 +29,6 @@ export type OverlayHandle = {
   }): void
 }
 
-/** True while the user holds a non-empty text selection that touches `el`. */
-export function selectionInside(el: Node): boolean {
-  const sel = typeof window === 'undefined' ? null : window.getSelection()
-  return sel !== null && !sel.isCollapsed && sel.toString() !== '' && (el.contains(sel.anchorNode) || el.contains(sel.focusNode))
-}
-
 export function createOverlay(root: HTMLElement): OverlayHandle {
   const el = document.createElement('pre')
   el.style.cssText =
@@ -43,17 +37,21 @@ export function createOverlay(root: HTMLElement): OverlayHandle {
     // Selectable and copyable (Mark 2026-10-14: the position line is what he pastes to report a place).
     // Only this box takes the pointer; the game's mouse input lives on the canvas and keys on `window`.
     'pointer-events:auto;user-select:text;-webkit-user-select:text;cursor:text;white-space:pre'
-  const text = document.createTextNode('')
-  el.appendChild(text)
   root.appendChild(el)
   let dropped = 0
+  // Clicking the box freezes it so a selection survives (the text is rewritten every frame, which would collapse
+  // it); a click anywhere else releases it. No per-frame getSelection() and no document selectionchange
+  // listener, and the text is rewritten with `textContent` as before: the dev build's GPU p95 was measured to
+  // move by 2 to 5 ms with any of those (2026-10-14, the budget probe), because CPU cost per frame changes how
+  // hard the GPU is driven.
+  let holding = false
+  el.addEventListener('pointerdown', () => { holding = true })
+  window.addEventListener('pointerdown', (e) => { if (!el.contains(e.target as Node)) { holding = false; window.getSelection()?.removeAllRanges() } }, true)
   return {
     update(s) {
       dropped += s.droppedSteps
-      // A selection inside the box freezes it: rewriting the text every frame would collapse the selection
-      // before it could be copied.
-      if (selectionInside(el)) return
-      text.data =
+      if (holding) return
+      el.textContent =
         `${s.fps.toFixed(0)} fps  ${s.frameMs.toFixed(1)} ms\n` +
         `tick ${s.tick}  steps/frame ${s.stepsRun}\n` +
         `dropped ${dropped}${dropped > 0 ? '  <-- replay invalid' : ''}\n` +
