@@ -93,3 +93,19 @@ for (const [name, hour] of [['cockpit-day', '12'], ['cockpit-night', '21']] as c
     console.log(name, JSON.stringify(await frameStats(page, png, { x: 560, y: 760, w: 800, h: 300 })))
   })
 }
+
+/**
+ * Close-up wingtip checks (Mark 2026-10-14: a light floated off the Hellcat's wingtip). The parked test airplanes
+ * (content/scenarios/night-range.json) face north, so they sit SOUTH of the player, who looks back at their noses:
+ * the red and green lights face forward and show only from there. Crops 360 x 220 around each airplane's wingtip lights.
+ */
+test('capture wingtips', async ({ page }) => {
+  mkdirSync(OUT, { recursive: true })
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  for (const [name, aircraft, yaw] of [['hellcat', 'park-hellcat', 194.5], ['zero', 'park-zero', 171], ['avenger', 'park-avenger', 186]] as const) {
+    await heldView(page, withParams('/', { ...RANGE, look: `${yaw},-8` }))
+    const lights = await page.evaluate((id) => (window as DiagWindow).__ww2!.lights().filter((l) => l.id.includes(`${id.replace('park-', '')}-parked`)), aircraft)
+    console.log('WING', name, JSON.stringify(lights.map((l) => [l.id, l.lit, l.screen && [Math.round(l.screen.x), Math.round(l.screen.y)], Math.round(l.distanceM)])))
+    await page.screenshot({ path: `${OUT}/wing-${name}.png` })
+  }
+})

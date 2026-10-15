@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
-import { Box3 } from 'three'
+import { Vector3 } from 'three'
 import {
-  AIRFRAME_LANDING_LIGHTS, AIRFRAME_LIGHT_POINTS, NAV_AXIS, NAV_COLOR, NAV_HALF_ANGLE_RAD, NAV_POINTS, navLightPose,
+  AIRFRAME_LANDING_LIGHTS, AIRFRAME_LIGHT_POINTS, NAV_AXIS, NAV_SURFACE_TOLERANCE_M, NAV_COLOR, NAV_HALF_ANGLE_RAD, NAV_POINTS, navLightPose,
 } from '../../../src/sim/lights/airframeLights.js'
 import { INTENSITY_CD, LIGHT_CAPS, LightsSchema, lightsAt, type LightSpec, type LightWorld } from '../../../src/sim/lights/lights.js'
 import { arcVisibility } from '../../../src/render/lights/nightLights.js'
 import { qFromAxisAngle, qIdentity } from '../../../src/sim/math/quat.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import { glbScene } from '../../render/_wildcatCache.js'
+import { distanceToSurface, extractNavPoints, worldTriangles } from '../../render/_meshSurface.js'
 
 const flyable = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
 
@@ -21,26 +22,28 @@ describe('aircraft position lights are data for every flyable airframe (D7)', ()
     expect(Object.keys(AIRFRAME_LIGHT_POINTS).sort()).toEqual(flyable)
   })
 
-  it('every point lies inside its airframe\'s committed model bounds, the wingtips on the span and symmetric, the tail aft of them', async () => {
+  it('every light lies on the rendered mesh: within 0.15 m of its surface, wingtips on the span and mirrored, the tail aft of them; the table equals a fresh extraction', async () => {
     for (const id of flyable) {
       const spec = JSON.parse(readFileSync(`content/aircraft/${id}.json`, 'utf8')) as { view: { model: string }; geometry: { wingSpanM: number } }
-      const root = await glbScene(`content/aircraft/${spec.view.model}.glb`)
-      root.updateMatrixWorld(true)
-      const b = new Box3().setFromObject(root)
+      const tris = worldTriangles(await glbScene(`content/aircraft/${spec.view.model}.glb`))
       const row = AIRFRAME_LIGHT_POINTS[id]!
       for (const name of NAV_POINTS) {
-        const [x, y, z] = row[name]
-        expect(x, `${id} ${name} x`).toBeGreaterThanOrEqual(b.min.x); expect(x, `${id} ${name} x`).toBeLessThanOrEqual(b.max.x)
-        expect(y, `${id} ${name} y`).toBeGreaterThanOrEqual(b.min.y); expect(y, `${id} ${name} y`).toBeLessThanOrEqual(b.max.y)
-        expect(z, `${id} ${name} z`).toBeGreaterThanOrEqual(b.min.z); expect(z, `${id} ${name} z`).toBeLessThanOrEqual(b.max.z)
+        const p = new Vector3(...row[name])
+        const d = distanceToSurface(p, tris)
+        expect(d, `${id} ${name} is ${d.toFixed(3)} m off the mesh`).toBeLessThanOrEqual(NAV_SURFACE_TOLERANCE_M)
+        // The assertion can fail: moved half a metre sideways (outboard), the point is off the surface.
+        const moved = p.clone().add(name === 'tail' ? new Vector3(-1, 0, 0) : new Vector3(0, 0, name === 'port' ? -0.5 : 0.5))
+        expect(distanceToSurface(moved, tris), `${id} ${name} moved off`).toBeGreaterThan(NAV_SURFACE_TOLERANCE_M)
       }
+      // The table is what the mesh says today: a model change that moves a wingtip fails here until the table is regenerated.
+      const fresh = extractNavPoints(tris)
+      for (const name of NAV_POINTS) for (let i = 0; i < 3; i++) expect(row[name][i], `${id} ${name}[${i}] vs a fresh extraction`).toBeCloseTo(fresh[name][i]!, 1)
       // +Z is right: green (starboard) at +z, red (port) at -z, mirrored, out at the wingtips (within 0.25 m of the half span).
       expect(row.port[2], `${id} port is left`).toBeLessThan(0)
       expect(row.starboard[2], `${id} starboard is right`).toBeGreaterThan(0)
-      expect(row.port[2]).toBeCloseTo(-row.starboard[2], 6)
+      expect(Math.abs(row.port[2] + row.starboard[2]), `${id} mirrored`).toBeLessThan(0.1)
       expect(Math.abs(row.starboard[2] - spec.geometry.wingSpanM / 2), `${id} wingtip`).toBeLessThan(0.25)
       expect(row.tail[0], `${id} tail is aft of the wingtips`).toBeLessThan(row.port[0])
-      expect(row.tail[2]).toBe(0)
     }
   })
 

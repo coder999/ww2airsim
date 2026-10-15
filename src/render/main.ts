@@ -3501,7 +3501,7 @@ async function boot(): Promise<void> {
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
     nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
-      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn)
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn, { aircraft: view.poses, ships: view.shipPoses })
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

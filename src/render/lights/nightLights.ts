@@ -3,6 +3,7 @@ import { DT } from '../../sim/flight/model.js'
 import type { World } from '../../sim/loop.js'
 import { heightAt, SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
+import type { RenderState, ShipPose } from '../../sim/interpolate.js'
 import { navLightPose } from '../../sim/lights/airframeLights.js'
 import { LIGHT_CAPS, lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
@@ -69,10 +70,13 @@ type Placed = {
   readonly emitter: Vector3 | null
 }
 
+/** Where the renderer DRAWS each aircraft and ship this frame (interpolated between ticks), parallel to `world.aircraft` / `world.ships`: lights on them must follow the mesh, not the last tick. */
+export type DrawnPoses = { readonly aircraft: readonly RenderState[]; readonly ships: readonly ShipPose[] }
+
 export type NightLights = {
   setScenario(specs: readonly LightSpec[]): Promise<void>
   /** Draws the frame's lights. `timeS` is render time (flicker only). */
-  update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null, playerLightsOn?: boolean): void
+  update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null, playerLightsOn?: boolean, poses?: DrawnPoses): void
   /** The beams drawn at the last update (origin at the lamp face, axis, length): for tests. */
   beamsDrawn(): readonly BeamInstance[]
   /** The runtime lights of the last update, for tests and F6B-facing diagnostics. */
@@ -125,25 +129,29 @@ export function createNightLights(scene: Scene): NightLights {
       clear()
       placed = next
     },
-    update(world, timeS, pixelAngle, eye, cloudBaseM = null, playerLightsOn = true) {
+    update(world, timeS, pixelAngle, eye, cloudBaseM = null, playerLightsOn = true, poses) {
       const field = world.terrain
       const lw: LightWorld = {
         tick: world.tick, dtS: DT, flareFallScale: nightTuning.flareFall, ...(world.wind ? { windMps: world.wind } : {}),
         groundHeightM: (x, z) => (field === null ? SEA_LEVEL_M : Math.max(SEA_LEVEL_M, heightAt(field, x, z))),
         shipPoint(shipId, o) {
-          const s = world.ships.find((e) => e.id === shipId)
-          if (s === undefined) return null
-          const h = s.state.headingRad
+          const i = world.ships.findIndex((e) => e.id === shipId)
+          if (i < 0) return null
+          const pose = poses?.ships[i] ?? world.ships[i]!.state
+          const h = pose.headingRad
           // Ship frame: x forward (bow), y up, z starboard.
           return v3(
-            s.state.position.x + Math.sin(h) * o[0] + Math.cos(h) * o[2],
-            s.state.position.y + o[1],
-            s.state.position.z - Math.cos(h) * o[0] + Math.sin(h) * o[2],
+            pose.position.x + Math.sin(h) * o[0] + Math.cos(h) * o[2],
+            pose.position.y + o[1],
+            pose.position.z - Math.cos(h) * o[0] + Math.sin(h) * o[2],
           )
         },
         aircraftPoint(aircraftId, point) {
-          const a = world.aircraft.find((e) => e.id === aircraftId)
-          return a === undefined ? null : navLightPose(a.spec.id, point, a.state.position, a.state.attitude)
+          const i = world.aircraft.findIndex((e) => e.id === aircraftId)
+          if (i < 0) return null
+          const a = world.aircraft[i]!
+          const pose = poses?.aircraft[i] ?? a.state
+          return navLightPose(a.spec.id, point, pose.position, pose.attitude)
         },
       }
       // The player's lights switch (N): a nav light on the player's aircraft goes dark unless authored `blackoutExempt`.

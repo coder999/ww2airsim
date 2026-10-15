@@ -76,6 +76,45 @@
      "orbitRadiusM": 1100
     }
    }
+  },
+  {
+   "id": "park-hellcat",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": 18,
+     "z": 70
+    }
+   },
+   "chocked": true
+  },
+  {
+   "id": "park-zero",
+   "spec": "a6m2-zero",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": -20,
+     "z": 125
+    }
+   },
+   "chocked": true
+  },
+  {
+   "id": "park-avenger",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": 20,
+     "z": 180
+    }
+   },
+   "chocked": true
   }
  ],
  "ships": [],
@@ -605,6 +644,42 @@
    },
    "source": "gameplay",
    "sourceNote": "F6A night test range: a flare that behaves like one (descends, drifts, goes out on water, burns briefly on land); flare-1 is the fixed lighting demo"
+  },
+  {
+   "id": "nav-hellcat-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-hellcat",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
+  },
+  {
+   "id": "nav-zero-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-zero",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
+  },
+  {
+   "id": "nav-avenger-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-avenger",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
   }
  ]
 }
