@@ -71,6 +71,11 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   // Tank Buster (2026-10-11) is text-only; no forward-air-control recordings yet.
   'Forward air control: Japanese armor is moving southwest of Dulag. Three pairs along the road.': null,
   'Forward air control: column broken. Return to Tacloban, or finish the remaining tanks.': null,
+  // Field Patrol (F5A, 2026-10-14) is text-only; no recordings exist for a Japanese-side tower yet.
+  'Dulag tower: Hold station over the field, angels ten. American carrier planes expected from the east.': null,
+  'Dulag tower: Bogeys bearing zero-eight-two, fifteen miles, angels eleven, closing.': null,
+  'Dulag tower: Second raid bearing zero-seven-nine, fifteen miles.': null,
+  'Dulag tower: All raiders splashed. Come home.': null,
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

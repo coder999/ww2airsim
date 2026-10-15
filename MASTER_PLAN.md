@@ -303,7 +303,24 @@ rank eligibility, mission locks, every score path, old-save migration, and
 export/import are deterministic and covered. A campaign with five replacement
 Ensigns can always reach an entry-rank non-campaign mission and cannot deadlock.
 
+**F5A (data, persistence, scoring) built 2026-10-14 on branch `plan-f5a-campaign`;
+not merged, not deployed; `npm run verify` result and numbers are in the
+[handoff](docs/handoff/2026-10-14-f5a-campaign-data-scoring.md).** The pure core
+`src/campaign/` and its frozen contract ([`docs/campaign-data.md`](docs/campaign-data.md);
+[plan](docs/superpowers/plans/2026-10-14-f5a-campaign-data-scoring.md)) cover the gate except
+what needs a screen: the two ledgers, five-pilot roster with closed archives and deterministic
+replacement, the six-tier ladders and rank gates, chapter locks, every score path, versioned
+storage and canonical export/import, the sim's damage-tag destruction credit and
+destruction-only discharge, one scoring table for all play, and the Japanese **Field Patrol**
+mission that gives `ja` a lifeline. The old roster is discarded, not migrated (Mark's D1), so
+"old-save migration" in the gate is satisfied by rejection. **F5B (headquarters, roster UI,
+progression screens, `roster.ts` deletion, `startGame()` rewrite, Quit/Abandon button, Japanese
+insignia) is not started.**
+
 #### F6. Night operations (L)
+
+Consumes the F5A contract for rank gates: `abilities(tier)` in `docs/campaign-data.md`.
+
 
 Add a playable low-light night state, moon and stars, exposure and visibility
 rules, dimmable cockpit/instrument lighting, historically supported aircraft lights,
@@ -321,6 +338,9 @@ budget and accessibility checks.
 
 #### F7. Bailout, POW, rescue, and paratroopers (L)
 
+Consumes the F5A contract: `SortieEndKind` `rescued`/`captured`, `SortieFacts` for the bailout seed, automatic replacement (`docs/campaign-data.md`).
+
+
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,
 recorded seeded contested results, qualitative pre-bailout risk, debrief evidence,
@@ -333,6 +353,9 @@ water and land contact, score/badge behavior, archive/replacement, recorder repl
 and paratrooper spawning are deterministic and tested.
 
 #### F8. Canonical Leyte campaign world (L)
+
+Consumes the F5A contract: `Campaign.world` is opaque to it and changes only on a successful current chapter (`docs/campaign-data.md`).
+
 
 Build persistent, historically reconciled states for Tacloban, Dulag, Buri, Bayug,
 San Pablo, Tanauan, Ormoc, the beachhead and naval/seaplane areas. Expand the
@@ -347,6 +370,9 @@ after save/load, and historical/site-source claims pass final reconciliation.
 
 #### F9. In-engine campaign scenes (M)
 
+Consumes the F5A contract: `scenesSeen`, and `bankSortie` returning before any scene (`docs/campaign-data.md`).
+
+
 Create a reusable camera/timeline/action/subtitle/radio framework over the real
 world renderer. Author twelve skippable 10–20 second openings, with A1/J1 also
 introducing their campaigns, and two full victory scenes/epilogues after safely
@@ -358,6 +384,9 @@ missing assets or audio fail safely, save banking precedes victory playback, and
 all fourteen scenes are visually approved.
 
 #### F10. Campaign mission production (L, several plans)
+
+Consumes the F5A contract: `MissionDescriptor`, `authoredBonus`, the sim's `success` verdict; every point flows through `bankSortie` (`docs/campaign-data.md`).
+
 
 Implement the frozen American and Japanese chapters in narrative order while
 keeping their mission sets asymmetric. Seed the existing scenario set as the

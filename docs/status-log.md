@@ -512,3 +512,11 @@ authoritative status. Not deployed.
 `?flightRecorder=1`. Mark's hand test on a GPU-less laptop found and fixed three defects
 (see the [handoff](handoff/2026-10-14-n2-dev-flight-recorder.md)). MASTER_PLAN N2 is the
 authoritative status. Not deployed.
+
+**F5A, campaign data, persistence and scoring (2026-10-14, branch `plan-f5a-campaign`, not merged).**
+`src/campaign/` is a pure, DOM-free core: faction-bound campaigns, five living pilots with closed archives,
+two score ledgers, six-tier ladders, chapter locks, versioned storage and canonical export/import. The sim
+gained a damage-tag ledger (credit when a tagged target is destroyed by anyone) and discharges only on a
+friendly destroyed; one scoring table now serves all play. The Japanese Field Patrol is the first mission with
+a Japanese player. Reference: [campaign-data.md](campaign-data.md); measurements:
+[handoff](handoff/2026-10-14-f5a-campaign-data-scoring.md).
