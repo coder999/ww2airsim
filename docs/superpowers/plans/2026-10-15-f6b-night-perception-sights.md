@@ -144,11 +144,13 @@ New `predictTorpedoDrop(spec, state, stores, terrain, wind, decks)` in `src/sim/
 
 `valid` is true only when all of the sim's existing conditions hold: airspeed at most `maxDropSpeedMps`, rack height above the sea at most `maxDropHeightM`, the entry point is open sea, bay doors open (as `releaseBomb` requires), and a torpedo is the next store. The two numeric tests are extracted from `combat.ts:551` into one exported pure function `torpedoDropOk(type, speedMps, heightAboveSeaM)` that `releaseBomb` AND the sight call, so they cannot drift (this is a behavior-preserving extraction; the golden and torpedo tests prove it).
 
-HUD, in the same marker family as the bombsight:
-- Ring at the entry point, drawn green when `valid`, red when not. A valid ring is a plain ring; an invalid ring carries a crossbar (an X), so color is never the only signal.
-- Badge text, always present with the sight on and a torpedo loaded: `TORPEDO DROP OK  ENTRY 0.9 MI` or `NO DROP: TOO FAST 212 MPH (MAX 189)`, `NO DROP: TOO HIGH 640 FT (MAX 2,395)`, `NO DROP: NOT OVER OPEN SEA`, `NO DROP: BAY DOORS SHUT`. It also shows the arming distance (`ARMS 590 FT`) from `armRunM`, since a hit inside it is a dud.
-- Optional short run line from the entry point along the drop heading (decision D4).
-- Imperial units in all text (mph, ft, mi); the sim values stay SI.
+HUD, in the same marker family as the bombsight (revised 2026-10-15 after Mark could not tell the elements apart; every element now has on-screen text):
+- **Entry ring** with a center dot, and the word ENTRY beside it. Plain green ring when `valid`; red ring with a solid X inside when not, so color is never the only signal.
+- **Run line**: a thin line from the ring along the drop heading.
+- **Arming bar**: a DASHED bar across the run line at `armRunM`, labeled `ARMED 590 FT` (imperial). Dashed and X-free on purpose, so it cannot be mistaken for the invalid X. A hit before it is a dud.
+- The small ring near the horizon in the captures is the existing gun pipper, not part of the sight.
+- Badge text, always present with the sight on and a torpedo loaded: `TORPEDOSIGHT DROP OK · ENTRY 0.3 MI · ARMS 591 FT` or `TORPEDOSIGHT NO DROP: TOO FAST 212 MPH (MAX 189)`, `TOO HIGH 640 FT (MAX 2,395)`, `NOT OVER OPEN SEA`, `BAY DOORS SHUT`.
+- The on-screen labels are `aria-hidden`; the screen-reader announcement is unchanged (verdict changes only, at most once a second).
 
 Known blind spot, stated on the HUD documentation and in decision D5: the real sim breaks a torpedo up if it falls onto a hull or deck; like B2 (`impactPrediction.ts:41-46`) the prediction ignores hulls, so a drop onto a ship shows green and breaks up.
 

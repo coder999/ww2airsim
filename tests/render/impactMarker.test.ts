@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { PerspectiveCamera } from 'three'
 import { initialFrameState, nextFrameState, type FrameState } from '../../src/render/frame.js'
 import { BINDINGS } from '../../src/input/bindings.js'
-import { SIGHT_COLORS, createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, impactMarkerShown, milesOf, torpedoLabel, torpedoVerdict } from '../../src/render/scene/impactMarker.js'
+import { ARM_DASHES, SIGHT_COLORS, createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, impactMarkerShown, milesOf, torpedoLabel, torpedoVerdict } from '../../src/render/scene/impactMarker.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { playerAircraft } from '../../src/sim/loop.js'
 import { v3 } from '../../src/sim/math/vec3.js'
+import { armedLabel, projectToScreen } from '../../src/render/sightLabels.js'
 import { predictImpact, predictTorpedoDrop, type TorpedoPrediction } from '../../src/sim/weapons/impactPrediction.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
@@ -176,7 +177,7 @@ describe('the torpedosight', () => {
       const a = lum(SIGHT_COLORS.valid), b = lum(SIGHT_COLORS.invalid)
       expect((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)).toBeGreaterThan(3)
     })
-    it('the run line starts at the entry point, runs along the heading, and ticks at the arming distance', () => {
+    it('the run line starts at the entry point and runs along the heading; the arming bar is DASHED across it at the arming distance', () => {
       const m = createImpactMarker(), at = v3(10, 0, -1000)
       m.update(at, true, camera, OFF, true, { valid: true, run: { dir: v3(0, 0, -1), armM: 180, lengthM: 900 } })
       const { line } = parts(m)
@@ -184,9 +185,25 @@ describe('the torpedosight', () => {
       expect(line.visible).toBe(true)
       expect([p.getX(0), p.getZ(0)]).toEqual([10, -1000])
       expect([p.getX(1), p.getZ(1)]).toEqual([10, -1900])
-      expect((p.getZ(2) + p.getZ(3)) / 2).toBeCloseTo(-1180, 3) // the tick's midpoint, 180 m along
+      // Dashes: ARM_DASHES separate segments, all at 180 m along, spanning 50 m, with gaps between them (not one solid bar).
+      const segs = Array.from({ length: ARM_DASHES }, (_, k) => [p.getX(2 + 2 * k), p.getX(3 + 2 * k)] as const)
+      for (const [, z] of [[0, p.getZ(2)], [0, p.getZ(3)]]) expect(z).toBeCloseTo(-1180, 3)
+      expect(Math.min(...segs.flat())).toBeCloseTo(10 - 25, 3)
+      expect(Math.max(...segs.flat())).toBeCloseTo(10 + 25, 3)
+      for (let k = 1; k < ARM_DASHES; k++) expect(Math.abs(segs[k]![0] - segs[k - 1]![1]), 'a gap between dashes').toBeGreaterThan(1)
       m.update(at, true, camera, OFF, true, { valid: true, run: null })
       expect(parts(m).line.visible).toBe(false)
     })
+  })
+})
+
+describe('the torpedosight labels (ENTRY, ARMED <ft>)', () => {
+  it('the arming label is imperial, rounded to 10 ft', () => { expect(armedLabel(180)).toBe('ARMED 590 FT'); expect(armedLabel(0)).toBe('ARMED 0 FT') })
+  it('projects a world point to CSS pixels (centre of the view is the centre of the screen) and hides what is behind the eye', () => {
+    const cam = new PerspectiveCamera(60, 16 / 9, 0.1, 1e5)
+    cam.position.set(0, 0, 0); cam.lookAt(0, 0, -1000); cam.updateMatrixWorld()
+    const c = projectToScreen(v3(0, 0, -1000), cam, v3(0, 0, 0), 1920, 1080)!
+    expect(c.x).toBeCloseTo(960, 3); expect(c.y).toBeCloseTo(540, 3)
+    expect(projectToScreen(v3(0, 0, 1000), cam, v3(0, 0, 0), 1920, 1080)).toBeNull()
   })
 })
