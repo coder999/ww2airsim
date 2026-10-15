@@ -513,7 +513,7 @@ authoritative status. Not deployed.
 (see the [handoff](handoff/2026-10-14-n2-dev-flight-recorder.md)). MASTER_PLAN N2 is the
 authoritative status. Not deployed.
 
-**F5A, campaign data, persistence and scoring (2026-10-14, branch `plan-f5a-campaign`, not merged).**
+**F5A, campaign data, persistence and scoring (merged 2026-10-14).**
 `src/campaign/` is a pure, DOM-free core: faction-bound campaigns, five living pilots with closed archives,
 two score ledgers, six-tier ladders, chapter locks, versioned storage and canonical export/import. The sim
 gained a damage-tag ledger (credit when a tagged target is destroyed by anyone) and discharges only on a
