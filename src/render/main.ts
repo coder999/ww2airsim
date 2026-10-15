@@ -129,6 +129,7 @@ import { loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } f
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
+import { createNightLights } from './lights/nightLights.js'
 import { applyNight, applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
@@ -373,6 +374,8 @@ async function boot(): Promise<void> {
   // hoisting it further, alongside `loadScenario` below which needs it to
   // exist, changes nothing observable.
   const scene = new Scene()
+  // F6A: the scenario's night lights (equipment models and one glow batch); lights are drawn from `lightsAt`, never stored.
+  const nightLights = createNightLights(scene)
   // Plan 9 Task 7 round 2: hoisted together with `loadScenario` just below,
   // for the same TDZ reason as `roster` above and `frame`/`audio`/
   // `buildWorld` further down -- `loadScenario`'s only unguarded call site
@@ -527,6 +530,7 @@ async function boot(): Promise<void> {
     spawnPosition = nextSpawnedAt
     loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
+    await nightLights.setScenario(nextBundle.scenario.lights ?? [])
     applyScenarioWeather?.(nextBundle.scenario.weather)
   }
   /**
@@ -1357,6 +1361,14 @@ async function boot(): Promise<void> {
       radarPixelAt: (bearingRad: number, rangeMi: number) => radarScope.readAt(renderer, bearingRad, rangeMi),
       // Plan 16c: the hour in force and where the sun is, for the specs.
       sun: () => sunState,
+      lights: () => {
+        if (!frame) return []
+        const eye = frame.eye.position, size = renderer.getSize(new Vector2())
+        return nightLights.anchors().map((a) => {
+          const p = new Vector3(a.x - eye.x, a.y - eye.y, a.z - eye.z).project(camera)
+          return { id: a.id, kind: a.kind, lit: a.lit, distanceM: Math.hypot(a.x - eye.x, a.y - eye.y, a.z - eye.z), screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
+        })
+      },
       // Plan 17: the radar scope's live state, same `frame`-guard as `combat`
       // above -- the hook is installed before the first frame exists.
       radar: () => (frame ? { rangeMi: selectedRadarRangeMi, sweepRad: radarSweepRad, contacts: radarContactList } : null),
@@ -3452,6 +3464,7 @@ async function boot(): Promise<void> {
     applySun(lights, withMoonLight(atmospherePalette(view.eye.position.y, elevationDeg), elevationDeg), keyDirection, elevationDeg,
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
+    nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height))
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

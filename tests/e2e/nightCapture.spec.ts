@@ -41,3 +41,22 @@ test('capture moon', async ({ page }) => {
   await heldView(page, withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '21', cloudTier: 'off', look: '200,40' }))
   await page.screenshot({ path: `${OUT}/moon.png` })
 })
+
+const RANGE = { scenario: 'night-range', launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', cloudTier: 'off' }
+/** The night test bed (content/scenarios/night-range.json): every light kind, from the cockpit and from the air. */
+const RANGE_VIEWS: readonly { name: string; at?: { x: number; y: number; z: number }; extra?: Record<string, string> }[] = [
+  { name: 'range-cockpit' },
+  { name: 'range-air-south', at: { x: TAC.x - 400, y: 200, z: TAC.z + 2000 }, extra: { look: '90,-5' } },
+  { name: 'range-air-over', at: { x: TAC.x - 1200, y: 300, z: TAC.z + 700 }, extra: { look: '0,-4' } },
+]
+for (const v of RANGE_VIEWS) {
+  test(`capture ${v.name}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true })
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    const base = v.at === undefined ? '/' : spawnUrl(v.at)
+    await heldView(page, withParams(base, { ...RANGE, ...(v.extra ?? {}), ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
+    await page.waitForTimeout(3000)
+    const png = await page.screenshot({ path: `${OUT}/${v.name}.png` })
+    console.log(v.name, JSON.stringify(await frameStats(page, png)))
+  })
+}

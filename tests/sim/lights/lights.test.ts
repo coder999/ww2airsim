@@ -23,7 +23,8 @@ describe('light contract: schema', () => {
     expect(parse([{ ...pot('a', 0), rgb: [1, 1, 1] }]).success).toBe(false)
   })
   it('requires a source note (GAMEPLAY.md: sourced or labeled gameplay)', () => {
-    const { sourceNote: _omit, ...bare } = pot('a', 0)
+    const bare: Record<string, unknown> = { ...pot('a', 0) }
+    delete bare.sourceNote
     expect(parse([bare]).success).toBe(false)
   })
   it('rejects a duplicate id, a wrong state for the kind, and kind-specific misuse', () => {

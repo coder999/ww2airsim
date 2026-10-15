@@ -4,7 +4,7 @@ import { sunDirectionWorld } from './sun.js'
 /**
  * The night look (F6A, docs/night.md; Mark's rulings D3 and D5, 2026-10-14).
  * Pure: no three, no DOM. Every number here is a TUNABLE STARTING VALUE chosen
- * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3`
+ * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5` (glow scales every light glow's radiance)
  * overrides them for a session (`nightTuningFromQuery`).
  *
  * D3: a "movie night": a readable blue floor that is never black and is not a
@@ -35,9 +35,9 @@ export const MOON_FULL_DEG = -8
 export const STARS_START_DEG = -4
 export const STARS_FULL_DEG = -9
 
-export type NightTuning = { floorScale: number; moonLightScale: number; duskScale: number }
+export type NightTuning = { floorScale: number; moonLightScale: number; duskScale: number; glowScale: number }
 /** Live values (DEV query can change them); the exported constants are the defaults. */
-export const nightTuning: NightTuning = { floorScale: NIGHT_FLOOR_SCALE, moonLightScale: MOON_LIGHT_SCALE, duskScale: DUSK_FLOOR_SCALE }
+export const nightTuning: NightTuning = { floorScale: NIGHT_FLOOR_SCALE, moonLightScale: MOON_LIGHT_SCALE, duskScale: DUSK_FLOOR_SCALE, glowScale: 1 }
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
 const smooth = (a: number, b: number, x: number): number => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t) }
@@ -55,7 +55,7 @@ export const moonIsKeyLight = (elevationDeg: number): boolean => elevationDeg < 
 /** Unit vector toward the moon: constant, whatever the sim time. +x east, +y up, +z south. */
 export function moonDirection(): Vec3 { return sunDirectionWorld(MOON_ELEVATION_DEG, MOON_AZIMUTH_DEG) }
 
-/** DEV `?night=floor:1.4,moon:0.3`. Throws on a typo, like the other DEV parameters. */
+/** DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5` (glow scales every light glow's radiance). Throws on a typo, like the other DEV parameters. */
 export const NIGHT_PARAM = 'night'
 export function nightTuningFromQuery(search: string): Partial<NightTuning> | undefined {
   const raw = new URLSearchParams(search).get(NIGHT_PARAM)
@@ -68,7 +68,8 @@ export function nightTuningFromQuery(search: string): Partial<NightTuning> | und
     if (k === 'floor') out.floorScale = n
     else if (k === 'moon') out.moonLightScale = n
     else if (k === 'dusk') out.duskScale = n
-    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk)`)
+    else if (k === 'glow') out.glowScale = n
+    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow)`)
   }
   return out
 }

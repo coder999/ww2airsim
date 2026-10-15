@@ -542,6 +542,8 @@ export type Ww2Diagnostics = {
    *  elevation and azimuth (degrees, azimuth from north clockwise) and the
    *  unit direction toward it in the world frame (+z south). */
   readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number }; readonly keyLight: { readonly kind: 'sun' | 'moon'; readonly direction: { readonly x: number; readonly y: number; readonly z: number } } }
+  /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
+  readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the
    *  frame submitted (`main.ts`'s `cpuFrameSamples` says how each is taken). Reset by `resetFrameTimes`. */
   readonly cpuFrameSamples: () => readonly CpuFrameSample[]
