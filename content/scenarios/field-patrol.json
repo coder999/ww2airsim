@@ -1,0 +1,299 @@
+{
+  "id": "field-patrol",
+  "player": "zero-1",
+  "airfields": [
+    "dulag"
+  ],
+  "aircraft": [
+    {
+      "id": "zero-1",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -31629,
+          3000,
+          -16479
+        ],
+        "headingDeg": 90,
+        "speedMps": 120
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "windFromDeg": 0,
+    "windMps": 4,
+    "timeOfDay": 8.5,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 700,
+        "coverage": 0.4
+      }
+    ]
+  },
+  "objectives": [
+    {
+      "id": "station",
+      "label": "CAP station",
+      "priority": "primary",
+      "kind": "hold",
+      "point": {
+        "x": -31629,
+        "z": -16479
+      },
+      "radiusM": 10000,
+      "altitudeM": [
+        1500,
+        5000
+      ],
+      "seconds": 180
+    },
+    {
+      "id": "raid",
+      "label": "Raid",
+      "priority": "primary",
+      "kind": "destroy",
+      "targets": [
+        "raid"
+      ],
+      "after": "station"
+    },
+    {
+      "id": "shield",
+      "label": "Keep the raid off",
+      "priority": "primary",
+      "kind": "deny",
+      "hostiles": [
+        "raid"
+      ],
+      "around": {
+        "x": -31629,
+        "z": -16479
+      },
+      "radiusM": 5000
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "land",
+      "at": "dulag",
+      "after": "raid"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "orders",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Dulag tower: Hold station over the field, angels ten. American carrier planes expected from the east."
+        }
+      ]
+    },
+    {
+      "id": "wave-1",
+      "when": {
+        "at": 60
+      },
+      "then": [
+        {
+          "spawn": "wave-1"
+        },
+        {
+          "message": "Dulag tower: Bogeys bearing zero-eight-two, fifteen miles, angels eleven, closing."
+        }
+      ]
+    },
+    {
+      "id": "wave-2",
+      "when": {
+        "at": 240
+      },
+      "then": [
+        {
+          "spawn": "wave-2"
+        },
+        {
+          "message": "Dulag tower: Second raid bearing zero-seven-nine, fifteen miles."
+        }
+      ]
+    },
+    {
+      "id": "splashed",
+      "when": {
+        "completed": "raid"
+      },
+      "then": [
+        {
+          "message": "Dulag tower: All raiders splashed. Come home."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "wave-1",
+      "aircraft": [
+        {
+          "id": "raid-1",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -4000,
+              3500,
+              -20500
+            ],
+            "headingDeg": 285,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -24000,
+                  "z": -18500,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "airfield": "dulag"
+              }
+            }
+          }
+        },
+        {
+          "id": "raid-2",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -3800,
+              3500,
+              -20700
+            ],
+            "headingDeg": 285,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -24000,
+                  "z": -18500,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "airfield": "dulag"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wave-2",
+      "aircraft": [
+        {
+          "id": "raid-3",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -5000,
+              3500,
+              -21500
+            ],
+            "headingDeg": 285,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -24000,
+                  "z": -18500,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "airfield": "dulag"
+              }
+            }
+          }
+        },
+        {
+          "id": "raid-4",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "tags": [
+            "raid"
+          ],
+          "airborneAt": {
+            "position": [
+              -4800,
+              3500,
+              -21700
+            ],
+            "headingDeg": 285,
+            "speedMps": 130
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -24000,
+                  "z": -18500,
+                  "altitudeM": 3500,
+                  "speedMps": 130
+                }
+              ],
+              "destination": {
+                "airfield": "dulag"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "field-patrol",
+    "name": "Field Patrol"
+  },
+  "briefing": {
+    "situation": "You are flying combat air patrol over Dulag, one of the Japanese-held fields on Leyte's east coast. Hold the station overhead for three minutes, then destroy the American raiders before any of them gets within three miles of the field. Two waves of Hellcats are expected from the east, over the Gulf. Recover at Dulag.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "In the days before the American landings of 20 October 1944, carrier aircraft of the U.S. Third Fleet struck the Japanese airfields on and around Leyte, Dulag among them, and the fields' fighters and anti-aircraft guns rose to meet them. This mission is inspired by those preliminary strikes, combined into a patrol over Dulag; it is not a reconstruction of one documented engagement. The Mitsubishi A6M2 Zero was the Imperial Japanese Navy's standard carrier fighter and by late 1944 was outclassed by the Grumman F6F Hellcat, so the job here is to hold the station and break up the raids, not to match the Hellcats one for one. The Hellcats stand in for the mixed fighters and fighter-bombers of the real strikes. This is the entry-rank Japanese non-campaign mission; the campaign's own Japanese chapters are authored separately.",
+    "sources": [
+      "U.S. Army, Leyte: The Return to the Philippines, chapter VIII (the Leyte airfields): https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html",
+      "Naval History and Heritage Command, H-Gram 038, invasion chronology: https://www.history.navy.mil/about-us/leadership/director/directors-corner/h-grams/h-gram-038/h-038-2.html",
+      "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md, J1 (Defend the Fields), the source lock this patrol is a simplified entry-rank sibling of"
+    ]
+  }
+}

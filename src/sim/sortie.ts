@@ -18,7 +18,10 @@ export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec:
   /** God mode (godMode.ts): only meaningful with `dev`; the title screen never sets it without. */
   readonly god?: boolean }
 export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'not-water-capable' | 'no-stations'
-export type SortieFacts = { readonly devScenario: boolean; readonly start: StartKind; readonly spec: AircraftSpec; readonly loadout: Loadout }
+/** `authored`: `spec` is the airplane the scenario itself puts the player in (F5A Task 9, 2026-10-14).
+ *  An authored airplane is never an "enemy airplane" for the Dev rule: the Japanese Field Patrol
+ *  ships with a Zero, and flying the mission as written is not a Dev sortie. */
+export type SortieFacts = { readonly devScenario: boolean; readonly start: StartKind; readonly spec: AircraftSpec; readonly loadout: Loadout; readonly authored?: boolean }
 
 export const ALL_LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'torpedoes', 'rockets', 'both']
 const DEV_LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'rockets', 'both']
@@ -36,9 +39,9 @@ export function startKindOf(scenario: Scenario): StartKind {
   return isShipParked(player.parkedAt) ? 'carrier' : 'airfield'
 }
 
-export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKind, dev: boolean): AircraftSpec[] {
+export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKind, dev: boolean, authoredSpecId?: string): AircraftSpec[] {
   if (dev) return [...specs]
-  return specs.filter((s) => s.side === 'allied'
+  return specs.filter((s) => (s.side === 'allied' || s.id === authoredSpecId)
     && (start !== 'carrier' || s.carrierCapable)
     && (start !== 'water' || s.waterOperations !== undefined))
 }
@@ -60,7 +63,7 @@ export function needsDevStores(spec: AircraftSpec, loadout: Loadout): boolean {
 export function sortieRulesBroken(f: SortieFacts): SortieRule[] {
   const broken: SortieRule[] = []
   if (f.devScenario) broken.push('dev-scenario')
-  if (f.spec.side !== 'allied') broken.push('enemy-aircraft')
+  if (f.spec.side !== 'allied' && f.authored !== true) broken.push('enemy-aircraft')
   if (f.start === 'carrier' && !f.spec.carrierCapable) broken.push('not-carrier-capable')
   if (f.start === 'water' && f.spec.waterOperations === undefined) broken.push('not-water-capable')
   if (needsDevStores(f.spec, f.loadout)) broken.push('no-stations')

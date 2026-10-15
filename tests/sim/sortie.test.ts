@@ -67,6 +67,11 @@ describe('eligibleAircraft: every start kind x every flyable spec x dev', () => 
       expect(ids(eligibleAircraft(flyable, start, true))).toEqual(['f6f-hellcat', 'f4f-wildcat', 'a6m2-zero'])
     })
   }
+  it('F5A: the airplane a scenario authors for its player is offered with Dev off, whatever its nation; no other enemy airplane is', () => {
+    expect(ids(eligibleAircraft(flyable, 'airborne', false, 'a6m2-zero'))).toEqual(['f6f-hellcat', 'f4f-wildcat', 'a6m2-zero'])
+    expect(ids(eligibleAircraft(flyable, 'airborne', false, 'f6f-hellcat'))).toEqual(['f6f-hellcat', 'f4f-wildcat'])
+    expect(ids(eligibleAircraft(flyable, 'airborne', false, 'no-such-aircraft'))).toEqual(['f6f-hellcat', 'f4f-wildcat'])
+  })
   it('drops a non-carrier-capable allied spec from a carrier start only', () => {
     const landOnly = { ...wildcat, id: 'land-only', carrierCapable: false }
     expect(ids(eligibleAircraft([landOnly], 'carrier', false))).toEqual([])
@@ -95,6 +100,15 @@ describe('eligibleLoadouts', () => {
 
 describe('sortieRulesBroken, isDevSortie, validateSortie', () => {
   const facts = { devScenario: false, start: 'carrier' as StartKind, spec: hellcat, loadout: 'both' as const }
+  it('F5A: an enemy airplane breaks the rule unless it is the scenario\'s own authored player airplane', () => {
+    const own = { ...facts, start: 'airborne' as StartKind, spec: zero, loadout: 'clean' as const }
+    expect(sortieRulesBroken(own)).toEqual(['enemy-aircraft'])
+    expect(sortieRulesBroken({ ...own, authored: true })).toEqual([])
+    expect(isDevSortie({ ...own, authored: true, quickLaunch: false })).toBe(false)
+    expect(isDevSortie({ ...own, authored: true, quickLaunch: true })).toBe(true)
+    expect(() => validateSortie({ ...own, authored: true, dev: false })).not.toThrow()
+    expect(() => validateSortie({ ...own, dev: false })).toThrow(/enemy-aircraft/)
+  })
   it('a legal sortie breaks nothing and is not Dev, even with Dev available (A5)', () => {
     expect(sortieRulesBroken(facts)).toEqual([])
     expect(isDevSortie({ ...facts, quickLaunch: false })).toBe(false)

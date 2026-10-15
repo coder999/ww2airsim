@@ -194,7 +194,7 @@ export async function startGame(
   await title.getByRole('button', { name: 'New game' }).first().click()
   const missionLabels = new Set([
     'Basic Flying', 'Torpedo Qualification', 'Carrier Qualification', 'Airfield Strike', 'Convoy Strike',
-    'Tank Buster', 'Combat Air Patrol', 'Scramble', 'Single Combat', 'Flattop Hunt', 'Escort', 'Surigao Strait',
+    'Tank Buster', 'Combat Air Patrol', 'Scramble', 'Single Combat', 'Flattop Hunt', 'Escort', 'Surigao Strait', 'Field Patrol',
   ])
   const type = options.scenario !== undefined && missionLabels.has(options.scenario) ? 'Missions' : 'Training Grounds'
   await title.getByRole('radiogroup', { name: 'Flight type' }).getByRole('radio', { name: exactBallotLabel(type) }).check()

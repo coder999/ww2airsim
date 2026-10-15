@@ -157,10 +157,16 @@ export { DEFAULT_LOADOUT }
  *  agree with `content/scenarios/`, and that every file there is listed.
  *  `dev` marks a test bed, listed only while Dev is checked (sortie spec A1);
  *  `description` is a range's Form 2 text (a mission shows its briefing). */
+export type ScenarioPool = 'noncampaign' | 'training' | 'single'
+
 export type ScenarioOption = {
   readonly value: string
   readonly label: string
   readonly kind: 'mission' | 'range'
+  /** F5A (ruling D2, 2026-10-14): which campaign pool the row belongs to. `noncampaign` missions are
+   *  repeatable, score-eligible headquarters missions; `training` (the ranges and the three
+   *  qualifications) and `single` (dev fixtures) never score and never touch a campaign. */
+  readonly pool: ScenarioPool
   readonly badge?: Badge
   readonly dev: boolean
   readonly start: StartKind
@@ -191,62 +197,64 @@ export type ScenarioOption = {
  * that is not actually one of these.
  */
 export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
-  { value: 'free-flight', label: 'Free Flight', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
-  { value: 'deck-quals', label: 'Deck Quals', kind: 'range', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
-  { value: 'water-quals', label: 'Catalina Water Qualification', kind: 'mission', badge: { id: 'water-qualified', name: 'Catalina Water Qualified' }, dev: false, start: 'water', aircraft: 'pby-5a-catalina', recommendedLoadout: 'torpedoes' },
-  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'On a low run-in to Tacloban with two parked Hellcat targets on the runway. Strafe them, then land straight ahead.' },
-  { value: 'pursuit-range', label: 'Air Combat', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Airborne, with a green-skill fighter on your tail. Shake it or shoot it down.' },
-  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'As Air Combat, against a veteran-skill pursuer.' },
-  { value: 'strike-range', label: 'Strike Range', kind: 'range', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban, with a Japanese cargo ship and enemy airfield targets for bomb and rocket practice.' },
+  { value: 'free-flight', label: 'Free Flight', kind: 'range', pool: 'training', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
+  { value: 'deck-quals', label: 'Deck Quals', kind: 'range', pool: 'training', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
+  { value: 'water-quals', label: 'Catalina Water Qualification', kind: 'mission', pool: 'noncampaign', badge: { id: 'water-qualified', name: 'Catalina Water Qualified' }, dev: false, start: 'water', aircraft: 'pby-5a-catalina', recommendedLoadout: 'torpedoes' },
+  { value: 'gunnery-range', label: 'Gunnery Range', kind: 'range', pool: 'training', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'On a low run-in to Tacloban with two parked Hellcat targets on the runway. Strafe them, then land straight ahead.' },
+  { value: 'pursuit-range', label: 'Air Combat', kind: 'range', pool: 'training', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Airborne, with a green-skill fighter on your tail. Shake it or shoot it down.' },
+  { value: 'pursuit-range-veteran', label: 'Air Combat: Veteran', kind: 'range', pool: 'training', dev: false, start: 'airborne', aircraft: 'f6f-hellcat', description: 'As Air Combat, against a veteran-skill pursuer.' },
+  { value: 'strike-range', label: 'Strike Range', kind: 'range', pool: 'training', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban, with a Japanese cargo ship and enemy airfield targets for bomb and rocket practice.' },
   // Plan 7e's development furball (ruling W9): a test bed, so Dev-only (A1);
   // `?scenario=` still reaches it (A2). "(dev)" stays in the label (SF-R8).
-  { value: 'furball-range', label: 'Furball (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7e): airborne with an allied wingman against four enemy fighters, so AI fights AI.' },
+  { value: 'furball-range', label: 'Furball (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7e): airborne with an allied wingman against four enemy fighters, so AI fights AI.' },
   // Plan 7g's recovery test bed: two allied AI go home on the 30 s idle rule (fuel is not scenario content).
-  { value: 'recovery-range', label: 'Recovery (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7g): parked at Tacloban while two allied AI land, one on the runway and one on the Essex.' },
+  { value: 'recovery-range', label: 'Recovery (dev)', kind: 'range', pool: 'training', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7g): parked at Tacloban while two allied AI land, one on the runway and one on the Essex.' },
   // Plan 7h's takeoff test bed: two allied AI Zeros roll off Dulag's runway while the player sits parked at Tacloban.
-  { value: 'takeoff-range', label: 'Takeoff (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7h): parked at Tacloban while two allied AI Zeros take off from Dulag.' },
+  { value: 'takeoff-range', label: 'Takeoff (dev)', kind: 'range', pool: 'training', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (Plan 7h): parked at Tacloban while two allied AI Zeros take off from Dulag.' },
   // Friendly-fire ruling FF-10: the discharge test bed, Dev-only like the furball.
-  { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
-  { value: 'damage-range', label: 'Damage Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages plan): 8,200 ft up behind three Zeros flying straight and level. Shoot the engine for smoke, sputter and stall; keep firing for fire, then the explosion and debris.' },
-  { value: 'bomber-range', label: 'Bomber Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages round 2, E3): 8,200 ft up behind a formation of four bombers, a B-17 leading a B-29, a G4M and a Ki-21, on their way to bomb Tacloban. Their veteran gunners shoot back: a slow pass from dead astern takes hits, a high-side or head-on pass mostly does not (God mode makes it harmless). Each engine smokes, sputters and dies on its own; the airframe burns at its fire line.' },
+  { value: 'friendly-fire-range', label: 'Friendly Fire (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): airborne near an allied Hellcat, an enemy Hellcat, the Essex and a cargo ship.' },
+  { value: 'damage-range', label: 'Damage Range (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages plan): 8,200 ft up behind three Zeros flying straight and level. Shoot the engine for smoke, sputter and stall; keep firing for fire, then the explosion and debris.' },
+  { value: 'bomber-range', label: 'Bomber Range (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (damage stages round 2, E3): 8,200 ft up behind a formation of four bombers, a B-17 leading a B-29, a G4M and a Ki-21, on their way to bomb Tacloban. Their veteran gunners shoot back: a slow pass from dead astern takes hits, a high-side or head-on pass mostly does not (God mode makes it harmless). Each engine smokes, sputters and dies on its own; the airframe burns at its fire line.' },
   // The survivable half: a Gunnery Range run-in onto a parked allied Hellcat,
   // so a strafing pass and the landing after it end in the discharge (FF-7 as
   // amended; the parked start became a run-in when T1's tail-down attitude
   // took the guns off a parked target, 2026-09-29).
-  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): on a run-in to Tacloban with a parked allied Hellcat on the runway.' },
+  { value: 'friendly-fire-field', label: 'Friendly Fire: Field (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (friendly-fire plan): on a run-in to Tacloban with a parked allied Hellcat on the runway.' },
   // L3 / Range Test (2026-10-10): take off from Tacloban into a target range. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship; WHICH enemy follows the side of the airplane picked (`AXIS_VARIANTS`, `src/sim/sortie.ts`). Best flown with God mode.
-  { value: 'range-test', label: 'Range Test (dev)', kind: 'range', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed: take off from Tacloban. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship. Pick an American airplane for Japanese targets, a Japanese one for American. Shoot them to see damage, smoke and sinking; God mode helps.' },
+  { value: 'range-test', label: 'Range Test (dev)', kind: 'range', pool: 'training', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed: take off from Tacloban. Every enemy airplane circles overhead as a sitting duck and every enemy ship is anchored nearby, plus a cargo ship. Pick an American airplane for Japanese targets, a Japanese one for American. Shoot them to see damage, smoke and sinking; God mode helps.' },
   // M2 (2026-10-10): the AA test bed. Airborne, 3 km from an anchored destroyer that shoots (a Fletcher flagged axis, so its AA is the calibrated one) with Tacloban's AAA battery 2 km beyond, also hostile. Best flown with God mode for a look, without it to feel the lethality.
-  { value: 'aa-range', label: 'AA Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (M2): 2,000 ft up, 2 miles from an anchored destroyer and a ground AAA battery that both shoot at you. Heavy guns throw flak bursts; light guns fire tracers. Fly low and slow to feel it; God mode to just watch.' },
+  { value: 'aa-range', label: 'AA Range (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (M2): 2,000 ft up, 2 miles from an anchored destroyer and a ground AAA battery that both shoot at you. Heavy guns throw flak bursts; light guns fire tracers. Fly low and slow to feel it; God mode to just watch.' },
   // M4 (2026-10-10): the main-battery test bed, main batteries on (`mainBatteries`). Airborne at 2,000 ft over San Pedro Bay heading north, 2.5 miles south of a Fletcher steaming against a Kagero 5 miles beyond her, each ordered onto the other; a Cleveland anchored off Tacloban shells the hostile AAA battery there, then joins in.
-  { value: 'gunnery-duel', label: 'Gunnery Duel (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (M4): 2,000 ft up over San Pedro Bay, heading north. Ahead, an American and a Japanese destroyer fight it out with their main guns 5 miles apart, and a cruiser off Tacloban shells the AAA battery there, then turns on the Japanese destroyer. Watch the muzzle smoke, the splashes walk onto the target and the hits; God mode to just watch.' },
+  { value: 'gunnery-duel', label: 'Gunnery Duel (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (M4): 2,000 ft up over San Pedro Bay, heading north. Ahead, an American and a Japanese destroyer fight it out with their main guns 5 miles apart, and a cruiser off Tacloban shells the AAA battery there, then turns on the Japanese destroyer. Watch the muzzle smoke, the splashes walk onto the target and the hits; God mode to just watch.' },
   // E2 (2026-10-10): the attack AI test bed. Airborne and clear of the raids, west of an anchored allied destroyer and Tacloban's strip. Axis raiders attack both: three Vals dive-bomb the destroyer (two veterans and a green pilot), three Kates run torpedoes at it (the same), a Sally level-bombs the strip. Both targets shoot back (M2). Best flown with God mode.
-  { value: 'attack-range', label: 'Attack Range (dev)', kind: 'range', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (E2): 6,000 ft up, 4 miles west of an anchored American destroyer and Tacloban\'s strip. Japanese raiders attack both: three Vals dive-bomb the destroyer, three Kates run torpedoes at it, a Sally bombs the strip from 10,000 ft. The destroyer and the strip\'s guns shoot back. God mode to just watch.' },
+  { value: 'attack-range', label: 'Attack Range (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (E2): 6,000 ft up, 4 miles west of an anchored American destroyer and Tacloban\'s strip. Japanese raiders attack both: three Vals dive-bomb the destroyer, three Kates run torpedoes at it, a Sally bombs the strip from 10,000 ft. The destroyer and the strip\'s guns shoot back. God mode to just watch.' },
   // M3's missions. The picker shows missions first whatever their place here.
   // "Carrier Qualification", not "Deck Quals": e2e selectors match labels by
   // substring, and the range above keeps that name (M3-R5).
   // B4 (2026-10-10): first among the missions, for a new player. "Basic Flying" is a substring of no other label.
-  { value: 'tutorial', label: 'Basic Flying', kind: 'mission', badge: { id: 'basic-flying', name: 'Basic Flying' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'bombs' },
-  { value: 'torpedo-qualification', label: 'Torpedo Qualification', kind: 'mission', badge: { id: 'torpedo-qualified', name: 'Torpedo Qualified' }, dev: false, start: 'airfield', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
-  { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
-  { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
-  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
-  { value: 'tank-buster', label: 'Tank Buster', kind: 'mission', badge: { id: 'tank-buster', name: 'Tank Buster' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'tutorial', label: 'Basic Flying', kind: 'mission', pool: 'training', badge: { id: 'basic-flying', name: 'Basic Flying' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'bombs' },
+  { value: 'torpedo-qualification', label: 'Torpedo Qualification', kind: 'mission', pool: 'training', badge: { id: 'torpedo-qualified', name: 'Torpedo Qualified' }, dev: false, start: 'airfield', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
+  { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', pool: 'training', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', pool: 'noncampaign', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', pool: 'noncampaign', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'tank-buster', label: 'Tank Buster', kind: 'mission', pool: 'noncampaign', badge: { id: 'tank-buster', name: 'Tank Buster' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
-  { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'combat-air-patrol', label: 'Combat Air Patrol', kind: 'mission', pool: 'noncampaign', badge: { id: 'combat-air-patrol', name: 'Combat Air Patrol' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // F2 (2026-10-09). Neither label is a substring of another row's.
-  { value: 'scramble', label: 'Scramble', kind: 'mission', badge: { id: 'scramble', name: 'Scramble' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
-  { value: 'single-combat', label: 'Single Combat', kind: 'mission', badge: { id: 'single-combat', name: 'Single Combat' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'scramble', label: 'Scramble', kind: 'mission', pool: 'noncampaign', badge: { id: 'scramble', name: 'Scramble' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'single-combat', label: 'Single Combat', kind: 'mission', pool: 'noncampaign', badge: { id: 'single-combat', name: 'Single Combat' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // Track F (2026-10-10): the first shipped mission to use E2 torpedo-attack pilots and the Japanese carrier.
-  { value: 'flattop-hunt', label: 'Flattop Hunt', kind: 'mission', badge: { id: 'flattop-hunt', name: 'Flattop Hunt' }, dev: false, start: 'airborne', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
+  { value: 'flattop-hunt', label: 'Flattop Hunt', kind: 'mission', pool: 'noncampaign', badge: { id: 'flattop-hunt', name: 'Flattop Hunt' }, dev: false, start: 'airborne', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
   // Track F (2026-10-10): escort four E3 B-17s to Dulag's hangars against Zeros. "Escort" is a substring of no other label.
-  { value: 'escort', label: 'Escort', kind: 'mission', badge: { id: 'escort', name: 'Escort' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'escort', label: 'Escort', kind: 'mission', pool: 'noncampaign', badge: { id: 'escort', name: 'Escort' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   // Track F (2026-10-11): dawn pursuit south through Surigao Strait while the battle line finishes the rear guard.
-  { value: 'surigao-strait', label: 'Surigao Strait', kind: 'mission', badge: { id: 'surigao-strait', name: 'Surigao Strait' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'surigao-strait', label: 'Surigao Strait', kind: 'mission', pool: 'noncampaign', badge: { id: 'surigao-strait', name: 'Surigao Strait' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  // F5A Task 9 (2026-10-14, ruling D3): the first mission with a Japanese player, so a Japanese campaign always has an entry-rank non-campaign lifeline.
+  { value: 'field-patrol', label: 'Field Patrol', kind: 'mission', pool: 'noncampaign', badge: { id: 'field-patrol', name: 'Field Patrol' }, dev: false, start: 'airborne', aircraft: 'a6m2-zero', recommendedLoadout: 'clean' },
   // M2's two fixture missions, Dev-only like every test bed (A1).
-  { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
-  { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', pool: 'single', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
+  { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', pool: 'single', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
 ]
 
 /** The picker's rows: every row with Dev, the non-dev rows without (A1). */

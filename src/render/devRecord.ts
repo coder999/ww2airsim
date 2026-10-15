@@ -9,7 +9,7 @@ import type { ScenarioOption } from './titleScreen.js'
  * recording points cannot disagree.
  */
 export function sortieIsDev(option: ScenarioOption, spec: AircraftSpec, loadout: Loadout, quickLaunch: boolean): boolean {
-  return isDevSortie({ devScenario: option.dev, start: option.start, spec, loadout, quickLaunch })
+  return isDevSortie({ devScenario: option.dev, start: option.start, spec, loadout, quickLaunch, authored: spec.id === option.aircraft })
 }
 
 /** SF-R6: `?recordDevSorties` makes a Dev sortie record anyway, for the E2E

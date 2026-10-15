@@ -746,7 +746,10 @@ sandbox and test-range scenarios the engineering plans needed — `free-flight`,
 real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
 ("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Tank
 Buster**, **Combat Air Patrol**, **Single Combat**, **Scramble**, **Flattop
-Hunt**, **Escort** and **Surigao Strait**. Each declares real objectives,
+Hunt**, **Escort** and **Surigao Strait**, plus (F5A, 2026-10-14) **Field
+Patrol**, the first mission with a Japanese player: an A6M2 Zero holds station
+over Dulag and turns back two waves of American Hellcats (the entry-rank
+Japanese non-campaign mission; see `docs/campaign-data.md`). Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E
