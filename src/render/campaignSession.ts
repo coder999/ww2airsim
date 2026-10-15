@@ -17,6 +17,7 @@ import {
   type Result, type ScenarioFacts, type ScenarioRow, type SortieEndKind, type SortieFacts, type SortieReport, type StoragePort,
 } from '../campaign/index.js'
 import type { RecoveryOutcome } from './debrief.js'
+import { withMissionAircraft } from './hq/missionAircraft.js'
 import type { TargetType } from '../sim/weapons/targetType.js'
 
 // ---------------------------------------------------------------- the Dev rule (Task 2)
@@ -109,7 +110,7 @@ export async function buildShellCatalog(
   const pooled = rows.filter((r) => r.pool === 'noncampaign' && !r.dev)
   const facts = new Map<string, ScenarioFacts>()
   await Promise.all(pooled.map(async (r) => { facts.set(r.value, factsFromScenario(await loadScenario(r.value), nationOf)) }))
-  return buildCatalog(rows, (id) => facts.get(id)!)
+  return withMissionAircraft(buildCatalog(rows, (id) => facts.get(id)!))
 }
 
 // ---------------------------------------------------------------- the report (Task 3b)

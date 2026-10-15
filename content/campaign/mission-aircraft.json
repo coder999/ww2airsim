@@ -1,0 +1,52 @@
+{
+  "note": "Which aircraft each shipped non-campaign mission offers, by role (plan F5B, Mark's ruling 2026-10-15). THE one place: the catalog builder (so launchSortie accepts exactly these) and Form 5 (so the form shows exactly these) both read it. The P-38 and the other advanced airplanes are deliberately absent: an entry-rank non-campaign mission may list only non-advanced airplanes (the F5A lifeline invariant), and a chapter that wants one carries its own list (F10). Only aircraft with a spec in content/aircraft/ are listed; a Japanese mission lists only the Zero because the sortie rule treats every non-authored Japanese airplane as an enemy airplane outside Dev (src/sim/sortie.ts). The mission's authored airplane is always first. A chapter authored later (F10) carries its own list on its descriptor.",
+  "missions": {
+    "water-quals": [
+      "pby-5a-catalina"
+    ],
+    "airfield-strike": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "tbm-3-avenger"
+    ],
+    "convoy-strike": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "tbm-3-avenger"
+    ],
+    "tank-buster": [
+      "f6f-hellcat",
+      "f4u-corsair"
+    ],
+    "combat-air-patrol": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "f4f-wildcat"
+    ],
+    "scramble": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "f4f-wildcat"
+    ],
+    "single-combat": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "f4f-wildcat"
+    ],
+    "flattop-hunt": [
+      "tbm-3-avenger"
+    ],
+    "escort": [
+      "f6f-hellcat",
+      "f4u-corsair"
+    ],
+    "surigao-strait": [
+      "f6f-hellcat",
+      "f4u-corsair",
+      "tbm-3-avenger"
+    ],
+    "field-patrol": [
+      "a6m2-zero"
+    ]
+  }
+}

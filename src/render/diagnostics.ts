@@ -81,7 +81,7 @@ export type CampaignDiagnostics = {
   readonly id: string
   readonly faction: 'us' | 'ja'
   readonly revision: number
-  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string } | null
+  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string; readonly aircraft: string } | null
   readonly live: readonly { readonly id: string; readonly points: number; readonly sorties: number }[]
   readonly archived: number
   readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number }

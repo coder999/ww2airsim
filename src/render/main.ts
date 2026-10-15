@@ -1325,7 +1325,7 @@ async function boot(): Promise<void> {
         if (c === null) return null
         return {
           id: c.id, faction: c.faction, revision: c.revision,
-          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty },
+          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? '') },
           live: c.roster.live.map((id) => ({ id, points: c.pilots[id]!.points, sorties: c.pilots[id]!.sorties })),
           archived: Object.keys(c.pilots).length - c.roster.live.length,
           human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned },

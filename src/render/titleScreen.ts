@@ -15,6 +15,7 @@ import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeof
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
+import { formAircraft } from './hq/missionAircraft.js'
 import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext, type SortieDraft } from './sortieFlow.js'
 import { aircraftRowLabel, storesLine, type FlyableAircraft } from './sortie/flyable.js'
 import { sortieIsDev } from './devRecord.js'
@@ -939,10 +940,11 @@ export function createTitleScreen(
     const renderAircraft = (): void => {
       aircraftGroup.replaceChildren()
       const rows = new Map<string, HTMLDivElement>()
-      const offered = flowReady ? aircraftFor(ctx(), draft.scenarioId) : []
+      // A headquarters sortie offers the mission's own aircraft list (hq/missionAircraft.ts), the one the reducer accepts.
+      const offered = flowReady ? (campaign === null ? aircraftFor(ctx(), draft.scenarioId) : formAircraft(ctx(), draft.scenarioId)) : []
       const gate = (id: string) => (campaign === null ? { ok: true as const } : campaign.aircraftGate(id))
       // A pilot may not take a gated aircraft: the draft moves to the first one he may (Dev lifts the gate, unrecorded).
-      if (!dev && !gate(draft.aircraftSpec).ok) {
+      if (!dev && (!gate(draft.aircraftSpec).ok || !offered.some((f) => f.spec.id === draft.aircraftSpec))) {
         const first = offered.find((f) => gate(f.spec.id).ok)
         if (first !== undefined) draft = withAircraft(ctx(), draft, first.spec.id)
       }

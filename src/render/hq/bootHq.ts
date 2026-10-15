@@ -7,6 +7,7 @@ import { describeAircraft, type MissionDescriptor } from '../../campaign/index.j
 import { sortieIsDev } from '../devRecord.js'
 import type { SettingsModel } from '../settings.js'
 import { aircraftGate, isDevTakeoffHour, takeoffLockHour } from './launchRules.js'
+import { missionAircraft } from './missionAircraft.js'
 import { rankShort } from './model.js'
 import { formatName, tierOf } from '../../campaign/index.js'
 import type { FlyableAircraft } from '../sortie/flyable.js'
@@ -67,10 +68,12 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     const option = SCENARIO_OPTIONS.find((o) => o.value === r.row.id)!
     const authored = await deps.loadScenario(r.row.id).catch(() => null)
     const gate = aircraftGate(c, mission, r.pilotId, r.row.scored)
+    const offered = missionAircraft(r.row.id)
     const reasonFor = (choice: { aircraftSpec: string; loadout: Parameters<typeof sortieIsDev>[2]; timeOfDay?: number | undefined; god?: boolean | undefined }) => {
       const spec = deps.flyable.find((f) => f.spec.id === choice.aircraftSpec)?.spec
       return unscoredReason({
-        section: r.row.section, devScenario: option.dev, devRules: spec !== undefined && sortieIsDev(option, spec, choice.loadout, false),
+        // An airplane outside the mission's list is a Dev choice (Form 5 shows it only with Dev) and is not recorded.
+        section: r.row.section, devScenario: option.dev, devRules: (spec !== undefined && sortieIsDev(option, spec, choice.loadout, false)) || (offered !== null && !offered.includes(choice.aircraftSpec)),
         pilotIneligible: r.row.scored && !gate(choice.aircraftSpec).ok, devTakeoff: isDevTakeoffHour(choice.timeOfDay), god: choice.god === true,
       })
     }

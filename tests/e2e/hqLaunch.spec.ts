@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { openDevCampaign, waitForScenario, type DiagWindow } from './harness.js'
+import { openDevCampaign, startCampaignGame, waitForScenario, type DiagWindow } from './harness.js'
 
 /**
  * From Headquarters to a flying aircraft (plan F5B Task 8). A scored sortie launches through the campaign reducer
@@ -110,4 +110,28 @@ test('on a day mission the Dev night takeoff choices carry the note that no ligh
   const title = titleOf(page)
   await expect(title.getByRole('radio', { name: /Night \(dev\)/ })).toBeVisible()
   await expect(title.getByText(/Dev: no runway lights on this mission yet/)).toBeVisible()
+})
+
+test('Convoy Strike with the Avenger: Form 5 offers exactly the mission list, and the launch is accepted (Mark, CP3)', async ({ page }) => {
+  await page.goto('/')
+  await startCampaignGame(page, { scenario: 'Convoy Strike', aircraft: 'Avenger' })
+  await waitForScenario(page, 'convoy-strike')
+  const c = await campaign(page)
+  expect(c?.pending).toMatchObject({ missionId: 'convoy-strike', aircraft: 'tbm-3-avenger' })
+})
+
+test('Form 5 shows only the mission\'s own aircraft', async ({ page }) => {
+  const hq = await openDevCampaign(page) // Dev on...
+  await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).uncheck() // ...then off: the list applies
+  await hq.getByRole('button', { name: /Choose a mission/ }).click()
+  await hq.getByRole('radio', { name: /Convoy Strike/ }).first().click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  const title = titleOf(page)
+  await title.getByRole('button', { name: 'Next' }).first().click()
+  const aircraft = title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio')
+  await expect(aircraft).toHaveCount(3)
+  await expect(aircraft.filter({ hasText: /Hellcat/ })).toHaveCount(1)
+  await expect(aircraft.filter({ hasText: /Corsair/ })).toHaveCount(1)
+  await expect(aircraft.filter({ hasText: /Avenger/ })).toHaveCount(1)
 })
