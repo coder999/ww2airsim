@@ -120,7 +120,7 @@
  "ships": [],
  "weather": {
   "windFromDeg": 90,
-  "windMps": 1.5,
+  "windMps": 0,
   "timeOfDay": 21
  },
  "lights": [
@@ -643,7 +643,11 @@
     "burnS": 180
    },
    "source": "gameplay",
-   "sourceNote": "F6A night test range: a flare that behaves like one (descends, drifts, goes out on water, burns briefly on land); flare-1 is the fixed lighting demo"
+   "sourceNote": "F6A night test range: a flare that behaves like one (descends, drifts 4 m/s west by its authored driftMps, goes out on water, burns briefly on land); flare-1 is the fixed lighting demo",
+   "driftMps": [
+    -4,
+    0
+   ]
   },
   {
    "id": "nav-hellcat-parked",

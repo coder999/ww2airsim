@@ -21,3 +21,21 @@ See `docs/night.md` (the standing reference: files, keys, `?night=` tunables, so
 
 Measured contrast (WCAG ratio on linear luminance of screenshots, nexus 680M): flare pot against its surroundings 15:1 (target 8), red harbor light 16:1 (3), parachute flare against sky outside its halo 14:1 (8), searchlight beam 9:1 (3), a nav light at 1.1 miles 16:1 (3), an unlit pot 1.2:1 (it draws nothing). Gauges at the fixed night level: needles and major marks at least 4.5:1, minor marks at least 3:1 for all four cockpit families (asserted).
 **Failing, for your ruling:** the player's own airplane in the chase view at night is a near-black silhouette against the lit sea: about 1.16:1 against the sea and 1.24:1 against the sky (measured on `docs/handoff/2026-10-14-f6a-cp1-shots/range-air-over.png`'s state). It reads as a shape, not a contrast. The lever, if you want it fixed, is a small minimum ambient on aircraft materials (looks ruling); I did not change it.
+
+## Budget (Task 11): honest status
+
+Measured 2026-10-14 on the ryzen RX 6700 XT through Mark's console session, under `hwlock ryzen-budget`, 1440p High, via `tests/e2e/nightBudget.spec.ts`. **The machine was not quiet** (Mark was logged in; this is not the H0 overnight condition): the same unmodified view swung between about 5 and 15 ms between page loads, and main's own day views ran 7 to 15 ms. Absolute numbers below are therefore indicative only; the paired numbers are trustworthy.
+
+| Gate | Result | Verdict |
+| --- | --- | --- |
+| (c) lights on minus lights off, alternating inside one page load, median of six | night-field **+0.98 ms**, night-bay **+0.13 ms** | pass (field is at the edge of 1.0) |
+| (b) each night view at most 8.33 ms, median of three loads | night-floor-600 15.4, night-dusk-j5 13.6, night-field 7.3, night-bay 12.5 | **not demonstrable here**: three of four exceed 8.33 in this noisy session, but so do main's day views |
+| (a) nine day views regress by less than 0.3 ms against main | paired A/B (three alternating rounds, main on its slot, this branch on its slot) is too noisy to read (per-view deltas from -5.5 to +7.0 ms; individual runs bimodal); a controlled in-session A/B of one view with clouds off and High, same server, main source against this branch, gave main 11.4 / 14.4 and this branch 11.05 / 13.4 (parity) after the fixes below | **inconclusive**; needs a quiet-machine run (the nightly) |
+
+What the measurement found and fixed (each confirmed by an alternating A/B, not a single run):
+1. The dev overlay's per-frame `getSelection()` / text-node rewrite added 2 to 5 ms in the DEV build (the CPU cost per frame changes how hard the GPU is driven). Now click-to-freeze with `textContent` as before: parity.
+2. The dome's stars and moon and the shared lighting loop ran for every daytime pixel: now behind uniform branches.
+3. With one flare lit over open sea, the shared node per fragment on the ocean cost 3 to 4 ms: the ocean now evaluates it per vertex (+0.05 to +0.13 ms). The same change on the terrain broke the reference GPU's pipeline limits ("infringes limits"), so the terrain stays per fragment.
+4. Budget samples taken right after a page load, or after the player crashed, read 2 to 3 ms: the spec now waits for 4 s of sim and launches the bench with God mode.
+
+**Open for the first quiet run:** gates (a) and (b). If (a) fails the plan's fallback is sprites-only (D1); if only (b) fails on the night floor, the lever is the cloud tier, not the lights (the floor view has no lights).

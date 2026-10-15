@@ -152,6 +152,12 @@ describe('flares behave like flares (F6A, Mark 2026-10-14)', () => {
     const f = flare({}, { x: 0, z: 0, altitudeM: 10 })
     expect(at(f, worldWith(() => 30), 11).positionM.y).toBeCloseTo(30.3, 6)
   })
+  it('an authored driftMps replaces the world wind for that flare', () => {
+    const w = worldWith(() => 0, v3(9, 0, 9))
+    const l = at(flare({ driftMps: [-4, 1] }), w, 30)
+    expect(l.positionM.x).toBeCloseTo(-4 * 20, 6); expect(l.positionM.z).toBeCloseTo(1 * 20, 6)
+    expect(parse([{ ...pot('a', 0), driftMps: [1, 1] }]).success).toBe(false)
+  })
   it('a FIXED flare hangs at its authored point for its whole burn: no descent, drift or ground', () => {
     const w = worldWith(() => 0, v3(8, 0, 8))
     const f = flare({ fixed: true })

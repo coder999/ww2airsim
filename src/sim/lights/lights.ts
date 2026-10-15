@@ -52,6 +52,8 @@ export const LightSpecSchema = z.object({
   aim: z.object({ azimuthDeg: finite, elevationDeg: finite, sweepDegPerS: finite.optional() }).strict().optional(),
   /** Flare only. `true` hangs the flare at its authored point for its whole burn (the night test range's lighting demo); absent, it behaves like a flare: it descends under its parachute, drifts with the wind, goes out in water and burns on the ground for `FLARE_GROUND_BURN_S`. */
   fixed: z.boolean().optional(),
+  /** Flare only: an authored drift velocity in the world frame, [x, z] m/s, used INSTEAD of the world's wind (a test bed that wants a visibly drifting flare without a wind that also pushes the parked player). */
+  driftMps: z.tuple([finite, finite]).optional(),
   blackoutExempt: z.boolean().optional(),
   /** GAMEPLAY.md: every installed light has source support or an explicit gameplay label. */
   source: z.enum(['historical', 'gameplay']),
@@ -64,7 +66,7 @@ export const LightSpecSchema = z.object({
   if (l.kind !== 'searchlight' && l.aim !== undefined) bad('only a searchlight has `aim`')
   if (l.kind === 'flare' && (l.schedule?.onAtS === undefined || l.schedule.burnS === undefined)) bad('a flare needs schedule.onAtS and schedule.burnS')
   if (l.kind !== 'flare' && l.schedule?.burnS !== undefined) bad('only a flare has schedule.burnS')
-  if (l.kind !== 'flare' && l.fixed !== undefined) bad('only a flare is `fixed`')
+  if (l.kind !== 'flare' && (l.fixed !== undefined || l.driftMps !== undefined)) bad('only a flare is `fixed` or has `driftMps`')
   if (l.kind === 'nav' && !('aircraft' in l.at)) bad('a nav light is placed on an aircraft point')
 })
 export type LightSpec = z.infer<typeof LightSpecSchema>
@@ -179,7 +181,7 @@ export function flareAt(l: LightSpec, p0: Vec3, world: Pick<LightWorld, 'windMps
   const t0 = l.schedule!.onAtS!, burnEnd = t0 + l.schedule!.burnS!
   if (l.state !== 'on' || t < t0 || t >= burnEnd) return { position: p0, on: false }
   if (l.fixed === true) return { position: p0, on: true }
-  const w = world.windMps ?? v3(0, 0, 0)
+  const w = l.driftMps !== undefined ? v3(l.driftMps[0], 0, l.driftMps[1]) : (world.windMps ?? v3(0, 0, 0))
   const fall = FLARE_DESCENT_MPS * (world.flareFallScale ?? 1)
   const at = (dt: number): Vec3 => v3(p0.x + w.x * dt, p0.y - fall * dt, p0.z + w.z * dt)
   const below = (dt: number): boolean => { const q = at(dt); return q.y <= world.groundHeightM(q.x, q.z) + LANDED_LIFT_M }
