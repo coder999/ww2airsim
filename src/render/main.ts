@@ -141,7 +141,7 @@ import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockp
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
-import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, impactMarkerShown, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
+import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
