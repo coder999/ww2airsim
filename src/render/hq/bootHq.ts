@@ -96,6 +96,7 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
 
   const hq = createHq(root, {
     session,
+    settings: deps.settings,
     catalog: catalogOnce,
     options: SCENARIO_OPTIONS,
     missionLabel: (id) => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id,

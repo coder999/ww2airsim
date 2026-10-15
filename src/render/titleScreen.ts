@@ -1,24 +1,19 @@
 import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
+import { createAboutPanel } from './ui/aboutMemo.js'
 import { buttonRow, inkButton, letterhead, memoPanel, sectionTitle } from './ui/memo.js'
-import { CREDITS, OSM_COPYRIGHT_URL, WORLDCOVER_LICENCE_URL, creditsLine } from './legend.js'
-import { MODEL_CREDITS } from './modelCreditsIndex.js'
-import { modelCreditParts } from './modelCredits.js'
+import { creditsLine } from './legend.js'
 import { TITLE_ART_URL } from './content.js'
 import { racksLabel, type Loadout } from '../sim/weapons/stores.js'
-import { createPilot, loadRoster, saveRoster, startSortie, type PilotRecord, type PilotStatus } from './roster.js'
-import { openDossier } from './dossier.js'
-import { insigniaElement, ribbonElement } from './insignia.js'
 import { DIFFICULTY_OPTIONS, createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
-import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
+import { briefingRequest } from './mission/briefing.js'
 import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type DevTakeoffTime, type TakeoffTime } from './sky/sun.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
 import { formAircraft } from './hq/missionAircraft.js'
-import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, visibleScenarios, withAircraft, withScenario, type FlowContext, type SortieDraft } from './sortieFlow.js'
+import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, withAircraft, type FlowContext, type SortieDraft } from './sortieFlow.js'
 import { aircraftRowLabel, storesLine, type FlyableAircraft } from './sortie/flyable.js'
-import { sortieIsDev } from './devRecord.js'
 import { SCENARIO_ID } from './content.js'
 import { CLOUDINESS_OPTIONS, randomCloudiness } from './cloudiness.js'
 
@@ -121,9 +116,6 @@ export function titleModel(): TitleModel {
  * the player can see how far there is to go before launch.
  */
 export const TITLE_FORMS = {
-  roster: { kicker: 'Bureau of Naval Personnel', title: 'Squadron Roster', number: 'Form 1 of 6' },
-  type: { kicker: 'Flight Operations', title: 'Flight Type', number: 'Form 2 of 6' },
-  orders: { kicker: 'Flight Operations', title: 'Sortie Orders', number: 'Form 3 of 6' },
   conditions: { kicker: 'Aerology Office', title: 'Flight Conditions', number: 'Form 4 of 6' },
   aircraft: { kicker: 'Bureau of Aeronautics', title: 'Aircraft Assignment', number: 'Form 5 of 6' },
   ordnance: { kicker: 'Bureau of Ordnance', title: 'Ordnance Requisition', number: 'Form 6 of 6' },
@@ -132,11 +124,8 @@ export const TITLE_FORMS = {
 /** A headquarters sortie numbers its memos Step 3 to 5 of 5 (Steps 1 and 2 are the picker). */
 const CAMPAIGN_STEP: Readonly<Record<string, string>> = { 'Flight Conditions': 'Step 3 of 5', 'Aircraft Assignment': 'Step 4 of 5', 'Ordnance Requisition': 'Step 5 of 5' }
 
-export const NEW_PILOT_GUIDANCE =
-  'New pilots should complete Basic Flying, Torpedo Qualification and Carrier Qualification before operational missions.'
-
-/** Form 3's text when no aircraft qualifies for the mission (Review Focus 2); Next stays disabled. */
-export const NO_AIRCRAFT = 'No aircraft on the roster can fly this mission. Check Dev on Form 1 to fly anything.'
+/** Form 5's text when no aircraft qualifies for the mission; Next stays disabled. */
+export const NO_AIRCRAFT = 'No aircraft on the roster can fly this mission. Check Dev in Headquarters to fly anything.'
 
 /**
  * The loadout picker's options (spec §1: "clean, bombs, rockets, both
@@ -283,12 +272,6 @@ export function badgeName(id: string): string {
   return SCENARIO_OPTIONS.find((o) => o.badge?.id === id)?.badge?.name ?? id
 }
 
-/** A scenario id's player-facing label (dossier spec §B.4's Mission Log
- *  column), falling back to the raw id for one this build no longer ships
- *  (an old log entry referencing a retired scenario). Searches the Dev-only
- *  rows too, so a fixture's log row reads its label. */
-const scenarioLabel = (id: string): string => SCENARIO_OPTIONS.find((o) => o.value === id)?.label ?? id
-
 /** What the sortie forms offer, and how Form 3 fetches a mission's briefing.
  *  `flyable` is Form 5's catalog and `ordnanceNames` Form 6's store names
  *  (sortie spec); `loadScenario: null` fetches nothing (no briefing panel). */
@@ -302,56 +285,6 @@ export type TitleMissions = {
 /** `createTitleScreen`'s default: the production rows, no briefing fetch --
  *  exactly the picker as it was before M2. */
 export const PRODUCTION_MISSIONS: TitleMissions = { options: SCENARIO_OPTIONS, flyable: [], ordnanceNames: {}, loadScenario: null }
-
-/**
- * The text on each pilot's entry in the roster list (design §3: "a list...
- * plus a 'New pilot' entry"), so the Node suite can pin what a pilot button
- * says without a DOM -- same split as `LOADOUT_OPTIONS`/`SCENARIO_OPTIONS`
- * above, whose `label` this mirrors.
- */
-export function pilotButtonLabel(pilot: PilotRecord): string {
-  // Whole-branch review M-1: a `kia` pilot was visually identical to an
-  // `active` one in this list -- nothing distinguished a dead pilot a New
-  // Game would resurrect (design §2) from one still flying. Appended, not a
-  // separate figure, matching this label's existing terse "name — rank —
-  // score" shape.
-  const status = STATUS_SUFFIX[pilot.status]
-  return `${pilot.name} — ${pilot.rank.abbrev} — ${pilot.cumulativeScore}${status}`
-}
-
-const STATUS_SUFFIX: Readonly<Record<PilotStatus, string>> = { active: '', kia: ' — KIA', discharged: ' — DISCHARGED' }
-
-/** The roster table's status chip: its text and its stamp color. A discharge
- *  (friendly-fire spec §6) is stamped red, like a death. */
-export function pilotStatusChip(status: PilotStatus): { readonly text: string; readonly color: '--stamp-red' | '--stamp-black' } {
-  if (status === 'kia') return { text: 'K.I.A.', color: '--stamp-red' }
-  if (status === 'discharged') return { text: 'DISCHARGED', color: '--stamp-red' }
-  return { text: 'Active', color: '--stamp-black' }
-}
-
-/**
- * The header shown once a pilot is selected, above the scenario/loadout
- * pickers it reveals (design §3: "now labeled with that pilot's name and
- * rank").
- */
-export function selectedPilotLabel(pilot: PilotRecord): string {
-  return `Flying as ${pilot.name} (${pilot.rank.name})`
-}
-
-/** The pilot as named in Form 2's routing block: rank abbreviation, then name. */
-export function sortiePilotLabel(pilot: PilotRecord): string {
-  return `${pilot.rank.abbrev} ${pilot.name}`
-}
-
-/**
- * Whether `name` is acceptable to pass to `createPilot` (roster.ts) -- the
- * same non-empty-after-trim rule `createPilot` itself enforces, duplicated
- * here so the DOM layer can reject an empty/whitespace name inline rather
- * than calling `createPilot` and letting its throw reach the DOM uncaught.
- */
-export function isValidPilotName(name: string): boolean {
-  return name.trim().length > 0
-}
 
 /**
  * A scored or unscored sortie begun from the headquarters (plan F5B Task 8): the title shows only Forms 4 to 6 for
@@ -420,14 +353,6 @@ export type TitleScreenHandle = {
 // not just under `.naval-comms`).
 const FLYING_AS_STYLE =
   'margin:14px 0 4px;min-height:1.4em;color:var(--ink-faint);font:12px var(--font-body);letter-spacing:.04em'
-const NEW_PILOT_ERROR_STYLE =
-  'display:none;margin:8px 0 0;color:var(--stamp-red);font:12px var(--font-body);letter-spacing:.02em'
-// A native `<button>` reset to read as plain table-cell text while staying a
-// real, clickable, keyboard-reachable control -- same "native control, not a
-// styled div" convention the rest of this file follows (see the roster
-// section's own comment below).
-const ROW_SELECT_BUTTON_STYLE =
-  'all:unset;display:block;width:100%;cursor:pointer;font:inherit;color:inherit;padding:2px 0'
 // The stripe runs on the compositor (a `transform` animation), so it keeps
 // moving while the main thread is blocked by a shader build -- the whole
 // reason for it (loading spec §A.2). The fill width only changes between
@@ -457,8 +382,8 @@ export function createTitleScreen(
    *  initial value stale before a return-to-title ever shows the picker
    *  again -- see `TitleScreenHandle.show`'s own doc comment. */
   currentScenarioId: string,
-  /** One sortie (sortie spec, Wiring). `pilotId` is null only for a quick launch (A6). */
-  onNewGame: (choice: SortieChoice, pilotId: string | null) => void,
+  /** One sortie begun from the headquarters (plan F5B); the campaign, not the title, knows the pilot. */
+  onNewGame: (choice: SortieChoice) => void,
   /** The Settings dialog's model. Optional so this file owns a working
    *  dialog on its own: with nothing passed, every pick still persists, it
    *  simply takes effect on the next page load rather than live. `main.ts`
@@ -476,9 +401,6 @@ export function createTitleScreen(
   /** The picker's rows and the briefing loader (M2 Task 6). `main.ts` passes
    *  `scenarioOptions(import.meta.env.DEV)` and `loadScenarioFile`. */
   missions: TitleMissions = PRODUCTION_MISSIONS,
-  /** SF-R6: `?recordDevSorties` in a DEV build, so a Dev sortie's launch-time
-   *  write happens too; `main.ts` passes it. */
-  recordDevSorties = false,
 ): TitleScreenHandle {
   const m = titleModel()
 
@@ -498,12 +420,6 @@ export function createTitleScreen(
   // Rebuilt with the overlay on every `build()`; the MODEL above is not,
   // which is what makes a choice survive a return-to-title.
   let settingsDialog: SettingsDialogHandle | null = null
-  // The open Dossier's `destroy()`, if one is up (fix round 1, IMPORTANT 1)
-  // -- same reason `settingsDialog` is tracked here: it owns a `window`
-  // keydown listener `hide()` must tear down, or it outlives the overlay
-  // that held it and keeps swallowing Escape/Enter for the rest of the
-  // session.
-  let openDossierClose: (() => void) | null = null
 
   const hide = (): void => {
     if (!isUp) return
@@ -515,11 +431,6 @@ export function createTitleScreen(
     settings.close()
     settingsDialog?.destroy()
     settingsDialog = null
-    // Same leak, same fix, for the Dossier -- `destroy()` (not a plain
-    // close) so it does NOT try to refocus the row button this overlay is
-    // about to remove.
-    openDossierClose?.()
-    openDossierClose = null
     root.querySelector('[data-ww2-title]')?.remove()
     if (onKey) window.removeEventListener('keydown', onKey)
     onKey = null
@@ -555,10 +466,6 @@ export function createTitleScreen(
     // unroughened stamp. Idempotent, so calling it again here is safe even
     // though `settings.ts`'s dialog also calls it.
     ensureStampFilter()
-    const pilots: PilotRecord[] = [...loadRoster()]
-    let selectedPilotId: string | null = null
-    let hasStartedFlow = false
-    const pilotRows = new Map<string, { row: HTMLTableRowElement; selectButton: HTMLButtonElement; sortieButton: HTMLButtonElement }>()
 
     // The forms sit in a scroll region whose first child's `margin-top:
     // auto` bottom-aligns them over the art when they are short (what
@@ -569,41 +476,6 @@ export function createTitleScreen(
       'flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;' +
       'align-items:center;padding-top:16px'
     overlay.appendChild(stage)
-
-    // ============ Form 1 of 6: the roster (design §3) ============
-    // Every pilot `loadRoster()` returns, plus a "New pilot" entry -- read
-    // fresh on every `build()` call so a score just banked by the debrief
-    // that preceded this `show()` is what the roster shows. Native `<button>`
-    // per selectable row: free keyboard support.
-    const roster = memoPanel()
-    roster.panel.style.marginTop = 'auto'
-    const rosterSheet = roster.sheet
-
-    const confidentialStamp = document.createElement('div')
-    confidentialStamp.className = 'stamp stamp--violet stamp--sm stamp--rotate-2 stamp-corner'
-    confidentialStamp.textContent = 'Confidential'
-    rosterSheet.appendChild(confidentialStamp)
-    rosterSheet.appendChild(letterhead(TITLE_FORMS.roster.kicker, TITLE_FORMS.roster.title, TITLE_FORMS.roster.number))
-
-    // The pilot list itself, scrolled independently of the letterhead/enlist
-    // form around it -- confined to the table body so the form below stays
-    // reachable without scrolling past every pilot.
-    const tableScroll = document.createElement('div')
-    tableScroll.style.cssText = 'max-height:32vh;overflow-y:auto'
-    const table = document.createElement('table')
-    table.className = 'form-table'
-    const thead = document.createElement('thead')
-    const headRow = document.createElement('tr')
-    for (const label of ['Name', 'Rank', 'Score', 'Sorties', 'Kills', 'Status', '']) {
-      const th = document.createElement('th')
-      th.textContent = label
-      headRow.appendChild(th)
-    }
-    thead.appendChild(headRow)
-    const tbody = document.createElement('tbody')
-    table.append(thead, tbody)
-    tableScroll.appendChild(table)
-    rosterSheet.appendChild(tableScroll)
 
     const bootWrap = document.createElement('div')
     const bootStyle = document.createElement('style')
@@ -626,12 +498,6 @@ export function createTitleScreen(
     // overlay, on the art itself, not inside a memo -- appended last, below.
     bootWrap.style.cssText = BOOT_FOOT_STYLE
 
-    const flyingAs = document.createElement('p')
-    flyingAs.style.cssText = FLYING_AS_STYLE
-    rosterSheet.appendChild(flyingAs)
-
-    stage.appendChild(roster.panel)
-
     // ============ Forms 2-4: sortie orders, aircraft, ordnance (sortie spec) ============
     // One draft, drawn by three forms and reset by the pure rules in
     // sortieFlow.ts (A3; SF-R4, SF-R5). Each form is a `.ballot-option`
@@ -645,8 +511,6 @@ export function createTitleScreen(
     let draft: SortieDraft = flowReady
       ? reconcile(ctx(), initialDraft(ctx(), optionOf(currentScenarioId) === undefined ? SCENARIO_ID : currentScenarioId), SCENARIO_ID)
       : { scenarioId: currentScenarioId, aircraftSpec: optionOf(currentScenarioId)?.aircraft ?? '', loadout: DEFAULT_LOADOUT }
-    type FlightType = ScenarioOption['kind']
-    let flightType: FlightType = optionOf(draft.scenarioId)?.kind ?? 'mission'
 
     const markGroup = <T>(options: Map<T, HTMLDivElement>, selected: T): void => {
       for (const [value, el] of options) el.setAttribute('aria-checked', String(value === selected))
@@ -693,81 +557,6 @@ export function createTitleScreen(
       return p
     }
 
-    // ---- Form 2: choose missions or the Training Grounds before the long
-    // sortie list. Missions lead, and the qualification sequence is called
-    // out explicitly for a new pilot.
-    const typeForm = sortieForm(TITLE_FORMS.type)
-    const typeGroup = radioGroup('Flight type')
-    typeForm.left.append(sectionTitle('Choose a flight type'), typeGroup)
-    const typeDescription = document.createElement('div')
-    typeForm.right.append(sectionTitle('Recommendation'), typeDescription)
-    const typeRows = new Map<FlightType, HTMLDivElement>()
-    const renderFlightType = (): void => {
-      typeGroup.replaceChildren()
-      typeRows.clear()
-      const choices: readonly { value: FlightType; label: string; description: string }[] = [
-        { value: 'mission', label: 'Missions', description: NEW_PILOT_GUIDANCE },
-        { value: 'range', label: 'Training Grounds', description: 'Free flight and focused practice ranges with no campaign obligations.' },
-      ]
-      for (const choice of choices) {
-        const el = ballotOption(choice.label, '', () => {
-          flightType = choice.value
-          const current = optionOf(draft.scenarioId)
-          if (current?.kind !== flightType) {
-            const first = visibleScenarios(ctx()).find((o) => o.kind === flightType)
-            if (first !== undefined) draft = flowReady ? withScenario(ctx(), first.value) : { ...draft, scenarioId: first.value }
-          }
-          renderFlightType()
-        })
-        typeRows.set(choice.value, el)
-        typeGroup.appendChild(el)
-      }
-      markGroup(typeRows, flightType)
-      const message = choices.find((choice) => choice.value === flightType)!.description
-      typeDescription.replaceChildren(paragraph(message))
-    }
-    const typeBack = inkButton(m.back)
-    const typeNext = inkButton(m.next, true)
-    typeForm.sheet.appendChild(buttonRow(typeBack, typeNext))
-
-    // ---- Form 3: the mission or range; its briefing or description on the right.
-    const orders = sortieForm(TITLE_FORMS.orders)
-    const scenarioGroup = radioGroup('Scenario')
-    const scenarioHeading = document.createElement('div')
-    orders.left.append(scenarioHeading, scenarioGroup)
-    const descriptionHost = document.createElement('div')
-    // The briefing (M2 Task 6); hidden for a range, which has its description instead.
-    const briefingHost = document.createElement('div')
-    briefingHost.style.display = 'none'
-    orders.right.append(sectionTitle('Description'), descriptionHost, briefingHost)
-    const request = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
-    // The selected pilot's badge ids, re-read from the roster each time Form
-    // 2 opens (`advance`), so a badge banked this session shows.
-    let heldBadges: readonly string[] = []
-    const scenarioRows = new Map<string, HTMLDivElement>()
-    const showBriefing = (): void => {
-      const option = optionOf(draft.scenarioId)
-      if (option?.kind !== 'mission' || request === null) {
-        briefingHost.style.display = 'none'
-        briefingHost.replaceChildren()
-        return
-      }
-      const id = option.value
-      briefingHost.style.display = ''
-      renderBriefing(briefingHost, 'loading')
-      // `request` is latest-wins across missions; the id check also drops a
-      // result that lands after the player moved on to a RANGE.
-      request(id, (s) => {
-        if (draft.scenarioId === id) renderBriefing(briefingHost, briefingModel(s, heldBadges))
-      }, () => {
-        if (draft.scenarioId === id) renderBriefing(briefingHost, 'unavailable')
-      })
-    }
-    const showDescription = (): void => {
-      const option = optionOf(draft.scenarioId)
-      descriptionHost.replaceChildren(...(option?.kind === 'range' && option.description !== undefined ? [paragraph(option.description)] : []))
-      showBriefing()
-    }
     // ---- Form 4: weather and time, split out from Sortie Orders so the long
     // scenario list stays focused and the conditions are a deliberate step.
     const conditions = sortieForm(TITLE_FORMS.conditions)
@@ -863,48 +652,6 @@ export function createTitleScreen(
     }
     renderCloudiness()
     conditions.left.append(sectionTitle('Cloudiness'), cloudinessGroup)
-    const selectScenario = (id: string): void => {
-      draft = flowReady ? withScenario(ctx(), id) : { ...draft, scenarioId: id }
-      markGroup(scenarioRows, draft.scenarioId)
-      showDescription()
-      suggestHour()
-    }
-    // Each mission row shows its ribbon, faded until the selected pilot holds
-    // the badge, and then AWARDED beside it (PF4).
-    const refreshAwarded = (): void => {
-      for (const option of visibleScenarios(ctx())) {
-        const row = option.badge === undefined ? undefined : scenarioRows.get(option.value)
-        if (option.badge === undefined || row === undefined) continue
-        const held = heldBadges.includes(option.badge.id)
-        const ribbon = ribbonElement(option.badge.id, option.badge.name, 14)
-        ribbon.style.cssText += `;margin-left:auto;opacity:${held ? 1 : 0.3}`
-        row.appendChild(ribbon)
-        if (held) row.appendChild(awardedStamp())
-      }
-    }
-    // Form 2 has already separated missions from ranges. Rebuilt on each
-    // entry because the Dev checkbox changes which rows exist (A1).
-    const renderScenarios = (): void => {
-      scenarioGroup.replaceChildren()
-      scenarioRows.clear()
-      scenarioHeading.replaceChildren(sectionTitle(flightType === 'mission' ? 'Mission' : 'Training Ground'))
-      const rows = visibleScenarios(ctx()).filter((o) => o.kind === flightType)
-      for (const option of rows) {
-        const el = ballotOption(option.label, '', () => selectScenario(option.value))
-        scenarioRows.set(option.value, el)
-        scenarioGroup.appendChild(el)
-      }
-      markGroup(scenarioRows, draft.scenarioId)
-      refreshAwarded()
-      showDescription()
-      suggestHour()
-    }
-    const ordersBack = inkButton(m.back)
-    const ordersNext = inkButton(m.next, true)
-    // The scenario list is long. Keep navigation at the top-right so it is
-    // always available without scrolling to the foot of the memo.
-    orders.topNavigation.appendChild(buttonRow(ordersBack, ordersNext))
-
     const conditionsBack = inkButton(m.back)
     const conditionsNext = inkButton(m.next, true)
     conditions.sheet.appendChild(buttonRow(conditionsBack, conditionsNext))
@@ -1075,69 +822,7 @@ export function createTitleScreen(
     // ============ About memo (popup) ============
     // Inside the overlay so it can never outlive it; dimmed the same way the
     // Settings dialog is.
-    const aboutPanel = document.createElement('div')
-    aboutPanel.className = 'naval-comms'
-    aboutPanel.setAttribute('role', 'dialog')
-    aboutPanel.setAttribute('aria-modal', 'true')
-    aboutPanel.setAttribute('aria-label', 'About')
-    aboutPanel.style.cssText =
-      'position:absolute;inset:0;display:none;overflow-y:auto;background:rgba(11,13,16,.82);z-index:30'
-    const aboutSheet = document.createElement('div')
-    aboutSheet.className = 'sheet'
-    aboutSheet.style.maxWidth = '640px'
-    aboutSheet.appendChild(letterhead(m.aboutKicker, m.aboutTitle, 'FORM INFO-1'))
-    for (const text of m.aboutParagraphs) {
-      const p = document.createElement('p')
-      p.style.cssText = 'margin:0 0 10px;font-size:13px;line-height:1.55'
-      p.textContent = text
-      aboutSheet.appendChild(p)
-    }
-    const aboutFinePrint = document.createElement('div')
-    aboutFinePrint.className = 'fine-print'
-    const creditsSpan = document.createElement('span')
-    const creditLink = (text: string, href: string): HTMLAnchorElement => {
-      const link = document.createElement('a')
-      link.href = href
-      link.target = '_blank'
-      link.rel = 'noopener'
-      link.textContent = text
-      link.style.color = 'inherit'
-      return link
-    }
-    creditsSpan.append(
-      CREDITS.before,
-      creditLink(CREDITS.worldCover, WORLDCOVER_LICENCE_URL),
-      CREDITS.between,
-      creditLink(CREDITS.link, OSM_COPYRIGHT_URL),
-    )
-    // The flight overlay used to carry these links. Keep every CC BY work and
-    // both data attributions reachable after removing that redundant panel.
-    if (MODEL_CREDITS.length > 0) {
-      creditsSpan.append(document.createElement('br'), 'Models: ')
-      for (const part of modelCreditParts(MODEL_CREDITS)) {
-        creditsSpan.append(part.href === undefined ? part.text : creditLink(part.text, part.href))
-      }
-      creditsSpan.append(' (', creditLink('CC BY 4.0', WORLDCOVER_LICENCE_URL), ')')
-    }
-    const licenceSpan = document.createElement('span')
-    const repo = document.createElement('a')
-    repo.href = m.repository
-    repo.target = '_blank'
-    repo.rel = 'noopener'
-    repo.textContent = 'Source repository'
-    repo.style.color = 'inherit'
-    const website = document.createElement('a')
-    website.href = m.website
-    website.target = '_blank'
-    website.rel = 'noopener'
-    website.textContent = 'marktuttle.dev'
-    website.style.color = 'inherit'
-    licenceSpan.append(`${m.licence} `, repo, ' · ', website)
-    aboutFinePrint.append(creditsSpan, licenceSpan)
-    aboutSheet.appendChild(aboutFinePrint)
-    const close = inkButton(m.close, true)
-    aboutSheet.appendChild(buttonRow(close))
-    aboutPanel.appendChild(aboutSheet)
+    const { panel: aboutPanel, close } = createAboutPanel(m)
     overlay.appendChild(aboutPanel)
 
     // Inside the overlay, same as the About panel and for the same reason:
@@ -1146,305 +831,40 @@ export function createTitleScreen(
 
     root.appendChild(overlay)
 
-    type Step = 'roster' | 'type' | 'orders' | 'conditions' | 'aircraft' | 'ordnance'
-    let step: Step = 'roster'
+    type Step = 'conditions' | 'aircraft' | 'ordnance'
+    let step: Step = 'conditions'
     const panels: Readonly<Record<Step, HTMLDivElement>> = {
-      roster: roster.panel, type: typeForm.panel, orders: orders.panel, conditions: conditions.panel,
-      aircraft: aircraftForm.panel, ordnance: ordnanceForm.panel,
+      conditions: conditions.panel, aircraft: aircraftForm.panel, ordnance: ordnanceForm.panel,
     }
     const showStep = (next: Step): void => {
       step = next
       for (const [k, panel] of Object.entries(panels)) panel.style.display = k === next ? 'block' : 'none'
-      // Each form is drawn from the draft as it is entered (A3: the rows and
-      // the defaults depend on everything chosen before it).
-      if (next === 'type') renderFlightType()
-      if (next === 'orders') renderScenarios()
+      // Each form is drawn from the draft as it is entered (the rows and the defaults depend on what came before).
       if (next === 'conditions') { renderTakeoff(); renderCloudiness() }
       if (next === 'aircraft') renderAircraft()
       if (next === 'ordnance') renderOrdnance()
       // Whichever control the player is most likely to press next.
-      if (next === 'type') typeNext.focus()
-      else if (next === 'orders') ordersNext.focus()
-      else if (next === 'conditions') conditionsNext.focus()
+      if (next === 'conditions') conditionsNext.focus()
       else if (next === 'aircraft') aircraftNext.focus()
-      else if (next === 'ordnance') launchButton.focus()
-      else if (selectedPilotId !== null) pilotRows.get(selectedPilotId)?.sortieButton.focus()
-      else newPilotButton.focus()
+      else launchButton.focus()
     }
-    const nextFromType = (): void => { if (flowReady) showStep('orders') }
-    const nextFromOrders = (): void => { if (flowReady) showStep('conditions') }
     const nextFromConditions = (): void => { if (flowReady) showStep('aircraft') }
     const nextFromAircraft = (): void => { if (!aircraftNext.disabled) showStep('ordnance') }
 
-    const selectPilot = (pilot: PilotRecord): void => {
-      selectedPilotId = pilot.id
-      for (const [id, { row: pilotRow, selectButton }] of pilotRows) {
-        const selected = id === pilot.id
-        pilotRow.classList.toggle('row-selected', selected)
-        selectButton.setAttribute('aria-pressed', String(selected))
-      }
-      flyingAs.textContent = selectedPilotLabel(pilot)
-      for (const el of routingPilots) el.textContent = sortiePilotLabel(pilot)
-    }
-
-    // A row-scoped start action removes the old invisible prerequisite where
-    // a player first selected a row and then discovered that the footer's
-    // disabled New game button had become available.
-    const advance = (pilot: PilotRecord): void => {
-      if (!boot.ready) return
-      selectPilot(pilot)
-      heldBadges = loadRoster().find((p) => p.id === pilot.id)?.badges ?? []
-      if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
-      // On the ordinary default boot, a new pilot is led to the qualification
-      // missions. Explicit scenario links and Dev test beds keep their target.
-      if (!hasStartedFlow && pilot.sorties === 0 && currentScenarioId === SCENARIO_ID && !dev) {
-        // The first training mission (Basic Flying), not the first mission row: the Catalina water
-        // qualification sits earlier in the list and is a pooled mission (found 2026-10-14 by the title E2E).
-        const firstMission = visibleScenarios(ctx()).find((o) => o.kind === 'mission' && o.pool === 'training')
-        if (firstMission !== undefined) draft = withScenario(ctx(), firstMission.value)
-      }
-      hasStartedFlow = true
-      flightType = optionOf(draft.scenarioId)?.kind ?? 'mission'
-      showStep('type')
-    }
-
-    const totalKills = (pilot: PilotRecord): number =>
-      Object.values(pilot.killsByType).reduce((sum, n) => sum + n, 0)
-
-    // One `.form-table` row per pilot, columns matching `PilotRecord` (naval-
-    // comms spec §3): name, rank, score, sorties, kills, status. The Name
-    // cell's button is the row's select control -- a real `<button>` reset to
-    // read as plain cell text (`ROW_SELECT_BUTTON_STYLE`), not a `role`
-    // stuck on the `<tr>` itself, so the table keeps valid row/cell structure
-    // while staying a native, keyboard-reachable control.
-    //
-    // Its accessible name is `pilotButtonLabel(pilot)` -- the SAME
-    // name/rank/score(/KIA) string this screen has always used, unchanged
-    // and still pinned by `titleScreen.test.ts` -- carried as `aria-label`
-    // rather than visible text now that those fields each have their own
-    // column, so a screen reader still hears the whole picture in one
-    // announcement instead of just the name.
-    const makePilotRow = (pilot: PilotRecord): HTMLTableRowElement => {
-      const pilotRow = document.createElement('tr')
-
-      const nameCell = document.createElement('td')
-      const selectButton = document.createElement('button')
-      selectButton.style.cssText = ROW_SELECT_BUTTON_STYLE
-      selectButton.textContent = pilot.name
-      selectButton.setAttribute('aria-label', pilotButtonLabel(pilot))
-      selectButton.setAttribute('aria-pressed', 'false')
-      selectButton.addEventListener('click', () => selectPilot(pilot))
-      nameCell.appendChild(selectButton)
-
-      const rankCell = document.createElement('td')
-      rankCell.textContent = `${pilot.rank.abbrev}, ${pilot.rank.name}`
-      const device = insigniaElement(pilot.rank, 18)
-      if (device !== null) { device.style.marginRight = '8px'; rankCell.prepend(device) }
-
-      const scoreCell = document.createElement('td')
-      scoreCell.className = 'num'
-      scoreCell.textContent = String(pilot.cumulativeScore)
-
-      const sortiesCell = document.createElement('td')
-      sortiesCell.className = 'num'
-      sortiesCell.textContent = String(pilot.sorties)
-
-      const killsCell = document.createElement('td')
-      killsCell.className = 'num'
-      killsCell.textContent = String(totalKills(pilot))
-
-      // `.stamp-chip` -- unlike `.stamp`, it carries no `filter: url(...)`
-      // reference (naval-comms.css), so it needs no `ensureStampFilter()`.
-      const statusCell = document.createElement('td')
-      statusCell.className = 'center'
-      const statusChip = document.createElement('span')
-      statusChip.className = 'stamp-chip'
-      const chip = pilotStatusChip(pilot.status)
-      statusChip.style.cssText = `color:var(${chip.color});border-color:var(${chip.color})`
-      statusChip.textContent = chip.text
-      statusCell.appendChild(statusChip)
-
-      // Read-only, so never boot-locked (plan ruling): not in `lockable()`.
-      const dossierCell = document.createElement('td')
-      dossierCell.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap'
-      const dossierButton = inkButton('Dossier')
-      dossierButton.setAttribute('aria-label', `Dossier: ${pilot.name}`)
-      dossierButton.addEventListener('click', () => {
-        // Re-entrancy guard (fix round 1, IMPORTANT 2): a double-click (or a
-        // click on a different row's Dossier button while one is already
-        // open) must not stack a second panel -- Close on the top one would
-        // then leave the other alive with its own live keydown listener.
-        if (openDossierClose !== null) return
-        // Re-read so a record banked since this row was built is shown.
-        const fresh = loadRoster().find((p) => p.id === pilot.id) ?? pilot
-        openDossierClose = openDossier(overlay, fresh, scenarioLabel, () => {
-          openDossierClose = null
-          dossierButton.focus()
-        }, badgeName)
-      })
-      const sortieButton = inkButton(m.newGame, true)
-      sortieButton.setAttribute('aria-label', `${m.newGame}: ${pilot.name}`)
-      sortieButton.addEventListener('click', () => advance(pilot))
-      dossierCell.append(dossierButton, sortieButton)
-
-      pilotRow.append(nameCell, rankCell, scoreCell, sortiesCell, killsCell, statusCell, dossierCell)
-      pilotRows.set(pilot.id, { row: pilotRow, selectButton, sortieButton })
-      return pilotRow
-    }
-
-    for (const pilot of pilots) tbody.appendChild(makePilotRow(pilot))
-
-    // "Enlist New Pilot" (naval-comms spec §3: no matching prototype example
-    // for this control, a new composition within the design system) -- a
-    // `.form-section-title` heading, a `.field-row`/`.typed-input` pair for
-    // the name, and an `.ink-button` pair, all styled off `naval-comms.css`'s
-    // existing classes. "New pilot" toggles to the inline form, the same
-    // button text, placeholder and confirm label `tests/e2e/
-    // scenarioPicker.spec.ts` already selects by.
-    rosterSheet.appendChild(sectionTitle('Enlist New Pilot'))
-
-    const newPilotButton = inkButton('New pilot')
-
-    const newPilotForm = document.createElement('div')
-    newPilotForm.style.cssText = 'display:none;flex-direction:column;gap:10px'
-    const fieldRow = document.createElement('div')
-    fieldRow.className = 'field-row'
-    const fieldLabel = document.createElement('span')
-    fieldLabel.className = 'field-label'
-    fieldLabel.textContent = 'Name'
-    const newPilotInput = document.createElement('input')
-    newPilotInput.type = 'text'
-    newPilotInput.placeholder = 'Pilot name'
-    newPilotInput.className = 'typed-input'
-    fieldRow.append(fieldLabel, newPilotInput)
-    const confirmRow = document.createElement('div')
-    confirmRow.className = 'button-row'
-    const newPilotConfirm = inkButton('Add', true)
-    confirmRow.appendChild(newPilotConfirm)
-    newPilotForm.append(fieldRow, confirmRow)
-
-    const newPilotError = document.createElement('p')
-    newPilotError.setAttribute('aria-live', 'polite')
-    newPilotError.style.cssText = NEW_PILOT_ERROR_STYLE
-
-    rosterSheet.append(newPilotButton, newPilotForm, newPilotError)
-    // The Dev and God-mode switches remain roster-wide controls. Starting a
-    // sortie is now contextual to each pilot row above.
-    const devLabel = document.createElement('label')
-    devLabel.style.cssText = 'display:inline-flex;align-items:center;gap:6px;margin-right:auto;font:12px var(--font-body);letter-spacing:.04em'
-    const devBox = document.createElement('input')
-    devBox.type = 'checkbox'
-    devBox.checked = dev
-    const godLabel = document.createElement('label')
-    godLabel.style.cssText = devLabel.style.cssText.replace('margin-right:auto;', 'margin-right:12px;')
-    const godBox = document.createElement('input')
-    godBox.type = 'checkbox'
-    godBox.checked = god && dev
-    godBox.disabled = !dev
-    godBox.addEventListener('change', () => { god = godBox.checked })
-    devBox.addEventListener('change', () => {
-      dev = devBox.checked
-      sounds.style.display = dev ? '' : 'none'
-      // God mode needs Dev: unchecking Dev clears it and locks the box.
-      godBox.disabled = !dev
-      if (!dev) { god = false; godBox.checked = false }
-      if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
-      // The night takeoff choices are Dev-only: unchecking Dev falls back to the suggested time.
-      if (!dev && takeoffTime !== null && takeoffTime in DEV_TAKEOFF_HOURS) takeoffTime = suggestedTime
-      if (hourRequest !== null) renderTakeoff()
-    })
-    devLabel.append(devBox, m.dev)
-    godLabel.append(godBox, m.god)
-    const rosterButtons = buttonRow()
-    rosterButtons.prepend(godLabel)
-    rosterButtons.prepend(devLabel)
-    rosterSheet.appendChild(rosterButtons)
-
-    const openNewPilotForm = (): void => {
-      newPilotButton.style.display = 'none'
-      newPilotForm.style.display = 'flex'
-      newPilotError.style.display = 'none'
-      newPilotInput.value = ''
-      newPilotInput.focus()
-    }
-    const closeNewPilotForm = (): void => {
-      newPilotForm.style.display = 'none'
-      newPilotButton.style.display = ''
-      newPilotError.style.display = 'none'
-    }
-    // Rejects an empty/whitespace name here, inline -- `createPilot` (roster.ts)
-    // throws on one by design, and letting that throw reach this click/keydown
-    // handler uncaught is not this layer's job to recover from.
-    const confirmNewPilot = (): void => {
-      if (!isValidPilotName(newPilotInput.value)) {
-        newPilotError.textContent = 'Enter a pilot name.'
-        newPilotError.style.display = 'block'
-        newPilotInput.focus()
-        return
-      }
-      const pilot = createPilot(newPilotInput.value)
-      pilots.push(pilot)
-      saveRoster(pilots)
-      tbody.appendChild(makePilotRow(pilot))
-      closeNewPilotForm()
-      selectPilot(pilot)
-    }
-    newPilotButton.addEventListener('click', openNewPilotForm)
-    newPilotConfirm.addEventListener('click', confirmNewPilot)
-    newPilotInput.addEventListener('keydown', (e) => {
-      if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
-      e.preventDefault()
-      // Stops the keydown from bubbling to `window`'s `onKey` at all, rather
-      // than relying on `onKey`'s own newPilotForm-open guard: the bubble
-      // phase runs strictly AFTER this listener finishes. Cutting propagation
-      // keeps that same Enter from also activating the newly added row action.
-      e.stopPropagation()
-      confirmNewPilot()
-    })
-
     // Launch: Form 6 -> the flight.
     const start = (): void => {
-      if (campaign !== null) {
-        const flying = missions.flyable.find((f) => f.spec.id === draft.aircraftSpec)
-        if (flying === undefined) return
-        const timeOfDay = campaign.lockedHour ?? (takeoffTime === null ? undefined : hourFor(takeoffTime))
-        const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
-        const refused = campaign.onLaunch(choice)
-        if (refused !== null) { launchError.textContent = refused; return }
-        hide()
-        onNewGame(choice, null)
-        return
-      }
-      // Guards Enter (`onKey` below) the same way `advance` does: no pilot
-      // selected, no flight -- `pilotId` has nothing to be.
-      if (selectedPilotId === null) return
-      const pilotIndex = pilots.findIndex((p) => p.id === selectedPilotId)
-      if (pilotIndex === -1) return // unreachable: selectedPilotId only ever comes from `pilots`
-      const pilotId = selectedPilotId
-      // The resurrection (design §2): flipping a `kia` pilot back to `active`
-      // and counting the resurrection happens exactly here, the moment the
-      // sortie is LAUNCHED with that pilot selected -- not on selection, and
-      // not on New game's step to Form 2, either of which would count a pilot
-      // merely looked at. A Dev sortie (sortie spec A5: one that NEEDED Dev)
-      // writes nothing, not even this: a K.I.A. pilot flying one stays K.I.A.
-      const option = optionOf(draft.scenarioId)
+      if (campaign === null) return // a sortie begins only from the headquarters (plan F5B)
       const flying = missions.flyable.find((f) => f.spec.id === draft.aircraftSpec)
-      if (option === undefined || flying === undefined) return
-      if (!sortieIsDev(option, flying.spec, draft.loadout, false) || recordDevSorties) {
-        pilots[pilotIndex] = startSortie(pilots[pilotIndex]!)
-        saveRoster(pilots)
-      }
+      if (flying === undefined) return
+      const timeOfDay = campaign.lockedHour ?? (takeoffTime === null ? undefined : hourFor(takeoffTime))
+      const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
+      const refused = campaign.onLaunch(choice)
+      if (refused !== null) { launchError.textContent = refused; return }
       hide()
-      // `dev` is "Dev rules were available" (the box); main.ts derives whether
-      // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: hourFor(takeoffTime) }) }, pilotId)
+      onNewGame(choice)
     }
     launchButton.addEventListener('click', start)
-    typeBack.addEventListener('click', () => showStep('roster'))
-    typeNext.addEventListener('click', nextFromType)
-    ordersBack.addEventListener('click', () => showStep('type'))
-    ordersNext.addEventListener('click', nextFromOrders)
-    conditionsBack.addEventListener('click', () => (campaign === null ? showStep('orders') : campaign.onBack()))
+    conditionsBack.addEventListener('click', () => campaign?.onBack())
     conditionsNext.addEventListener('click', nextFromConditions)
     aircraftBack.addEventListener('click', () => showStep('conditions'))
     aircraftNext.addEventListener('click', nextFromAircraft)
@@ -1471,35 +891,21 @@ export function createTitleScreen(
       if (!boot.ready) return
       if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return
       if (aboutOpen()) return
-      if (newPilotForm.style.display !== 'none') return
       // Enter must not advance or launch out from under the Settings dialog.
       // Its own ballot rows already stop Enter propagating (settings.ts), but
       // Enter pressed with nothing in the dialog focused still reaches here.
       if (settingsDialog?.isOpen() === true) return
-      // A focused button activates itself natively on Enter: Back must go
-      // back and About must open, not have Enter turn into "advance". The one
-      // exception is a roster row's select button (the only button that
-      // carries `aria-pressed`): click a pilot, press Enter -- that fast path
-      // predates the multi-form flow and is kept.
+      // A focused button activates itself natively on Enter: Back must go back and About must open.
       const target = e.target instanceof Element ? e.target.closest('button') : null
-      if (target !== null && !target.hasAttribute('aria-pressed')) return
+      if (target !== null) return
       e.preventDefault()
-      if (step === 'roster') {
-        const pilot = pilots.find((p) => p.id === selectedPilotId)
-        if (pilot !== undefined) advance(pilot)
-      }
-      else if (step === 'type') nextFromType()
-      else if (step === 'orders') nextFromOrders()
-      else if (step === 'conditions') nextFromConditions()
+      if (step === 'conditions') nextFromConditions()
       else if (step === 'aircraft') nextFromAircraft()
       else start()
     }
     // Everything that starts or configures a flight; the Dossier buttons are
     // deliberately absent (read-only, plan ruling).
-    const lockable = (): (HTMLButtonElement | HTMLInputElement)[] => [
-      ...[...pilotRows.values()].flatMap((r) => [r.selectButton, r.sortieButton]),
-      newPilotButton, newPilotConfirm, hangar, about, settingsButton, devBox,
-    ]
+    const lockable = (): HTMLButtonElement[] => [hangar, about, settingsButton]
     const applyBootLock = (): void => {
       const locked = !boot.ready
       overlay.dataset.ww2Ready = String(!locked)
@@ -1543,8 +949,6 @@ export function createTitleScreen(
           el.style.visibility = ''
           el.classList.add('ww2-boot-slide-in')
         }
-        const first = [...pilotRows.values()][0]
-        ;(first?.selectButton ?? newPilotButton).focus()
       }
     })
 
@@ -1553,13 +957,10 @@ export function createTitleScreen(
     if (campaign !== null) {
       // A headquarters sortie: straight to Form 4 with this mission, pilot and gate; Forms 1 to 3 are not shown.
       for (const el of routingPilots) el.textContent = campaign.pilotLabel
-      flightType = optionOf(draft.scenarioId)?.kind ?? 'mission'
-      hasStartedFlow = true
       suggestHour() // the scenario's own file: the suggested takeoff time and whether it authors lights
       showStep('conditions')
       return
     }
-    if (boot.ready) newPilotButton.focus()
   }
 
   build()

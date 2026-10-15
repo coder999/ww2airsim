@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { INSIGNIA, RIBBONS, rankDeviceMarkup, ribbonStripes } from '../../src/render/insignia.js'
-import { RANK_LADDER } from '../../src/render/roster.js'
 import { SCENARIO_OPTIONS } from '../../src/render/titleScreen.js'
 
 // Enrolled from the picker and the ladder, so a new mission or rank without
@@ -20,13 +19,6 @@ describe('mission ribbons', () => {
       expect(s, id).toEqual([...s].reverse())
       expect(s.reduce((sum, [, w]) => sum + w, 0), id).toBe(44)
     }
-  })
-})
-
-describe('rank insignia', () => {
-  it('every rank on the ladder has a collar device, no two alike', () => {
-    for (const r of RANK_LADDER) expect(INSIGNIA[r.abbrev], r.abbrev).toBeDefined()
-    expect(new Set(RANK_LADDER.map((r) => INSIGNIA[r.abbrev]![1])).size).toBe(RANK_LADDER.length)
   })
 })
 

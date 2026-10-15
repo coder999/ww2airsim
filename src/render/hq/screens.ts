@@ -18,11 +18,15 @@ import {
   pilotChoices, pilotDossierModel, type ArchiveFilter, type PickerOption, type PickerRow,
 } from './model.js'
 import type { Session } from '../campaignSession.js'
+import { createSettingsDialog, type SettingsDialogHandle, type SettingsModel } from '../settings.js'
+import { titleModel } from '../titleScreen.js'
+import { createAboutPanel } from '../ui/aboutMemo.js'
 
 export type AssignRequest = { readonly row: PickerRow; readonly pilotId: string; readonly pilotIneligible: boolean }
 
 export type HqDeps = {
   readonly session: Session
+  readonly settings: SettingsModel
   readonly catalog: () => Promise<readonly MissionDescriptor[]>
   readonly options: readonly PickerOption[]
   readonly missionLabel: (id: string) => string
@@ -139,6 +143,8 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
   let onKey: ((e: KeyboardEvent) => void) | null = null
   let dossierClose: (() => void) | null = null
   let renderToken = 0
+  let settingsDialog: SettingsDialogHandle | null = null
+  let aboutPanel: HTMLDivElement | null = null
 
   const go = (v: View): void => { view = v; void render() }
   const current = (): Campaign => {
@@ -176,6 +182,27 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
     })
     b.append(t, x)
     return b
+  }
+
+  /** Settings, About, the Hangar and (Dev) the Sounds page: the title's Administration memo, which this overlay covers. */
+  const adminRow = (): HTMLElement => {
+    const tm = titleModel()
+    const row = el('div')
+    row.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end;margin-top:14px'
+    const hangar = inkButton(tm.hangar)
+    hangar.addEventListener('click', () => { window.location.href = `${tm.hangarHref}${deps.dev.get() ? '?dev=1' : ''}` })
+    row.appendChild(hangar)
+    if (deps.dev.get()) {
+      const sounds = inkButton(tm.sounds)
+      sounds.addEventListener('click', () => { window.location.href = tm.soundsHref })
+      row.appendChild(sounds)
+    }
+    const about = inkButton(tm.about)
+    about.addEventListener('click', () => { if (aboutPanel !== null) aboutPanel.style.display = 'flex' })
+    const settings = inkButton(tm.settings)
+    settings.addEventListener('click', () => settingsDialog?.open())
+    row.append(about, settings)
+    return row
   }
 
   const devRow = (): HTMLElement => {
@@ -392,7 +419,7 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
       }
       m.sheet.appendChild(dev)
     }
-    m.sheet.appendChild(devRow())
+    m.sheet.append(devRow(), adminRow())
     const fine = el('div', undefined, 'fine-print')
     fine.append(el('span', 'Importing a file whose campaign already exists asks: Replace or Cancel.'), el('span', 'FORM HQ-0'))
     m.sheet.appendChild(fine)
@@ -526,7 +553,7 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
       grid.appendChild(b)
     }
     m.sheet.appendChild(grid)
-    m.sheet.appendChild(devRow())
+    m.sheet.append(devRow(), adminRow())
     const fine = el('div', undefined, 'fine-print')
     fine.append(el('span', 'Autosaved. Progress is kept in this browser only.'), el('span', 'FORM HQ-1'))
     m.sheet.appendChild(fine)
@@ -823,6 +850,9 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
   const hide = (): void => {
     if (overlay === null) return
     dossierClose?.()
+    settingsDialog?.destroy()
+    settingsDialog = null
+    aboutPanel = null
     overlay.remove()
     overlay = null
     stage = null
@@ -851,9 +881,15 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
       stage.style.cssText = 'flex:1 1 auto;min-height:0;width:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:16px 0 4vh'
       overlay.appendChild(stage)
       root.appendChild(overlay)
+      settingsDialog = createSettingsDialog(overlay, deps.settings)
+      const about = createAboutPanel(titleModel())
+      aboutPanel = about.panel
+      overlay.appendChild(about.panel)
+      about.close.addEventListener('click', () => { about.panel.style.display = 'none' })
       if (!keepView || session.current() === null) view = session.current() === null ? { kind: 'files' } : { kind: 'hq' }
       onKey = (e: KeyboardEvent): void => {
-        if (e.code !== 'Escape' || dossierClose !== null) return
+        if (e.code === 'Escape' && aboutPanel !== null && aboutPanel.style.display !== 'none') { e.preventDefault(); aboutPanel.style.display = 'none'; return }
+        if (e.code !== 'Escape' || dossierClose !== null || settingsDialog?.isOpen() === true) return
         if (view.kind === 'hq' || view.kind === 'files') return
         e.preventDefault()
         go(view.kind === 'new' ? { kind: 'files' } : view.kind === 'pilot' ? { kind: 'choose', focus: 'all' } : session.current() === null ? { kind: 'files' } : { kind: 'hq' })

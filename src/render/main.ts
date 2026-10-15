@@ -818,7 +818,7 @@ async function boot(): Promise<void> {
   // so its first build shows the locked state, and advanced below at each
   // stage this function already passes through.
   const boot = createBootProgress()
-  const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
+  const title = createTitleScreen(root, requestedScenarioId, (choice) => {
     chosen = choice
     pickedTimeOfDay = choice.timeOfDay
     pickedCloudiness = choice.cloudiness
@@ -836,8 +836,7 @@ async function boot(): Promise<void> {
     // the baseline resets to zero same as Restart does below; see this
     // plan's own "Ruling" section for why calling `startSortie` again here
     // would double-count it (never do that in this callback).
-    // F5B: the pilot comes from the campaign's pending sortie, not from an id the title passes.
-    void pilotId
+    // F5B: the pilot comes from the campaign's pending sortie.
     const pendingSortie = hqSession?.current()?.pending ?? null
     scoredSortie = pendingSortie === null ? null : { sortieId: pendingSortie.sortieId }
     scoredThroughKillsByType = zeroKillsByType()
@@ -931,7 +930,7 @@ async function boot(): Promise<void> {
     if (bundle !== null && applyScenarioWeather !== null) applyScenarioWeather(bundle.scenario.weather)
     else scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     rebuildFrame()
-  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) })
   // A quick launch (A6, SF-R9) builds the title and hides it at once rather
   // than skipping it: `title.up()` gates keys and pausing in several places,
   // and "Return to title" must work as after any flight. No pilot is chosen,

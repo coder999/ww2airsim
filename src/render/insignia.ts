@@ -110,13 +110,6 @@ export const INSIGNIA: Readonly<Record<string, readonly [number, string]>> = {
   ADM: stars(4),
 }
 
-/** The collar device for a rank, or `null` for an abbrev this build lacks. */
-export function insigniaElement(rank: { readonly abbrev: string; readonly name: string }, heightPx = 20): SVGSVGElement | null {
-  const art = INSIGNIA[rank.abbrev]
-  if (art === undefined) return null
-  return svg(art[0], 40, heightPx, art[1], `${rank.name} insignia`)
-}
-
 // ---- Rank devices by (faction, tier): F5B Task 5 ------------------------------------------------
 
 /** The USN device for each campaign tier (the old ladder's first six are the same collar devices). */
