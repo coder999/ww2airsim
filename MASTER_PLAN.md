@@ -271,6 +271,29 @@ Handoffs: [F4](docs/handoff/2026-10-14-f4-asset-groups.md) and its `f4r-*`
 rework handoffs. Remaining gaps, all deliberate: gameplay parachute flutter,
 dual CCKW rear wheels, track-shoe shading normals. F5–F10 may now begin.
 
+**Topsy made flyable 2026-10-14 (branch `worktree-ki57-onboard`).** The F4 Ki-57-II model
+was onboarded through `docs/aircraft.md`: a spec fitted to the TAIC TOPSY 1 sheet, a Library
+card, a new `transport` aircraft role, and working cargo doors (nothing drops through them
+yet; that is J5). The model's origin moved 1.025 m forward onto the wing quarter-chord, the
+one change to an F4 frozen contract. Offered in Dev only, in no scenario or AI roster except
+the Range Test. [Plan](docs/superpowers/plans/2026-10-14-ki57-onboard.md),
+[handoff](docs/handoff/2026-10-14-ki57-onboard.md).
+
+**Backlog note (Mark, 2026-10-14): the PBY Catalina had cargo doors.** Mark supplied three
+photographs from the Consolidated PBY Catalina Facebook group (post 2590013957924842) of the civil
+amphibian CF-SAT, a post-war cargo conversion. They show a large side cargo door in the aft
+fuselage side, behind the wing, at the waist position: it is hinged along its top edge, swings
+up and out, and is held open by a prop stay, with a ribbed inner face and a stretch of open
+fuselage below it that crew load through from a boat alongside. A hinged hatch is also open in
+the lower aft hull. Mark's reading (2026-10-14): the wartime PBY-5 had waist blisters there and this door is a
+post-war civilian conversion, so adding it to the game's Catalina would be a deliberate
+historical liberty, his call to make if a mission wants it (not decided). Still not established:
+how many doors the conversion had, and the door's dimensions. The current Catalina model has no door nodes. When the
+rescue work (F7) or a Catalina pass needs them, add the doors to
+`tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig (`docs/aircraft.md`,
+Part E), and label it a historical liberty in the spec and card. Not scheduled. Photos are Mark's
+and are not committed.
+
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
 new reusable aircraft, vehicle, ship, structure, light, flare, rescue, landing-craft,

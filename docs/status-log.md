@@ -520,3 +520,8 @@ gained a damage-tag ledger (credit when a tagged target is destroyed by anyone) 
 friendly destroyed; one scoring table now serves all play. The Japanese Field Patrol is the first mission with
 a Japanese player. Reference: [campaign-data.md](campaign-data.md); measurements:
 [handoff](handoff/2026-10-14-f5a-campaign-data-scoring.md).
+
+**Ki-57-II Topsy onboarded 2026-10-14.** The F4 transport is now selectable in the sortie
+forms in Dev, with a `transport` role and operable cargo doors; it carries nothing and drops
+nothing yet. Verified with `flyableAll.spec.ts` (nexus GPU), the Hangar spec and the full unit
+suite. See the [handoff](handoff/2026-10-14-ki57-onboard.md). Not deployed.

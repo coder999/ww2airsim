@@ -7,7 +7,8 @@
     "dimensions": "22.6 m span and 16.1 m length are ESTIMATES pending a primary Mitsubishi drawing; Smithsonian NASM collection A19600334004 supports the Ha-102-powered MC-20-II / Topsy identity, read 2026-10-14; every other figure is labeled ESTIMATE in the script header",
     "license": "AGPL-3.0-or-later"
   },
-  "normalize": { "forward": "+x", "up": "+y", "origin": [0, 0, 0], "fit": { "extent": "span", "meters": 22.6 } },
+  "note": "Origin moved 1.025 m forward on 2026-10-14 (Ki-57-II onboarding) so the wing quarter-chord at the 50% station sits at x 0, as centerPoint.test.ts requires; pivots stay in the source frame (they are read before the origin shift).",
+  "normalize": { "forward": "+x", "up": "+y", "origin": [1.025, 0, 0], "fit": { "extent": "span", "meters": 22.6 } },
   "keep": [
     { "node": "Prop1", "pivot": { "point": [4.88, 0.05, -3.65], "axis": "+x" } },
     { "node": "Prop2", "pivot": { "point": [4.88, 0.05, 3.65], "axis": "+x" } },

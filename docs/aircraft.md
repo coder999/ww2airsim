@@ -648,3 +648,17 @@ The Wildcat also shows the two things a stock model may need: a load-time
 modification (the lengthened main legs, `wildcatGearStretch`, recorded in
 `ASSETS.md`) and a racks-only loadout (`rails` may be empty). Read the W1
 handoff for what was measured and what was accepted.
+
+## Lessons from the Ki-57-II run (Topsy, 2026-10-14)
+
+Detail: [`docs/handoff/2026-10-14-ki57-onboard.md`](handoff/2026-10-14-ki57-onboard.md).
+
+- **A model built before onboarding may not sit on the quarter-chord.** The F4 Topsy's wing was 1 m forward of the origin, found only
+  when `centerPoint.test.ts` ran. Move it with `normalize.origin` in the entry and rebuild; a swept wing needs a `STATION` where the
+  slice is clean wing, since the quarter-chord drifts with span.
+- **Manifest `pivot` points are in the source frame, not the output frame.** Shifting `origin` leaves them alone; moving them with it
+  put the gear a metre off the wheels and failed `aircraftRigs.test.ts`.
+- **A transport enrolls with `role: "transport"`, no `stores` and no `combat`, and still takes `bayDoors`** for its cargo doors: the
+  doors lever is generic, and `combat.test.ts`'s bay-bomber pin counts only specs with doors and stores. A new Japanese airplane also changes the generated Range Test scenarios: `npx tsx tools/scenarios/rangeTest.ts`.
+- **OCR of the TAIC sheets drops digits.** Read the performance box from the page image (`pdftoppm -r 250`) and check a printed knots
+  figure against the mph digit.

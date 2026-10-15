@@ -57,6 +57,9 @@ export const MODEL_STANCE: Readonly<Record<string, Stance>> = {
   // Measured 2026-09-30 (Ki-21-IIb onboarding) with the propellers excluded: mains at x 0.547, the fixed tailwheel the first
   // aft point to touch at 13.346 degrees.
   'ki-21-sally': { mainWheelXM: 0.547, tailDownPitchRad: 13.346 * DEG },
+  // Measured 2026-10-14 (Ki-57-II onboarding) with the propellers excluded: mains at x 0.125 (origin moved 1.025 m forward onto the wing quarter-chord), the tailwheel the first aft point
+  // to touch at 8.948 degrees.
+  'ki-57-ii-topsy': { mainWheelXM: 0.125, tailDownPitchRad: 8.948 * DEG },
   // Measured 2026-09-30 (Ki-43-II onboarding) with the propeller excluded: mains at x 0.348, the fixed tailwheel the first aft
   // point to touch at 12.306 degrees.
   'ki-43-oscar': { mainWheelXM: 0.348, tailDownPitchRad: 12.306 * DEG },

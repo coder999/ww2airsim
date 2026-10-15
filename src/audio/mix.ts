@@ -87,7 +87,7 @@ export function loopEndSeconds(): number {
  *  (Mark, 2026-10-08); only families that sound different get their own clip. */
 export type EngineFamily = 'radial' | 'radial_big' | 'multi_heavy' | 'allison'
 
-const MULTI_HEAVY_IDS: readonly string[] = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally']
+const MULTI_HEAVY_IDS: readonly string[] = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'ki-57-ii-topsy']
 /** `engine.maxPowerW` of about 1.42 MW and up (the TBM-3's 1,900 hp to 2,000 hp); the next single radial down is the D3A at 0.95 MW. */
 const RADIAL_BIG_IDS: readonly string[] = ['f6f-hellcat', 'f4u-corsair', 'ki-84-frank', 'tbm-3-avenger']
 

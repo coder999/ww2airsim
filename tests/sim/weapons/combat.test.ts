@@ -317,10 +317,10 @@ describe('production fixed-step ordnance', () => {
 
   // C2: every bay bomber, enrolled from content, so a new one with doors is covered without a new test.
   const bayBombers = ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'tbm-3-avenger']
-  it('the bay bombers are exactly the specs with bay doors', () => {
+  it('the bay bombers are exactly the specs with bay doors that carry stores (a transport has doors and no stores)', () => {
     const ids = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5))
     expect(ids.length).toBeGreaterThan(10)
-    const withDoors = ids.filter((id) => loadAircraftSpec(id).bayDoors !== undefined).sort()
+    const withDoors = ids.filter((id) => loadAircraftSpec(id).bayDoors !== undefined && loadAircraftSpec(id).stores !== undefined).sort()
     expect(withDoors).toEqual(bayBombers)
   })
   it.each(bayBombers)('%s: release with the doors not fully open drops nothing; fully open, it drops', (id) => {
