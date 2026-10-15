@@ -1,6 +1,6 @@
 import type { Scenario } from '../../sim/scenario.js'
 import type { Loadout } from '../../sim/weapons/stores.js'
-import { formatKnots } from '../dossier.js'
+import { formatKnots } from '../hq/format.js'
 import { figureRow, sectionTitle } from '../ui/navalComms.js'
 
 /**

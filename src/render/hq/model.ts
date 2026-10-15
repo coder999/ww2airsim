@@ -318,8 +318,8 @@ export function chaptersModel(c: Campaign): readonly ChapterRow[] {
 // ---------------------------------------------------------------- dossiers
 
 export type LogRow = { readonly date: string; readonly mission: string; readonly aircraft: string; readonly outcome: string; readonly points: number; readonly kills: number; readonly time: string; readonly flags: string }
-const logRow = (e: LogEntry, missionLabel: (id: string) => string): LogRow => ({
-  date: e.at.slice(0, 10), mission: missionLabel(e.missionId), aircraft: e.aircraft, outcome: END_LABEL[e.end] + (e.success ? ' · success' : ''),
+const logRow = (e: LogEntry, missionLabel: (id: string) => string, aircraftName: (id: string) => string): LogRow => ({
+  date: e.at.slice(0, 10), mission: missionLabel(e.missionId), aircraft: aircraftName(e.aircraft), outcome: END_LABEL[e.end] + (e.success ? ' · success' : ''),
   points: e.points, kills: killsOf(e.counts), time: formatHours(e.flightSeconds),
   flags: e.flags.map((f) => (f === 'forfeit-abandoned' ? 'forfeit' : f === 'forfeit-friendly-destroyed' ? 'discharged' : 'warned')).join(', '),
 })
@@ -338,7 +338,7 @@ export type PilotDossierModel = {
   readonly logEmpty: string
 }
 
-export function pilotDossierModel(c: Campaign, p: Pilot, missionLabel: (id: string) => string, badgeName: (id: string) => string): PilotDossierModel {
+export function pilotDossierModel(c: Campaign, p: Pilot, missionLabel: (id: string) => string, badgeName: (id: string) => string, aircraftName: (id: string) => string = (id) => id): PilotDossierModel {
   const tier = tierOf(p.points)
   const next = pointsToNextTier(p.points)
   const cr = p.career
@@ -356,7 +356,7 @@ export function pilotDossierModel(c: Campaign, p: Pilot, missionLabel: (id: stri
       ['Rescues', String(cr.rescues)], ['Highest altitude', formatFeet(cr.maxAltitudeM)], ['Fastest speed', `${formatKnots(cr.maxTrueAirspeedMps)} TAS`],
     ],
     kills: killRows(p.counts), badges: p.badges.map(badgeName), badgesEmpty: 'No badges yet — awarded for completing mission objectives.',
-    log: [...p.log].reverse().map((e) => logRow(e, missionLabel)), logEmpty: 'No sorties logged yet.',
+    log: [...p.log].reverse().map((e) => logRow(e, missionLabel, aircraftName)), logEmpty: 'No sorties logged yet.',
   }
 }
 
@@ -370,7 +370,7 @@ export type CommanderDossierModel = {
   readonly logEmpty: string
 }
 
-export function commanderDossierModel(c: Campaign, catalog: readonly MissionDescriptor[], missionLabel: (id: string) => string, badgeName: (id: string) => string): CommanderDossierModel {
+export function commanderDossierModel(c: Campaign, catalog: readonly MissionDescriptor[], missionLabel: (id: string) => string, badgeName: (id: string) => string, aircraftName: (id: string) => string = (id) => id): CommanderDossierModel {
   const m = commanderModel(c, catalog)
   const s = c.human.stats
   return {
@@ -381,7 +381,7 @@ export function commanderDossierModel(c: Campaign, catalog: readonly MissionDesc
       ['Chapters', m.chaptersText + (m.victory ? ' · campaign won' : '')], ['Roster bonus on a successful sortie', `+${formatPoints(m.rosterBonus)}`],
     ],
     kills: killRows(c.human.ledger.counts), badges: c.human.ledger.badges.map(badgeName), badgesEmpty: 'No badges yet.',
-    log: [...c.human.log].reverse().map((e) => logRow(e, missionLabel)), logEmpty: 'No sorties logged yet.',
+    log: [...c.human.log].reverse().map((e) => logRow(e, missionLabel, aircraftName)), logEmpty: 'No sorties logged yet.',
   }
 }
 

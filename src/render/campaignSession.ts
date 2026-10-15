@@ -184,6 +184,8 @@ export type Session = {
   commitImport(c: Campaign): SaveStatus
   remove(id: string): SaveStatus
   exportText(id?: string): string | null
+  /** The stored text exactly as saved, even if it fails validation (the damaged-file row's "Export raw"). */
+  raw(id: string): string | null
   /** The result of the most recent save, for the banner; `null` before any save. */
   lastSave(): SaveStatus | null
   rememberPlayerName(name: string): void
@@ -314,6 +316,7 @@ export function createSession(deps: SessionDeps): Session {
       if (!r.ok) return null
       return exportCampaign(r.campaign)
     },
+    raw: (id) => { try { return port.getItem(campaignKey(id)) } catch { return null } },
     lastSave: () => last,
     rememberPlayerName(name) { saveProfile(port, { schemaVersion: 1, lastPlayerName: name }) },
     lastPlayerName: () => loadProfile(port).lastPlayerName,

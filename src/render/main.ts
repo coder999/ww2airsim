@@ -40,6 +40,7 @@ import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
 import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
+import { createHeadquarters } from './hq/bootHq.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -928,6 +929,11 @@ async function boot(): Promise<void> {
   // so `currentPilotId` stays null and nothing banks. Audio stays suspended
   // until the first click, since no New game click supplied the gesture.
   if (quick !== null) title.hide()
+  // F5B CP1: the new headquarters is reachable with ?hq until Task 10 makes it the front door. It sits above the
+  // title (which stays up, so the world is held and flight keys stay off); closing it drops back to the old title.
+  if (new URLSearchParams(window.location.search).has('hq')) {
+    createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id) }).hq.show()
+  }
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
