@@ -89,3 +89,14 @@ describe('lights switch replay (F6B)', () => {
     expect(launchHourMismatch(run.record, 18.5)).toMatch(/flown at 21\.00.*18\.50/)
   })
 })
+
+describe('sighted evidence (F6B, additive)', () => {
+  it('records who saw the player, how far and the limit; a blacked-out run records fewer or later sightings than a lit one', () => {
+    const lit = fly(false).record, dark = fly(true).record
+    const sightings = (r: FlightRecordV1) => r.packets.flatMap((p) => p.events).filter((e) => e.kind === 'sighted')
+    expect(sightings(lit).length).toBeGreaterThan(0)
+    expect(sightings(lit)[0]!.detail).toMatch(/^sees me at \d+\.\d mi \(limit 3\.7 mi\)$/)
+    expect(() => parseFlightRecord(JSON.parse(JSON.stringify(lit)))).not.toThrow()
+    expect(sightings(dark).length).toBeLessThanOrEqual(sightings(lit).length)
+  })
+})
