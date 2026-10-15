@@ -20,6 +20,7 @@ const PROBE = 'src/sim/__boundary_probe__.ts'
 const ASSISTS_PROBE = 'src/assists/__boundary_probe__.ts'
 const AUDIO_PROBE = 'src/audio/__boundary_probe__.ts'
 const REPLAY_PROBE = 'src/replay/__boundary_probe__.ts'
+const CAMPAIGN_PROBE = 'src/campaign/__boundary_probe__.ts'
 const CYCLE_A = 'src/sim/__cycle_a__.ts'
 const CYCLE_B = 'src/sim/__cycle_b__.ts'
 
@@ -29,7 +30,7 @@ const CYCLE_B = 'src/sim/__cycle_b__.ts'
  *  `__lint_probe__` paths elsewhere in this file are not here on purpose: they
  *  are passed to `ESLint.lintText` as a virtual filename and never touch any
  *  disk at all.) */
-const PROBE_FILES = [PROBE, ASSISTS_PROBE, AUDIO_PROBE, REPLAY_PROBE, CYCLE_A, CYCLE_B]
+const PROBE_FILES = [PROBE, ASSISTS_PROBE, AUDIO_PROBE, REPLAY_PROBE, CAMPAIGN_PROBE, CYCLE_A, CYCLE_B]
 
 /** The repo, found from this file rather than from `process.cwd()`, so the temp
  *  root below is unambiguously OUTSIDE it whatever directory the runner was
@@ -113,6 +114,8 @@ const PINNED_RULE_NAMES = [
   'assists-must-not-import-audio',
   'audio-must-not-import-render',
   'replay-must-stay-pure',
+  'sim-must-not-import-campaign',
+  'campaign-must-stay-pure',
 ] as const
 
 /** Whether `output` reports rule `name` -- as a whole name, not as a prefix of
@@ -556,5 +559,56 @@ describe('Web Audio has exactly one home (Plan 15 design §7.1)', () => {
       .filter((f) => /\b(AudioContext|decodeAudioData|createBufferSource)\b/.test(f.text))
       .map((f) => f.path)
     expect(offenders).toEqual([])
+  })
+})
+
+describe('campaign/ is a pure core and the sim cannot reach it (F5A Task 1)', () => {
+  // Same pattern as every rule above: each probe imports a VALUE from a module
+  // that EXISTS (type-only imports make no edge; unresolvable ones no violation).
+  it('fails when sim/ imports campaign/', () => {
+    const { code, output } = cruiseWithProbes({ [PROBE]: "import { LIVE_ROSTER_SIZE } from '../campaign/schema.js'\nexport const probe = LIVE_ROSTER_SIZE\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'sim-must-not-import-campaign'), output).toBe(true)
+  })
+
+  it('fails when campaign/ imports render/', () => {
+    const { code, output } = cruiseWithProbes({ [CAMPAIGN_PROBE]: "import { showFailure } from '../render/failure.js'\nexport const probe = showFailure\n" })
+    expect(code).not.toBe(0)
+    expect(reportsRule(output, 'campaign-must-stay-pure'), output).toBe(true)
+  })
+
+  it('fails when campaign/ imports three, a sim module other than rng, or a Node core module', () => {
+    for (const probe of [
+      "import { Vector3 } from 'three'\nexport const probe = Vector3\n",
+      "import { advance } from '../sim/loop.js'\nexport const probe = advance\n",
+      "import { readFileSync } from 'node:fs'\nexport const probe = readFileSync\n",
+    ]) {
+      const { code, output } = cruiseWithProbes({ [CAMPAIGN_PROBE]: probe })
+      expect(code, probe).not.toBe(0)
+      expect(reportsRule(output, 'campaign-must-stay-pure'), output).toBe(true)
+    }
+  })
+
+  it('does not fire on what campaign/ is allowed to import (sim/rng, flightRecorder/canonical, zod)', () => {
+    const { code, output } = cruiseWithProbes({
+      [CAMPAIGN_PROBE]:
+        "import { createRng } from '../sim/rng.js'\n" +
+        "import { canonicalStringify } from '../flightRecorder/canonical.js'\n" +
+        "import { z } from 'zod'\n" +
+        'export const probe = [createRng, canonicalStringify, z]\n',
+    })
+    expect(code, output).toBe(0)
+  })
+
+  it('reports an error for Math.random, Date.now and localStorage written in src/campaign/', async () => {
+    const eslint = new ESLint({})
+    const results = await eslint.lintText(
+      'export const bad = [Math.random(), Date.now(), localStorage]\n',
+      { filePath: 'src/campaign/__lint_probe__.ts' },
+    )
+    const messages = results.flatMap((r) => r.messages)
+    expect(messages.map((m) => m.ruleId)).toContain('no-restricted-globals')
+    expect(messages.map((m) => m.ruleId)).toContain('no-restricted-properties')
+    for (const m of messages) expect(m.severity, m.ruleId ?? '').toBe(2)
   })
 })

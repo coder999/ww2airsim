@@ -20,7 +20,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/sim/**/*.ts', 'src/assists/**/*.ts', 'tools/**/*.ts'],
+    files: ['src/sim/**/*.ts', 'src/assists/**/*.ts', 'src/campaign/**/*.ts', 'tools/**/*.ts'],
     rules: {
       // Spec §3 + Global Constraints: determinism and no browser globals.
       // This denylist is the ONLY guard between sim/ and a browser global. tsc has
