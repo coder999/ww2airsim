@@ -532,7 +532,8 @@ export function createOcean(field: DepthField, beaufort: number, cascades: reado
   // palette's ambient scale did (without it the sea glowed turquoise under
   // a navy sky, read 2026-09-19).
   // F6A: the gameplay lights on the surface the wave normal faces (lights/irradiance.ts); zero cost with none active.
-  const seaIrradiance = seaIrradianceOverPi().add(gameplayLights(vec3(worldXZ.x, 0, worldXZ.y), normal).mul(1 / Math.PI))
+  // Per VERTEX for an up-facing sea (the wave normal is not used), interpolated: per fragment it cost 3 to 4 ms of GPU p95.
+  const seaIrradiance = seaIrradianceOverPi().add(varying(gameplayLights(vec3(worldXZ.x, 0, worldXZ.y), vec3(0, 1, 0))).mul(1 / Math.PI))
   const subsurface = waterColour.mul(seaIrradiance)
   // `color()`'s type admits only scalar `mul` (clouds.ts has the same cast).
   const foamColour = (color(0xe4eff0) as unknown as Node<'vec3'>).mul(seaIrradiance)

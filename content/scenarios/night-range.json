@@ -120,7 +120,7 @@
  "ships": [],
  "weather": {
   "windFromDeg": 90,
-  "windMps": 6,
+  "windMps": 1.5,
   "timeOfDay": 21
  },
  "lights": [

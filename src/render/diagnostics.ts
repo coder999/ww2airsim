@@ -548,6 +548,8 @@ export type Ww2Diagnostics = {
   readonly lightIrradianceAt: (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => Promise<{ readonly gpu: readonly number[]; readonly cpu: readonly number[]; readonly lit: number }>
   /** F6A: the searchlight beams drawn last frame: length, what ends them, and the pixel a point `fraction` of the way along each is at (null if behind the eye). */
   readonly beams: (fraction: number) => readonly { readonly lengthM: number; readonly screen: { readonly x: number; readonly y: number } | null; readonly axis: readonly number[] }[]
+  /** F6A DEV: draws and lights nothing (false) or restores the lights (true) at runtime, so a budget run can alternate lights on and off in ONE page load (the cost twin that survives machine drift). */
+  readonly setLightsOn: (on: boolean) => void
   /** F6A: whether the player's position lights are on (N). */
   readonly playerLightsOn: () => boolean
   /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */

@@ -50,6 +50,7 @@ const RANGE = { scenario: 'night-range', launch: '1', aircraft: 'f6f-hellcat', l
 const RANGE_VIEWS: readonly { name: string; at?: { x: number; y: number; z: number }; extra?: Record<string, string> }[] = [
   { name: 'range-cockpit' },
   { name: 'range-flare', extra: { look: '-68,30' } },
+  { name: 'range-flare-drift', extra: { look: '53,40' } },
   { name: 'range-beam', extra: { look: '149,28' } },
   { name: 'range-nav-avenger', extra: { look: '0,8' } },
   { name: 'range-air-hellcat', at: { x: TAC.x + 200, y: 430, z: TAC.z + 350 }, extra: { look: '-10,-3' } },

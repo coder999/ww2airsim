@@ -6,7 +6,7 @@ import { withParams } from './views.js'
  * F6A night budget gates (plan Task 11; Mark's gate H0: High, 1440p, gpu p95 at most 8.33 ms), reference GPU only,
  * under `hwlock ryzen-budget`, THREE runs per view and the MEDIAN p95:
  *   (b) each new night view at most 8.33 ms (target 7.5);
- *   (c) lights on minus lights off on the same view at most 1.0 ms (`?night=lights:0` is the off twin).
+ *   (c) lights on minus lights off on the same view at most 1.0 ms (alternating in one page load through `__ww2.setLightsOn`).
  * Gate (a), the nine existing day views regressing by less than 0.3 ms, compares this branch with main and is
  * measured by running budget.spec.ts against both servers (recorded in the handoff, not asserted here: a test
  * cannot hold main's numbers).
@@ -25,7 +25,7 @@ test.beforeEach(({ page }) => {
 test.afterEach(() => { expect(errors, errors.join('\n')).toEqual([]) })
 
 type NightView = { readonly name: string; readonly url: string; readonly lights: boolean }
-const launch = (scenario: string): string => withParams('/', { scenario, launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean' })
+const launch = (scenario: string): string => withParams('/', { scenario, launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', god: '1' })
 export const NIGHT_VIEWS: readonly NightView[] = [
   { name: 'night-floor-600', url: withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '21' }), lights: false },
   { name: 'night-dusk-j5', url: withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '18.5' }), lights: false },
@@ -37,6 +37,7 @@ async function p95Once(page: Page, url: string): Promise<number> {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(withParams(url, { cloudTier: 'high', oceanTier: 'high' }))
   await waitForTerrain(page)
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 240, undefined, { timeout: 60_000 })
   await page.waitForTimeout(3000)
   await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
   await page.waitForTimeout(6000)
@@ -59,12 +60,34 @@ for (const view of NIGHT_VIEWS) {
     expect(p95).toBeLessThanOrEqual(GATE_MS)
   })
   if (view.lights) {
+    // Lights on and off ALTERNATE inside one page load (six samples each, medians), so machine drift between runs
+    // (measured 2026-10-14: the same view swung 5 to 15 ms between loads) cancels out of the difference.
     test(`1440p budget (high): ${view.name} lights cost at most ${LIGHTS_COST_MS} ms of gpu p95`, async ({ page }) => {
-      const on = await medianP95(page, view.url)
-      const off = await medianP95(page, withParams(view.url, { night: 'lights:0' }))
-      console.log(`NIGHTBUDGET ${view.name} on=${on.toFixed(3)} off=${off.toFixed(3)} cost=${(on - off).toFixed(3)}`)
-      recordFrameTime(on - off, `lights cost, ${view.name}`)
-      expect(on - off).toBeLessThanOrEqual(LIGHTS_COST_MS)
+      await page.setViewportSize({ width: 2560, height: 1440 })
+      await page.goto(withParams(view.url, { cloudTier: 'high', oceanTier: 'high' }))
+      await waitForTerrain(page)
+      // A freshly loaded page spends its first seconds before the world is rendering at full cost (samples of 2 to 3 ms
+      // were seen, 2026-10-14): wait for 4 s of sim, then sample.
+      await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 240, undefined, { timeout: 60_000 })
+      await page.waitForTimeout(3000)
+      const sample = async (): Promise<number> => {
+        await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
+        await page.waitForTimeout(4000)
+        const g = await page.evaluate(() => (window as DiagWindow).__ww2!.gpuFrameTimesMs())
+        expect(g.length).toBeGreaterThan(80)
+        return percentile(g, 0.95)
+      }
+      const on: number[] = [], off: number[] = []
+      for (let i = 0; i < 6; i++) {
+        await page.evaluate(() => (window as DiagWindow).__ww2!.setLightsOn(true))
+        on.push(await sample())
+        await page.evaluate(() => (window as DiagWindow).__ww2!.setLightsOn(false))
+        off.push(await sample())
+      }
+      const cost = median(on) - median(off)
+      console.log(`NIGHTBUDGET ${view.name} on=${median(on).toFixed(3)} off=${median(off).toFixed(3)} cost=${cost.toFixed(3)}`)
+      recordFrameTime(cost, `lights cost, ${view.name}`)
+      expect(cost).toBeLessThanOrEqual(LIGHTS_COST_MS)
     })
   }
 }

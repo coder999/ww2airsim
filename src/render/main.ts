@@ -1389,6 +1389,7 @@ async function boot(): Promise<void> {
           return { lengthM: b.lengthM, axis: [b.axis.x, b.axis.y, b.axis.z], screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
         })
       },
+      setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
       playerLightsOn: () => playerLightsOn,
       lights: () => {
         if (!frame) return []
