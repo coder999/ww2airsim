@@ -141,7 +141,7 @@ import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockp
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
-import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
+import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, impactMarkerShown, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
@@ -149,7 +149,7 @@ import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
-import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
+import { AXIS_VARIANTS, scenarioFileFor, sightsAllowed, sightsOverrideFromQuery } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type Cloudiness, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -715,6 +715,11 @@ async function boot(): Promise<void> {
   // from the loaded bundle; before that, `true` only for a quick launch (A6),
   // which flies with no pilot and records nothing.
   let devSortie = quick !== null
+  // F6B: the sight gate (Dev and Training Ground always; the campaign and single missions by rank). DEV `?sights=on|off` forces it.
+  const sightsOverride = import.meta.env.DEV ? sightsOverrideFromQuery(window.location.search) : undefined
+  const sightsNow = (): boolean => sightsAllowed({
+    dev: chosen.dev || devSortie, pool: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.pool ?? 'single', sights: chosen.sights,
+  }, sightsOverride)
   // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
   const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
   const sortieNeededDev = (choice: SortieChoice): boolean =>
@@ -1944,7 +1949,9 @@ async function boot(): Promise<void> {
   const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)
   scene.add(impactMarker.root)
   const impactPredictor = createImpactPredictor()
-  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, tick: 0, detonations: [] }
+  const torpedoPredictor = createTorpedoPredictor()
+  const announceVerdict = createAnnouncer()
+  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, torpedo: null, tick: 0, detonations: [] }
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -3207,23 +3214,28 @@ async function boot(): Promise<void> {
     {
       const live = replay === null && !sortieIdle && !debriefUp
       const me = playerAircraft(current.world)
+      // F6B: the rank gate. Closed, `U` can never leave the marker on (the weapons release as ever; only the aid is gated).
+      if (!sightsNow() && current.impactMarker) current = { ...current, impactMarker: false }
       const on = current.impactMarker && live
-      const prediction = impactPredictor(
-        on, me.spec, me.state, current.world.combat.aircraft[me.id]?.stores ?? emptyStores,
-        current.world.terrain, current.world.wind, decksOf(current.world.ships),
-      )
+      const stores = current.world.combat.aircraft[me.id]?.stores ?? emptyStores
+      const decks = decksOf(current.world.ships)
+      const torpedo = torpedoPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const prediction = torpedo !== null ? null : impactPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const point = torpedo !== null ? torpedo.entry : prediction?.point ?? null
       const shown = impactMarker.update(
-        prediction?.point ?? null, prediction?.armed ?? true, camera, worldOffset, impactMarkerShown(current.impactMarker, live, prediction),
+        point, prediction?.armed ?? true, camera, worldOffset, on && point !== null,
+        torpedo === null ? undefined : { valid: torpedo.valid, run: torpedo.entry === null ? null : { dir: torpedo.runDir, armM: torpedo.armRunM, lengthM: Math.min(torpedo.runRangeM, 900) } },
       )
-      const label = impactLabel(on, prediction, me.state.position)
-      impactBadge.set(label)
+      const label = torpedo !== null ? torpedoLabel(on, torpedo, me.state.position) : impactLabel(on, prediction, me.state.position)
+      impactBadge.set(label, torpedo === null ? 'plain' : torpedo.valid ? 'ok' : 'bad')
+      impactBadge.announce(announceVerdict(torpedoVerdict(torpedo), performance.now()))
       const ring = current.world.combat.impacts
       const detonations: Vec3[] = []
       if (on) for (let i = ring.length - 1; i >= 0 && detonations.length < 8; i--) {
         const hit = ring[i]!
         if ((hit.cause === 'bomb' || hit.cause === 'rocket') && hit.outcome === 'detonated') detonations.push(hit.point)
       }
-      impactDiagnostics = { on, shown, label, prediction, tick: current.world.tick, detonations }
+      impactDiagnostics = { on, shown, label, prediction, torpedo, tick: current.world.tick, detonations }
     }
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).

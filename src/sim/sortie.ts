@@ -16,7 +16,13 @@ export type Cloudiness = 'sunny' | 'partly-cloudy' | 'cloudy' | 'overcast'
 export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec: string; readonly loadout: Loadout; readonly dev: boolean; readonly timeOfDay?: number
   readonly cloudiness?: Cloudiness
   /** God mode (godMode.ts): only meaningful with `dev`; the title screen never sets it without. */
-  readonly god?: boolean }
+  readonly god?: boolean
+  /**
+   * F6B: the pilot's rank allows the bombsight and torpedosight (`abilities(tier).sights`, src/campaign/ranks.ts). The
+   * launch path supplies it; `src/sim` never reads Campaign. AWAITS F5B: its `CampaignLaunch{pilotId, tier, facts}` carries
+   * the tier, and the headquarters launch sets `sights: abilities(tier).sights`. Until then nothing sets it (false).
+   */
+  readonly sights?: boolean }
 export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'not-water-capable' | 'no-stations'
 /** `authored`: `spec` is the airplane the scenario itself puts the player in (F5A Task 9, 2026-10-14).
  *  An authored airplane is never an "enemy airplane" for the Dev rule: the Japanese Field Patrol
@@ -124,4 +130,25 @@ export const AXIS_VARIANTS: Readonly<Record<string, string>> = { 'range-test': '
 
 export function scenarioFileFor(scenarioId: string, pilotNation: AircraftNation): string {
   return pilotNation === 'japanese' ? AXIS_VARIANTS[scenarioId] ?? scenarioId : scenarioId
+}
+
+/** DEV `?sights=on` or `?sights=off`: forces the gate open or closed, to see both states without a rank. */
+export type SightsOverride = 'on' | 'off'
+
+/**
+ * F6B (Mark 2026-10-15): does this sortie have the bombsight and torpedosight (the `U` impact marker)? Dev (the checkbox
+ * inside the production headquarters/picker) and every Training Ground row, the Basic Flying tutorial included, always;
+ * the campaign and single missions by the pilot's rank (`sights`). Weapons can always be released; this only gates the aid.
+ */
+export function sightsAllowed(f: { readonly dev: boolean; readonly pool: 'noncampaign' | 'training' | 'single'; readonly sights?: boolean | undefined }, override?: SightsOverride): boolean {
+  if (override === 'on') return true
+  if (override === 'off') return false
+  return f.dev || f.pool === 'training' || f.sights === true
+}
+
+export function sightsOverrideFromQuery(search: string): SightsOverride | undefined {
+  const v = new URLSearchParams(search).get('sights')
+  if (v === null) return undefined
+  if (v === 'on' || v === 'off') return v
+  throw new Error(`sights: ${JSON.stringify(v)} is not on or off`)
 }
