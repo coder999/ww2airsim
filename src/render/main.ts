@@ -2615,6 +2615,8 @@ async function boot(): Promise<void> {
   }
 
   window.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + a key with text selected is the browser's copy (the dev overlay's position line): not a game key.
+    if ((e.ctrlKey || e.metaKey) && (window.getSelection()?.toString() ?? '') !== '') return
     // Nothing reaches the game while the title is up; the title owns Enter.
     if (title.up()) return
     // A replay owns the keyboard: nothing below -- no flight latch, no page
