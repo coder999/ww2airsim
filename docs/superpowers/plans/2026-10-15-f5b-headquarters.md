@@ -15,9 +15,10 @@ wiring that makes it playable, and it deletes the resurrection-era roster. **Sta
   checkpoint, never a test gate (AGENTS.md). Named tasks:
   - **CP0, Task 1 (design lock, before any build):** the HQ mockups in
     [`docs/handoff/2026-10-15-f5b-hq-mockups/`](../../handoff/2026-10-15-f5b-hq-mockups/) (HQ first view in three
-    variants, Personnel Files, the pilot archive, the mission-first picker). **Still pending as of 2026-10-15: Mark has the
-    PNGs and has not chosen first view A or B; this plan assumes neither** (D3 and Task 7 build whichever he picks). Mark
-    reacts; the plan's "Decisions" is updated; build starts.
+    variants, Personnel Files, the pilot archive, the mission-first picker). **Passed for the first view (Mark,
+    2026-10-15): variant A (pilots table at left, Commander's dossier at right) is chosen and "looks great".** Variants B
+    and C and the other mockups were not commented on and are treated as accepted (B is rejected as a first-view layout; C
+    is the same layout A for a Japanese campaign). Mark's other reactions, if any, update "Decisions" before build.
   - **CP1, after Task 7:** new campaign (both nations), Personnel Files list, HQ first view and every secondary view,
     on fixture campaigns, in the live page.
   - **CP2, after Task 9:** mission-first picker, pilot assignment, the three following memo forms, Launch, and Dev mode inside the same
@@ -243,8 +244,10 @@ First view, in this order, in the memo style:
    **Pilot archive**, **Save / export / import**, **Training grounds & single missions**, **Switch campaign**. The button list is
    data (`HQ_DEPARTMENTS`) so F8 can add a "World" button and F9 an "Opening scene" without editing the layout.
 
-Variant B (a stat band across the top, the pilots as the main table, no right column) and a Japanese campaign (variant C)
-are in the mockups; Mark picks at CP0. A persistent red **save-failure banner** sits above the letterhead whenever the last
+**Layout: variant A (Mark, CP0, 2026-10-15)** is the first view: pilots table at left, Commander's dossier at right,
+the Operations grid below. Variant C is the same layout for a Japanese campaign. The rejected variant B (a stat band
+across the top, the pilots as the main table, no right column) stays in the mockups directory as
+`hq-first-view-B-banner-us.*` for the record only. A persistent red **save-failure banner** sits above the letterhead whenever the last
 `saveCampaign` failed, with an **Export now** button (Q6). A discharge never appears in the live five; it appears in the
 archive and the debrief.
 
@@ -404,9 +407,9 @@ spec starts through a campaign (Task 9).
 Each task lands with its tests; `npm run verify` stays green at every commit (the new screens are built beside the old
 title and switched over in Task 10; deletion is Task 11). Heavy runs through `remote-run`.
 
-1. **Design lock (CP0).** Mark reviews the mockups. Record his picks in "Decisions" (HQ variant A/B, status vs cleared-for,
-   Japanese device set, department list), resolve whatever he answers, and update this plan (**the HQ first-view
-   variant is his pick; no task before 7 depends on it**). *No code.* **Stop and
+1. **Design lock (CP0).** Mark reviews the mockups. **First view: variant A chosen** (recorded in "Decisions", CP0 row). Any
+   further reaction from Mark to the other mockups (status vs cleared-for, Japanese device set, department list, archive,
+   Personnel Files, picker) is recorded in "Decisions" before build. *No code.* **Stop and
    wait.**
 2. **The Dev rule and the Dev campaign (pure, no frozen-module change).** `unscoredReason(row, pilotEligibility, dev, god,
    takeoff, aircraft, loadout)` in `src/render/campaignSession.ts` returns `null` (scored) or the reason the sortie is not
@@ -574,7 +577,7 @@ Binding rulings given with this assignment. Nothing below is open.
 | 13 | Always show the Personnel Files list first. |
 | 14 | Ship the HQ honestly before F10 supplies chapters. |
 | 15 | Ship the labeled Japanese insignia estimate (source-checked in Task 5). |
-| CP0 | **Still pending:** Mark has not chosen HQ first view A or B. The plan assumes neither. |
+| CP0 | **HQ first view: variant A chosen** (2026-10-15, "looks great"). Other mockups unremarked, treated as accepted. |
 
 ### My assumptions (not rulings; Mark may veto)
 
