@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bankSortie, checkInvariants, exportCampaign, importCampaign, launchSortie, lifeline, loadCampaign, missionLock,
   saveCampaign, zeroCounts, DEFAULT_POOLS, offers,
-  type Campaign, type Faction, type MissionDescriptor, type SortieEndKind, type SortieReport, type Tier,
+  type Campaign, type Faction, type MissionDescriptor, type SortieEndKind, type SortieReport,
 } from '../../src/campaign/index.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { plannedCatalog, shippedCatalog } from '../fixtures/catalog.js'

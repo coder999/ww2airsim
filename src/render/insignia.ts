@@ -116,3 +116,46 @@ export function insigniaElement(rank: { readonly abbrev: string; readonly name: 
   if (art === undefined) return null
   return svg(art[0], 40, heightPx, art[1], `${rank.name} insignia`)
 }
+
+// ---- Rank devices by (faction, tier): F5B Task 5 ------------------------------------------------
+
+/** The USN device for each campaign tier (the old ladder's first six are the same collar devices). */
+const USN_BY_TIER = ['ENS', 'LTJG', 'LT', 'LCDR', 'CDR', 'CAPT'] as const
+
+const BOARD_NAVY = '#1b2a4e', LACE_GOLD = '#d9b44a'
+function blossom(cx: number, cy: number, r: number): string {
+  let s = ''
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5
+    s += `<circle cx="${(cx + r * 0.95 * Math.cos(a)).toFixed(1)}" cy="${(cy + r * 0.95 * Math.sin(a)).toFixed(1)}" r="${(r * 0.62).toFixed(1)}" fill="${LACE_GOLD}"/>`
+  }
+  return `${s}<circle cx="${cx}" cy="${cy}" r="${(r * 0.4).toFixed(1)}" fill="${BOARD_NAVY}"/>`
+}
+
+/**
+ * Original IJN-style officer devices, tiers 1 to 6 (Kaigun Shoi .. Taisa). A dark-blue board with gold lace
+ * stripes and gold cherry-blossom (sakura) stars, the way the IJN marked officer grade: stripe count by grade
+ * band, blossom count by step within the band. **The exact counts per rank are an ESTIMATE**, a legible
+ * simplification, not copied from a chart (docs/superpowers/plans/2026-10-15-f5b-headquarters.md, D9;
+ * ASSETS.md records the source check). Tiers 1 to 3: one stripe and one to three blossoms; tiers 4 to 6: two
+ * stripes and one to three blossoms. Drawn by the author as plain vector shapes, traced from nothing.
+ */
+export const JA_DEVICES: readonly (readonly [number, string])[] = [1, 2, 3, 4, 5, 6].map((tier) => {
+  const twoStripes = tier >= 4
+  const blossoms = ((tier - 1) % 3) + 1
+  let s = `<rect x="0" y="0" width="46" height="22" rx="2" fill="${BOARD_NAVY}" stroke="#0b1226"/>`
+  for (const y of twoStripes ? [4, 9] : [6]) s += `<rect x="3" y="${y}" width="40" height="3" fill="${LACE_GOLD}"/>`
+  for (let i = 0; i < blossoms; i++) s += blossom(12 + i * 11, twoStripes ? 18 : 13, twoStripes ? 2.6 : 3.2)
+  // The shared `svg()` helper draws a 40-unit-tall field: scale the 46x22 board up and centre it.
+  return [60, `<g transform="translate(0 5.5) scale(1.3)">${s}</g>`] as const
+})
+
+/** The rank device for a campaign tier: the USN collar device for `us`, the IJN-style board for `ja`. */
+export function rankDevice(faction: 'us' | 'ja', tier: 1 | 2 | 3 | 4 | 5 | 6, heightPx = 20, name = ''): SVGSVGElement {
+  const art = faction === 'us' ? INSIGNIA[USN_BY_TIER[tier - 1]!]! : JA_DEVICES[tier - 1]!
+  return svg(art[0], 40, heightPx, art[1], `${name === '' ? `Tier ${tier}` : name} insignia`)
+}
+
+/** The markup alone (no DOM), so the Node suite can enroll every device. */
+export const rankDeviceMarkup = (faction: 'us' | 'ja', tier: number): string =>
+  (faction === 'us' ? INSIGNIA[USN_BY_TIER[tier - 1]!]! : JA_DEVICES[tier - 1]!)[1]

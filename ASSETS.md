@@ -495,3 +495,18 @@ one representative kanji spelling each). Each file carries its own `sources` led
 | Japanese | national common-surname rankings (Myoji Yurai); Meiji Yasuda Life name surveys and Taisho-era naming practice | names are facts; no text or table copied | Same recall caveat; **reviewed and approved by Mark 2026-10-14.** Romanization is modified Hepburn with macrons; kanji are one representative spelling per given name. |
 
 No name is tied to a real service member, and no ethnicity is stored (the saved pilot carries a name only).
+
+## Japanese rank devices (recorded 2026-10-15, plan F5B Task 5)
+
+`JA_DEVICES` in `src/render/insignia.ts`: six original vector devices for the Japanese pilot ladder (Kaigun Shōi to
+Taisa). Authored for this project as plain SVG shapes (a dark-blue board, gold stripes, gold cherry-blossom stars); not
+traced from any photograph, drawing or existing artwork. AGPL-3.0-or-later with the code.
+
+**The exact stripe and blossom count per rank is an ESTIMATE.** The scheme drawn is: tiers 1 to 3 one stripe, tiers 4 to
+6 two stripes, and one, two, three blossoms within each band. It is a legible simplification of the IJN's
+stripe-and-blossom grade marking, not a copy of an official chart.
+
+Source check (2026-10-15): the Wikipedia article "Ranks of the Imperial Japanese Navy" confirms IJN officers marked rank
+with stripes on the cuff over branch-colour cloth, but gives stripe and blossom counts for enlisted ranks only and shows the
+officer insignia as images with no counts in the text, so **the per-rank counts above could not be verified from text and
+stay labeled estimates.** A printed IJN chart would settle it; correcting a count is a one-line data change.
