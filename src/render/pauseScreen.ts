@@ -23,6 +23,10 @@ export type PauseScreenOptions<M> = {
   readonly onRestart: () => void
   readonly onAbort: () => void
   readonly onSelectNavigation: (id: string) => void
+  /** N2: both callbacks are supplied only in a Dev build; the predicate keeps
+   * the control absent during an ordinary non-Dev sortie in that build. */
+  readonly canExportFlightRecord?: () => boolean
+  readonly onExportFlightRecord?: () => void
 }
 
 export type PauseScreenHandle = {
@@ -248,7 +252,11 @@ export function createPauseScreen<M>(
   })
   const restart = button('Restart Mission', false, () => showConfirmation('restart'))
   const abort = button('Abort Mission', false, () => showConfirmation('abort'))
+  const exportFlight = options.onExportFlightRecord === undefined
+    ? null
+    : button('Export flight record', false, options.onExportFlightRecord)
   footer.append(resume, restart, abort)
+  if (exportFlight !== null) footer.appendChild(exportFlight)
   sheet.appendChild(footer)
 
   const finePrint = document.createElement('div')
@@ -319,6 +327,7 @@ export function createPauseScreen<M>(
   root.appendChild(backdrop)
 
   function renderSnapshot(snapshot: PauseScreenSnapshot<M>): void {
+    if (exportFlight !== null) exportFlight.style.display = options.canExportFlightRecord?.() === true ? '' : 'none'
     shownSnapshot = snapshot
     pilotLine.textContent = `Pilot: ${snapshot.pilotName}`
     tallyBody.replaceChildren()

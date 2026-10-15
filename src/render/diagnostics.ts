@@ -51,6 +51,16 @@ export type ReplayDiagnostics = {
   readonly targetId: string | null
 }
 
+/** N2's read-only Dev diagnostic. It exposes recorder lifecycle and volume,
+ * never mutable record contents or an alternate input path. */
+export type FlightRecorderDiagnostics = {
+  readonly active: boolean
+  readonly completed: boolean
+  readonly packetCount: number
+  readonly valid: boolean | null
+  readonly exported: boolean
+}
+
 /**
  * The shape `window.__ww2` has in a DEV build. `main.ts` writes it, and
  * `tests/e2e/adapter.spec.ts` (E2E) reads it -- both sides import this one
@@ -72,6 +82,7 @@ export type Ww2Diagnostics = {
   readonly adapter: AdapterVerdict
   readonly validationErrors: readonly string[]
   readonly tick: () => number
+  readonly flightRecorder: () => FlightRecorderDiagnostics
   readonly cameraMode: () => CameraMode
   /** The panel family currently built for the live player aircraft. Null only
    *  during boot, before the first panel exists. */

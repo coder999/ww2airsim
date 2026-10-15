@@ -494,6 +494,17 @@ export interface AdvanceResult<M = undefined> {
   readonly alpha: number
 }
 
+/** N2: the exact fixed-tick input and post-tick world. Optional and Dev-only
+ * at the call site; `advance` allocates the observation world only when this
+ * callback exists, so ordinary play keeps the pre-recorder hot path. */
+export type FixedStepObservation<M = undefined> = {
+  readonly tick: number
+  readonly controls: Controls
+  readonly world: World<M>
+}
+
+export type FixedStepObserver<M = undefined> = (observation: FixedStepObservation<M>) => void
+
 /** The id `createWorld` gives its one airplane, and the one the frame drives. */
 export const PLAYER_ID: EntityId = 'player'
 
@@ -939,6 +950,8 @@ export function advance<M>(
    * call site is bit-identical.
    */
   god?: GodMode,
+  /** N2 Dev Flight Recorder: absent outside an active Dev recording. */
+  observer?: FixedStepObserver<M>,
 ): AdvanceResult<M> {
   // A tab suspend, a debugger pause or a clock adjustment can hand us a delta
   // that is negative or not a number; banking either would poison the
@@ -982,6 +995,7 @@ export function advance<M>(
   let mission = world.mission
   for (let i = 0; i < owedSteps; i++) {
     tick += 1
+    const appliedPlayerControls = aircraft.find((entity) => entity.id === world.player)!.controls
     const water = waterSurfaceContext(tick * DT, world.wind)
     // Ships first (spec §3.4): exogenous kinematics, reading nothing else --
     // except a destroyed ship's own orders, overridden here to hold position
@@ -1098,6 +1112,13 @@ export function advance<M>(
       // trap. After spawns, on this tick's post-step ships, so the deck is
       // where the renderer will draw it.
       if (stepped.respot !== null) aircraft = respotPlayer(aircraft, world.player, ships, stepped.respot, tick)
+    }
+    if (observer !== undefined) {
+      observer({
+        tick,
+        controls: appliedPlayerControls,
+        world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission },
+      })
     }
   }
 

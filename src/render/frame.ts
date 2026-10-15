@@ -6,6 +6,7 @@ import {
   withControls,
   PLAYER_ID,
   type Stepper,
+  type FixedStepObserver,
   type World,
 } from '../sim/loop.js'
 import type { TerrainField } from '../sim/world/terrain.js'
@@ -580,6 +581,8 @@ export function nextFrameState(
   mouse: MouseDelta = NO_MOUSE,
   /** God mode (Dev only, `sim/godMode.ts`), handed straight to `advance`; absent is every ordinary flight. */
   god?: GodMode,
+  /** N2: active only for a Dev flight recorder. */
+  fixedStepObserver?: FixedStepObserver<undefined>,
 ): FrameState {
   const player = playerAircraft(prev.world)
   const spec = player.spec
@@ -800,6 +803,7 @@ export function nextFrameState(
     assist,
     arcadeDamage,
     god,
+    fixedStepObserver,
   )
   const advancedPlayer = playerAircraft(advanced.world)
   const { poses, shipPoses, vehiclePoses, render } = posesFor(advanced.world, advanced.alpha)

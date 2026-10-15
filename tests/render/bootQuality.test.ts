@@ -376,12 +376,13 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   })
 
   it('feeds the damage model into the frame loop every frame', () => {
-    // `[,)]`: the orbit camera (2026-09-27) added the mouse as a later argument.
-    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\)[,)]/)
+    // N2 added the optional fixed-step observer after the mouse and God-mode
+    // arguments; this still pins the one production call's ordered wiring.
+    expect(source).toMatch(/nextFrameState\([\s\S]{0,180}?quality\.arcadeDamage\(\)[,)]/)
   })
 
   it('feeds the gated mouse into the frame loop every frame (orbit camera plan ruling P-3)', () => {
-    expect(source).toMatch(/nextFrameState\([^\n]*quality\.arcadeDamage\(\), frameMouse(, godMode)?\)/)
+    expect(source).toMatch(/nextFrameState\([\s\S]{0,180}?quality\.arcadeDamage\(\), frameMouse, godMode,/)
     expect(source).toContain('const frameMouse = mouseBlocked ? NO_MOUSE : mouseDelta')
   })
 

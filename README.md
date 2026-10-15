@@ -78,6 +78,11 @@ and skip themselves by name instead of failing. `deploy.yml` (manual,
 low-frequency) DOES fetch LFS content, and is where L0 is actually verified
 before a release ships.
 
+Dev sorties can be captured as deterministic `.ww2flight` files and replayed
+through the existing camera system. The export/reproduction workflow and exact
+build/content requirements are in
+[`docs/flight-recorder.md`](docs/flight-recorder.md).
+
 ## The terrain pyramid: a clone already flies
 
 One command, which fetches the eight source tiles itself if the cache is

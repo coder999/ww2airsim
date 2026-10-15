@@ -1,5 +1,8 @@
 import { defineConfig, type Plugin, type ResolvedConfig } from 'vite'
 import { cp } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -160,6 +163,23 @@ function gaTag(): Plugin {
 const TUNNEL_HOST = 'ww2airsim.windomlane.org'
 const viaTunnel = process.env.WW2AIRSIM_TUNNEL === '1'
 
+/** N2: identify the exact source tree that produced a Dev record. A dirty
+ * tree gets a digest of its tracked diff and untracked file bytes rather than
+ * pretending the recoverable commit alone is exact. */
+function sourceIdentity(): { readonly id: string; readonly dirty: boolean } {
+  const git = (...args: string[]): string => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 128 * 1024 * 1024 }).trim()
+  const commit = git('rev-parse', 'HEAD')
+  const diff = execFileSync('git', ['diff', '--binary', 'HEAD'], { maxBuffer: 128 * 1024 * 1024 })
+  const untracked = git('ls-files', '--others', '--exclude-standard').split('\n').filter(Boolean).sort()
+  const dirty = diff.byteLength > 0 || untracked.length > 0
+  if (!dirty) return { id: commit, dirty: false }
+  const hash = createHash('sha256').update(diff)
+  for (const path of untracked) hash.update(path).update('\0').update(readFileSync(resolve(path)))
+  return { id: `${commit}-dirty-${hash.digest('hex').slice(0, 16)}`, dirty: true }
+}
+
+const SOURCE_IDENTITY = sourceIdentity()
+
 /**
  * One dependency cache per checkout and port, never the default
  * `node_modules/.vite`. A worktree's `node_modules` is a symlink to main's, so
@@ -174,6 +194,10 @@ const cacheDir = fileURLToPath(
 
 export default defineConfig({
   cacheDir,
+  define: {
+    __WW2_BUILD_ID__: JSON.stringify(SOURCE_IDENTITY.id),
+    __WW2_BUILD_DIRTY__: JSON.stringify(SOURCE_IDENTITY.dirty),
+  },
   plugins: [copyContent(), gaTag()],
   server: {
     host: viaTunnel ? '172.17.0.1' : '127.0.0.1',

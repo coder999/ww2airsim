@@ -49,6 +49,11 @@ import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts }
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
+import { BUILD_DIRTY, BUILD_ID, browserEnvironment, contentSha256, downloadFlightRecord } from '../flightRecorder/browser.js'
+import { createDevFlightRecorder, type DevFlightRecorder } from '../flightRecorder/recorder.js'
+import type { FlightRecordV1 } from '../flightRecorder/schema.js'
+import { verifyFlightRecord } from '../flightRecorder/verify.js'
+import { createFlightRecorderSurface, flightRecorderSurfaceFromQuery } from './flightRecorderSurface.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
 import { createCloudPass, type CloudPass } from './scene/cloudPass.js'
@@ -379,6 +384,8 @@ async function boot(): Promise<void> {
   // landing in the same narrow window (between the title painting and
   // `initRenderer`'s `await` resolving) that exposed `frame`/`audio`.
   let bundle: ScenarioBundle | null = null
+  /** N2: canonical simulation-content identity for the currently loaded sortie bundle. */
+  let scenarioContentSha256 = ''
   // Sortie forms (spec, Wiring): the aircraft the loaded bundle's player
   // flies, so `onNewGame` rebuilds the entities when only the aircraft
   // changed (Review Focus 5); and the Dev stores layout (SF-R2), fetched
@@ -494,7 +501,9 @@ async function boot(): Promise<void> {
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(DEV_STORES_SPEC_ID)}: ${res.status} ${res.statusText}`)
       devStores = parseAircraftSpec(await res.json()).stores
     }
-    const nextScenarioWorld = worldFromScenario(sortieBundle(nextBundle, choice.loadout, devStores), null, choice.loadout)
+    const nextSortieBundle = sortieBundle(nextBundle, choice.loadout, devStores)
+    const nextScenarioWorld = worldFromScenario(nextSortieBundle, null, choice.loadout)
+    const nextContentSha256 = await contentSha256(nextSortieBundle)
     // The scenario says where the player is parked; the DEV override above
     // moves it into the air instead. The airplane is then not `parked`, so
     // it gets the airborne posture `initialAircraftState` has always given
@@ -507,6 +516,7 @@ async function boot(): Promise<void> {
     const nextSpawnedAt = override ? spawnPositionFromQuery(window.location.search, parkedAt) : parkedAt
 
     bundle = nextBundle
+    scenarioContentSha256 = nextContentSha256
     scenarioWorld = nextScenarioWorld
     spawnedAt = nextSpawnedAt
     // The nullable binding the diagnostics hook above closes over, now that
@@ -527,6 +537,9 @@ async function boot(): Promise<void> {
    * `frame` needs nothing from an intervening `await` to be SAFELY `null`.
    */
   let frame: FrameState | null = null
+  /** N2: absent in production and during every ordinary non-Dev sortie. */
+  let activeFlightRecorder: DevFlightRecorder<undefined> | null = null
+  let completedFlightRecord: FlightRecordV1 | null = null
   /**
    * The render loop, `null` until boot starts it (well below, `loop =
    * createRafLoop(frameFn)`). Hoisted for the same reason as `frame` above:
@@ -697,6 +710,43 @@ async function boot(): Promise<void> {
    * down, once those objects exist.
    */
   const quality = createBootQuality()
+  const startDevFlightRecorder = (world: World<undefined>): void => {
+    // A query-string quick launch has no pilot-owned sortie lifecycle and can
+    // begin advancing before terrain arrives, so it cannot promise N2's
+    // settled tick-zero initial world. Keep the existing quick-launch
+    // contract: Dev diagnostics, but no flight record.
+    if (!import.meta.env.DEV || !chosen.dev || quick !== null) {
+      activeFlightRecorder = null
+      completedFlightRecord = null
+      return
+    }
+    if (activeFlightRecorder !== null && !activeFlightRecorder.exported() && activeFlightRecorder.snapshot().packets.length > 0) {
+      window.alert('The previous Dev flight record was not exported and will now be discarded.')
+    }
+    if (scenarioContentSha256 === '') throw new Error('Dev Flight Recorder cannot start before content identity is ready')
+    activeFlightRecorder = createDevFlightRecorder({
+      build: { id: BUILD_ID, dirty: BUILD_DIRTY },
+      content: { scenarioId: bundle!.scenario.id, sha256: scenarioContentSha256 },
+      launch: {
+        aircraftSpec: chosen.aircraftSpec,
+        loadout: chosen.loadout,
+        timeOfDay: scenarioTimeOfDay,
+        weather: bundle!.scenario.weather,
+        difficulty: quality.difficulty(),
+        assists: frame?.assists ?? DEFAULT_ASSIST_SETTINGS,
+        arcadeDamage: quality.arcadeDamage(),
+        dev: { query: location.search, god: godMode !== undefined },
+      },
+      environment: browserEnvironment(quality.settings.snapshot() as unknown as Record<string, unknown>),
+    }, world)
+    completedFlightRecord = null
+  }
+  const exportDevFlightRecord = async (): Promise<void> => {
+    const record = completedFlightRecord ?? activeFlightRecorder?.snapshot() ?? null
+    if (record === null) return
+    await downloadFlightRecord(record, record.content.scenarioId)
+    activeFlightRecorder?.markExported()
+  }
   const forceTreesOff = import.meta.env.DEV && new URLSearchParams(location.search).get('trees') === 'off'
   // Spec §5 step 1: a saved choice means the probe (`adaptQuality`,
   // below) never runs at all -- the "probe once ever" rule -- so this starts
@@ -789,6 +839,7 @@ async function boot(): Promise<void> {
           : rebuilt
         syncPlayerAircraftVisuals?.(playerAircraft(frame.world).spec)
         frame = withPaused(frame, false)
+        startDevFlightRecorder(frame.world)
         // Whole-branch review C-1: `resetFlightUi` (declared below, alongside
         // the state it clears -- see its own doc comment) is a forward
         // reference exactly like `buildWorld` above, and is safe for the
@@ -1065,6 +1116,16 @@ async function boot(): Promise<void> {
       reversedDepthBuffer: renderer.reversedDepthBuffer,
       validationErrors,
       tick: () => frame?.world.tick ?? 0,
+      flightRecorder: () => {
+        const record = completedFlightRecord ?? activeFlightRecorder?.snapshot() ?? null
+        return {
+          active: activeFlightRecorder !== null,
+          completed: completedFlightRecord !== null,
+          packetCount: record?.packets.length ?? 0,
+          valid: record?.valid ?? null,
+          exported: activeFlightRecorder?.exported() ?? completedFlightRecord !== null,
+        }
+      },
       cameraMode: () => frame?.cameraMode ?? 'chase',
       cockpitLayout: () => cockpitLayout,
       timeScale: () => frame?.timeScale ?? 1,
@@ -1948,6 +2009,7 @@ async function boot(): Promise<void> {
   // `initialFrameStateFor` (frame.ts), which is why no boolean is passed here
   // any more.
   frame = initialFrameStateFor(buildWorld(null))
+  if (quick !== null && frame.world.terrain !== null) startDevFlightRecorder(frame.world)
   // Repeatable scenery inspection with the existing DEV spawn overrides.
   // Hold position and look down; absent from production builds.
   const inspectScenery = import.meta.env.DEV && new URLSearchParams(location.search).get('sceneryView') === '1'
@@ -2000,6 +2062,7 @@ async function boot(): Promise<void> {
       restarted.groundSpawn && restarted.world.terrain !== null
         ? settleOnTerrain(restarted, restarted.world.terrain)
         : restarted
+    startDevFlightRecorder(frame.world)
     // The pooled flashes, like the impact effect: a fireball from the old
     // flight must not sit under the new airplane. The flash MEMORY needs
     // no reset -- the tick going backwards is its restart signal, as it is
@@ -2156,13 +2219,16 @@ async function boot(): Promise<void> {
     // The one merge point for all three sites, so the Dev stamp (sortie spec
     // A5) reaches every debrief without a fourth copy at each call.
     const shown = withNotRecorded(model, devSortie && !recordDevSorties)
+    const finalModel = banked === null
+      ? shown
+      : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) }
+    if (activeFlightRecorder !== null) completedFlightRecord = activeFlightRecorder.finish(frame!.world, finalModel)
     debrief.show(
-      banked === null
-        ? shown
-        : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) },
+      finalModel,
       onContinue,
       returnToTitle,
       onWatchReplay,
+      completedFlightRecord === null ? undefined : () => { void exportDevFlightRecord() },
     )
   }
   /**
@@ -2375,6 +2441,10 @@ async function boot(): Promise<void> {
       clearMapInput()
       title.show(requestedScenarioId)
     },
+    ...(import.meta.env.DEV ? {
+      canExportFlightRecord: () => activeFlightRecorder !== null,
+      onExportFlightRecord: () => { void exportDevFlightRecord() },
+    } : {}),
   })
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
@@ -2478,6 +2548,41 @@ async function boot(): Promise<void> {
     for (const effect of next.effects) runFlowEffect(effect)
   }
   const watchReplay = (): void => dispatch({ kind: 'watch' })
+  if (import.meta.env.DEV && flightRecorderSurfaceFromQuery(location.search)) {
+    createFlightRecorderSurface(root, async (record, requestedTick) => {
+      if (record.content.scenarioId !== bundle?.scenario.id) {
+        throw new Error(`Scenario mismatch: launch ${record.content.scenarioId} in Dev mode before reproducing this record.`)
+      }
+      if (record.launch.aircraftSpec !== chosen.aircraftSpec || record.launch.loadout !== chosen.loadout) {
+        throw new Error(`Sortie mismatch: launch ${record.launch.aircraftSpec} with ${record.launch.loadout} before reproducing this record.`)
+      }
+      const rebuilt = initialFrameStateFor(buildWorld(frame!.world.terrain), record.launch.assists)
+      const initial = rebuilt.groundSpawn && rebuilt.world.terrain !== null
+        ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
+        : rebuilt
+      recorder.clear()
+      const result = verifyFlightRecord(record, initial.world, {
+        buildId: BUILD_ID,
+        contentSha256: scenarioContentSha256,
+        ...(requestedTick === undefined ? {} : { endTick: requestedTick }),
+        onWorld: (world) => recorder.push(world),
+      })
+      if (!result.ok) throw new Error(`${result.message}${result.expected === undefined ? '' : ` (expected ${result.expected}, got ${result.actual})`}`)
+      activeFlightRecorder = null
+      completedFlightRecord = record
+      frame = withPaused(initialFrameStateFor(result.world, record.launch.assists), true)
+      // The reproduction panel can be used from the title or a debrief, whose overlays live outside
+      // `root` and so ignore the replay's hide-everything rule: close them, and when the replay ends
+      // go back to the title instead of leaving a paused flight with no UI.
+      debrief.hide()
+      title.hide()
+      startReplaySession('manual', () => { frame = withPaused(frame!, true); returnToTitle() })
+      return {
+        inspectedTick: result.world.tick,
+        message: `Verified ${result.ticks} ticks bit-identically; replay cameras show the ten seconds ending at tick ${result.world.tick}.`,
+      }
+    })
+  }
   /** Every keydown while a replay is up lands here and nowhere else (Review Focus 1). */
   const onReplayKey = (e: KeyboardEvent): void => {
     replayHeld.add(e.code)
@@ -2724,7 +2829,25 @@ async function boot(): Promise<void> {
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
     const simStart = import.meta.env.DEV ? performance.now() : 0
-    let current = nextFrameState(inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode)
+    if (activeFlightRecorder !== null) {
+      const tick = inputFrame.world.tick + 1
+      if (pendingPause) activeFlightRecorder.note({ tick, kind: 'pause', paused: !inputFrame.paused })
+      if (pendingTripleTime) activeFlightRecorder.note({ tick, kind: 'time-scale', scale: inputFrame.timeScale === 1 ? 3 : 1 })
+      if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
+      if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
+      if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
+      if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
+      if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
+      if (pendingWingmanKey !== null) {
+        const command = pendingWingmanKey === BINDINGS.wingmanAttack[0] ? 'attack'
+          : pendingWingmanKey === BINDINGS.wingmanCover[0] ? 'cover' : 'form'
+        activeFlightRecorder.note({ tick, kind: 'wingman-order', command })
+      }
+    }
+    let current = nextFrameState(
+      inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
+      activeFlightRecorder?.observe,
+    )
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
     if (inspectScenery) current = { ...current, eye: cameraTransformFor('chase', spec, current.render,
       { yawRad: 0, pitchRad: -Math.PI / 5 }) }
@@ -3629,6 +3752,7 @@ async function boot(): Promise<void> {
       scene.add(vegetation.object)
     }
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
+    if (quick !== null && arrived !== null && activeFlightRecorder === null) startDevFlightRecorder(frame.world)
   }, finestFetchedLevel).catch((err: unknown) => {
     loop?.stop()
     showFailure(root, 'bad-content', err instanceof Error ? err.message : String(err))
