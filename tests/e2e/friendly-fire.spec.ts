@@ -11,6 +11,10 @@ import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
  * to title. Deterministic (tests/render/discharge.test.ts) proves the same models
  * headless; none of it can see `debrief.ts`'s `show()` or the title's chip.
  *
+ * F5A (2026-10-14): nonfatal friendly damage is a warning only (the radio call and the
+ * FRIENDLY FIRE tag); the sortie is forfeit and the pilot discharged only when a friendly is
+ * DESTROYED (`friendlyKills`), which both endings below arrange.
+ *
  * Two endings, because the dead cannot be discharged (Mark, 2026-09-26,
  * ruling FF-7 amended):
  * - `friendly-fire-range`: fire on the allied wingman 250 m ahead, then dive
@@ -92,6 +96,18 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   await page.screenshot({ path: 'test-results/friendly-fire-warning.png' })
   // The call clears after RADIO_SHOW_MS (5 s).
   await expect(page.getByRole('status', { name: 'Radio' })).toBeHidden({ timeout: 15_000 })
+
+  // F5A (2026-10-14): that was only a warning. The pilot is judged on a friendly DESTROYED, so finish the
+  // ally: hold Space until it is burning or down, then wait for its destruction to be credited
+  // (a burning airplane explodes or crashes a few seconds later).
+  await page.keyboard.down('Space')
+  await expect
+    .poll(() => combat(page).then((c) => { const ally = c.aircraft.find((a) => a.id === 'ally-1')!; return ally.burning || ally.destroyed }), { timeout: 30_000, message: 'the ally was never put out of the fight' })
+    .toBe(true)
+  await page.keyboard.up('Space')
+  await expect
+    .poll(() => combat(page).then((c) => c.aircraft.find((a) => a.id === 'f6f-1')!.friendlyKills), { timeout: 60_000, message: 'the ally never went down' })
+    .toBeGreaterThan(0)
 
   // -- Into San Pedro Bay. `diveToSea` holds the nose down only while the sink
   // is shallow: this spec used to hold it throughout, which flies an outside

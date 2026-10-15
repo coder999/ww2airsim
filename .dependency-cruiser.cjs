@@ -145,7 +145,7 @@ module.exports = {
       severity: 'error',
       from: { path: '^src/campaign' },
       to: {
-        pathNot: '^(src/campaign/|src/sim/rng\\.ts$|src/flightRecorder/canonical\\.ts$|content/campaign/)|node_modules/zod/',
+        pathNot: '^(src/campaign/|src/sim/rng\\.ts$|src/flightRecorder/canonical\\.ts$)|(^|/)content/campaign/|node_modules/zod/',
       },
     },
     {

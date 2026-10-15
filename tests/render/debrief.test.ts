@@ -204,8 +204,13 @@ describe('missionScore', () => {
     expect(killed.total).toBe(2 * 500 + 1 * 5000)
   })
 
-  it('scores a sunk transport at 400 and a destroyer at 750', () => {
-    expect(missionScore({ ...zeroKillsByType(), transport: 2, destroyer: 1 }, 'landed').total).toBe(2 * 400 + 750)
+  // F5A (2026-10-14, ruling D14): one table for all play, so transport is 500 (was 400) and destroyer 1,000 (was 750).
+  it('scores a sunk transport at 500 and a destroyer at 1,000', () => {
+    expect(missionScore({ ...zeroKillsByType(), transport: 2, destroyer: 1 }, 'landed').total).toBe(2 * 500 + 1000)
+  })
+
+  it('scores the two campaign rows: a light vehicle at 100 and a landing craft at 250', () => {
+    expect(missionScore({ ...zeroKillsByType(), 'light-vehicle': 3, 'landing-craft': 2 }, 'landed').total).toBe(3 * 100 + 2 * 250)
   })
 
   it('scores a destroyed tank at 300', () => {
@@ -214,7 +219,7 @@ describe('missionScore', () => {
 
   it('every row is present even at zero, including tanks', () => {
     const score = missionScore(zeroKillsByType(), 'landed')
-    expect(score.rows).toHaveLength(11)
+    expect(score.rows).toHaveLength(13)
     expect(score.rows.find((row) => row.target === 'Tank')).toEqual({ target: 'Tank', destroyed: 0, score: 0 })
     expect(score.total).toBe(0)
   })

@@ -26,8 +26,16 @@ Points **bank however the flight ends** — landed, ditched or killed (Mark,
 2026-09-27). Unlike the 1991 original, the game resurrects pilots, so death is
 not the end of a career and a pilot whose points cross a threshold is promoted
 posthumously. What a ditching or a death costs is the **badge**: a mission's
-badge needs a landing (see Badges). Damaging your own side forfeits the whole
-sortie, 0 points, however it ends.
+badge needs a landing (see Badges). **Destroying** something on your own side
+forfeits the whole sortie, 0 points, however it ends (since F5A, 2026-10-14);
+merely damaging it earns a radio warning and nothing more. A friendly ship counts
+as destroyed when its hull reaches the bottom, 90 seconds after the killing blow.
+
+The table below is the campaign table (GAMEPLAY.md, "Campaign scoring and conduct"),
+used for all play since F5A (2026-10-14): transports went from 400 to 500, destroyers
+from 750 to 1,000, and light vehicles and landing craft are new rows. A kill is
+credited to every aircraft that damaged the target, whoever destroyed it, once;
+a ship is credited when it reaches the bottom.
 
 | Target | Points | Target | Points |
 | --- | --- | --- | --- |
@@ -35,8 +43,9 @@ sortie, 0 points, however it ends.
 | Bomber | 750 | Runway | 500 |
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
-| Destroyer | 750 | Transport | 400 |
-| Tank | 300 | | |
+| Destroyer | 1000 | Transport | 500 |
+| Tank | 300 | Light vehicle | 100 |
+| Landing craft | 250 | | |
 
 Recovery multiplier applied to the mission total:
 
@@ -680,8 +689,9 @@ the requested speed, conforming to the terrain as they go. They stop at the
 last waypoint unless `loop` is true. Vehicles can be hit by guns, rockets and
 bombs; a destroyed vehicle stops and remains as a darkened, slumped wreck.
 Each vehicle spec selects its scoring category: armor such as the Type 97
-Chi-Ha scores in the existing **Tank** row, while unarmored scout cars use the
-existing **Building** row. Tank Buster's six 48-HP Chi-Ha targets use the same
+Chi-Ha scores in the existing **Tank** row, while unarmored scout cars and jeeps
+score in the **Light vehicle** row (100; they scored as Buildings before F5A,
+2026-10-14). Landing craft have their own row, for the vehicle specs that select it. Tank Buster's six 48-HP Chi-Ha targets use the same
 vehicle simulation with stationary one-point routes. There is no player
 driving, pathfinding, suspension, collision avoidance, vehicle weapons or
 ground AI.

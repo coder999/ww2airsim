@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { debriefModel, destructionModel, killsSince, landingModel, type DebriefModel } from '../../src/render/debrief.js'
 import {
-  DISCHARGE_HEADLINE, FRIENDLY_FIRE_RADIO, friendlyFireOf, friendlyFireRadio, friendlyTargetLabel, withDischarge,
+  DISCHARGE_HEADLINE, FRIENDLY_FIRE_RADIO, friendlyDestroyedBy, friendlyFireOf, friendlyFireRadio, friendlyTargetLabel, withDischarge,
 } from '../../src/render/discharge.js'
 import { advance, playerAircraft, type Impact, type Stepper, type World } from '../../src/sim/loop.js'
 import type { LandingReport } from '../../src/sim/landing.js'
@@ -121,12 +121,31 @@ describe('withDischarge (spec §5)', () => {
     }
   })
 
-  it('discharges for a round into an allied ship, named by class and hull', () => {
+  // F5A (2026-10-14): damage alone is a warning. Only a friendly DESTROYED discharges (see also
+  // tests/sim/weapons/destructionTags.test.ts, which pins the ship's 90 s sinking window, ruling D15).
+  it('a round into an allied ship is a warning only: the shot is on record, the debrief is untouched', () => {
     const ff = worldFromScenario(loadScenarioBundle('free-flight'), null)
     const hit = fly(ff, [round('f6f-1', above(ff, 'dd-1'))])
     expect(friendlyFireOf(hit)).toEqual({ tick: 1, kind: 'ship', target: 'dd-1' })
-    expect(allThree(hit).landed!.headline).toBe(DISCHARGE_HEADLINE)
+    expect(friendlyDestroyedBy(hit)).toBe(false)
+    const model = landingModel(REPORT, zeroKillsByType(), {})
+    expect(withDischarge(model, hit)).toBe(model)
+    expect(allThree(hit).landed!.headline).toBe('LANDED')
     expect(friendlyTargetLabel(hit, friendlyFireOf(hit)!)).toBe('Fletcher-class destroyer dd-1')
+  })
+
+  it('sinking an allied ship discharges once it reaches the bottom, and not before (ruling D15)', () => {
+    const ff = worldFromScenario(loadScenarioBundle('free-flight'), null)
+    // One hit point left, so the round is the killing blow.
+    const weak = { ...ff, combat: { ...ff.combat, ships: { ...ff.combat.ships, 'dd-1': { ...ff.combat.ships['dd-1']!, hp: 1 } } } }
+    let w = fly(weak, [round('f6f-1', above(weak, 'dd-1'))])
+    expect(w.combat.ships['dd-1']!.destroyedTick).not.toBeNull()
+    expect(friendlyDestroyedBy(w)).toBe(false)
+    expect(allThree(w).landed!.headline).toBe('LANDED') // inside the window: warned, not discharged
+    for (let i = 0; i < 95 * 60 && !friendlyDestroyedBy(w); i++) w = advance(w, DT, still).world
+    expect(friendlyDestroyedBy(w)).toBe(true)
+    expect(allThree(w).landed!.headline).toBe(DISCHARGE_HEADLINE)
+    expect(allThree(w).landed!.forfeit).toEqual({ target: 'Fletcher-class destroyer dd-1' })
   })
 
   it('an AI hitting the player\'s side never discharges the player (ruling FF-9)', () => {
