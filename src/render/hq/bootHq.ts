@@ -44,7 +44,7 @@ const pickTextFile = (): Promise<string | null> => new Promise((resolve) => {
   input.click()
 })
 
-export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): { hq: HqHandle; session: Session } {
+export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): { hq: HqHandle; session: Session; catalogNow: () => readonly MissionDescriptor[] | null } {
   const port = window.localStorage
   purgeLegacyRoster(port)
   const session = createSession({
@@ -107,5 +107,7 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     onAssign: (r: AssignRequest) => { void assign(r) },
     ...(deps.onHide === undefined ? {} : { onHide: deps.onHide }),
   })
-  return { hq, session }
+  let resolved: readonly MissionDescriptor[] | null = null
+  void catalogOnce().then((c) => { resolved = c }, () => undefined)
+  return { hq, session, catalogNow: () => resolved }
 }

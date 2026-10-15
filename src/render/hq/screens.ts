@@ -708,6 +708,7 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
         const note = r.nobody ? `No pilot of the five can fly this yet${r.needText === null ? '' : ` (${r.needText})`}` : r.needText ?? ''
         const e2 = ballotOption(r.label, note, () => { selected = r; showSelected() })
         e2.dataset.section = r.section
+        e2.dataset.id = r.id
         if (r.nobody) e2.style.opacity = '.55'
         e2.title = r.sub
         const sub = el('span', r.sub)

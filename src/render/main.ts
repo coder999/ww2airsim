@@ -47,7 +47,8 @@ import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js
 import { bootLoadout } from './sortieFlow.js'
 import { createBootProgress } from './bootProgress.js'
 import { track } from './analytics.js'
-import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { bankScored, type BankedView } from './campaignBank.js'
+import { formatName, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
@@ -362,8 +363,13 @@ async function boot(): Promise<void> {
    * reachable yet, or a dev-URL bypass), which is exactly
    * `bankMissionResult`'s own no-op guard below.
    */
-  let roster = loadRoster()
-  let currentPilotId: string | null = null
+  /** The campaign sortie being flown (F5B): set at Launch when the campaign has a pending sortie, so it banks exactly once;
+   *  null for an unscored sortie (Training, Single Missions, Dev) and a quick launch. */
+  let scoredSortie: { readonly sortieId: string } | null = null
+  // Declared here (not beside the headquarters, further down) for the same TDZ reason as `frame`: `onNewGame` reads them.
+  let hqSession: Session | null = null
+  let hqHandle: { show(): void } | null = null
+  let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
    * The player's `killsByType` as of the last bank -- a landing/ditching/
    * death that already scored them. Reset to zero on every New Game and every
@@ -830,8 +836,10 @@ async function boot(): Promise<void> {
     // the baseline resets to zero same as Restart does below; see this
     // plan's own "Ruling" section for why calling `startSortie` again here
     // would double-count it (never do that in this callback).
-    roster = loadRoster()
-    currentPilotId = pilotId
+    // F5B: the pilot comes from the campaign's pending sortie, not from an id the title passes.
+    void pilotId
+    const pendingSortie = hqSession?.current()?.pending ?? null
+    scoredSortie = pendingSortie === null ? null : { sortieId: pendingSortie.sortieId }
     scoredThroughKillsByType = zeroKillsByType()
     segment = EMPTY_SEGMENT
     // A click is the user gesture the autoplay policy wants; this is the
@@ -930,13 +938,18 @@ async function boot(): Promise<void> {
   // so `currentPilotId` stays null and nothing banks. Audio stays suspended
   // until the first click, since no New game click supplied the gesture.
   if (quick !== null) title.hide()
-  let hqSession: Session | null = null
-  // F5B CP1: the new headquarters is reachable with ?hq until Task 10 makes it the front door. It sits above the
-  // title (which stays up, so the world is held and flight keys stay off); closing it drops back to the old title.
-  if (new URLSearchParams(window.location.search).has('hq')) {
+  // F5B: Headquarters is the front door. It sits above the title (which stays up, so the world is held and flight keys
+  // stay off) and appears once the boot is ready, as the old roster memo did. A quick launch has no campaign.
+  if (quick === null) {
     const booted = createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id), title, settings: quality.settings })
     hqSession = booted.session
-    booted.hq.show()
+    hqHandle = booted.hq
+    hqCatalogNow = booted.catalogNow
+    const showHq = (): void => booted.hq.show()
+    if (boot.ready) showHq()
+    else {
+      const off = boot.onChange(() => { if (boot.ready) { off(); showHq() } })
+    }
   }
 
   const canvas = document.createElement('canvas')
@@ -2158,6 +2171,8 @@ async function boot(): Promise<void> {
     // just once at boot -- so a return-to-title after an in-session switch
     // preselects what is really loaded, not whatever this boot started with.
     title.show(requestedScenarioId)
+    // F5B: a flight that came from Headquarters returns there (the title stays up beneath it, holding the world).
+    if (hqSession?.current() != null) hqHandle?.show()
   }
   /** Whether the landing debrief is up for the landing `frame.landing.report`
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
@@ -2208,92 +2223,51 @@ async function boot(): Promise<void> {
   let replayHistoryCut = false
   /** DEV (`__ww2.renderedPlayerPositionM`): the player's airframe root as drawn this frame. */
   let renderedPlayerPosition: Vec3 | null = null
-  /** Assembles this bank's dossier record (dossier spec §B.2) from the flight
-   *  `segment` just flown plus whatever main.ts already tracks live -- the
-   *  scenario, aircraft and loadout in play right now. */
-  const sortieFacts = (outcome: LogOutcome, world: FrameState['world']): SortieFacts => ({
-    at: new Date().toISOString(),
-    scenarioId: requestedScenarioId,
-    aircraft: playerAircraft(world).spec.name,
-    loadout: chosen.loadout,
-    outcome,
-    segment,
-  })
-  /**
-   * Applies one mission's score to whichever pilot is flying and persists the
-   * roster immediately, so both this debrief's own figures and the title
-   * screen's next `show()` (which re-reads `loadRoster()`) agree with no
-   * extra plumbing. A no-op before `onNewGame` has ever fired.
-   *
-   * Whole-branch review I-2/I-3: `killsSinceLastBank` is threaded through to
-   * `applyMissionResultToRoster` so the pilot's career `killsByType`
-   * actually accumulates (I-2 -- before this it was written nowhere).
-   * Returns the pilot's post-bank cumulative score and, if this mission
-   * crossed a rank threshold, the new rank's name -- design §1's other two
-   * promised debrief figures (I-3), read off the roster entry BEFORE and
-   * AFTER banking so a promotion is reported only when the rank actually
-   * changed, not merely recomputed to the same value. `null` on the same
-   * no-op guard as before (`currentPilotId === null`) and if the pilot
-   * somehow is not found (unreachable in practice: `currentPilotId` only
-   * ever comes from a pilot actually in `roster`).
-   */
-  /** How a debrief banks after friendly fire: a survivor is discharged, a
-   *  death is only forfeit, and a clean sortie is neither. */
-  const friendlyFireBank = (model: DebriefModel): 'discharged' | 'forfeit' | null =>
-    model.discharge !== undefined ? 'discharged' : model.forfeit !== undefined ? 'forfeit' : null
-  const bankMissionResult = (
-    scoreTotal: number,
-    outcome: 'landed' | 'ditched' | 'killed',
-    killsSinceLastBank: Readonly<Record<TargetType, number>>,
-    sortie: SortieFacts,
-    friendlyFire: 'discharged' | 'forfeit' | null,
-    badgeId: string | null,
-  ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
-    const discharged = friendlyFire === 'discharged'
-    track('mission_outcome', { mission: requestedScenarioId, outcome, score: scoreTotal })
-    if (currentPilotId === null) return null
-    // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
-    // roster back, so there is nothing to save and no figure to show.
-    const devUnrecorded = devSortie && !recordDevSorties
-    const before = roster.find((p) => p.id === currentPilotId) ?? null
-    const next = bankSortie(roster, currentPilotId, { devSortie: devUnrecorded, scoreTotal, outcome, killsSinceLastBank, sortie, friendlyFire, badgeId })
-    if (next === roster) return null
-    roster = next
-    saveRoster(roster)
-    const after = roster.find((p) => p.id === currentPilotId) ?? null
-    if (after === null) return null
-    const promotedTo = !discharged && before !== null && before.rank.abbrev !== after.rank.abbrev ? after.rank.name : undefined
-    return { bankedTotal: after.cumulativeScore, promotedTo }
+  /** One bank of the pending campaign sortie (plan F5B Task 10). `null` for an unscored sortie or a quick launch. The
+   *  reducer and the session latch make a second call bank nothing. */
+  const bankCampaign = (end: SortieEndKind, world: FrameState['world'], success: boolean, badgeId: string | null, landing: 'trap' | 'field' | 'ditched' | 'water' | null): BankedView | null => {
+    if (scoredSortie === null || hqSession === null) return null
+    const player = world.combat.aircraft[world.player]!
+    const out = bankScored({
+      session: hqSession, end, success, badgeId,
+      player: { tagCredits: player.tagCredits, friendlyKills: player.friendlyKills, friendlyFire: player.friendlyFire !== null },
+      flight: { flightSeconds: segment.flightSeconds, maxAltitudeM: segment.maxAltitudeM, maxTrueAirspeedMps: segment.maxTrueAirspeedMps, landing },
+      authoredBonusOf: (id) => hqCatalogNow()?.find((m) => m.id === id)?.authoredBonus ?? 0,
+    })
+    scoredSortie = null
+    if (out === null || 'refused' in out) return null
+    return out
   }
   /**
-   * The one place all three debrief call sites below merge `bankMissionResult`'s
-   * return into the model actually shown (whole-branch review I-3) -- kept in
-   * one function rather than repeated three times so the merge shape cannot
-   * drift between the impact/destruction/landing sites. `banked === null`
-   * (no pilot flying -- a dev-URL bypass, or the roster flow never reached)
-   * shows the model exactly as built, with neither figure.
+   * The one place all three debrief call sites below merge the banked result into the model actually shown, so the
+   * merge shape cannot drift between the impact/destruction/landing sites. `banked === null` (an unscored sortie, a
+   * quick launch) shows the model as built. A banked sortie has no Continue and no Restart: it ends here, and the one
+   * way out is back to Headquarters. An unscored sortie from Headquarters keeps both but returns there too.
    */
   const showDebrief = (
     model: DebriefModel,
-    banked: { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null,
+    banked: BankedView | null,
     onContinue: (() => void) | undefined,
     onWatchReplay: (() => void) | undefined,
   ): void => {
-    // `exactOptionalPropertyTypes`: spread `promotedTo` in only when it is
-    // actually a string, rather than assigning it `undefined` -- the two are
-    // different things under this tsconfig, and `DebriefModel.promotedTo` is
-    // typed as absent-or-string, not string-or-undefined (matching
-    // `continueLabel`'s existing convention on the same type).
-    // The one merge point for all three sites, so the Dev stamp (sortie spec
-    // A5) reaches every debrief without a fourth copy at each call.
     const shown = withNotRecorded(model, devSortie && !recordDevSorties)
-    const finalModel = banked === null
-      ? shown
-      : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) }
+    const fromHq = hqSession?.current() != null
+    const { continueLabel, ...withoutContinue } = shown
+    void continueLabel // a banked sortie ends here: the destructure is how Continue is dropped
+    const base: DebriefModel = banked === null ? shown : { ...withoutContinue, noRestart: true }
+    const finalModel: DebriefModel = {
+      ...base,
+      ...(fromHq ? { returnLabel: 'Return to Headquarters' } : {}),
+      ...(banked === null ? {} : {
+        bankedTotal: banked.bankedTotal, campaign: banked.campaign,
+        ...(banked.promotedTo !== undefined && banked.promotedTier !== undefined ? { promotedTo: banked.promotedTo, promotedTier: banked.promotedTier } : {}),
+        ...(banked.saveError !== undefined ? { saveError: banked.saveError } : {}),
+      }),
+    }
     if (activeFlightRecorder !== null) completedFlightRecord = activeFlightRecorder.finish(frame!.world, finalModel)
     debrief.show(
       finalModel,
-      onContinue,
+      banked === null ? onContinue : undefined,
       returnToTitle,
       onWatchReplay,
       completedFlightRecord === null ? undefined : () => { void exportDevFlightRecord() },
@@ -2482,11 +2456,12 @@ async function boot(): Promise<void> {
   pauseScreen = createPauseScreen(root, quality.settings, {
     snapshot: () => {
       if (bundle === null) throw new Error('Pause dossier requires a loaded scenario')
-      const pilot = currentPilotId === null ? null : roster.find((candidate) => candidate.id === currentPilotId) ?? null
+      const open = hqSession?.current() ?? null
+      const pilot = open === null || open.pending === null ? null : open.pilots[open.pending.pilotId] ?? null
       return {
-        pilotName: pilot?.name ?? 'Unassigned pilot',
-        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.killsByType,
-        careerKills: pilot?.killsByType ?? zeroKillsByType(),
+        pilotName: pilot === null || open === null ? 'Unassigned pilot' : formatName(pilot.name, open.faction),
+        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.tagCredits,
+        careerKills: pilot === null ? zeroKillsByType() : (pilot.counts as Readonly<Record<TargetType, number>>),
         world: frame!.world,
         selectedNavigationId: navigationMapState.selectedId,
         briefing: briefingModel(bundle.scenario, pilot?.badges ?? []),
@@ -2506,13 +2481,20 @@ async function boot(): Promise<void> {
     },
     onAbort: () => {
       if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
-      // Unlike a debrief return, aborting an active sortie banks nothing. Drop
-      // every flight-only surface and recording before showing the roster;
-      // the next New game rebuild supplies a fresh world.
+      // A scored campaign sortie is ABANDONED here (F5B, Quit/Abandon): zero points, the pilot lives, the sortie still
+      // counts against the adjusted score. An unscored one banks nothing. Either way drop every flight-only surface and
+      // recording; the next launch supplies a fresh world.
+      if (scoredSortie !== null && hqSession !== null && hqSession.current()?.pending != null) {
+        hqSession.abandon()
+        track('mission_outcome', { mission: requestedScenarioId, outcome: 'abandoned', score: 0 })
+      }
+      scoredSortie = null
       resetFlightUi()
       clearMapInput()
       title.show(requestedScenarioId)
+      if (hqSession?.current() != null) hqHandle?.show()
     },
+    scoredSortie: () => scoredSortie !== null,
     ...(import.meta.env.DEV ? {
       canExportFlightRecord: () => activeFlightRecorder !== null,
       onExportFlightRecord: () => { void exportDevFlightRecord() },
@@ -3397,17 +3379,11 @@ async function boot(): Promise<void> {
     const hit = player.impact
     if (hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(
-        model.score.total,
-        hit.kind === 'ditched' ? 'ditched' : 'killed',
-        killsSinceLastBank,
-        sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
-        friendlyFireBank(model),
-        badgeId,
-      )
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: hit.kind === 'ditched' ? 'ditched' : 'killed', score: model.score.total })
+      const banked = bankCampaign(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world, success, badgeId, hit.kind === 'ditched' ? 'ditched' : null)
       segment = EMPTY_SEGMENT
       pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
       dispatch({ kind: 'crashBanked' })
@@ -3422,10 +3398,11 @@ async function boot(): Promise<void> {
       shownDestructionTick !== playerDamage.destroyedAt
     ) {
       shownDestructionTick = playerDamage.destroyedAt
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !playerDamage.attacker.startsWith(COLLISION_ATTACKER_PREFIX) && !current.world.aircraft.some((x) => x.id === playerDamage.attacker), collisionShipName(current.world, playerDamage.attacker)), current.world), current.world)
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !playerDamage.attacker.startsWith(COLLISION_ATTACKER_PREFIX) && !current.world.aircraft.some((x) => x.id === playerDamage.attacker), collisionShipName(current.world, playerDamage.attacker)), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: 'killed', score: model.score.total })
+      const banked = bankCampaign('killed', current.world, success, badgeId, null)
       segment = EMPTY_SEGMENT
       pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
       dispatch({ kind: 'crashBanked' })
@@ -3447,8 +3424,8 @@ async function boot(): Promise<void> {
       } else {
         landingShown = true
         frame = withPaused(current, true)
-        const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-        const { model, badgeId } = withMissionDebrief(
+        const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+        const { model, badgeId, success } = withMissionDebrief(
           withDischarge(landingModel(
             current.landing.report,
             killsSinceLastBank,
@@ -3456,15 +3433,9 @@ async function boot(): Promise<void> {
           ), current.world),
           current.world,
         )
-        scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-        const banked = bankMissionResult(
-          model.score.total,
-          'landed',
-          killsSinceLastBank,
-          sortieFacts(landingKind(current.landing.report), current.world),
-          friendlyFireBank(model),
-          badgeId,
-        )
+        scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+        track('mission_outcome', { mission: requestedScenarioId, outcome: 'landed', score: model.score.total })
+        const banked = bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))
         segment = EMPTY_SEGMENT
         showDebrief(model, banked, () => {
           frame = acknowledgeLanding(frame!)

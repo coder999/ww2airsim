@@ -175,33 +175,77 @@ export async function startGame(
     || ((window as DiagWindow).__ww2?.tick() ?? 0) > 0, undefined, { timeout: 60_000 })
   if (!(await title.isVisible())) return
 
-  const existingPilot = title.locator('button[aria-pressed]').first()
-  if (await existingPilot.isVisible()) {
-    await existingPilot.click()
-  } else {
-    await title.getByRole('button', { name: 'New pilot' }).click()
-    await title.getByPlaceholder('Pilot name').fill('Test Pilot')
-    await title.getByRole('button', { name: 'Add' }).click()
+  // Headquarters is the front door (plan F5B). The harness takes the path any player could: a campaign, then the
+  // picker, then the three launch memos. `scenario` is a picker row's label; it is chosen from the UNSCORED Training
+  // Grounds / Single Missions sections, which carry no rank gates, so a spec gets the mission it names whoever the
+  // pilot is. Specs about scoring use `startCampaignGame`, which picks the scored row.
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await hq.waitFor({ timeout: 60_000 })
+  const dev = hq.getByRole('checkbox', { name: /Dev: unlocks/ })
+  // A `?scenario=` boot may name a Dev-only test bed, which the old title ticked Dev for (A2): tick it here too.
+  const bootScenario = new URL(page.url()).searchParams.get('scenario')
+  if (options.dev === true || (options.scenario === undefined && bootScenario !== null && bootScenario !== 'free-flight')) await dev.check(); else await dev.uncheck()
+  if (await hq.getByText('Personnel Files').isVisible()) {
+    const existing = hq.getByRole('button', { name: /^Open / }).first()
+    if (await existing.isVisible()) await existing.click()
+    else {
+      await hq.getByRole('button', { name: 'New campaign' }).click()
+      await hq.getByPlaceholder('Player name').fill('Test Pilot')
+      await hq.getByRole('radiogroup', { name: 'Service' }).getByRole('radio', { name: /U\.S\. Navy/ }).click()
+      await hq.getByRole('button', { name: 'Next' }).click()
+      await hq.getByRole('button', { name: 'Enlist' }).click()
+    }
   }
+  await hq.getByText('Air Group Headquarters').waitFor()
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  // No scenario named: the one the page booted with (`?scenario=`), as the old title preselected it, else Free Flight.
+  const bootId = new URL(page.url()).searchParams.get('scenario') ?? 'free-flight'
+  const unscored = hq.locator('[role="radio"][data-section="training"], [role="radio"][data-section="single"]')
+  const row = options.scenario === undefined
+    ? unscored.and(hq.locator(`[data-id="${bootId}"]`)).first()
+    : unscored.filter({ hasText: new RegExp(`^${options.scenario.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!:)`) }).first()
+  await row.click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
 
-  // Six sequential forms: Dev on Form 1, row-scoped New game, flight type,
-  // sortie, conditions, aircraft, armament, Launch. Every form opens on its
-  // default, including Form 4's random cloudiness
-  // roll. `scenario` is the row's WHOLE label
-  // (AD-1: "Air Combat" is part of "Air Combat: Veteran"); `aircraft` and
-  // `loadout` may be a distinctive part of one ('Zero'; 'Both' for "Both (recommended)").
-  if (options.dev === true) await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
-  await title.getByRole('button', { name: 'New game' }).first().click()
-  const missionLabels = new Set([
-    'Basic Flying', 'Torpedo Qualification', 'Carrier Qualification', 'Airfield Strike', 'Convoy Strike',
-    'Tank Buster', 'Combat Air Patrol', 'Scramble', 'Single Combat', 'Flattop Hunt', 'Escort', 'Surigao Strait', 'Field Patrol',
-  ])
-  const type = options.scenario !== undefined && missionLabels.has(options.scenario) ? 'Missions' : 'Training Grounds'
-  await title.getByRole('radiogroup', { name: 'Flight type' }).getByRole('radio', { name: exactBallotLabel(type) }).check()
-  await title.getByRole('button', { name: 'Next' }).click()
-  if (options.scenario !== undefined) await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: wholeLabel(options.scenario) }).check()
-  await title.getByRole('button', { name: 'Next' }).click()
+  // Flight Conditions, Aircraft Assignment, Ordnance Requisition. Every memo opens on its default, including
+  // Form 4's random cloudiness roll. `aircraft` and `loadout` may be a distinctive part of a label ('Zero'; 'Both').
   if (options.cloudiness !== undefined) await title.getByRole('radiogroup', { name: 'Cloudiness' }).getByRole('radio', { name: exactBallotLabel(options.cloudiness) }).check()
+  await title.getByRole('button', { name: 'Next' }).click()
+  if (options.aircraft !== undefined) await title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio', { name: options.aircraft }).check()
+  await title.getByRole('button', { name: 'Next' }).click()
+  if (options.loadout !== undefined) await title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: options.loadout }).check()
+  await title.getByRole('button', { name: 'Launch' }).click()
+}
+
+/**
+ * A scored campaign sortie through the real screens (plan F5B): the mission is picked from the SCORED sections (the
+ * current chapter or Non-campaign missions), and `pilot` is the nth living pilot (0 to 4). Returns after Launch.
+ */
+export async function startCampaignGame(
+  page: Page,
+  options: { readonly scenario: string; readonly pilot?: number; readonly aircraft?: string; readonly loadout?: string; readonly faction?: 'us' | 'ja' } & { readonly existing?: boolean },
+): Promise<void> {
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await hq.waitFor({ timeout: 60_000 })
+  if (await hq.getByText('Personnel Files').isVisible()) {
+    if (options.existing === true) await hq.getByRole('button', { name: /^Open / }).first().click()
+    else {
+      await hq.getByRole('button', { name: 'New campaign' }).click()
+      await hq.getByPlaceholder('Player name').fill('Test Pilot')
+      const f = options.faction ?? 'us'
+      await hq.getByRole('radiogroup', { name: 'Service' }).getByRole('radio', { name: f === 'us' ? /U\.S\. Navy/ : /Imperial Japanese Navy/ }).click()
+      await hq.getByRole('button', { name: 'Next' }).click()
+      await hq.getByRole('button', { name: 'Enlist' }).click()
+    }
+  }
+  await hq.getByText('Air Group Headquarters').waitFor()
+  await hq.getByRole('button', { name: /Choose a mission/ }).click()
+  await hq.locator('[role="radio"][data-section="noncampaign"], [role="radio"][data-section="campaign"]').filter({ hasText: new RegExp(`^${options.scenario}`) }).first().click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).nth(options.pilot ?? 0).click()
   await title.getByRole('button', { name: 'Next' }).click()
   if (options.aircraft !== undefined) await title.getByRole('radiogroup', { name: 'Aircraft' }).getByRole('radio', { name: options.aircraft }).check()
   await title.getByRole('button', { name: 'Next' }).click()
@@ -493,7 +537,7 @@ export async function diveToSea(page: Page, timeoutMs = 120_000): Promise<void> 
  * the old title, and specs about the campaign use this.
  */
 export async function openHeadquarters(page: Page): Promise<Locator> {
-  await page.goto('/?hq')
+  await page.goto('/')
   await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
   const hq = page.getByRole('dialog', { name: 'Headquarters' })
   await hq.waitFor({ timeout: 60_000 })
