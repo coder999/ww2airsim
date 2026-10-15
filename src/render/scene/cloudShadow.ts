@@ -7,7 +7,7 @@ import { Fn, If, Loop, clamp, exp, float, int, max, min, normalize, smoothstep, 
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { CUMULUS_SIGMA, type CloudField } from './cloudField.js'
 import type { CloudTierName } from './clouds.js'
-import { sunDirectionNode } from './lighting.js'
+import { moonKeyNode, sunDirectionNode } from './lighting.js'
 
 /**
  * Cloud shadows (design: docs/superpowers/specs/2026-09-19-cloud-shadows-design.md).
@@ -187,7 +187,8 @@ export function createCloudShadow(field: CloudField, mode?: CloudShadowMode): Cl
       const aboveDeck = smoothstep(deckBase, deckTop, world.y)
       const t = max(sampled, aboveDeck)
       // `enabledU` is 0 for a clear sky or `?cloudShadow=off`: constant 1.
-      return clamp(float(1).sub(float(1).sub(t).mul(enabledU)), 0, 1)
+      // Off while the moon is the key light (night.ts): the shadow map projects the SUN's shadow.
+      return clamp(float(1).sub(float(1).sub(t).mul(enabledU).mul(float(1).sub(moonKeyNode))), 0, 1)
     })()
 
   const center = { x: 0, z: 0 }

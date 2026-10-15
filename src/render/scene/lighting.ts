@@ -3,6 +3,7 @@ import { uniform } from 'three/tsl'
 import type { Node, UniformNode } from 'three/webgpu'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { directAtmospherePalette, type SkyPalette } from '../sky/palette.js'
+import { moonIsKeyLight, moonWeight, starWeight } from '../sky/night.js'
 
 /**
  * Direction from the ground TOWARD the sun, unnormalised: a late-morning sun
@@ -56,6 +57,25 @@ export const skyIrradianceDownNode = vec3Uniform(initial.fillGround)
 export const twilightZenithNode = vec3Uniform(initial.zenith)
 export const twilightHorizonNode = vec3Uniform(initial.horizon)
 export const sunElevationNode = uniform(68)
+
+/**
+ * Night (F6A, docs/night.md). `sunDirectionNode` is "the direction of the one
+ * directional light", which below `MOON_SWITCH_DEG` is the moon, so the dome's
+ * sun disc reads the TRUE sun direction from here instead. `moonKeyNode` is 1
+ * while the moon is that light (the cloud-shadow projection reads it to switch
+ * itself off: the shadow map is a sun shadow); `moonDiscNode` and
+ * `nightStarsNode` weight the dome's moon and stars. Written by `applyNight`.
+ */
+export const trueSunDirectionNode = uniform(new Vector3(0, 1, 0))
+export const moonKeyNode = uniform(0)
+export const moonDiscNode = uniform(0)
+export const nightStarsNode = uniform(0)
+export function applyNight(trueSunDirection: Vec3, elevationDeg: number): void {
+  trueSunDirectionNode.value.set(trueSunDirection.x, trueSunDirection.y, trueSunDirection.z)
+  moonKeyNode.value = moonIsKeyLight(elevationDeg) ? 1 : 0
+  moonDiscNode.value = moonWeight(elevationDeg)
+  nightStarsNode.value = starWeight(elevationDeg)
+}
 
 /**
  * The downward diffuse light a cumulus deck scatters onto everything under

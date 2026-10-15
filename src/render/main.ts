@@ -78,7 +78,8 @@ import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/clo
 import { cloudLayersForCloudiness } from './cloudiness.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
-import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
+import { atmospherePalette, warmIrradianceTable, withMoonLight } from './sky/palette.js'
+import { moonDirection, moonIsKeyLight, nightTuning, nightTuningFromQuery } from './sky/night.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -128,7 +129,7 @@ import { loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } f
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
-import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
+import { applyNight, applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
 import { canopyStatus } from './terrain/canopy.js'
@@ -300,11 +301,13 @@ async function boot(): Promise<void> {
   let pickedCloudiness: Cloudiness | undefined
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
+  // DEV `?night=floor:1.4,moon:0.3`: the look's tunable constants (sky/night.ts), for CP1.
+  if (import.meta.env.DEV) Object.assign(nightTuning, nightTuningFromQuery(location.search))
   /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
    *  to the live sky and ocean. Null until boot has built them; boot's own
    *  first `loadScenario` reads the bundle directly instead. */
   let applyScenarioWeather: ((weather: ScenarioBundle['scenario']['weather']) => void) | null = null
-  let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
+  let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 }, keyLight: { kind: 'sun' as 'sun' | 'moon', direction: { x: 0, y: 1, z: 0 } } }
   /** Photoreal Task 9 fix 2: the boot-time irradiance table build, ms (DEV readout). */
   let irradianceTableMs: number | null = null
   // Plan 17, read by the DEV hook's `radar()` below and by Task 3's render
@@ -3444,12 +3447,18 @@ async function boot(): Promise<void> {
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, atmospherePalette(view.eye.position.y, elevationDeg), direction, elevationDeg,
+    // F6A night: below MOON_SWITCH_DEG the one directional light is the fixed moon (sky/night.ts).
+    const keyDirection = moonIsKeyLight(elevationDeg) ? moonDirection() : direction
+    applySun(lights, withMoonLight(atmospherePalette(view.eye.position.y, elevationDeg), elevationDeg), keyDirection, elevationDeg,
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
+    applyNight(direction, elevationDeg)
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
-    sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
+    sunState = {
+      timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z },
+      keyLight: { kind: moonIsKeyLight(elevationDeg) ? 'moon' : 'sun', direction: { x: keyDirection.x, y: keyDirection.y, z: keyDirection.z } },
+    }
     clouds.update(view.eye.position, skyTimeS, view.world.wind)
     takramCloudPass?.setEnvironment(
       skyTimeS, direction, cumulusCover(cloudLayers), cloudLayers.find(layer => layer.kind === 'cumulus')?.baseM ?? 750,

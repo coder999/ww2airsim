@@ -27,6 +27,7 @@ export const CAPTURE_TEST_FILES = [
   'landVillageCapture.spec.ts',
   'mainBatteryCapture.spec.ts',
   'mainBatteryFrameTimeCapture.spec.ts',
+  'nightCapture.spec.ts',
   'pbyCapture.spec.ts',
   'pursuitAutopilotCapture.spec.ts',
   'rangeTestCapture.spec.ts',
