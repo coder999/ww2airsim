@@ -483,3 +483,15 @@ or safety at sea. The derived binary is accompanied by `content/ocean/NOTICE.md`
   counted as cropland (master spec §4). The build is `npm run landcover:build`
   (`tools/landcover/`); the source tiles are cached under `tools/landcover/cache/`
   and are not committed.
+
+## Campaign pilot-name lists (recorded 2026-10-14, plan F5A Task 4)
+
+`content/campaign/names-us.json` (96 given x 182 family) and `names-ja.json` (77 given x 169 family,
+one representative kanji spelling each). Each file carries its own `sources` ledger; the summary is here.
+
+| List | Sources named in the file | Terms | Status |
+| --- | --- | --- | --- |
+| American | SSA Popular Baby Names by Decade (1910s-1920s); Census Bureau Frequently Occurring Surnames (1990 and 2010) | US government works, public domain | **Compiled from recall of those rankings, not mechanically extracted or checked against the live tables. Needs Mark's review before F5B ships it.** |
+| Japanese | national common-surname rankings (Myoji Yurai); Meiji Yasuda Life name surveys and Taisho-era naming practice | names are facts; no text or table copied | Same caveat. Romanization is modified Hepburn with macrons; kanji are one representative spelling per given name. |
+
+No name is tied to a real service member, and no ethnicity is stored (the saved pilot carries a name only).
