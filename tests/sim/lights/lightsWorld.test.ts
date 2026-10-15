@@ -11,9 +11,9 @@ const night = (): ScenarioBundle => loadScenarioBundle('night-range')
 const idle: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0, fire: false }
 
 describe('the night test range', () => {
-  it('places every light kind the plan ships a renderer for (nav lights are an aircraft\'s own and arrive with Task 7)', () => {
+  it('places every light kind', () => {
     const kinds = new Set((night().scenario.lights ?? []).map((l) => l.kind))
-    expect([...kinds].sort()).toEqual(LIGHT_KINDS.filter((k) => k !== 'nav').sort())
+    expect([...kinds].sort()).toEqual([...LIGHT_KINDS].sort())
   })
   it('has lit and unlit pots, so the lit/unlit swap is visible', () => {
     const pots = (night().scenario.lights ?? []).filter((l) => l.kind === 'pot')

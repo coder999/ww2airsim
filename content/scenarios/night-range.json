@@ -13,6 +13,69 @@
     "spot": "runwayCenter"
    },
    "chocked": false
+  },
+  {
+   "id": "lit-hellcat",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     -29066,
+     420,
+     -46705
+    ],
+    "headingDeg": 90,
+    "speedMps": 70,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 900
+    }
+   }
+  },
+  {
+   "id": "lit-avenger",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     -30366,
+     520,
+     -48805
+    ],
+    "headingDeg": 0,
+    "speedMps": 60,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 1400
+    }
+   }
+  },
+  {
+   "id": "dark-zero",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "airborneAt": {
+    "position": [
+     -27866,
+     480,
+     -47905
+    ],
+    "headingDeg": 180,
+    "speedMps": 70,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 1100
+    }
+   }
   }
  ],
  "ships": [],
@@ -475,6 +538,55 @@
    },
    "source": "gameplay",
    "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-player",
+   "kind": "nav",
+   "at": {
+    "aircraft": "player-1",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-hellcat",
+   "kind": "nav",
+   "at": {
+    "aircraft": "lit-hellcat",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-avenger",
+   "kind": "nav",
+   "at": {
+    "aircraft": "lit-avenger",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-zero",
+   "kind": "nav",
+   "at": {
+    "aircraft": "dark-zero",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "off",
+   "blackoutExempt": false,
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
   }
  ]
 }

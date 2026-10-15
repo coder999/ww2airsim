@@ -215,6 +215,33 @@ describe('Dev Flight Recorder', () => {
     expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 1 })
   })
 
+  it('records the player\'s lights switch (F6A D2), round-trips it through the codec, and a lights flip changes nothing in the replay', async () => {
+    const initial = start()
+    const recorder = createDevFlightRecorder(header(), initial)
+    recorder.note({ tick: initial.tick + 1, kind: 'control', control: 'lights', value: false })
+    let world = advance(withControls(initial, initial.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    recorder.note({ tick: world.tick + 1, kind: 'control', control: 'lights', value: true })
+    world = advance(withControls(world, world.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    const record = recorder.finish(world)
+    expect(record.packets.map((p) => p.actions)).toEqual([
+      [{ tick: 1, kind: 'control', control: 'lights', value: false }],
+      [{ tick: 2, kind: 'control', control: 'lights', value: true }],
+    ])
+    expect(await decodeFlightRecord(await encodeFlightRecord(record))).toEqual(record)
+    // No sim effect until F6B: the world after the same two ticks WITHOUT the actions is bit-identical, and the record verifies.
+    let plain = initial
+    for (let i = 0; i < 2; i++) plain = advance(withControls(plain, plain.player, controls), DT).world
+    expect(worldChecksum(world)).toBe(worldChecksum(plain))
+    expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 2 })
+  })
+
+  it('still parses a record written before the lights action existed (the enum is only extended)', () => {
+    const { record } = recordedFlight(5)
+    const clone = JSON.parse(JSON.stringify(record)) as { packets: { actions: { control?: string }[] }[] }
+    expect(JSON.stringify(clone)).not.toContain('lights')
+    expect(() => parseFlightRecord(clone)).not.toThrow()
+  })
+
   it('captures held-group mission spawns and verifies through the trigger', () => {
     const raid = {
       id: 'raid-2', spec: 'f6f-hellcat', tags: ['raid'],

@@ -546,6 +546,8 @@ export type Ww2Diagnostics = {
   readonly lightIrradianceAt: (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => Promise<{ readonly gpu: readonly number[]; readonly cpu: readonly number[]; readonly lit: number }>
   /** F6A: the searchlight beams drawn last frame: length, what ends them, and the pixel a point `fraction` of the way along each is at (null if behind the eye). */
   readonly beams: (fraction: number) => readonly { readonly lengthM: number; readonly screen: { readonly x: number; readonly y: number } | null; readonly axis: readonly number[] }[]
+  /** F6A: the cockpit dimmer's current step (J) and whether the player's position lights are on (N). */
+  readonly cockpitLight: () => { readonly step: string; readonly playerLightsOn: boolean }
   /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
   readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the

@@ -3,6 +3,7 @@ import { DT } from '../../sim/flight/model.js'
 import type { World } from '../../sim/loop.js'
 import { heightAt, SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
+import { navLightPose } from '../../sim/lights/airframeLights.js'
 import { LIGHT_CAPS, lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
@@ -38,6 +39,20 @@ export function idPhase(id: string): number {
   for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619) }
   return ((h >>> 0) / 4294967296) * Math.PI * 2
 }
+/**
+ * 1 when the eye is inside a directional light's visibility cone, falling to 0 over the 8 degrees
+ * past its edge, 0 beyond (a red port light cannot be seen from the starboard side). Omnidirectional lights: 1.
+ */
+export function arcVisibility(l: LightRuntime, eye: Vec3): number {
+  if (l.axis === undefined || l.coneHalfAngleRad === undefined) return 1
+  const dx = eye.x - l.positionM.x, dy = eye.y - l.positionM.y, dz = eye.z - l.positionM.z
+  const d = Math.hypot(dx, dy, dz)
+  if (d === 0) return 1
+  const c = (dx * l.axis.x + dy * l.axis.y + dz * l.axis.z) / d
+  const edge = Math.cos(l.coneHalfAngleRad)
+  const soft = edge - Math.cos(l.coneHalfAngleRad + (8 * Math.PI) / 180)
+  return Math.min(1, Math.max(0, (c - (edge - soft)) / soft))
+}
 /** Render-only brightness wobble of a flame, 0.85 to 1.15, from id and render time. */
 export function flicker(id: string, kind: LightKind, timeS: number): number {
   if (kind !== 'pot' && kind !== 'flare') return 1
@@ -57,7 +72,7 @@ type Placed = {
 export type NightLights = {
   setScenario(specs: readonly LightSpec[]): Promise<void>
   /** Draws the frame's lights. `timeS` is render time (flicker only). */
-  update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null): void
+  update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null, playerLightsOn?: boolean): void
   /** The beams drawn at the last update (origin at the lamp face, axis, length): for tests. */
   beamsDrawn(): readonly BeamInstance[]
   /** The runtime lights of the last update, for tests and F6B-facing diagnostics. */
@@ -110,7 +125,7 @@ export function createNightLights(scene: Scene): NightLights {
       clear()
       placed = next
     },
-    update(world, timeS, pixelAngle, eye, cloudBaseM = null) {
+    update(world, timeS, pixelAngle, eye, cloudBaseM = null, playerLightsOn = true) {
       const field = world.terrain
       const lw: LightWorld = {
         tick: world.tick, dtS: DT,
@@ -126,9 +141,13 @@ export function createNightLights(scene: Scene): NightLights {
             s.state.position.z - Math.cos(h) * o[0] + Math.sin(h) * o[2],
           )
         },
-        aircraftPoint: () => null, // aircraft fixture points arrive with Task 7
+        aircraftPoint(aircraftId, point) {
+          const a = world.aircraft.find((e) => e.id === aircraftId)
+          return a === undefined ? null : navLightPose(a.spec.id, point, a.state.position, a.state.attitude)
+        },
       }
-      const specs = placed.map((p) => p.spec)
+      // The player's lights switch (N): a nav light on the player's aircraft goes dark unless authored `blackoutExempt`.
+      const specs = placed.map((p) => (!playerLightsOn && p.spec.kind === 'nav' && 'aircraft' in p.spec.at && p.spec.at.aircraft === world.player && p.spec.blackoutExempt !== true ? { ...p.spec, state: 'off' as const } : p.spec))
       last = lightsAt(specs, lw)
       const byId = new Map(last.map((l) => [l.id, l]))
       // The 8 lights that illuminate ground, sea and airframes (selection with hysteresis), as uniforms.
@@ -140,7 +159,21 @@ export function createNightLights(scene: Scene): NightLights {
       const glows: GlowInstance[] = []
       anchorList = []
       beamList = []
+      // Aircraft position lights: sprites only, each drawn only from inside its visibility arc (a red port light is
+      // not seen from the starboard side), fading at the arc's edge.
+      for (const l of last) {
+        if (l.kind !== 'nav') continue
+        const lit = l.intensityCd > 0
+        // `lit` here means "a visible glow this frame": burning, drawn (cap, range) and seen from inside its arc.
+        const f = arcVisibility(l, eye)
+        const seen = lit && drawn.has(l.id) && f > 0
+        anchorList.push({ id: l.id, kind: l.kind, lit: seen, x: l.positionM.x, y: l.positionM.y, z: l.positionM.z })
+        if (!seen) continue
+        const k = GLOW_RADIANCE.nav * nightTuning.glowScale * f
+        glows.push({ x: l.positionM.x, y: l.positionM.y, z: l.positionM.z, sizeM: GLOW_SIZE_M.nav, maxAngle: GLOW_MAX_ANGLE.nav, r: l.color[0] * k, g: l.color[1] * k, b: l.color[2] * k })
+      }
       for (const p of placed) {
+        if (p.spec.kind === 'nav') continue
         const l = byId.get(p.spec.id)
         if (l === undefined) { if (p.instance !== null) p.instance.root.visible = false; continue }
         const lit = l.intensityCd > 0

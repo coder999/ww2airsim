@@ -137,7 +137,7 @@ import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } f
 import { canopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
-import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockpitDim.js'
+import { COCKPIT_LIGHT_STEPS, cockpitDimFor, cockpitTuning, createCockpitDimmer, cycleCockpitLight } from './scene/cockpitDim.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
@@ -1383,6 +1383,7 @@ async function boot(): Promise<void> {
           return { lengthM: b.lengthM, axis: [b.axis.x, b.axis.y, b.axis.z], screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
         })
       },
+      cockpitLight: () => ({ step: COCKPIT_LIGHT_STEPS[cockpitTuning.step]!.name, playerLightsOn }),
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -2407,6 +2408,9 @@ async function boot(): Promise<void> {
   let pendingFlaps = false
   // And the hook lever (Plan 8), latched the same way for the same reason.
   let pendingHook = false
+  // F6A: the player's position lights (N): on, or blacked out. Latched like the levers so the recorder can stamp it on a fixed tick.
+  let playerLightsOn = true
+  let pendingLights = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
   const clearMapInput = (): void => {
@@ -2418,6 +2422,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -2698,6 +2703,8 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
+    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
+    if (BINDINGS.cycleCockpitLight.includes(e.code as never) && !e.repeat) cycleCockpitLight()
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -2760,6 +2767,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -2876,6 +2884,7 @@ async function boot(): Promise<void> {
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
       if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
       if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
+      if (pendingLights) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerLightsOn })
       if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
       if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
       if (pendingWingmanKey !== null) {
@@ -2910,6 +2919,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -3492,7 +3502,7 @@ async function boot(): Promise<void> {
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
     nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
-      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null))
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn)
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

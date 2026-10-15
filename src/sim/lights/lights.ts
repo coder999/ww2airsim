@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { type Vec3, v3, sub, dot, length } from '../math/vec3.js'
+import { NAV_COLOR, NAV_HALF_ANGLE_RAD, NAV_POINTS, type NavPoint } from './airframeLights.js'
 
 /**
  * The light contract (F6A, docs/night.md, plan 2026-10-14-f6a-night-renderer-lights.md §3).
@@ -34,7 +35,8 @@ const id = z.string().min(1)
 const At = z.union([
   z.object({ x: finite, z: finite, altitudeM: finite.optional() }).strict(),
   z.object({ ship: id, offset: z.tuple([finite, finite, finite]) }).strict(),
-  z.object({ aircraft: id, point: id }).strict(),
+  /** `point` is a position-light point (airframeLights.ts) or `all`, which stands for the port, starboard and tail lights. */
+  z.object({ aircraft: id, point: z.enum([...NAV_POINTS, 'all']) }).strict(),
 ])
 
 export const LightSpecSchema = z.object({
@@ -69,7 +71,8 @@ export const LightsSchema = z.array(LightSpecSchema).superRefine((lights, ctx) =
   const bad = (message: string): void => { ctx.addIssue({ code: z.ZodIssueCode.custom, message }) }
   const seen = new Set<string>()
   for (const l of lights) { if (seen.has(l.id)) bad(`duplicate light id "${l.id}"`); seen.add(l.id) }
-  const n = (k: LightKind): number => lights.filter((l) => l.kind === k).length
+  // An `all` nav light is three position lights.
+  const n = (k: LightKind): number => lights.filter((l) => l.kind === k).reduce((sum, l) => sum + (l.kind === 'nav' && 'point' in l.at && l.at.point === 'all' ? 3 : 1), 0)
   if (n('searchlight') > LIGHT_CAPS.searchlights) bad(`${n('searchlight')} searchlights exceed the cap of ${LIGHT_CAPS.searchlights}`)
   if (n('flare') > LIGHT_CAPS.flares) bad(`${n('flare')} flares exceed the cap of ${LIGHT_CAPS.flares}`)
   if (n('nav') > LIGHT_CAPS.navSprites) bad(`${n('nav')} nav lights exceed the cap of ${LIGHT_CAPS.navSprites}`)
@@ -132,8 +135,8 @@ export type LightWorld = {
   groundHeightM(x: number, z: number): number
   /** World position of an offset in a ship's frame, or null if that ship is gone. */
   shipPoint(ship: string, offset: readonly [number, number, number]): Vec3 | null
-  /** World position of a named point on an aircraft, or null. */
-  aircraftPoint(aircraft: string, point: string): Vec3 | null
+  /** World position and facing (unit) of a position-light point on an aircraft, or null if it is gone or its airframe has no row. */
+  aircraftPoint(aircraft: string, point: NavPoint): { readonly position: Vec3; readonly axis: Vec3 } | null
 }
 
 const DEG = Math.PI / 180
@@ -168,9 +171,24 @@ export function lightsAt(specs: readonly LightSpec[], world: LightWorld): readon
   const t = world.tick * world.dtS
   const out: LightRuntime[] = []
   for (const l of [...specs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    // A nav light on an aircraft: one runtime light per point (`all` is three), colored by point, facing out of its arc.
+    if ('aircraft' in l.at) {
+      const aircraft = l.at.aircraft
+      const points: readonly NavPoint[] = l.at.point === 'all' ? NAV_POINTS : [l.at.point]
+      for (const point of points) {
+        const pose = world.aircraftPoint(aircraft, point)
+        if (pose === null) continue
+        const cd = emitting(l, t) ? INTENSITY_CD.nav : 0
+        out.push({
+          id: l.at.point === 'all' ? `${l.id}:${point}` : l.id, kind: l.kind, positionM: pose.position, intensityCd: cd,
+          color: LIGHT_RGB[NAV_COLOR[point]], axis: pose.axis, coneHalfAngleRad: NAV_HALF_ANGLE_RAD[point],
+          radiusM: radiusFor(cd), blackoutExempt: l.blackoutExempt ?? false,
+        })
+      }
+      continue
+    }
     let p: Vec3 | null
     if ('ship' in l.at) p = world.shipPoint(l.at.ship, l.at.offset)
-    else if ('aircraft' in l.at) p = world.aircraftPoint(l.at.aircraft, l.at.point)
     else p = v3(l.at.x, l.at.altitudeM ?? world.groundHeightM(l.at.x, l.at.z), l.at.z)
     if (p === null) continue
     const on = emitting(l, t)

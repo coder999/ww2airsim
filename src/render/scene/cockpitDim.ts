@@ -21,15 +21,33 @@ export const NIGHT_COCKPIT_DIM = 0.35
 export const COCKPIT_DIM_START_DEG = 0
 export const COCKPIT_DIM_FULL_DEG = -9
 
-/** Mutable so DEV `?night=cockpit:0.5` can try other values for a session. */
-export const cockpitTuning = { nightDim: NIGHT_COCKPIT_DIM }
+/**
+ * The three-step dimmer (F6A Task 8; GAMEPLAY.md "cockpit instruments are dimmable"): the pilot's `J` key cycles
+ * low, medium, bright. Each step is a multiple of `NIGHT_COCKPIT_DIM`, the apparent night brightness of the
+ * panel relative to its daytime look: 0.35, 0.5, 0.7. The LOWEST step is the legibility floor (the WCAG test
+ * in tests/render/cockpitDim.test.ts fails below about 0.34, where the minor marks of the dimmest family
+ * drop under 3:1), so dimming further is not offered. Display only: it never enters the sim or the recorder.
+ */
+export const COCKPIT_LIGHT_STEPS = [{ name: 'low', multiple: 1 }, { name: 'medium', multiple: 1.43 }, { name: 'bright', multiple: 2 }] as const
+export type CockpitLightStep = typeof COCKPIT_LIGHT_STEPS[number]['name']
+
+/** Mutable: DEV `?night=cockpit:0.5` sets the `low` level for a session; `step` is the pilot's current setting (an index). */
+export const cockpitTuning = { nightDim: NIGHT_COCKPIT_DIM, step: 0 }
+/** The next step, wrapping. */
+export function cycleCockpitLight(): CockpitLightStep {
+  cockpitTuning.step = (cockpitTuning.step + 1) % COCKPIT_LIGHT_STEPS.length
+  return COCKPIT_LIGHT_STEPS[cockpitTuning.step]!.name
+}
+/** The apparent night level of the current step. */
+export const cockpitNightLevel = (step = cockpitTuning.step, nightDim = cockpitTuning.nightDim): number =>
+  Math.min(1, nightDim * COCKPIT_LIGHT_STEPS[step]!.multiple)
 
 const smooth = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
 /**
  * The APPARENT brightness of the panel relative to its daytime look: 1 with the sun at or above the
  * horizon, easing down to `nightDim` by -9 degrees and holding.
  */
-export function apparentCockpitBrightness(sunElevationDeg: number, nightDim = cockpitTuning.nightDim): number {
+export function apparentCockpitBrightness(sunElevationDeg: number, nightDim = cockpitNightLevel()): number {
   return 1 - (1 - nightDim) * smooth(COCKPIT_DIM_START_DEG, COCKPIT_DIM_FULL_DEG, sunElevationDeg)
 }
 /**
@@ -37,7 +55,7 @@ export function apparentCockpitBrightness(sunElevationDeg: number, nightDim = co
  * 2.8x at night, panel included, so a factor of `nightDim` alone would look as bright as by day:
  * the apparent brightness is divided by the exposure to compensate.
  */
-export function cockpitDimFor(sunElevationDeg: number, nightDim = cockpitTuning.nightDim): number {
+export function cockpitDimFor(sunElevationDeg: number, nightDim = cockpitNightLevel()): number {
   return apparentCockpitBrightness(sunElevationDeg, nightDim) / exposureFor(sunElevationDeg)
 }
 

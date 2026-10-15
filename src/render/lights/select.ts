@@ -20,7 +20,7 @@ export function selectLit(
 ): readonly LightRuntime[] {
   const scored: { l: LightRuntime; score: number }[] = []
   for (const l of lights) {
-    if (l.intensityCd <= 0) continue
+    if (l.intensityCd <= 0 || l.kind === 'nav') continue // nav lights are sprites only: too faint to light anything
     const d2 = Math.max(dist2(l.positionM, eye), 1)
     if (d2 > MAX_SELECT_RANGE_M ** 2) continue
     scored.push({ l, score: (l.intensityCd / d2) * (previous.has(l.id) ? HYSTERESIS_BONUS : 1) })

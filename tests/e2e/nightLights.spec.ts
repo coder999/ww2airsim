@@ -45,7 +45,7 @@ const seen = (page: Page): Promise<Seen[]> => page.evaluate(() => (window as Dia
 const linear = (byteLuma: number): number => { const c = byteLuma / 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }
 
 /** Core and ring luminance around a light's glow. */
-async function contrast(page: Page, at: { x: number; y: number }, ringPx: readonly [number, number] = [25, 50], coreHalfWidthPx = 4.5): Promise<{ core: number; ring: number; ratio: number }> {
+async function contrast(page: Page, at: { x: number; y: number }, ringPx: readonly [number, number] = [25, 50], coreHalfWidthPx = 4.5, coreHalfHeightPx = 2): Promise<{ core: number; ring: number; ratio: number }> {
   const R = ringPx[1]
   const x0 = Math.round(at.x) - R, y0 = Math.round(at.y) - R
   expect(x0 >= 0 && y0 >= 0 && x0 + 2 * R < 1920 && y0 + 2 * R < 1080, `the light at ${JSON.stringify(at)} is well inside the frame`).toBe(true)
@@ -55,7 +55,7 @@ async function contrast(page: Page, at: { x: number; y: number }, ringPx: readon
   for (let y = 0; y < g.h; y++) for (let x = 0; x < g.w; x++) {
     const d = Math.hypot(x - R, y - R), v = linear(g.luma[y * g.w + x]!)
     // A beam sweeps, so its core is the brightest pixel along a short horizontal scan, not the projected point itself.
-    if (d <= coreHalfWidthPx || (coreHalfWidthPx > 5 && Math.abs(y - R) <= 2 && Math.abs(x - R) <= coreHalfWidthPx)) core = Math.max(core, v)
+    if (d <= coreHalfWidthPx || (coreHalfWidthPx > 5 && Math.abs(y - R) <= coreHalfHeightPx && Math.abs(x - R) <= coreHalfWidthPx)) core = Math.max(core, v)
     else if (d >= ringPx[0] && d <= ringPx[1]) ring.push(v)
   }
   ring.sort((a, b) => a - b)
@@ -159,4 +159,48 @@ test('a searchlight beam reads at least 3:1 over the sky beside it (90 to 140 px
   const center = await contrast(page, b!.screen!, [90, 140], 40)
   console.log('beam', center)
   expect(center.ratio).toBeGreaterThanOrEqual(3)
+})
+
+test('aircraft position lights: a lit airplane\'s nav lights read at least 3:1 at about a mile, each from inside its arc, and a blacked-out one shows none', async ({ page }) => {
+  // Parked on the runway looking north, where the passive Avenger orbits (1.1 miles off) (content/scenarios/night-range.json).
+  await open(page, null, { look: '0,8' })
+  const lights = await seen(page)
+  const nav = lights.filter((l) => l.kind === 'nav')
+  expect(nav.length, 'the position lights of four airplanes are listed').toBe(12)
+  const dark = nav.filter((l) => l.id.startsWith('nav-zero'))
+  expect(dark.length).toBe(3)
+  expect(dark.every((l) => !l.lit), 'the blacked-out Zero shows no light').toBe(true)
+  const visible = nav.filter((l) => l.lit && l.screen !== null && l.distanceM > 800 && l.screen.x > 120 && l.screen.x < 1800 && l.screen.y > 160 && l.screen.y < 900)
+  console.log('visible nav lights', JSON.stringify(visible.map((l) => [l.id, Math.round(l.distanceM)])))
+  expect(visible.length, 'at least one position light is visible from here').toBeGreaterThan(0)
+  const probe = visible.sort((a, b) => Math.abs(a.distanceM - 1600) - Math.abs(b.distanceM - 1600))[0]!
+  const c = await contrast(page, probe.screen!, [25, 50], 14, 14)
+  console.log('nav', probe.id, Math.round(probe.distanceM), c)
+  expect(c.ratio).toBeGreaterThanOrEqual(3)
+})
+
+test('N blacks out the player\'s position lights and back, and J cycles the cockpit light step, without touching flight', async ({ page }) => {
+  await open(page, null)
+  const playerNav = async () => (await seen(page)).filter((l) => l.id.startsWith('nav-player'))
+  expect((await playerNav()).length).toBe(3)
+  expect((await playerNav()).some((l) => l.lit), 'the player\'s tail light is lit by default').toBe(true)
+  const state = () => page.evaluate(() => (window as DiagWindow).__ww2!.cockpitLight())
+  expect(await state()).toEqual({ step: 'low', playerLightsOn: true })
+  await page.keyboard.press('KeyN')
+  await page.waitForTimeout(400)
+  expect((await state()).playerLightsOn).toBe(false)
+  expect((await playerNav()).every((l) => !l.lit), 'blacked out: no player nav light is drawn').toBe(true)
+  await page.keyboard.press('KeyN')
+  await page.waitForTimeout(400)
+  expect((await playerNav()).some((l) => l.lit), 'and back on').toBe(true)
+  for (const expected of ['medium', 'bright', 'low']) {
+    await page.keyboard.press('KeyJ')
+    await page.waitForTimeout(150)
+    expect((await state()).step).toBe(expected)
+  }
+  // Flight is untouched: the throttle key still works after both.
+  const throttle = () => page.evaluate(() => (window as DiagWindow).__ww2!.controls().throttle)
+  const t0 = await throttle()
+  await page.keyboard.down('Equal'); await page.waitForTimeout(600); await page.keyboard.up('Equal')
+  expect(await throttle()).toBeGreaterThan(t0)
 })

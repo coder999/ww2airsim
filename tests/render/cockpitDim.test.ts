@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial } from 'three'
 import { exposureFor } from '../../src/render/exposure.js'
-import { COCKPIT_DIM_FULL_DEG, NIGHT_COCKPIT_DIM, apparentCockpitBrightness, cockpitDimFor, createCockpitDimmer, dimmedContrast, gaugePairs } from '../../src/render/scene/cockpitDim.js'
+import { COCKPIT_DIM_FULL_DEG, COCKPIT_LIGHT_STEPS, NIGHT_COCKPIT_DIM, apparentCockpitBrightness, cockpitNightLevel, cycleCockpitLight, cockpitTuning, cockpitDimFor, createCockpitDimmer, dimmedContrast, gaugePairs } from '../../src/render/scene/cockpitDim.js'
 import { COCKPIT_LAYOUTS } from '../../src/render/scene/cockpitLayouts.js'
 
 describe('night cockpit dimming', () => {
@@ -42,5 +42,23 @@ describe('night cockpit dimming', () => {
     const lit = lamp.color.g
     dimmer.apply(root, 0.25, [lamp])
     expect(lamp.color.g).toBeCloseTo(lit * 0.5, 9)
+  })
+
+  it('has three brightness steps that cycle low, medium, bright and wrap; each is legible, and the lowest is the floor', () => {
+    expect(COCKPIT_LIGHT_STEPS.map((s) => s.name)).toEqual(['low', 'medium', 'bright'])
+    cockpitTuning.step = 0
+    expect([cycleCockpitLight(), cycleCockpitLight(), cycleCockpitLight()]).toEqual(['medium', 'bright', 'low'])
+    const levels = [0, 1, 2].map((i) => cockpitNightLevel(i))
+    expect(levels[0]).toBeCloseTo(NIGHT_COCKPIT_DIM, 9)
+    expect(levels[1]!).toBeGreaterThan(levels[0]!); expect(levels[2]!).toBeGreaterThan(levels[1]!)
+    expect(levels[2]!).toBeLessThan(1) // night is never as bright as day
+    for (const level of levels) for (const [name, mark, face, min] of gaugePairs()) expect(dimmedContrast(mark, face, level), `${name} at ${level}`).toBeGreaterThanOrEqual(min)
+    // The floor is real: a step 20% below the lowest breaks a pair, so the dimmer must not offer one.
+    expect(gaugePairs().some(([, mark, face, min]) => dimmedContrast(mark, face, 0.8 * levels[0]!) < min)).toBe(true)
+    // The step changes the panel's apparent night brightness and not its daytime look.
+    cockpitTuning.step = 2
+    expect(apparentCockpitBrightness(-46)).toBeGreaterThan(NIGHT_COCKPIT_DIM)
+    expect(apparentCockpitBrightness(30)).toBe(1)
+    cockpitTuning.step = 0
   })
 })
