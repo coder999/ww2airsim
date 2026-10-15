@@ -5,6 +5,7 @@ describe('TargetType', () => {
   it('has every scored target row, including tanks', () => {
     const expected: readonly TargetType[] = [
       'fighter', 'bomber', 'cruiser', 'battleship', 'destroyer', 'transport', 'aaa', 'runway', 'building', 'tank', 'carrier',
+      'light-vehicle', 'landing-craft', // F5A
     ]
     expect([...TARGET_TYPES].sort()).toEqual([...expected].sort())
   })

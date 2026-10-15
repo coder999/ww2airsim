@@ -26,8 +26,16 @@ Points **bank however the flight ends** — landed, ditched or killed (Mark,
 2026-09-27). Unlike the 1991 original, the game resurrects pilots, so death is
 not the end of a career and a pilot whose points cross a threshold is promoted
 posthumously. What a ditching or a death costs is the **badge**: a mission's
-badge needs a landing (see Badges). Damaging your own side forfeits the whole
-sortie, 0 points, however it ends.
+badge needs a landing (see Badges). **Destroying** something on your own side
+forfeits the whole sortie, 0 points, however it ends (since F5A, 2026-10-14);
+merely damaging it earns a radio warning and nothing more. A friendly ship counts
+as destroyed when its hull reaches the bottom, 90 seconds after the killing blow.
+
+The table below is the campaign table (GAMEPLAY.md, "Campaign scoring and conduct"),
+used for all play since F5A (2026-10-14): transports went from 400 to 500, destroyers
+from 750 to 1,000, and light vehicles and landing craft are new rows. A kill is
+credited to every aircraft that damaged the target, whoever destroyed it, once;
+a ship is credited when it reaches the bottom.
 
 | Target | Points | Target | Points |
 | --- | --- | --- | --- |
@@ -35,8 +43,9 @@ sortie, 0 points, however it ends.
 | Bomber | 750 | Runway | 500 |
 | Cruiser | 1500 | Building | 150 |
 | Battleship | 3000 | Carrier | 5000 |
-| Destroyer | 750 | Transport | 400 |
-| Tank | 300 | | |
+| Destroyer | 1000 | Transport | 500 |
+| Tank | 300 | Light vehicle | 100 |
+| Landing craft | 250 | | |
 
 Recovery multiplier applied to the mission total:
 
@@ -267,7 +276,9 @@ carrier, runway, or seaplane anchorage when it exists; a friendly egress boundar
 is valid only when the historically appropriate recovery point lies outside the
 playable world. A normal failure banks destruction points but does not award the
 badge, change canonical campaign state, or unlock the next chapter. The chapter
-remains available to retry with any eligible living pilot.
+remains available to retry with any eligible living pilot. A chapter that has been
+completed is not replayable; Non-Campaign Missions always are. In a campaign a
+landing ends the sortie: there is no Continue, and the result is banked once.
 
 Repeatable **Non-Campaign Missions** are always available inside headquarters to
 earn points and develop replacement pilots without advancing the story or changing
@@ -680,8 +691,9 @@ the requested speed, conforming to the terrain as they go. They stop at the
 last waypoint unless `loop` is true. Vehicles can be hit by guns, rockets and
 bombs; a destroyed vehicle stops and remains as a darkened, slumped wreck.
 Each vehicle spec selects its scoring category: armor such as the Type 97
-Chi-Ha scores in the existing **Tank** row, while unarmored scout cars use the
-existing **Building** row. Tank Buster's six 48-HP Chi-Ha targets use the same
+Chi-Ha scores in the existing **Tank** row, while unarmored scout cars and jeeps
+score in the **Light vehicle** row (100; they scored as Buildings before F5A,
+2026-10-14). Landing craft have their own row, for the vehicle specs that select it. Tank Buster's six 48-HP Chi-Ha targets use the same
 vehicle simulation with stationary one-point routes. There is no player
 driving, pathfinding, suspension, collision avoidance, vehicle weapons or
 ground AI.
@@ -736,7 +748,10 @@ sandbox and test-range scenarios the engineering plans needed — `free-flight`,
 real missions: **Basic Flying**, **Torpedo Qualification**, **Deck Quals**
 ("Carrier Qualification"), **Airfield Strike**, **Convoy Strike**, **Tank
 Buster**, **Combat Air Patrol**, **Single Combat**, **Scramble**, **Flattop
-Hunt**, **Escort** and **Surigao Strait**. Each declares real objectives,
+Hunt**, **Escort** and **Surigao Strait**, plus (F5A, 2026-10-14) **Field
+Patrol**, the first mission with a Japanese player: an A6M2 Zero holds station
+over Dulag and turns back two waves of American Hellcats (the entry-rank
+Japanese non-campaign mission; see `docs/campaign-data.md`). Each declares real objectives,
 carries a badge, a briefing and a cited history (M3-M4, 2026-09-27). Their
 verdict paths are proven headless, with staged approaches and injected hits;
 the intermediate trap and respot are not exercised in the browser (E2E

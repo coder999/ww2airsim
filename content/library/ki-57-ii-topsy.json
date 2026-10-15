@@ -3,8 +3,29 @@
   "name": "Mitsubishi Ki-57-II Topsy",
   "kind": "aircraft",
   "side": "japanese",
-  "model": { "kind": "aircraft", "id": "ki-57-ii-topsy" },
-  "blurb": "A twin-engine Army transport prepared as a Hangar-only Leyte campaign asset, with working propellers, landing gear, cargo doors and primary control surfaces.",
-  "history": "The Ki-57 was Mitsubishi's transport development of the Ki-21 bomber family. The later Ki-57-II used Ha-102 engines and was known to the Allies as Topsy; a civil derivative was designated MC-20-II. This original model is a campaign-library representation, not yet a flyable aircraft.",
-  "sources": [{ "title": "Mitsubishi Type 1 Ha-31 Model 21 (Ha-102), Smithsonian National Air and Space Museum", "url": "https://airandspace.si.edu/collection-objects/mitsubishi-type-1-ha-31-model-21-ha-102-2-row-radial-14-engine/nasm_A19600334004", "read": "2026-10-14" }]
+  "model": {
+    "kind": "aircraft",
+    "id": "ki-57-ii-topsy"
+  },
+  "blurb": "A twin-engine Army transport with retractable gear, a tailwheel and drawn cargo doors, unarmed and offered in Dev only. Its speed and climb come from one U.S. intelligence sheet and its stall speeds are estimates; engine failure, passengers and the paratrooper drop are not modeled.",
+  "history": "The Ki-57 was Mitsubishi's transport development of the Ki-21 bomber family. The Army flew it as the Type 100 Transport and the Allies reported it as \"Topsy\"; the civil version was the MC-20, and the Navy used a few Ki-57-Is as the L4M1.\n\nIn this game the airplane is the Ki-57-II, the Ha-102 engined version (the Ki-57-I, with 950 hp engines, was a different airplane and is not used). It flies to a top speed of about 278 mph at 19,000 feet and 233 mph at sea level, and climbs about 1,648 feet a minute at sea level, from a June 1945 U.S. Technical Air Intelligence Center sheet at 18,300 lb; other sources give about 290 mph. The Center's sheet does not say how those figures were obtained, and the game's drag and propeller efficiency are fitted to them. Its stall speeds are estimates, not published figures. The two Ha-102 engines are modeled as one engine with their summed power, and both propellers turn; if one fails the game does not notice.\n\nThe sheet lists 11 passengers, and says the airplane also carried up to 16 Army parachute troops including crew; neither is modeled. The cargo doors open and close, and nothing is dropped through them. It has no guns, no stores, and is not offered in the mission scenarios.",
+  "sources": [
+    {
+      "title": "Mitsubishi Ki-57",
+      "url": "https://en.wikipedia.org/wiki/Mitsubishi_Ki-57",
+      "read": "2026-10-14"
+    },
+    {
+      "title": "Japanese Aircraft Performance and Characteristics, TAIC Manual No. 1 (Technical Air Intelligence Center), TOPSY 1 data sheets 753A-1 and 753A-2, June 1945",
+      "url": "https://archive.org/details/japanese-aircraft-performance-characteristics-taic-manual",
+      "read": "2026-10-14"
+    },
+    {
+      "title": "Mitsubishi Type 1 Ha-31 Model 21 (Ha-102), Smithsonian National Air and Space Museum",
+      "url": "https://airandspace.si.edu/collection-objects/mitsubishi-type-1-ha-31-model-21-ha-102-2-row-radial-14-engine/nasm_A19600334004",
+      "read": "2026-10-14"
+    }
+  ],
+  "rosterName": "Mitsubishi Ki-57 Topsy",
+  "spec": "ki-57-ii-topsy"
 }

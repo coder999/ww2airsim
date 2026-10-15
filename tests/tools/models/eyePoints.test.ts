@@ -30,6 +30,8 @@ const CANOPY: Readonly<Record<string, string>> = {
   'b5n2-kate': 'b5n2_dark',
   // A single-skin airframe: ki21_dark is the whole skin; the glazed crown reads y 1.25 at x 2.6 to 3.4 (measured 2026-09-30), eye at x 3.0.
   'ki-21-sally': 'ki21_dark',
+  // The Topsy's glazing is its CockpitFrames node (the one big skin mesh); the crown reads y 1.362 at x 2 to 5 (measured 2026-10-14), eye at x 2.275 (origin moved 1.025 m forward).
+  'ki-57-ii-topsy': 'CockpitFrames',
 }
 /** A seated pilot's eye sits this far below the canopy's top, metres. */
 const [BELOW_TOP_MIN_M, BELOW_TOP_MAX_M] = [0.15, 0.45]

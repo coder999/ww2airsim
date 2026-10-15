@@ -44,7 +44,7 @@ describe('gear contact geometry', () => {
   })
 })
 
-describe.each([['f6f-hellcat', 'f6f-hellcat-blender'], ['f4f-wildcat', 'f4f-wildcat-blender'], ['a6m2-zero', 'a6m2-zero-blender'], ['f4u-corsair', 'f4u-corsair-blender'], ['b-17-flying-fortress', 'b-17-flying-fortress-blender'], ['g4m-betty', 'g4m-betty'], ['b-29-superfortress', 'b-29-superfortress'], ['p-38-lightning', 'p-38-lightning'], ['ki-43-oscar', 'ki-43-oscar-blender'], ['d3a-val', 'd3a-val-blender'], ['ki-84-frank', 'ki-84-frank'], ['tbm-3-avenger', 'tbm-3-avenger'], ['b5n2-kate', 'b5n2-kate'], ['ki-21-sally', 'ki-21-sally']] as const)(
+describe.each([['f6f-hellcat', 'f6f-hellcat-blender'], ['f4f-wildcat', 'f4f-wildcat-blender'], ['a6m2-zero', 'a6m2-zero-blender'], ['f4u-corsair', 'f4u-corsair-blender'], ['b-17-flying-fortress', 'b-17-flying-fortress-blender'], ['g4m-betty', 'g4m-betty'], ['b-29-superfortress', 'b-29-superfortress'], ['p-38-lightning', 'p-38-lightning'], ['ki-43-oscar', 'ki-43-oscar-blender'], ['d3a-val', 'd3a-val-blender'], ['ki-84-frank', 'ki-84-frank'], ['tbm-3-avenger', 'tbm-3-avenger'], ['b5n2-kate', 'b5n2-kate'], ['ki-21-sally', 'ki-21-sally'], ['ki-57-ii-topsy', 'ki-57-ii-topsy']] as const)(
   '%s layout against the drawing',
   (id, model) => {
     const gear = loadAircraftSpec(id).gear

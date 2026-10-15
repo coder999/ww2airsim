@@ -19,6 +19,17 @@ export function friendlyFireOf<M>(world: World<M>): FriendlyFire | null {
   return world.combat.aircraft[world.player]?.friendlyFire ?? null
 }
 
+/**
+ * Whether the player DESTROYED a friendly aircraft, ship, structure or vehicle: the only thing that
+ * discharges a pilot (F5A, GAMEPLAY.md "Campaign scoring and conduct"). Nonfatal friendly damage
+ * is a warning and nothing more. "Player-caused" is `friendlyKills`, the existing killing-blow
+ * rule (ruling D6); for a ship it counts when the hull reaches the bottom, 90 s after the
+ * killing blow (ruling D15).
+ */
+export function friendlyDestroyedBy<M>(world: World<M>): boolean {
+  return (world.combat.aircraft[world.player]?.friendlyKills ?? 0) > 0
+}
+
 const STRUCTURE_WORDS = { hangar: 'Hangar', tower: 'Control tower', aaa: 'AAA battery' } as const
 
 /** A name for what was hit, in the debrief's own style: class name then id
@@ -46,8 +57,8 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
 }
 
 /**
- * The debrief for a flight in which the player damaged his own side, or
- * `model` itself if he did not. It works the same way whichever builder
+ * The debrief for a flight in which the player DESTROYED something on his own side, or
+ * `model` itself if he did not (damage alone is a warning, F5A). It works the same way whichever builder
  * made `model`: a landing, an impact (killed or ditched), or a destruction.
  *
  * `outcome` stays the physical recovery. The mission engine reads the same
@@ -66,7 +77,7 @@ export function friendlyTargetLabel<M>(world: World<M>, ff: FriendlyFire): strin
  */
 export function withDischarge<M>(model: DebriefModel, world: World<M>): DebriefModel {
   const ff = friendlyFireOf(world)
-  if (ff === null) return model
+  if (ff === null || !friendlyDestroyedBy(world)) return model
   const target = friendlyTargetLabel(world, ff)
   // `exactOptionalPropertyTypes`: the flight cannot go on, so the key is
   // dropped rather than set to undefined.

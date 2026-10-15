@@ -87,6 +87,8 @@ export const COCKPIT_ENROLLMENT: Readonly<Record<string, Enrollment>> = {
   'b5n2-kate': { family: 'japanese-bomber', sight: false },
   'g4m-betty': { family: 'japanese-bomber', sight: false },
   'ki-21-sally': { family: 'japanese-bomber', sight: false },
+  // A transport: the Japanese bomber family's glazed nose, no reflector sight (D12, 2026-10-14).
+  'ki-57-ii-topsy': { family: 'japanese-bomber', sight: false },
 }
 
 export type CockpitConfig = {

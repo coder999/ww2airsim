@@ -5,6 +5,7 @@ import { attitudeAngles } from '../sim/flight/attitude.js'
 import { length } from '../sim/math/vec3.js'
 import type { LandingReport } from '../sim/landing.js'
 import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
+import { SCORE_POINTS } from '../campaign/schema.js'
 import type { DebriefMission } from './mission/debriefMission.js'
 import { insigniaElement, ribbonElement } from './insignia.js'
 import { RANK_LADDER } from './roster.js'
@@ -42,19 +43,9 @@ export function killsSince(
   ) as Readonly<Record<TargetType, number>>
 }
 
-const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = {
-  fighter: 500,
-  bomber: 750,
-  cruiser: 1500,
-  battleship: 3000,
-  destroyer: 750,
-  transport: 400,
-  aaa: 250,
-  runway: 500,
-  building: 150,
-  tank: 300,
-  carrier: 5000,
-}
+/** One scoring table for all play (F5A ruling D14, 2026-10-14): `src/campaign/schema.ts` owns it.
+ *  Assigning it here is also the compile-time proof that every `TargetType` has a campaign row. */
+const POINTS_BY_TARGET_TYPE: Readonly<Record<TargetType, number>> = SCORE_POINTS
 
 /** The point value of one kill of type `t`. Exported (Hangar spec §5) so the
  *  library's cards read THIS table rather than a copy of it. */
@@ -74,6 +65,8 @@ const TARGET_LABEL: Readonly<Record<TargetType, string>> = {
   building: 'Building',
   tank: 'Tank',
   carrier: 'Carrier',
+  'light-vehicle': 'Light vehicle',
+  'landing-craft': 'Landing craft',
 }
 
 /** The debrief's row label for type `t`, exported for the same reason. */

@@ -85,7 +85,7 @@ test('six sequential forms: qualifications lead, Back keeps every pick, Enter wa
   await expect(briefing).not.toContainText('https://')
   // Sortie navigation is physically above the scenario list.
   const nextBox = await next.boundingBox()
-  const lastScenarioBox = await radio('Scenario', 'Surigao Strait').boundingBox()
+  const lastScenarioBox = await radio('Scenario', 'Field Patrol').boundingBox()
   expect(nextBox!.y).toBeLessThan(lastScenarioBox!.y)
   await next.click()
   await expect(title.getByText('Form 4 of 6')).toBeVisible()

@@ -17,7 +17,7 @@ describe('aircraft position lights are data for every flyable airframe (D7)', ()
   it('the table is enrolled over every flyable id in content/aircraft, and pinned', () => {
     expect(flyable).toEqual([
       'a6m2-zero', 'b-17-flying-fortress', 'b-29-superfortress', 'b5n2-kate', 'd3a-val', 'f4f-wildcat', 'f4u-corsair', 'f6f-hellcat',
-      'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-84-frank', 'p-38-lightning', 'pby-5a-catalina', 'tbm-3-avenger',
+      'g4m-betty', 'ki-21-sally', 'ki-43-oscar', 'ki-57-ii-topsy', 'ki-84-frank', 'p-38-lightning', 'pby-5a-catalina', 'tbm-3-avenger',
     ])
     expect(Object.keys(AIRFRAME_LIGHT_POINTS).sort()).toEqual(flyable)
   })

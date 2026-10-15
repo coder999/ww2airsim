@@ -17,7 +17,7 @@ const VehicleSpecObject = z.object({
   maxSpeedMps: positive,
   turnRateRadPerS: positive,
   hp: positive,
-  targetType: z.enum(['building', 'tank']).default('building'),
+  targetType: z.enum(['building', 'tank', 'light-vehicle', 'landing-craft']).default('building'),
   view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict(),
 }).strict()
 

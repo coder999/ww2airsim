@@ -273,6 +273,14 @@ export const CARDS: Readonly<Record<string, Card>> = {
   // estimate. cd0 0.020 and propEfficiency 0.65 are FITTED to four figures with two unknowns, which is not validation. No take-off
   // distance is graded: the sheet's 900 ft has no stated conditions and the model rolls 435 m (+59%) at an ESTIMATED 46 m/s, a
   // REPORTED gap; the card runs the flap-direction check only. Tolerances are about 1.4x to 2x each measurement.
+  // Ki-57-II onboarding, measured 2026-10-14 at testMassKg 8,300.7 kg (18,300 lb) against ONE intelligence sheet (TAIC TOPSY 1,
+  // 753A-2, June 1945; origin of its figures unstated; docs/handoff/2026-10-14-ki57-onboard.md): top speed +0.47% at sea level and
+  // +0.77% at 19,000 ft; climb -0.43% at sea level and -1.15% at 19,000 ft; stalls 36.72 and 32.41 m/s (-0.20% and -0.39%) against
+  // ESTIMATES from clMax 1.4 and the Zero's flap ratio, so they grade the model against itself; roll 30.0 vs its own estimate. cd0
+  // 0.017 and propEfficiency 0.65 are FITTED to four figures with two unknowns, which is not validation. No take-off distance is
+  // graded: the sheet's 1,430 ft (436 m) has no stated conditions and the model rolls 366 m clean at an ESTIMATED 40.5 m/s, a
+  // REPORTED gap; the card runs the flap-direction check only. Tolerances are about 1.4x to 2x each measurement.
+  'ki-57-ii-topsy': { topSpeed: 0.012, topSpeedTable: 0.012, climb: 0.008, climbTable: 0.02, stall: 0.004, flapStall: 0.006, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 40.5, flapFraction: 1 } },
   'ki-21-sally': { topSpeed: 0.02, topSpeedTable: 0.02, climb: 0.05, climbTable: 0.06, stall: 0.004, flapStall: 0.005, roll: 0.01, takeoff: { tol: 0.1, liftoffMps: 46, flapFraction: 1 } },
   // Ki-43-II onboarding, measured 2026-09-30 at testMassKg 2,494.76 kg (5,500 lb) against ONE intelligence sheet (TAIC 152A-2, Dec 1944;
   // no flight-test report exists and other sources disagree, see the spec source): top speed 156.34 vs 155.13 m/s (+0.78%) at 20,000 ft;

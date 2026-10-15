@@ -36,6 +36,7 @@ export const AIRFRAME_LIGHT_POINTS: Readonly<Record<string, AirframeLights>> = {
   'g4m-betty': { port: [-0.27, 0.85, -12.44], starboard: [-0.27, 1.01, 12.44], tail: [-11.79, 0.46, 0] },
   'ki-21-sally': { port: [-0.31, 0.78, -11.25], starboard: [-0.31, 0.98, 11.25], tail: [-9.6, 2.75, 0] },
   'ki-43-oscar': { port: [0.01, 0.09, -5.4], starboard: [0.01, 0.09, 5.4], tail: [-6.31, 0.04, 0.2] },
+  'ki-57-ii-topsy': { port: [-0.55, 0.87, -11.3], starboard: [-0.55, 1.01, 11.3], tail: [-11.33, 0.25, 0] },
   'ki-84-frank': { port: [-0.09, -0.01, -5.62], starboard: [-0.09, 0.1, 5.62], tail: [-6.26, 1.65, 0] },
   'p-38-lightning': { port: [-0.16, 0.65, -7.93], starboard: [-0.16, 0.78, 7.93], tail: [-7.34, 1.69, -2.53] },
   'pby-5a-catalina': { port: [-0.9, 2.85, -15.85], starboard: [-0.9, 3.14, 15.85], tail: [-11.53, 0.83, 0] },

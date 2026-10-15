@@ -109,3 +109,14 @@ test('capture wingtips', async ({ page }) => {
     await page.screenshot({ path: `${OUT}/wing-${name}.png` })
   }
 })
+
+/** The two budget benches (content/scenarios/night-field.json, night-bay.json): the three budget views at night. */
+for (const scenario of ['night-field', 'night-bay']) {
+  test(`capture bench ${scenario}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true })
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await heldView(page, withParams('/', { scenario, launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
+    await page.waitForTimeout(2500)
+    await page.screenshot({ path: `${OUT}/bench-${scenario}.png` })
+  })
+}

@@ -122,7 +122,7 @@ describe('the title screen scenario picker', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'water-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'night-range', 'night-field', 'night-bay', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
-      'flattop-hunt', 'escort', 'surigao-strait', 'dev-mission-ui', 'dev-mission-circuit',
+      'flattop-hunt', 'escort', 'surigao-strait', 'field-patrol', 'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
     // that could not preselect it would be pointing at a scenario id nothing
@@ -154,13 +154,14 @@ describe('the title screen scenario picker', () => {
     expect(labels['flattop-hunt']).toBe('Flattop Hunt')
     expect(labels.escort).toBe('Escort')
     expect(labels['surigao-strait']).toBe('Surigao Strait')
+    expect(labels['field-patrol']).toBe('Field Patrol')
   })
 
   it('no other label contains "Deck Quals": e2e selectors match by substring (M3-R5)', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.label.includes('Deck Quals')).map((o) => o.value)).toEqual(['deck-quals'])
   })
 
-  it('without Dev, exactly the B4, M3, M4 and F2 missions, the tutorial first, each with its badge; every other row is a range (M2 R5, A1)', () => {
+  it('without Dev, exactly the B4, M3, M4, F2 and F5A (Field Patrol) missions, the tutorial first, each with its badge; every other row is a range (M2 R5, A1)', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
       .toEqual([
         ['water-quals', { id: 'water-qualified', name: 'Catalina Water Qualified' }],
@@ -176,6 +177,7 @@ describe('the title screen scenario picker', () => {
         ['flattop-hunt', { id: 'flattop-hunt', name: 'Flattop Hunt' }],
         ['escort', { id: 'escort', name: 'Escort' }],
         ['surigao-strait', { id: 'surigao-strait', name: 'Surigao Strait' }],
+        ['field-patrol', { id: 'field-patrol', name: 'Field Patrol' }],
       ])
     expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'range').some((o) => o.badge !== undefined)).toBe(false)
   })

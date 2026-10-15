@@ -123,6 +123,32 @@ module.exports = {
       },
     },
     {
+      name: 'sim-must-not-import-campaign',
+      comment:
+        'F5A (2026-10-14): campaign state is not World state. The flight recorder checksums ' +
+        'World only, so a campaign import in src/sim would put save data inside the replayed ' +
+        'simulation. The dependency runs campaign/ -> sim/rng only, never back. ' +
+        'tests/architecture/boundary.test.ts proves this rule bites.',
+      severity: 'error',
+      from: { path: '^src/sim' },
+      to: { path: '^src/campaign' },
+    },
+    {
+      name: 'campaign-must-stay-pure',
+      comment:
+        'F5A (2026-10-14): src/campaign/ is the DOM-free, clock-free campaign core. It may import ' +
+        'itself, the seeded PRNG (src/sim/rng.ts), the canonical JSON helpers ' +
+        '(src/flightRecorder/canonical.ts), zod, and its own curated name data under ' +
+        'content/campaign/. Never src/render, three, the DOM or Node core. Type-only imports ' +
+        'produce no edge in this config (see no-circular), so campaign/ keeps its own types. ' +
+        'tests/architecture/boundary.test.ts proves this rule bites.',
+      severity: 'error',
+      from: { path: '^src/campaign' },
+      to: {
+        pathNot: '^(src/campaign/|src/sim/rng\\.ts$|src/flightRecorder/canonical\\.ts$)|(^|/)content/campaign/|node_modules/zod/',
+      },
+    },
+    {
       name: 'no-circular',
       comment:
         'Forbids import cycles. With this config (no `tsPreCompilationDeps`, no ' +

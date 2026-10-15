@@ -35,7 +35,7 @@ describe('scenario options agree with content (M2 R5, R6)', () => {
   })
   it("every non-Dev scenario's own aircraft is eligible with Dev off", () => {
     const specs = readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).map((f) => loadAircraftSpec(f.slice(0, -5)))
-    for (const o of scenarioOptions(false)) expect(eligibleAircraft(specs, o.start, false).map((s) => s.id), o.value).toContain(o.aircraft)
+    for (const o of scenarioOptions(false)) expect(eligibleAircraft(specs, o.start, false, o.aircraft).map((s) => s.id), o.value).toContain(o.aircraft)
   })
   it.each(SCENARIO_OPTIONS.map((o) => [o.value, o] as const))('%s: kind, badge, briefing and history match the file', (_id, o) => {
     const s = loadScenarioBundle(o.value).scenario

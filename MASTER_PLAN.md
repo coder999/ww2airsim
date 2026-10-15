@@ -271,6 +271,29 @@ Handoffs: [F4](docs/handoff/2026-10-14-f4-asset-groups.md) and its `f4r-*`
 rework handoffs. Remaining gaps, all deliberate: gameplay parachute flutter,
 dual CCKW rear wheels, track-shoe shading normals. F5–F10 may now begin.
 
+**Topsy made flyable 2026-10-14 (branch `worktree-ki57-onboard`).** The F4 Ki-57-II model
+was onboarded through `docs/aircraft.md`: a spec fitted to the TAIC TOPSY 1 sheet, a Library
+card, a new `transport` aircraft role, and working cargo doors (nothing drops through them
+yet; that is J5). The model's origin moved 1.025 m forward onto the wing quarter-chord, the
+one change to an F4 frozen contract. Offered in Dev only, in no scenario or AI roster except
+the Range Test. [Plan](docs/superpowers/plans/2026-10-14-ki57-onboard.md),
+[handoff](docs/handoff/2026-10-14-ki57-onboard.md).
+
+**Backlog note (Mark, 2026-10-14): the PBY Catalina had cargo doors.** Mark supplied three
+photographs from the Consolidated PBY Catalina Facebook group (post 2590013957924842) of the civil
+amphibian CF-SAT, a post-war cargo conversion. They show a large side cargo door in the aft
+fuselage side, behind the wing, at the waist position: it is hinged along its top edge, swings
+up and out, and is held open by a prop stay, with a ribbed inner face and a stretch of open
+fuselage below it that crew load through from a boat alongside. A hinged hatch is also open in
+the lower aft hull. Mark's reading (2026-10-14): the wartime PBY-5 had waist blisters there and this door is a
+post-war civilian conversion, so adding it to the game's Catalina would be a deliberate
+historical liberty, his call to make if a mission wants it (not decided). Still not established:
+how many doors the conversion had, and the door's dimensions. The current Catalina model has no door nodes. When the
+rescue work (F7) or a Catalina pass needs them, add the doors to
+`tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig (`docs/aircraft.md`,
+Part E), and label it a historical liberty in the spec and card. Not scheduled. Photos are Mark's
+and are not committed.
+
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
 new reusable aircraft, vehicle, ship, structure, light, flare, rescue, landing-craft,
@@ -303,7 +326,24 @@ rank eligibility, mission locks, every score path, old-save migration, and
 export/import are deterministic and covered. A campaign with five replacement
 Ensigns can always reach an entry-rank non-campaign mission and cannot deadlock.
 
+**F5A (data, persistence, scoring) built and merged to `main` 2026-10-14;
+not deployed; `npm run verify` result and numbers are in the
+[handoff](docs/handoff/2026-10-14-f5a-campaign-data-scoring.md).** The pure core
+`src/campaign/` and its frozen contract ([`docs/campaign-data.md`](docs/campaign-data.md);
+[plan](docs/superpowers/plans/2026-10-14-f5a-campaign-data-scoring.md)) cover the gate except
+what needs a screen: the two ledgers, five-pilot roster with closed archives and deterministic
+replacement, the six-tier ladders and rank gates, chapter locks, every score path, versioned
+storage and canonical export/import, the sim's damage-tag destruction credit and
+destruction-only discharge, one scoring table for all play, and the Japanese **Field Patrol**
+mission that gives `ja` a lifeline. The old roster is discarded, not migrated (Mark's D1), so
+"old-save migration" in the gate is satisfied by rejection. **F5B (headquarters, roster UI,
+progression screens, `roster.ts` deletion, `startGame()` rewrite, Quit/Abandon button, Japanese
+insignia) is not started.**
+
 #### F6. Night operations (L)
+
+Consumes the F5A contract for rank gates: `abilities(tier)` in `docs/campaign-data.md`.
+
 
 Add a playable low-light night state, moon and stars, exposure and visibility
 rules, dimmable cockpit/instrument lighting, historically supported aircraft lights,
@@ -321,6 +361,9 @@ budget and accessibility checks.
 
 #### F7. Bailout, POW, rescue, and paratroopers (L)
 
+Consumes the F5A contract: `SortieEndKind` `rescued`/`captured`, `SortieFacts` for the bailout seed, automatic replacement (`docs/campaign-data.md`).
+
+
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,
 recorded seeded contested results, qualitative pre-bailout risk, debrief evidence,
@@ -333,6 +376,9 @@ water and land contact, score/badge behavior, archive/replacement, recorder repl
 and paratrooper spawning are deterministic and tested.
 
 #### F8. Canonical Leyte campaign world (L)
+
+Consumes the F5A contract: `Campaign.world` is opaque to it and changes only on a successful current chapter (`docs/campaign-data.md`).
+
 
 Build persistent, historically reconciled states for Tacloban, Dulag, Buri, Bayug,
 San Pablo, Tanauan, Ormoc, the beachhead and naval/seaplane areas. Expand the
@@ -347,6 +393,9 @@ after save/load, and historical/site-source claims pass final reconciliation.
 
 #### F9. In-engine campaign scenes (M)
 
+Consumes the F5A contract: `scenesSeen`, and `bankSortie` returning before any scene (`docs/campaign-data.md`).
+
+
 Create a reusable camera/timeline/action/subtitle/radio framework over the real
 world renderer. Author twelve skippable 10–20 second openings, with A1/J1 also
 introducing their campaigns, and two full victory scenes/epilogues after safely
@@ -358,6 +407,9 @@ missing assets or audio fail safely, save banking precedes victory playback, and
 all fourteen scenes are visually approved.
 
 #### F10. Campaign mission production (L, several plans)
+
+Consumes the F5A contract: `MissionDescriptor`, `authoredBonus`, the sim's `success` verdict; every point flows through `bankSortie` (`docs/campaign-data.md`).
+
 
 Implement the frozen American and Japanese chapters in narrative order while
 keeping their mission sets asymmetric. Seed the existing scenario set as the
@@ -693,6 +745,7 @@ gated order.
 - **Weather beyond clouds, multiplayer, and a mission editor.** The missions spec rules out an editor (`missions-design.md:167`). Night lighting is now in scope under F6 because the approved campaigns require it.
 - **Re-deriving flight models.** The graded cards and the `plan1-rulings.md` decisions stand.
 - **Engine start and taxi sequences.** Taxiing isn't modeled for AI either (7g §6.5). This would be its own track if wanted.
+- **Pilot callsigns.** Mark (2026-10-14, after approving the F5A name lists): may add a callsign to generated pilots later; not in F5A or F5B's scope. A `callsign` field would be a schema version bump once F5A's schema is frozen.
 
 ---
 
