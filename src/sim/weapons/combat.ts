@@ -532,6 +532,14 @@ function canRelease(
   return Math.hypot(a.state.velocity.x, a.state.velocity.z) >= 2
 }
 
+/**
+ * The torpedo drop envelope (Track D step 2), ONE definition for the release (`releaseBomb`) and the torpedosight
+ * (`predictTorpedoDrop`, F6B), so the aid can never drift from what the sim does: airspeed at most
+ * `maxDropSpeedMps` and release height above the sea at most `maxDropHeightM`.
+ */
+export const torpedoDropOk = (type: StoreType, speedMps: number, heightAboveSeaM: number): boolean =>
+  speedMps <= type.maxDropSpeedMps! && heightAboveSeaM <= type.maxDropHeightM!
+
 /** Racks are ordered [left, right] in content, so counting down from a full
  *  load alternates sides by construction (spec §3.2). */
 function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Release | null {
@@ -548,7 +556,7 @@ function releaseBomb(a: CombatAircraft, stores: StoresState, cursor: number): Re
   // A torpedo leaves a rack like a bomb; the drop envelope is judged here, at release, on the
   // airplane's speed and its height above the sea (Track D step 2).
   const torpedo = type.kind === 'torpedo'
-  const dud = torpedo && (length(a.previous.velocity) > type.maxDropSpeedMps! || position.y - SEA_LEVEL_M > type.maxDropHeightM!)
+  const dud = torpedo && !torpedoDropOk(type, length(a.previous.velocity), position.y - SEA_LEVEL_M)
   return {
     projectiles: [{
       owner: a.id, position, previous: position, velocity: a.previous.velocity,

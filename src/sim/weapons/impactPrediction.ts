@@ -8,7 +8,8 @@ import { add, length, normalize, scale, sub, v3, type Vec3 } from '../math/vec3.
 import type { Deck } from '../world/deck.js'
 import { groundUnder } from '../world/ground.js'
 import type { TerrainField } from '../world/terrain.js'
-import { burnedVelocity, flyProjectile, groundHit, railOrder, seaHit, storeTypeOf, type Projectile } from './combat.js'
+import { burnedVelocity, flyProjectile, groundHit, railOrder, seaHit, storeTypeOf, torpedoDropOk, type Projectile } from './combat.js'
+import { SEA_LEVEL_M } from '../world/terrain.js'
 import { tupleVector } from './geometry.js'
 import type { StoresState } from './stores.js'
 
@@ -25,7 +26,7 @@ export type ImpactPrediction = {
 }
 
 /** `ageS` is the store's age at the end of the tick that met the ground: what `armS` is judged against. */
-type Flown = { readonly point: Vec3; readonly timeS: number; readonly ageS: number }
+type Flown = { readonly point: Vec3; readonly timeS: number; readonly ageS: number; /** The first contact was open sea (not land): what a torpedo needs to start its run. */ readonly sea: boolean }
 
 /**
  * Flies one store with the sim's own step until it meets terrain or the sea.
@@ -49,7 +50,7 @@ function fly(first: Projectile, dragPerM: number, burn: { dv: number; s: number 
     const sea = seaHit(p.previous, p.position, terrain)
     const t = ground === null ? sea : sea === null ? ground : Math.min(ground, sea)
     if (t === null) continue
-    return { point: add(p.previous, scale(sub(p.position, p.previous), t)), timeS: ageBefore + dt * t, ageS: p.ageS }
+    return { point: add(p.previous, scale(sub(p.position, p.previous), t)), timeS: ageBefore + dt * t, ageS: p.ageS, sea: sea !== null && (ground === null || sea < ground) }
   }
   return null
 }
@@ -116,4 +117,64 @@ export function predictImpact(
     return { kind: 'rocket', point: mean, timeS: hits.reduce((a, h) => a + h.timeS, 0) / hits.length, armed: true }
   }
   return null
+}
+
+export type TorpedoReason = 'too-fast' | 'too-high' | 'not-over-sea' | 'doors-shut'
+/** Where the next torpedo released NOW would meet the water, and whether the sim would let it run (F6B torpedosight). */
+export type TorpedoPrediction = {
+  /** World point where it meets the water (or land); null when nothing is met within its lifetime. */
+  readonly entry: Vec3 | null
+  readonly timeS: number
+  /** Every one of the sim's drop rules holds: no reasons. */
+  readonly valid: boolean
+  readonly reasons: readonly TorpedoReason[]
+  readonly speedMps: number
+  readonly maxSpeedMps: number
+  /** Release height above the sea (the rack, as the sim judges it). */
+  readonly heightM: number
+  readonly maxHeightM: number
+  readonly armRunM: number
+  readonly runRangeM: number
+  /** Horizontal unit vector of the run after entry (the drop heading). */
+  readonly runDir: Vec3
+}
+
+/**
+ * The torpedosight's prediction: the real projectile step (`fly`) from the rack the release would use, and the sim's
+ * own drop envelope (`torpedoDropOk`, shared with `releaseBomb`). Hulls, decks and buildings under the entry point are
+ * not modeled (like `predictImpact`; a drop onto a ship reads green and breaks up). Null when there is no torpedo to
+ * drop: no stores, on the ground, none aboard, or the next store is a bomb.
+ */
+export function predictTorpedoDrop(
+  spec: AircraftSpec, state: AircraftState, stores: StoresState,
+  terrain: TerrainField | null, wind: Vec3 | null, decks: readonly Deck[] = [],
+): TorpedoPrediction | null {
+  const s = spec.stores
+  if (s === undefined || stores.bombs <= 0) return null
+  const under = groundUnder(terrain, decks, state.position.x, state.position.z)
+  if (under !== null && onGround(spec, state, under.heightM)) return null
+  const rack = s.racks[(s.racks.length - stores.bombs) % s.racks.length]!
+  const type = s.types[rack.store]
+  if (type === undefined || type.kind !== 'torpedo') return null
+  const position = add(state.position, qRotate(state.attitude, tupleVector(rack.offset)))
+  const speedMps = length(state.velocity)
+  const heightM = position.y - SEA_LEVEL_M
+  const reasons: TorpedoReason[] = []
+  // The verdict is the sim's own (`torpedoDropOk`); the two comparisons only say WHICH limit was broken.
+  if (!torpedoDropOk(type, speedMps, heightM)) {
+    if (speedMps > type.maxDropSpeedMps!) reasons.push('too-fast')
+    if (heightM > type.maxDropHeightM!) reasons.push('too-high')
+  }
+  const hit = fly(
+    { owner: '', id: 0, position, previous: position, velocity: state.velocity, lifeS: type.lifetimeS, tracer: false, kind: 'torpedo', ageS: 0 },
+    type.dragPerM, null, terrain, wind,
+  )
+  if (hit === null || !hit.sea) reasons.push('not-over-sea')
+  if (bayDoorsShut(spec, state.bayDoorFraction)) reasons.push('doors-shut')
+  const h = Math.hypot(state.velocity.x, state.velocity.z)
+  return {
+    entry: hit === null ? null : hit.point, timeS: hit === null ? 0 : hit.timeS, valid: reasons.length === 0, reasons,
+    speedMps, maxSpeedMps: type.maxDropSpeedMps!, heightM, maxHeightM: type.maxDropHeightM!, armRunM: type.armRunM!, runRangeM: type.runRangeM!,
+    runDir: h < 1e-6 ? v3(1, 0, 0) : v3(state.velocity.x / h, 0, state.velocity.z / h),
+  }
 }
