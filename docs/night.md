@@ -20,13 +20,13 @@ for F6A once written; this file says what ships and where its numbers came from.
 | The shared lighting node (terrain, ocean, beaches, fx, lit materials) and its CPU twin | `src/render/lights/irradiance.ts` |
 | Searchlight beam, ground and cloud hit | `src/render/lights/beam.ts` |
 | The renderer's half of the contract (models, glows, flicker, arcs) | `src/render/lights/nightLights.ts` |
-| Night cockpit dimming and the three-step dimmer | `src/render/scene/cockpitDim.ts` |
+| Night cockpit dimming (fixed 35%) | `src/render/scene/cockpitDim.ts` |
 | The night test range | `content/scenarios/night-range.json`, picker row "Night Range (dev)" |
 
-Keys: `N` toggles the player's position lights (a recorded `control: 'lights'` action, no sim effect until F6B), `J` cycles the cockpit light step (low, medium, bright; display only).
+Keys: `N` toggles the player's position lights (a recorded `control: 'lights'` action, no sim effect until F6B). The night cockpit is a FIXED 35% apparent brightness with no key (Mark 2026-10-14, after CP2: fixed 35% cockpit at night, no dimmer key).
 
 DEV `?night=floor:1.3,moon:0.8,dusk:1.1,glow:1,phase:0.7,cockpit:0.35,lux:1` overrides the tunables for a session: `phase` is the moon's lit fraction (0.7 gibbous by default, 0.25 a crescent), `glow` scales every light glow's radiance, `lux` scales how strongly lights illuminate ground and sea, `cockpit` is the lowest-step apparent night brightness of the panel.
-`__ww2.lights()`, `__ww2.beams()`, `__ww2.lightIrradianceAt()` and `__ww2.cockpitLight()` expose the lights for the specs.
+`__ww2.lights()`, `__ww2.beams()`, `__ww2.lightIrradianceAt()` and `__ww2.playerLightsOn()` expose the lights for the specs.
 Look captures: `npm run capture:e2e -- nightCapture.spec.ts` (`NIGHT_QUERY` appends parameters).
 Correctness: `tests/e2e/night.spec.ts`, `tests/e2e/nightLights.spec.ts` (light legibility by WCAG contrast ratio on linear luminance, the GPU lighting node against its CPU twin), `tests/e2e/overlaySelect.spec.ts`, and the unit tests `tests/render/{night,lights,lightSelect,beam,cockpitDim}.test.ts`, `tests/sim/lights/`.
 
@@ -63,5 +63,5 @@ nothing before it touches those views' cost on purpose) and per-airframe landing
 - A nav light's `at.point` may be `all` (port, starboard and tail); it counts as three against the 64-sprite cap. Position-light colors come from the point, not the spec's `color`.
 - Nav lights are sprites only, never lit slots. Each is drawn only from inside its visibility arc (110 degrees forward each side, 140 aft; ESTIMATE).
 - `LIGHT_GAIN` (lux to scene irradiance) is 0.1, a look constant: 0.02 left a flare's ground pool invisible against the night floor, 0.24 was garish.
-- Cockpit dimming divides by the frame exposure (2.8x at night), or a panel scaled to 35% would look as bright as by day. The lowest dimmer step is the legibility floor, about 34% apparent brightness: below it the dimmest family's minor marks drop under 3:1.
+- Cockpit dimming divides by the frame exposure (2.8x at night), or a panel scaled to 35% would look as bright as by day. 35% is near the legibility floor (about 34%: below it the dimmest family's minor marks drop under 3:1), which the WCAG test asserts. There is no dimmer key.
 - Glow sprites cap their apparent diameter (about 0.6 degrees for a pot) and ease their radiance down inside 200 m, after Mark's 2026-10-14 report of a huge blown-out blob from a pot 55 m away. Contrast targets still hold (pot 15:1, harbor 16:1, flare 14:1, beam 9:1).

@@ -137,7 +137,7 @@ import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } f
 import { canopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
-import { COCKPIT_LIGHT_STEPS, cockpitDimFor, cockpitTuning, createCockpitDimmer, cycleCockpitLight } from './scene/cockpitDim.js'
+import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockpitDim.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
@@ -1383,7 +1383,7 @@ async function boot(): Promise<void> {
           return { lengthM: b.lengthM, axis: [b.axis.x, b.axis.y, b.axis.z], screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
         })
       },
-      cockpitLight: () => ({ step: COCKPIT_LIGHT_STEPS[cockpitTuning.step]!.name, playerLightsOn }),
+      playerLightsOn: () => playerLightsOn,
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -2704,7 +2704,6 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
     if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
-    if (BINDINGS.cycleCockpitLight.includes(e.code as never) && !e.repeat) cycleCockpitLight()
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()

@@ -93,16 +93,3 @@ for (const [name, hour] of [['cockpit-day', '12'], ['cockpit-night', '21']] as c
     console.log(name, JSON.stringify(await frameStats(page, png, { x: 560, y: 760, w: 800, h: 300 })))
   })
 }
-
-/** The three cockpit light steps (J), same view. */
-for (const steps of [0, 1, 2]) {
-  test(`capture cockpit-step-${steps}`, async ({ page }) => {
-    mkdirSync(OUT, { recursive: true })
-    await page.setViewportSize({ width: 1920, height: 1080 })
-    await heldView(page, withParams('/', { ...RANGE, timeOfDay: '21', ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
-    for (let i = 0; i < 4 && (await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())) !== 'cockpit'; i++) await page.keyboard.press('KeyC')
-    for (let i = 0; i < steps; i++) await page.keyboard.press('KeyJ')
-    await page.waitForTimeout(1000)
-    await page.screenshot({ path: `${OUT}/cockpit-step-${steps}.png` })
-  })
-}

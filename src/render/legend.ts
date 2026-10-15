@@ -58,7 +58,6 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   { label: 'Wingman: form up', bindings: ['wingmanFormUp'] },
   { label: 'Mute', bindings: ['toggleMute'] },
   { label: 'Position lights / blackout', bindings: ['toggleNavLights'] },
-  { label: 'Cockpit light level', bindings: ['cycleCockpitLight'] },
   { label: 'Navigation chart', bindings: ['toggleMissionMap'] },
   { label: 'Radar range', bindings: ['toggleRadarRange'] },
   { label: 'Follow-view data', bindings: ['toggleFlightData'] },

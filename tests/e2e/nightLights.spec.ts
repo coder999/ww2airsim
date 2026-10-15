@@ -179,13 +179,13 @@ test('aircraft position lights: a lit airplane\'s nav lights read at least 3:1 a
   expect(c.ratio).toBeGreaterThanOrEqual(3)
 })
 
-test('N blacks out the player\'s position lights and back, and J cycles the cockpit light step, without touching flight', async ({ page }) => {
+test('N blacks out the player\'s position lights and back, without touching flight', async ({ page }) => {
   await open(page, null)
   const playerNav = async () => (await seen(page)).filter((l) => l.id.startsWith('nav-player'))
   expect((await playerNav()).length).toBe(3)
   expect((await playerNav()).some((l) => l.lit), 'the player\'s tail light is lit by default').toBe(true)
-  const state = () => page.evaluate(() => (window as DiagWindow).__ww2!.cockpitLight())
-  expect(await state()).toEqual({ step: 'low', playerLightsOn: true })
+  const state = () => page.evaluate(() => ({ playerLightsOn: (window as DiagWindow).__ww2!.playerLightsOn() }))
+  expect(await state()).toEqual({ playerLightsOn: true })
   await page.keyboard.press('KeyN')
   await page.waitForTimeout(400)
   expect((await state()).playerLightsOn).toBe(false)
@@ -193,11 +193,6 @@ test('N blacks out the player\'s position lights and back, and J cycles the cock
   await page.keyboard.press('KeyN')
   await page.waitForTimeout(400)
   expect((await playerNav()).some((l) => l.lit), 'and back on').toBe(true)
-  for (const expected of ['medium', 'bright', 'low']) {
-    await page.keyboard.press('KeyJ')
-    await page.waitForTimeout(150)
-    expect((await state()).step).toBe(expected)
-  }
   // Flight is untouched: the throttle key still works after both.
   const throttle = () => page.evaluate(() => (window as DiagWindow).__ww2!.controls().throttle)
   const t0 = await throttle()
