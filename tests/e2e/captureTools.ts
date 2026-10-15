@@ -11,6 +11,7 @@ export const CAPTURE_TEST_FILES = [
   'airborneCapture.spec.ts',
   'attackRangeCapture.spec.ts',
   'bayDoorsCapture.spec.ts',
+  'bailoutCapture.spec.ts',
   'beachesCapture.spec.ts',
   'blenderDuplicatesCapture.spec.ts',
   'bomberRangeCapture.spec.ts',

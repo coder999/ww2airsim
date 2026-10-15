@@ -31,7 +31,7 @@ export function rankFor(cumulativeScore: number): Rank {
 }
 
 export type LandingKind = 'trap' | 'field' | 'ditched'
-export type LogOutcome = LandingKind | 'killed'
+export type LogOutcome = LandingKind | 'killed' | 'rescued' | 'captured'
 
 /** Career totals (dossier spec §B.1) -- stored, never derived from `log`,
  *  so they survive the 200-entry log cap intact. */
@@ -163,7 +163,9 @@ export function startSortie(pilot: PilotRecord): PilotRecord {
 function foldCareer(c: Career, s: SortieFacts): Career {
   return {
     flightSeconds: c.flightSeconds + s.segment.flightSeconds,
-    landings: s.outcome === 'killed' ? c.landings : { ...c.landings, [s.outcome]: c.landings[s.outcome] + 1 },
+    landings: s.outcome === 'trap' || s.outcome === 'field' || s.outcome === 'ditched'
+      ? { ...c.landings, [s.outcome]: c.landings[s.outcome] + 1 }
+      : c.landings,
     maxAltitudeM: Math.max(c.maxAltitudeM, s.segment.maxAltitudeM),
     maxTrueAirspeedMps: Math.max(c.maxTrueAirspeedMps, s.segment.maxTrueAirspeedMps),
   }
@@ -326,7 +328,7 @@ const LOADOUTS: readonly Loadout[] = ['clean', 'bombs', 'torpedoes', 'rockets', 
 // duplicated here rather than imported because titleScreen.ts imports THIS
 // module (roster.ts) -- importing it back would be a cycle.
 const FALLBACK_LOADOUT: Loadout = 'both'
-const LOG_OUTCOMES: readonly LogOutcome[] = ['trap', 'field', 'ditched', 'killed']
+const LOG_OUTCOMES: readonly LogOutcome[] = ['trap', 'field', 'ditched', 'killed', 'rescued', 'captured']
 
 /**
  * Fix round 2 finding 1: a hand-edited or future-format log entry used to be

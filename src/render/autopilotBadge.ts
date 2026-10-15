@@ -29,7 +29,7 @@ export function autopilotLabel(status: FrameState['autopilot']): string | null {
 export type AutopilotBadgeHandle = {
   /** The autopilot's status, and the C2 bay-door notice, which takes the same row: a refused
    *  release and an engaged autopilot are both "your input did something other than expected". */
-  setStatus(status: FrameState['autopilot'], bayDoorsNoticeS?: number, torpedoNoticeS?: number): void
+  setStatus(status: FrameState['autopilot'], bayDoorsNoticeS?: number, torpedoNoticeS?: number, bailout?: string | null): void
 }
 
 /** Top centre, one row under the time badge, which owns the top edge. */
@@ -45,8 +45,8 @@ export function createAutopilotBadge(root: HTMLElement): AutopilotBadgeHandle {
 
   let shown: string | null = null
   return {
-    setStatus(status: FrameState['autopilot'], bayDoorsNoticeS = 0, torpedoNoticeS = 0): void {
-      const label = torpedoLabel(torpedoNoticeS) ?? bayDoorsLabel(bayDoorsNoticeS) ?? autopilotLabel(status)
+    setStatus(status: FrameState['autopilot'], bayDoorsNoticeS = 0, torpedoNoticeS = 0, bailout = null): void {
+      const label = torpedoLabel(torpedoNoticeS) ?? bayDoorsLabel(bayDoorsNoticeS) ?? bailout ?? autopilotLabel(status)
       if (label === shown) return
       shown = label
       el.textContent = label ?? ''

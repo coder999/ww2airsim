@@ -363,6 +363,15 @@ budget and accessibility checks.
 
 Consumes the F5A contract: `SortieEndKind` `rescued`/`captured`, `SortieFacts` for the bailout seed, automatic replacement (`docs/campaign-data.md`).
 
+**F7A bailout and rescue foundation done 2026-10-14:** deliberate player
+bailout, fixed-tick pilot/airframe separation, the approved parachute rig,
+wind-aware land/water/deck contact, deterministic and recorded recovery,
+qualitative risk guidance, debrief/scoring integration, and exact recorder
+reproduction are implemented and reference-GPU proven. Handoff and final
+captures: [`docs/handoff/2026-10-14-f7a-bailout-rescue.md`](docs/handoff/2026-10-14-f7a-bailout-rescue.md).
+**F7B remains open:** campaign POW archival/replacement and J5's mass
+paratrooper integration consume the F7A entity and recovery contract.
+
 
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,

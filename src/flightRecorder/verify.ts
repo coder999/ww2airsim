@@ -2,7 +2,7 @@ import { assistFor } from '../assists/index.js'
 import { orderWingmen } from '../sim/ai/wingmanOrders.js'
 import { DT } from '../sim/flight/model.js'
 import type { Controls } from '../sim/flight/state.js'
-import { advance, withControls, type Stepper, type World } from '../sim/loop.js'
+import { advance, requestBailout, withControls, type Stepper, type World } from '../sim/loop.js'
 import { worldChecksum, worldSummary } from './checksum.js'
 import type { FlightRecordV1 } from './schema.js'
 
@@ -58,6 +58,12 @@ export function verifyFlightRecord(
     if (options.endTick !== undefined && packet.tick > options.endTick) break
     if (packet.tick !== world.tick + 1) return { ok: false, tick: packet.tick, message: `packet gap after tick ${world.tick}` }
     for (const action of packet.actions) {
+      if (action.kind === 'bailout') {
+        const requested = requestBailout(world, action.aircraft, action.environment)
+        if (!requested.ok) return { ok: false, tick: packet.tick, message: `recorded bailout rejected: ${requested.reason}` }
+        world = requested.world
+        continue
+      }
       if (action.kind !== 'wingman-order') continue
       world = orderWingmen(world, action.command === 'attack'
         ? { kind: 'attack', target: action.target ?? null }

@@ -31,6 +31,17 @@ import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
 import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
+import {
+  bailoutEligibility,
+  bailoutSeed,
+  createParachutist,
+  resolveRecovery,
+  stepParachutist,
+  type BailoutRejection,
+  type ParachutistEntity,
+  type RecoveryEnvironment,
+} from './bailout.js'
+import { recoveryFactsAt } from './recovery.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -402,6 +413,10 @@ export interface World<M = undefined> {
    */
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
+  /** Present only after the first bailout, preserving pre-F7A worlds and
+   * recorder checksums byte-for-byte while still making an active parachutist
+   * part of deterministic world state. */
+  readonly parachutists?: readonly ParachutistEntity[]
   readonly ships: readonly ShipEntity[]
   readonly vehicles: readonly VehicleEntity[]
   /** Strike targets derived once from `airfields` at world creation (spec
@@ -683,6 +698,48 @@ export function playerAircraft<M>(world: World<M>): AircraftEntity<M> {
   const p = aircraftById(world, world.player)
   if (p === undefined) throw new Error(`world has no aircraft "${world.player}"`)
   return p
+}
+
+export const playerParachutist = <M>(world: World<M>): ParachutistEntity | null =>
+  world.parachutists?.find((entry) => entry.sourceAircraft === world.player) ?? null
+
+export type BailoutRequest<M> =
+  | { readonly ok: true; readonly world: World<M>; readonly parachutist: ParachutistEntity }
+  | { readonly ok: false; readonly world: World<M>; readonly reason: BailoutRejection; readonly aglM?: number }
+
+/** Deliberately separate from Controls: bailout is a one-shot entity change,
+ * recorded at a tick boundary rather than held as a flight-control level. */
+export function requestBailout<M>(
+  world: World<M>,
+  aircraftId: EntityId = world.player,
+  recoveryEnvironment?: RecoveryEnvironment,
+): BailoutRequest<M> {
+  const aircraft = aircraftById(world, aircraftId)
+  if (aircraft === undefined) throw new Error(`world has no aircraft "${aircraftId}"`)
+  const ground = groundUnder(
+    world.terrain,
+    decksOf(world.ships),
+    aircraft.state.position.x,
+    aircraft.state.position.z,
+    waterSurfaceContext(world.tick * DT, world.wind),
+  )
+  const eligibility = bailoutEligibility(
+    aircraft,
+    world.parachutists ?? [],
+    ground,
+    (world.combat.aircraft[aircraftId]?.damage.destroyedAt ?? null) !== null,
+  )
+  if (!eligibility.ok) {
+    return { ok: false, world, reason: eligibility.reason, ...(eligibility.aglM === undefined ? {} : { aglM: eligibility.aglM }) }
+  }
+  const parachutist = createParachutist(
+    aircraft,
+    sideOf(world, aircraft),
+    eligibility,
+    bailoutSeed(world.tick, aircraft.id, aircraft.state.position),
+    recoveryEnvironment,
+  )
+  return { ok: true, world: { ...world, parachutists: [...(world.parachutists ?? []), parachutist] }, parachutist }
 }
 
 /** Rebuilds the world with one aircraft entity patched and every other entity
@@ -984,6 +1041,7 @@ export function advance<M>(
 
   let tick = world.tick
   let aircraft = world.aircraft
+  let parachutists = world.parachutists ?? []
   let ships = world.ships
   let vehicles = world.vehicles
   const structures = world.structures
@@ -1020,6 +1078,15 @@ export function advance<M>(
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
+    if (parachutists.length > 0) {
+      parachutists = parachutists.map((entry) => stepParachutist(
+        entry,
+        tick,
+        DT,
+        world.wind,
+        (x, z) => groundUnder(world.terrain, decks, x, z, water),
+      ))
+    }
     // Taken before `ageDamage`, which is where a fire burns an airframe out:
     // that explosion is a loss with no killing hit, and `creditDownedAircraft`
     // must see it go down this tick (damage stages, Mark 2026-10-09).
@@ -1036,14 +1103,18 @@ export function advance<M>(
     // 7e: one side table per tick, the same for the pilots as for credit.
     const sides = sidesOf(world, aircraftAtStart)
     const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
+    const abandoned = new Set(parachutists.map((entry) => entry.sourceAircraft))
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       const flown = pilotTick(a, aircraftAtStart, pilotContext)
       // On fire, every airplane but the player's goes down in a falling spiral,
       // piloted or not (damage stages, Mark 2026-10-09). The player keeps the stick.
       const doomed = a.id !== world.player && record.damage.burningSince !== null && record.damage.destroyedAt === null
+      const abandonedControls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
       return stepAircraftEntity(
-        doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
+        abandoned.has(a.id)
+          ? { ...flown, controls: abandonedControls }
+          : doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
         tick, world.terrain, world.wind, water, decks, stepper, assist,
         record.damage, record.stores, god !== undefined && a.id === world.player,
       )
@@ -1113,11 +1184,47 @@ export function advance<M>(
       // where the renderer will draw it.
       if (stepped.respot !== null) aircraft = respotPlayer(aircraft, world.player, ships, stepped.respot, tick)
     }
+    if (parachutists.some((entry) => entry.state.phase === 'down' && entry.state.outcome === null)) {
+      const recoveryWorld: World<M> = {
+        ...world,
+        tick,
+        aircraft,
+        ships,
+        vehicles,
+        structures,
+        combat,
+        mission,
+        parachutists,
+      }
+      parachutists = parachutists.map((entry) => {
+        if (entry.state.phase !== 'down' || entry.state.outcome !== null || entry.state.contact === null) return entry
+        const facts = recoveryFactsAt(
+          recoveryWorld,
+          entry.state.position,
+          entry.state.contact.surface,
+          entry.recoverySeed,
+          entry.recoveryEnvironment,
+          entry.side,
+        )
+        const resolved = resolveRecovery(facts)
+        return {
+          ...entry,
+          recovery: {
+            facts,
+            cue: resolved.assessment.cue,
+            rescueProbability: resolved.assessment.rescueProbability,
+            factors: resolved.assessment.factors,
+            roll: resolved.roll,
+          },
+          state: { ...entry.state, outcome: resolved.outcome },
+        }
+      })
+    }
     if (observer !== undefined) {
       observer({
         tick,
         controls: appliedPlayerControls,
-        world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission },
+        world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, ...(parachutists.length === 0 ? {} : { parachutists }) },
       })
     }
   }
@@ -1128,7 +1235,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, accumulatorSeconds: banked, ...(parachutists.length === 0 ? {} : { parachutists }) },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

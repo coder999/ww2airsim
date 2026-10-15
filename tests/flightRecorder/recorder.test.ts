@@ -9,7 +9,7 @@ import { verifyFlightRecord } from '../../src/flightRecorder/verify.js'
 import { orderWingmen } from '../../src/sim/ai/wingmanOrders.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { advance, createWorld, withControls, type World } from '../../src/sim/loop.js'
+import { advance, createWorld, requestBailout, withControls, type World } from '../../src/sim/loop.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
@@ -17,6 +17,8 @@ import { buildFormation, PLAYER_EAST, wingman } from '../sim/ai/formationWorlds.
 import { missionWorld, REACH_FAR } from '../sim/mission/fixture.js'
 import { bundleForScenario } from '../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../src/sim/scenario.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0.05, roll: -0.1, yaw: 0.02, throttle: 0.72, fire: true }
@@ -213,6 +215,39 @@ describe('Dev Flight Recorder', () => {
     const record = recorder.finish(world)
     expect(record.packets[0]?.actions).toEqual([{ tick: 1, kind: 'wingman-order', command: 'attack', target: 'ahead' }])
     expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 1 })
+  })
+
+  it('records and exactly verifies a bailout as a tick-boundary action', () => {
+    const terrain = createTerrainField(parseTerrainHeader({
+      centreLatDeg: 0, centreLonDeg: 0, halfExtentM: 1000,
+      finestSamples: 3, levels: 1, encoding: 'int16-decimetres',
+    }), 0, new Int16Array(9).fill(100))
+    const initial = {
+      ...createWorld(
+        f6f,
+        createState({ position: v3(0, 180, 0), velocity: v3(45, 0, 0) }),
+        controls,
+      ),
+      terrain,
+    }
+    const environment = { daylight: 0.35, visibility: 0.62, weather: 0.45, seaState: 0.3 }
+    const recorder = createDevFlightRecorder(header(), initial)
+    recorder.note({ tick: initial.tick, kind: 'bailout', aircraft: initial.player, environment })
+    const requested = requestBailout(initial, initial.player, environment)
+    expect(requested.ok).toBe(true)
+    if (!requested.ok) return
+    let world = requested.world
+    for (let i = 0; i < 2_400 && world.parachutists?.[0]?.state.outcome === null; i++) {
+      world = advance(world, DT, undefined, undefined, false, undefined, recorder.observe).world
+    }
+    const record = recorder.finish(world)
+    expect(record.packets[0]?.actions).toEqual([{ tick: 1, kind: 'bailout', aircraft: initial.player, environment }])
+    expect(record.packets[0]?.events).toContainEqual({
+      tick: 1, kind: 'bailout', entity: initial.player, detail: `parachutist:${initial.player} separated`,
+    })
+    expect(world.parachutists?.[0]?.state.outcome).toMatch(/rescued|captured/)
+    expect(record.packets.at(-1)?.events.some((event) => event.kind === 'bailout' && event.detail.includes('contact'))).toBe(true)
+    expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
   })
 
   it('captures held-group mission spawns and verifies through the trigger', () => {

@@ -33,6 +33,10 @@ exports, not edits to a persisted shape.
 - **`SortieFacts` reserved keys.** `launchSortie` writes `aircraft` and `loadout` into `pending.facts` (the
   frozen `PendingSortie` has no field for either, and the log entry needs both). F6 and F7 hang their own keys
   beside them and must not reuse those two.
+- **F7A recovery boundary.** The simulator now resolves a survived bailout to `rescued` or `captured` and
+  preserves the recovery seed and evidence in deterministic world/recorder state. F7B remains the owner of
+  translating `captured` into a permanent POW archive, filling the five-pilot roster vacancy, and writing the
+  campaign-specific bailout facts beside the two reserved launch keys.
 - **One transaction per sortie.** `bankSortie` is called exactly once per sortie (D12: a landing ends the sortie
   in campaign mode, no Continue). A sortie left pending at load is an abandonment (D7), applied by `loadCampaign`.
 

@@ -2,6 +2,7 @@ import {
   advance,
   createWorldOf,
   playerAircraft,
+  playerParachutist,
   withAircraftState,
   withControls,
   PLAYER_ID,
@@ -673,6 +674,7 @@ export function nextFrameState(
   // later.
   const releaseBlocked =
     paused ||
+    playerParachutist(prev.world) !== null ||
     (prev.groundSpawn && prev.world.terrain === null) ||
     player.impact !== null ||
     prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null
@@ -726,7 +728,9 @@ export function nextFrameState(
   // Edge-triggered: held for a second, a per-frame toggle would cycle 60 times.
   const cycleDown = BINDINGS.cycleCamera.some((c) => pressed.has(c))
   const cameraMode =
-    cycleDown && !prev.cyclePressed
+    playerParachutist(prev.world) !== null
+      ? 'chase'
+      : cycleDown && !prev.cyclePressed
       ? MODES[(MODES.indexOf(prev.cameraMode) + 1) % MODES.length]!
       : prev.cameraMode
   // Leaving chase drops the orbit, so C -> cockpit -> C is always the
@@ -795,7 +799,10 @@ export function nextFrameState(
   //    Plan 12 (spec §4) -- one airplane crashing must not stop the carrier
   //    or an AI Zero -- so the end of the player's flight is this frame's
   //    decision, here, on the same mechanism as the other two.
-  const holding = (prev.groundSpawn && prev.world.terrain === null) || player.impact !== null || prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null
+  const pilotOut = playerParachutist(prev.world)
+  const holding = (prev.groundSpawn && prev.world.terrain === null)
+    || (pilotOut === null && (player.impact !== null || prev.world.combat.aircraft[prev.world.player]!.damage.destroyedAt !== null))
+    || (pilotOut !== null && (pilotOut.state.phase === 'dead' || pilotOut.state.outcome !== null))
   const advanced = advance(
     withControls(orderedWorld, prev.world.player, controls),
     holding ? 0 : simElapsedSeconds,
@@ -812,7 +819,12 @@ export function nextFrameState(
   const a = advanced.alpha
   const speed = length(v3(before.x + (after.x - before.x) * a, before.y + (after.y - before.y) * a, before.z + (after.z - before.z) * a))
   const decks = decksOf(advanced.world.ships)
-  const eye = cameraTransformFor(cameraMode, spec, render, look, speed, orbit, surfaceHeightFor(advanced.world))
+  const advancedPilotOut = playerParachutist(advanced.world)
+  const pilotRender = advancedPilotOut === null ? render : {
+    position: advancedPilotOut.state.position,
+    attitude: qFromAxisAngle(v3(0, 1, 0), Math.atan2(-advancedPilotOut.state.velocity.z, advancedPilotOut.state.velocity.x)),
+  }
+  const eye = cameraTransformFor(cameraMode, spec, pilotRender, look, advancedPilotOut === null ? speed : 20, orbit, surfaceHeightFor(advanced.world))
 
   // Landing bookkeeping reads the airplane on both sides of this frame's
   // steps: `player.state` is the state before them, `advancedPlayer.state`

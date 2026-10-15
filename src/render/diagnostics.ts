@@ -26,6 +26,7 @@ import type { ReplayCameraId } from '../replay/cameras.js'
 import type { GraphicsCheckRecord, GraphicsCheckSnapshot } from './graphicsCheck.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import type { WaterWakeStats } from './scene/waterWake.js'
+import type { BailoutOutcome, BailoutPhase } from '../sim/bailout.js'
 
 export type ImpactMarkerDiagnostics = {
   readonly on: boolean
@@ -158,6 +159,14 @@ export type Ww2Diagnostics = {
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
+  readonly bailout: () => {
+    readonly phase: BailoutPhase
+    readonly outcome: BailoutOutcome | null
+    readonly position: Vec3
+    readonly surface: 'water' | 'land' | 'deck' | null
+    readonly recoverySeed: number
+    readonly modelVisible: boolean
+  } | null
   /**
    * Instant replay (2026-09-27): the replay on screen, or `null` when none is
    * up. `camera` is the one chosen ('auto' included), `effective` what Auto

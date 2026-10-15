@@ -54,6 +54,8 @@ Recovery multiplier applied to the mission total:
 | Landed at carrier or airfield | 1.0 |
 | Ditched | 1.0 |
 | Killed | 1.0 |
+| Rescued after bailout | 1.0 |
+| Captured after bailout | 1.0 |
 | Any of the above after friendly fire | 0 (forfeit) |
 
 ### Ranks
@@ -323,13 +325,20 @@ and anchorage lamps, blackout-controlled ship and harbor lights, documented Leyt
 navigation lights, fires, tracers, and authored flares make the night chapters
 playable. A4, J4, and J5 are the initial night missions.
 
-The pilot may deliberately bail out of a still-airborne aircraft. Friendly rescue
-or overwhelming enemy control gives deterministic rescue or capture; contested
-locations use a recorded seeded decision based on territory, nearby bases and
-ships, rescue/enemy assets, surface, weather, visibility, and time. A rescued pilot
-returns; a captured pilot is permanently archived as POW in the initial campaign;
-KIA, POW, and discharge all trigger replacement. There is no modern ejection seat
-and no initial prisoner-recovery mission.
+Press **J** to bail out of a still-airborne aircraft. The pilot separates from the
+airframe, the abandoned aircraft continues under neutral controls, and a generic
+wartime parachute opens after two seconds when there is enough height. An exit below
+15 m AGL is refused; an exit below 75 m AGL cannot complete a safe canopy descent.
+Wind carries the parachute to land, water, or a carrier deck.
+
+Friendly rescue or overwhelming enemy control gives deterministic rescue or capture;
+contested locations use a recorded seeded decision based on territory, nearby bases
+and ships, rescue/enemy assets, surface, weather, visibility, and time. The HUD gives
+only a qualitative **Rescue likely**, **Contested**, or **Capture likely** indication
+before exit; the debrief records the actual evidence. The reusable bailout, parachute,
+and recovery foundation ships in F7A. Campaign POW archival and automatic roster
+replacement, plus J5's mass paratrooper drop, remain F7B work. There is no modern
+ejection seat and no initial prisoner-recovery mission.
 
 Tacloban, Dulag, Buri, Bayug, San Pablo, Tanauan, Ormoc, the beachhead, ports, and
 naval/seaplane areas use consistent canonical layouts. Construction, damage,

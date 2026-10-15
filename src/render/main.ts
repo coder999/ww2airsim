@@ -38,7 +38,7 @@ import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
-import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
+import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
@@ -139,6 +139,7 @@ import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
+import { loadParachutistView, type ParachutistView } from './scene/parachutist.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
@@ -158,7 +159,15 @@ import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
-import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import {
+  playerAircraft,
+  playerParachutist,
+  requestBailout,
+  withAircraftState,
+  type World,
+} from '../sim/loop.js'
+import { assessRecovery, type RecoveryEnvironment } from '../sim/bailout.js'
+import { recoveryFactsAt } from '../sim/recovery.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -410,6 +419,7 @@ async function boot(): Promise<void> {
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
+  let parachutistView: ParachutistView | null = null
   // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
   // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
   // `spawnedAt` (which needs each scenario's own parked position) it is the
@@ -1161,6 +1171,17 @@ async function boot(): Promise<void> {
       // spawn is content now (Plan 12). Every E2E caller reads this after
       // `waitForTerrain`, i.e. long after both.
       aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
+      bailout: () => {
+        const entity = frame === null ? null : playerParachutist(frame.world)
+        return entity === null ? null : {
+          phase: entity.state.phase,
+          outcome: entity.state.outcome,
+          position: entity.state.position,
+          surface: entity.state.contact?.surface ?? null,
+          recoverySeed: entity.recoverySeed,
+          modelVisible: parachutistView?.root.visible ?? false,
+        }
+      },
       // Instant replay: `replay` / `renderedPlayerPosition` are declared later
       // in boot(); these run only after boot, as `fx` reads `fxSystem`.
       replay: () => replay === null ? null : {
@@ -1817,6 +1838,8 @@ async function boot(): Promise<void> {
   // The render loop, below, destructures `scenarioEntities` fresh every
   // frame -- Plan 9 Task 7 -- so a later `loadScenario` call is picked up
   // with no further plumbing here.
+  parachutistView = await loadParachutistView()
+  scene.add(parachutistView.root)
   const tracers = createTracers()
   scene.add(tracers.object)
   // M2: anti-aircraft tracers, a thicker mesh of their own.
@@ -2105,6 +2128,7 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
+  let shownBailoutTick: number | null = null
   /** A crash/kill debrief already banked but not yet raised. `replayFlow`
    *  owns the hold and automatic replay that precede showing it. */
   let pendingDebrief: { readonly show: () => void } | null = null
@@ -2178,7 +2202,7 @@ async function boot(): Promise<void> {
     model.discharge !== undefined ? 'discharged' : model.forfeit !== undefined ? 'forfeit' : null
   const bankMissionResult = (
     scoreTotal: number,
-    outcome: 'landed' | 'ditched' | 'killed',
+    outcome: 'landed' | 'ditched' | 'killed' | 'rescued' | 'captured',
     killsSinceLastBank: Readonly<Record<TargetType, number>>,
     sortie: SortieFacts,
     friendlyFire: 'discharged' | 'forfeit' | null,
@@ -2293,6 +2317,7 @@ async function boot(): Promise<void> {
     pauseScreen?.hide()
     shownImpactTick = null
     shownDestructionTick = null
+    shownBailoutTick = null
     pendingDebrief = null
     landingShown = false
     handledLandingTick = -1
@@ -2363,6 +2388,9 @@ async function boot(): Promise<void> {
   let pendingFireRockets = false
   // E4: a wingman call (1, 2, 3), latched the same way: the key's code, or null.
   let pendingWingmanKey: string | null = null
+  let pendingBailout = false
+  let bailoutNotice: string | null = null
+  let bailoutNoticeUntilMs = 0
   // And the gear and flap levers. Found 2026-09-17 by an E2E screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
@@ -2386,6 +2414,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
   }
   const closeNavigationChart = (): void => {
     if (!navigationMapState.open) return
@@ -2452,10 +2481,13 @@ async function boot(): Promise<void> {
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
    *  automatic replay, spec §4). */
-  const debriefOrHoldUp = (): boolean =>
-    playerAircraft(frame!.world).impact !== null
-    || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
-    || landingShown
+  const debriefOrHoldUp = (): boolean => {
+    const pilotOut = playerParachutist(frame!.world)
+    return playerAircraft(frame!.world).impact !== null
+      || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
+      || (pilotOut !== null && (pilotOut.state.phase === 'dead' || pilotOut.state.outcome !== null))
+      || landingShown
+  }
 
   // Instant replay (spec §4-§6). The bar's buttons and the keys below drive
   // the same four session functions.
@@ -2653,6 +2685,10 @@ async function boot(): Promise<void> {
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
     if (BINDINGS.dropBomb.includes(e.code as never) && !e.repeat) pendingDropBomb = true
     if (BINDINGS.fireRockets.includes(e.code as never) && !e.repeat) pendingFireRockets = true
+    if (BINDINGS.bailout.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      pendingBailout = true
+    }
     if ([...BINDINGS.wingmanAttack, ...BINDINGS.wingmanCover, ...BINDINGS.wingmanFormUp].includes(e.code as never) && !e.repeat) pendingWingmanKey = e.code
     // Space scrolls the page and activates a focused button; neither is
     // what a pilot holding the trigger means (Plan 6). Not latched like the
@@ -2726,6 +2762,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -2832,8 +2869,38 @@ async function boot(): Promise<void> {
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
     const simStart = import.meta.env.DEV ? performance.now() : 0
+    let bailoutInputFrame = inputFrame
+    if (pendingBailout) {
+      const recoveryClouds = bundle?.scenario.weather?.clouds ?? []
+      const cloudiness = recoveryClouds.reduce((sum, layer) => sum + layer.coverage, 0)
+        / Math.max(1, recoveryClouds.length)
+      const recoveryEnvironment: RecoveryEnvironment = {
+        daylight: Math.max(0, Math.min(1, (sunState.elevationDeg + 6) / 30)),
+        visibility: Math.max(0, 1 - cloudiness * 0.6),
+        weather: cloudiness,
+        seaState: Math.max(0, Math.min(1, beaufort / 12)),
+      }
+      const requested = requestBailout(inputFrame.world, inputFrame.world.player, recoveryEnvironment)
+      if (requested.ok) {
+        bailoutInputFrame = { ...inputFrame, world: requested.world }
+        bailoutNotice = 'BAIL OUT · CLEARING AIRFRAME'
+        activeFlightRecorder?.note({
+          tick: inputFrame.world.tick + 1,
+          kind: 'bailout',
+          aircraft: inputFrame.world.player,
+          environment: recoveryEnvironment,
+        })
+      } else {
+        bailoutNotice = requested.reason === 'too-low' ? 'TOO LOW TO BAIL OUT'
+          : requested.reason === 'not-airborne' ? 'BAILOUT REQUIRES AIRBORNE FLIGHT'
+            : requested.reason === 'aircraft-lost' ? 'BAILOUT TOO LATE'
+              : requested.reason === 'already-bailed' ? 'PILOT ALREADY OUT'
+                : 'BAILOUT UNAVAILABLE'
+      }
+      bailoutNoticeUntilMs = now + 2_500
+    }
     if (activeFlightRecorder !== null) {
-      const tick = inputFrame.world.tick + 1
+      const tick = bailoutInputFrame.world.tick + 1
       if (pendingPause) activeFlightRecorder.note({ tick, kind: 'pause', paused: !inputFrame.paused })
       if (pendingTripleTime) activeFlightRecorder.note({ tick, kind: 'time-scale', scale: inputFrame.timeScale === 1 ? 3 : 1 })
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
@@ -2848,7 +2915,7 @@ async function boot(): Promise<void> {
       }
     }
     let current = nextFrameState(
-      inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
+      bailoutInputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
       activeFlightRecorder?.observe,
     )
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
@@ -2861,6 +2928,11 @@ async function boot(): Promise<void> {
     if (replay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
+    }
+    const survivor = playerParachutist(current.world)
+    if (survivor?.state.outcome === 'rescued' || survivor?.state.outcome === 'captured') {
+      bailoutNotice = survivor.state.outcome.toUpperCase()
+      bailoutNoticeUntilMs = Number.POSITIVE_INFINITY
     }
     // Only the manual Esc edge raises the pause sheet. The P-key path raises
     // it synchronously on the Map tab; the other held states keep their UI.
@@ -2876,6 +2948,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
     frame = current
     {
       // Guarded on the world clock actually having moved: `advance` (Task 7
@@ -3016,6 +3089,7 @@ async function boot(): Promise<void> {
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
     })
+    parachutistView?.sync(playerParachutist(view.world))
     // The hulls share the simulation support sea with amphibians and carrier
     // decks. Models point along local +x, with pitch about +z and roll about +x.
     setEnsignTime(performance.now() / 1000)
@@ -3113,7 +3187,31 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS)
+    const pilotOutForHud = playerParachutist(current.world)
+    let bailoutHud: string | null = null
+    if (pilotOutForHud !== null) {
+      bailoutHud = pilotOutForHud.state.outcome?.toUpperCase()
+        ?? (pilotOutForHud.state.phase === 'separating' ? 'BAIL OUT · CLEARING AIRFRAME'
+          : pilotOutForHud.state.phase === 'deploying' ? 'PARACHUTE DEPLOYING'
+            : pilotOutForHud.state.phase === 'canopy' ? 'CANOPY OPEN'
+              : pilotOutForHud.state.phase === 'down' ? 'AWAITING RECOVERY'
+                : 'BAILOUT FAILED')
+    } else if (now < bailoutNoticeUntilMs) {
+      bailoutHud = bailoutNotice
+    } else if (player.impact === null && current.world.combat.aircraft[current.world.player]!.damage.destroyedAt === null) {
+      const under = groundUnder(
+        current.world.terrain,
+        decksOf(current.world.ships),
+        player.state.position.x,
+        player.state.position.z,
+        waterSurfaceContext(current.world.tick * DT, current.world.wind),
+      )
+      if (under !== null && player.state.position.y - under.heightM >= 15) {
+        const cue = assessRecovery(recoveryFactsAt(current.world, player.state.position, under.surface, 0)).cue
+        bailoutHud = `${cue === 'rescue-likely' ? 'RESCUE LIKELY' : cue === 'capture-likely' ? 'CAPTURE LIKELY' : 'CONTESTED'} · J BAIL OUT`
+      }
+    }
+    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS, bailoutHud)
     pauseBadge.setPaused(current.paused)
     const paddles = paddlesFor(current)
     paddlesBadge.setCue(paddles)
@@ -3312,8 +3410,29 @@ async function boot(): Promise<void> {
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
     // and this runs sixty times a second.
+    const bailoutResult = playerParachutist(current.world)
+    if (
+      bailoutResult !== null && bailoutResult.state.outcome !== null
+      && bailoutResult.state.contact !== null && shownBailoutTick !== bailoutResult.state.contact.tick
+    ) {
+      shownBailoutTick = bailoutResult.state.contact.tick
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
+      const model = withDischarge(bailoutModel(bailoutResult, killsSinceLastBank), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
+      const banked = bankMissionResult(
+        model.score.total,
+        bailoutResult.state.outcome,
+        killsSinceLastBank,
+        sortieFacts(bailoutResult.state.outcome, current.world),
+        friendlyFireBank(model),
+        null,
+      )
+      segment = EMPTY_SEGMENT
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
+      dispatch({ kind: 'crashBanked' })
+    }
     const hit = player.impact
-    if (hit !== null && shownImpactTick !== hit.tick) {
+    if (bailoutResult === null && hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
       const { model, badgeId } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
@@ -3335,7 +3454,7 @@ async function boot(): Promise<void> {
     // as an impact instead of leaving the pilot held at HP 0 with no way out.
     const playerDamage = current.world.combat.aircraft[current.world.player]!.damage
     if (
-      hit === null &&
+      bailoutResult === null && hit === null &&
       playerDamage.destroyedAt !== null &&
       shownDestructionTick !== playerDamage.destroyedAt
     ) {

@@ -9,6 +9,7 @@ import { SCORE_POINTS } from '../campaign/schema.js'
 import type { DebriefMission } from './mission/debriefMission.js'
 import { insigniaElement, ribbonElement } from './insignia.js'
 import { RANK_LADDER } from './roster.js'
+import type { ParachutistEntity } from '../sim/bailout.js'
 
 /** A stamp with a ribbon or insignia next to it, outside the stamp so its
  *  rough-ink filter and multiply blend leave the colors alone. */
@@ -74,11 +75,7 @@ export function targetLabel(t: TargetType): string {
   return TARGET_LABEL[t]
 }
 
-/**
- * The three recovery outcomes the sim can actually produce. There is no
- * bail-out/parachute mechanic, so no fourth outcome.
- */
-export type RecoveryOutcome = 'landed' | 'ditched' | 'killed'
+export type RecoveryOutcome = 'landed' | 'ditched' | 'killed' | 'rescued' | 'captured'
 
 /**
  * Every recovery banks in full (Mark, 2026-09-27; GAMEPLAY.md "Scoring"):
@@ -92,6 +89,8 @@ export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   landed: 1.0,
   ditched: 1.0,
   killed: 1.0,
+  rescued: 1.0,
+  captured: 1.0,
 }
 
 /** Whole-branch review I-3: the label `createDebrief`'s "Recovery: ..." row
@@ -102,6 +101,8 @@ const RECOVERY_LABEL: Readonly<Record<RecoveryOutcome, string>> = {
   landed: 'LANDED',
   ditched: 'DITCHED',
   killed: 'KILLED',
+  rescued: 'RESCUED',
+  captured: 'CAPTURED',
 }
 
 /**
@@ -303,6 +304,39 @@ export function destructionModel(
     ],
     score: missionScore(killsSinceLastBank, 'killed'),
     outcome: 'killed',
+  }
+}
+
+/** F7A's surface/recovery evidence. Campaign POW closure remains F7B's job;
+ * this model reports the physical outcome and banks the already-earned score. */
+export function bailoutModel(
+  parachutist: ParachutistEntity,
+  killsSinceLastBank: Readonly<Record<TargetType, number>>,
+): DebriefModel {
+  const outcome = parachutist.state.outcome ?? 'killed'
+  const contact = parachutist.state.contact
+  const recovery = parachutist.recovery
+  const detail = outcome === 'rescued'
+    ? `You came down ${contact?.surface === 'water' ? 'at sea' : 'on land'} and friendly forces recovered you.`
+    : outcome === 'captured'
+      ? 'You survived the descent but were taken prisoner.'
+      : 'The bailout did not leave enough height for a safe canopy descent.'
+  const figures: DebriefFigure[] = [
+    { label: 'Surface', value: contact?.surface.toUpperCase() ?? 'NONE' },
+    { label: 'Contact descent', value: contact === null ? '—' : mph(Math.max(0, -contact.verticalSpeedMps)) },
+  ]
+  if (recovery !== null) {
+    figures.push(
+      { label: 'Recovery assessment', value: recovery.cue.replace('-', ' ').toUpperCase() },
+      { label: 'Factors', value: recovery.factors.join(' · ') },
+    )
+  }
+  return {
+    headline: outcome.toUpperCase(),
+    detail,
+    figures,
+    score: missionScore(killsSinceLastBank, outcome),
+    outcome,
   }
 }
 
@@ -519,6 +553,8 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         landed: 'stamp--blue',
         ditched: 'stamp--violet',
         killed: 'stamp--red',
+        rescued: 'stamp--blue',
+        captured: 'stamp--red',
       }
       const stamp = document.createElement('div')
       // A discharge (friendly-fire spec §5) is stamped red whatever the

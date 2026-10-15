@@ -59,6 +59,17 @@ const evidenceBetween = <M>(before: World<M>, after: World<M>): FlightRecordEvid
     const priorImpact = before.aircraft.find((entry) => entry.id === aircraft.id)?.impact ?? null
     if (priorImpact === null && aircraft.impact !== null) evidence.push({ tick, kind: 'impact', entity: aircraft.id, detail: aircraft.impact.kind })
   }
+  const priorParachutists = new Set((before.parachutists ?? []).map((entry) => entry.id))
+  for (const parachutist of after.parachutists ?? []) {
+    if (!priorParachutists.has(parachutist.id)) {
+      evidence.push({ tick, kind: 'bailout', entity: parachutist.sourceAircraft, detail: `${parachutist.id} separated` })
+      continue
+    }
+    const prior = before.parachutists?.find((entry) => entry.id === parachutist.id)
+    if (prior?.state.contact === null && parachutist.state.contact !== null) {
+      evidence.push({ tick, kind: 'bailout', entity: parachutist.sourceAircraft, detail: `${parachutist.state.contact.surface} contact: ${parachutist.state.outcome ?? 'survived'}` })
+    }
+  }
   return evidence
 }
 

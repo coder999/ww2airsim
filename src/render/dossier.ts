@@ -35,7 +35,9 @@ export function nextRankProgress(score: number): { readonly next: Rank | null; r
 }
 
 const titleCase = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
-const OUTCOME_LABEL = { trap: 'Trap', field: 'Field landing', ditched: 'Ditched', killed: 'Killed' } as const
+const OUTCOME_LABEL = {
+  trap: 'Trap', field: 'Field landing', ditched: 'Ditched', killed: 'Killed', rescued: 'Rescued', captured: 'Captured',
+} as const
 const STATUS_LABEL = { active: 'Active', kia: 'K.I.A.', discharged: 'Discharged' } as const
 
 export type DossierLogRow = {
