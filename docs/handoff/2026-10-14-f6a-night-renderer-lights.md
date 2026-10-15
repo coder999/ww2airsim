@@ -1,6 +1,6 @@
 # F6A night renderer and light contract: handoff (2026-10-14)
 
-Plan: `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md` (Mark's rulings D1-D9 and the CP1/CP2 amendments are in its section 7 and in `docs/night.md`). Branch `plan-f6a-night`, **not merged**. Mark reviewed the look at CP1 and CP2 ("nighttime looks great", "this is amazing"); CP3 is the final scenes and the budget.
+Plan: `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md` (Mark's rulings D1-D9 and the CP1/CP2 amendments are in its section 7 and in `docs/night.md`). Merged to `main` 2026-10-15 (branch and worktree removed; full gate and CI green). Not deployed. Mark reviewed the look at CP1 and CP2 ("nighttime looks great", "this is amazing"); CP3 is the final scenes and the budget.
 
 ## What shipped
 
@@ -37,5 +37,7 @@ What the measurement found and fixed (each confirmed by an alternating A/B, not 
 2. The dome's stars and moon and the shared lighting loop ran for every daytime pixel: now behind uniform branches.
 3. With one flare lit over open sea, the shared node per fragment on the ocean cost 3 to 4 ms: the ocean now evaluates it per vertex (+0.05 to +0.13 ms). The same change on the terrain broke the reference GPU's pipeline limits ("infringes limits"), so the terrain stays per fragment.
 4. Budget samples taken right after a page load, or after the player crashed, read 2 to 3 ms: the spec now waits for 4 s of sim and launches the bench with God mode.
+
+**Update 2026-10-15:** a controlled A/B found ryzen's frame times are bimodal (fast about 5-9 ms, slow about 12-15 ms per page load) with no identified cause, so a single run cannot settle gates (a) and (b); judge them on the median of at least 5 fresh loads per view or on the nightly's trend. See `docs/testing.md` "Known gaps" and [the A/B](2026-10-15-ryzen-budget-noise-ab.md).
 
 **Open for the first quiet run:** gates (a) and (b). If (a) fails the plan's fallback is sprites-only (D1); if only (b) fails on the night floor, the lever is the cloud tier, not the lights (the floor view has no lights).
