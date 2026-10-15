@@ -53,12 +53,12 @@ async function launch(page: Page, scenario: string, label: string, pilot: string
 }
 
 /** Holds Space until the sim records friendly fire, and returns it. */
-async function fireUntilFriendlyFire(page: Page, timeout: number) {
+async function fireUntilFriendlyFire(page: Page, timeout: number, release = true) {
   await page.keyboard.down('Space')
   await expect
     .poll(() => combat(page).then((c) => c.player.friendlyFire), { timeout, message: 'no friendly fire recorded' })
     .not.toBeNull()
-  await page.keyboard.up('Space')
+  if (release) await page.keyboard.up('Space')
   return (await combat(page)).player.friendlyFire!
 }
 
@@ -82,7 +82,9 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
     .toEqual(['ally-1', 'bandit-1', 'f6f-1'])
   await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
 
-  const ff = await fireUntilFriendlyFire(page, 20_000)
+  // Keep the trigger down (F5A): the first hit damages the ally's pitch control and it pulls out of the
+  // line, so a released trigger cannot be picked up again by a script that does not aim.
+  const ff = await fireUntilFriendlyFire(page, 20_000, false)
   expect(ff).toMatchObject({ kind: 'aircraft', target: 'ally-1' })
   const bandit = (await combat(page)).aircraft.find((a) => a.id === 'bandit-1')!
   expect(bandit.structure, 'the axis Hellcat was hit').toBe(1)
@@ -100,7 +102,6 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   // F5A (2026-10-14): that was only a warning. The pilot is judged on a friendly DESTROYED, so finish the
   // ally: hold Space until it is burning or down, then wait for its destruction to be credited
   // (a burning airplane explodes or crashes a few seconds later).
-  await page.keyboard.down('Space')
   await expect
     .poll(() => combat(page).then((c) => { const ally = c.aircraft.find((a) => a.id === 'ally-1')!; return ally.burning || ally.destroyed }), { timeout: 30_000, message: 'the ally was never put out of the fight' })
     .toBe(true)

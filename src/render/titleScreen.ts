@@ -1180,7 +1180,9 @@ export function createTitleScreen(
       // On the ordinary default boot, a new pilot is led to the qualification
       // missions. Explicit scenario links and Dev test beds keep their target.
       if (!hasStartedFlow && pilot.sorties === 0 && currentScenarioId === SCENARIO_ID && !dev) {
-        const firstMission = visibleScenarios(ctx()).find((o) => o.kind === 'mission')
+        // The first training mission (Basic Flying), not the first mission row: the Catalina water
+        // qualification sits earlier in the list and is a pooled mission (found 2026-10-14 by the title E2E).
+        const firstMission = visibleScenarios(ctx()).find((o) => o.kind === 'mission' && o.pool === 'training')
         if (firstMission !== undefined) draft = withScenario(ctx(), firstMission.value)
       }
       hasStartedFlow = true
