@@ -21,7 +21,7 @@ import {
 } from './graphicsCheck.js'
 import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
-import { createOverlay } from './overlay.js'
+import { createOverlay, perceptionLines } from './overlay.js'
 import { emptyStores, racksLabel } from '../sim/weapons/stores.js'
 import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
@@ -163,7 +163,7 @@ import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
 import { playerAircraft, withAircraftState, withNightFacts, withPlayerLights, type World } from '../sim/loop.js'
-import { cloudCoverOf, nightFactsFor, perceptionAt, perceptionTuningFromQuery } from '../sim/lights/perception.js'
+import { cloudCoverOf, nightFactsFor, perceptionReport, perceptionTuningFromQuery } from '../sim/lights/perception.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -1399,20 +1399,7 @@ async function boot(): Promise<void> {
       },
       setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
       playerLightsOn: () => frame === null || playerAircraft(frame.world).lightsOff !== true,
-      perception: () => {
-        const w = frame?.world
-        const p = w === undefined ? null : perceptionAt(w, DT)
-        if (w === undefined || p === null) return { night: false, sunElevationDeg: 0, ambientLux: 0, playerRangeM: 0, playerLit: true, rows: [] }
-        const me = playerAircraft(w)
-        const range = p.rangeM[me.id] ?? 0
-        return {
-          night: true, sunElevationDeg: p.sunElevationDeg, ambientLux: p.ambientLux, playerRangeM: range, playerLit: me.lightsOff !== true,
-          rows: w.aircraft.filter((a) => a.id !== me.id && a.side !== me.side).map((a) => {
-            const d = Math.hypot(a.state.position.x - me.state.position.x, a.state.position.y - me.state.position.y, a.state.position.z - me.state.position.z)
-            return { id: a.id, distanceM: d, sees: d <= range, targetsPlayer: a.pilot?.decision.targetId === me.id }
-          }),
-        }
-      },
+      perception: () => (frame === null ? { night: false, sunElevationDeg: 0, ambientLux: 0, playerRangeM: 0, playerLit: true, rows: [] } : perceptionReport(frame.world, DT)),
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -3699,6 +3686,7 @@ async function boot(): Promise<void> {
     }
 
     overlay?.update({
+      perception: perceptionLines(perceptionReport(current.world, DT)),
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
       stepsRun: current.stepsRun,

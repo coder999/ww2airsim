@@ -26,6 +26,8 @@ export type OverlayHandle = {
     adapter: string
     /** The airplane, in world metres; omitted until there is one. */
     position?: { readonly x: number; readonly y: number; readonly z: number }
+    /** F6B: night perception lines (`perceptionLines`), empty by day. */
+    perception?: string
   }): void
 }
 
@@ -56,7 +58,18 @@ export function createOverlay(root: HTMLElement): OverlayHandle {
         `tick ${s.tick}  steps/frame ${s.stepsRun}\n` +
         `dropped ${dropped}${dropped > 0 ? '  <-- replay invalid' : ''}\n` +
         `${s.adapter}` +
-        (s.position ? `\n${formatPosition(s.position)}` : '')
+        (s.position ? `\n${formatPosition(s.position)}` : '') +
+        (s.perception ? `\n${s.perception}` : '')
     },
   }
+}
+
+/** F6B DEV: what the enemy sees of the player at night, in miles: your range (lit or blacked out), then each enemy's distance and whether it sees or has chosen you. Empty by day. */
+export function perceptionLines(p: { readonly night: boolean; readonly playerLit: boolean; readonly playerRangeM: number
+  readonly rows: readonly { readonly id: string; readonly distanceM: number; readonly sees: boolean; readonly targetsPlayer: boolean }[] }): string {
+  if (!p.night) return ''
+  const mi = (m: number): string => (m / 1609.344).toFixed(1)
+  const head = `night: lights ${p.playerLit ? 'ON' : 'OFF (blacked out)'}, seen out to ${mi(p.playerRangeM)} mi`
+  const rows = p.rows.slice(0, 6).map((r) => `  ${r.id} ${mi(r.distanceM)} mi ${r.targetsPlayer ? 'CHASING' : r.sees ? 'sees you' : 'blind'}`)
+  return [head, ...rows].join('\n')
 }

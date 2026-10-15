@@ -106,7 +106,11 @@ export type PerceptionWorld = {
   readonly night?: NightFacts | undefined
   readonly terrain: TerrainField | null
   readonly wind: Vec3 | null
-  readonly aircraft: readonly { readonly id: string; readonly lightsOff?: true | undefined; readonly state: { readonly position: Vec3 } }[]
+  readonly aircraft: readonly {
+    readonly id: string; readonly lightsOff?: true | undefined; readonly state: { readonly position: Vec3 }
+    /** Only `perceptionReport` reads these two. */
+    readonly side?: string | undefined; readonly pilot?: { readonly decision: { readonly targetId: string | null } } | null | undefined
+  }[]
   readonly ships: readonly { readonly id: string; readonly state: { readonly position: Vec3; readonly headingRad: number } }[]
 }
 /** R(T) per aircraft id, and the pieces it came from (for diagnostics). */
@@ -196,4 +200,23 @@ export function perceptionTuningFromQuery(search: string): Partial<PerceptionTun
     out[k as keyof PerceptionTuning] = n
   }
   return out
+}
+
+export type PerceptionReport = {
+  readonly night: boolean; readonly sunElevationDeg: number; readonly ambientLux: number; readonly playerRangeM: number; readonly playerLit: boolean
+  readonly rows: readonly { readonly id: string; readonly distanceM: number; readonly sees: boolean; readonly targetsPlayer: boolean }[]
+}
+/** DEV: what the enemy sees of the player right now (`__ww2.perception()` and the overlay). Rows are aircraft not on the player's side. */
+export function perceptionReport(world: PerceptionWorld & { readonly player: string }, dtS: number): PerceptionReport {
+  const p = perceptionAt(world, dtS)
+  const me = world.aircraft.find((a) => a.id === world.player)
+  if (p === null || me === undefined) return { night: false, sunElevationDeg: 0, ambientLux: 0, playerRangeM: 0, playerLit: true, rows: [] }
+  const range = p.rangeM[me.id] ?? 0
+  return {
+    night: true, sunElevationDeg: p.sunElevationDeg, ambientLux: p.ambientLux, playerRangeM: range, playerLit: me.lightsOff !== true,
+    rows: world.aircraft.filter((a) => a.id !== me.id && a.side !== me.side).map((a) => {
+      const d = Math.hypot(a.state.position.x - me.state.position.x, a.state.position.y - me.state.position.y, a.state.position.z - me.state.position.z)
+      return { id: a.id, distanceM: d, sees: d <= range, targetsPlayer: a.pilot?.decision.targetId === me.id }
+    }),
+  }
 }
