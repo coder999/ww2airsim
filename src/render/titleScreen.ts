@@ -10,7 +10,7 @@ import { insigniaElement, ribbonElement } from './insignia.js'
 import { createSettingsDialog, createSettingsModel, type SettingsDialogHandle, type SettingsModel } from './settings.js'
 import { readyBootProgress, type BootProgress } from './bootProgress.js'
 import { awardedStamp, briefingModel, briefingRequest, renderBriefing } from './mission/briefing.js'
-import { DEFAULT_TIME_OF_DAY, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type TakeoffTime } from './sky/sun.js'
+import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type DevTakeoffTime, type TakeoffTime } from './sky/sun.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
@@ -812,20 +812,32 @@ export function createTitleScreen(
     const hhmm = (h: number): string => `${String(Math.floor(h)).padStart(2, '0')}${String(Math.round((h % 1) * 60)).padStart(2, '0')}`
     const TAKEOFF_LABELS: Readonly<Record<TakeoffTime, string>> = { morning: 'Morning', midday: 'Midday', dusk: 'Dusk' }
     const takeoffGroup = radioGroup('Takeoff time')
-    let takeoffTime: TakeoffTime | null = null
+    let takeoffTime: TakeoffTime | DevTakeoffTime | null = null
+    const DEV_TAKEOFF_LABELS: Readonly<Record<DevTakeoffTime, string>> = { 'late-dusk': 'Late dusk (dev)', night: 'Night (dev)' }
+    const hourFor = (t: TakeoffTime | DevTakeoffTime): number => (t in DEV_TAKEOFF_HOURS ? DEV_TAKEOFF_HOURS[t as DevTakeoffTime] : takeoff[t as TakeoffTime])
     let suggestedTime: TakeoffTime | null = null
     let hourScenario: string | null = null
     const hourRequest = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
     const renderTakeoff = (): void => {
       takeoffGroup.replaceChildren()
       const rows = new Map<TakeoffTime, HTMLDivElement>()
+      const devRows = new Map<DevTakeoffTime, HTMLDivElement>()
       for (const t of Object.keys(takeoff) as TakeoffTime[]) {
         const label = `${TAKEOFF_LABELS[t]} (${hhmm(takeoff[t])}${t === suggestedTime ? ', suggested' : ''})`
         const el = ballotOption(label, '', () => { takeoffTime = t; renderTakeoff() })
         rows.set(t, el)
         takeoffGroup.appendChild(el)
       }
-      markGroup(rows, takeoffTime)
+      // Night choices (F6A Task 9) are a Dev tool until F5 gates them by rank.
+      if (dev) {
+        for (const t of Object.keys(DEV_TAKEOFF_HOURS) as DevTakeoffTime[]) {
+          const el = ballotOption(`${DEV_TAKEOFF_LABELS[t]} (${hhmm(DEV_TAKEOFF_HOURS[t])})`, '', () => { takeoffTime = t; renderTakeoff() })
+          takeoffGroup.appendChild(el)
+          devRows.set(t, el)
+        }
+      }
+      markGroup(rows, takeoffTime !== null && takeoffTime in DEV_TAKEOFF_HOURS ? null : (takeoffTime as TakeoffTime | null))
+      for (const [t, el] of devRows) el.setAttribute('aria-checked', String(t === takeoffTime))
     }
     const suggestHour = (): void => {
       if (hourRequest === null || hourScenario === draft.scenarioId) return
@@ -1323,6 +1335,9 @@ export function createTitleScreen(
       godBox.disabled = !dev
       if (!dev) { god = false; godBox.checked = false }
       if (flowReady) draft = reconcile(ctx(), draft, SCENARIO_ID)
+      // The night takeoff choices are Dev-only: unchecking Dev falls back to the suggested time.
+      if (!dev && takeoffTime !== null && takeoffTime in DEV_TAKEOFF_HOURS) takeoffTime = suggestedTime
+      if (hourRequest !== null) renderTakeoff()
     })
     devLabel.append(devBox, m.dev)
     godLabel.append(godBox, m.god)
@@ -1397,7 +1412,7 @@ export function createTitleScreen(
       hide()
       // `dev` is "Dev rules were available" (the box); main.ts derives whether
       // the sortie NEEDED them for the debrief's banking.
-      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: takeoff[takeoffTime] }) }, pilotId)
+      onNewGame({ scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(takeoffTime === null ? {} : { timeOfDay: hourFor(takeoffTime) }) }, pilotId)
     }
     launchButton.addEventListener('click', start)
     typeBack.addEventListener('click', () => showStep('roster'))

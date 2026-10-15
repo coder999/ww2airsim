@@ -1767,6 +1767,7 @@ async function boot(): Promise<void> {
     fxTier = name
     fxSystem?.setCapacity(FX_TIERS[name].capacity)
     fxPass?.setTier(FX_TIERS[name])
+    nightLights.setTier(name)
     waterWake.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),

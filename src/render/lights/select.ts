@@ -36,10 +36,10 @@ export const NAV_RANGE_M = 9656
  * nav lights within `NAV_RANGE_M`. The scenario loader already refuses a scenario over the authored
  * caps; this enforces the budget when nav lights multiply with the aircraft in the air.
  */
-export function limitGlows(lights: readonly LightRuntime[], eye: Vec3): readonly LightRuntime[] {
+export function limitGlows(lights: readonly LightRuntime[], eye: Vec3, glowSprites: number = LIGHT_CAPS.glowSprites, navSprites: number = LIGHT_CAPS.navSprites): readonly LightRuntime[] {
   const lit = lights.filter((l) => l.intensityCd > 0)
   const nearest = (list: readonly LightRuntime[], n: number): LightRuntime[] =>
     [...list].sort((a, b) => dist2(a.positionM, eye) - dist2(b.positionM, eye) || (a.id < b.id ? -1 : 1)).slice(0, n)
   const nav = lit.filter((l) => l.kind === 'nav' && dist2(l.positionM, eye) <= NAV_RANGE_M ** 2)
-  return [...nearest(lit.filter((l) => l.kind !== 'nav'), LIGHT_CAPS.glowSprites), ...nearest(nav, LIGHT_CAPS.navSprites)]
+  return [...nearest(lit.filter((l) => l.kind !== 'nav'), glowSprites), ...nearest(nav, navSprites)]
 }

@@ -5,11 +5,13 @@ import { heightAt, SEA_LEVEL_M } from '../../sim/world/terrain.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
 import type { RenderState, ShipPose } from '../../sim/interpolate.js'
 import { navLightPose } from '../../sim/lights/airframeLights.js'
-import { LIGHT_CAPS, lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
+import { lightsAt, type LightKind, type LightRuntime, type LightSpec, type LightWorld } from '../../sim/lights/lights.js'
 import { acquireModel, type ModelInstance } from '../models/modelCache.js'
 import { staticModelUrlFor } from '../scene/staticModels.js'
 import { nightTuning } from '../sky/night.js'
 import { selectLit, limitGlows } from './select.js'
+import { LIGHT_TIERS, type LightTier } from './tiers.js'
+import type { QualityTierName } from '../quality.js'
 import { writeLightUniforms } from './irradiance.js'
 import { LIGHT_GAIN } from './irradiance.js'
 import { createGlowBatch, type GlowBatch, type GlowInstance } from './glow.js'
@@ -74,6 +76,8 @@ type Placed = {
 export type DrawnPoses = { readonly aircraft: readonly RenderState[]; readonly ships: readonly ShipPose[] }
 
 export type NightLights = {
+  /** The quality tier (follows the effects tier); `off` draws and lights nothing. */
+  setTier(tier: QualityTierName | 'off'): void
   setScenario(specs: readonly LightSpec[]): Promise<void>
   /** Draws the frame's lights. `timeS` is render time (flicker only). */
   update(world: World<undefined>, timeS: number, pixelAngle: number, eye: Vec3, cloudBaseM?: number | null, playerLightsOn?: boolean, poses?: DrawnPoses): void
@@ -102,6 +106,8 @@ export function createNightLights(scene: Scene): NightLights {
   let anchorList: { id: string; kind: LightKind; lit: boolean; x: number; y: number; z: number }[] = []
   let generation = 0
   let litIds: ReadonlySet<string> = new Set()
+  let tier: LightTier = LIGHT_TIERS.high
+  let off = false
   let selectedList: readonly LightRuntime[] = []
 
   const clear = (): void => {
@@ -113,6 +119,7 @@ export function createNightLights(scene: Scene): NightLights {
   }
 
   return {
+    setTier(name) { tier = LIGHT_TIERS[name]; off = name === 'off'; group.visible = !off },
     async setScenario(specs) {
       const mine = ++generation
       const next: Placed[] = []
@@ -159,11 +166,11 @@ export function createNightLights(scene: Scene): NightLights {
       last = lightsAt(specs, lw)
       const byId = new Map(last.map((l) => [l.id, l]))
       // The 8 lights that illuminate ground, sea and airframes (selection with hysteresis), as uniforms.
-      const chosen = selectLit(last, eye, litIds)
+      const chosen = off ? [] : selectLit(last, eye, litIds, tier.litSlots)
       litIds = new Set(chosen.map((l) => l.id))
       selectedList = chosen
       writeLightUniforms(chosen, eye, LIGHT_GAIN * nightTuning.lightScale)
-      const drawn = new Set(limitGlows(last, eye).map((l) => l.id))
+      const drawn = new Set((off ? [] : limitGlows(last, eye, tier.glowSprites, tier.navSprites)).map((l) => l.id))
       const glows: GlowInstance[] = []
       anchorList = []
       beamList = []
@@ -208,7 +215,7 @@ export function createNightLights(scene: Scene): NightLights {
               faceBox.setFromObject(face).getCenter(faceCentre)
               faceCentre.sub(scene.position) // back from the camera-relative scene to true world metres
               anchor = v3(faceCentre.x, faceCentre.y, faceCentre.z)
-              if (lit && beamList.length < LIGHT_CAPS.searchlights) {
+              if (lit && beamList.length < tier.beams) {
                 const hit = beamLength(anchor, l.axis, lw.groundHeightM, cloudBaseM)
                 beamList.push({ origin: anchor, axis: l.axis, lengthM: hit.lengthM, gain: nightTuning.glowScale })
                 if (hit.hit !== null) {
