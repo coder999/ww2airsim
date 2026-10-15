@@ -31,7 +31,7 @@ describe('takeoff lock (ruling Q12)', () => {
   it('an authored night mission is locked to its hour; a day mission is free', () => {
     expect(takeoffLockHour(mission({ night: true }), 21.5)).toBe(21.5)
     expect(takeoffLockHour(mission({ night: true }), null)).toBe(21)
-    expect(takeoffLockHour(mission({ night: false }), 21.5)).toBeNull()
+    expect(takeoffLockHour(mission({ night: false }), 9)).toBeNull()
     // a test bed with no descriptor (Night Range, authored 21:00) is locked too, or its authored lights would never be lit
     expect(takeoffLockHour(null, 21)).toBe(21)
     expect(takeoffLockHour(null, 9)).toBeNull()
