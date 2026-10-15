@@ -14,7 +14,7 @@ additions after the freeze are new exports (`SortieReport`, `Result`, the catalo
 keys (see Deviations).
 
 `npm run verify` on ryzen (`REMOTE_RUN_OVERFLOW=0 remote-run bash -c 'npm run verify; ...'`, gated on the exit status):
-**VERIFY_RESULT_PLACEHOLDER**
+**exit 0** (typecheck, lint with `--max-warnings 0`, depcruise, then 454 test files: 6,870 passed, 12 skipped by name, 0 failed; 371 s), on the tree snapshot of commit `HEAD` as of the commit that added this handoff. The first two runs failed honestly and were fixed: an unused-variable lint error, then `tests/audio/radio.test.ts` (the four new scenario messages needed table entries).
 
 New tests: 218 across 11 files (`tests/campaign/*` 191, `tests/sim/weapons/destructionTags.test.ts` 22,
 `tests/sim/mission/missions/field-patrol.test.ts` 5), plus 5 boundary tests and 2 sortie-rule tests added to existing files.
