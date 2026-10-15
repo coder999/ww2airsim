@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-14
 **Branch:** `plan-f5a-campaign`, cut from `main` at `c3b8b299`, worktree `/home/mark/projects/ww2airsim-plan-f5a-campaign`
-**Status:** built unattended; **not merged, not deployed, not emailed**. Mark's rulings D1-D16 were binding throughout.
+**Status:** built unattended; merged to `main` 2026-10-14 (the friendly-fire specs' 120-sample frame check awaits the nightly ryzen run); **not deployed**. Mark's rulings D1-D16 were binding throughout.
 **Plan:** [2026-10-14-f5a-campaign-data-scoring.md](../superpowers/plans/2026-10-14-f5a-campaign-data-scoring.md) (two of its own numbers were wrong and are corrected in it, below).
 **Reference:** [docs/campaign-data.md](../campaign-data.md). Ledger: `MASTER_PLAN.md`, F5.
 

@@ -326,8 +326,8 @@ rank eligibility, mission locks, every score path, old-save migration, and
 export/import are deterministic and covered. A campaign with five replacement
 Ensigns can always reach an entry-rank non-campaign mission and cannot deadlock.
 
-**F5A (data, persistence, scoring) built 2026-10-14 on branch `plan-f5a-campaign`;
-not merged, not deployed; `npm run verify` result and numbers are in the
+**F5A (data, persistence, scoring) built and merged to `main` 2026-10-14;
+not deployed; `npm run verify` result and numbers are in the
 [handoff](docs/handoff/2026-10-14-f5a-campaign-data-scoring.md).** The pure core
 `src/campaign/` and its frozen contract ([`docs/campaign-data.md`](docs/campaign-data.md);
 [plan](docs/superpowers/plans/2026-10-14-f5a-campaign-data-scoring.md)) cover the gate except
