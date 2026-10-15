@@ -285,12 +285,13 @@ amphibian CF-SAT, a post-war cargo conversion. They show a large side cargo door
 fuselage side, behind the wing, at the waist position: it is hinged along its top edge, swings
 up and out, and is held open by a prop stay, with a ribbed inner face and a stretch of open
 fuselage below it that crew load through from a boat alongside. A hinged hatch is also open in
-the lower aft hull. What is NOT established: whether wartime PBY-5As carried this door (CF-SAT is
-a conversion, and the original crew entered through the waist blisters), how many doors the
-airplane had, and the door's dimensions. The current Catalina model has no door nodes. When the
+the lower aft hull. Mark's reading (2026-10-14): the wartime PBY-5 had waist blisters there and this door is a
+post-war civilian conversion, so adding it to the game's Catalina would be a deliberate
+historical liberty, his call to make if a mission wants it (not decided). Still not established:
+how many doors the conversion had, and the door's dimensions. The current Catalina model has no door nodes. When the
 rescue work (F7) or a Catalina pass needs them, add the doors to
 `tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig (`docs/aircraft.md`,
-Part E), after settling the wartime question from a source. Not scheduled. Photos are Mark's
+Part E), and label it a historical liberty in the spec and card. Not scheduled. Photos are Mark's
 and are not committed.
 
 Build the frozen inventory before campaign systems or mission scripting. It must
