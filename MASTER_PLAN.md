@@ -279,13 +279,19 @@ one change to an F4 frozen contract. Offered in Dev only, in no scenario or AI r
 the Range Test. [Plan](docs/superpowers/plans/2026-10-14-ki57-onboard.md),
 [handoff](docs/handoff/2026-10-14-ki57-onboard.md).
 
-**Backlog note (Mark, 2026-10-14): the PBY Catalina had cargo doors.** Mark found photos in the
-Consolidated PBY Catalina Facebook group (post 2590013957924842, about the blister and cargo-door
-configurations of the civil Canso CF-SAT; login-gated, so the photos were not read by an agent and
-the variant and door positions are UNVERIFIED). The Catalina's crew entered through the waist
-blisters, and the current model has no door nodes. When the rescue work (F7) or a Catalina pass
-needs them, add the doors to `tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig,
-once the variant is confirmed from the photos. Not scheduled.
+**Backlog note (Mark, 2026-10-14): the PBY Catalina had cargo doors.** Mark supplied three
+photographs from the Consolidated PBY Catalina Facebook group (post 2590013957924842) of the civil
+amphibian CF-SAT, a post-war cargo conversion. They show a large side cargo door in the aft
+fuselage side, behind the wing, at the waist position: it is hinged along its top edge, swings
+up and out, and is held open by a prop stay, with a ribbed inner face and a stretch of open
+fuselage below it that crew load through from a boat alongside. A hinged hatch is also open in
+the lower aft hull. What is NOT established: whether wartime PBY-5As carried this door (CF-SAT is
+a conversion, and the original crew entered through the waist blisters), how many doors the
+airplane had, and the door's dimensions. The current Catalina model has no door nodes. When the
+rescue work (F7) or a Catalina pass needs them, add the doors to
+`tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig (`docs/aircraft.md`,
+Part E), after settling the wartime question from a source. Not scheduled. Photos are Mark's
+and are not committed.
 
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
