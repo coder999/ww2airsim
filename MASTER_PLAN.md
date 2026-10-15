@@ -279,6 +279,14 @@ one change to an F4 frozen contract. Offered in Dev only, in no scenario or AI r
 the Range Test. [Plan](docs/superpowers/plans/2026-10-14-ki57-onboard.md),
 [handoff](docs/handoff/2026-10-14-ki57-onboard.md).
 
+**Backlog note (Mark, 2026-10-14): the PBY Catalina had cargo doors.** Mark found photos in the
+Consolidated PBY Catalina Facebook group (post 2590013957924842, about the blister and cargo-door
+configurations of the civil Canso CF-SAT; login-gated, so the photos were not read by an agent and
+the variant and door positions are UNVERIFIED). The Catalina's crew entered through the waist
+blisters, and the current model has no door nodes. When the rescue work (F7) or a Catalina pass
+needs them, add the doors to `tools/models/blender/pby-5a-catalina.py` and a `doors` list in its rig,
+once the variant is confirmed from the photos. Not scheduled.
+
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
 new reusable aircraft, vehicle, ship, structure, light, flare, rescue, landing-craft,
