@@ -271,6 +271,14 @@ Handoffs: [F4](docs/handoff/2026-10-14-f4-asset-groups.md) and its `f4r-*`
 rework handoffs. Remaining gaps, all deliberate: gameplay parachute flutter,
 dual CCKW rear wheels, track-shoe shading normals. F5–F10 may now begin.
 
+**Topsy made flyable 2026-10-14 (branch `worktree-ki57-onboard`).** The F4 Ki-57-II model
+was onboarded through `docs/aircraft.md`: a spec fitted to the TAIC TOPSY 1 sheet, a Library
+card, a new `transport` aircraft role, and working cargo doors (nothing drops through them
+yet; that is J5). The model's origin moved 1.025 m forward onto the wing quarter-chord, the
+one change to an F4 frozen contract. Offered in Dev only, in no scenario or AI roster except
+the Range Test. [Plan](docs/superpowers/plans/2026-10-14-ki57-onboard.md),
+[handoff](docs/handoff/2026-10-14-ki57-onboard.md).
+
 Build the frozen inventory before campaign systems or mission scripting. It must
 include the Ki-57 “Topsy,” the shared parachuting pilot/paratrooper rig, and every
 new reusable aircraft, vehicle, ship, structure, light, flare, rescue, landing-craft,

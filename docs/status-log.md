@@ -512,3 +512,8 @@ authoritative status. Not deployed.
 `?flightRecorder=1`. Mark's hand test on a GPU-less laptop found and fixed three defects
 (see the [handoff](handoff/2026-10-14-n2-dev-flight-recorder.md)). MASTER_PLAN N2 is the
 authoritative status. Not deployed.
+
+**Ki-57-II Topsy onboarded 2026-10-14.** The F4 transport is now selectable in the sortie
+forms in Dev, with a `transport` role and operable cargo doors; it carries nothing and drops
+nothing yet. Verified with `flyableAll.spec.ts` (nexus GPU), the Hangar spec and the full unit
+suite. See the [handoff](handoff/2026-10-14-ki57-onboard.md). Not deployed.
