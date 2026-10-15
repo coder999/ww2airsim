@@ -7,11 +7,11 @@ import { loadAircraftSpec } from '../../../tools/content/load.js'
 import { sectionAtFor } from '../../../tools/models/mounts.js'
 
 const TOLERANCE_M = 0.15
-/** Semi-span fraction each section is cut at; 0.3 unless listed. The Corsair's main legs and their
+/** Topsy: the wing is swept 7 degrees, so its quarter-chord drifts 0.56 m aft from 10% to 90% span (x 1.305 to 0.745 before the origin was moved); the entry's origin is set so the 50% station reads 0 (2026-10-14). Semi-span fraction each section is cut at; 0.3 unless listed. The Corsair's main legs and their
  *  fairings (GearL/GearR, z 1.58 to 2.05 m) cross the 30% station (z 1.87 m), where the slice reads a
  *  leading edge 0.2 m too far forward (quarter-chord 0.175 m); the gull wing's outer panel at 40%
  *  (z 2.5 m) is clean and reads 0.02 m. Measured 2026-09-29 (F4U-1D onboarding). */
-const STATION: Readonly<Record<string, number>> = { 'f4u-corsair': 0.4, 'g4m-betty': 0.2, 'b-29-superfortress': 0.1, 'p-38-lightning': 0.6, 'pby-5a-catalina': 0.4, 'ki-21-sally': 0.5 }
+const STATION: Readonly<Record<string, number>> = { 'f4u-corsair': 0.4, 'g4m-betty': 0.2, 'b-29-superfortress': 0.1, 'p-38-lightning': 0.6, 'pby-5a-catalina': 0.4, 'ki-21-sally': 0.5, 'ki-57-ii-topsy': 0.5 }
 /** Per-model tolerance where the default cannot hold. The B-29's wing is swept, so the quarter-chord reads 0.17 m aft of the drawn origin at the root (station 0.1) and 0.32 m at z 4 (measured 2026-09-29, B-29 onboarding). Its drawn main wheels stand at the root quarter-chord and the schema needs a tricycle's mainX below zero, so moving the origin to satisfy 0.15 m would put the mains ahead of the origin; the drawing is left as committed (Mark, D4) and held to 0.20 m. */
 const TOLERANCE_BY_MODEL: Readonly<Record<string, number>> = { 'b-29-superfortress': 0.2, 'pby-5a-catalina': 0.18 }
 /** The P-38's stations 0.1 to 0.5 (z 0.8 to 4.0 m) all cross the propeller discs, the booms or the tail, which read a leading edge near x 3.4; station 0.6 (z 4.75 m) is the clean outer wing (measured 2026-09-29, P-38L onboarding). */

@@ -5,7 +5,7 @@ import { engineFamilyFor } from '../../src/audio/mix.js'
 
 describe('engineFamilyFor', () => {
   it('gives the heavies, the P-38 and everything else their families', () => {
-    for (const id of ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally']) expect(engineFamilyFor(id), id).toBe('multi_heavy')
+    for (const id of ['b-17-flying-fortress', 'b-29-superfortress', 'g4m-betty', 'ki-21-sally', 'ki-57-ii-topsy']) expect(engineFamilyFor(id), id).toBe('multi_heavy')
     expect(engineFamilyFor('p-38-lightning')).toBe('allison')
     for (const id of ['f6f-hellcat', 'f4u-corsair', 'ki-84-frank', 'tbm-3-avenger']) expect(engineFamilyFor(id), id).toBe('radial_big')
     for (const id of ['f4f-wildcat', 'a6m2-zero', 'd3a-val', 'ki-43-oscar', 'b5n2-kate', 'unknown']) expect(engineFamilyFor(id), id).toBe('radial')
