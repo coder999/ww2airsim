@@ -1293,7 +1293,10 @@ async function boot(): Promise<void> {
       // every call, including a Task 7 in-place switch -- see this member's
       // own doc comment in diagnostics.ts for why an E2E spec needs this
       // rather than `groundHeightM()` to detect a switch completing.
-      scenarioId: () => bundle?.scenario.id ?? null,
+      // `null` while a title-screen switch is in flight: `loadScenario` assigns `bundle` BEFORE its
+      // `await buildScenarioEntities` (now a vehicle GLB fetch too) and the `.then(rebuildFrame)`, so
+      // reading `bundle` alone reported the new id while `frame` still held the old roster.
+      scenarioId: () => (swapPending ? null : bundle?.scenario.id ?? null),
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
       // stamped by modelCache when there is one, rather than trusting the wrapper root's label.
       // The hand-built Wildcat has no cache URL and names its own root instead.

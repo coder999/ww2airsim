@@ -433,7 +433,9 @@ export type Ww2Diagnostics = {
   readonly wind: () => Vec3 | null
   /**
    * The `id` of the scenario `main.ts`'s `bundle` currently holds -- `null`
-   * only in the sliver before the FIRST `loadScenario` call resolves (there
+   * during a title-screen scenario switch (until the new world's frame is in
+   * place, so `aircraft()` can be trusted the moment this equals the wanted
+   * id) and in the sliver before the FIRST `loadScenario` call resolves (there
    * is no scenario yet to name). Added for the in-place scenario switch
    * (Plan 9 Task 7): unlike `groundHeightM()`, which answers a ONE-TIME,
    * wholly independent question ("has a terrain field arrived yet") that a
