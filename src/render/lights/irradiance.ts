@@ -1,7 +1,7 @@
 import { Mesh, OrthographicCamera, PlaneGeometry, RenderTarget, Scene, Vector3, Vector4, FloatType, NearestFilter, RGBAFormat, type Material, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type WebGPURenderer } from 'three/webgpu'
 import type { Node } from 'three/webgpu'
-import { Fn, Loop, diffuseColor, dot, float, inverseSqrt, int, max, min, normalWorld, positionWorld, select, smoothstep, sqrt, uniform, uniformArray, vec3, vec4 } from 'three/tsl'
+import { Fn, If, Loop, diffuseColor, dot, float, inverseSqrt, int, max, min, normalWorld, positionWorld, select, smoothstep, sqrt, uniform, uniformArray, vec3, vec4 } from 'three/tsl'
 import { LIGHT_CAPS, type LightRuntime } from '../../sim/lights/lights.js'
 import type { Vec3 } from '../../sim/math/vec3.js'
 
@@ -54,9 +54,14 @@ export function writeLightUniforms(selected: readonly LightRuntime[], eye: { x: 
  * normal `normal`: sum of I / d^2 x cos(normal, to light), faded out at each light's radius, restricted
  * to the cone for an aimed light. Pass `normal = null` for an omnidirectional receiver (a smoke sprite).
  */
+/** DEV `?night=shaders:0` compiles the shared node out of every shader (a constant 0): the A/B for the day-cost gate. */
+const SHADERS_OFF = import.meta.env.DEV && typeof location !== 'undefined' && /(^|[?&,])night=[^&]*shaders:0/.test(location.search)
 export function gameplayLights(worldPos: Node<'vec3'>, normal: Node<'vec3'> | null): Node<'vec3'> {
+  if (SHADERS_OFF) return vec3(0) as unknown as Node<'vec3'>
   return Fn(() => {
     const sum = vec3(0).toVar()
+    // A uniform branch around the loop: with no light active (every daytime frame) the loop body is never reached.
+    If(count.greaterThan(0), () => {
     Loop({ start: int(0), end: count, type: 'int', condition: '<' }, ({ i }) => {
       const p = (pos.element(i) as unknown as Node<'vec4'>).toVar()
       const c = (col.element(i) as unknown as Node<'vec4'>).toVar()
@@ -68,6 +73,7 @@ export function gameplayLights(worldPos: Node<'vec3'>, normal: Node<'vec3'> | nu
       const fade = float(1).sub(smoothstep(p.w.mul(0.8), p.w, sqrt(d2)))
       const spot = select(c.w.greaterThan(-1.5), smoothstep(c.w.sub(0.0015), c.w, dot(toLight.negate(), a.xyz)), float(1))
       sum.addAssign(c.xyz.mul(lam.mul(fade).mul(spot)).div(d2))
+    })
     })
     return min(sum, vec3(MAX_IRRADIANCE))
   })() as unknown as Node<'vec3'>

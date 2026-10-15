@@ -74,9 +74,10 @@ export function nightTuningFromQuery(search: string): NightQuery | undefined {
     else if (k === 'lux') out.lightScale = n
     else if (k === 'flarefall') out.flareFall = n
     else if (k === 'lights') out.lightsOff = n === 0
+    else if (k === 'shaders') { /* read by lights/irradiance.ts at module load: 0 compiles the shared node out */ }
     else if (k === 'cockpit') { if (n > 1) throw new Error(`${NIGHT_PARAM}: cockpit is a brightness factor in [0, 1]`); out.cockpitDim = n }
     else if (k === 'phase') { if (n > 1) throw new Error(`${NIGHT_PARAM}: phase is a lit fraction in [0, 1]`); out.moonPhase = n }
-    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase, cockpit, lux, flarefall, lights)`)
+    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase, cockpit, lux, flarefall, lights, shaders)`)
   }
   return out
 }

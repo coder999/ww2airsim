@@ -1,6 +1,6 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
 import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
-import { clamp, color, cross, dot, float, floor, fract, length, mix, normalize, positionLocal, positionWorld, sin, smoothstep, sqrt, step, vec3 } from 'three/tsl'
+import { Fn, If, clamp, color, cross, dot, float, floor, fract, length, mix, normalize, positionLocal, positionWorld, sin, smoothstep, sqrt, step, vec3 } from 'three/tsl'
 import { moonDiscNode, moonPhaseNode, nightStarsNode, trueSunDirectionNode } from './lighting.js'
 import { MOON_ANGULAR_RADIUS_DEG, moonDirection } from '../sky/night.js'
 import { skyRadiance } from './atmosphereShading.js'
@@ -187,7 +187,14 @@ export function createSky(): Object3D {
   const r = clamp(rRaw, 0, 1)
   const limb = float(1).sub(float(1).sub(sqrt(float(1).sub(r.mul(r)))).mul(0.6))
   const disc = getAtmosphereLuts().sunTransmittanceNode().mul(SUN_ILLUMINANCE * SUN_DISC_RADIANCE).mul(limb.mul(inside))
-  const night = starField(dir).mul(nightStarsNode).add(moonDisc(dir).mul(moonDiscNode))
+  // Stars and moon cost a dozen sines per dome pixel: skipped entirely (a uniform branch) while the sun is up.
+  const night = Fn(() => {
+    const out = vec3(0).toVar()
+    If(nightStarsNode.greaterThan(0).or(moonDiscNode.greaterThan(0)), () => {
+      out.assign(starField(dir).mul(nightStarsNode).add(moonDisc(dir).mul(moonDiscNode)))
+    })
+    return out
+  })()
   material.colorNode = mix(color(SEA_COLOUR), above.add(disc).add(night), step(0, y))
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
   // Background first: a 45 km dome must never paint over the 400 km ocean.
