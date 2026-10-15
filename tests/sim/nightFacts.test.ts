@@ -44,7 +44,7 @@ describe('night facts and the lights flag are state', () => {
       const j = JSON.parse(readFileSync(new URL(f, DIR), 'utf8')) as { lights?: unknown[]; weather?: { timeOfDay?: number } }
       if (nightFactsFor({ lights: j.lights as never, hour0: j.weather?.timeOfDay ?? 12, cloudCover: 0 }) !== undefined) got.push(f)
     }
-    expect(got).toEqual(['combat-air-patrol.json', 'deck-quals-mission.json', 'deck-quals.json', 'night-bay.json', 'night-field.json', 'night-range.json', 'recovery-range.json'])
+    expect(got).toEqual(['combat-air-patrol.json', 'deck-quals-mission.json', 'deck-quals.json', 'night-bay.json', 'night-field.json', 'night-patrol.json', 'night-range.json', 'recovery-range.json'])
   })
   it('a noon sortie and a morning sortie get none; a dusk takeoff and a night sortie get them', () => {
     expect(nightFactsFor({ lights: undefined, hour0: 12, cloudCover: 0 })).toBeUndefined()

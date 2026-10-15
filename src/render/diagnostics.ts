@@ -552,6 +552,10 @@ export type Ww2Diagnostics = {
   readonly setLightsOn: (on: boolean) => void
   /** F6A: whether the player's position lights are on (N). */
   readonly playerLightsOn: () => boolean
+  /** F6B: night perception right now. `night` false in a day world. `rows`: each aircraft not on the player's side, with the distance to the player,
+   *  how far it sees the player (`rangeM`; 0 outside night), whether it does (`sees`), and whether it has chosen the player as its target. */
+  readonly perception: () => { readonly night: boolean; readonly sunElevationDeg: number; readonly ambientLux: number; readonly playerRangeM: number; readonly playerLit: boolean
+    readonly rows: readonly { readonly id: string; readonly distanceM: number; readonly sees: boolean; readonly targetsPlayer: boolean }[] }
   /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
   readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the

@@ -71,7 +71,7 @@ describe('lights switch replay (F6B)', () => {
   it('MUTATION: applying the action a second late diverges (the tick it is applied at matters)', () => {
     const SHIFT = 60
     const late: FlightRecordV1 = { ...run.record, packets: run.record.packets.map((p, i, all) => ({
-      ...p, actions: p.actions.filter((a) => a.kind !== 'control').concat((all[i - SHIFT]?.actions ?? []).filter((a) => a.kind === 'control').map((a) => ({ ...a, tick: p.tick }))),
+      ...p, actions: [...p.actions.filter((a) => a.kind !== 'control'), ...((all[i - SHIFT]?.actions ?? []).filter((a) => a.kind === 'control').map((a) => ({ ...a, tick: p.tick })))] as FlightRecordV1['packets'][number]['actions'],
     })) }
     expect(verifyFlightRecord(late, run.initial).ok).toBe(false)
   })

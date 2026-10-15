@@ -1,0 +1,121 @@
+{
+ "id": "night-patrol",
+ "player": "player-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "aircraft": [
+  {
+   "id": "player-1",
+   "spec": "f6f-hellcat",
+   "airborneAt": {
+    "position": [
+     -27466,
+     1500,
+     -50805
+    ],
+    "headingDeg": 90,
+    "speedMps": 90,
+    "throttle": 0.6
+   }
+  },
+  {
+   "id": "zero-1",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "airborneAt": {
+    "position": [
+     -6000,
+     1500,
+     -48305
+    ],
+    "headingDeg": 270,
+    "speedMps": 100,
+    "throttle": 0.6
+   },
+   "pilot": {
+    "skill": "green"
+   }
+  },
+  {
+   "id": "zero-2",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "airborneAt": {
+    "position": [
+     -4500,
+     1500,
+     -48305
+    ],
+    "headingDeg": 270,
+    "speedMps": 100,
+    "throttle": 0.6
+   },
+   "pilot": {
+    "skill": "green"
+   }
+  }
+ ],
+ "ships": [],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 0,
+  "timeOfDay": 21
+ },
+ "lights": [
+  {
+   "id": "nav-player-1",
+   "kind": "nav",
+   "at": {
+    "aircraft": "player-1",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6B night patrol bed (docs/night.md): a perception test bed, not a historical layout"
+  },
+  {
+   "id": "nav-zero-1",
+   "kind": "nav",
+   "at": {
+    "aircraft": "zero-1",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6B night patrol bed (docs/night.md): a perception test bed, not a historical layout"
+  },
+  {
+   "id": "nav-zero-2",
+   "kind": "nav",
+   "at": {
+    "aircraft": "zero-2",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6B night patrol bed (docs/night.md): a perception test bed, not a historical layout"
+  },
+  {
+   "id": "flare-1",
+   "kind": "flare",
+   "at": {
+    "x": -20000,
+    "z": -50805,
+    "altitudeM": 1800
+   },
+   "color": "warm",
+   "state": "on",
+   "fixed": true,
+   "schedule": {
+    "onAtS": 0,
+    "burnS": 3600
+   },
+   "source": "gameplay",
+   "sourceNote": "F6B night patrol bed (docs/night.md): a perception test bed, not a historical layout"
+  }
+ ]
+}
