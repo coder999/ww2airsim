@@ -3,7 +3,11 @@
 **Date:** 2026-10-15
 **Branch/worktree:** `plan-f6b-perception` / `/home/mark/projects/ww2airsim-plan-f6b-perception` (from `main` at `d477d854`)
 **Plan 10 of 22** in the F3 dependency table. Follows F6A (merged 2026-10-15), whose light contract is frozen at `LIGHT_CONTRACT_VERSION = 1`.
-**Status:** plan only. Nothing is implemented.
+**Status:** plan only; every section 12 recommendation accepted by Mark 2026-10-15 (revision 2). Nothing is implemented.
+
+> **PROMINENT, player-facing change (Mark 2026-10-15): the `U` impact marker, which every pilot has today, is removed for pilots below Lieutenant Commander in campaign and single-mission sorties.** Dev and every Training Ground row (including the Basic Flying tutorial, `pool: 'training'` in the picker, which teaches `U`) keep it. State this in the release notes, GAMEPLAY.md, the legend and the tutorial radio line (Task 8).
+
+**Global rulings that apply (Mark 2026-10-15):** Dev uses the SAME UI as production (headquarters/picker); the Dev checkbox unlocks dev features inside it. F5B merges first and provides `CampaignLaunch{pilotId, tier, facts}`; F6B adds `sights` there.
 **Merge order (coordinator):** F5B merges first (it rewrites `startGame`/title/debrief and deletes `src/render/roster.ts`), F7A second or third; F6B rebases onto both. Section 10 lists every collision.
 **Run mode:** attended (Mark, 2026-10-15). Stop at each checkpoint, post the captures (headless unless the coordinator opens a Dev slot), and wait for him.
 **Viewing checkpoints (Mark, 2026-10-15): intermediate steps plus the final result.**
@@ -107,9 +111,9 @@ Lit versus blacked-out at deep night is about 7 to 1; the gap is the gameplay. A
 
 ### 3.6 Consumers
 
-1. **AI pilots.** A new optional `perception` on `PilotTickContext` and `TargetingView`, built once per tick in `advance` (`src/sim/loop.ts:1038`) only when the world has night facts. `isContact` adds `d <= R(c) * (c is my current target ? HOLD_FACTOR : 1)`. See Ambiguity 1 for why the gate sits in `isContact` and not only in the `accept?` hook.
-2. **Anti-aircraft fire** (`aaFire.ts:362`): the same `R` filters `hostile`, so a blacked-out aircraft is shot at only inside `R` (flak reaches 5,500 m, so a dark aircraft past about 830 m is safe unless lit by a beam or flare). See Ambiguity 9.
-3. **Not consumers:** wingmen following their leader (formation is not perception), mission-assigned targets (`pilot.target`, ruling W3 at any range), attackers finding ships (Ambiguity 11), defensive turret gunners.
+1. **AI pilots.** A new optional `perception` on `PilotTickContext` and `TargetingView`, built once per tick in `advance` (`src/sim/loop.ts:1038`) only when the world has night facts. `isContact` adds `d <= R(c) * (c is my current target ? HOLD_FACTOR : 1)`. Mark ruled (D1) that the gate sits in the shared `isContact` check; his earlier "`accept?` hook" wording is superseded, and the hook keeps its engage-rule job.
+2. **Anti-aircraft fire** (`aaFire.ts:362`): the same `R` filters `hostile`, so a blacked-out aircraft is shot at only inside `R` (flak reaches 5,500 m, so a dark aircraft past about 830 m is safe unless lit by a beam or flare). See decision D9.
+3. **Not consumers:** wingmen following their leader (formation is not perception), mission-assigned targets (`pilot.target`, ruling W3 at any range), attackers finding ships (decision D11), defensive turret gunners.
 
 ### 3.7 Not modeled (stated, not hidden)
 
@@ -121,8 +125,8 @@ Line of sight and cloud occlusion (the sim has no clouds; cloud cover only dims 
 
 - Information only. No weapon, flight or dispersion code changes; the gate and the display read what the sim already computes. A test asserts the golden trajectory and the soak are bit-identical with sights on and off.
 - Lower ranks may still release weapons. The gate hides the aid; it never blocks `dropBomb`.
-- One key. The existing `U` (`toggleImpactMarker`) toggles the sight; the sight type follows the weapon loaded (bomb or torpedo). Legend: "Bombsight / Torpedosight (Lt Cdr and above)". Rocket pairs keep today's marker label when sights are available (B2 already predicts them; see Ambiguity 6).
-- **Gate:** `sightsAllowed = devSortie || choice.sights === true`. `SortieChoice` gains `readonly sights?: boolean` (`src/sim/sortie.ts:16`), set by the F5B launch path to `abilities(pilotTier).sights`. `main.ts` carries it into `FrameState` as `sightsAllowed`; `frame.ts:761` ANDs it into the toggle, so with the gate closed `impactMarker` can never become true and the predictor is never called. The campaign `pending.facts` also records `sights: boolean` beside the reserved keys (for the log and debrief; no schema change).
+- One key. The existing `U` (`toggleImpactMarker`) toggles the sight; the sight type follows the weapon loaded (bomb or torpedo). Legend: "Bombsight / Torpedosight (Lt Cdr and above)". Rocket pairs keep today's marker label when sights are available (B2 already predicts them; see decision D6).
+- **Gate (this REMOVES the marker from low ranks, see the banner):** `sightsAllowed = dev || row.pool === 'training' || choice.sights === true`: Dev (the checkbox inside the production HQ/picker; no separate Dev UI) and every Training Ground row, the Basic Flying tutorial included, always have the sight; campaign and single missions follow rank. `SortieChoice` gains `readonly sights?: boolean` (`src/sim/sortie.ts:16`), carried on F5B's `CampaignLaunch{pilotId, tier, facts}` (`sights: abilities(tier).sights`, plus the `facts.sights` key). `main.ts` carries it into `FrameState` as `sightsAllowed`; `frame.ts:761` ANDs it into the toggle, so with the gate closed `impactMarker` can never become true and the predictor is never called. The campaign `pending.facts` also records `sights: boolean` beside the reserved keys (for the log and debrief; no schema change).
 
 ### 4.2 Bombsight (reuse of B2)
 
@@ -143,14 +147,14 @@ New `predictTorpedoDrop(spec, state, stores, terrain, wind, decks)` in `src/sim/
 HUD, in the same marker family as the bombsight:
 - Ring at the entry point, drawn green when `valid`, red when not. A valid ring is a plain ring; an invalid ring carries a crossbar (an X), so color is never the only signal.
 - Badge text, always present with the sight on and a torpedo loaded: `TORPEDO DROP OK  ENTRY 0.9 MI` or `NO DROP: TOO FAST 212 MPH (MAX 189)`, `NO DROP: TOO HIGH 640 FT (MAX 2,395)`, `NO DROP: NOT OVER OPEN SEA`, `NO DROP: BAY DOORS SHUT`. It also shows the arming distance (`ARMS 590 FT`) from `armRunM`, since a hit inside it is a dud.
-- Optional short run line from the entry point along the drop heading (Ambiguity 4).
+- Optional short run line from the entry point along the drop heading (decision D4).
 - Imperial units in all text (mph, ft, mi); the sim values stay SI.
 
-Known blind spot, stated on the HUD documentation and in Ambiguity 5: the real sim breaks a torpedo up if it falls onto a hull or deck; like B2 (`impactPrediction.ts:41-46`) the prediction ignores hulls, so a drop onto a ship shows green and breaks up.
+Known blind spot, stated on the HUD documentation and in decision D5: the real sim breaks a torpedo up if it falls onto a hull or deck; like B2 (`impactPrediction.ts:41-46`) the prediction ignores hulls, so a drop onto a ship shows green and breaks up.
 
 ### 4.4 AI wingmen and AI pilots
 
-No sight HUD for AI, no rank gate. AI bombers and torpedo planes already use `predictImpact` and the envelope fractions themselves (`attack.ts:284,321,365`); they are untouched. (Ambiguity 2.)
+No sight HUD for AI, no rank gate. AI bombers and torpedo planes already use `predictImpact` and the envelope fractions themselves (`attack.ts:284,321,365`); they are untouched. (decision D2.)
 
 ## 5. Recorder and determinism
 
@@ -166,7 +170,7 @@ No sight HUD for AI, no rank gate. AI bombers and torpedo planes already use `pr
 
 | File | Change | Why |
 | --- | --- | --- |
-| `schema.ts` | Evidence enum gains one member, `'sighted'` (additive; format version stays 1, as F6A and F7A did). **No change to the action union.** The `'lights'` control member exists from F6A. | `sighted` evidence: `{kind:'sighted', entity: observer, detail: 'sees player at 4.1 mi (limit 3.7 mi lit)'}`, emitted when an AI pilot's target first becomes the player. Debrief and verification explanations; not needed for correctness, and verification ignores events. Optional (Ambiguity 14). |
+| `schema.ts` | Evidence enum gains one member, `'sighted'` (additive; format version stays 1, as F6A and F7A did). **No change to the action union.** The `'lights'` control member exists from F6A. | `sighted` evidence: `{kind:'sighted', entity: observer, detail: 'sees player at 4.1 mi (limit 3.7 mi lit)'}`, emitted when an AI pilot's target first becomes the player. Debrief and verification explanations; not needed for correctness, and verification ignores events. Accepted (D14). |
 | `verify.ts` | In the `for (const action of packet.actions)` loop, before `advance`: `if (action.kind === 'control' && action.control === 'lights') world = withPlayerLights(world, action.value)`. | S2: replay must apply the switch or it diverges. |
 | `recorder.ts` | `evidenceBetween` emits `sighted` by comparing `decision.targetId` of enemy pilots before and after a tick. | feeds the evidence above. |
 | `docs/flight-recorder.md` | Document that `lights` now has a sim effect and what `sighted` means. | ledger |
@@ -191,11 +195,11 @@ TDD: each task lists the test written first, the work, and its mutation check. "
 5. **AI pilots perceive.** `perception` on `PilotTickContext`/`TargetingView`, built in `advance`; `isContact` gate with `HOLD_FACTOR`. *Tests first (extend `tests/sim/ai/targeting.test.ts`, new `tests/sim/ai/perception.test.ts`):* same world, enemy at 4 mi: lit player is selected, blacked-out player is not; at 0.4 mi both are; a flare 300 m away restores a blacked-out player at 1.9 mi but not at 3 mi; the pilot already tracking a target at 1.1 R keeps it, a fresh pilot does not; the idle clock does not reset on an unseen player; `threatAstern` ignores an unseen tail-chaser; a day world (no `night`) selects exactly as before (the whole existing targeting and furball soak suites untouched and green). Two runs of the same night world produce equal checksums at every one-second checkpoint (determinism). *Mutations:* apply the gate only inside `selectTarget` (not `isContact`): the idle-clock and `threatAstern` tests go red; remove `HOLD_FACTOR`: the hold test goes red.
 6. **Anti-aircraft perceives.** `R` filters `hostile` in `aaFire.ts`. *Tests first (`tests/sim/weapons/`):* a heavy mount at 2.5 mi fires at a lit aircraft and not at a dark one; a dark aircraft inside a searchlight beam is fired at; day unchanged. *Mutation:* remove the filter; the dark case fires and the test goes red.
 7. **Recorder and replay.** `frame.ts` applies the switch; `main.ts` derives `playerLightsOn` from the world (surgical: the local `let` and its toggle go, the existing `pendingLights` note stays); `verify.ts` applies the action; the DEV reproduction compares hours; optional `sighted` evidence. Add `night-patrol` Dev scenario and the DEV `__ww2.perception()` readout (per enemy: `R`, distance, sees). *Tests first (`tests/flightRecorder/lightsReplay.test.ts`):* a scripted night sortie where the player blacks out mid-approach records, exports and re-verifies bit-identically at every checkpoint; a record that crosses a lights toggle verified against `main`'s verifier (no `lights` application) fails at the first reacting tick; `launch.timeOfDay` mismatch is refused with the plain message; an old record (no `lights`) still parses and verifies. *Mutations:* delete the `verify.ts` branch (replay diverges, named tick); apply the action one tick late (diverges). **Checkpoint CP1.**
-8. **Sight gate.** `SortieChoice.sights`, `FrameState.sightsAllowed`, the `frame.ts:761` AND, Dev override, `pending.facts.sights`, legend entry. *Tests first:* gate table (tiers 1 to 3 closed, 4 to 6 open, Dev open) from `abilities(tier)`; with the gate closed, `U` never sets `impactMarker` and `predictImpact` is never called (call counter, like the existing predictor memo test); with it closed `dropBomb` still releases (the existing release tests run with the gate closed); Dev and quick launch open; no import of `src/campaign` from `src/sim` (boundary test). *Mutation:* ignore the gate in `frame.ts`; the closed-gate test goes red.
+8. **Sight gate (removes an aid pilots have today).** `SortieChoice.sights`, `FrameState.sightsAllowed`, the `frame.ts:761` AND, Dev override, `pending.facts.sights`, legend entry ("Lieutenant Commander and above"), GAMEPLAY.md and release-note wording stating the removal, and the Basic Flying tutorial's `U` radio line kept (the tutorial is `pool: 'training'`, so it still teaches the marker; B4 never gated on `U` and still does not). The launch supplies `sights` through F5B's `CampaignLaunch`. *Tests first:* gate table (tiers 1 to 3 closed, 4 to 6 open; Dev open; every `pool: 'training'` row open, enrolled over `SCENARIO_OPTIONS` and pinned, tutorial included; `noncampaign` and `single` rows follow tier) from `abilities(tier)`; the tutorial E2E still reaches its bomb step with the marker toggleable; no Dev-only launch path is added (Dev is the production HQ/picker with the checkbox); with the gate closed, `U` never sets `impactMarker` and `predictImpact` is never called (call counter, like the existing predictor memo test); with it closed `dropBomb` still releases (the existing release tests run with the gate closed); Dev and quick launch open; no import of `src/campaign` from `src/sim` (boundary test). *Mutation:* ignore the gate in `frame.ts`; the closed-gate test goes red.
 9. **Bombsight labeling and night legibility.** Relabel the B2 marker and badge per section 4.2; no physics change. *Tests first:* label text per state; the golden trajectory, soak and `impactPrediction.test.ts` unchanged and green with the sight on; the marker color and badge meet section 8 against the night floor. *Mutation:* none beyond Task 8's; the physics-unchanged claim is the golden.
 10. **Torpedo prediction.** `torpedoDropOk` extraction; `fly()` returns contact kind; `predictTorpedoDrop`. *Tests first (`tests/sim/weapons/torpedoPrediction.test.ts`, enrolled over every airframe whose content has a torpedo store, pinned):* truth is `advance`. For a matrix of speed (0.5x, 0.95x, 1.05x, 1.5x of `maxDropSpeedMps`) by height (0.5x, 0.95x, 1.05x of `maxDropHeightM`) by surface (sea, land): the sight's `valid` equals "the real torpedo entered the water and ran" (`impacts` outcome `entered`) versus `broke-up`, and `entry` is within 1 cm of the real entry point. *Mutations:* change the speed limit in `releaseBomb` only: because both call `torpedoDropOk` the tests stay green (the point), so instead mutate `torpedoDropOk` and show the matrix goes red; and break the sight to ignore the sea test, which the land cases catch.
 11. **Torpedosight HUD.** Ring (plain/crossbar), colors, badge reasons, arming distance, memo per tick, hidden when gate closed or no torpedo; `__ww2.sight()` diagnostic. *Tests first:* label and reason text per state (pure function, enrolled over the five reasons); color-independent cue (shape differs between states; text differs); `aria-live` updates only on a change of state, never more than once a second; E2E wiring on the night bay reads `__ww2.sight()` and asserts valid versus invalid as the player slows (no pictures). **Checkpoint CP2.**
-12. **Dev scenario and enrollment.** `night-patrol` (airborne Hellcat at night, a Zero patrol on a racetrack, one lit and one unlit friendly), picker row, the three enrolled scenario lists, `night-range`/`night-bay` nav specs on the player if missing. Done AFTER the F5B rebase because F5B rewrites the title and those lists. *Tests:* the enrolled lists include it; schema validation of every shipped scenario; the enrolled "night scenario has a nav spec on its player" test.
+12. **Dev scenario and enrollment (in the production HQ/picker, revealed by the Dev checkbox).** `night-patrol` (airborne Hellcat at night, a Zero patrol on a racetrack, one lit and one unlit friendly), picker row, the three enrolled scenario lists, `night-range`/`night-bay` nav specs on the player if missing. Done AFTER the F5B rebase because F5B rewrites the title and those lists. *Tests:* the enrolled lists include it; schema validation of every shipped scenario; the enrolled "night scenario has a nav spec on its player" test.
 13. **Budget gates and accessibility measurements.** Section 7 and section 8, run through `remote-run` and `hwlock ryzen-budget`.
 14. **Docs, test reconciliation, handoff.** `docs/night.md` (perception section and constants with sources), `docs/flight-recorder.md`, `docs/campaign-data.md` (the `sights` key), GAMEPLAY.md (blackout and sights, imperial), MASTER_PLAN F6 status and the README pointer, `docs/handoff/2026-10-XX-f6b-night-perception-sights.md` with `Tests updated`, `Tests still valid`, `Known gaps` (AGENTS.md closeout), run `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify`, rebase on F5B and F7A and re-run the affected gates. Mail the plan and handoff HTML only after the AGENTS.md exact-recipient check (not done by this planning pass). **Checkpoint CP3.**
 
@@ -224,13 +228,13 @@ Fallback if (a) fails: compute `R` every 6th tick and for enemy-side-relevant ta
 
 - **The numbers are estimates.** Every constant in section 3.3 is a feel, not a measurement; `K` and `R_NAV` decide whether blackout is a real trade or a nuisance. CP1 is where Mark's eye tunes them; the shape (lit about 7x dark) is the contract, the numbers will move.
 - **Blackout may be too strong or too weak at deep night.** Ambient is flat below -18 degrees (S2.2), so A4 and J4 differ only through lights; if the dark range is too long the mission is easy, if too short the player cannot find his wingman. Wingmen are not perception-limited (formation), so this only affects enemies.
-- **The AI gets stupider in the dark in one specific way.** A pilot that loses a target simply drops it and resumes loiter or patrol; there is no search behavior. At 830 m the hold factor makes this a hard edge. Acceptable for F6B (Ambiguity 15), visible in play.
+- **The AI gets stupider in the dark in one specific way.** A pilot that loses a target simply drops it and resumes loiter or patrol; there is no search behavior. At 830 m the hold factor makes this a hard edge. Acceptable for F6B (decision D15), visible in play.
 - **`isContact` is shared.** Gating it changes the idle clock and `threatAstern` as well as targeting. That is intended (an unseen aircraft should not make the AI break), but it widens the blast radius into recovery behavior; the furball and recovery suites guard day worlds and the new tests guard night worlds.
 - **Day-byte-identity depends on the horizon rule.** A dusk sortie that crosses sunset gets perception halfway through; if `NIGHT_FACTS_HORIZON_H` is too short, a long dusk sortie flips behavior mid-flight with no `night` fact present. The rule uses launch hour plus 2 hours; a sortie longer than that is outside the designed envelope (the campaign design says action begins in 5 to 7 minutes).
 - **A new field on `World`.** Optional and absent in all existing worlds, but F7A also edits `World` and `advance`; a textual merge conflict in `loop.ts` is likely (section 10).
 - **The title/launch seam is moving under us.** F5B rewrites `startGame` and deletes `roster.ts`; the one-line `sights` supply must be re-done after the rebase, and Task 12's enrollment lists are F5B's to reshape.
 - **Torpedosight lies over ships.** Green over a hull, real result break-up (S8). Documented; the cost of fixing it is a hull-intersection test per tick.
-- **The B2 gate removes a feature pilots have today** (the impact marker for everyone). Mark's ruling requires it; Ambiguity 6 asks how far it reaches.
+- **The B2 gate removes a feature pilots have today** (the impact marker for everyone). Mark's ruling requires it; decision D6 asks how far it reaches.
 - **Perception can be proven deterministic but not proven fun.** Only CP1 and CP3 can show that.
 
 ## 10. Collision notes (merge order: F5B, then F7A, then F6B rebases)
@@ -238,7 +242,7 @@ Fallback if (a) fails: compute `R` every 6th tick and for enemy-side-relevant ta
 | Seam | F5B | F7A | F6B action |
 | --- | --- | --- | --- |
 | `src/render/main.ts` (large, shared) | rewrites `startGame`, title, debrief, deletes `roster.ts` imports (`SortieFacts`, `bankSortie`, `loadRoster`) | +143 lines (bailout, recorder launch block, `J` key, daylight scalar) | F6B touches four places only: the `playerLightsOn` declaration and toggle (`:2420`, `:2714`), `buildWorld` (one `withNightFacts` call), the `FrameState` init calls (`sightsAllowed`), and the B2 block (`:3190-3200`) for the torpedosight. Keep each edit under about 10 lines; rebase after both. |
-| `src/sim/sortie.ts` `SortieChoice` | F5B's launch path constructs it | none | add `sights?: boolean`; F5B supplies `abilities(tier).sights` (a one-line edit I make after rebase; if F5B has already renamed `SortieChoice`, follow it). |
+| `src/sim/sortie.ts` `SortieChoice` | F5B's launch path constructs it | none | add `sights?: boolean`, carried on F5B's `CampaignLaunch{pilotId, tier, facts}` (`sights: abilities(tier).sights`; one-line edit after the rebase; follow F5B's names). No Dev-only UI. |
 | `src/sim/loop.ts` `advance` and `World` | none expected | +113 lines (bailout import block, `requestBailout`, parachutist step) | additive: one import, one optional `World` field, one `perception` build next to `pilotContext` (`:1038`). Expect a textual conflict near the imports and the world type. |
 | `src/flightRecorder/schema.ts` | none | action union gains `bailout`; evidence enum gains `bailout` | evidence enum gains `sighted` on the same line as F7A's edit: resolve by listing both. Action union untouched. |
 | `src/flightRecorder/verify.ts` | none | adds a `bailout` branch at the top of the action loop and an import | adds a `lights` branch in the same loop; both branches `continue`, so they compose. |
@@ -253,6 +257,8 @@ Fallback if (a) fails: compute `R` every 6th tick and for enemy-side-relevant ta
 `src/flightRecorder/` rule: nothing in F6B changes an existing field's meaning or an existing record's bytes; the only edits are one evidence member, one replay branch, one evidence emitter.
 
 ## 11. Decisions (Mark, 2026-10-15)
+
+Part 1: rulings given with the task. Part 2 (D1 to D16) follows in section 12.
 
 Rulings given with the task, binding:
 
@@ -270,36 +276,40 @@ Rulings given with the task, binding:
 
 Decisions made by this plan carrying the recommendation of each ambiguity below until Mark rules: A1 to A15.
 
-## 12. Ambiguities for Mark
+## 12. Decisions (Mark, 2026-10-15), part 2: all recommendations accepted
 
-Each is plain language, with options and my recommendation. I carried on with the recommendation.
+Mark accepted every recommendation of the first draft's ambiguity batch. The plan above is revised to match.
 
-1. **Where does "you can't see him in the dark" go in the AI's code?** The hook you named (`accept?`) is only consulted when the AI picks a target. But the AI also asks "do I see anyone?" in two other places: to decide it is bored and should go home, and to decide whether someone is on its tail and it should break away. If darkness only hid targets, an unseen blacked-out player could still make an AI break away from its own attack, or keep it from going home. Options: (a) put the visibility test in the one shared "do I see him" check that all three places use, leaving the `accept?` hook for what it does now (engage rules); (b) put it only in the hook, so it affects target choice only. **Recommend (a).** It is the same scalar and the same cost; the hook stays, the test sits one level below it so nothing can bypass it. This is a deliberate deviation from the literal wording and needs your OK.
-2. **Do the AI wingmen and enemy pilots get the bombsight and torpedosight?** They already compute their own release points with the same prediction code the sight uses, and they have no rank. Options: (a) no HUD or gate for AI; (b) gate AI skill by rank. **Recommend (a).** The sights are a player display.
-3. **What counts as a "valid release"?** For a torpedo it is exactly the sim's existing rules: not faster than the torpedo's limit, not higher than its limit, entering open sea, bay doors open. For a bomb, nothing is "invalid"; a bomb always drops. Options: (a) torpedo green/red as above, bomb is just a ring plus the existing "UNARMED" dimming when the fuze would not arm in time; (b) also mark a bomb "invalid" when unarmed. **Recommend (a).** Red on a bomb would suggest you cannot drop it, which is untrue.
-4. **Should the torpedosight draw the torpedo's run line?** The torpedo enters the water then runs straight at about 33 knots. Options: (a) ring only plus a text readout of the arming distance; (b) also a short line from the entry point along the run, with a tick at the arming distance (a hit before that is a dud); (c) also compute where a moving ship will be (lead). **Recommend (b).** (c) would be an aiming aid that changes how hard a torpedo run is, which goes past "information only".
-5. **The torpedosight cannot see ships under the entry point.** The real torpedo breaks up if it falls onto a ship. The sight, like the existing bombsight, ignores ships and would show green. Options: (a) accept and document it; (b) add a hull check so it shows red over a ship. **Recommend (a)** now; (b) is a follow-up if it confuses you at CP2.
-6. **The impact marker (`U`) is available to every pilot today.** Your ruling gates it. Options: (a) in campaign and single-mission sorties, `U` does nothing below Lieutenant Commander (the legend says why); Dev and Training Ground keep it; rocket-pair prediction rides the same gate; (b) keep a basic marker for everyone and add the new sights on top for Lt Cdr and above. **Recommend (a),** the literal reading of your ruling. It does take a feature away from low ranks.
-7. **Which contexts count as "have the sights"?** Options: (a) the campaign and any sortie with a pilot, by that pilot's rank; Dev always; Training Ground always (it is where you practice); (b) Training Ground follows rank too. **Recommend (a).**
-8. **Which aircraft carry position lights?** A night mission's aircraft only count as "lit" if the scenario authors a light on them (what you see drawn is what the AI sees). Options: (a) authored only; (b) every aircraft is lit by default unless blacked out. **Recommend (a).** (b) would light every enemy raider with no way to say otherwise. Cost: night scenarios must author a nav light on the player (a test enforces it). The player starts lit; a mission cannot start the player blacked out in F6B.
-9. **Does blackout also hide you from ground guns and ships' guns?** Options: (a) yes, anti-aircraft fire is limited to the same seen-out-to range, so a dark aircraft past about half a mile is safe unless a searchlight or flare is on it; (b) AI fighters only. **Recommend (a).** Otherwise blackout does nothing against the J4 destroyer screen.
-10. **Does being lit up by a flare or searchlight make you visible?** You already ruled yes (local illumination). Listed so the CP1 demo shows it. No question.
-11. **Do blacked-out ships and harbor lights matter?** Enemy bombers and torpedo planes find ships because the mission tells them to, not by sight. Options: (a) ship lights only light the water and aircraft near them (current F6A behavior) and do not change who finds the ship; (b) a blacked-out friendly ship is harder for enemy attackers to find. **Recommend (a).** (b) needs AI target-finding for ships that does not exist yet (F9/F10 territory).
-12. **Does a dusk takeoff (for example 1645, sunset about 1752) start hiding dark aircraft as the sun sets?** Options: (a) yes, continuously, via a "night facts" attachment when the sortie will cross sunset; (b) only sorties that start after sunset. **Recommend (a),** at no change for sorties wholly in daylight.
-13. **Sound cue when a torpedo drop turns valid?** Options: (a) no; (b) a short tick. **Recommend (a)**; the HUD badge and ring carry it, and there is no existing audio vocabulary for aids.
-14. **Record "who saw you" evidence?** It adds an additive `sighted` entry to the recorder's evidence list so a debrief or a bug report can say "Zero 2 saw you at 4.1 mi (limit 3.7 mi lit)". Older builds could not open such a record (none exist yet). Options: (a) yes; (b) skip it. **Recommend (a).**
-15. **What does the AI do when it loses sight of you?** Options: (a) drops the target and resumes loiter (simple, deterministic, harsh at the edge, softened by the 1.25x "keep sight" factor); (b) remembers your last seen position for ten seconds and flies to it. **Recommend (a)** for F6B; (b) is a behavior feature for later.
-16. **How tough should the dark range be?** My starting values: lit about 3.7 miles, blacked out about half a mile at deep night, about three quarters of a mile at J5 dusk. Options: keep, or move at CP1. **Recommend keep until CP1,** and tune with your eye (`?night=` style DEV overrides for the new constants are in Task 7).
+| # | Decision | Ruling (accepted) | Plan effect |
+| --- | --- | --- | --- |
+| D1 | Where the visibility test sits | In the shared `isContact` check; the `accept?` hook wording is superseded | 3.6, Task 5 |
+| D2 | AI wingmen and enemy pilots | No sight HUD, no rank gate | 4.4 |
+| D3 | "Valid release" | Torpedo: the sim's existing drop rules (speed, height, open-sea entry, bay doors). Bombs are never red; the existing UNARMED dimming stays | 4.2, 4.3 |
+| D4 | Torpedosight extras | Ring plus arming-distance text plus a short run line; no lead computation | 4.3, Task 11 |
+| D5 | Ships under the entry point | Accept the limitation and document it (shows green, real torpedo breaks up) | 4.3, risks, Task 14 docs |
+| D6 | The `U` impact marker | **Gated by rank (Lt Cdr+) in campaign and single-mission sorties; Dev and Training Ground keep it. Removes an aid new pilots have today; stated in release notes, GAMEPLAY.md, legend, tutorial line** | banner, 4.1, Task 8 |
+| D7 | Contexts with sights | Always in Dev and every Training Ground row (tutorial included); campaign and single missions by tier | 4.1, Task 8 |
+| D8 | Who is lit | Only authored nav lights; the player starts lit; no blacked-out start in F6B | 3.4 |
+| D9 | Blackout and flak | Blackout limits anti-aircraft fire (same range) | 3.6, Task 6 |
+| D10 | Flare and searchlight illumination | Makes you visible (already ruled R2) | 3.5 |
+| D11 | Ship and harbor blackout | Affects illumination only, not who finds the ship | 3.6 |
+| D12 | Dusk takeoff | Perception applies continuously as the sun sets | 5.1, Task 4 |
+| D13 | Torpedo-valid sound | None | 8 |
+| D14 | `sighted` evidence | Recorded (additive evidence member) | 5.2, 5.3, Task 7 |
+| D15 | AI that loses sight | Drops the target and resumes patrol, with the 1.25x keep-sight factor | 9 |
+| D16 | Range values | Keep the starting values until CP1, then tune | 9, CP1 |
+| G1 | Dev UI | Dev uses the same UI as production; the Dev checkbox unlocks dev features within it | Task 8, Task 12, collisions |
+| G2 | Launch data | F5B merges first and provides `CampaignLaunch{pilotId, tier, facts}`; F6B adds `sights` | 4.1, 10 |
 
-**Stop-and-list items (version bumps):** none required. Close calls are in section 5.3: the additive `sighted` evidence member and the new `night` field on night worlds. If you decline Ambiguity 14, the recorder schema does not change at all, only `verify.ts` does.
+**Stop-and-list items (version bumps):** none required. The accepted additive `sighted` evidence member and the new `night` field on night worlds are the two close calls (5.3).
 
 ## 13. Size estimate
 
-Size M to L. About **16 to 22 new or changed source files** (new: `perception.ts`, sim `sun.ts`, `torpedoPrediction` additions, torpedosight marker; changed: `targeting.ts`, `pilotTick.ts`, `aaFire.ts`, `loop.ts`, `combat.ts` (one extraction), `impactPrediction.ts`, `frame.ts`, `main.ts` (four small places), `verify.ts`, `recorder.ts`, `schema.ts`, `sortie.ts`, legend and bindings text, one Dev scenario), about 10 new test files, no new art. Risk-weighted **1.5 to 2.5 weeks** of agent time plus the three attended checkpoints; the two unknown-cost items are the tuning at CP1 (feel of the numbers) and the F5B/F7A rebase of `main.ts`/`loop.ts` (section 10).
+Size M to L (unchanged). About **16 to 22 new or changed source files** (new: `perception.ts`, sim `sun.ts`, `torpedoPrediction` additions, torpedosight marker; changed: `targeting.ts`, `pilotTick.ts`, `aaFire.ts`, `loop.ts`, `combat.ts` (one extraction), `impactPrediction.ts`, `frame.ts`, `main.ts` (four small places), `verify.ts`, `recorder.ts`, `schema.ts`, `sortie.ts`, legend and bindings text, one Dev scenario), about 10 new test files, no new art. Risk-weighted **1.75 to 2.75 weeks** (revision 2: +0.25 week for the rank-gate wording, tutorial and Training Ground checks, and the F5B `CampaignLaunch` rebase) of agent time plus the three attended checkpoints; the two unknown-cost items are the tuning at CP1 (feel of the numbers) and the F5B/F7A rebase of `main.ts`/`loop.ts` (section 10).
 
 ## 14. What would change this plan
 
-- Mark declines Ambiguity 1(a): the gate moves into the `accept?` composition in `selectTarget`, and the idle-clock and `threatAstern` behavior stays blind to darkness (three tasks shrink, one risk grows).
+- (D1 is ruled; the `accept?` alternative is closed.)
 - Task 10 finds the torpedo's in-air path differs from the bomb's `fly()` (drag or lifetime) so the entry point is off by more than 1 cm: the sight shows the point with a stated tolerance and the test records a measured bound.
 - Gate (a) fails: compute perception every sixth tick and for the player and enemy-relevant targets only.
 - F5B changes `SortieChoice` or the launch path in a way that cannot carry `sights`: the fact moves to the world (`World.rules`), which would be a checksum-visible field and needs a new note to Mark.
