@@ -261,3 +261,20 @@ export function validateCampaign(raw: unknown): ValidateResult {
   const issues = checkInvariants(campaign)
   return issues.length === 0 ? { ok: true, campaign } : { ok: false, issues }
 }
+
+// ---- reducer inputs (C3) -----------------------------------------------------------------------
+
+export type SortieReport = {
+  sortieId: string // must equal c.pending.sortieId
+  end: SortieEndKind
+  success: boolean // sim verdict: primary objective AND authored recovery (never computed here)
+  counts: Counts // enemy objects tagged by the assigned pilot AND destroyed by sortie end
+  friendlyDestroyed: boolean // player-caused friendly destruction (combat.friendlyKills > 0)
+  warnings: number // nonfatal friendly damage events
+  authoredBonus: number // mission-declared completion bonus (A4 = 2500), applies only if success
+  flight: {
+    flightSeconds: number; maxAltitudeM: number; maxTrueAirspeedMps: number
+    landing: 'trap' | 'field' | 'ditched' | 'water' | null
+  }
+  badgeId: string | null // mission badge id if the mission awards one
+}
