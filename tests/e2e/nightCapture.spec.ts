@@ -46,6 +46,8 @@ const RANGE = { scenario: 'night-range', launch: '1', aircraft: 'f6f-hellcat', l
 /** The night test bed (content/scenarios/night-range.json): every light kind, from the cockpit and from the air. */
 const RANGE_VIEWS: readonly { name: string; at?: { x: number; y: number; z: number }; extra?: Record<string, string> }[] = [
   { name: 'range-cockpit' },
+  { name: 'range-flare', extra: { look: '-68,30' } },
+  { name: 'range-harbor', extra: { look: '-135,1' } },
   { name: 'range-air-south', at: { x: TAC.x - 400, y: 200, z: TAC.z + 2000 }, extra: { look: '90,-5' } },
   { name: 'range-air-over', at: { x: TAC.x - 1200, y: 300, z: TAC.z + 700 }, extra: { look: '0,-4' } },
 ]
