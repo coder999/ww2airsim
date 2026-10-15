@@ -302,9 +302,14 @@ Mark accepted every recommendation of the first draft's ambiguity batch. The pla
 | D16 | Range values | Keep the starting values until CP1, then tune | 9, CP1 |
 | G1 | Dev UI | Dev uses the same UI as production; the Dev checkbox unlocks dev features within it | Task 8, Task 12, collisions |
 | A1 | Torpedo arming | **Arcade ruling (Mark 2026-10-15): torpedoes arm the moment they are in the water, every carrier including AI.** `armRunM` set to 0 in the four torpedo content entries; the sight drops its arming bar, label and badge text; torpedo hit and flooding tests updated; recorded-flight checksums of torpedo scenarios change | sights, content, combat tests |
+| A2 | Enemy radar | **Mark 2026-10-15: LATER, as its own follow-up plan. F6B stays visual-only.** The player's radar is an instrument only today (the radar spec says it does not change AI behavior) | 3.7, follow-ups |
 | G2 | Launch data | F5B merges first and provides `CampaignLaunch{pilotId, tier, facts}`; F6B adds `sights` | 4.1, 10 |
 
 **Stop-and-list items (version bumps):** none required. The accepted additive `sighted` evidence member and the new `night` field on night worlds are the two close calls (5.3).
+
+## 12a. Follow-up (not in F6B): enemy radar detection
+
+Mark ruled 2026-10-15 (A2) that enemy AI detecting the player by radar is a separate later plan. F6B perception is visual only. Open questions for that plan: (1) who carries radar on each side in the Leyte period, and on which ships, aircraft and ground stations; (2) what a radar detection does: alert or vector fighters, give anti-aircraft fire a track, or both; (3) how it interacts with blackout (radar ignores lights, so it should bound how much blackout protects, and by what range and altitude limits). Staged text for MASTER_PLAN section 3, "Not in this plan, deliberately" (apply at closeout, not now, to avoid conflicts with F5B): "- **Enemy radar detection of the player** (F6B stays visual-only; the player's radar is an instrument only). Its own follow-up plan; open questions in the F6B plan, section 12a."
 
 ## 13. Size estimate
 
