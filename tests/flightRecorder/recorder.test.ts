@@ -9,7 +9,7 @@ import { verifyFlightRecord } from '../../src/flightRecorder/verify.js'
 import { orderWingmen } from '../../src/sim/ai/wingmanOrders.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { advance, createWorld, withControls, type World } from '../../src/sim/loop.js'
+import { advance, createWorld, withControls, withPlayerLights, type World } from '../../src/sim/loop.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
@@ -215,20 +215,20 @@ describe('Dev Flight Recorder', () => {
     expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 1 })
   })
 
-  it('records the player\'s lights switch (F6A D2), round-trips it through the codec, and a lights flip changes nothing in the replay', async () => {
+  it('records the player\'s lights switch (F6A D2), round-trips it through the codec, and the replay applies it (F6B: it is sim state now)', async () => {
     const initial = start()
     const recorder = createDevFlightRecorder(header(), initial)
     recorder.note({ tick: initial.tick + 1, kind: 'control', control: 'lights', value: false })
-    let world = advance(withControls(initial, initial.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    let world = advance(withPlayerLights(withControls(initial, initial.player, controls), false), DT, undefined, undefined, false, undefined, recorder.observe).world
     recorder.note({ tick: world.tick + 1, kind: 'control', control: 'lights', value: true })
-    world = advance(withControls(world, world.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    world = advance(withPlayerLights(withControls(world, world.player, controls), true), DT, undefined, undefined, false, undefined, recorder.observe).world
     const record = recorder.finish(world)
     expect(record.packets.map((p) => p.actions)).toEqual([
       [{ tick: 1, kind: 'control', control: 'lights', value: false }],
       [{ tick: 2, kind: 'control', control: 'lights', value: true }],
     ])
     expect(await decodeFlightRecord(await encodeFlightRecord(record))).toEqual(record)
-    // No sim effect until F6B: the world after the same two ticks WITHOUT the actions is bit-identical, and the record verifies.
+    // F6B: the flag is world state. Lit again at the end, the world equals the never-toggled one; the record verifies.
     let plain = initial
     for (let i = 0; i < 2; i++) plain = advance(withControls(plain, plain.player, controls), DT).world
     expect(worldChecksum(world)).toBe(worldChecksum(plain))

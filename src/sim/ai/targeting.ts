@@ -4,6 +4,7 @@ import { sameSide, type Side } from '../sides.js'
 import { isAircraftDoomed, type CombatState } from '../weapons/combat.js'
 import type { TerrainField } from '../world/terrain.js'
 import type { Deck } from '../world/deck.js'
+import type { Perception } from '../lights/perception.js'
 import { airborne } from './airborne.js'
 import { hasGunSolution } from './pursuit.js'
 
@@ -46,6 +47,8 @@ export type TargetingView<M> = {
   readonly terrain: TerrainField | null
   /** For `airborne`, live this tick (7g spec §2). */
   readonly decks: readonly Deck[]
+  /** F6B: detection range per aircraft this tick (`perceptionAt`); absent in a day world, where `DETECTION_RANGE_M` stands. */
+  readonly perception?: Perception
 }
 
 export type TargetingOptions<M> = {
@@ -63,7 +66,23 @@ export function isContact<M>(self: AircraftEntity<M>, c: AircraftEntity<M>, view
   if (view.sides[c.id] === undefined || sameSide(view.sides, self.id, c.id)) return false
   if (isAircraftDoomed(view.combat, c)) return false
   if (!airborne(c, view.terrain, view.decks)) return false
-  return length(sub(c.state.position, self.state.position)) <= DETECTION_RANGE_M
+  const d = length(sub(c.state.position, self.state.position))
+  if (d > DETECTION_RANGE_M) return false
+  return seenAt(self, c, d, view)
+}
+
+/**
+ * F6B night perception (Mark's ruling D1, 2026-10-15: the gate sits here, in the one shared "do I see him"
+ * check, so target choice, the idle clock and `threatAstern` cannot disagree). Without `view.perception` (a day
+ * world) it is true and nothing changes. A pilot already tracking `c` (its `decision.targetId`) keeps it out to
+ * `holdFactor` x R, so a target at the edge does not flicker in and out.
+ */
+export function seenAt<M>(self: AircraftEntity<M>, c: AircraftEntity<M>, rangeM: number, view: TargetingView<M>): boolean {
+  const p = view.perception
+  if (p === undefined) return true
+  const r = p.rangeM[c.id]
+  if (r === undefined) return true
+  return rangeM <= (self.pilot?.decision.targetId === c.id ? r * p.holdFactor : r)
 }
 
 export function contactScore<M>(

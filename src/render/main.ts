@@ -52,7 +52,7 @@ import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './f
 import { BUILD_DIRTY, BUILD_ID, browserEnvironment, contentSha256, downloadFlightRecord } from '../flightRecorder/browser.js'
 import { createDevFlightRecorder, type DevFlightRecorder } from '../flightRecorder/recorder.js'
 import type { FlightRecordV1 } from '../flightRecorder/schema.js'
-import { verifyFlightRecord } from '../flightRecorder/verify.js'
+import { launchHourMismatch, verifyFlightRecord } from '../flightRecorder/verify.js'
 import { createFlightRecorderSurface, flightRecorderSurfaceFromQuery } from './flightRecorderSurface.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -162,7 +162,8 @@ import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
-import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import { playerAircraft, withAircraftState, withNightFacts, withPlayerLights, type World } from '../sim/loop.js'
+import { cloudCoverOf, nightFactsFor, perceptionTuningFromQuery } from '../sim/lights/perception.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -664,7 +665,14 @@ async function boot(): Promise<void> {
     // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
     const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
     const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
-    return applyDifficulty(built, quality.difficulty())
+    // F6B: the night fact the AI's perception reads. From the SAME hour and cloud choice the renderer uses, never
+    // from the render quality tier, so a reproduction (which rebuilds through here) gets the same world.
+    const night = nightFactsFor({
+      lights: bundle!.scenario.lights, hour0: scenarioTimeOfDay,
+      cloudCover: cloudCoverOf(cloudLayersForCloudiness(bundle!.scenario.weather.clouds ?? [], pickedCloudiness)),
+      tuning: import.meta.env.DEV ? perceptionTuningFromQuery(window.location.search) : undefined,
+    })
+    return withNightFacts(applyDifficulty(built, quality.difficulty()), night)
   }
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and
@@ -1390,7 +1398,7 @@ async function boot(): Promise<void> {
         })
       },
       setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
-      playerLightsOn: () => playerLightsOn,
+      playerLightsOn: () => frame === null || playerAircraft(frame.world).lightsOff !== true,
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -2416,8 +2424,8 @@ async function boot(): Promise<void> {
   let pendingFlaps = false
   // And the hook lever (Plan 8), latched the same way for the same reason.
   let pendingHook = false
-  // F6A: the player's position lights (N): on, or blacked out. Latched like the levers so the recorder can stamp it on a fixed tick.
-  let playerLightsOn = true
+  // F6A/F6B: the player's position lights (N): on, or blacked out. Latched like the levers. The state lives in the WORLD
+  // (`AircraftEntity.lightsOff`), applied at a fixed tick below and recorded there, so the AI's perception and a replay agree.
   let pendingLights = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
@@ -2607,6 +2615,8 @@ async function boot(): Promise<void> {
       if (record.launch.aircraftSpec !== chosen.aircraftSpec || record.launch.loadout !== chosen.loadout) {
         throw new Error(`Sortie mismatch: launch ${record.launch.aircraftSpec} with ${record.launch.loadout} before reproducing this record.`)
       }
+      const hourProblem = launchHourMismatch(record, scenarioTimeOfDay)
+      if (hourProblem !== null) throw new Error(hourProblem)
       const rebuilt = initialFrameStateFor(buildWorld(frame!.world.terrain), record.launch.assists)
       const initial = rebuilt.groundSpawn && rebuilt.world.terrain !== null
         ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
@@ -2711,7 +2721,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
-    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
+    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { pendingLights = true }
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -2883,6 +2893,13 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
+    // F6B: the lights switch is applied to the world HERE, before this frame's fixed steps, and recorded at the same
+    // tick (`verify.ts` applies the recorded action the same way). Held back like the other levers while a chart or the
+    // title is up, or paused, so what is recorded is exactly what was applied.
+    const lightsToggle = pendingLights && !chartOpen && !inputFrame.paused
+    const stepFrame = lightsToggle
+      ? { ...inputFrame, world: withPlayerLights(inputFrame.world, playerAircraft(inputFrame.world).lightsOff === true) }
+      : inputFrame
     const simStart = import.meta.env.DEV ? performance.now() : 0
     if (activeFlightRecorder !== null) {
       const tick = inputFrame.world.tick + 1
@@ -2891,7 +2908,7 @@ async function boot(): Promise<void> {
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
       if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
       if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
-      if (pendingLights) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerLightsOn })
+      if (lightsToggle) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerAircraft(stepFrame.world).lightsOff !== true })
       if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
       if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
       if (pendingWingmanKey !== null) {
@@ -2901,7 +2918,7 @@ async function boot(): Promise<void> {
       }
     }
     let current = nextFrameState(
-      inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
+      stepFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
       activeFlightRecorder?.observe,
     )
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
@@ -3509,7 +3526,7 @@ async function boot(): Promise<void> {
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
     nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
-      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn, { aircraft: view.poses, ships: view.shipPoses })
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerAircraft(current.world).lightsOff !== true, { aircraft: view.poses, ships: view.shipPoses })
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))

@@ -160,3 +160,40 @@ export function perceptionAt(world: PerceptionWorld, dtS: number): Perception | 
   }
   return { rangeM, holdFactor: { ...PERCEPTION_DEFAULTS, ...tuning }.holdFactor, sunElevationDeg: sun, ambientLux }
 }
+
+/** Combined sky cover of cloud layers (0..1): independent layers, 1 - product of the clear fractions. */
+export function cloudCoverOf(layers: readonly { readonly coverage: number }[]): number {
+  return 1 - layers.reduce((clear, l) => clear * (1 - Math.min(1, Math.max(0, l.coverage))), 1)
+}
+
+/**
+ * The night fact a sortie's world gets, or `undefined` (the day path: nothing attached, every checksum
+ * unchanged). Attached when the scenario authors lights or the sun is below 0.5 degrees at the launch hour or
+ * `NIGHT_FACTS_HORIZON_H` later (a dusk takeoff that crosses sunset).
+ */
+export function nightFactsFor(p: {
+  readonly lights: readonly LightSpec[] | undefined; readonly hour0: number; readonly cloudCover: number
+  readonly latDeg?: number; readonly tuning?: Partial<PerceptionTuning> | undefined
+}): NightFacts | undefined {
+  const latDeg = p.latDeg ?? TACLOBAN_LAT_DEG
+  const lights = p.lights ?? []
+  if (lights.length === 0 && !needsNightFacts(p.hour0, latDeg)) return undefined
+  const tuning = p.tuning !== undefined && Object.keys(p.tuning).length > 0 ? { tuning: p.tuning } : {}
+  return { hour0: p.hour0, latDeg, cloudCover: p.cloudCover, lights, ...tuning }
+}
+
+/** DEV `?perception=k:0.3,rNavM:5000` -> overrides; unknown keys or non-numbers throw (a typo must not pass silently). */
+export function perceptionTuningFromQuery(search: string): Partial<PerceptionTuning> {
+  const raw = new URLSearchParams(search).get('perception')
+  if (raw === null || raw.trim() === '') return {}
+  const out: Partial<Record<keyof PerceptionTuning, number>> = {}
+  for (const pair of raw.split(',')) {
+    const [k, v] = pair.split(':')
+    const n = Number(v)
+    if (!PERCEPTION_KEYS.includes(k as keyof PerceptionTuning) || v === undefined || v.trim() === '' || !Number.isFinite(n)) {
+      throw new Error(`perception: ${JSON.stringify(pair)} is not key:number with key one of ${PERCEPTION_KEYS.join(', ')}`)
+    }
+    out[k as keyof PerceptionTuning] = n
+  }
+  return out
+}

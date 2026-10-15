@@ -636,6 +636,8 @@ export function stepCombat(
    */
   targetSides: TargetSides | null = null,
   vehicles: readonly CombatVehicle[] = [],
+  /** F6B: night detection range per aircraft id (`perceptionAt`), for anti-aircraft fire; absent in a day world. */
+  seenWithinM: Readonly<Record<string, number>> | undefined = undefined,
 ): CombatState {
   const records: Record<string, AircraftCombat> = { ...before.aircraft }
   const shipDamage: Record<string, ShipDamage> = { ...before.ships }
@@ -1010,7 +1012,7 @@ export function stepCombat(
     let live = 0
     for (const f of flying) if (f.p.aa !== undefined) live++
     // M3 runs even with no current target/owner so a stale rendered pose is cleared to rest.
-    const stepped = stepAa(aaState, owners, targets, tick, dt, live, surfaceTargets)
+    const stepped = stepAa(aaState, owners, targets, tick, dt, live, surfaceTargets, seenWithinM)
     const previousLaying = aaState.laying
     aaState = stepped.aa
     for (const r of stepped.rounds) {

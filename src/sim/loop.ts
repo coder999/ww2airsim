@@ -1,6 +1,7 @@
 import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
 import { ageDamage, damagedSpec, engineOutputs, idSeed, type Damage } from './damage/model.js'
 import { createRng } from './rng.js'
+import { perceptionAt, type NightFacts } from './lights/perception.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
@@ -357,6 +358,11 @@ export interface AircraftEntity<M = undefined> {
    */
   readonly parked: boolean
   /**
+   * F6B: the aircraft's position lights are blacked out (the recorded lights switch). Absent when lit, so every
+   * existing world, checksum and record is unchanged. The perception model reads it (`src/sim/lights/perception.ts`).
+   */
+  readonly lightsOff?: true
+  /**
    * Plan 7 pilot assignment, carrying per-tick decision state (Plan 7b's
    * `PilotDecisionState`) rescored on its own cadence. Its target is resolved
    * from the common start-of-tick aircraft snapshot before any entity moves;
@@ -458,6 +464,12 @@ export interface World<M = undefined> {
    * docs/superpowers/plans/2026-09-25-m1-mission-engine.md) measures.
    */
   readonly mission: MissionState<M> | null
+  /**
+   * F6B: the night fact the AI's perception reads (authored lights, launch hour, cloud cover). Absent in every
+   * world that does not need it, so day worlds keep their checksums. It IS checksummed: a launch with another
+   * hour or cloud choice fails closed at the initial world.
+   */
+  readonly night?: NightFacts
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -687,6 +699,18 @@ export function playerAircraft<M>(world: World<M>): AircraftEntity<M> {
 
 /** Rebuilds the world with one aircraft entity patched and every other entity
  *  the SAME object, so a consumer can tell what this call touched by identity. */
+/** F6B: `world` with night facts (or unchanged when `night` is undefined). */
+export const withNightFacts = <M>(world: World<M>, night: NightFacts | undefined): World<M> =>
+  night === undefined ? world : { ...world, night }
+
+/** F6B: the player's lights switch, applied at a fixed tick (`frame.ts`, `verify.ts`). On removes the flag. */
+export function withPlayerLights<M>(world: World<M>, on: boolean): World<M> {
+  return withAircraft(world, world.player, (a) => {
+    if (on) { if (a.lightsOff === undefined) return a; const { lightsOff: _drop, ...rest } = a; return rest }
+    return a.lightsOff === true ? a : { ...a, lightsOff: true }
+  })
+}
+
 function withAircraft<M>(
   world: World<M>,
   id: EntityId,
@@ -1035,7 +1059,8 @@ export function advance<M>(
     const aircraftAtStart = aircraft
     // 7e: one side table per tick, the same for the pilots as for credit.
     const sides = sidesOf(world, aircraftAtStart)
-    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
+    const perception = perceptionAt({ tick, night: world.night, terrain: world.terrain, wind: world.wind, aircraft: aircraftAtStart, ships }, DT)
+    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships, ...(perception === null ? {} : { perception }) }
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       const flown = pilotTick(a, aircraftAtStart, pilotContext)
@@ -1049,7 +1074,7 @@ export function advance<M>(
       )
     })
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides, vehicles: sidesOf(world, vehicles) }
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles, perception?.rangeM)
     // Air-to-ship collisions (Mark, 2026-10-10): after combat, so the hull points and the airplane's
     // record are this tick's; before God mode's restore and the kill credit. No collision, the same objects.
     const collided = stepShipCollisions({
