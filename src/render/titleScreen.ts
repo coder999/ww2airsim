@@ -789,6 +789,8 @@ export function createTitleScreen(
     const DEV_TAKEOFF_LABELS: Readonly<Record<DevTakeoffTime, string>> = { 'late-dusk': 'Late dusk (dev)', night: 'Night (dev)' }
     const hourFor = (t: TakeoffTime | DevTakeoffTime): number => (t in DEV_TAKEOFF_HOURS ? DEV_TAKEOFF_HOURS[t as DevTakeoffTime] : takeoff[t as TakeoffTime])
     let suggestedTime: TakeoffTime | null = null
+    // Whether the selected scenario authors its own lights (null until its file arrives): the Dev night note keys on it.
+    let hasAuthoredLights: boolean | null = null
     let hourScenario: string | null = null
     const hourRequest = missions.loadScenario === null ? null : briefingRequest(missions.loadScenario)
     const renderTakeoff = (): void => {
@@ -815,6 +817,13 @@ export function createTitleScreen(
           takeoffGroup.appendChild(el)
           devRows.set(t, el)
         }
+        // By design (F6A): only the night test beds author lights; a Dev night takeoff on any other mission has none until F8.
+        if (hasAuthoredLights === false) {
+          const note = document.createElement('p')
+          note.style.cssText = 'margin:6px 0 0;font-size:11.5px;color:var(--ink-faint)'
+          note.textContent = 'Dev: no runway lights on this mission yet. Only the night test beds (Night Range, Night Field, Night Bay) carry lights; the Leyte bases get theirs in plan F8.'
+          takeoffGroup.appendChild(note)
+        }
       }
       markGroup(rows, takeoffTime !== null && takeoffTime in DEV_TAKEOFF_HOURS ? null : (takeoffTime as TakeoffTime | null))
       for (const [t, el] of devRows) el.setAttribute('aria-checked', String(t === takeoffTime))
@@ -823,8 +832,10 @@ export function createTitleScreen(
       if (hourRequest === null || hourScenario === draft.scenarioId) return
       const id = draft.scenarioId
       hourScenario = id
+      hasAuthoredLights = null
       hourRequest(id, (sc) => {
         if (draft.scenarioId !== id) return
+        hasAuthoredLights = (sc.lights?.length ?? 0) > 0
         suggestedTime = nearestTakeoffTime(sc.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY, takeoff)
         takeoffTime = suggestedTime
         renderTakeoff()
@@ -1542,6 +1553,7 @@ export function createTitleScreen(
       for (const el of routingPilots) el.textContent = campaign.pilotLabel
       flightType = optionOf(draft.scenarioId)?.kind ?? 'mission'
       hasStartedFlow = true
+      suggestHour() // the scenario's own file: the suggested takeoff time and whether it authors lights
       showStep('conditions')
       return
     }

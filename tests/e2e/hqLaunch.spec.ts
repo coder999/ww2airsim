@@ -82,3 +82,32 @@ test('Dev God mode makes a scored mission unrecorded, and says so on the last me
   await waitForScenario(page, 'convoy-strike')
   expect((await campaign(page))?.pending).toBeNull()
 })
+
+test('a night test bed launched from Headquarters keeps its authored hour and lights; a day mission gets the Dev note instead', async ({ page }) => {
+  const hq = await openDevCampaign(page)
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  await hq.getByRole('radio', { name: /Night Range/ }).first().click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  const title = titleOf(page)
+  // locked to the authored night hour: one row, no Morning, Midday or Dusk to turn it into day
+  await expect(title.getByRole('radio', { name: /Authored time \(2100\)/ })).toBeVisible()
+  await expect(title.getByRole('radio', { name: /Morning|Midday|Dusk/ })).toHaveCount(0)
+  await title.getByRole('button', { name: 'Next' }).first().click()
+  await title.getByRole('button', { name: 'Next' }).first().click()
+  await title.getByRole('button', { name: 'Launch' }).click()
+  await waitForScenario(page, 'night-range')
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2?.lights().length ?? 0), { timeout: 30_000 }).toBeGreaterThan(0)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2?.lights().some((l) => l.lit) ?? false)).toBe(true)
+})
+
+test('on a day mission the Dev night takeoff choices carry the note that no lights are authored', async ({ page }) => {
+  const hq = await openDevCampaign(page)
+  await hq.getByRole('button', { name: /Choose a mission/ }).click()
+  await hq.getByRole('radio', { name: /Convoy Strike/ }).first().click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  const title = titleOf(page)
+  await expect(title.getByRole('radio', { name: /Night \(dev\)/ })).toBeVisible()
+  await expect(title.getByText(/Dev: no runway lights on this mission yet/)).toBeVisible()
+})

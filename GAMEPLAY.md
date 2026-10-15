@@ -141,7 +141,7 @@ shows only the chosen kind, with Back and Next at the top-right so a long list
 does not hide navigation below the fold.
 
 Flight Conditions chooses takeoff time and cloudiness. Cloudiness is rolled
-when the New Game screen opens, with Sunny, Partly Cloudy, Cloudy and Overcast
+when the New Game screen opens, with Clear, Partly Cloudy, Cloudy and Overcast
 equally likely; the pilot may keep the roll or select another report. The
 following forms assign the aircraft and its available clean, bomb, rocket or
 combined loadout. Aircraft figures spell out structure and subsystem **hit

@@ -65,7 +65,7 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     const cat = await catalogOnce()
     const mission = r.row.scored ? cat.find((m) => m.id === r.row.id) ?? null : null
     const option = SCENARIO_OPTIONS.find((o) => o.value === r.row.id)!
-    const night = mission?.night === true ? await deps.loadScenario(r.row.id) : null
+    const authored = await deps.loadScenario(r.row.id).catch(() => null)
     const gate = aircraftGate(c, mission, r.pilotId, r.row.scored)
     const reasonFor = (choice: { aircraftSpec: string; loadout: Parameters<typeof sortieIsDev>[2]; timeOfDay?: number | undefined; god?: boolean | undefined }) => {
       const spec = deps.flyable.find((f) => f.spec.id === choice.aircraftSpec)?.spec
@@ -78,7 +78,7 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     deps.title.beginSortie({
       scenarioId: r.row.id,
       pilotLabel: `${rankShort(c.faction, tierOf(pilot.points))} ${formatName(pilot.name, c.faction)}`,
-      dev, god, lockedHour: takeoffLockHour(mission, night?.weather?.timeOfDay ?? null), aircraftGate: gate,
+      dev, god, lockedHour: takeoffLockHour(mission, authored?.weather?.timeOfDay ?? null), aircraftGate: gate,
       notRecorded: (choice) => { const u = reasonFor(choice); return u === null ? null : UNSCORED_LABEL[u] },
       onLaunch: (choice) => {
         if (reasonFor(choice) !== null) return null // unscored: nothing is launched in the campaign

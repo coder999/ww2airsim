@@ -2831,6 +2831,11 @@ async function boot(): Promise<void> {
     const trianglesAtStart = import.meta.env.DEV ? renderer.info.render.triangles : 0
     const frameMs = now - last
     last = now
+    // A scenario switch is loading: `scenarioEntities` is already the NEW scenario's while `frame.world` is still the
+    // old one until `rebuildFrame`, so drawing now would throw in `entityViews` whenever the old world had more ships
+    // than the new scenario (free-flight's three to Night Range's none) and kill the loop at tick 0 (found 2026-10-15
+    // launching Night Range from Headquarters; the old title hit it too, and so does Gunnery Range).
+    if (swapPending) return
 
     // Collected for `window.__ww2.frameTimesMs()`; see that member's comment
     // in diagnostics.ts for what this quantity is and is not. Recorded at the

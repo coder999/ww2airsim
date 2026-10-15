@@ -3,7 +3,7 @@
  * may take, when an authored night mission locks the takeoff hour, and whether a Dev takeoff time was chosen.
  * No DOM; the sortie forms and the shell call these.
  */
-import { describeAircraft, eligibility, type Campaign, type MissionDescriptor } from '../../campaign/index.js'
+import { describeAircraft, eligibility, isNightHour, type Campaign, type MissionDescriptor } from '../../campaign/index.js'
 import { DEV_TAKEOFF_HOURS } from '../sky/sun.js'
 import { rankShort } from './model.js'
 
@@ -22,9 +22,13 @@ export function aircraftGate(c: Campaign, mission: MissionDescriptor | null, pil
   }
 }
 
-/** An authored night mission is flown at its authored hour only; a day mission keeps Morning, Midday and Dusk. */
+/**
+ * A mission authored at night (a night chapter, or a test bed such as Night Range at 21:00) is flown at its authored
+ * hour only: Form 4's Morning, Midday and Dusk would turn it into day, and its authored lights would not be lit.
+ * A day mission keeps the three choices.
+ */
 export const takeoffLockHour = (mission: MissionDescriptor | null, scenarioHour: number | null): number | null =>
-  mission !== null && mission.night ? scenarioHour ?? 21 : null
+  mission !== null && mission.night ? scenarioHour ?? 21 : scenarioHour !== null && isNightHour(scenarioHour) ? scenarioHour : null
 
 /** Late dusk and night are Dev-only takeoff times (F6A); choosing one makes the sortie unscored. */
 export const isDevTakeoffHour = (hour: number | undefined): boolean =>

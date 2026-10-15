@@ -495,7 +495,7 @@ one plan for the lot.
 good" flight verdict and the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in both DEV and production
 builds. DEV can still select `legacy` or the native-WGSL `takram` path by
-query. Form 2 rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
+query. Form 2 rolls an equally likely Clear, Partly Cloudy, Cloudy or Overcast
 initial selection which the player may change; it adjusts combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. No deployment
 followed from this work.
@@ -526,7 +526,7 @@ merge. The rejected adaptive-sampling follow-up remains preserved separately.
 **Promoted 2026-10-11 (Mark):** after the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in DEV and production; `legacy` and
 `takram` stay selectable by query in DEV.
-Flight Conditions now also rolls an equally likely Sunny, Partly Cloudy,
+Flight Conditions now also rolls an equally likely Clear, Partly Cloudy,
 Cloudy or Overcast initial selection, which the player may change; it sets combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.

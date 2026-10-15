@@ -239,7 +239,7 @@ const weatherOf = (id: string): WeatherJson =>
   (JSON.parse(readFileSync(fileURLToPath(new URL(`../../content/scenarios/${id}.json`, import.meta.url)), 'utf8')) as { weather: WeatherJson }).weather
 
 const SWITCHES = [
-  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range', cloudiness: 'Sunny' },
+  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range', cloudiness: 'Clear' },
   { boot: '/?scenario=gunnery-range', from: 'gunnery-range', to: 'airfield-strike', label: 'Airfield Strike', cloudiness: 'Overcast' },
 ] as const
 

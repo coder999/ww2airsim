@@ -10,7 +10,7 @@ export type CloudinessOption = {
 
 /** Form 2's player-facing weather roll, from fair weather through a broken deck. */
 export const CLOUDINESS_OPTIONS: readonly CloudinessOption[] = [
-  { value: 'sunny', label: 'Sunny', coverage: 0.1 },
+  { value: 'sunny', label: 'Clear', coverage: 0.1 },
   { value: 'partly-cloudy', label: 'Partly Cloudy', coverage: 0.25 },
   { value: 'cloudy', label: 'Cloudy', coverage: 0.42 },
   { value: 'overcast', label: 'Overcast', coverage: 0.58 },

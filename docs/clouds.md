@@ -19,7 +19,7 @@ here in the same commit.
   (`src/sim/scenario.ts`). Free-flight uses 0.45 and deck-quals 0.55; the
   most any layer can reach is 0.636.
 - **Player weather:** Flight Conditions (Form 4) rolls one of four equally likely initial reports:
-  Sunny (0.10 combined cumulus coverage), Partly Cloudy (0.25), Cloudy (0.42)
+  Clear (0.10 combined cumulus coverage), Partly Cloudy (0.25), Cloudy (0.42)
   or Overcast (0.58). The pilot may change the roll. The adjustment preserves
   authored bases, thicknesses and cirrus, and reweights multiple cumulus
   layers to the selected combined coverage. A historically clear scenario
