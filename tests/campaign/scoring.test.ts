@@ -18,7 +18,7 @@ describe('the point table', () => {
     const cells = rows.flatMap((r) => {
       const c = r.split('|').slice(1, -1).map((x) => x.trim())
       return [[c[0], c[1]], [c[2], c[3]]] as const
-    }).filter(([n, p]) => n && p).map(([n, p]) => Number(p!.replace(/,/g, '')))
+    }).filter(([n, p]) => n && p).map(([, p]) => Number(p!.replace(/,/g, '')))
     expect([...cells].sort((a, b) => a - b)).toEqual(Object.values(SCORE_POINTS).sort((a, b) => a - b))
     expect(cells).toHaveLength(13)
   })

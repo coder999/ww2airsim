@@ -276,7 +276,9 @@ carrier, runway, or seaplane anchorage when it exists; a friendly egress boundar
 is valid only when the historically appropriate recovery point lies outside the
 playable world. A normal failure banks destruction points but does not award the
 badge, change canonical campaign state, or unlock the next chapter. The chapter
-remains available to retry with any eligible living pilot.
+remains available to retry with any eligible living pilot. A chapter that has been
+completed is not replayable; Non-Campaign Missions always are. In a campaign a
+landing ends the sortie: there is no Continue, and the result is banked once.
 
 Repeatable **Non-Campaign Missions** are always available inside headquarters to
 earn points and develop replacement pilots without advancing the story or changing
