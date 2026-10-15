@@ -51,6 +51,8 @@ const RANGE_VIEWS: readonly { name: string; at?: { x: number; y: number; z: numb
   { name: 'range-cockpit' },
   { name: 'range-flare', extra: { look: '-68,30' } },
   { name: 'range-beam', extra: { look: '149,28' } },
+  { name: 'range-nav-avenger', extra: { look: '0,8' } },
+  { name: 'range-air-hellcat', at: { x: TAC.x + 200, y: 430, z: TAC.z + 350 }, extra: { look: '-10,-3' } },
   { name: 'range-harbor', extra: { look: '-135,1' } },
   { name: 'range-air-south', at: { x: TAC.x - 400, y: 200, z: TAC.z + 2000 }, extra: { look: '90,-5' } },
   { name: 'range-air-over', at: { x: TAC.x - 1200, y: 300, z: TAC.z + 700 }, extra: { look: '0,-4' } },
@@ -89,5 +91,18 @@ for (const [name, hour] of [['cockpit-day', '12'], ['cockpit-night', '21']] as c
     await page.waitForTimeout(1200)
     const png = await page.screenshot({ path: `${OUT}/${name}.png` })
     console.log(name, JSON.stringify(await frameStats(page, png, { x: 560, y: 760, w: 800, h: 300 })))
+  })
+}
+
+/** The three cockpit light steps (J), same view. */
+for (const steps of [0, 1, 2]) {
+  test(`capture cockpit-step-${steps}`, async ({ page }) => {
+    mkdirSync(OUT, { recursive: true })
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await heldView(page, withParams('/', { ...RANGE, timeOfDay: '21', ...Object.fromEntries(new URLSearchParams(EXTRA)) }))
+    for (let i = 0; i < 4 && (await page.evaluate(() => (window as DiagWindow).__ww2!.cameraMode())) !== 'cockpit'; i++) await page.keyboard.press('KeyC')
+    for (let i = 0; i < steps; i++) await page.keyboard.press('KeyJ')
+    await page.waitForTimeout(1000)
+    await page.screenshot({ path: `${OUT}/cockpit-step-${steps}.png` })
   })
 }
