@@ -935,6 +935,19 @@ export const withoutMainBatteries = <M>(w: World<M>): World<M> => {
   return mainBattery === undefined ? w : { ...w, combat }
 }
 
+/** F7B, DEV `?paradrop=6` or `?paradrop=6,2`: the same world with its player aircraft releasing that many men (then
+ *  bundles) two seconds in. Anything unparseable leaves the world untouched. Test scaffolding for the canopies and the
+ *  drop primitive; the real J5 drop is F10D's. */
+export const TEST_DROP_TICK = 120
+export const withTestDrop = <M>(w: World<M>, query: string): World<M> => {
+  const [men, bundles = '0'] = query.split(',')
+  const count = (text: string | undefined): number => (/^\d{1,2}$/.test(text ?? '') ? Number(text) : 0)
+  const orders = ([['trooper', count(men)], ['bundle', count(bundles)]] as const)
+    .filter(([, n]) => n > 0)
+    .map(([kind, n]) => ({ tick: TEST_DROP_TICK, aircraft: w.player, count: n, kind }))
+  return orders.length === 0 ? w : { ...w, drops: [...(w.drops ?? []), ...orders] }
+}
+
 export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField | null, loadout: Loadout = 'clean'): World<undefined> {
   const s = bundle.scenario
   const wind = s.weather.windMps === 0 ? null : windVectorFrom(s.weather.windFromDeg, s.weather.windMps)

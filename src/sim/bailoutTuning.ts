@@ -14,6 +14,8 @@ export type BailoutTuning = {
   readonly sinkMps: number; readonly canopyHorizontalRate: number; readonly canopyVerticalRate: number
   readonly survivableContactMps: number; readonly airborneAglM: number
   readonly exitOffsetM: Xyz; readonly exitImpulseMps: Xyz
+  /** F7B: a supply bundle's steady sink (small canopy) and the spacing of a drop stick. */
+  readonly bundleSinkMps: number; readonly dropIntervalS: number; readonly dropLateralM: number
 }
 export type RecoveryTuning = { readonly [K in keyof typeof RECOVERY_VALUES]: number }
 
@@ -38,6 +40,12 @@ export const BAILOUT_TUNING: BailoutTuning = Object.freeze({
   /** Exit impulse relative to the airframe, body frame (aft and up), and the pilot's offset from the origin. */
   exitOffsetM: Object.freeze({ x: -2.2, y: 1.2, z: 0 }),
   exitImpulseMps: Object.freeze({ x: -4, y: 1.5, z: 0 }),
+  /** ESTIMATE (F7B). A small bundle canopy sinks faster than a personnel canopy: about 23 ft/s. */
+  bundleSinkMps: 7,
+  /** ESTIMATE (F7B). Seconds between men leaving the door; at 100 knots six men string out about 420 ft. */
+  dropIntervalS: 0.5,
+  /** ESTIMATE (F7B). Sideways scatter of each canopy off the track, either way (about 7 ft). */
+  dropLateralM: 2,
 })
 
 /** Seconds of the deployment spent opening the canopy once clear of the airframe. */

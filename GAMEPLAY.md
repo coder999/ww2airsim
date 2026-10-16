@@ -348,9 +348,11 @@ judged where the canopy would come down; the debrief records the actual evidence
 the points already earned, but there is no badge, no completion or difficulty bonus and
 no campaign progress. A captured pilot is closed as a prisoner of war and replaced by
 an entry-rank pilot (the campaign ledger already does both). A jump that cannot be
-survived is a death. The sortie ends when you touch down. What is left for F7B is the
-presentation of those results (the prisoner and replacement in the debrief and the
-archive, the pickup shown at the landing spot) and J5's mass paratrooper drop. There
+survived is a death. The sortie ends when you touch down. The debrief
+and the archive show the prisoner and the replacement. A pilot who comes down on the
+water sits in a life raft; if he is rescued, a rescue launch comes in, takes him aboard
+and leaves. J5's mass paratrooper drop reuses the same canopies and arrives with the
+mission itself. There
 is no modern ejection seat and no initial prisoner-recovery mission.
 
 Tacloban, Dulag, Buri, Bayug, San Pablo, Tanauan, Ormoc, the beachhead, ports, and

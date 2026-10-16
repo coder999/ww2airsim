@@ -57,7 +57,13 @@ export type ParachutistEntity = {
   readonly recovery: RecoveryRecord | null
   readonly state: ParachutistState
   readonly previous: ParachutistState
+  /** F7B: a dropped man or supply bundle. Absent for a bailing pilot, so pre-F7B worlds and recordings stay
+   * byte-identical. Only a pilot's jump gets the rescue roll and marks its airframe abandoned (`isPilotJump`). */
+  readonly kind?: 'trooper' | 'bundle'
 }
+
+/** The player's (or an AI pilot's) own bailout, as opposed to a dropped trooper or bundle. */
+export const isPilotJump = (entry: ParachutistEntity): boolean => entry.kind === undefined
 
 export type BailoutRejection =
   | 'already-bailed'
@@ -120,6 +126,43 @@ export function createParachutist(
   }
 }
 
+/**
+ * F7B: a stick of `count` men (or bundles) leaving `aircraft` at its current tick. Pure and deterministic: the same
+ * aircraft and tick always give the same stick. # ponytail: the whole stick is placed at once, strung out behind the
+ * aircraft along its ground track as if it had flown straight and level while they left; it does not spread out in
+ * a turn. Upgrade to one man per `dropIntervalS` tick if a scenario ever drops from a banking aircraft.
+ */
+export function dropStick(
+  aircraft: AircraftEntity<unknown>,
+  side: Side,
+  count: number,
+  kind: NonNullable<ParachutistEntity['kind']>,
+  lowAltitude: boolean,
+  tuning: BailoutTuning = BAILOUT_TUNING,
+): readonly ParachutistEntity[] {
+  const { tick, position, velocity, attitude } = aircraft.state
+  const door = add(position, qRotate(attitude, v3(tuning.exitOffsetM.x, tuning.exitOffsetM.y, tuning.exitOffsetM.z)))
+  const out = add(velocity, qRotate(attitude, v3(tuning.exitImpulseMps.x, tuning.exitImpulseMps.y, tuning.exitImpulseMps.z)))
+  const speed = Math.hypot(velocity.x, velocity.z)
+  const along = speed < 0.1 ? v3(0, 0, 0) : v3(velocity.x / speed, 0, velocity.z / speed)
+  const men: ParachutistEntity[] = []
+  for (let i = 0; i < count; i++) {
+    const id = `drop:${aircraft.id}:${tick}:${kind}:${i}`
+    const trail = i * tuning.dropIntervalS * speed
+    const scatter = (recoveryRoll(bailoutSeed(tick, id, door)) - 0.5) * 2 * tuning.dropLateralM
+    const start = add(door, v3(-along.x * trail - along.z * scatter, 0, -along.z * trail + along.x * scatter))
+    const state: ParachutistState = {
+      tick, position: start, velocity: out, phase: 'separating', phaseStartedTick: tick,
+      lowAltitude, contact: null, outcome: null,
+    }
+    men.push({
+      id, sourceAircraft: aircraft.id, side, recoverySeed: bailoutSeed(tick, id, start),
+      recoveryEnvironment: DEFAULT_RECOVERY_ENVIRONMENT, recovery: null, state, previous: state, kind,
+    })
+  }
+  return men
+}
+
 export function bailoutSeed(tick: number, aircraftId: string, position: Vec3): number {
   let seed = (tick ^ Math.round(position.x * 10) ^ Math.round(position.y * 10) ^ Math.round(position.z * 10)) | 0
   for (let i = 0; i < aircraftId.length; i++) seed = Math.imul(seed ^ aircraftId.charCodeAt(i), 16_777_619)
@@ -154,7 +197,7 @@ export function stepParachutist(
   const velocity = phase === 'canopy'
     ? v3(
         approach(before.velocity.x, air.x, dt * tuning.canopyHorizontalRate),
-        approach(before.velocity.y, air.y - tuning.sinkMps, dt * tuning.canopyVerticalRate),
+        approach(before.velocity.y, air.y - (entity.kind === 'bundle' ? tuning.bundleSinkMps : tuning.sinkMps), dt * tuning.canopyVerticalRate),
         approach(before.velocity.z, air.z, dt * tuning.canopyHorizontalRate),
       )
     : v3(before.velocity.x, before.velocity.y - 9.80665 * dt, before.velocity.z)
@@ -167,7 +210,7 @@ export function stepParachutist(
       surface: ground.surface,
       verticalSpeedMps: velocity.y - ground.velocity.y,
     }
-    const survived = phase === 'canopy' && !before.lowAltitude && contact.verticalSpeedMps >= -tuning.survivableContactMps
+    const survived = entity.kind === 'bundle' || (phase === 'canopy' && !before.lowAltitude && contact.verticalSpeedMps >= -tuning.survivableContactMps)
     const landed: ParachutistState = {
       ...before,
       tick,

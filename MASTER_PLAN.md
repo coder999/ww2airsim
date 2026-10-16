@@ -374,15 +374,18 @@ record, a qualitative pre-jump cue, and the debrief. The sim decides success: `r
 mission success (`src/sim/mission/outcome.ts`), and the shell banks them through `session.bank` as `SortieEndKind`
 `rescued`, `captured` or `killed`. `src/campaign/` is untouched: F5A's `bankSortie` already closes a captured pilot as
 a POW, refills the five-pilot roster and counts rescues. Plan: [`docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md`](docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md); handoff: [`docs/handoff/2026-10-15-f7a-bailout-rescue.md`](docs/handoff/2026-10-15-f7a-bailout-rescue.md).
-**F7B remains open, and is smaller than first written:** presentation of the POW and replacement results F5A
-already banks (debrief and archive), generic rescue visuals (a raft or launch at a water touchdown), and J5's mass
-paratrooper drop reusing the F7A entity and the canopy sway. F10 owns the A4 scripted raft, boat and buoy.
-
+**F7B (built 2026-10-16 in worktree `f7b`, plan `docs/superpowers/plans/2026-10-16-f7b-rescue-visuals-paratroopers.md`; not yet merged until its handoff says so):**
+reading the code showed F5B had already presented the POW and replacement results (`campaignBank.ts`, the archive), so
+F7B added only what was missing: a raft with survivors at a water touchdown and a rescue launch that picks up a rescued
+pilot (view-only, on a wall clock because the sim holds still at the outcome); a deterministic `dropStick` primitive
+and scripted `World.drops` for men and supply bundles (`ParachutistEntity.kind`, omitted for a pilot so every earlier
+recording is byte-identical); and a pooled view for up to 24 men and 8 bundles. J5's objective logic ("effective drop"),
+the transports' drop command and the A4 scripted raft, boat and buoy stay with F10.
 
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,
 recorded seeded contested results, qualitative pre-bailout risk, and debrief evidence
-(F7A, done). F7B presents the POW archive and roster replacement that F5A already banks.
+(F7A, done). F5B already presents the POW archive and roster replacement that F5A banks; F7B (above) added the rescue visuals and the drop primitive.
 Reuse the approved pilot/parachute rig and simulation foundation for J5's paratrooper
 drop. There is no modern ejection seat and no initial prisoner-recovery mission.
 

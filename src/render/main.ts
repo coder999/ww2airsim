@@ -147,11 +147,12 @@ import { createSteeringArrow } from './scene/steeringArrow.js'
 import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
 import { loadParachutistView, type ParachutistView } from './scene/parachutist.js'
+import { loadRescueView, type RescueView } from './scene/rescue.js'
 import { createSightLabels, projectToScreen } from './sightLabels.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
-import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
+import { withMainBatteries, withoutMainBatteries, withTestDrop, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor, sightsAllowed, sightsOverrideFromQuery } from '../sim/sortie.js'
@@ -453,6 +454,7 @@ async function boot(): Promise<void> {
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
   let parachutistView: ParachutistView | null = null
+  let rescueView: RescueView | null = null
   // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
   // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
   // `spawnedAt` (which needs each scenario's own parked position) it is the
@@ -691,7 +693,12 @@ async function boot(): Promise<void> {
     // M4, DEV only: `?mainBatteries=all` frees every warship's main battery in any scenario (ruling R1's
     // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
     const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
-    const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
+    const batteried = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
+    // F7B, DEV only: `?paradrop=6` (or `?paradrop=6,2`) has the player's aircraft release that many men (and bundles) two
+    // seconds in, to look at the pooled canopies without a transport mission (J5 is F10D). Like `mainBatteries` it is part
+    // of how this world is built, so a reproduction through here gets the same drop.
+    const dropQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('paradrop') : null
+    const built = dropQuery === null ? batteried : withTestDrop(batteried, dropQuery)
     // F6B: the night fact the AI's perception reads. From the SAME hour and cloud choice the renderer uses, never
     // from the render quality tier, so a reproduction (which rebuilds through here) gets the same world.
     const night = nightFactsFor({
@@ -2017,6 +2024,8 @@ async function boot(): Promise<void> {
   // with no further plumbing here.
   parachutistView = await loadParachutistView()
   scene.add(parachutistView.root)
+  rescueView = await loadRescueView()
+  scene.add(rescueView.root)
   const tracers = createTracers()
   scene.add(tracers.object)
   // M2: anti-aircraft tracers, a thicker mesh of their own.
@@ -3262,7 +3271,8 @@ async function boot(): Promise<void> {
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
     })
-    parachutistView?.sync(playerParachutist(view.world), view.world.wind)
+    parachutistView?.sync(view.world.parachutists ?? [], view.world.wind)
+    rescueView?.sync(playerParachutist(view.world), performance.now() / 1000)
     // The hulls share the simulation support sea with amphibians and carrier
     // decks. Models point along local +x, with pitch about +z and roll about +x.
     setEnsignTime(performance.now() / 1000)
