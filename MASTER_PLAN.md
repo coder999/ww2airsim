@@ -379,7 +379,7 @@ record, a qualitative pre-jump cue, and the debrief. The sim decides success: `r
 mission success (`src/sim/mission/outcome.ts`), and the shell banks them through `session.bank` as `SortieEndKind`
 `rescued`, `captured` or `killed`. `src/campaign/` is untouched: F5A's `bankSortie` already closes a captured pilot as
 a POW, refills the five-pilot roster and counts rescues. Plan: [`docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md`](docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md); handoff: [`docs/handoff/2026-10-15-f7a-bailout-rescue.md`](docs/handoff/2026-10-15-f7a-bailout-rescue.md).
-**F7B (built 2026-10-16 in worktree `f7b`, plan `docs/superpowers/plans/2026-10-16-f7b-rescue-visuals-paratroopers.md`; not yet merged until its handoff says so):**
+**F7B (built and merged to `main` 2026-10-16, `3de7fce3`; not deployed; plan `docs/superpowers/plans/2026-10-16-f7b-rescue-visuals-paratroopers.md`, handoff `docs/handoff/2026-10-16-f7b-rescue-visuals-paratroopers.md`; its `paradrop-budget` spec is a known red, +1.4 to +1.6 ms against a 1.0 ms gate):**
 reading the code showed F5B had already presented the POW and replacement results (`campaignBank.ts`, the archive), so
 F7B added only what was missing: a raft with survivors at a water touchdown and a rescue launch that picks up a rescued
 pilot (view-only, on a wall clock because the sim holds still at the outcome); a deterministic `dropStick` primitive
