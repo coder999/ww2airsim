@@ -49,6 +49,7 @@ import { createBootProgress } from './bootProgress.js'
 import { track } from './analytics.js'
 import { bankLegScored, bankScored, type BankedView } from './campaignBank.js'
 import { buildLegCard, createStopFade } from './legCard.js'
+import { checkGroundStop } from '../sim/groundStop.js'
 import type { Loadout } from '../sim/weapons/stores.js'
 import { formatName, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
@@ -1370,10 +1371,11 @@ async function boot(): Promise<void> {
         if (c === null) return null
         return {
           id: c.id, faction: c.faction, revision: c.revision,
-          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? '') },
+          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? ''), legs: c.pending.legs.map((l) => ({ place: l.place, points: l.pilotPoints })), bankedPoints: c.pending.banked.pilotPoints },
           live: c.roster.live.map((id) => ({ id, points: c.pilots[id]!.points, sorties: c.pilots[id]!.sorties })),
           archived: Object.keys(c.pilots).length - c.roster.live.length,
-          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned },
+          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned, logLegs: c.human.log.at(-1)?.legs ?? [] },
+          completed: c.progress.completed,
         }
       },
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
@@ -1505,6 +1507,11 @@ async function boot(): Promise<void> {
           aircraftDown: combat === undefined ? 0 : Object.values(combat.aircraft).filter((r) => r.damage.destroyedAt !== null).length,
           projectiles: combat?.projectiles.length ?? 0,
         }
+      },
+      groundStop: (loadout: string) => {
+        if (frame === null || !checkGroundStop(frame.world).ok) return false
+        pendingGroundStop = loadout as Loadout
+        return true
       },
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())

@@ -46,7 +46,7 @@ const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!
  * straight ahead on Tacloban -- a genuine physics landing, not a scripted
  * touchdown (see `meta-game.spec.ts`'s own doc comment), flown by the shared
  * test pilot (`./pilot.ts`). Leaves the debrief showing "LANDED" with
- * `continueLabel` panel up; the caller decides what to do with it.
+ * stop card (Continue Sortie / End Sortie, F5C) up; the caller decides what to do with it.
  */
 async function flyOneGunneryRangeSortie(page: Page): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
@@ -76,7 +76,8 @@ test('land, return to Headquarters, launch again: a second debrief shows (C-1), 
   await expect(debriefDialog(page).getByText('Campaign Ledger')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/meta-game-relaunch-first-landing.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  // F5C: the landing at Tacloban is a stop card; End Sortie leaves the unscored sortie.
+  await debriefDialog(page).getByRole('button', { name: 'End Sortie' }).click()
   const hq = page.getByRole('dialog', { name: 'Headquarters' })
   await expect(hq.getByText('Air Group Headquarters')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })
@@ -102,7 +103,7 @@ test('land, return to Headquarters, launch again: a second debrief shows (C-1), 
   await expect(debriefDialog(page)).toContainText('score 500')
   await page.screenshot({ path: 'test-results/meta-game-relaunch-second-landing.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  await debriefDialog(page).getByRole('button', { name: 'End Sortie' }).click()
   await expect(hq.getByText('Air Group Headquarters')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])

@@ -140,7 +140,7 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await hopClear(page)
   await expect.poll(async () => (await mission(page))!.spawned, { timeout: 10_000 }).toEqual(['drone'])
   expect((await mission(page))!.meshes).toEqual([{ id: 'drone-1', visible: true }])
-  await expect(objectiveLine(page)).toHaveText('RECOVER')
+  await expect(objectiveLine(page)).toHaveText('LAND AT ANY FRIENDLY BASE')
   await expect(page.getByRole('status', { name: 'Radio' })).toHaveText('Tower: a friendly is passing overhead.', { timeout: 15_000 })
   await page.screenshot({ path: 'test-results/m2-airborne.png' })
 
@@ -152,8 +152,9 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await page.screenshot({ path: 'test-results/m2-debrief.png' })
 
   // A Dev fixture is unscored: the badge shows on the debrief but is not banked, so Return to Headquarters finds the
-  // campaign unchanged. (The scored badge path is `campaignBank.test.ts` and `bankScored`'s badgeId.)
-  await debrief.getByRole('button', { name: 'Return to Headquarters' }).click()
+  // campaign unchanged. (The scored badge path is `campaignBank.test.ts` and `bankScored`'s badgeId.) F5C: the
+  // landing is a stop card, and End Sortie is the way out.
+  await debrief.getByRole('button', { name: 'End Sortie' }).click()
   await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { banked: 0 } })
 })

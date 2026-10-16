@@ -84,10 +84,13 @@ export type CampaignDiagnostics = {
   readonly id: string
   readonly faction: 'us' | 'ja'
   readonly revision: number
-  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string; readonly aircraft: string } | null
+  /** `legs` (F5C): the landings this open sortie has banked at, with the pilot points each banked. */
+  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string; readonly aircraft: string; readonly legs: readonly { readonly place: string; readonly points: number }[]; readonly bankedPoints: number } | null
   readonly live: readonly { readonly id: string; readonly points: number; readonly sorties: number }[]
   readonly archived: number
-  readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number }
+  readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number; readonly logLegs: readonly { readonly place: string; readonly points: number }[] }
+  /** F5C: the chapters completed so far, in order. */
+  readonly completed: readonly string[]
 }
 
 export type Ww2Diagnostics = {
@@ -593,6 +596,13 @@ export type Ww2Diagnostics = {
    *  camera's view, how many airplanes are down, and the rounds in flight. */
   readonly entityCounts: () => { readonly aircraft: number; readonly ships: number; readonly aircraftInView: number; readonly shipsInView: number; readonly aircraftDown: number; readonly projectiles: number }
   readonly resetFrameTimes: () => void
+  /**
+   * F5C DEV: ask for the ground stop the stop card's Continue Sortie asks for (refuel, repair, rearm to `loadout`,
+   * reposition), through the same recorded path, from wherever the player is at rest on a friendly base (a runway, a
+   * carrier deck, an anchorage). Returns false when the player is not on one. For E2E and captures, so the three
+   * placements can be seen without flying a landing first.
+   */
+  readonly groundStop: (loadout: string) => boolean
 }
 
 export type CpuFrameSample = {
