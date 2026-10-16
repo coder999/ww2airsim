@@ -145,6 +145,7 @@ test.describe('the Hangar', () => {
   test.beforeEach(async ({ page }) => { await openHangar(page) })
 
   test('1. every in-service entry renders: its mask covers 2% to 80% of the frame, with no validation errors', async ({ page }) => {
+    test.setTimeout(180_000) // one full-frame capture per entry: 78 s on ryzen's D3D12 on 2026-10-15, over the 60 s default
     const ids = await entries(page)
     expect(ids.length).toBeGreaterThan(0)
     for (const id of ids) {
@@ -478,6 +479,24 @@ test.describe('the Hangar', () => {
       expect.soft(r, `${id} luminance ratio`).toBeLessThanOrEqual(1.5)
     }
     expect(await page.evaluate(() => (window as HangarWindow).__hangar!.validationErrors)).toEqual([])
+  })
+
+  test('15b. the shared lighting node costs a lit model nothing with no light active: luminance equals the node compiled out (night=shaders:0), D3D12 regression 2026-10-15', async ({ page }) => {
+    // F6A's If/Loop first built positionWorld/normalWorld inside the branch; on ryzen's D3D12 every lit model went near-black (0.06x to 0.45x).
+    const lum = async (query: string, id: string): Promise<number> => {
+      await page.goto(`/hangar.html?bench${query}`)
+      await page.waitForFunction(() => (window as HangarWindow).__hangar !== undefined, undefined, { timeout: 30_000 })
+      await page.evaluate(() => (window as HangarWindow).__hangar!.ready)
+      await page.evaluate(() => (window as HangarWindow).__hangar!.freeze())
+      const v = await view(page, id, 'three-quarter')
+      return (await masks(page, v.empty, [v.model])).luminance[0]!
+    }
+    for (const id of ['ki-84-frank', 'p-38-lightning', 'essex-cv']) {
+      const on = await lum('', id)
+      const off = await lum('&night=shaders:0', id)
+      console.log(`lightnode ${id}: ${on.toFixed(6)} vs compiled out ${off.toFixed(6)}`)
+      expect(Math.abs(on - off) / off, `${id} lit vs shaders:0`).toBeLessThanOrEqual(0.02)
+    }
   })
 
   test('16. the UV checker changes a skinned model and restores it exactly (DP0, spec §9)', async ({ page }) => {
