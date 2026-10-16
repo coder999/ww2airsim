@@ -36,7 +36,7 @@ Branch `f7b-rescue-paratroopers` (worktree `~/projects/ww2airsim-worktrees/f7b`)
 - Focused: `tests/sim/paradrop.test.ts` (9), `tests/render/rescue.test.ts` (8), `tests/render/parachutistView.test.ts`, plus architecture,
   flightRecorder, bailout, bailoutTuning, campaignBank, scenario: 161 passed. Mutations that turned tests red: drop the
   `isPilotJump` filter on the abandoned set (transport stops flying, two tests fail); set `bundleSinkMps` to the man's rate.
-- `npm run verify` on the branch (nexus, alone, 2026-10-16 06:34, before the docs-only edits that follow): typecheck, lint, depcruise clean; **481 files passed, 2 skipped; 7,100 tests passed, 60 skipped**, exit 0. Skips are the terrain-tile and GPU-gated ones named in `docs/testing.md`.
+- `npm run verify` on the branch (2026-10-16): on nexus before merging main, 481 files and 7,100 tests passed; re-run on ryzen via `remote-run` after merging main (`1bbb6410`), exit 0: typecheck, lint, depcruise clean, **482 files passed, 1 skipped; 7,146 tests passed, 14 skipped**. Skips are the terrain-tile and GPU-gated ones named in `docs/testing.md`.
 - Capture `tests/e2e/paradropCapture.spec.ts` (`npm run capture:e2e -- paradropCapture.spec.ts`, local `PW_BASE_URL` on a
   one-off vite on port 5190, stopped after): 18 men + 6 bundles under canopy in a line behind the aircraft, and the raft,
   launch approaching, alongside and gone. Local Radeon 680M numbers (49 to 90 fps, 11 to 20 ms) mean nothing and are not a budget.
