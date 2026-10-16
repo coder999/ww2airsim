@@ -3,7 +3,7 @@
  * may take, when an authored night mission locks the takeoff hour, and whether a Dev takeoff time was chosen.
  * No DOM; the sortie forms and the shell call these.
  */
-import { describeAircraft, eligibility, isNightHour, type Campaign, type MissionDescriptor } from '../../campaign/index.js'
+import { abilities, describeAircraft, eligibility, isNightHour, tierOf, type Campaign, type MissionDescriptor } from '../../campaign/index.js'
 import { DEV_TAKEOFF_HOURS } from '../sky/sun.js'
 import { rankShort } from './model.js'
 
@@ -33,3 +33,9 @@ export const takeoffLockHour = (mission: MissionDescriptor | null, scenarioHour:
 /** Late dusk and night are Dev-only takeoff times (F6A); choosing one makes the sortie unscored. */
 export const isDevTakeoffHour = (hour: number | undefined): boolean =>
   hour !== undefined && (Object.values(DEV_TAKEOFF_HOURS) as number[]).includes(hour)
+
+/** F6B: does this pilot's rank allow the bombsight and torpedosight (`abilities(tier).sights`, Lieutenant Commander and above)? Rides to the flight as `SortieChoice.sights`; `sightsAllowed` (src/sim/sortie.ts) adds Dev and Training Ground. */
+export const pilotSights = (c: Campaign, pilotId: string): boolean => {
+  const pilot = c.pilots[pilotId]
+  return pilot !== undefined && abilities(tierOf(pilot.points)).sights
+}

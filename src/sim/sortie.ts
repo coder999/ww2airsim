@@ -19,8 +19,7 @@ export type SortieChoice = { readonly scenarioId: string; readonly aircraftSpec:
   readonly god?: boolean
   /**
    * F6B: the pilot's rank allows the bombsight and torpedosight (`abilities(tier).sights`, src/campaign/ranks.ts). The
-   * launch path supplies it; `src/sim` never reads Campaign. AWAITS F5B: its `CampaignLaunch{pilotId, tier, facts}` carries
-   * the tier, and the headquarters launch sets `sights: abilities(tier).sights`. Until then nothing sets it (false).
+   * launch path supplies it (`bootHq`: `pilotSights`, F5B's headquarters); `src/sim` never reads Campaign. Absent is false.
    */
   readonly sights?: boolean }
 export type SortieRule = 'dev-scenario' | 'enemy-aircraft' | 'not-carrier-capable' | 'not-water-capable' | 'no-stations'

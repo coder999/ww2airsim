@@ -299,6 +299,8 @@ export type CampaignSortie = {
   readonly pilotLabel: string
   readonly dev: boolean
   readonly god: boolean
+  /** F6B: the pilot's rank allows the bombsight and torpedosight (`abilities(tier).sights`); rides to the flight as `SortieChoice.sights`. */
+  readonly sights: boolean
   /** An authored night mission's hour, or null for the usual Morning, Midday and Dusk. */
   readonly lockedHour: number | null
   /** Form 5's gate on each aircraft for this pilot and mission. */
@@ -859,7 +861,7 @@ export function createTitleScreen(
       const flying = missions.flyable.find((f) => f.spec.id === draft.aircraftSpec)
       if (flying === undefined) return
       const timeOfDay = campaign.lockedHour ?? (takeoffTime === null ? undefined : hourFor(takeoffTime))
-      const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
+      const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(campaign.sights ? { sights: true } : {}), ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
       const refused = campaign.onLaunch(choice)
       if (refused !== null) { launchError.textContent = refused; return }
       hide()

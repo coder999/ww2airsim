@@ -303,6 +303,7 @@ Mark accepted every recommendation of the first draft's ambiguity batch. The pla
 | G1 | Dev UI | Dev uses the same UI as production; the Dev checkbox unlocks dev features within it | Task 8, Task 12, collisions |
 | A1 | Torpedo arming | **Arcade ruling (Mark 2026-10-15): torpedoes arm the moment they are in the water, every carrier including AI.** `armRunM` set to 0 in the four torpedo content entries; the sight drops its arming bar, label and badge text; torpedo hit and flooding tests updated; recorded-flight checksums of torpedo scenarios change | sights, content, combat tests |
 | A2 | Enemy radar | **Mark 2026-10-15: LATER, as its own follow-up plan. F6B stays visual-only.** The player's radar is an instrument only today (the radar spec says it does not change AI behavior) | 3.7, follow-ups |
+| G3 | Gate wiring (built 2026-10-15, after F5B merged) | `bootHq.assign` sets `CampaignSortie.sights = pilotSights(c, pilotId)`; the title copies it to `SortieChoice.sights`; the launch records `facts.sights`. Tests: `tests/render/hq/sights.test.ts` (real picker rows), `tests/e2e/hqSights.spec.ts` (rookie scored mission closed, tutorial open, Dev open). The Lt Cdr side is unit-tested only (no UI path creates an Lt Cdr pilot without an import) | Task 8 |
 | G2 | Launch data | F5B merges first and provides `CampaignLaunch{pilotId, tier, facts}`; F6B adds `sights` | 4.1, 10 |
 
 **Stop-and-list items (version bumps):** none required. The accepted additive `sighted` evidence member and the new `night` field on night worlds are the two close calls (5.3).

@@ -32,7 +32,7 @@ exports, not edits to a persisted shape.
   rejects a bare roster array with a message.
 - **`SortieFacts` reserved keys.** `launchSortie` writes `aircraft` and `loadout` into `pending.facts` (the
   frozen `PendingSortie` has no field for either, and the log entry needs both). F6 and F7 hang their own keys
-  beside them and must not reuse those two.
+  beside them and must not reuse those two. F6B writes `sights` (boolean, `abilities(tier).sights` at launch).
 - **One transaction per sortie.** `bankSortie` is called exactly once per sortie (D12: a landing ends the sortie
   in campaign mode, no Continue). A sortie left pending at load is an abandonment (D7), applied by `loadCampaign`.
 
