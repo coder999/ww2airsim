@@ -21,8 +21,9 @@ export const VIEWS: readonly View[] = [
 ]
 
 /** Appends query parameters to a view URL that may or may not have a query. */
+/** BUDGET_PARAMS (e.g. `trees=off`) rides on every URL built here, so one A/B switch covers every budget spec. */
 export function withParams(url: string, params: Record<string, string>): string {
-  const q = new URLSearchParams(params).toString()
+  const q = new URLSearchParams({ ...params, ...Object.fromEntries(new URLSearchParams(process.env.BUDGET_PARAMS ?? '')) }).toString()
   if (q === '') return url
   return url + (url.includes('?') ? '&' : '?') + q
 }

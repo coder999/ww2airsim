@@ -102,7 +102,7 @@ const BOMB_FALL_S = 17.37
 test.setTimeout(180_000)
 
 const spawnQuery = (x: number, y: number, z: number): string =>
-  `${RANGE}&${xName}=${x}&${yName}=${y}&${zName}=${z}`
+  `${RANGE}&${xName}=${x}&${yName}=${y}&${zName}=${z}${process.env.BUDGET_PARAMS ? `&${process.env.BUDGET_PARAMS}` : ''}`
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 const ships = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.ships())
