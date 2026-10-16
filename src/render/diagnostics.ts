@@ -174,6 +174,8 @@ export type Ww2Diagnostics = {
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
+  /** F7B: parachutist entities in the world and how many rigs are drawn this frame (a drop stick, bundles, a pilot). */
+  readonly parachutists: () => { readonly entities: number; readonly drawn: number }
   readonly bailout: () => {
     readonly phase: BailoutPhase
     readonly outcome: BailoutOutcome | null

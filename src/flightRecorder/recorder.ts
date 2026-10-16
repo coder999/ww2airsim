@@ -1,5 +1,6 @@
 import type { FixedStepObservation, World } from '../sim/loop.js'
 import { DT } from '../sim/flight/model.js'
+import { isPilotJump } from '../sim/bailout.js'
 import { perceptionAt } from '../sim/lights/perception.js'
 import { worldChecksum, worldSummary } from './checksum.js'
 import {
@@ -74,7 +75,8 @@ const evidenceBetween = <M>(before: World<M>, after: World<M>): FlightRecordEvid
     if (priorImpact === null && aircraft.impact !== null) evidence.push({ tick, kind: 'impact', entity: aircraft.id, detail: aircraft.impact.kind })
   }
   const priorParachutists = new Set((before.parachutists ?? []).map((entry) => entry.id))
-  for (const parachutist of after.parachutists ?? []) {
+  // F7B: a dropped trooper or bundle is not a bailout; the drop is in the world checksum, not the evidence list.
+  for (const parachutist of (after.parachutists ?? []).filter(isPilotJump)) {
     if (!priorParachutists.has(parachutist.id)) {
       evidence.push({ tick, kind: 'bailout', entity: parachutist.sourceAircraft, detail: `${parachutist.id} separated` })
       continue

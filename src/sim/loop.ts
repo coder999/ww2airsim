@@ -32,9 +32,12 @@ import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
 import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
+import { BAILOUT_TUNING } from './bailoutTuning.js'
 import {
   bailoutEligibility,
   createParachutist,
+  dropStick,
+  isPilotJump,
   resolveRecovery,
   stepParachutist,
   type BailoutRejection,
@@ -423,6 +426,8 @@ export interface World<M = undefined> {
    * recorder checksums byte-for-byte while still making an active parachutist
    * part of deterministic world state. */
   readonly parachutists?: readonly ParachutistEntity[]
+  /** F7B: scripted drops, run at the start of their tick. Omitted when none, so pre-F7B worlds stay byte-identical. */
+  readonly drops?: readonly DropOrder[]
   readonly ships: readonly ShipEntity[]
   readonly vehicles: readonly VehicleEntity[]
   /** Strike targets derived once from `airfields` at world creation (spec
@@ -718,7 +723,32 @@ export function playerAircraft<M>(world: World<M>): AircraftEntity<M> {
 }
 
 export const playerParachutist = <M>(world: World<M>): ParachutistEntity | null =>
-  world.parachutists?.find((entry) => entry.sourceAircraft === world.player) ?? null
+  world.parachutists?.find((entry) => isPilotJump(entry) && entry.sourceAircraft === world.player) ?? null
+
+/** A scripted release of `count` men or bundles from `aircraft` on `tick` (F7B). */
+export type DropOrder = {
+  readonly tick: number
+  readonly aircraft: EntityId
+  readonly count: number
+  readonly kind: NonNullable<ParachutistEntity['kind']>
+}
+
+/** The stick `order` releases, or `[]` when the aircraft is gone, destroyed, parked or has no ground below it. */
+function dropFor<M>(
+  world: World<M>,
+  aircraft: readonly AircraftEntity<M>[],
+  decks: ReturnType<typeof decksOf>,
+  water: ReturnType<typeof waterSurfaceContext>,
+  order: DropOrder,
+): readonly ParachutistEntity[] {
+  const source = aircraft.find((a) => a.id === order.aircraft)
+  if (source === undefined || source.parked || source.impact !== null) return []
+  if ((world.combat.aircraft[source.id]?.damage.destroyedAt ?? null) !== null) return []
+  const ground = groundUnder(world.terrain, decks, source.state.position.x, source.state.position.z, water)
+  if (ground === null) return []
+  const agl = source.state.position.y - ground.heightM
+  return dropStick(source, sideOf(world, source), order.count, order.kind, agl < BAILOUT_TUNING.safeOpenAglM)
+}
 
 export type BailoutRequest<M> =
   | { readonly ok: true; readonly world: World<M>; readonly parachutist: ParachutistEntity }
@@ -744,7 +774,7 @@ export function requestBailout<M>(
   )
   const eligibility = bailoutEligibility(
     aircraft,
-    world.parachutists ?? [],
+    (world.parachutists ?? []).filter(isPilotJump),
     ground,
     (world.combat.aircraft[aircraftId]?.damage.destroyedAt ?? null) !== null,
   )
@@ -1118,6 +1148,12 @@ export function advance<M>(
         (x, z) => groundUnder(world.terrain, decks, x, z, water),
       ))
     }
+    // F7B: scripted drops release this tick, from the aircraft as they stood at the end of the last one.
+    if (world.drops !== undefined) {
+      for (const order of world.drops) {
+        if (order.tick === tick) parachutists = [...parachutists, ...dropFor(world, aircraft, decks, water, order)]
+      }
+    }
     // Taken before `ageDamage`, which is where a fire burns an airframe out:
     // that explosion is a loss with no killing hit, and `creditDownedAircraft`
     // must see it go down this tick (damage stages, Mark 2026-10-09).
@@ -1135,7 +1171,7 @@ export function advance<M>(
     const sides = sidesOf(world, aircraftAtStart)
     const perception = perceptionAt({ tick, night: world.night, terrain: world.terrain, wind: world.wind, aircraft: aircraftAtStart, ships }, DT)
     const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships, ...(perception === null ? {} : { perception }) }
-    const abandoned = new Set(parachutists.map((entry) => entry.sourceAircraft))
+    const abandoned = new Set(parachutists.filter(isPilotJump).map((entry) => entry.sourceAircraft))
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       const flown = pilotTick(a, aircraftAtStart, pilotContext)
@@ -1217,7 +1253,7 @@ export function advance<M>(
       // where the renderer will draw it.
       if (stepped.respot !== null) aircraft = respotPlayer(aircraft, world.player, ships, stepped.respot, tick)
     }
-    if (parachutists.some((entry) => entry.state.phase === 'down' && entry.state.outcome === null)) {
+    if (parachutists.some((entry) => isPilotJump(entry) && entry.state.phase === 'down' && entry.state.outcome === null)) {
       const recoveryWorld: World<M> = {
         ...world,
         tick,
@@ -1230,7 +1266,7 @@ export function advance<M>(
         parachutists,
       }
       parachutists = parachutists.map((entry) => {
-        if (entry.state.phase !== 'down' || entry.state.outcome !== null || entry.state.contact === null) return entry
+        if (!isPilotJump(entry) || entry.state.phase !== 'down' || entry.state.outcome !== null || entry.state.contact === null) return entry
         const facts = recoveryFactsAt(
           recoveryWorld,
           entry.state.position,
