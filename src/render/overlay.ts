@@ -33,6 +33,7 @@ export type OverlayHandle = {
 
 export function createOverlay(root: HTMLElement): OverlayHandle {
   const el = document.createElement('pre')
+  el.setAttribute('data-ww2-overlay', '')
   el.style.cssText =
     'position:fixed;top:8px;left:8px;margin:0;padding:8px 10px;border-radius:4px;' +
     'background:rgba(12,14,18,.72);color:#cfe3ff;font:12px/1.45 ui-monospace,Menlo,monospace;' +

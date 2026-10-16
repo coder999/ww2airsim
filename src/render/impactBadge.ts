@@ -14,15 +14,20 @@ export const TONE_COLOR: Readonly<Record<SightTone, string>> = { plain: '#ff9d75
 
 export function createImpactBadge(root: HTMLElement): ImpactBadgeHandle {
   const el = document.createElement('div')
+  el.className = 'ww2-sight-badge'
   el.style.cssText =
-    'position:fixed;left:50%;top:64px;transform:translateX(-50%);padding:4px 10px;' +
+    'position:fixed;left:50%;top:104px;transform:translateX(-50%);padding:4px 10px;' +
     'border-radius:4px;background:rgba(12,14,18,.82);color:#ff9d75;' +
     'font:14px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;' +
     'pointer-events:none;display:none'
   const live = document.createElement('div')
   live.setAttribute('aria-live', 'polite')
   live.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap'
-  root.append(el, live)
+  // Layout (Mark 2026-10-15: the badge sat under the tutorial instruction): the mission objective line is at top:72px, so the
+  // badge starts below it. With the DEV overlay up (top-left, to about 420 px) a narrower window moves the badge to its right.
+  const css = document.createElement('style')
+  css.textContent = '@media (max-width:1500px){body:has([data-ww2-overlay]) .ww2-sight-badge{left:440px!important;transform:none!important;max-width:calc(100vw - 460px)}}'
+  root.append(css, el, live)
   let shown: string | null = null
   let tone: SightTone = 'plain'
   return {
