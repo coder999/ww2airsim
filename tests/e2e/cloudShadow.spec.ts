@@ -58,7 +58,9 @@ async function fixedView(page: Page, url: string): Promise<void> {
   await page.goto(url)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
   await expect(page.getByRole('dialog', { name: 'Title' })).toBeVisible()
-  await page.evaluate(() => document.querySelectorAll('[data-ww2-title], [data-ww2-hq]').forEach((el) => { (el as HTMLElement).style.visibility = 'hidden' }))
+  // A stylesheet, not per-element styles: the headquarters overlay (F5B) can mount after this runs, and the
+  // 2026-10-16 nightly captured it (and the title art) over the world in the `off` frame.
+  await page.addStyleTag({ content: '[data-ww2-title], [data-ww2-hq] { visibility: hidden !important }' })
   // Wait for a frame that shows the world, not a fixed second. The canvas is flat gray until the
   // scene first draws; measured 2026-09-27, the deck test's `off` capture was that gray (mean
   // 126.3, sd 0.0002) on main too, so the deck comparison had been passing against a blank frame.
