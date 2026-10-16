@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  INVARIANTS, LIVE_ROSTER_SIZE, validateCampaign, type Campaign, type Faction,
+  INVARIANTS, LIVE_ROSTER_SIZE, SCHEMA_VERSION, noBanked, validateCampaign, zeroCounts, type Campaign, type Faction,
 } from '../../src/campaign/index.js'
 import { createCampaign } from '../../src/campaign/roster.js'
 
@@ -71,11 +71,15 @@ describe('validators: each invariant is named and has a negative test', () => {
       const p = c.pilots[c.roster.live[0]!]!
       p.log = new Array(201).fill(0).map(() => ({
         sortieId: 's', at: 'x', missionId: 'm', chapterId: null, aircraft: 'a', loadout: 'l', difficulty: 'normal' as const, end: 'landed' as const,
-        success: false, counts: { ...p.counts }, destruction: 0, bonuses: { difficulty: 0, completion: 0, roster: 0 }, points: 0, flightSeconds: 0, flags: [],
+        success: false, counts: { ...p.counts }, destruction: 0, bonuses: { difficulty: 0, completion: 0, roster: 0 }, points: 0, flightSeconds: 0, flags: [], legs: [],
       }))
     },
     'pending-valid': (c) => {
-      c.pending = { sortieId: 'c1:s1', pilotId: 'c1:p77', missionId: 'm', chapterId: null, difficulty: 'normal', scoreEligible: true, launchedAt: 'x', facts: {} }
+      c.pending = { sortieId: 'c1:s1', pilotId: 'c1:p77', missionId: 'm', chapterId: null, difficulty: 'normal', scoreEligible: true, launchedAt: 'x', facts: {}, legs: [], banked: noBanked() }
+      c.serials.sortie = 1
+    },
+    'pending-legs': (c) => {
+      c.pending = { sortieId: 'c1:s1', pilotId: c.roster.live[0]!, missionId: 'm', chapterId: null, difficulty: 'normal', scoreEligible: true, launchedAt: 'x', facts: {}, legs: [{ place: 'Tacloban', at: 'x', counts: zeroCounts(), pilotPoints: 500, humanPoints: 500 }], banked: noBanked() }
       c.serials.sortie = 1
     },
     'progress-sequence': (c) => { c.progress.completed = ['A2'] },
@@ -113,7 +117,20 @@ describe('validators: each invariant is named and has a negative test', () => {
     expect(issuesOf(four)[0]?.name).toBe('shape')
     expect(issuesOf({ ...clone(make()), extra: 1 })[0]?.name).toBe('shape')
     expect(issuesOf({ ...clone(make()), faction: 'de' })[0]?.name).toBe('shape')
-    expect(issuesOf({ ...clone(make()), schemaVersion: 2 })[0]?.name).toBe('shape')
+    expect(issuesOf({ ...clone(make()), schemaVersion: SCHEMA_VERSION + 1 })[0]?.name).toBe('shape')
+  })
+
+  it('F5C: the campaign schema is version 2, and a pending sortie round-trips its legs and banked totals', () => {
+    expect(SCHEMA_VERSION).toBe(2)
+    const c = clone(make())
+    c.pending = {
+      sortieId: 'c1:s1', pilotId: c.roster.live[0]!, missionId: 'm', chapterId: null, difficulty: 'normal', scoreEligible: true, launchedAt: 'x', facts: {},
+      legs: [{ place: 'Tacloban', at: 'x', counts: zeroCounts(), pilotPoints: 500, humanPoints: 500 }],
+      banked: { ...noBanked(), destruction: 500, pilotPoints: 500, humanPoints: 500 },
+    }
+    c.serials.sortie = 1
+    expect(issuesOf(c)).toEqual([])
+    expect(validateCampaign(JSON.parse(JSON.stringify(c)))).toEqual({ ok: true, campaign: c })
   })
 
   it('faction is fixed: a Japanese campaign rejects American chapters in its progress', () => {

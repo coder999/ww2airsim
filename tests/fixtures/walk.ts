@@ -1,6 +1,6 @@
 /** Seeded random play through the real reducers (mulberry32): property-test fuel, replayable by seed. */
 import {
-  SCORE_CLASSES, bankSortie, createCampaign, launchSortie, offers, zeroCounts,
+  SCORE_CLASSES, bankLeg, bankSortie, createCampaign, launchSortie, offers, zeroCounts,
   type Campaign, type Counts, type Difficulty, type Faction, type MissionDescriptor, type SortieEndKind, type SortieReport,
 } from '../../src/campaign/index.js'
 import { createRng } from '../../src/sim/rng.js'
@@ -36,7 +36,16 @@ export function walkStep(c: Campaign, rng: () => number, catalog: readonly Missi
     flight: { flightSeconds: Math.floor(rng() * 1800), maxAltitudeM: Math.floor(rng() * 9000), maxTrueAirspeedMps: Math.floor(rng() * 200), landing: survives ? 'field' : null },
     badgeId: pick.mission.badgeId,
   }
-  const banked = bankSortie(launched.value, report, WALK_NOW)
+  // F5C: some sorties bank at one or two friendly landings first (cumulative counts, a stretch of the final ones each).
+  let open0 = launched.value
+  const legs = [0, 0, 0, 1, 2][Math.floor(rng() * 5)]!
+  for (let n = 1; n <= legs; n++) {
+    const part = Object.fromEntries(SCORE_CLASSES.map((k) => [k, Math.floor((report.counts[k] * n) / (legs + 1))])) as Counts
+    const landed = bankLeg(open0, { ...report, end: 'landed', friendlyDestroyed: false, success: rng() < 0.4, counts: part, leg: n, place: `Base ${n}` }, WALK_NOW)
+    if (!landed.ok) throw new Error(`walk: leg refused: ${landed.error.code} ${landed.error.message}`)
+    open0 = landed.value
+  }
+  const banked = bankSortie(open0, report, WALK_NOW)
   if (!banked.ok) throw new Error(`walk: bank refused: ${banked.error.code} ${banked.error.message}`)
   return banked.value
 }

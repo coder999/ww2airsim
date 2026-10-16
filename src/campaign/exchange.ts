@@ -28,8 +28,8 @@ export const exportFileName = (c: Campaign, date: string): string => `ww2airsim-
 export type Loaded = { ok: true; campaign: Campaign } | { ok: false; issues: string[] }
 
 /**
- * Parsed JSON to a campaign of THIS build: refuses a newer schema outright (never downgrades), upgrades
- * an older one (there is none yet: version 1 is the first), then validates every shape and invariant.
+ * Parsed JSON to a campaign of THIS build: refuses a newer schema outright (never downgrades), refuses
+ * an older one (F5C: no migration), then validates every shape and invariant.
  * Shared by import and by storage's load, so a saved campaign and an imported one pass the same gate.
  */
 export function campaignFromJson(raw: unknown): Loaded {
@@ -39,7 +39,10 @@ export function campaignFromJson(raw: unknown): Loaded {
   if (version > SCHEMA_VERSION) {
     return { ok: false, issues: [`This campaign was saved by a newer version of the game (schema ${version}); this build reads up to schema ${SCHEMA_VERSION}. Update the game, or keep the file.`] }
   }
-  // Older versions would be upgraded here, one step per version. None exist yet.
+  // Older versions are not upgraded (F5C D12, 2026-10-16): version 1 predates multi-leg sorties and is refused.
+  if (version < SCHEMA_VERSION) {
+    return { ok: false, issues: [`This campaign was saved by an older version of the game (schema ${version}); this build reads schema ${SCHEMA_VERSION} only and does not convert older campaigns. Keep the file or delete it.`] }
+  }
   const v = validateCampaign(raw)
   return v.ok ? { ok: true, campaign: v.campaign } : { ok: false, issues: v.issues.map((i) => `${i.name}: ${i.message}`) }
 }
@@ -65,6 +68,9 @@ export function importCampaign(text: string, existingRevisions: Readonly<Record<
   if (typeof body.schemaVersion !== 'number') return { ok: false, issues: ['The export has no schemaVersion.'] }
   if (body.schemaVersion > SCHEMA_VERSION) {
     return { ok: false, issues: [`This export was made by a newer version of the game (schema ${body.schemaVersion}); this build reads up to schema ${SCHEMA_VERSION}.`] }
+  }
+  if (body.schemaVersion < SCHEMA_VERSION) {
+    return { ok: false, issues: [`This export was made by an older version of the game (schema ${body.schemaVersion}); this build reads schema ${SCHEMA_VERSION} only and does not convert older campaigns.`] }
   }
   const loaded = campaignFromJson(body.campaign)
   if (!loaded.ok) return loaded

@@ -8,7 +8,7 @@ What the plan measured and what is still open is `handoff/2026-10-14-f5a-campaig
 
 ## Status of the contract
 
-**Frozen at the end of Task 3 (2026-10-14).** `schemaVersion` is 1. A change to `schema.ts` shapes,
+**Frozen at the end of Task 3 (2026-10-14); bumped to `schemaVersion` 2 by F5C (2026-10-16, "Legs" below).** A change to `schema.ts` shapes,
 the `bankSortie` order, or `SCORING_RULES_VERSION` is a version bump with a migration and a note to
 F5B, F6, F7, F8, F9 and F10. Nobody edits the shapes in place. Nothing was changed after the freeze;
 the additions that follow it (`SortieReport`, `Result`, the `aircraft`/`loadout` fact keys) are new
@@ -42,8 +42,42 @@ exports, not edits to a persisted shape.
   in the debrief and the Dev flight record, not the campaign log (`LogEntry` has no field for them; persisting them
   would be a `schemaVersion` bump). F7B's remaining scope: showing the POW and replacement in the debrief and the
   archive, rescue visuals, and J5's paratroopers.
-- **One transaction per sortie.** `bankSortie` is called exactly once per sortie (D12: a landing ends the sortie
-  in campaign mode, no Continue). A sortie left pending at load is an abandonment (D7), applied by `loadCampaign`.
+- **One closing transaction per sortie.** `bankSortie` is called exactly once per sortie and closes it; since F5C a
+  landing at a friendly base first calls `bankLeg` (see "Legs"). A sortie left pending at load is an abandonment (D7),
+  applied by `loadCampaign`; what its landings banked stays.
+
+## Legs (F5C, 2026-10-16)
+
+A **sortie** is launch to close; a **leg** is take-off to a full stop on a friendly airfield, carrier deck or anchorage
+(`GAMEPLAY.md`, "The sortie, the stop and the recovery rule"). Decisions D1-D12 are in
+[the plan](superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md); this section is the data contract.
+
+- **Schema version 2.** `SCHEMA_VERSION` is 2. A version-1 campaign or export is refused with an "older version"
+  message and left untouched in storage; there is no migration (D12, as F5A did with the old roster). The index
+  file keeps its own `INDEX_VERSION` 1 (its shape did not change), so an old campaign still lists and says why it cannot open.
+- **`PendingSortie` gains `legs` and `banked`.** `legs[]` is `{ place, at, counts, pilotPoints, humanPoints }` per banked
+  landing (`counts` cumulative at the landing). `banked` is the running total every later bank is measured against:
+  cumulative `counts` and `flightSeconds`, the pieces `destruction`/`difficulty`/`completion`/`roster`, `pilotPoints`,
+  `humanPoints`, and `qualified`. Invariant `pending-legs`: the pieces sum to `pilotPoints` and the legs sum to the totals.
+- **`LogEntry` gains `legs: { place, points }[]`.** One entry per sortie (D10), written by the closing call; empty
+  when the sortie banked only at its end. `counts`, `destruction`, `bonuses` and `points` are what the ledgers actually received.
+- **`SortieReport` is cumulative for the sortie** (counts, flight seconds, maxima). Every bank takes the delta against `pending.banked`.
+- **`bankLeg(c, LegReport, now)`** where `LegReport = SortieReport & { leg, place }`. Banks the delta (destruction points)
+  to the pilot and commander ledgers, and the pilot's career (the landing, flight seconds, maxima). At the **first qualifying
+  bank** (`success`, the sim's verdict, and `banked.qualified` still false) it also applies the badge, the difficulty and
+  completion bonuses, the commander roster bonus and the chapter, once (D4). Keeps `pending` open. It does not touch
+  `pilot.sorties`, `ledger.sorties`, `banked` counters, the log, the roster or the attempts. Refused with the same
+  campaign reference: `leg` is not the next one (`leg-mismatch`, so a repeat banks nothing), a report that is not a
+  landing, a destroyed friendly, counts that went down.
+- **`bankSortie(c, SortieReport, now)`** is the closing call. It banks any remaining delta, applies the end kind, closure,
+  replacement, the attempts (a failure or abandonment counts only if the sortie never qualified), the stats and the log
+  entry, and clears `pending`. With no leg banked it is the whole sortie in one call.
+- **What a close forfeits (D5).** `FORFEITING_ENDS` in `scoring.ts`: `abandoned`, `killed`, `captured`, and any destroyed
+  friendly forfeit the **unbanked** part only; banked stays banked. `ditched` and `rescued` survive and bank their delta. This
+  replaces the 2026-09-27 rule that a death still banked its destruction (Mark's D5 and the plan's Task 2 example,
+  2026-10-16); the single constant flips it back.
+- **`resolveInterrupted`** is `bankSortie` with an abandon report: banked legs stay, the pilot is not killed (D11).
+- **Where the shell calls them.** `session.bankLeg` at each friendly stop, `session.bank` (the close) at the end; see "The shell".
 
 ## Modules
 
@@ -64,7 +98,7 @@ exports, not edits to a persisted shape.
 
 `src/render/campaignSession.ts` is the only code that touches storage and the reducers. It owns the
 open campaign, `launchSortie` before takeoff (the pending sortie is persisted so a reload resumes as
-interrupted), `bankSortie` exactly once per sortie (a latch), abandon-as-lost, the stale-revision guard
+interrupted), `bankLeg` once per landing and `bankSortie` once per sortie (two latches, F5C), abandon-as-lost, the stale-revision guard
 and the purge of the legacy roster key. `campaignBank.ts` turns a finished sortie into the debrief's
 Campaign Ledger. `src/render/hq/` is the UI: `model.ts` (screen state), `launchRules.ts` (what a row,
 pilot and aircraft allow), `missionAircraft.ts` (reads `content/campaign/mission-aircraft.json`),
