@@ -46,6 +46,13 @@ describe('banking a finished campaign sortie (plan F5B Task 10)', () => {
     expect(after.human.ledger.banked).toBe(1)
   })
 
+  it('names the chapter for a chapter sortie and the pilot for any, for the debrief header', () => {
+    const chapter = view(bankScored(setup(new MapPort(), 0, mission({ kind: 'campaign', chapterId: 'A1', authoredBonus: 0 })).input()))
+    expect(chapter.campaign.chapterLine).toBe('A1 Over the Beaches')
+    expect(chapter.campaign.pilotLine).toMatch(/\S, \S/)
+    expect(view(bankScored(setup().input())).campaign.chapterLine).toBeUndefined()
+  })
+
   it('a death archives the pilot, names the replacement, earns no promotion and never reports success', () => {
     const { session, input, pilotId } = setup()
     const v = view(bankScored(input({ end: 'killed', success: true })))
@@ -95,5 +102,53 @@ describe('banking a finished campaign sortie (plan F5B Task 10)', () => {
     const { session, input, pilotId } = setup(new MapPort(), 0, mission({ authoredBonus: 250, badgeId: null }))
     view(bankScored(input({ success: true, badgeId: null, authoredBonusOf: () => 250 })))
     expect(session.current()!.pilots[pilotId]!.points).toBe(500 + 1000 + 250)
+  })
+
+  // F7A: a bailout banks through the same session, exactly once, and is never a success.
+  describe('after a bailout (F7A)', () => {
+    const jumper = { landing: null } as const
+    const flight = { flightSeconds: 400, maxAltitudeM: 2500, maxTrueAirspeedMps: 140, landing: null }
+
+    it.each(['rescued', 'captured', 'killed'] as const)('%s: even if the caller says success, the ledger records none and pays no completion or difficulty bonus', (end) => {
+      const { session, input, pilotId } = setup(new MapPort(), 0, mission({ authoredBonus: 2500, badgeId: 'b' }))
+      view(bankScored(input({ end, success: true, badgeId: 'b', flight, authoredBonusOf: () => 2500 })))
+      const c = session.current()!
+      const entry = c.pilots[pilotId]!.log.at(-1)!
+      expect(entry.success).toBe(false)
+      expect(entry.bonuses).toEqual({ difficulty: 0, completion: 0, roster: 0 })
+      expect(entry.destruction).toBe(1000) // two fighters are kept
+      expect(c.pilots[pilotId]!.badges).toEqual([])
+      expect(c.human.log.at(-1)!.bonuses.roster).toBe(0)
+    })
+
+    it('rescued keeps the pilot and counts the rescue; captured closes a POW and refills the roster; neither advances the campaign', () => {
+      const r = setup(new MapPort(), 0)
+      view(bankScored(r.input({ end: 'rescued', success: true, flight })))
+      const rescued = r.session.current()!
+      expect(rescued.pilots[r.pilotId]!.status).toBe('active')
+      expect(rescued.pilots[r.pilotId]!.career.rescues).toBe(1)
+      expect(rescued.human.stats.rescues).toBe(1)
+      expect(rescued.progress.completed).toEqual([])
+      expect(rescued.pilots[r.pilotId]!.career.landings).toEqual({ trap: 0, field: 0, ditched: 0, water: 0 })
+
+      const c = setup(new MapPort(), 1)
+      const v = view(bankScored(c.input({ end: 'captured', success: true, flight })))
+      const captured = c.session.current()!
+      expect(captured.pilots[c.pilotId]!.status).toBe('pow')
+      expect(captured.pilots[c.pilotId]!.points).toBe(1000) // destruction kept on the closed file
+      expect(captured.roster.live).toHaveLength(5)
+      expect(captured.roster.live).not.toContain(c.pilotId)
+      expect(captured.human.stats.losses.pow).toBe(1)
+      expect(v.campaign.notices.join(' ')).toMatch(/P\.O\.W\./)
+    })
+
+    it('banks once: a second call for the same bailout banks nothing', () => {
+      const { session, input } = setup()
+      view(bankScored(input({ end: 'rescued', flight })))
+      const after = session.current()!
+      expect(bankScored(input({ end: 'rescued', flight }))).toBeNull()
+      expect(session.current()).toBe(after)
+    })
+    void jumper
   })
 })

@@ -137,7 +137,9 @@ Headquarters offers four sections: the current chapter (`content/campaign/chapte
 missions, Training Grounds and Single missions. The launch memos after the pilot are Flight Conditions,
 Aircraft Assignment and Ordnance Requisition. A scored mission with an authored hour locks the takeoff
 time; Dev can still pick Morning, Midday, Dusk or Night. Cloudiness is rolled when Flight Conditions
-opens (Clear, Partly Cloudy, Cloudy, Overcast equally likely) and the pilot may pick another. The
+opens (Clear, Partly Cloudy, Cloudy, Overcast equally likely) and the pilot may pick another; a mission with a
+recommended weather (Convoy Strike: Overcast, to drop in on the convoy through the clouds) opens on it, tagged
+"(recommended)". The
 loadout form lists the aircraft's real stores, whose mass and drag feed the flight model. Aircraft
 figures spell out hit points and list engine power in horsepower. The last form shows the Difficulty
 from Settings and, when it applies, "Not recorded: ..." for what will not bank.
@@ -215,6 +217,14 @@ shows water-entry/intercept prediction and whether the current release is valid.
 They are information aids, do not change weapon physics or dispersion, and are
 unavailable to lower-ranked pilots even though those pilots may still release the
 weapons.
+**Change for early ranks (2026-10-15):** the impact marker (**U**), which every
+pilot could use before, is now the bombsight and torpedosight: below Lieutenant
+Commander it is unavailable on scored campaign sorties and Single Missions.
+Training Grounds (the Basic Flying tutorial included) and Dev keep it, so a new
+pilot can still learn it there. Weapons release is never gated. At night,
+position lights (**N**) decide how far enemy pilots and gunners see you: lit,
+about 3.7 miles; blacked out, about half a mile unless a flare or searchlight
+lights you up.
 
 #### Campaign scoring and conduct
 
@@ -316,13 +326,32 @@ and anchorage lamps, blackout-controlled ship and harbor lights, documented Leyt
 navigation lights, fires, tracers, and authored flares make the night chapters
 playable. A4, J4, and J5 are the initial night missions.
 
-The pilot may deliberately bail out of a still-airborne aircraft. Friendly rescue
-or overwhelming enemy control gives deterministic rescue or capture; contested
-locations use a recorded seeded decision based on territory, nearby bases and
-ships, rescue/enemy assets, surface, weather, visibility, and time. A rescued pilot
-returns; a captured pilot is permanently archived as POW in the initial campaign;
-KIA, POW, and discharge all trigger replacement. There is no modern ejection seat
-and no initial prisoner-recovery mission.
+Press **J** once to bail out of a still-airborne aircraft; there is no confirmation
+step. The pilot separates from the airframe, the abandoned aircraft flies on with
+neutral controls (it cannot fire, and what it hits is still charged to you, friendly
+or enemy), and a generic wartime parachute opens two seconds after the jump when there
+is enough height. A jump from under about 49 ft above the ground is refused with an
+on-screen message; anything else is allowed, however fast, inverted or stalled the
+airplane is, and the physics decides whether you live. About 246 ft is needed for a
+safe descent, and you come down at about 18 ft/s; **all of these numbers are estimates**
+(`src/sim/bailoutTuning.ts`). Wind carries the parachute to land, water, or a carrier
+deck, and the canopy sways a little as it falls.
+
+Friendly rescue or overwhelming enemy control gives rescue or capture outright;
+contested locations use a seeded decision based on territory, nearby bases and ships,
+rescue and enemy presence, surface, weather, visibility, and time. The seed is chosen
+when you press **J** and recorded with the flight. Before you jump, the HUD gives only
+a qualitative **Rescue likely**, **Contested**, or **Capture likely** indication,
+judged where the canopy would come down; the debrief records the actual evidence.
+
+**A bailout is never a mission success.** A rescued pilot returns and the sortie keeps
+the points already earned, but there is no badge, no completion or difficulty bonus and
+no campaign progress. A captured pilot is closed as a prisoner of war and replaced by
+an entry-rank pilot (the campaign ledger already does both). A jump that cannot be
+survived is a death. The sortie ends when you touch down. What is left for F7B is the
+presentation of those results (the prisoner and replacement in the debrief and the
+archive, the pickup shown at the landing spot) and J5's mass paratrooper drop. There
+is no modern ejection seat and no initial prisoner-recovery mission.
 
 Tacloban, Dulag, Buri, Bayug, San Pablo, Tanauan, Ormoc, the beachhead, ports, and
 naval/seaplane areas use consistent canonical layouts. Construction, damage,
@@ -350,7 +379,8 @@ destination until the selection disappears or is destroyed.
 ### Debrief
 
 Post-mission: targets destroyed with per-item points, mission total, recovery
-multiplier applied, banked total, badges awarded, and any promotion.
+multiplier applied, banked total, badges awarded, and any promotion. The header names the mission flown and,
+for a banked campaign sortie, its chapter and pilot.
 
 ### Landing and ditching rules
 

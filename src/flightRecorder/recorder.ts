@@ -1,4 +1,6 @@
 import type { FixedStepObservation, World } from '../sim/loop.js'
+import { DT } from '../sim/flight/model.js'
+import { perceptionAt } from '../sim/lights/perception.js'
 import { worldChecksum, worldSummary } from './checksum.js'
 import {
   FLIGHT_RECORD_FORMAT,
@@ -36,6 +38,18 @@ const evidenceBetween = <M>(before: World<M>, after: World<M>): FlightRecordEvid
   for (const entity of [...after.aircraft, ...after.ships, ...after.vehicles]) {
     if (!beforeIds.has(entity.id)) evidence.push({ tick, kind: 'spawn', entity: entity.id, detail: 'spawned' })
   }
+  // F6B: an AI pilot's target first becomes the player, at night: who saw you, how far, and the limit that applied.
+  if (after.night !== undefined) {
+    const seen = perceptionAt(before, DT)
+    const me = after.aircraft.find((a) => a.id === after.player)
+    for (const a of after.aircraft) {
+      if (a.id === after.player || me === undefined || a.pilot?.decision.targetId !== after.player) continue
+      if (before.aircraft.find((b) => b.id === a.id)?.pilot?.decision.targetId === after.player) continue
+      const mi = Math.hypot(a.state.position.x - me.state.position.x, a.state.position.y - me.state.position.y, a.state.position.z - me.state.position.z) / 1609.344
+      const limit = (seen?.rangeM[after.player] ?? 0) / 1609.344
+      evidence.push({ tick, kind: 'sighted', entity: a.id, detail: `sees ${after.player} at ${mi.toFixed(1)} mi (limit ${limit.toFixed(1)} mi${me.lightsOff === true ? ', blacked out' : ''})` })
+    }
+  }
   for (const aircraft of after.aircraft) {
     const priorCombat = before.combat.aircraft[aircraft.id]
     const nextCombat = after.combat.aircraft[aircraft.id]
@@ -58,6 +72,17 @@ const evidenceBetween = <M>(before: World<M>, after: World<M>): FlightRecordEvid
     if (was === null && now !== null) evidence.push({ tick, kind: 'destruction', entity: aircraft.id, detail: 'aircraft destroyed' })
     const priorImpact = before.aircraft.find((entry) => entry.id === aircraft.id)?.impact ?? null
     if (priorImpact === null && aircraft.impact !== null) evidence.push({ tick, kind: 'impact', entity: aircraft.id, detail: aircraft.impact.kind })
+  }
+  const priorParachutists = new Set((before.parachutists ?? []).map((entry) => entry.id))
+  for (const parachutist of after.parachutists ?? []) {
+    if (!priorParachutists.has(parachutist.id)) {
+      evidence.push({ tick, kind: 'bailout', entity: parachutist.sourceAircraft, detail: `${parachutist.id} separated` })
+      continue
+    }
+    const prior = before.parachutists?.find((entry) => entry.id === parachutist.id)
+    if (prior?.state.contact === null && parachutist.state.contact !== null) {
+      evidence.push({ tick, kind: 'bailout', entity: parachutist.sourceAircraft, detail: `${parachutist.state.contact.surface} contact: ${parachutist.state.outcome ?? 'survived'}` })
+    }
   }
   return evidence
 }

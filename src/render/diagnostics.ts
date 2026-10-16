@@ -7,7 +7,7 @@ import type { AircraftSpec } from '../sim/flight/schema.js'
 import type { LookOffset } from '../input/lookAround.js'
 import type { OrbitOffset } from '../input/orbit.js'
 import type { AssistSettings } from '../assists/index.js'
-import type { ImpactPrediction } from '../sim/weapons/impactPrediction.js'
+import type { ImpactPrediction, TorpedoPrediction } from '../sim/weapons/impactPrediction.js'
 import type { Vec3 } from '../sim/math/vec3.js'
 import type { Impact } from '../sim/loop.js'
 import type { PaddlesCue } from '../sim/paddles.js'
@@ -26,12 +26,15 @@ import type { ReplayCameraId } from '../replay/cameras.js'
 import type { GraphicsCheckRecord, GraphicsCheckSnapshot } from './graphicsCheck.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import type { WaterWakeStats } from './scene/waterWake.js'
+import type { BailoutOutcome, BailoutPhase } from '../sim/bailout.js'
 
 export type ImpactMarkerDiagnostics = {
   readonly on: boolean
   readonly shown: boolean
   readonly label: string | null
   readonly prediction: ImpactPrediction | null
+  /** F6B: the torpedosight's prediction when a torpedo is the next store (then `prediction` is null): the verdict, the reasons and the entry point. */
+  readonly torpedo: TorpedoPrediction | null
   /** The sim tick `prediction` was made from, so an E2E recorder can line it up with a release. */
   readonly tick: number
   /** Every bomb and rocket detonation in the sim's impact ring (any owner), newest first, at most 8.
@@ -168,6 +171,14 @@ export type Ww2Diagnostics = {
    * happened to interpolate while the simulation was stalled.
    */
   readonly aircraftPositionM: () => Vec3
+  readonly bailout: () => {
+    readonly phase: BailoutPhase
+    readonly outcome: BailoutOutcome | null
+    readonly position: Vec3
+    readonly surface: 'water' | 'land' | 'deck' | null
+    readonly recoverySeed: number
+    readonly modelVisible: boolean
+  } | null
   /**
    * Instant replay (2026-09-27): the replay on screen, or `null` when none is
    * up. `camera` is the one chosen ('auto' included), `effective` what Auto
@@ -512,6 +523,8 @@ export type Ww2Diagnostics = {
   readonly terrainLighting: () => { readonly mode: string; readonly ready: boolean; readonly error: string | null; readonly bytes: number }
   readonly canopy: () => { readonly enabled: boolean; readonly ready: boolean; readonly error: string | null }
   readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly drawnInstances: number; readonly distant: DistantTreeStats; coarse: DistantTreeStats; readonly fadeMode: 'whole' | 'pixel' | 'soft'; readonly fadeStartM: number; readonly fadeEndM: number; readonly visible: boolean; readonly tier: string } | null
+  /** Ids of the airfields whose strip and scenery are in the scene right now (the loaded world's own, after any in-place scenario swap). */
+  readonly sceneryAirfields: () => readonly string[]
   /** DEV comparison: isolates tree draws without changing terrain materials or quality. */
   readonly setTreesVisible: (visible: boolean) => void
   /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is
@@ -564,6 +577,10 @@ export type Ww2Diagnostics = {
   readonly setLightsOn: (on: boolean) => void
   /** F6A: whether the player's position lights are on (N). */
   readonly playerLightsOn: () => boolean
+  /** F6B: night perception right now. `night` false in a day world. `rows`: each aircraft not on the player's side, with the distance to the player,
+   *  how far it sees the player (`rangeM`; 0 outside night), whether it does (`sees`), and whether it has chosen the player as its target. */
+  readonly perception: () => { readonly night: boolean; readonly sunElevationDeg: number; readonly ambientLux: number; readonly playerRangeM: number; readonly playerLit: boolean
+    readonly rows: readonly { readonly id: string; readonly distanceM: number; readonly sees: boolean; readonly targetsPlayer: boolean }[] }
   /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
   readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the

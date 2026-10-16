@@ -152,7 +152,7 @@ export function wholeLabel(label: string): RegExp {
 
 /** Exact ballot-row label, allowing the checked row's leading pencil mark. */
 export function exactBallotLabel(label: string): RegExp {
-  return new RegExp(`^(?:✕\\s*)?${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
+  return new RegExp(`^(?:✕\\s*)?${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: \\(recommended\\))?$`)
 }
 
 /**

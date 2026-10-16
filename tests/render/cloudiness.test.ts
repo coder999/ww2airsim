@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLOUDINESS_OPTIONS, cloudLayersForCloudiness, randomCloudiness } from '../../src/render/cloudiness.js'
+import { CLOUDINESS_OPTIONS, cloudLayersForCloudiness, cloudinessDefault, cloudinessLabel, randomCloudiness } from '../../src/render/cloudiness.js'
 import type { CloudLayer } from '../../src/sim/scenario.js'
 
 const combinedCumulusCoverage = (layers: readonly CloudLayer[]): number =>
@@ -15,6 +15,15 @@ describe('sortie cloudiness', () => {
     ])
     const coverages = CLOUDINESS_OPTIONS.map((option) => option.coverage)
     expect(coverages.every((coverage, i) => i === 0 || coverage > coverages[i - 1]!)).toBe(true)
+  })
+
+  it('a recommended weather is the default until the player picks, and only it is tagged', () => {
+    expect(cloudinessDefault(undefined, 'overcast', 'sunny')).toBe('overcast')
+    expect(cloudinessDefault('cloudy', 'overcast', 'sunny')).toBe('cloudy')
+    expect(cloudinessDefault(undefined, undefined, 'sunny')).toBe('sunny')
+    expect(CLOUDINESS_OPTIONS.map((o) => cloudinessLabel(o, 'overcast')))
+      .toEqual(['Clear', 'Partly Cloudy', 'Cloudy', 'Overcast (recommended)'])
+    expect(CLOUDINESS_OPTIONS.map((o) => cloudinessLabel(o, undefined))).toEqual(['Clear', 'Partly Cloudy', 'Cloudy', 'Overcast'])
   })
 
   it('maps one equal quarter of the roll to each report', () => {

@@ -8,6 +8,8 @@ import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
 import { SCORE_POINTS } from '../campaign/schema.js'
 import type { DebriefMission } from './mission/debriefMission.js'
 import { rankDevice, ribbonElement } from './insignia.js'
+import type { ParachutistEntity } from '../sim/bailout.js'
+import { feetPerSecondText } from './bailoutText.js'
 
 /** A stamp with a ribbon or insignia next to it, outside the stamp so its
  *  rough-ink filter and multiply blend leave the colors alone. */
@@ -73,11 +75,7 @@ export function targetLabel(t: TargetType): string {
   return TARGET_LABEL[t]
 }
 
-/**
- * The three recovery outcomes the sim can actually produce. There is no
- * bail-out/parachute mechanic, so no fourth outcome.
- */
-export type RecoveryOutcome = 'landed' | 'ditched' | 'killed'
+export type RecoveryOutcome = 'landed' | 'ditched' | 'killed' | 'rescued' | 'captured'
 
 /**
  * Every recovery banks in full (Mark, 2026-09-27; GAMEPLAY.md "Scoring"):
@@ -91,6 +89,10 @@ export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   landed: 1.0,
   ditched: 1.0,
   killed: 1.0,
+  // F7A: a bailout keeps the points already earned. The campaign score has no multiplier (src/campaign/scoring.ts); these
+  // rows only keep the table total over `RecoveryOutcome`, they are not a scoring input.
+  rescued: 1.0,
+  captured: 1.0,
 }
 
 /** Whole-branch review I-3: the label `createDebrief`'s "Recovery: ..." row
@@ -101,6 +103,8 @@ const RECOVERY_LABEL: Readonly<Record<RecoveryOutcome, string>> = {
   landed: 'LANDED',
   ditched: 'DITCHED',
   killed: 'KILLED',
+  rescued: 'RESCUED',
+  captured: 'CAPTURED',
 }
 
 /**
@@ -125,6 +129,8 @@ export function missionScore(
 /** What a banked campaign sortie adds to the debrief (plan F5B, D6). Plain lines, built by the shell from the banked log entry. */
 export type CampaignDebrief = {
   readonly pilotLine: string
+  /** The chapter the sortie was flown for ("A2 Taffy 3"); absent for a non-campaign mission. */
+  readonly chapterLine?: string
   readonly rows: readonly DebriefFigure[]
   readonly notices: readonly string[]
 }
@@ -132,6 +138,8 @@ export type CampaignDebrief = {
 export type DebriefFigure = { readonly label: string; readonly value: string }
 
 export type DebriefModel = {
+  /** The mission just flown, as the picker names it (Mark, 2026-10-15: the debrief did not say). */
+  readonly missionName?: string
   readonly headline: string
   readonly detail: string
   readonly figures: readonly DebriefFigure[]
@@ -319,6 +327,47 @@ export function destructionModel(
     score: missionScore(killsSinceLastBank, 'killed'),
     outcome: 'killed',
   }
+}
+
+/** F7A's surface/recovery evidence. The campaign side (POW closure, replacement, the ledger) is `bankScored`'s and F5A's;
+ * this model reports the physical outcome and the score already earned, which every bailout keeps. */
+export function bailoutModel(
+  parachutist: ParachutistEntity,
+  killsSinceLastBank: Readonly<Record<TargetType, number>>,
+): DebriefModel {
+  const outcome = parachutist.state.outcome ?? 'killed'
+  const contact = parachutist.state.contact
+  const recovery = parachutist.recovery
+  const detail = outcome === 'rescued'
+    ? `You came down ${contact?.surface === 'water' ? 'at sea' : contact?.surface === 'deck' ? 'on a carrier deck' : 'on land'} and friendly forces recovered you. Mission not credited; the points you earned are kept.`
+    : outcome === 'captured'
+      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; the points you earned stay on your file.'
+      : parachutist.state.lowAltitude
+        ? 'The bailout did not leave enough height for the canopy to fill.'
+        : 'The canopy came down too fast to survive the landing.'
+  const figures: DebriefFigure[] = [
+    { label: 'Surface', value: contact?.surface.toUpperCase() ?? 'NONE' },
+    { label: 'Contact descent', value: contact === null ? '—' : feetPerSecondText(Math.max(0, -contact.verticalSpeedMps)) },
+  ]
+  if (recovery !== null) {
+    figures.push(
+      { label: 'Recovery assessment', value: recovery.cue.replace('-', ' ').toUpperCase() },
+      { label: 'Factors', value: recovery.factors.join(' · ') },
+    )
+  }
+  return {
+    headline: outcome.toUpperCase(),
+    detail,
+    figures,
+    score: missionScore(killsSinceLastBank, outcome),
+    outcome,
+  }
+}
+
+/** The header line naming what was flown: mission, then (a banked campaign sortie) its chapter and pilot. */
+export function debriefHeading(model: DebriefModel): string | null {
+  const parts = [model.missionName, model.campaign?.chapterLine, model.campaign?.pilotLine].filter((p): p is string => p !== undefined)
+  return parts.length === 0 ? null : parts.join(' \u2014 ')
 }
 
 export type DebriefHandle = {
@@ -534,6 +583,8 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         landed: 'stamp--blue',
         ditched: 'stamp--violet',
         killed: 'stamp--red',
+        rescued: 'stamp--blue',
+        captured: 'stamp--red',
       }
       const stamp = document.createElement('div')
       // A discharge (friendly-fire spec §5) is stamped red whatever the
@@ -557,6 +608,13 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       letterheadText.append(letterheadKicker, letterheadTitle)
       letterhead.appendChild(letterheadText)
       sheet.appendChild(letterhead)
+      const heading = debriefHeading(model)
+      if (heading !== null) {
+        const mission = plainRow(heading)
+        mission.setAttribute('data-ww2-debrief-heading', '')
+        mission.style.cssText += ';font-weight:700;margin-bottom:6px'
+        sheet.appendChild(mission)
+      }
       // Sortie spec A5: said first, so the figures below read as what WOULD
       // have been earned.
       if (model.notRecorded === true) sheet.appendChild(plainRow(DEV_SORTIE_STAMP))

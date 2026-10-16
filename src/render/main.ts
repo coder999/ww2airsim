@@ -21,7 +21,7 @@ import {
 } from './graphicsCheck.js'
 import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
-import { createOverlay } from './overlay.js'
+import { createOverlay, perceptionLines } from './overlay.js'
 import { emptyStores, racksLabel } from '../sim/weapons/stores.js'
 import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
@@ -38,10 +38,10 @@ import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
-import { createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
+import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createHeadquarters } from './hq/bootHq.js'
-import type { Session } from './campaignSession.js'
+import { SORTIE_END_OF, type Session } from './campaignSession.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -55,7 +55,7 @@ import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './f
 import { BUILD_DIRTY, BUILD_ID, browserEnvironment, contentSha256, downloadFlightRecord } from '../flightRecorder/browser.js'
 import { createDevFlightRecorder, type DevFlightRecorder } from '../flightRecorder/recorder.js'
 import type { FlightRecordV1 } from '../flightRecorder/schema.js'
-import { verifyFlightRecord } from '../flightRecorder/verify.js'
+import { launchHourMismatch, verifyFlightRecord } from '../flightRecorder/verify.js'
 import { createFlightRecorderSurface, flightRecorderSurfaceFromQuery } from './flightRecorderSurface.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -144,15 +144,17 @@ import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockp
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
-import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
+import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
+import { loadParachutistView, type ParachutistView } from './scene/parachutist.js'
+import { createSightLabels, projectToScreen } from './sightLabels.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
-import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
+import { AXIS_VARIANTS, scenarioFileFor, sightsAllowed, sightsOverrideFromQuery } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type Cloudiness, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -165,7 +167,19 @@ import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
-import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import {
+  playerAircraft,
+  playerParachutist,
+  requestBailout,
+  withAircraftState,
+  withNightFacts,
+  withPlayerLights,
+  type World,
+} from '../sim/loop.js'
+import type { RecoveryEnvironment } from '../sim/bailout.js'
+import { bailoutCue, pressSeed, recoveryEnvironmentOf } from './bailoutEdge.js'
+import { refusalText } from './bailoutText.js'
+import { cloudCoverOf, nightFactsFor, perceptionReport, perceptionTuningFromQuery } from '../sim/lights/perception.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -421,6 +435,8 @@ async function boot(): Promise<void> {
   // until the rebuilt frame replaces the old one. The player's airframe and
   // the engine audio belong to the OLD sortie until then, so both stay hidden.
   let swapPending = false
+  // Assigned once the scene exists (`buildScenery`, below); `onNewGame` can fire before that.
+  let buildSceneryRef: ((world: World<undefined>, field: TerrainField, eye: { readonly x: number; readonly y: number; readonly z: number }) => void) | null = null
   let devStores: AircraftSpec['stores'] = undefined
   // Updated by every successful `loadScenario` call. Renderer state that is
   // owned by the player's aircraft is synchronized after the replacement
@@ -436,6 +452,7 @@ async function boot(): Promise<void> {
   // `buildScenarioEntities`'s own doc comment (`scenarioEntities.ts`) has the
   // construction and disposal reasoning.
   let scenarioEntities: ScenarioEntities | null = null
+  let parachutistView: ParachutistView | null = null
   // DEV `?spawnX/Y/Z` moves the PLAYER into the air instead of wherever the
   // scenario parks it (spawn.ts) -- a pure function of the URL, so unlike
   // `spawnedAt` (which needs each scenario's own parked position) it is the
@@ -652,10 +669,11 @@ async function boot(): Promise<void> {
           a.pilot ? { ...a, pilot: { ...a.pilot, skill: forcedPilotSkill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL } } : a,
         )
       : w.aircraft
+    // A swapped-in world keeps the booted heightfield, but its firm runway rectangles belong to ITS airfields.
     const withTerrainField = {
       ...w,
       aircraft: skilledAircraft,
-      terrain,
+      terrain: terrain !== null && coverData !== null ? { ...terrain, cover: coverFieldFor(w.airfields, coverData) } : terrain,
       structures: rebuildStructures(w.structures, w.airfields, terrain),
     }
     // M5: the Settings dialog's Difficulty, baked into the world this sortie starts from (so a pick takes
@@ -674,7 +692,14 @@ async function boot(): Promise<void> {
     // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
     const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
     const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
-    return applyDifficulty(built, quality.difficulty())
+    // F6B: the night fact the AI's perception reads. From the SAME hour and cloud choice the renderer uses, never
+    // from the render quality tier, so a reproduction (which rebuilds through here) gets the same world.
+    const night = nightFactsFor({
+      lights: bundle!.scenario.lights, hour0: scenarioTimeOfDay,
+      cloudCover: cloudCoverOf(cloudLayersForCloudiness(bundle!.scenario.weather.clouds ?? [], pickedCloudiness)),
+      tuning: import.meta.env.DEV ? perceptionTuningFromQuery(window.location.search) : undefined,
+    })
+    return withNightFacts(applyDifficulty(built, quality.difficulty()), night)
   }
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and
@@ -717,6 +742,11 @@ async function boot(): Promise<void> {
   // from the loaded bundle; before that, `true` only for a quick launch (A6),
   // which flies with no pilot and records nothing.
   let devSortie = quick !== null
+  // F6B: the sight gate (Dev and Training Ground always; the campaign and single missions by rank). DEV `?sights=on|off` forces it.
+  const sightsOverride = import.meta.env.DEV ? sightsOverrideFromQuery(window.location.search) : undefined
+  const sightsNow = (): boolean => sightsAllowed({
+    dev: chosen.dev || devSortie, pool: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.pool ?? 'single', sights: chosen.sights,
+  }, sightsOverride)
   // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
   const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
   const sortieNeededDev = (choice: SortieChoice): boolean =>
@@ -917,6 +947,7 @@ async function boot(): Promise<void> {
       void loadScenario(choice).then(() => {
         devSortie = sortieNeededDev(choice)
         rebuildFrame()
+        if (frame?.world.terrain) buildSceneryRef?.(frame.world, frame.world.terrain, frame.eye.position)
         swapPending = false
         performance.measure('sortie-swap', 'sortie-swap-start')
       }).catch((err: unknown) => {
@@ -1202,6 +1233,17 @@ async function boot(): Promise<void> {
       // spawn is content now (Plan 12). Every E2E caller reads this after
       // `waitForTerrain`, i.e. long after both.
       aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
+      bailout: () => {
+        const entity = frame === null ? null : playerParachutist(frame.world)
+        return entity === null ? null : {
+          phase: entity.state.phase,
+          outcome: entity.state.outcome,
+          position: entity.state.position,
+          surface: entity.state.contact?.surface ?? null,
+          recoverySeed: entity.recoverySeed,
+          modelVisible: parachutistView?.root.visible ?? false,
+        }
+      },
       // Instant replay: `replay` / `renderedPlayerPosition` are declared later
       // in boot(); these run only after boot, as `fx` reads `fxSystem`.
       replay: () => replay === null ? null : {
@@ -1383,6 +1425,7 @@ async function boot(): Promise<void> {
       canopy: canopyStatus,
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
+      sceneryAirfields: () => sceneryAirfieldIds,
       setTreesVisible: visible => { if (vegetation !== null) vegetation.object.visible = visible },
       // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
@@ -1425,7 +1468,8 @@ async function boot(): Promise<void> {
         })
       },
       setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
-      playerLightsOn: () => playerLightsOn,
+      playerLightsOn: () => frame === null || playerAircraft(frame.world).lightsOff !== true,
+      perception: () => (frame === null ? { night: false, sunElevationDeg: 0, ambientLux: 0, playerRangeM: 0, playerLit: true, rows: [] } : perceptionReport(frame.world, DT)),
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -1669,6 +1713,82 @@ async function boot(): Promise<void> {
   // frame `vegetation` above is: both need the real terrain heightfield,
   // which arrives asynchronously (`loadTerrainProgressively` below).
   let airfieldHandles: readonly ReturnType<typeof createAirfield>[] = []
+  let sceneryAirfieldIds: readonly string[] = []
+  /**
+   * Strips, airfield scenery, towns, villages and trees, built for the airfields
+   * and vehicles of the world that is loaded (Plan 12; `inAirfieldClearing` and
+   * the hut and vehicle exclusions all read that list). Called when terrain first
+   * arrives and again after an in-place scenario swap: the boot world is Free
+   * Flight (Tacloban, Dulag), so a swap to Convoy Strike used to leave its
+   * recovery field, Bayug, with no strip and trees growing over it (Mark,
+   * 2026-10-15). A swap to a world with the same airfields and vehicles keeps
+   * what is built.
+   */
+  let builtSceneryKey = ''
+  let sceneryObjects: readonly Object3D[] = []
+  const buildScenery = (world: World<undefined>, field: TerrainField, eye: { readonly x: number; readonly y: number; readonly z: number }): void => {
+    const key = [...world.airfields.map((a) => a.id), '|', ...world.vehicles.map((v) => `${v.id}@${Math.round(v.state.position.x)},${Math.round(v.state.position.z)}`)].join(',')
+    if (key === builtSceneryKey) return
+    builtSceneryKey = key
+    for (const o of sceneryObjects) {
+      scene.remove(o)
+      o.traverse((c) => (c as { geometry?: { dispose(): void } }).geometry?.dispose())
+    }
+    // One strip and one set of airfield scenery per airfield the world
+    // carries (Plan 12), not one hardcoded Tacloban.
+    const airfields = world.airfields.map((a) => ({ runway: createRunway(field, a), airfield: createAirfield(field, a, sceneryTextures) }))
+    const added: Object3D[] = airfields.flatMap((f) => [f.runway, f.airfield.object])
+    airfieldHandles = airfields.map((f) => f.airfield)
+    sceneryAirfieldIds = world.airfields.map((a) => a.id)
+    // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
+    // `hutFootprints` can be handed straight in: a hut is never inside an
+    // airfield's own clearing (excluded during placement, `townHutFootprints`),
+    // so nothing else keeps trees off it the way `inAirfieldClearing` already
+    // keeps them off `AIRFIELD_HUTS`.
+    const towns = createTowns(field, placesData as { towns: readonly Town[] }, world.airfields, sceneryTextures)
+    added.push(towns.object)
+    // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
+    // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+    const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
+      ? createVillages(field, villagesData as readonly Village[], world.airfields)
+      : null
+    if (villages) added.push(villages.object)
+    // Scenario-authored armor has to be visible and attackable. Reuse the
+    // vegetation system's rectangular exclusions, with 12 m of working
+    // room around each hull, so trees do not grow through or immediately
+    // mask a tank while preserving the jungle between dispersed pairs.
+    const vehicleFootprints = world.vehicles
+      .map((vehicle) => ({
+        x: vehicle.state.position.x,
+        z: vehicle.state.position.z,
+        width: vehicle.spec.widthM + 24,
+        length: vehicle.spec.lengthM + 24,
+      }))
+    vegetation = createVegetation(field, world.airfields, [
+      ...towns.hutFootprints,
+      ...(villages?.footprints ?? []),
+      ...vehicleFootprints,
+    ])
+    // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
+    // which forces its own full recompose at `lastX/lastZ`: left at their
+    // (0, 0) default -- open sea, never where the airplane actually is --
+    // both recomposes would be thrown away the instant the next frame's
+    // `vegetation.update(current.eye...)` below finds a different cell and
+    // recomposes a third time. One wasted recompose is cheap; this was two
+    // (whole-branch review, 2026-09-18).
+    vegetation.object.visible = quality.settings.snapshot().treesEnabled && !forceTreesOff
+    vegetation.update(eye.x, eye.z, eye.y)
+    // The tier may already have been chosen by the time terrain arrives --
+    // by the probe, or by a Settings pick made while the terrain loaded.
+    // `sceneryTier` is where `applySceneryTier` parks it for exactly this
+    // moment, since `vegetation` does not exist to receive it any earlier.
+    vegetation.setTier(sceneryTier)
+    if (cover !== null) vegetation.setCover(cover)
+    added.push(vegetation.object)
+    scene.add(...added)
+    sceneryObjects = added
+  }
+  buildSceneryRef = buildScenery
   void loadCover().then(
     data => {
       // Anything thrown here is a bug in this block, not a bad or missing
@@ -1895,6 +2015,8 @@ async function boot(): Promise<void> {
   // The render loop, below, destructures `scenarioEntities` fresh every
   // frame -- Plan 9 Task 7 -- so a later `loadScenario` call is picked up
   // with no further plumbing here.
+  parachutistView = await loadParachutistView()
+  scene.add(parachutistView.root)
   const tracers = createTracers()
   scene.add(tracers.object)
   // M2: anti-aircraft tracers, a thicker mesh of their own.
@@ -1970,7 +2092,10 @@ async function boot(): Promise<void> {
   const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)
   scene.add(impactMarker.root)
   const impactPredictor = createImpactPredictor()
-  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, tick: 0, detonations: [] }
+  const torpedoPredictor = createTorpedoPredictor()
+  const announceVerdict = createAnnouncer()
+  const sightLabels = createSightLabels(root)
+  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, torpedo: null, tick: 0, detonations: [] }
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -2186,6 +2311,7 @@ async function boot(): Promise<void> {
   let shownImpactTick: number | null = null
   /** The damage-destruction tick already shown, parallel to impact above. */
   let shownDestructionTick: number | null = null
+  let shownBailoutTick: number | null = null
   /** A crash/kill debrief already banked but not yet raised. `replayFlow`
    *  owns the hold and automatic replay that precede showing it. */
   let pendingDebrief: { readonly show: () => void } | null = null
@@ -2258,6 +2384,7 @@ async function boot(): Promise<void> {
     const base: DebriefModel = banked === null ? shown : { ...withoutContinue, noRestart: true }
     const finalModel: DebriefModel = {
       ...base,
+      missionName: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.label ?? chosen.scenarioId,
       ...(fromHq ? { returnLabel: 'Return to Headquarters' } : {}),
       ...(banked === null ? {} : {
         bankedTotal: banked.bankedTotal, campaign: banked.campaign,
@@ -2333,6 +2460,7 @@ async function boot(): Promise<void> {
     pauseScreen?.hide()
     shownImpactTick = null
     shownDestructionTick = null
+    shownBailoutTick = null
     pendingDebrief = null
     landingShown = false
     handledLandingTick = -1
@@ -2403,6 +2531,15 @@ async function boot(): Promise<void> {
   let pendingFireRockets = false
   // E4: a wingman call (1, 2, 3), latched the same way: the key's code, or null.
   let pendingWingmanKey: string | null = null
+  let pendingBailout = false
+  let bailoutNotice: string | null = null
+  let bailoutNoticeUntilMs = 0
+  let bailoutCueText: string | null = null
+  let bailoutCueAtMs = -1e9
+  /** The recovery environment a press records and the pre-bailout cue judges by: one function, so they cannot disagree. */
+  const recoveryEnvironmentNow = (): RecoveryEnvironment => recoveryEnvironmentOf({
+    sunElevationDeg: sunState.elevationDeg, cloudCoverages: (bundle?.scenario.weather?.clouds ?? []).map((l) => l.coverage), beaufort,
+  })
   // And the gear and flap levers. Found 2026-09-17 by an E2E screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
@@ -2412,8 +2549,8 @@ async function boot(): Promise<void> {
   let pendingFlaps = false
   // And the hook lever (Plan 8), latched the same way for the same reason.
   let pendingHook = false
-  // F6A: the player's position lights (N): on, or blacked out. Latched like the levers so the recorder can stamp it on a fixed tick.
-  let playerLightsOn = true
+  // F6A/F6B: the player's position lights (N): on, or blacked out. Latched like the levers. The state lives in the WORLD
+  // (`AircraftEntity.lightsOff`), applied at a fixed tick below and recorded there, so the AI's perception and a replay agree.
   let pendingLights = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
@@ -2430,6 +2567,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
   }
   const closeNavigationChart = (): void => {
     if (!navigationMapState.open) return
@@ -2504,10 +2642,13 @@ async function boot(): Promise<void> {
   /** An impact or shoot-down (its hold and debrief) or a landing debrief is
    *  up. One copy, read by the mouse gate and by K (a crash has its own
    *  automatic replay, spec §4). */
-  const debriefOrHoldUp = (): boolean =>
-    playerAircraft(frame!.world).impact !== null
-    || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
-    || landingShown
+  const debriefOrHoldUp = (): boolean => {
+    const pilotOut = playerParachutist(frame!.world)
+    return playerAircraft(frame!.world).impact !== null
+      || frame!.world.combat.aircraft[frame!.world.player]!.damage.destroyedAt !== null
+      || (pilotOut !== null && (pilotOut.state.phase === 'dead' || pilotOut.state.outcome !== null))
+      || landingShown
+  }
 
   // Instant replay (spec §4-§6). The bar's buttons and the keys below drive
   // the same four session functions.
@@ -2611,6 +2752,8 @@ async function boot(): Promise<void> {
       if (record.launch.aircraftSpec !== chosen.aircraftSpec || record.launch.loadout !== chosen.loadout) {
         throw new Error(`Sortie mismatch: launch ${record.launch.aircraftSpec} with ${record.launch.loadout} before reproducing this record.`)
       }
+      const hourProblem = launchHourMismatch(record, scenarioTimeOfDay)
+      if (hourProblem !== null) throw new Error(hourProblem)
       const rebuilt = initialFrameStateFor(buildWorld(frame!.world.terrain), record.launch.assists)
       const initial = rebuilt.groundSpawn && rebuilt.world.terrain !== null
         ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
@@ -2707,6 +2850,10 @@ async function boot(): Promise<void> {
     if (BINDINGS.throttleCut.includes(e.code as never) && !e.repeat) pendingThrottleCut = true
     if (BINDINGS.dropBomb.includes(e.code as never) && !e.repeat) pendingDropBomb = true
     if (BINDINGS.fireRockets.includes(e.code as never) && !e.repeat) pendingFireRockets = true
+    if (BINDINGS.bailout.includes(e.code as never) && !e.repeat) {
+      e.preventDefault()
+      pendingBailout = true
+    }
     if ([...BINDINGS.wingmanAttack, ...BINDINGS.wingmanCover, ...BINDINGS.wingmanFormUp].includes(e.code as never) && !e.repeat) pendingWingmanKey = e.code
     // Space scrolls the page and activates a focused button; neither is
     // what a pilot holding the trigger means (Plan 6). Not latched like the
@@ -2715,7 +2862,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
-    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
+    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { pendingLights = true }
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -2782,6 +2929,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -2892,15 +3040,44 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
+    // F6B: the lights switch is applied to the world HERE, before this frame's fixed steps, and recorded at the same
+    // tick (`verify.ts` applies the recorded action the same way). Held back like the other levers while a chart or the
+    // title is up, or paused, so what is recorded is exactly what was applied.
+    const lightsToggle = pendingLights && !chartOpen && !inputFrame.paused
+    const stepFrame = lightsToggle
+      ? { ...inputFrame, world: withPlayerLights(inputFrame.world, playerAircraft(inputFrame.world).lightsOff === true) }
+      : inputFrame
     const simStart = import.meta.env.DEV ? performance.now() : 0
+    let bailoutInputFrame = stepFrame
+    if (pendingBailout) {
+      const recoveryEnvironment = recoveryEnvironmentNow()
+      // The seed is chosen HERE, at the press, and recorded in the action below: replays read it from the record.
+      const seed = pressSeed(stepFrame.world.tick, stepFrame.world.player, playerAircraft(stepFrame.world).state.position)
+      // On the lights-applied world, as the replay applies the recorded actions (the two commute: disjoint fields).
+      const requested = requestBailout(stepFrame.world, stepFrame.world.player, recoveryEnvironment, seed)
+      if (requested.ok) {
+        bailoutInputFrame = { ...stepFrame, world: requested.world }
+        bailoutNotice = 'BAIL OUT · CLEARING AIRFRAME'
+        activeFlightRecorder?.note({
+          tick: inputFrame.world.tick + 1,
+          kind: 'bailout',
+          aircraft: inputFrame.world.player,
+          environment: recoveryEnvironment,
+          seed,
+        })
+      } else {
+        bailoutNotice = refusalText(requested.reason)
+      }
+      bailoutNoticeUntilMs = now + 2_500
+    }
     if (activeFlightRecorder !== null) {
-      const tick = inputFrame.world.tick + 1
+      const tick = bailoutInputFrame.world.tick + 1
       if (pendingPause) activeFlightRecorder.note({ tick, kind: 'pause', paused: !inputFrame.paused })
       if (pendingTripleTime) activeFlightRecorder.note({ tick, kind: 'time-scale', scale: inputFrame.timeScale === 1 ? 3 : 1 })
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
       if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
       if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
-      if (pendingLights) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerLightsOn })
+      if (lightsToggle) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerAircraft(stepFrame.world).lightsOff !== true })
       if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
       if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
       if (pendingWingmanKey !== null) {
@@ -2910,7 +3087,7 @@ async function boot(): Promise<void> {
       }
     }
     let current = nextFrameState(
-      inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
+      bailoutInputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
       activeFlightRecorder?.observe,
     )
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
@@ -2923,6 +3100,11 @@ async function boot(): Promise<void> {
     if (replay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
+    }
+    const survivor = playerParachutist(current.world)
+    if (survivor?.state.outcome === 'rescued' || survivor?.state.outcome === 'captured') {
+      bailoutNotice = survivor.state.outcome.toUpperCase()
+      bailoutNoticeUntilMs = Number.POSITIVE_INFINITY
     }
     // Only the manual Esc edge raises the pause sheet. The P-key path raises
     // it synchronously on the Map tab; the other held states keep their UI.
@@ -2939,6 +3121,7 @@ async function boot(): Promise<void> {
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
+    pendingBailout = false
     frame = current
     {
       // Guarded on the world clock actually having moved: `advance` (Task 7
@@ -3079,6 +3262,7 @@ async function boot(): Promise<void> {
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
     })
+    parachutistView?.sync(playerParachutist(view.world), view.world.wind)
     // The hulls share the simulation support sea with amphibians and carrier
     // decks. Models point along local +x, with pitch about +z and roll about +x.
     setEnsignTime(performance.now() / 1000)
@@ -3178,7 +3362,31 @@ async function boot(): Promise<void> {
     }
     flightData.update(current.cameraMode, spec, player.state, current.controls, current.world.wind)
     timeBadge.setScale(current.timeScale)
-    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS)
+    const pilotOutForHud = playerParachutist(current.world)
+    let bailoutHud: string | null = null
+    if (pilotOutForHud !== null) {
+      bailoutHud = pilotOutForHud.state.outcome?.toUpperCase()
+        ?? (pilotOutForHud.state.phase === 'separating' ? 'BAIL OUT · CLEARING AIRFRAME'
+          : pilotOutForHud.state.phase === 'deploying' ? 'PARACHUTE DEPLOYING'
+            : pilotOutForHud.state.phase === 'canopy' ? 'CANOPY OPEN'
+              : pilotOutForHud.state.phase === 'down' ? 'AWAITING RECOVERY'
+                : 'BAILOUT FAILED')
+    } else if (now < bailoutNoticeUntilMs) {
+      bailoutHud = bailoutNotice
+    } else if (player.impact === null && current.world.combat.aircraft[current.world.player]!.damage.destroyedAt === null) {
+      // The cue is a prediction for a qualitative line: judged where the canopy would land, in the environment a press
+      // would record, and recomputed four times a second rather than every frame.
+      if (now - bailoutCueAtMs >= 250) {
+        bailoutCueAtMs = now
+        const world = current.world
+        bailoutCueText = bailoutCue(
+          world, recoveryEnvironmentNow(),
+          (x, z) => groundUnder(world.terrain, decksOf(world.ships), x, z, waterSurfaceContext(world.tick * DT, world.wind)),
+        )?.text ?? null
+      }
+      bailoutHud = bailoutCueText
+    }
+    autopilotBadge.setStatus(current.autopilot, { bayDoorsS: current.bayDoorsNoticeS, torpedoS: current.torpedoNoticeS, bailout: bailoutHud })
     pauseBadge.setPaused(current.paused)
     const paddles = paddlesFor(current)
     paddlesBadge.setCue(paddles)
@@ -3196,25 +3404,38 @@ async function boot(): Promise<void> {
     missionHud.placeSteering(steered.anchor, steered.mode)
     // B2: the impact marker. Off, the predictor is never called; on, it is memoized per sim tick.
     {
-      const live = replay === null && !sortieIdle && !debriefUp
+      // F7A: the pilot is out of the airplane, so there is no sight to show.
+      const live = replay === null && !sortieIdle && !debriefUp && playerParachutist(current.world) === null
       const me = playerAircraft(current.world)
+      // F6B: the rank gate. Closed, `U` can never leave the marker on (the weapons release as ever; only the aid is gated).
+      if (!sightsNow() && current.impactMarker) current = { ...current, impactMarker: false }
       const on = current.impactMarker && live
-      const prediction = impactPredictor(
-        on, me.spec, me.state, current.world.combat.aircraft[me.id]?.stores ?? emptyStores,
-        current.world.terrain, current.world.wind, decksOf(current.world.ships),
-      )
+      const stores = current.world.combat.aircraft[me.id]?.stores ?? emptyStores
+      const decks = decksOf(current.world.ships)
+      const torpedo = torpedoPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const prediction = torpedo !== null ? null : impactPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const point = torpedo !== null ? torpedo.entry : prediction?.point ?? null
       const shown = impactMarker.update(
-        prediction?.point ?? null, prediction?.armed ?? true, camera, worldOffset, impactMarkerShown(current.impactMarker, live, prediction),
+        point, prediction?.armed ?? true, camera, worldOffset, on && point !== null,
+        torpedo === null ? undefined : { valid: torpedo.valid, run: torpedo.entry === null ? null : { dir: torpedo.runDir, lengthM: Math.min(torpedo.runRangeM, 900) } },
       )
-      const label = impactLabel(on, prediction, me.state.position)
-      impactBadge.set(label)
+      const label = torpedo !== null ? torpedoLabel(on, torpedo, me.state.position) : impactLabel(on, prediction, me.state.position)
+      impactBadge.set(label, torpedo === null ? 'plain' : torpedo.valid ? 'ok' : 'bad')
+      impactBadge.announce(announceVerdict(torpedoVerdict(torpedo), performance.now()))
+      // Text beside the entry ring (ENTRY), only while a torpedo sight is up.
+      {
+        const showLabels = on && torpedo !== null && torpedo.entry !== null && shown
+        const e = showLabels ? torpedo!.entry! : null
+        const w = window.innerWidth, h = window.innerHeight
+        sightLabels.update(e === null ? null : projectToScreen(e, camera, worldOffset, w, h), showLabels ? (torpedo!.valid ? 'ok' : 'bad') : null)
+      }
       const ring = current.world.combat.impacts
       const detonations: Vec3[] = []
       if (on) for (let i = ring.length - 1; i >= 0 && detonations.length < 8; i--) {
         const hit = ring[i]!
         if ((hit.cause === 'bomb' || hit.cause === 'rocket') && hit.outcome === 'detonated') detonations.push(hit.point)
       }
-      impactDiagnostics = { on, shown, label, prediction, tick: current.world.tick, detonations }
+      impactDiagnostics = { on, shown, label, prediction, torpedo, tick: current.world.tick, detonations }
     }
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
@@ -3377,8 +3598,24 @@ async function boot(): Promise<void> {
     // Raised once per contact -- `shownImpactTick` is the guard, since the
     // player's `impact` stays non-null every frame after the airplane stops,
     // and this runs sixty times a second.
+    const bailoutResult = playerParachutist(current.world)
+    if (
+      bailoutResult !== null && bailoutResult.state.outcome !== null
+      && bailoutResult.state.contact !== null && shownBailoutTick !== bailoutResult.state.contact.tick
+    ) {
+      shownBailoutTick = bailoutResult.state.contact.tick
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      // The sim decides success (a bailout is never one: `missionOutcome`), exactly as at the other end sites.
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(bailoutModel(bailoutResult, killsSinceLastBank), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: bailoutResult.state.outcome, score: model.score.total })
+      const banked = bankCampaign(SORTIE_END_OF[bailoutResult.state.outcome], current.world, success, badgeId, null)
+      segment = EMPTY_SEGMENT
+      pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
+      dispatch({ kind: 'crashBanked' })
+    }
     const hit = player.impact
-    if (hit !== null && shownImpactTick !== hit.tick) {
+    if (bailoutResult === null && hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
       const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
       const { model, badgeId, success } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
@@ -3394,7 +3631,7 @@ async function boot(): Promise<void> {
     // as an impact instead of leaving the pilot held at HP 0 with no way out.
     const playerDamage = current.world.combat.aircraft[current.world.player]!.damage
     if (
-      hit === null &&
+      bailoutResult === null && hit === null &&
       playerDamage.destroyedAt !== null &&
       shownDestructionTick !== playerDamage.destroyedAt
     ) {
@@ -3507,7 +3744,7 @@ async function boot(): Promise<void> {
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
     nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
-      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn, { aircraft: view.poses, ships: view.shipPoses })
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerAircraft(current.world).lightsOff !== true, { aircraft: view.poses, ships: view.shipPoses })
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
@@ -3669,6 +3906,7 @@ async function boot(): Promise<void> {
     }
 
     overlay?.update({
+      perception: perceptionLines(perceptionReport(current.world, DT)),
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
       stepsRun: current.stepsRun,
@@ -3767,58 +4005,7 @@ async function boot(): Promise<void> {
     // and unconditionally, not only for a ground spawn: an airfield is a
     // place in the world, and a DEV `?spawnX/Y/Z` flight should be able to
     // see it too.
-    if (arrived !== null) {
-      // One strip and one set of airfield scenery per airfield the world
-      // carries (Plan 12), not one hardcoded Tacloban.
-      const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a, sceneryTextures) }))
-      scene.add(...airfields.flatMap((f) => [f.runway, f.airfield.object]))
-      airfieldHandles = airfields.map((f) => f.airfield)
-      // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
-      // `hutFootprints` can be handed straight in: a hut is never inside an
-      // airfield's own clearing (excluded during placement, `townHutFootprints`),
-      // so nothing else keeps trees off it the way `inAirfieldClearing` already
-      // keeps them off `AIRFIELD_HUTS`.
-      const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields, sceneryTextures)
-      scene.add(towns.object)
-      // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
-      // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
-      const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
-        ? createVillages(arrived, villagesData as readonly Village[], next.world.airfields)
-        : null
-      if (villages) scene.add(villages.object)
-      // Scenario-authored armor has to be visible and attackable. Reuse the
-      // vegetation system's rectangular exclusions, with 12 m of working
-      // room around each hull, so trees do not grow through or immediately
-      // mask a tank while preserving the jungle between dispersed pairs.
-      const vehicleFootprints = next.world.vehicles
-        .map((vehicle) => ({
-          x: vehicle.state.position.x,
-          z: vehicle.state.position.z,
-          width: vehicle.spec.widthM + 24,
-          length: vehicle.spec.lengthM + 24,
-        }))
-      vegetation = createVegetation(arrived, next.world.airfields, [
-        ...towns.hutFootprints,
-        ...(villages?.footprints ?? []),
-        ...vehicleFootprints,
-      ])
-      // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
-      // which forces its own full recompose at `lastX/lastZ`: left at their
-      // (0, 0) default -- open sea, never where the airplane actually is --
-      // both recomposes would be thrown away the instant the next frame's
-      // `vegetation.update(current.eye...)` below finds a different cell and
-      // recomposes a third time. One wasted recompose is cheap; this was two
-      // (whole-branch review, 2026-09-18).
-      vegetation.object.visible = quality.settings.snapshot().treesEnabled && !forceTreesOff
-      vegetation.update(next.eye.position.x, next.eye.position.z, next.eye.position.y)
-      // The tier may already have been chosen by the time terrain arrives --
-      // by the probe, or by a Settings pick made while the terrain loaded.
-      // `sceneryTier` is where `applySceneryTier` parks it for exactly this
-      // moment, since `vegetation` does not exist to receive it any earlier.
-      vegetation.setTier(sceneryTier)
-      if (cover !== null) vegetation.setCover(cover)
-      scene.add(vegetation.object)
-    }
+    if (arrived !== null) buildScenery(next.world, arrived, next.eye.position)
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
     if (quick !== null && arrived !== null && activeFlightRecorder === null) startDevFlightRecorder(frame.world)
   }, finestFetchedLevel).catch((err: unknown) => {

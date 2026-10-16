@@ -89,7 +89,7 @@ async function flood(page: Page, target: string, tag: string): Promise<void> {
   mkdirSync(OUT, { recursive: true })
   await page.setViewportSize({ width: 1280, height: 800 })
   // Spawn west of the target at its position now, flying east at 60 m (197 ft), and drop 700 m short: the Mk 13
-  // falls about 330 m forward, so it enters the water about 370 m out, past its 180 m arming run.
+  // falls about 330 m forward, so it enters the water about 370 m out (torpedoes arm on water entry, arcade ruling 2026-10-15).
   await page.goto(`${spawnUrl({ x: 0, y: 60, z: 0 })}&${SCENARIO_PARAM}=convoy-strike&launch&aircraft=tbm-3-avenger&loadout=bombs`)
   await waitForTerrain(page)
   const s0 = await ship(page, target)

@@ -122,6 +122,9 @@ export const BINDINGS = {
   // while a replay is up it owns the keyboard (src/replay/keys.ts), so its
   // own keys -- digits, O, the arrows -- never reach this table's flight use.
   replay: ['KeyK'],
+  // F7A. J for jump: deliberate, edge-triggered bailout. Free as of the
+  // centralized-binding audit on 2026-10-14.
+  bailout: ['KeyJ'],
   // E4 (Mark, 2026-10-10): the three calls to the player's wingmen, one press each. The digit row,
   // because no flight binding uses it: the replay's own speed and camera digits (src/replay/keys.ts)
   // are read only while a replay owns the keyboard, when this table is not.

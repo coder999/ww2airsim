@@ -65,4 +65,12 @@ describe('missionOutcome (spec 2026-09-25 §2.4)', () => {
     expect(o.result).toBe('success')
     expect(o.badge).toBeNull()
   })
+
+  // F7A: a pilot who bailed out is never a mission success, whatever the objectives say (Mark, 2026-10-15).
+  it.each(['rescued', 'captured'] as const)('%s after a bailout earns no badge even with every primary complete', (kind) => {
+    const o = missionOutcome(mission([s('complete'), s('active'), s('complete')]), { kind })
+    expect(o.result).toBe('no-badge')
+    expect(o.badge).toBeNull()
+    expect(o.reasons).toEqual(['Bailed out'])
+  })
 })

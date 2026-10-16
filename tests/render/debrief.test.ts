@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
+import { DEV_SORTIE_STAMP, bailoutModel, debriefHeading, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
 import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -7,6 +7,7 @@ import type { Impact } from '../../src/sim/loop.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
 import { deckOf, deckWorld } from '../../src/sim/world/deck.js'
 import { landOnce, missionWorld } from '../sim/mission/fixture.js'
+import type { BailoutOutcome, ParachutistEntity } from '../../src/sim/bailout.js'
 
 const impact = (over: Partial<Impact> = {}): Impact => ({
   tick: 1200,
@@ -17,6 +18,37 @@ const impact = (over: Partial<Impact> = {}): Impact => ({
   kind: 'ditched',
   ...over,
 })
+
+const parachutist = (outcome: BailoutOutcome, surface: 'land' | 'water' = 'land'): ParachutistEntity => {
+  const state = {
+    tick: 900,
+    position: v3(10, 0, 20),
+    velocity: v3(0, 0, 0),
+    phase: outcome === 'killed' ? 'dead' as const : 'down' as const,
+    phaseStartedTick: 900,
+    lowAltitude: outcome === 'killed',
+    contact: { tick: 900, position: v3(10, 0, 20), surface, verticalSpeedMps: -5.5 },
+    outcome,
+  }
+  return {
+    id: 'parachutist:player', sourceAircraft: 'player', side: 'allied', recoverySeed: 7,
+    recoveryEnvironment: { daylight: 1, visibility: 0.8, weather: 0.1, seaState: 0.2 },
+    recovery: outcome === 'killed' ? null : {
+      facts: {
+        seed: 7, surface, control: outcome === 'rescued' ? 'friendly' : 'enemy',
+        friendlySupportM: 1_000, enemySupportM: 20_000,
+        friendlyRescuePresent: outcome === 'rescued', enemyPresence: outcome === 'captured',
+        daylight: 1, visibility: 0.8, weather: 0.1, seaState: 0.2,
+      },
+      cue: outcome === 'rescued' ? 'rescue-likely' : 'capture-likely',
+      rescueProbability: outcome === 'rescued' ? 1 : 0,
+      factors: [outcome === 'rescued' ? 'friendly-controlled area' : 'enemy-controlled area', surface, 'friendly support 0.6 mi'],
+      roll: null,
+    },
+    state,
+    previous: state,
+  }
+}
 
 describe('the debrief', () => {
   it('offers Watch replay only with a handler, and invoking it calls that handler', () => {
@@ -179,6 +211,36 @@ describe('the debrief', () => {
     expect(m.score.total).toBe(5000)
   })
 
+  it('reports bailout recovery evidence and banks rescued or captured kills in full', () => {
+    const kills = { ...zeroKillsByType(), fighter: 1 }
+    const rescued = bailoutModel(parachutist('rescued', 'water'), kills)
+    expect(rescued).toMatchObject({ headline: 'RESCUED', outcome: 'rescued' })
+    expect(rescued.detail).toContain('at sea')
+    expect(rescued.detail).toContain('Mission not credited')
+    expect(rescued.figures).toContainEqual({ label: 'Contact descent', value: '18 ft/s' })
+    expect(rescued.figures).toContainEqual({ label: 'Recovery assessment', value: 'RESCUE LIKELY' })
+    expect(rescued.score).toEqual(missionScore(kills, 'rescued'))
+
+    const captured = bailoutModel(parachutist('captured'), kills)
+    expect(captured).toMatchObject({ headline: 'CAPTURED', outcome: 'captured' })
+    expect(captured.detail).toContain('prisoner')
+    expect(captured.detail).toContain('new pilot')
+    for (const m of [rescued, captured, bailoutModel(parachutist('killed'), kills)]) {
+      expect(JSON.stringify(m.figures) + m.detail, 'no metric units in the player-facing debrief').not.toMatch(/\bkm\b|\bm\/s\b|\d m\b/)
+    }
+    expect(bailoutModel(parachutist('killed'), kills).detail).toContain('height')
+    expect(captured.score).toEqual(missionScore(kills, 'captured'))
+  })
+
+  it('the heading names the mission for a bailout outcome too (HQ polish + F7A)', () => {
+    for (const outcome of ['rescued', 'captured', 'killed'] as const) {
+      const m = bailoutModel(parachutist(outcome), zeroKillsByType())
+      expect(debriefHeading(m)).toBeNull()
+      expect(debriefHeading({ ...m, missionName: 'Convoy Strike' })).toBe('Convoy Strike')
+      expect(debriefHeading({ ...m, missionName: 'Convoy Strike', campaign: { pilotLine: 'Ens. Doe', rows: [], notices: [] } })).toBe('Convoy Strike \u2014 Ens. Doe')
+    }
+  })
+
   // Whole-branch review I-3: `outcome` is what `createDebrief`'s renderer
   // needs to label the "Recovery: ..." line -- `score.multiplier` alone is
   // the NUMBER, not which of the three outcomes produced it.
@@ -295,5 +357,19 @@ describe('the Dev sortie stamp (sortie spec A5)', () => {
     expect(withNotRecorded(m, true).headline).toBe(m.headline)
     expect(withNotRecorded(m, false)).toBe(m)
     expect(DEV_SORTIE_STAMP).toBe('Dev sortie: not recorded')
+  })
+})
+
+describe('the debrief header names what was flown (Mark, 2026-10-15)', () => {
+  const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
+  it('is the mission name alone for an unscored sortie, and nothing for a model that carries none', () => {
+    expect(debriefHeading({ ...m, missionName: 'Convoy Strike' })).toBe('Convoy Strike')
+    expect(debriefHeading(m)).toBeNull()
+  })
+  it('adds the chapter and the pilot for a banked campaign sortie', () => {
+    const campaign = { pilotLine: 'Ens. Test Pilot, Ensign', chapterLine: 'A2 Taffy 3', rows: [], notices: [] }
+    expect(debriefHeading({ ...m, missionName: 'Taffy 3', campaign })).toBe('Taffy 3 \u2014 A2 Taffy 3 \u2014 Ens. Test Pilot, Ensign')
+    expect(debriefHeading({ ...m, missionName: 'Convoy Strike', campaign: { ...campaign, chapterLine: undefined } as never }))
+      .toBe('Convoy Strike \u2014 Ens. Test Pilot, Ensign')
   })
 })

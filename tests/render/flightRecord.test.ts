@@ -58,18 +58,19 @@ describe('main.ts records every flight segment (dossier spec §B.2)', () => {
   it('steps the segment every frame and resets it wherever the kill baseline resets', () => {
     expect(main).toContain('segment = stepSegment(segment,')
     // Indented ASSIGNMENTS only -- the two `let` declarations do not match
-    // the whitespace-then-name anchor. 5 today: New game, Restart, and the
-    // three bank sites.
+    // the whitespace-then-name anchor. 6 today: New game, Restart, and the
+    // four bank sites (bailout, impact, destruction, and landing).
     const killResets = main.match(/^\s+scoredThroughKillsByType = /gm)?.length ?? 0
     const segResets = main.match(/^\s+segment = EMPTY_SEGMENT/gm)?.length ?? 0
-    expect(killResets).toBe(5)
+    expect(killResets).toBe(6)
     expect(segResets).toBe(killResets)
   })
-  it('banks through the campaign session at all three end sites, each with the landing it knows (F5B Task 10)', () => {
-    // impact (ditched or killed), destruction, landing: one bankCampaign call each; the flight segment is read inside it
-    expect(main.match(/bankCampaign\(/g)?.length).toBe(3)
+  it('banks through the campaign session at all four end sites, each with the landing it knows (F5B Task 10)', () => {
+    // bailout, impact (ditched or killed), destruction, landing: one bankCampaign call each; the flight segment is read inside it
+    expect(main.match(/bankCampaign\(/g)?.length).toBe(4)
     expect(main).toContain("bankCampaign('killed', current.world, success, badgeId, null)")
     expect(main).toContain("bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))")
+    expect(main).toContain('bankCampaign(SORTIE_END_OF[bailoutResult.state.outcome], current.world, success, badgeId, null)')
     expect(main).toContain('flightSeconds: segment.flightSeconds')
   })
   it('only steps the segment when the world clock actually advanced (review round 1, IMPORTANT 1)', () => {

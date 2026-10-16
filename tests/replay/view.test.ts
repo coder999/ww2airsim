@@ -2,13 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { initialFrameState, nextFrameState, surfaceHeightFor } from '../../src/render/frame.js'
 import { createRecorder, recordingEndS, recordingStartS } from '../../src/replay/recorder.js'
 import { replayPosesAt } from '../../src/replay/view.js'
-import { advance, playerAircraft } from '../../src/sim/loop.js'
+import { advance, createWorld, playerAircraft, requestBailout } from '../../src/sim/loop.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import { DT } from '../../src/sim/flight/model.js'
 import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3, length } from '../../src/sim/math/vec3.js'
-import { SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
+import { createTerrainField, SEA_LEVEL_M } from '../../src/sim/world/terrain.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const fly = (frames: number, elapsed = 1 / 60) => {
@@ -84,5 +85,20 @@ describe('replayPosesAt (spec §3, plan R-1)', () => {
   it('surfaceHeightFor reads the sea when there is no terrain', () => {
     const { lives } = fly(1)
     expect(surfaceHeightFor(lives[0]!.world)(123, 456)).toBe(SEA_LEVEL_M)
+  })
+})
+
+describe('a bailout in the instant replay (F7A Task 9)', () => {
+  it('hands the replay the later recorded world with its parachutist, so the pilot can be drawn from the replay', () => {
+    const header = parseTerrainHeader({ centreLatDeg: 10.8, centreLonDeg: 125.3, halfExtentM: 1000, finestSamples: 3, levels: 1, encoding: 'int16-decimetres' })
+    const base = createWorld(loadAircraftSpec('f6f-hellcat'), createState({ position: v3(0, 300, 0), velocity: v3(50, 0, 0) }), { pitch: 0, roll: 0, yaw: 0, throttle: 0 })
+    const req = requestBailout({ ...base, terrain: createTerrainField(header, 0, new Int16Array(9).fill(100)) }, base.player, undefined, 1)
+    if (!req.ok) throw new Error(req.reason)
+    const rec = createRecorder()
+    let w = req.world
+    for (let i = 0; i < 60; i++) { w = advance(w, 1 / 60).world; rec.push(w) }
+    const at = replayPosesAt(rec.snapshot()!, w.tick / 60)
+    expect(at.world.parachutists?.[0]?.sourceAircraft).toBe(base.player)
+    expect(at.world.parachutists?.[0]?.state.tick).toBe(w.tick)
   })
 })

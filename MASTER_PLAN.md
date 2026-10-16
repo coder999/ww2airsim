@@ -355,7 +355,7 @@ J5 are the initial night consumers. Lieutenant Commander bombsight/torpedosight
 prediction is part of the same campaign ability surface but reuses the sim's real
 weapon predictions rather than changing weapon physics.
 
-**F6A status (merged to `main` 2026-10-15; built 2026-10-14, plan `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md`, handoff `docs/handoff/2026-10-14-f6a-night-renderer-lights.md`, subsystem reference `docs/night.md`):** the renderer half is built and reviewed by Mark at three checkpoints: a fixed "movie night" floor, a fixed waning-gibbous moon and stars, glow sprites, a shared lighting node (flares, pots, beams light ground, sea and airframes), the searchlight beam, flares that descend (OP 1664 M24 rate) and go out in water, aircraft position lights read off each airframe's mesh, a fixed 35% night cockpit, the recorded player lights switch (`N`), Dev-only night takeoff times, and a pure light contract (`src/sim/lights/`) that F6B consumes. **Not done by F6A:** AI perception and rank-gated sights (F6B), base light layouts (F8), scenes (F9), and the budget gates still need the sign-off recorded in the handoff.
+**F6A status (merged to `main` 2026-10-15; built 2026-10-14, plan `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md`, handoff `docs/handoff/2026-10-14-f6a-night-renderer-lights.md`, subsystem reference `docs/night.md`):** the renderer half is built and reviewed by Mark at three checkpoints: a fixed "movie night" floor, a fixed waning-gibbous moon and stars, glow sprites, a shared lighting node (flares, pots, beams light ground, sea and airframes), the searchlight beam, flares that descend (OP 1664 M24 rate) and go out in water, aircraft position lights read off each airframe's mesh, a fixed 35% night cockpit, the recorded player lights switch (`N`), Dev-only night takeoff times, and a pure light contract (`src/sim/lights/`) that F6B consumes. **F6B (plan `docs/superpowers/plans/2026-10-15-f6b-night-perception-sights.md`, built 2026-10-15, not yet merged):** AI night perception (blackout is real), flak perception, the lights switch as recorded sim input, and the rank-gated bombsight and torpedosight (Lieutenant Commander and above; Dev and Training Ground open; torpedoes arm on water entry). **Not done by F6A:** AI perception and rank-gated sights (F6B), base light layouts (F8), scenes (F9), and the budget gates still need the sign-off recorded in the handoff.
 
 **Acceptance gate:** A4/J4/J5 can be flown without zero-light frustration, blackout
 still matters, every installed light has source support or an explicit gameplay
@@ -366,12 +366,24 @@ budget and accessibility checks.
 
 Consumes the F5A contract: `SortieEndKind` `rescued`/`captured`, `SortieFacts` for the bailout seed, automatic replacement (`docs/campaign-data.md`).
 
+**F7A bailout and rescue foundation (rebased onto F5B, 2026-10-15):** a single press of `J` bails out;
+only a jump from under about 49 ft is refused (message on screen), everything else is allowed and the physics
+decides. Fixed-tick pilot/airframe separation, the approved parachute rig with a view-only sway, wind-aware
+land/water/deck contact, a seeded rescue decision whose seed is chosen at the press and recorded in the flight
+record, a qualitative pre-jump cue, and the debrief. The sim decides success: `rescued` and `captured` are never a
+mission success (`src/sim/mission/outcome.ts`), and the shell banks them through `session.bank` as `SortieEndKind`
+`rescued`, `captured` or `killed`. `src/campaign/` is untouched: F5A's `bankSortie` already closes a captured pilot as
+a POW, refills the five-pilot roster and counts rescues. Plan: [`docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md`](docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md); handoff: [`docs/handoff/2026-10-15-f7a-bailout-rescue.md`](docs/handoff/2026-10-15-f7a-bailout-rescue.md).
+**F7B remains open, and is smaller than first written:** presentation of the POW and replacement results F5A
+already banks (debrief and archive), generic rescue visuals (a raft or launch at a water touchdown), and J5's mass
+paratrooper drop reusing the F7A entity and the canopy sway. F10 owns the A4 scripted raft, boat and buoy.
+
 
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,
-recorded seeded contested results, qualitative pre-bailout risk, debrief evidence,
-permanent initial-campaign POW archives, and five-pilot roster replacement. Reuse
-the approved pilot/parachute rig and simulation foundation for J5's paratrooper
+recorded seeded contested results, qualitative pre-bailout risk, and debrief evidence
+(F7A, done). F7B presents the POW archive and roster replacement that F5A already banks.
+Reuse the approved pilot/parachute rig and simulation foundation for J5's paratrooper
 drop. There is no modern ejection seat and no initial prisoner-recovery mission.
 
 **Acceptance gate:** impossible and low-altitude bailout, friendly rescue, capture,
@@ -748,6 +760,7 @@ gated order.
 - **Weather beyond clouds, multiplayer, and a mission editor.** The missions spec rules out an editor (`missions-design.md:167`). Night lighting is now in scope under F6 because the approved campaigns require it.
 - **Re-deriving flight models.** The graded cards and the `plan1-rulings.md` decisions stand.
 - **Engine start and taxi sequences.** Taxiing isn't modeled for AI either (7g §6.5). This would be its own track if wanted.
+- **Enemy radar detection of the player** (Mark 2026-10-15). F6B stays visual-only; the player's radar is an instrument only. Its own follow-up plan; open questions in `docs/superpowers/plans/2026-10-15-f6b-night-perception-sights.md`, section 12a.
 - **Pilot callsigns.** Mark (2026-10-14, after approving the F5A name lists): may add a callsign to generated pilots later; not in F5A or F5B's scope. A `callsign` field would be a schema version bump once F5A's schema is frozen.
 
 ---

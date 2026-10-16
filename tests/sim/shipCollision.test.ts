@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseScenario, worldFromScenario } from '../../src/sim/scenario.js'
-import { advance, aircraftById, playerAircraft, withAircraftState, type World } from '../../src/sim/loop.js'
+import { advance, aircraftById, playerAircraft, requestBailout, withAircraftState, withControls, type World } from '../../src/sim/loop.js'
 import { DT, massKg } from '../../src/sim/flight/model.js'
 import { qFromAxisAngle } from '../../src/sim/math/quat.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -137,6 +137,43 @@ describe('air-to-ship collision', () => {
     const rec = sunk.combat.aircraft['raider']!
     expect(rec.friendlyKills).toBe(1)
     expect(rec.shipsSunk).toBe(0)
+  })
+
+  // F7A (Mark, 2026-10-15): the abandoned airplane is still the player's. Credit and friendly fire stay on its record.
+  describe('after the pilot has jumped', () => {
+    /** The raider is the player, jumps from 60 m over the sea, then the empty airplane is put into the ship's path. */
+    function jumped(shipSide: 'allied' | 'axis', weak: boolean): World<undefined> {
+      const w0 = bed('type-b-maru', shipSide, 'allied')
+      const hulled = weak ? { ...w0, combat: { ...w0.combat, ships: { ship: { ...w0.combat.ships['ship']!, hp: 5 } } } } : w0
+      const high = place(hulled, 'raider', -80, 60, 0)
+      const req = requestBailout({ ...high, player: 'raider' }, 'raider', undefined, 1)
+      if (!req.ok) throw new Error(req.reason)
+      return place(req.world, 'raider', -80, 3, 0)
+    }
+
+    it('its crash into an own-side ship still counts against the player: a friendly kill, never a score', () => {
+      const sunk = fly(jumped('allied', true), 95)
+      expect(sunk.player).toBe('raider')
+      expect(sunk.parachutists).toHaveLength(1)
+      expect(sunk.combat.aircraft['raider']!.friendlyKills).toBe(1)
+      expect(sunk.combat.aircraft['raider']!.shipsSunk).toBe(0)
+    })
+
+    it('its crash into an enemy ship still credits the player', () => {
+      const sunk = fly(jumped('axis', true), 95)
+      expect(sunk.combat.aircraft['raider']!.shipsSunk).toBe(1)
+      expect(sunk.combat.aircraft['raider']!.friendlyKills).toBe(0)
+    })
+
+    it('it cannot fire: the trigger the pilot held when he jumped does nothing', () => {
+      const w0 = bed('type-b-maru', 'axis', 'allied')
+      const high = withControls(place(w0, 'raider', -4000, 400, 0), 'raider', { pitch: 0, roll: 0, yaw: 0, throttle: 1, fire: true })
+      const req = requestBailout({ ...high, player: 'raider' }, 'raider', undefined, 1)
+      if (!req.ok) throw new Error(req.reason)
+      const shotsBefore = req.world.combat.aircraft['raider']!.shots
+      const w = fly(withControls(req.world, 'raider', { pitch: 0, roll: 0, yaw: 0, throttle: 1, fire: true }), 3)
+      expect(w.combat.aircraft['raider']!.shots).toBe(shotsBefore)
+    })
   })
 
   it('God mode: the player bounces and nobody is hurt; another airplane still dies', () => {

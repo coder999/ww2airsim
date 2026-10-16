@@ -346,6 +346,8 @@ const sameLaying = (
 export function stepAa(
   aa: AaState, owners: readonly AaOwner[], targets: readonly AaTarget[], tick: number, dt: number, liveRounds: number,
   surfaceTargets: readonly AaSurfaceTarget[] = [],
+  /** F6B: detection range per aircraft id at night (`perceptionAt`); absent in a day world. A hostile aircraft farther than its range is not engaged. */
+  seenWithinM: Readonly<Record<string, number>> | undefined = undefined,
 ): AaStep {
   const NONE: AaStep = { aa, rounds: [] }
   const L = AA_TUNING.light, H = AA_TUNING.heavy
@@ -360,7 +362,12 @@ export function stepAa(
   for (const o of owners) {
     // Ship-level early-out: no hostile aircraft inside the owner's longest reach, no AA mount is touched.
     const hostile: AaTarget[] = []
-    for (const t of targets) if (t.side !== o.side && horizontal(o.position, t.position) <= o.mounts.reachM + 50) hostile.push(t)
+    for (const t of targets) {
+      if (t.side === o.side || horizontal(o.position, t.position) > o.mounts.reachM + 50) continue
+      const seen = seenWithinM?.[t.id]
+      if (seen !== undefined && length(sub(t.position, o.position)) > seen) continue
+      hostile.push(t)
+    }
     const ownVel = scale(sub(o.position, o.previous), 1 / dt)
     const poses: GunLayingPose[] = []
     for (let i = 0; i < o.mounts.mounts.length; i++) {

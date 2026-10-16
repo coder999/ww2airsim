@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { canonicalStringify, sha256 } from '../../src/flightRecorder/canonical.js'
 import { worldChecksum } from '../../src/flightRecorder/checksum.js'
@@ -9,7 +9,7 @@ import { verifyFlightRecord } from '../../src/flightRecorder/verify.js'
 import { orderWingmen } from '../../src/sim/ai/wingmanOrders.js'
 import { createState, type Controls } from '../../src/sim/flight/state.js'
 import { DT } from '../../src/sim/flight/model.js'
-import { advance, createWorld, withControls, type World } from '../../src/sim/loop.js'
+import { advance, createWorld, withControls, requestBailout, withPlayerLights, type World } from '../../src/sim/loop.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 import { initialFrameStateFor, nextFrameState } from '../../src/render/frame.js'
@@ -17,6 +17,8 @@ import { buildFormation, PLAYER_EAST, wingman } from '../sim/ai/formationWorlds.
 import { missionWorld, REACH_FAR } from '../sim/mission/fixture.js'
 import { bundleForScenario } from '../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../src/sim/scenario.js'
+import { createTerrainField } from '../../src/sim/world/terrain.js'
+import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const controls: Controls = { pitch: 0.05, roll: -0.1, yaw: 0.02, throttle: 0.72, fire: true }
@@ -215,20 +217,124 @@ describe('Dev Flight Recorder', () => {
     expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: 1 })
   })
 
-  it('records the player\'s lights switch (F6A D2), round-trips it through the codec, and a lights flip changes nothing in the replay', async () => {
+  describe('a bailout is a recorded tick-boundary action carrying its own seed (F7A Task 6)', () => {
+    const environment = { daylight: 0.35, visibility: 0.62, weather: 0.45, seaState: 0.3 }
+    /** Flat 10 m land and no airfields or ships: control is `contested`, so the outcome is a seeded roll. */
+    const bailoutStart = () => {
+      const terrain = createTerrainField(parseTerrainHeader({
+        centreLatDeg: 0, centreLonDeg: 0, halfExtentM: 1000,
+        finestSamples: 3, levels: 1, encoding: 'int16-decimetres',
+      }), 0, new Int16Array(9).fill(100))
+      return { ...createWorld(f6f, createState({ position: v3(0, 180, 0), velocity: v3(45, 0, 0) }), controls), terrain }
+    }
+    /** One recorded bailout, flown to the resolved outcome. */
+    const fly = (seed: number) => {
+      const initial = bailoutStart()
+      const recorder = createDevFlightRecorder(header(), initial)
+      recorder.note({ tick: initial.tick, kind: 'bailout', aircraft: initial.player, environment, seed })
+      const requested = requestBailout(initial, initial.player, environment, seed)
+      if (!requested.ok) throw new Error(requested.reason)
+      let world = requested.world
+      for (let i = 0; i < 2_400 && world.parachutists?.[0]?.state.outcome === null; i++) {
+        world = advance(world, DT, undefined, undefined, false, undefined, recorder.observe).world
+      }
+      return { initial, world, record: recorder.finish(world) }
+    }
+
+    it('records and exactly verifies a contested bailout, and the roll is a real number, not an extreme', () => {
+      const { initial, world, record } = fly(1944)
+      expect(record.packets[0]?.actions).toEqual([{ tick: 1, kind: 'bailout', aircraft: initial.player, environment, seed: 1944 }])
+      expect(record.packets[0]?.events).toContainEqual({
+        tick: 1, kind: 'bailout', entity: initial.player, detail: `parachutist:${initial.player} separated`,
+      })
+      expect(world.parachutists?.[0]?.recoverySeed).toBe(1944)
+      expect(world.parachutists?.[0]?.recovery?.roll).toBeTypeOf('number')
+      expect(world.parachutists?.[0]?.state.outcome).toMatch(/rescued|captured/)
+      expect(record.packets.at(-1)?.events.some((event) => event.kind === 'bailout' && event.detail.includes('contact'))).toBe(true)
+      expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
+    })
+
+    it('different recorded seeds give both outcomes, and every one of those records verifies', () => {
+      const outcomes = new Set<string>()
+      for (let seed = 1; seed <= 12; seed++) {
+        const { initial, world, record } = fly(seed)
+        outcomes.add(world.parachutists![0]!.state.outcome!)
+        expect(verifyFlightRecord(record, initial), `seed ${seed}`).toMatchObject({ ok: true })
+      }
+      expect(outcomes).toEqual(new Set(['rescued', 'captured']))
+    })
+
+    it('replays the RECORDED seed: a tampered seed no longer verifies', () => {
+      const { initial, record } = fly(7)
+      expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true }) // so the failure below is the seed and nothing else
+      const tampered = structuredClone(record)
+      const action = tampered.packets[0]!.actions[0]!
+      if (action.kind !== 'bailout') throw new Error('expected the bailout action first')
+      action.seed = 8
+      expect(verifyFlightRecord(tampered, initial)).toMatchObject({ ok: false })
+    })
+
+    it('uses no clock and no random call: with both made to throw, two runs produce identical per-tick checksums', () => {
+      const trace = (): string[] => {
+        const initial = bailoutStart()
+        const sums: string[] = []
+        const requested = requestBailout(initial, initial.player, environment, 99)
+        if (!requested.ok) throw new Error(requested.reason)
+        let world = requested.world
+        for (let i = 0; i < 2_400 && world.parachutists?.[0]?.state.outcome === null; i++) {
+          world = advance(world, DT).world
+          sums.push(worldChecksum(world))
+        }
+        return sums
+      }
+      const random = vi.spyOn(Math, 'random').mockImplementation(() => { throw new Error('Math.random called in the bailout lifecycle') })
+      const now = vi.spyOn(Date, 'now').mockImplementation(() => { throw new Error('Date.now called in the bailout lifecycle') })
+      try {
+        const first = trace()
+        expect(first.length).toBeGreaterThan(100)
+        expect(trace()).toEqual(first)
+      } finally { random.mockRestore(); now.mockRestore() }
+    })
+
+    it('a lights switch and a bailout in the same tick replay exactly (the live frame applies lights first; the record lists bailout first)', () => {
+      const initial = bailoutStart()
+      const recorder = createDevFlightRecorder(header(), initial)
+      recorder.note({ tick: initial.tick, kind: 'bailout', aircraft: initial.player, environment, seed: 5 })
+      recorder.note({ tick: initial.tick + 1, kind: 'control', control: 'lights', value: false })
+      const lit = withPlayerLights(initial, false)
+      const requested = requestBailout(lit, lit.player, environment, 5)
+      if (!requested.ok) throw new Error(requested.reason)
+      let world = requested.world
+      for (let i = 0; i < 2_400 && world.parachutists?.[0]?.state.outcome === null; i++) {
+        world = advance(world, DT, undefined, undefined, false, undefined, recorder.observe).world
+      }
+      const record = recorder.finish(world)
+      expect(record.packets[0]!.actions.map((x) => x.kind)).toEqual(['bailout', 'control'])
+      expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
+    })
+
+    it('the strict parser rejects a bailout action that carries no seed', () => {
+      const { record } = fly(3)
+      const clone = JSON.parse(JSON.stringify(record)) as { packets: { actions: Record<string, unknown>[] }[] }
+      delete clone.packets[0]!.actions[0]!.seed
+      expect(() => parseFlightRecord(clone)).toThrow(/seed/)
+    })
+  })
+
+  it('records the player\'s lights switch (F6A D2), round-trips it through the codec, and the replay applies it (F6B: it is sim state now)', async () => {
     const initial = start()
     const recorder = createDevFlightRecorder(header(), initial)
     recorder.note({ tick: initial.tick + 1, kind: 'control', control: 'lights', value: false })
-    let world = advance(withControls(initial, initial.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    let world = advance(withPlayerLights(withControls(initial, initial.player, controls), false), DT, undefined, undefined, false, undefined, recorder.observe).world
     recorder.note({ tick: world.tick + 1, kind: 'control', control: 'lights', value: true })
-    world = advance(withControls(world, world.player, controls), DT, undefined, undefined, false, undefined, recorder.observe).world
+    world = advance(withPlayerLights(withControls(world, world.player, controls), true), DT, undefined, undefined, false, undefined, recorder.observe).world
     const record = recorder.finish(world)
     expect(record.packets.map((p) => p.actions)).toEqual([
       [{ tick: 1, kind: 'control', control: 'lights', value: false }],
       [{ tick: 2, kind: 'control', control: 'lights', value: true }],
     ])
     expect(await decodeFlightRecord(await encodeFlightRecord(record))).toEqual(record)
-    // No sim effect until F6B: the world after the same two ticks WITHOUT the actions is bit-identical, and the record verifies.
+    // F6B: the flag is world state. Lit again at the end, the world equals the never-toggled one; the record verifies.
     let plain = initial
     for (let i = 0; i < 2; i++) plain = advance(withControls(plain, plain.player, controls), DT).world
     expect(worldChecksum(world)).toBe(worldChecksum(plain))

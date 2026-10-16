@@ -27,6 +27,14 @@ const action = z.discriminatedUnion('kind', [
   z.object({ tick: z.number().int().nonnegative(), kind: z.literal('pause'), paused: z.boolean() }).strict(),
   z.object({ tick: z.number().int().nonnegative(), kind: z.literal('time-scale'), scale: finite.positive() }).strict(),
   z.object({
+    tick: z.number().int().nonnegative(),
+    kind: z.literal('bailout'),
+    aircraft: z.string().min(1),
+    /** The rescue die's seed, computed at the key press and replayed from here (so a later change to the formula cannot break an old record). */
+    seed: z.number().int().nonnegative().max(0xffff_ffff),
+    environment: z.object({ daylight: finite, visibility: finite, weather: finite, seaState: finite }).strict(),
+  }).strict(),
+  z.object({
     tick: z.number().int().nonnegative(), kind: z.literal('wingman-order'),
     command: z.enum(['attack', 'cover', 'form']), target: z.string().nullable().optional(),
   }).strict(),
@@ -39,7 +47,7 @@ const action = z.discriminatedUnion('kind', [
 
 const evidence = z.object({
   tick: z.number().int().nonnegative(),
-  kind: z.enum(['mission', 'spawn', 'destruction', 'impact', 'release', 'landing', 'outcome']),
+  kind: z.enum(['mission', 'spawn', 'destruction', 'impact', 'release', 'landing', 'bailout', 'sighted', 'outcome']),
   entity: z.string().optional(),
   detail: z.string(),
 }).strict()

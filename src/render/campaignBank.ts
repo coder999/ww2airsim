@@ -4,10 +4,11 @@
  * it from the three end sites (impact, destruction, landing) and from Abandon; the session's latch and the
  * reducer's own `no-pending` rejection make a second call bank nothing.
  */
-import { adjustedScore, formatName, tierOf, type Campaign, type SortieEndKind } from '../campaign/index.js'
+import { adjustedScore, formatName, tierOf, type Campaign, type ChapterId, type SortieEndKind } from '../campaign/index.js'
 import type { CampaignDebrief } from './debrief.js'
 import { buildReport, type Session } from './campaignSession.js'
 import { formatAdjusted, formatPoints } from './hq/format.js'
+import { chapterInfo } from './hq/chapters.js'
 import { FATE_LABEL, rankName } from './hq/model.js'
 import type { TargetType } from '../sim/weapons/targetType.js'
 
@@ -28,7 +29,7 @@ export type BankedView = {
 export type BankInput = {
   readonly session: Session
   readonly end: SortieEndKind
-  /** The mission verdict. Forced false for any end that cannot succeed (a death, a capture). */
+  /** The mission verdict. Forced false for any end that cannot succeed: a death, a capture, a rescue (a bailout is never a success, Mark 2026-10-15), a ditching. */
   readonly success: boolean
   readonly badgeId: string | null
   readonly player: PlayerCombat
@@ -44,7 +45,7 @@ export function bankScored(i: BankInput): BankedView | { readonly refused: strin
   const pilotBefore = before.pilots[pending.pilotId]!
   const survives = i.end === 'landed' || i.end === 'ditched' || i.end === 'rescued'
   const report = buildReport({
-    sortieId: pending.sortieId, end: i.end, success: i.success && (i.end === 'landed' || i.end === 'rescued'), tagCredits: i.player.tagCredits,
+    sortieId: pending.sortieId, end: i.end, success: i.success && i.end === 'landed', tagCredits: i.player.tagCredits,
     friendlyKills: i.player.friendlyKills, friendlyFire: i.player.friendlyFire, authoredBonus: i.authoredBonusOf(pending.missionId),
     flight: i.flight, badgeId: i.badgeId,
   })
@@ -52,10 +53,10 @@ export function bankScored(i: BankInput): BankedView | { readonly refused: strin
   if (!r.ok) return { refused: r.error.message }
   const after = r.value.campaign
   const save = i.session.lastSave()
-  return describe(before, after, pending.pilotId, pilotBefore.points, survives, save !== null && !save.ok ? save.error : undefined)
+  return describe(before, after, pending.pilotId, pending.chapterId, pilotBefore.points, survives, save !== null && !save.ok ? save.error : undefined)
 }
 
-function describe(before: Campaign, after: Campaign, pilotId: string, pointsBefore: number, survives: boolean, saveError: string | undefined): BankedView {
+function describe(before: Campaign, after: Campaign, pilotId: string, chapterId: ChapterId | null, pointsBefore: number, survives: boolean, saveError: string | undefined): BankedView {
   const pilot = after.pilots[pilotId]!
   const entry = pilot.log.at(-1)
   const human = after.human.log.at(-1)
@@ -89,7 +90,7 @@ function describe(before: Campaign, after: Campaign, pilotId: string, pointsBefo
   return {
     bankedTotal: pilot.points,
     ...(promoted ? { promotedTo: rankName(f, tierAfter), promotedTier: { faction: f, tier: tierAfter } } : {}),
-    campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierAfter)}`, rows, notices },
+    campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierAfter)}`, ...(chapterId === null ? {} : { chapterLine: `${chapterId} ${chapterInfo(chapterId).title}` }), rows, notices },
     ...(saveError === undefined ? {} : { saveError }),
   }
 }

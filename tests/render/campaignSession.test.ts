@@ -103,7 +103,7 @@ describe('buildReport and the end mapping (Task 3b)', () => {
   })
 
   it('every recovery outcome maps to a campaign end kind, and abandon reports nothing earned', () => {
-    expect(SORTIE_END_OF).toEqual({ landed: 'landed', ditched: 'ditched', killed: 'killed' })
+    expect(SORTIE_END_OF).toEqual({ landed: 'landed', ditched: 'ditched', killed: 'killed', rescued: 'rescued', captured: 'captured' })
     expect(abandonReport('c:s1')).toMatchObject({ end: 'abandoned', success: false, counts: zeroCounts(), badgeId: null })
   })
 })

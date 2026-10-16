@@ -10,6 +10,10 @@ export type Recovery =
   | { readonly kind: 'landed'; readonly at: LandingAt | null }
   | { readonly kind: 'ditched' }
   | { readonly kind: 'killed' }
+  /** The pilot bailed out and was picked up. NEVER a mission success (Mark, 2026-10-15): the sim is the only lock. */
+  | { readonly kind: 'rescued' }
+  /** The pilot bailed out and was taken prisoner. Never a success. */
+  | { readonly kind: 'captured' }
 
 /**
  * The recovery the mission sees for the player right now, read from the
@@ -21,6 +25,9 @@ export type Recovery =
 export function recoveryOf<M>(world: World<M>): Recovery | null {
   const player = world.aircraft.find((a) => a.id === world.player)
   if (player === undefined) throw new Error(`recoveryOf: no player aircraft "${world.player}"`)
+  // A pilot who jumped is judged by the descent, never by the abandoned airframe's later crash. Still in the air: no recovery yet.
+  const jumper = world.parachutists?.find((p) => p.sourceAircraft === world.player)
+  if (jumper !== undefined) return jumper.state.outcome === null ? null : { kind: jumper.state.outcome }
   if (player.impact !== null) return { kind: player.impact.kind === 'ditched' ? 'ditched' : 'killed' }
   if (world.combat.aircraft[world.player]?.damage.destroyedAt != null) return { kind: 'killed' }
   const landing = world.mission === null ? undefined : lastLanding(world.mission)
@@ -68,6 +75,7 @@ export function missionOutcome<M>(m: MissionState<M>, recovery: Recovery): Missi
   }))
   const reasons: string[] = []
   if (recovery.kind === 'killed') reasons.push('Killed')
+  else if (recovery.kind === 'rescued' || recovery.kind === 'captured') reasons.push('Bailed out')
   else if (recovery.kind === 'ditched') reasons.push('Ditched')
   else if (recovery.at === null) reasons.push('Landed off-field')
   const primary = objectives.filter((o) => o.priority === 'primary')

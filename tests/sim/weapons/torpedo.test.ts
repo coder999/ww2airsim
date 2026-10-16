@@ -120,10 +120,13 @@ describe.each(ENROLLED)('%s', (storeId) => {
     expect(combat.ships.target!.destroyedTick).toBeNull()
   })
 
-  it('a hit inside its arming run is a dud', () => {
-    const combat = run(spec, runner(t, v3(0, 0, 0), 0), [ship(Math.min(100, t.armRunM! / 2))])
-    expect(combat.ships.target!.hp).toBe(1000)
-    expect(combat.impacts).toHaveLength(0)
+  // Mark 2026-10-15, arcade ruling: torpedoes arm the moment they are in the water (armRunM 0 in content, every carrier).
+  // The dud path (`runM < armRunM`) stays in combat.ts and is now unreachable by shipped content.
+  it('arms on water entry: no arming run in content, and a hit right after entry is NOT a dud', () => {
+    expect(t.armRunM).toBe(0)
+    const combat = run(spec, runner(t, v3(0, 0, 0), 0), [ship(100)])
+    expect(combat.ships.target!.hp).toBeLessThanOrEqual(1000 - t.damage)
+    expect(combat.impacts.filter((i) => i.outcome === 'detonated').map((i) => i.surface)).toEqual(['ship'])
   })
 
   it('released from its carrier inside the envelope, 1,000 m short of a broadside hull, it falls, runs and hits', () => {

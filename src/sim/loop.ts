@@ -1,6 +1,7 @@
 import { createCombat, creditDownedAircraft, stepCombat, type CombatState } from './weapons/combat.js'
 import { ageDamage, damagedSpec, engineOutputs, idSeed, type Damage } from './damage/model.js'
 import { createRng } from './rng.js'
+import { perceptionAt, type NightFacts } from './lights/perception.js'
 import { emptyStores, storesSpec, type StoresState } from './weapons/stores.js'
 import type { AircraftSpec } from './flight/schema.js'
 import type { AircraftState, Controls } from './flight/state.js'
@@ -31,6 +32,16 @@ import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
 import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
+import {
+  bailoutEligibility,
+  createParachutist,
+  resolveRecovery,
+  stepParachutist,
+  type BailoutRejection,
+  type ParachutistEntity,
+  type RecoveryEnvironment,
+} from './bailout.js'
+import { recoveryFactsAt } from './recovery.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -357,6 +368,11 @@ export interface AircraftEntity<M = undefined> {
    */
   readonly parked: boolean
   /**
+   * F6B: the aircraft's position lights are blacked out (the recorded lights switch). Absent when lit, so every
+   * existing world, checksum and record is unchanged. The perception model reads it (`src/sim/lights/perception.ts`).
+   */
+  readonly lightsOff?: true
+  /**
    * Plan 7 pilot assignment, carrying per-tick decision state (Plan 7b's
    * `PilotDecisionState`) rescored on its own cadence. Its target is resolved
    * from the common start-of-tick aircraft snapshot before any entity moves;
@@ -402,6 +418,10 @@ export interface World<M = undefined> {
    */
   readonly tick: number
   readonly aircraft: readonly AircraftEntity<M>[]
+  /** Present only after the first bailout, preserving pre-F7A worlds and
+   * recorder checksums byte-for-byte while still making an active parachutist
+   * part of deterministic world state. */
+  readonly parachutists?: readonly ParachutistEntity[]
   readonly ships: readonly ShipEntity[]
   readonly vehicles: readonly VehicleEntity[]
   /** Strike targets derived once from `airfields` at world creation (spec
@@ -458,6 +478,12 @@ export interface World<M = undefined> {
    * docs/superpowers/plans/2026-09-25-m1-mission-engine.md) measures.
    */
   readonly mission: MissionState<M> | null
+  /**
+   * F6B: the night fact the AI's perception reads (authored lights, launch hour, cloud cover). Absent in every
+   * world that does not need it, so day worlds keep their checksums. It IS checksummed: a launch with another
+   * hour or cloud choice fails closed at the initial world.
+   */
+  readonly night?: NightFacts
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -685,8 +711,64 @@ export function playerAircraft<M>(world: World<M>): AircraftEntity<M> {
   return p
 }
 
+export const playerParachutist = <M>(world: World<M>): ParachutistEntity | null =>
+  world.parachutists?.find((entry) => entry.sourceAircraft === world.player) ?? null
+
+export type BailoutRequest<M> =
+  | { readonly ok: true; readonly world: World<M>; readonly parachutist: ParachutistEntity }
+  | { readonly ok: false; readonly world: World<M>; readonly reason: BailoutRejection; readonly aglM?: number }
+
+/** Deliberately separate from Controls: bailout is a one-shot entity change,
+ * recorded at a tick boundary rather than held as a flight-control level. */
+export function requestBailout<M>(
+  world: World<M>,
+  aircraftId: EntityId,
+  recoveryEnvironment: RecoveryEnvironment | undefined,
+  /** Chosen by the caller at the key press and recorded in the flight record's action; the sim never derives it (F7A Task 6). */
+  recoverySeed: number,
+): BailoutRequest<M> {
+  const aircraft = aircraftById(world, aircraftId)
+  if (aircraft === undefined) throw new Error(`world has no aircraft "${aircraftId}"`)
+  const ground = groundUnder(
+    world.terrain,
+    decksOf(world.ships),
+    aircraft.state.position.x,
+    aircraft.state.position.z,
+    waterSurfaceContext(world.tick * DT, world.wind),
+  )
+  const eligibility = bailoutEligibility(
+    aircraft,
+    world.parachutists ?? [],
+    ground,
+    (world.combat.aircraft[aircraftId]?.damage.destroyedAt ?? null) !== null,
+  )
+  if (!eligibility.ok) {
+    return { ok: false, world, reason: eligibility.reason, ...(eligibility.aglM === undefined ? {} : { aglM: eligibility.aglM }) }
+  }
+  const parachutist = createParachutist(
+    aircraft,
+    sideOf(world, aircraft),
+    eligibility,
+    recoverySeed,
+    recoveryEnvironment,
+  )
+  return { ok: true, world: { ...world, parachutists: [...(world.parachutists ?? []), parachutist] }, parachutist }
+}
+
 /** Rebuilds the world with one aircraft entity patched and every other entity
  *  the SAME object, so a consumer can tell what this call touched by identity. */
+/** F6B: `world` with night facts (or unchanged when `night` is undefined). */
+export const withNightFacts = <M>(world: World<M>, night: NightFacts | undefined): World<M> =>
+  night === undefined ? world : { ...world, night }
+
+/** F6B: the player's lights switch, applied at a fixed tick (`frame.ts`, `verify.ts`). On removes the flag. */
+export function withPlayerLights<M>(world: World<M>, on: boolean): World<M> {
+  return withAircraft(world, world.player, (a) => {
+    if (on) { if (a.lightsOff === undefined) return a; const rest: { -readonly [K in keyof typeof a]: (typeof a)[K] } = { ...a }; delete rest.lightsOff; return rest }
+    return a.lightsOff === true ? a : { ...a, lightsOff: true }
+  })
+}
+
 function withAircraft<M>(
   world: World<M>,
   id: EntityId,
@@ -984,6 +1066,7 @@ export function advance<M>(
 
   let tick = world.tick
   let aircraft = world.aircraft
+  let parachutists = world.parachutists ?? []
   let ships = world.ships
   let vehicles = world.vehicles
   const structures = world.structures
@@ -1020,6 +1103,15 @@ export function advance<M>(
     // Decks, from the ships that have ALREADY moved this tick (spec §3.4):
     // an airplane on deck reads the pose the ship has at the end of the tick.
     const decks = decksOf(ships)
+    if (parachutists.length > 0) {
+      parachutists = parachutists.map((entry) => stepParachutist(
+        entry,
+        tick,
+        DT,
+        world.wind,
+        (x, z) => groundUnder(world.terrain, decks, x, z, water),
+      ))
+    }
     // Taken before `ageDamage`, which is where a fire burns an airframe out:
     // that explosion is a loss with no killing hit, and `creditDownedAircraft`
     // must see it go down this tick (damage stages, Mark 2026-10-09).
@@ -1035,21 +1127,26 @@ export function advance<M>(
     const aircraftAtStart = aircraft
     // 7e: one side table per tick, the same for the pilots as for credit.
     const sides = sidesOf(world, aircraftAtStart)
-    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships }
+    const perception = perceptionAt({ tick, night: world.night, terrain: world.terrain, wind: world.wind, aircraft: aircraftAtStart, ships }, DT)
+    const pilotContext: PilotTickContext = { nowS: tick * DT, terrain: world.terrain, decks, wind: world.wind, combat, sides, ships, ...(perception === null ? {} : { perception }) }
+    const abandoned = new Set(parachutists.map((entry) => entry.sourceAircraft))
     aircraft = aircraftAtStart.map((a) => {
       const record = combat.aircraft[a.id]!
       const flown = pilotTick(a, aircraftAtStart, pilotContext)
       // On fire, every airplane but the player's goes down in a falling spiral,
       // piloted or not (damage stages, Mark 2026-10-09). The player keeps the stick.
       const doomed = a.id !== world.player && record.damage.burningSince !== null && record.damage.destroyedAt === null
+      const abandonedControls: Controls = { pitch: 0, roll: 0, yaw: 0, throttle: 0 }
       return stepAircraftEntity(
-        doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
+        abandoned.has(a.id)
+          ? { ...flown, controls: abandonedControls }
+          : doomed ? { ...flown, controls: burningControls(a.id, a.state.attitude) } : flown,
         tick, world.terrain, world.wind, water, decks, stepper, assist,
         record.damage, record.stores, god !== undefined && a.id === world.player,
       )
     })
     const targetSides = { ships: sidesOf(world, ships), structures: structureSides, vehicles: sidesOf(world, vehicles) }
-    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles)
+    combat = stepCombat(combat, aircraft, ships, structures, world.terrain, world.wind, decks, tick, DT, world.enemyStructureIds, arcadeDamage, sides, targetSides, vehicles, perception?.rangeM)
     // Air-to-ship collisions (Mark, 2026-10-10): after combat, so the hull points and the airplane's
     // record are this tick's; before God mode's restore and the kill credit. No collision, the same objects.
     const collided = stepShipCollisions({
@@ -1113,11 +1210,47 @@ export function advance<M>(
       // where the renderer will draw it.
       if (stepped.respot !== null) aircraft = respotPlayer(aircraft, world.player, ships, stepped.respot, tick)
     }
+    if (parachutists.some((entry) => entry.state.phase === 'down' && entry.state.outcome === null)) {
+      const recoveryWorld: World<M> = {
+        ...world,
+        tick,
+        aircraft,
+        ships,
+        vehicles,
+        structures,
+        combat,
+        mission,
+        parachutists,
+      }
+      parachutists = parachutists.map((entry) => {
+        if (entry.state.phase !== 'down' || entry.state.outcome !== null || entry.state.contact === null) return entry
+        const facts = recoveryFactsAt(
+          recoveryWorld,
+          entry.state.position,
+          entry.state.contact.surface,
+          entry.recoverySeed,
+          entry.recoveryEnvironment,
+          entry.side,
+        )
+        const resolved = resolveRecovery(facts)
+        return {
+          ...entry,
+          recovery: {
+            facts,
+            cue: resolved.assessment.cue,
+            rescueProbability: resolved.assessment.rescueProbability,
+            factors: resolved.assessment.factors,
+            roll: resolved.roll,
+          },
+          state: { ...entry.state, outcome: resolved.outcome },
+        }
+      })
+    }
     if (observer !== undefined) {
       observer({
         tick,
         controls: appliedPlayerControls,
-        world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission },
+        world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, ...(parachutists.length === 0 ? {} : { parachutists }) },
       })
     }
   }
@@ -1128,7 +1261,7 @@ export function advance<M>(
   if (banked < 0) banked = 0 // the epsilon can leave a rounding-sized negative
 
   return {
-    world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, accumulatorSeconds: banked },
+    world: { ...world, tick, aircraft, ships, vehicles, structures, combat, mission, accumulatorSeconds: banked, ...(parachutists.length === 0 ? {} : { parachutists }) },
     stepsRun: owedSteps,
     droppedSteps,
     alpha: banked / DT,

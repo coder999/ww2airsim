@@ -20,7 +20,7 @@ here in the same commit.
   most any layer can reach is 0.636.
 - **Player weather:** Flight Conditions (Form 4) rolls one of four equally likely initial reports:
   Clear (0.10 combined cumulus coverage), Partly Cloudy (0.25), Cloudy (0.42)
-  or Overcast (0.58). The pilot may change the roll. The adjustment preserves
+  or Overcast (0.58). The pilot may change the roll. A mission's picker row may carry `recommendedCloudiness` (Convoy Strike: Overcast): Form 4 then opens on it instead of the roll and tags it "(recommended)". The adjustment preserves
   authored bases, thicknesses and cirrus, and reweights multiple cumulus
   layers to the selected combined coverage. A historically clear scenario
   receives a 1,200 m-base, 700 m-thick cumulus layer. Quick launches omit the

@@ -115,11 +115,13 @@ export async function buildShellCatalog(
 
 // ---------------------------------------------------------------- the report (Task 3b)
 
-/** Exhaustive on purpose: F7A adds `rescued` and `captured` to `RecoveryOutcome`, and this fails to compile until they are mapped. */
+/** Exhaustive on purpose: a new `RecoveryOutcome` fails to compile until it is mapped. */
 export const SORTIE_END_OF: Readonly<Record<RecoveryOutcome, SortieEndKind>> = {
   landed: 'landed',
   ditched: 'ditched',
   killed: 'killed',
+  rescued: 'rescued',
+  captured: 'captured',
 }
 
 export type ReportInput = {

@@ -2,7 +2,7 @@ import { assistFor } from '../assists/index.js'
 import { orderWingmen } from '../sim/ai/wingmanOrders.js'
 import { DT } from '../sim/flight/model.js'
 import type { Controls } from '../sim/flight/state.js'
-import { advance, withControls, type Stepper, type World } from '../sim/loop.js'
+import { advance, withControls, withPlayerLights, requestBailout, type Stepper, type World } from '../sim/loop.js'
 import { worldChecksum, worldSummary } from './checksum.js'
 import type { FlightRecordV1 } from './schema.js'
 
@@ -58,6 +58,15 @@ export function verifyFlightRecord(
     if (options.endTick !== undefined && packet.tick > options.endTick) break
     if (packet.tick !== world.tick + 1) return { ok: false, tick: packet.tick, message: `packet gap after tick ${world.tick}` }
     for (const action of packet.actions) {
+      if (action.kind === 'bailout') {
+        const requested = requestBailout(world, action.aircraft, action.environment, action.seed)
+        if (!requested.ok) return { ok: false, tick: packet.tick, message: `recorded bailout rejected: ${requested.reason}` }
+        world = requested.world
+        continue
+      }
+      // F6B: the player's lights switch is sim input (the AI's perception reads it), so replay applies it, at the same
+      // fixed tick the live frame did (`main.ts`).
+      if (action.kind === 'control' && action.control === 'lights') { world = withPlayerLights(world, action.value); continue }
       if (action.kind !== 'wingman-order') continue
       world = orderWingmen(world, action.command === 'attack'
         ? { kind: 'attack', target: action.target ?? null }
@@ -99,3 +108,14 @@ export function verifyFlightRecord(
   return { ok: true, world, ticks }
 }
 
+
+/**
+ * F6B: the AI's night perception reads the launch hour (it is in the world's `night` fact), so a reproduction in a
+ * session at another hour would only report "initial world mismatch". Say what differs instead. Null when they agree
+ * (or the record has no hour to compare).
+ */
+export function launchHourMismatch(record: FlightRecordV1, sessionTimeOfDay: number): string | null {
+  const flown = record.launch.timeOfDay
+  if (Math.abs(flown - sessionTimeOfDay) < 1e-9) return null
+  return `Time-of-day mismatch: this record was flown at ${flown.toFixed(2)} (solar hours); this session is at ${sessionTimeOfDay.toFixed(2)}. Launch at the record's hour before reproducing it.`
+}

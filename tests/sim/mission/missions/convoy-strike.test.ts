@@ -30,6 +30,9 @@
  *   tick 60, landed at Tacloban at tick 7538 (before the 2026-09-28 move of the recovery field to Bayug, which is closer; re-measure).
  */
 import { describe, it, expect } from 'vitest'
+import { gunzipSync } from 'node:zlib'
+import { readFileSync } from 'node:fs'
+import { createCoverField, landClassAt, parseCoverHeader } from '../../../../src/sim/world/cover.js'
 import { bundleForScenario, loadAircraftSpec, loadScenarioBundle, loadShipSpec } from '../../../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../../../src/sim/scenario.js'
 import { playerAircraft } from '../../../../src/sim/loop.js'
@@ -37,7 +40,7 @@ import { sideOf } from '../../../../src/sim/sides.js'
 import { DT } from '../../../../src/sim/flight/model.js'
 import { stepShip } from '../../../../src/sim/world/ships.js'
 import { heightAt, SEA_LEVEL_M } from '../../../../src/sim/world/terrain.js'
-import { ticksFor, radioMessages } from '../../../../src/sim/mission/state.js'
+import { lastLanding, ticksFor, radioMessages } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
 import { progressOf } from '../fixture.js'
 import { destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from '../fly.js'
@@ -157,5 +160,36 @@ describe.skipIf(terrain === null)('Convoy Strike, headless (spec §5)', () => {
     w = fieldApproach(w, 'bayug')
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Convoy: incomplete', 'Recover: incomplete'] })
+  })
+})
+
+describe.skipIf(terrain === null)('Convoy Strike recovery field, Bayug, on the shipped land cover', () => {
+  const header = parseCoverHeader(JSON.parse(readFileSync('content/landcover/header.json', 'utf8')))
+  const raster = new Uint8Array(gunzipSync(readFileSync('content/landcover/cover.bin.gz')))
+
+  it('the whole strip is runway class, and the raster under it is not woodland', () => {
+    const bundle = loadScenarioBundle('convoy-strike')
+    const w = worldFromScenario(bundle, terrain)
+    const bayug = w.airfields.find((a) => a.id === 'bayug')!
+    const cover = createCoverField(header, raster, w.airfields)
+    const bare = createCoverField(header, raster, [])
+    const { x, z } = bayug.runway.center
+    for (let dz = -bayug.runway.lengthM / 2; dz <= bayug.runway.lengthM / 2; dz += 50) {
+      for (const dx of [-bayug.runway.widthM / 2, 0, bayug.runway.widthM / 2]) {
+        expect(landClassAt(cover, x + dx, z + dz), `strip at ${dx},${dz}`).toBe('runway')
+        expect(landClassAt(bare, x + dx, z + dz), `raster alone at ${dx},${dz}`).not.toBe('forest')
+      }
+    }
+  })
+
+  it('a flown approach with the cover field attached lands on Bayug and completes the mission', () => {
+    const bundle = loadScenarioBundle('convoy-strike')
+    const airfields = worldFromScenario(bundle, terrain).airfields
+    let w = worldFromScenario(bundle, { ...terrain!, cover: createCoverField(header, raster, airfields) })
+    w = hold(destroyNow(w, ['maru-1', 'maru-2']), OVER_CONVOY, 2)
+    w = fieldApproach(w, 'bayug')
+    expect(playerAircraft(w).impact).toBeNull()
+    expect(lastLanding(w.mission!)?.at).toMatchObject({ kind: 'airfield', id: 'bayug' })
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success' })
   })
 })

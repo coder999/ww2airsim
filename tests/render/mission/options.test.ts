@@ -28,9 +28,13 @@ describe('scenario options agree with content (M2 R5, R6)', () => {
       expect(o.recommendedLoadout, o.value).toBe(s.briefing?.loadout)
     }
   })
+  it('Form 4 recommends a weather for Convoy Strike alone (Mark, 2026-10-15: start above the deck, drop through the clouds)', () => {
+    expect(Object.fromEntries(SCENARIO_OPTIONS.flatMap((o) => (o.recommendedCloudiness === undefined ? [] : [[o.value, o.recommendedCloudiness]]))))
+      .toEqual({ 'convoy-strike': 'overcast' })
+  })
   it('A1: exactly the test beds are Dev-only, and every range has a description', () => {
     expect(SCENARIO_OPTIONS.filter((o) => o.dev).map((o) => o.value).sort())
-      .toEqual(['aa-range', 'attack-range', 'bomber-range', 'damage-range', 'dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'gunnery-duel', 'night-bay', 'night-field', 'night-range', 'range-test', 'recovery-range', 'takeoff-range'])
+      .toEqual(['aa-range', 'attack-range', 'bomber-range', 'damage-range', 'dev-mission-circuit', 'dev-mission-ui', 'friendly-fire-field', 'friendly-fire-range', 'furball-range', 'gunnery-duel', 'night-bay', 'night-field', 'night-patrol', 'night-range', 'range-test', 'recovery-range', 'takeoff-range'])
     for (const o of SCENARIO_OPTIONS.filter((r) => r.kind === 'range')) expect(o.description, o.value).toMatch(/\S/)
   })
   it("every non-Dev scenario's own aircraft is eligible with Dev off", () => {
