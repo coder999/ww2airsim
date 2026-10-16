@@ -202,8 +202,8 @@ export function flareAt(l: LightSpec, p0: Vec3, world: Pick<LightWorld, 'windMps
   return { position: rest, on: dt < landed + FLARE_GROUND_BURN_S }
 }
 
-/** Is this light emitting at sim time `t`? */
-function emitting(l: LightSpec, t: number): boolean {
+/** Is this light emitting at sim time `t`? Exported for F6B's perception (`navLightCd`); additive, the contract shape is unchanged. */
+export function emitting(l: LightSpec, t: number): boolean {
   const s = l.schedule
   if (l.kind === 'flare') return l.state === 'on' && t >= s!.onAtS! && t < s!.onAtS! + s!.burnS!
   const base = l.state === 'lit' || l.state === 'on'

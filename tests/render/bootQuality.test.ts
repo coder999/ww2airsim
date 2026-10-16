@@ -371,7 +371,7 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
 
   it('builds every sortie\'s world at the Difficulty setting (M5)', () => {
     // `buildWorld` is the one path to a flying world: boot, Launch and Restart all go through it.
-    expect(source).toContain('return applyDifficulty(built, quality.difficulty())')
+    expect(source).toContain('return withNightFacts(applyDifficulty(built, quality.difficulty()), night)')
     expect(source.match(/applyDifficulty\(/g)).toHaveLength(1)
   })
 

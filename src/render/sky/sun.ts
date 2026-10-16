@@ -8,32 +8,10 @@ import { v3, type Vec3 } from '../../sim/math/vec3.js'
  * time zone and no equation of time to get wrong (the occupied Philippines
  * ran on Tokyo time in 1944; nobody needs to know that here).
  */
-export const SCENARIO_DAY_OF_YEAR = 294
-export const DEFAULT_TIME_OF_DAY = 12
-/** The spec's pinned latitude; the app uses TERRAIN_HEADER.centreLatDeg. */
-export const TACLOBAN_LAT_DEG = 11.24
-
+export { SCENARIO_DAY_OF_YEAR, TACLOBAN_LAT_DEG, solarDeclinationDeg, sunPosition } from '../../sim/lights/sun.js'
+import { SCENARIO_DAY_OF_YEAR, solarDeclinationDeg } from '../../sim/lights/sun.js'
 const DEG = Math.PI / 180
-
-/** Spencer (1971) series, as in NOAA's solar calculator. */
-export function solarDeclinationDeg(dayOfYear: number): number {
-  const g = (2 * Math.PI / 365) * (dayOfYear - 1)
-  const d = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g)
-    + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g)
-  return d / DEG
-}
-
-export function sunPosition(latDeg: number, timeOfDay: number, dayOfYear = SCENARIO_DAY_OF_YEAR): { elevationDeg: number; azimuthDeg: number } {
-  const phi = latDeg * DEG
-  const decl = solarDeclinationDeg(dayOfYear) * DEG
-  const H = 15 * (timeOfDay - 12) * DEG
-  const sinEl = Math.sin(phi) * Math.sin(decl) + Math.cos(phi) * Math.cos(decl) * Math.cos(H)
-  const elevationDeg = Math.asin(Math.max(-1, Math.min(1, sinEl))) / DEG
-  // Azimuth from north, clockwise: the standard atan2 form, shifted so that
-  // noon reads 180 (south) rather than 0.
-  const az = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(decl) * Math.cos(phi)) / DEG
-  return { elevationDeg, azimuthDeg: (az + 180 + 360) % 360 }
-}
+export const DEFAULT_TIME_OF_DAY = 12
 
 /** A3: the three takeoff times Form 2 offers (Mark, 2026-10-09), each from the
  *  sun model rather than a clock: Morning is sunrise + 1.5 h to the nearest

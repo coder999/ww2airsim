@@ -400,7 +400,7 @@ measured, what was accepted, and the D-table.
 
 ## The impact marker reads your stores (B2, 2026-10-10)
 
-Nothing to do per airframe: `predictImpact` (`src/sim/weapons/impactPrediction.ts`) reads the `stores` block you already wrote in D8 and D9, so a new airplane with racks or rails gets the **Impact marker** (`U`, an Assist, off by default) with no code. It uses the rack offset and the store's `dragPerM`, `armS` and `lifetimeS` for a bomb, and the rail offset, `railElevationDeg`, `burnS`, `burnDeltaVMps` and `convergenceM` for a rocket, exactly as `stepCombat` does.
+Nothing to do per airframe: `predictImpact` (`src/sim/weapons/impactPrediction.ts`) reads the `stores` block you already wrote in D8 and D9, so a new airplane with racks or rails gets the **Impact marker** (`U`, off by default; since F6B it is the bombsight and needs Lieutenant Commander on scored and single-mission sorties, `docs/night.md` "Sights") with no code. It uses the rack offset and the store's `dragPerM`, `armS` and `lifetimeS` for a bomb, and the rail offset, `railElevationDeg`, `burnS`, `burnDeltaVMps` and `convergenceM` for a rocket, exactly as `stepCombat` does.
 
 - Bombs win when both are aboard; otherwise the next rocket pair. A bay load needs open doors. Torpedoes are not predicted.
 - It follows the sim, not the other way round. `tests/sim/weapons/impactPrediction.test.ts` drops real stores in `advance` over real terrain and the sea and holds the prediction to 1 cm (measured 2026-10-10: 0 m over 36 bombs, 4e-12 m over 9 rocket salvos). If you change how a store is launched or flown in `combat.ts`, that test fails until `impactPrediction.ts` agrees.

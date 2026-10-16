@@ -32,7 +32,7 @@ exports, not edits to a persisted shape.
   rejects a bare roster array with a message.
 - **`SortieFacts` reserved keys.** `launchSortie` writes `aircraft` and `loadout` into `pending.facts` (the
   frozen `PendingSortie` has no field for either, and the log entry needs both). F6 and F7 hang their own keys
-  beside them and must not reuse those two.
+  beside them and must not reuse those two. F6B writes `sights` (boolean, `abilities(tier).sights` at launch).
 - **F7A recovery boundary (2026-10-15).** The simulator resolves a bailout to `rescued`, `captured` or `killed`
   and the shell banks it through `session.bank` (`SORTIE_END_OF`, `src/render/campaignSession.ts`). **`bankSortie`
   already does the campaign half**: `captured` closes the pilot as `pow` and refills the roster in the same call,

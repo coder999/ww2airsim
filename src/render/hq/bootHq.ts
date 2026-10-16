@@ -6,7 +6,7 @@ import { UNSCORED_LABEL, createSession, buildShellCatalog, purgeLegacyRoster, un
 import { describeAircraft, type MissionDescriptor } from '../../campaign/index.js'
 import { sortieIsDev } from '../devRecord.js'
 import type { SettingsModel } from '../settings.js'
-import { aircraftGate, isDevTakeoffHour, takeoffLockHour } from './launchRules.js'
+import { aircraftGate, isDevTakeoffHour, pilotSights, takeoffLockHour } from './launchRules.js'
 import { missionAircraft } from './missionAircraft.js'
 import { rankShort } from './model.js'
 import { formatName, tierOf } from '../../campaign/index.js'
@@ -81,12 +81,12 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     deps.title.beginSortie({
       scenarioId: r.row.id,
       pilotLabel: `${rankShort(c.faction, tierOf(pilot.points))} ${formatName(pilot.name, c.faction)}`,
-      dev, god, lockedHour: takeoffLockHour(mission, authored?.weather?.timeOfDay ?? null), aircraftGate: gate,
+      dev, god, sights: pilotSights(c, r.pilotId), lockedHour: takeoffLockHour(mission, authored?.weather?.timeOfDay ?? null), aircraftGate: gate,
       notRecorded: (choice) => { const u = reasonFor(choice); return u === null ? null : UNSCORED_LABEL[u] },
       onLaunch: (choice) => {
         if (reasonFor(choice) !== null) return null // unscored: nothing is launched in the campaign
         if (mission === null) return 'This mission has no orders in the catalog.'
-        const out = session.launch({ pilotId: r.pilotId, mission, aircraft: describeAircraft(choice.aircraftSpec), difficulty: deps.settings.snapshot().difficulty, loadout: choice.loadout, unscored: null })
+        const out = session.launch({ pilotId: r.pilotId, mission, aircraft: describeAircraft(choice.aircraftSpec), difficulty: deps.settings.snapshot().difficulty, loadout: choice.loadout, facts: { sights: pilotSights(c, r.pilotId) }, unscored: null })
         return out.ok ? null : out.error.message
       },
       // Back from Form 4 returns to the headquarters on the pilot step; the old title goes back up beneath it so the world stays held.

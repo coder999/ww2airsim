@@ -127,15 +127,16 @@ it('a bomb on the hull starts no flood (T4)', () => {
   expect(combat.ships.target!.floods ?? []).toEqual([])
 })
 
-it('a dud inside its arming run starts no flood', () => {
+it('arms on water entry (arcade ruling, 2026-10-15): a hit right after entry floods like any other', () => {
   const spec = loadAircraftSpec('tbm-3-avenger')
   const t = spec.stores!.types.mk13!
-  const ship = target('pennsylvania-bb', Math.min(100, t.armRunM! / 2))
+  expect(t.armRunM).toBe(0)
+  const ship = target('pennsylvania-bb', 100)
   const state = createState({ position: v3(0, 500, 0) })
   const a = { id: 'p', spec, state, previous: state, controls, impact: null }
   let combat: CombatState = { ...createCombat([a], {}, [{ id: 'target', hullHp: ship.spec.hullHp }]), projectiles: [{ ...runner(t, 1), runM: 0 }] }
   for (let tick = 1; combat.projectiles.length > 0; tick++) combat = stepCombat(combat, [a], [ship], [], null, null, [], tick, DT)
-  expect(combat.ships.target!.floods ?? []).toEqual([])
+  expect((combat.ships.target!.floods ?? []).length).toBeGreaterThan(0)
 })
 
 /** Hits to sink, each torpedo given its full flood before the verdict. */
