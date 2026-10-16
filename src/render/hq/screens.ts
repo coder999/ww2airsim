@@ -271,13 +271,21 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
     close.focus()
   }
 
-  const logTable = (rows: readonly { date: string; mission: string; aircraft: string; outcome: string; points: number; kills: number; time: string; flags: string }[], empty: string): HTMLElement => {
+  const logTable = (rows: readonly { date: string; mission: string; aircraft: string; outcome: string; points: number; kills: number; time: string; flags: string; legs: string }[], empty: string): HTMLElement => {
     if (rows.length === 0) return para(empty, true)
     const scroll = el('div')
     scroll.style.cssText = 'max-height:40vh;overflow-y:auto'
     scroll.appendChild(table(['Date', 'Mission', 'Aircraft', 'Outcome', 'Points', 'Kills', 'Time', 'Notes'], rows.map((r) => {
       const tr = el('tr')
-      tr.append(cell(r.date), cell(r.mission), cell(r.aircraft), cell(r.outcome), cell(formatPoints(r.points), 'num'), cell(String(r.kills), 'num'), cell(r.time), cell(r.flags))
+      const mission = cell(r.mission)
+      if (r.legs !== '') {
+        // F5C D10: one entry per sortie, the landings it banked at listed inside it.
+        const legs = el('span', `Landings: ${r.legs}`)
+        legs.dataset.ww2LogLegs = ''
+        legs.style.cssText = 'display:block;font-size:11px;color:var(--ink-faint)'
+        mission.appendChild(legs)
+      }
+      tr.append(cell(r.date), mission, cell(r.aircraft), cell(r.outcome), cell(formatPoints(r.points), 'num'), cell(String(r.kills), 'num'), cell(r.time), cell(r.flags))
       return tr
     })))
     return scroll

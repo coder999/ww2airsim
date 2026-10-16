@@ -6,14 +6,15 @@
  * - `unscoredReason` decides whether a sortie is banked at all (Training, Single Missions, a Dev
  *   override): one function for the picker, the launch and the debrief.
  * - `buildReport` turns a world's outcome into the `SortieReport` F5A banks.
- * - `createSession` owns the open campaign: write-through saves, a bank-once latch, interrupted-sortie
+ * - `createSession` owns the open campaign: write-through saves, two latches (one bank per landing, one close per
+ *   sortie; F5C), interrupted-sortie
  *   resolution that is actually persisted, a stale-revision guard, and the legacy-key purge.
  * Decisions this file carries out are recorded in docs/superpowers/plans/2026-10-15-f5b-headquarters.md.
  */
 import {
-  LEGACY_ROSTER_KEY, SCORE_CLASSES, bankSortie, buildCatalog, campaignKey, createCampaign, deleteCampaign, exportCampaign, importCampaign, launchSortie,
+  LEGACY_ROSTER_KEY, SCORE_CLASSES, bankLeg, bankSortie, buildCatalog, campaignKey, createCampaign, deleteCampaign, exportCampaign, importCampaign, launchSortie,
   listCampaigns, loadCampaign, loadProfile, saveCampaign, saveProfile, zeroCounts,
-  type Campaign, type Counts, type LaunchArgs, type Faction, type ImportResult, type IndexEntry, type LoadResult, type MissionDescriptor,
+  type Campaign, type Counts, type LaunchArgs, type Faction, type ImportResult, type IndexEntry, type LegReport, type LoadResult, type MissionDescriptor,
   type Result, type ScenarioFacts, type ScenarioRow, type SortieEndKind, type SortieFacts, type SortieReport, type StoragePort,
 } from '../campaign/index.js'
 import type { RecoveryOutcome } from './debrief.js'
@@ -171,6 +172,9 @@ export type SaveStatus = { readonly ok: true } | { readonly ok: false; readonly 
 
 export type BankOutcome = { readonly campaign: Campaign; readonly victory: boolean }
 
+/** A landing report is cumulative for the sortie and also says which landing it is and where (F5C D4). */
+export type LegBankInput = LegReport
+
 export type Session = {
   list(): { ok: true; entries: IndexEntry[] } | { ok: false; issues: string[] }
   current(): Campaign | null
@@ -179,7 +183,10 @@ export type Session = {
   create(a: { faction: Faction; playerName: string }): { ok: true; campaign: Campaign } | { ok: false; error: string }
   createDev(faction: Faction): { ok: true; campaign: Campaign } | { ok: false; error: string }
   launch(a: Omit<LaunchArgs, 'now'> & { unscored: UnscoredReason | null }): Result<Campaign>
+  /** Close the pending sortie (the one `bankSortie` call): banks what no landing banked, applies the end. */
   bank(report: SortieReport): Result<BankOutcome>
+  /** Bank a landing at a friendly base (F5C D4): permanent, and the sortie stays open. A repeat of the same landing banks nothing. */
+  bankLeg(report: LegBankInput): Result<BankOutcome>
   /** Abandon the pending sortie (Quit/Abandon): zero points, pilot survives. */
   abandon(): Result<BankOutcome>
   importText(text: string): ImportResult
@@ -207,6 +214,7 @@ export function createSession(deps: SessionDeps): Session {
   const base = new Map<string, number>()
   let last: SaveStatus | null = null
   const banked = new Set<string>()
+  const bankedLegs = new Set<string>()
 
   const stored = (id: string): number | null => {
     const listed = listCampaigns(port)
@@ -237,6 +245,19 @@ export function createSession(deps: SessionDeps): Session {
     const r = bankSortie(c, report, deps.now())
     if (!r.ok) return r
     banked.add(report.sortieId)
+    campaign = r.value
+    persist(r.value)
+    return { ok: true, value: { campaign: r.value, victory: !c.progress.victory && r.value.progress.victory } }
+  }
+
+  const doBankLeg = (report: LegReport): Result<BankOutcome> => {
+    const c = campaign
+    if (c === null) throw new Error('bankLeg: no campaign is open')
+    const key = `${report.sortieId}#${report.leg}`
+    if (bankedLegs.has(key)) return rejectedBank(c, 'This landing was already banked.')
+    const r = bankLeg(c, report, deps.now())
+    if (!r.ok) return r
+    bankedLegs.add(key)
     campaign = r.value
     persist(r.value)
     return { ok: true, value: { campaign: r.value, victory: !c.progress.victory && r.value.progress.victory } }
@@ -285,6 +306,7 @@ export function createSession(deps: SessionDeps): Session {
       return r
     },
     bank: doBank,
+    bankLeg: doBankLeg,
     abandon() {
       if (campaign === null) throw new Error('abandon: no campaign is open')
       const p = campaign.pending

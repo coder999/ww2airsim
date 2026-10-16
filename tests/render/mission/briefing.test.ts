@@ -50,7 +50,7 @@ describe('briefingModel', () => {
     expect(m.situation).toBe(s.briefing!.situation)
     expect(m.history).toBeNull()
     expect(m.objectives).toEqual([
-      { label: 'Take off', priority: 'PRIMARY' }, { label: 'Recover', priority: 'PRIMARY' }, { label: 'Target', priority: 'SECONDARY' },
+      { label: 'Take off', priority: 'PRIMARY' }, { label: 'Land at any friendly base', priority: 'PRIMARY' }, { label: 'Target', priority: 'SECONDARY' },
     ])
     expect(m.conditions).toEqual(conditionsFor(s.weather))
     expect(m.loadout).toBe('clean')

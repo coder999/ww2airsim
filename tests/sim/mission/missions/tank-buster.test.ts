@@ -45,7 +45,7 @@ describe.skipIf(terrain === null)('Tank Buster, headless', () => {
     world = advance(destroyNow(world, TANKS.slice(0, 3)), DT).world
     world = fieldApproach(world, 'tacloban')
     expect(missionOutcome(world.mission!, recoveryOf(world)!)).toMatchObject({
-      result: 'no-badge', badge: null, reasons: ['Break the tank column: incomplete', 'Recover at Tacloban: incomplete'],
+      result: 'no-badge', badge: null, reasons: ['Break the tank column: incomplete', 'Land at any friendly base: incomplete'],
     })
   })
 })

@@ -72,7 +72,9 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('protect'), targets: refs, maxLost: z.number().int().nonnegative().optional() }).strict(),
   z.object({ ...base, kind: z.literal('deny'), hostiles: refs, around: z.union([id, PointObject]), radiusM: positive }).strict(),
   z.object({ ...base, kind: z.literal('takeoff'), from: id }).strict(),
-  z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional() }).strict(),
+  /** `suggestedRecovery` (F5C D3, 2026-10-16): `at` is only the SUGGESTED recovery; a landing at ANY friendly base
+   *  (`src/sim/friendly.ts`) completes the objective. Without it, `at` is a named place the exercise requires. */
+  z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional(), suggestedRecovery: z.boolean().optional() }).strict(),
   z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
   z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive }).strict(),
   /** B4: complete the first tick the player's airplane matches every field

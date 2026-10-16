@@ -159,7 +159,7 @@ describe.skipIf(terrain === null)('Convoy Strike, headless (spec §5)', () => {
     expect(radioMessages(w.mission!).map((e) => e.text)).not.toContain(TWO_DOWN)
     w = fieldApproach(w, 'bayug')
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
-    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Convoy: incomplete', 'Recover: incomplete'] })
+    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Convoy: incomplete', 'Land at any friendly base: incomplete'] })
   })
 })
 

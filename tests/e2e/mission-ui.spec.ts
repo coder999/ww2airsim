@@ -109,7 +109,7 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   await fixtureRow(hq, 'UI Fixture (dev)').click()
   const briefing = hq.getByRole('region', { name: 'Briefing' })
   await expect(briefing).toContainText('DEV FIXTURE. Take off from Tacloban')
-  for (const text of ['PRIMARY', 'Take off', 'Recover', 'SECONDARY', 'Target', '1400 local', await fixtureWind(page), 'Clear', 'UI Fixture Wings (dev)']) {
+  for (const text of ['PRIMARY', 'Take off', 'Land at any friendly base', 'SECONDARY', 'Target', '1400 local', await fixtureWind(page), 'Clear', 'UI Fixture Wings (dev)']) {
     await expect(briefing).toContainText(text)
   }
   await page.screenshot({ path: 'test-results/m2-briefing.png' })

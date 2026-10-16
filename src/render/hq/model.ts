@@ -325,11 +325,13 @@ export function chaptersModel(c: Campaign): readonly ChapterRow[] {
 
 // ---------------------------------------------------------------- dossiers
 
-export type LogRow = { readonly date: string; readonly mission: string; readonly aircraft: string; readonly outcome: string; readonly points: number; readonly kills: number; readonly time: string; readonly flags: string }
+/** `legs` (F5C D10): the landings the sortie banked at, "Tacloban +500 · Essex +300"; empty for a sortie that banked only at its end. */
+export type LogRow = { readonly date: string; readonly mission: string; readonly aircraft: string; readonly outcome: string; readonly points: number; readonly kills: number; readonly time: string; readonly flags: string; readonly legs: string }
 const logRow = (e: LogEntry, missionLabel: (id: string) => string, aircraftName: (id: string) => string): LogRow => ({
   date: e.at.slice(0, 10), mission: missionLabel(e.missionId), aircraft: aircraftName(e.aircraft), outcome: END_LABEL[e.end] + (e.success ? ' · success' : ''),
   points: e.points, kills: killsOf(e.counts), time: formatHours(e.flightSeconds),
   flags: e.flags.map((f) => (f === 'forfeit-abandoned' ? 'forfeit' : f === 'forfeit-friendly-destroyed' ? 'discharged' : 'warned')).join(', '),
+  legs: e.legs.map((l) => `${l.place} +${formatPoints(l.points)}`).join(' · '),
 })
 
 const killRows = (counts: Readonly<Record<string, number>>): readonly (readonly [string, number])[] =>

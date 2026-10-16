@@ -1,4 +1,5 @@
 import { DT } from '../flight/model.js'
+import type { FriendlyBase } from '../friendly.js'
 import type { LandingAt, LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 import type { VehicleEntity } from '../world/vehicles.js'
@@ -67,6 +68,9 @@ export type MissionLogEntry =
       readonly tick: number
       readonly kind: 'landing'
       readonly at: LandingAt | null
+      /** F5C: the friendly base the flight came to rest on (`friendlyBaseAt`), or `null` (off-field, an enemy or unowned
+       *  field, water away from an anchorage). A non-null base is a LEG END: the sortie may go on. */
+      readonly base: FriendlyBase | null
       /** The first `land` objective this landing advanced, or `null`. */
       readonly advanced: string | null
       /** It advanced a `land` objective that is still incomplete (spec §2.4

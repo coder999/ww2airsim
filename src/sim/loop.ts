@@ -42,6 +42,7 @@ import {
   type RecoveryEnvironment,
 } from './bailout.js'
 import { recoveryFactsAt } from './recovery.js'
+import type { Anchorage } from './friendly.js'
 
 /**
  * The simulation's clock: the per-step context type, and the fixed-step
@@ -484,6 +485,8 @@ export interface World<M = undefined> {
    * hour or cloud choice fails closed at the initial world.
    */
   readonly night?: NightFacts
+  /** F5C: the friendly anchorages the scenario declares (`Scenario.anchorages`); absent when none, so every other world is unchanged. */
+  readonly anchorages?: readonly Anchorage[]
   /** Unspent time, always in [0, DT). */
   readonly accumulatorSeconds: number
 }
@@ -614,6 +617,8 @@ export function createWorldOf<M>(parts: {
    *  objectives. Absent means `null`, matching every world built before M1
    *  and every call site but `worldFromScenario`. */
   readonly mission?: MissionState<M> | null
+  /** F5C: friendly anchorages (see `World.anchorages`). */
+  readonly anchorages?: readonly Anchorage[] | undefined
 }): World<M> {
   const ships = parts.ships ?? []
   const vehicles = parts.vehicles ?? []
@@ -696,6 +701,7 @@ export function createWorldOf<M>(parts: {
     terrain: parts.terrain ?? null,
     wind: parts.wind ?? null,
     mission: parts.mission ?? null,
+    ...(parts.anchorages === undefined || parts.anchorages.length === 0 ? {} : { anchorages: parts.anchorages }),
     accumulatorSeconds: 0,
   }
 }
@@ -1192,6 +1198,7 @@ export function advance<M>(
       const stepped = stepMission(mission, {
         tick, player: world.player, aircraft, ships, vehicles, combat,
         terrain: world.terrain, wind: world.wind, airfields: world.airfields, decks,
+        structures: world.structures, anchorages: world.anchorages,
       })
       // A non-null local: `mission` is reassigned in this loop, so TS cannot
       // carry the `!== null` narrowing into the spawn loop below.

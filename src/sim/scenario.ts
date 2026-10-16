@@ -273,6 +273,12 @@ const ScenarioShape = z.object({
    *  ruling FF-1): a mission can fly from a field its base content calls
    *  axis. Absent keeps each base's own `side`. */
   airfieldSides: z.record(id, z.enum(['allied', 'axis'])).optional(),
+  /** F5C (2026-10-16): friendly stretches of water a seaplane may stop on and relaunch from (D2, D8); world
+   *  metres, the player's side by definition. The smallest per-scenario data until F8's canonical base data
+   *  replaces it (docs/campaign-data.md, "Legs"). Absent means none. */
+  anchorages: z.array(z.object({
+    id, name: z.string().min(1), position: z.tuple([finite, finite]), radiusM: positive,
+  }).strict()).optional(),
   aircraft: z.array(ScenarioAircraftObject).min(1),
   ships: z.array(ScenarioShipObject),
   vehicles: z.array(ScenarioVehicleObject).default([]),
@@ -548,6 +554,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     }
     if (o.kind === 'land' && o.at !== 'open-water' && !s.airfields.includes(o.at) && !startShips.has(o.at)) {
       issue(`land.at "${o.at}" is neither open-water, one of airfields nor a starting ship`, [...path, 'at'])
+    }
+    if (o.kind === 'land' && o.suggestedRecovery === true && (o.count !== undefined || o.respot === true)) {
+      issue(`objective "${o.id}": a suggestedRecovery landing is one landing at any friendly base; it takes no count or respot`, [...path])
     }
     if (o.kind === 'land' && o.respot === true
         && !(player !== undefined && isParkedAircraft(player) && isShipParked(player.parkedAt) && player.parkedAt.ship === o.at)) {
@@ -994,6 +1003,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
     })
   }
   checkSides(s, airfields)
-  const world = createWorldOf({ aircraft, ships, vehicles, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission })
+  const anchorages = (s.anchorages ?? []).map((a) => ({ id: a.id, name: a.name, x: a.position[0], z: a.position[1], radiusM: a.radiusM }))
+  const world = createWorldOf({ aircraft, ships, vehicles, player: s.player, airfields, terrain, wind, stores, enemyAirfields: s.enemyAirfields, airfieldSides: s.airfieldSides, mission, anchorages })
   return s.mainBatteries === true ? withMainBatteries(world) : world
 }

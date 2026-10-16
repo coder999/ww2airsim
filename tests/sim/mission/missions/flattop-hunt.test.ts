@@ -100,7 +100,7 @@ describe.skipIf(terrain === null)('Flattop Hunt, headless', () => {
     let w = destroyNow(worldFromScenario(loadScenarioBundle('flattop-hunt'), terrain), ATTACKERS)
     w = carrierApproach(w, 'cv-1')
     expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({
-      result: 'no-badge', badge: null, reasons: ['Flattop: incomplete', 'Recover: incomplete'],
+      result: 'no-badge', badge: null, reasons: ['Flattop: incomplete', 'Land at any friendly base: incomplete'],
     })
   })
 })

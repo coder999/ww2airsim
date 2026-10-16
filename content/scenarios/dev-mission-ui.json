@@ -10,7 +10,7 @@
   "weather": { "windFromDeg": 0, "windMps": 0, "timeOfDay": 14 },
   "objectives": [
     { "id": "up", "label": "Take off", "priority": "primary", "kind": "takeoff", "from": "tacloban" },
-    { "id": "home", "label": "Recover", "priority": "primary", "kind": "land", "at": "tacloban", "after": "up" },
+    { "id": "home", "label": "Land at any friendly base", "priority": "primary", "kind": "land", "suggestedRecovery": true, "at": "tacloban", "after": "up" },
     { "id": "range", "label": "Target", "priority": "secondary", "kind": "destroy", "targets": ["targets"] }
   ],
   "triggers": [

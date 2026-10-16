@@ -194,6 +194,6 @@ describe.skipIf(terrain === null)('Combat Air Patrol, headless (spec §5)', () =
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out).toMatchObject({ result: 'no-badge', badge: null })
     expect(out.reasons[0]).toBe('Ditched')
-    expect(out.reasons).toEqual(['Ditched', 'Recover: incomplete'])
+    expect(out.reasons).toEqual(['Ditched', 'Land at any friendly base: incomplete'])
   })
 })

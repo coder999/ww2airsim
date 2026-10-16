@@ -65,6 +65,6 @@ describe.skipIf(terrain === null)('Single Combat, headless', () => {
 
   it('landing with the Frank still up earns no badge', () => {
     const w = fieldApproach(hold(duel(), ON_START, ticksFor(5)), 'tacloban')
-    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Frank: incomplete', 'Recover: incomplete'] })
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Frank: incomplete', 'Land at any friendly base: incomplete'] })
   })
 })

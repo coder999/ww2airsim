@@ -169,7 +169,7 @@ describe.skipIf(terrain === null)('Surigao Strait, headless', () => {
     w = carrierApproach(w, ESSEX)
     expect(w.combat.ships[MOGAMI]!.hp).toBe(loadShipSpec('mogami-ca').hullHp)
     expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({
-      result: 'no-badge', badge: null, reasons: ['Mogami: incomplete', 'Recover: incomplete'],
+      result: 'no-badge', badge: null, reasons: ['Mogami: incomplete', 'Land at any friendly base: incomplete'],
     })
   })
 })

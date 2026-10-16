@@ -79,6 +79,8 @@ function describe(before: Campaign, after: Campaign, pilotId: string, chapterId:
   if (entry?.flags.includes('forfeit-friendly-destroyed') === true) notices.push('Friendly destroyed: this sortie scores nothing.')
   if (entry?.flags.includes('forfeit-abandoned') === true) notices.push('Sortie abandoned: nothing scored.')
   else if (entry?.flags.includes('warned') === true) notices.push('Friendly fire warning: damaging your own side is a warning; destroying it is a dishonorable discharge.')
+  // F5C D5: a pilot who does not come back keeps only what a landing already banked.
+  if (entry?.end === 'killed' || entry?.end === 'captured') notices.push('Points earned since the last landing are lost with the pilot; anything banked at an earlier landing stays.')
   if (pilot.status !== 'active') {
     const fate = FATE_LABEL[pilot.status]
     const replacement = after.roster.live.find((id) => !before.roster.live.includes(id))
@@ -91,6 +93,69 @@ function describe(before: Campaign, after: Campaign, pilotId: string, chapterId:
     bankedTotal: pilot.points,
     ...(promoted ? { promotedTo: rankName(f, tierAfter), promotedTier: { faction: f, tier: tierAfter } } : {}),
     campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierAfter)}`, ...(chapterId === null ? {} : { chapterLine: `${chapterId} ${chapterInfo(chapterId).title}` }), rows, notices },
+    ...(saveError === undefined ? {} : { saveError }),
+  }
+}
+
+export type LegBankArgs = Omit<BankInput, 'end'> & {
+  /** Where the flight came to rest ("Tacloban", "USS Essex"). */
+  readonly place: string
+}
+
+/**
+ * Bank a landing at a friendly base (F5C D4): the points earned since the last bank are permanent, the badge, the
+ * bonuses and the chapter apply here if this landing is the first to qualify, and the sortie stays open. Same refusal
+ * shape as `bankScored`; `null` when no sortie is pending (an unscored flight). The view shows THIS landing's bank.
+ */
+export function bankLegScored(i: LegBankArgs): BankedView | { readonly refused: string } | null {
+  const before = i.session.current()
+  const pending = before?.pending ?? null
+  if (before === null || pending === null) return null
+  const pilotBefore = before.pilots[pending.pilotId]!
+  const report = {
+    ...buildReport({
+      sortieId: pending.sortieId, end: 'landed', success: i.success, tagCredits: i.player.tagCredits,
+      friendlyKills: i.player.friendlyKills, friendlyFire: i.player.friendlyFire, authoredBonus: i.authoredBonusOf(pending.missionId),
+      flight: i.flight, badgeId: i.badgeId,
+    }),
+    leg: pending.legs.length + 1, place: i.place,
+  }
+  const r = i.session.bankLeg(report)
+  if (!r.ok) return { refused: r.error.message }
+  const save = i.session.lastSave()
+  return describeLeg(before, r.value.campaign, pending.pilotId, pending.chapterId, pilotBefore.points, report.leg, save !== null && !save.ok ? save.error : undefined)
+}
+
+function describeLeg(before: Campaign, after: Campaign, pilotId: string, chapterId: ChapterId | null, pointsBefore: number, leg: number, saveError: string | undefined): BankedView {
+  const pilot = after.pilots[pilotId]!
+  const was = before.pending!.banked
+  const now = after.pending!.banked
+  const here = after.pending!.legs.at(-1)!
+  const f = after.faction
+  const rows: { label: string; value: string }[] = [
+    { label: `This landing (${leg === 1 ? 'first' : `number ${leg}`})`, value: here.place },
+    { label: 'Destruction', value: formatPoints(now.destruction - was.destruction) },
+    { label: 'Difficulty bonus', value: formatPoints(now.difficulty - was.difficulty) },
+    { label: 'Completion bonus', value: formatPoints(now.completion - was.completion) },
+    { label: 'Pilot, this landing', value: formatPoints(here.pilotPoints) },
+    { label: 'Roster bonus (Commander)', value: formatPoints(now.roster - was.roster) },
+    { label: 'Commander, this landing', value: formatPoints(here.humanPoints) },
+    { label: 'Pilot, sortie so far', value: formatPoints(now.pilotPoints) },
+    { label: 'Commander total', value: formatPoints(after.human.ledger.points) },
+    { label: 'Adjusted score', value: `${formatAdjusted(adjustedScore(after.human))} per sortie` },
+  ]
+  const notices: string[] = ['These points are banked and stay banked, whatever happens next.']
+  if (!was.qualified && now.qualified) {
+    notices.push(chapterId === null ? 'Mission objective met and recovered at a friendly base.' : `${chapterId} ${chapterInfo(chapterId).title} is complete; later flying earns points but cannot undo it.`)
+  }
+  const tierBefore = tierOf(pointsBefore)
+  const tierAfter = tierOf(pilot.points)
+  const promoted = tierAfter > tierBefore
+  if (promoted) notices.push('The promotion takes effect from the next sortie.')
+  return {
+    bankedTotal: pilot.points,
+    ...(promoted ? { promotedTo: rankName(f, tierAfter), promotedTier: { faction: f, tier: tierAfter } } : {}),
+    campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierBefore)}`, ...(chapterId === null ? {} : { chapterLine: `${chapterId} ${chapterInfo(chapterId).title}` }), rows, notices },
     ...(saveError === undefined ? {} : { saveError }),
   }
 }

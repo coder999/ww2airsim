@@ -64,11 +64,12 @@ function land(f: FrameState, x: number, groundY: number, z: number): FrameState 
   return g
 }
 
-function expectLandedAgreement(f: FrameState, at: LandingAt | null): void {
+function expectLandedAgreement(f: FrameState, at: LandingAt | null, friendly = true): void {
   const report = f.landing.report!
   expect(report.at).toEqual(at)
   const recovery = recoveryOf(f.world)
-  expect(recovery).toEqual({ kind: 'landed', at })
+  // F5C: the same landing also names the friendly base it stopped on (null off-field or at a base the player's side does not hold).
+  expect(recovery).toEqual({ kind: 'landed', at, base: at === null || !friendly ? null : expect.objectContaining({ id: at.id }) })
   expect(landingModel(report, kills).outcome).toBe(recovery!.kind)
 }
 
