@@ -26,7 +26,7 @@ import { length, v3 } from './math/vec3.js'
 import { stateOnDeck } from './mission/respot.js'
 import { eligibleLoadouts } from './sortie.js'
 import { storesFromLoadout, type Loadout } from './weapons/stores.js'
-import { airfieldAt, localToWorld, runwayHeadingRad, type Airfield } from './world/airfields.js'
+import { airfieldAt, localToWorld, runwayHeadingRad, worldToLocal, type Airfield } from './world/airfields.js'
 import { decksOf, type Deck } from './world/deck.js'
 import { groundUnder } from './world/ground.js'
 import { waterSurfaceAt, waterSurfaceContext } from './waterSurface.js'
@@ -39,6 +39,8 @@ export const LAUNCH_SPOT_FROM_STERN_M = 21
 export const THRESHOLD_MARGIN_M = 25
 /** A ship closer than this to a stopped flying boat makes the relaunch unsafe. */
 export const WATER_CLEARANCE_M = 300
+/** A roll-out that ends this far past a strip's end, or beside it, still stopped at that field. */
+export const OVERRUN_M = 400
 
 export type StopPlacement = {
   readonly kind: 'runway' | 'carrier' | 'water'
@@ -60,7 +62,10 @@ function restingOn(world: World<unknown>, a: AircraftEntity<unknown>): { at: Lan
   const g = groundUnder(world.terrain, decks, a.state.position.x, a.state.position.z, waterSurfaceContext(world.tick * DT, world.wind))
   if (g !== null && g.deck !== null) return { at: { kind: 'carrier', id: g.deck.shipId, name: g.deck.shipId }, deck: g.deck, field: null }
   if (g !== null && g.surface === 'water') return { at: { kind: 'water', id: 'open-water', name: 'Open water' }, deck: null, field: null }
+  // The landing is credited to the field the TOUCHDOWN was on; the roll-out may end past the strip's end or beside it.
+  // Replay has only the world, so the stop must recognise the field from where the aircraft rests (OVERRUN_M).
   const field = airfieldAt(world.airfields, a.state.position.x, a.state.position.z)
+    ?? world.airfields.find((f) => { const l = worldToLocal(f, a.state.position.x, a.state.position.z); return Math.abs(l.z) <= f.runway.lengthM / 2 + OVERRUN_M && Math.abs(l.x) <= OVERRUN_M }) ?? null
   return { at: field === null ? null : { kind: 'airfield', id: field.id, name: field.name }, deck: null, field }
 }
 

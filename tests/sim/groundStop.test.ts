@@ -106,6 +106,14 @@ describe('a runway stop (D8)', () => {
     if (a.ok && b.ok) expect(canonicalStringify(a.world)).toBe(canonicalStringify(b.world))
   })
 
+  it('a roll-out that ends past the strip\'s end still stopped at the field (the landing is credited to the touchdown)', () => {
+    const past = localToWorld(TAC, 0, -(TAC.runway.lengthM / 2 + 150))
+    const f = land(frameWith({}), past.x, 100, past.z)
+    expect(checkGroundStop(f.world)).toMatchObject({ ok: true, placement: { kind: 'runway' } })
+    const far = localToWorld(TAC, 0, -(TAC.runway.lengthM / 2 + 900))
+    expect(checkGroundStop(land(frameWith({}), far.x, 100, far.z).world).ok).toBe(false)
+  })
+
   it('refuses a loadout the aircraft does not carry, and a stop that is not a friendly base', () => {
     const f = landedAtTacloban()
     const torp = groundStop(f.world, 'torpedoes')
