@@ -16,6 +16,8 @@ async function open(page: Page, u: string): Promise<void> {
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto(u)
   await waitForTerrain(page)
+  // On the ryzen GPU the first keypress right after load was lost (2026-10-15): wait until the sim is really running.
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 60, undefined, { timeout: 60_000 })
   await page.waitForTimeout(1500)
 }
 const marker = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.impactMarker())
@@ -54,6 +56,7 @@ test('torpedosight: valid inside the envelope (green, DROP OK), invalid too high
   expect(ok.shown).toBe(true)
   await open(page, url('tbm-3-avenger', 'bombs', 1200))
   await page.keyboard.press('KeyU')
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.impactMarker().on, undefined, { timeout: 10_000 }) // one key at a time: two in the same frame lost one on the ryzen GPU (2026-10-15)
   await page.keyboard.press('KeyO')
   await page.waitForFunction(() => { const t = (window as DiagWindow).__ww2!.impactMarker().torpedo; return t !== null && !t.reasons.includes('doors-shut') }, undefined, { timeout: 15_000 })
   const bad = await marker(page)
