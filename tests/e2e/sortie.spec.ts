@@ -1,18 +1,17 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import { readdirSync } from 'node:fs'
-import { debriefDialog, diveToSea, openOrdersFor, quickLaunch, spawnUrl, startGame, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, quickLaunch, spawnUrl, startGame, toConditions, waitForScenario, wholeLabel, type DiagWindow } from './harness.js'
 
 /**
  * E2E acceptance for the sortie forms (docs/superpowers/specs/2026-09-27-sortie-forms-design.md,
- * plan Task 8): what only the browser can prove -- the forms offer what the rules allow, a Dev
- * Zero really drops a bomb, the player is drawn as the chosen aircraft, a quick launch flies
- * and records nothing, and a K.I.A. pilot is not resurrected by a Dev sortie (addendum AD-2).
+ * plan Task 8; reworked for plan F5B): what only the browser can prove -- the launch memos offer what the rules
+ * allow, a Dev Zero really drops a bomb, the player is drawn as the chosen aircraft, and a quick launch flies and
+ * records nothing. (The old AD-2 "a K.I.A. pilot is not resurrected by a Dev sortie" is gone with the resurrection:
+ * a closed pilot never flies again, and Dev sorties never touch a campaign, see `campaignSortie.spec.ts`.)
  */
 test.setTimeout(240_000)
 
 const SHOTS = 'test-results'
-const DEV = 'Dev — unlocks everything'
-const ROSTER_KEY = 'ww2airsim.roster.v1'
 
 const titleOf = (page: Page) => page.getByRole('dialog', { name: 'Title' })
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
@@ -22,28 +21,16 @@ const rows = (title: Locator, group: string) => title.getByRole('radiogroup', { 
 const radio = (title: Locator, group: string, name: string) => title.getByRole('radiogroup', { name: group }).getByRole('radio', { name: wholeLabel(name) })
 const next = (title: Locator) => title.getByRole('button', { name: 'Next' }).click()
 
-async function newPilot(page: Page, name: string, url = '/'): Promise<Locator> {
+/** Boots `url` and walks Headquarters to Flight Conditions for a picker row (see `toConditions`). */
+async function toForms(page: Page, options: Parameters<typeof toConditions>[1] = {}, url = '/'): Promise<Locator> {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(url)
-  const title = titleOf(page)
-  await expect(title).toBeVisible()
-  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill(name)
-  await title.getByRole('button', { name: 'Add' }).click()
-  return title
+  return toConditions(page, options)
 }
 
-const rosterJson = (page: Page) => page.evaluate((k) => window.localStorage.getItem(k), ROSTER_KEY)
-
-test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev adds the Zero, labeled Japanese; four form captures', async ({ page }) => {
-  const title = await newPilot(page, 'Carrier Pilot')
+test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev adds the Zero, labeled Japanese; form captures', async ({ page }) => {
+  const title = await toForms(page, { scenario: 'Carrier Qualification' })
   await page.screenshot({ path: `${SHOTS}/sortie-form-1.png` })
-  await openOrdersFor(title, 'Missions')
-  await radio(title, 'Scenario', 'Carrier Qualification').click()
-  await expect(title.getByRole('region', { name: 'Briefing' })).toBeVisible()
-  await page.screenshot({ path: `${SHOTS}/sortie-form-2.png` })
-  await next(title)
   await next(title)
   // Four since D1 (70cb2cb5) onboarded the carrier-capable TBM Avenger; its Kate is Japanese, so Dev-only.
   await expect(rows(title, 'Aircraft')).toHaveCount(4)
@@ -59,23 +46,16 @@ test('a non-Dev carrier mission offers only carrier-capable allied aircraft; Dev
   await expect(radio(title, 'Loadout', 'Clean (recommended)')).toHaveAttribute('aria-checked', 'true')
   await page.screenshot({ path: `${SHOTS}/sortie-form-4.png` })
 
-  // Back to Form 1, check Dev, and the Zero appears on the same mission.
-  for (let i = 0; i < 5; i++) await title.getByRole('button', { name: 'Back' }).click()
-  await title.getByRole('checkbox', { name: DEV }).check()
-  await openOrdersFor(title, 'Missions')
-  await next(title)
-  await next(title)
-  await expect(rows(title, 'Aircraft')).toHaveCount(readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).length)
-  await expect(radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)')).toBeVisible()
+  // Dev on, the same mission: the Zero appears (labeled Japanese) beside every other airplane.
+  const devTitle = await toForms(page, { scenario: 'Carrier Qualification', dev: true })
+  await next(devTitle)
+  await expect(rows(devTitle, 'Aircraft')).toHaveCount(readdirSync('content/aircraft').filter((f) => f.endsWith('.json')).length)
+  await expect(radio(devTitle, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)')).toBeVisible()
 })
 
 test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and releases a real bomb', async ({ page }) => {
   // The DEV spawn override puts the sortie in the air, so the release needs no takeoff (strike.spec.ts's pattern).
-  const title = await newPilot(page, 'Dev Zero Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))
-  await title.getByRole('checkbox', { name: DEV }).check()
-  await openOrdersFor(title, 'Training Grounds')
-  await radio(title, 'Scenario', 'Free Flight').click()
-  await next(title)
+  const title = await toForms(page, { scenario: 'Free Flight', dev: true }, spawnUrl({ x: 0, y: 1500, z: 0 }))
   await next(title)
   await radio(title, 'Aircraft', 'Mitsubishi A6M Zero (Japanese)').click()
   await next(title)
@@ -99,10 +79,7 @@ test('a Dev Zero with bombs hangs its own stations, is drawn as the Zero, and re
 })
 
 test('the Wildcat offers only Clean and Bombs on the armament form (W1: no rockets)', async ({ page }) => {
-  const title = await newPilot(page, 'Racks Pilot')
-  await openOrdersFor(title, 'Missions')
-  await radio(title, 'Scenario', 'Carrier Qualification').click()
-  await next(title)
+  const title = await toForms(page, { scenario: 'Carrier Qualification' })
   await next(title)
   await radio(title, 'Aircraft', 'Grumman F4F Wildcat').click()
   await next(title)
@@ -113,91 +90,56 @@ test('the Wildcat offers only Clean and Bombs on the armament form (W1: no rocke
 
 test('the player is drawn as the chosen aircraft, and an aircraft-only change rebuilds it (Review Focus 5)', async ({ page }) => {
   // Airborne (the DEV spawn override), so `diveToSea` can end each flight; the URL keeps it on every return.
-  const title = await newPilot(page, 'Model Pilot', spawnUrl({ x: 0, y: 1500, z: 0 }))
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto(spawnUrl({ x: 0, y: 1500, z: 0 }))
   await startGame(page)
-  await expect(title).toBeHidden()
+  await expect(titleOf(page)).toBeHidden()
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat-blender')
   // Free Flight's second airframe is its parked axis Zero (6ce00eb, 2026-09-28).
   await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat-blender', 'a6m2-zero-blender'])
   await page.screenshot({ path: `${SHOTS}/sortie-default-hellcat.png` })
 
-  // Return to title the debrief's way: dive in, then "Return to title".
+  // Back to Headquarters the debrief's way: dive in, then "Return to Headquarters".
   await diveToSea(page)
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
   await startGame(page, { aircraft: 'Wildcat' })
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f4f-wildcat-blender')
   await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f4f-wildcat-blender', 'a6m2-zero-blender'])
 
   await diveToSea(page)
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
   await startGame(page, { aircraft: 'Hellcat' })
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f6f-hellcat-blender')
   await expect.poll(() => sceneAirframeModels(page), { timeout: 30_000 }).toEqual(['f6f-hellcat-blender', 'a6m2-zero-blender'])
 })
 
-test('a quick launch flies without the title, and its debrief says the sortie was not recorded', async ({ page }) => {
-  await newPilot(page, 'Bystander')
-  const before = await rosterJson(page)
+test('a quick launch flies without Headquarters, and its debrief says the sortie was not recorded', async ({ page }) => {
   // Air Combat starts airborne, so `diveToSea` can end it (it only pushes the nose down).
   await quickLaunch(page, { scenario: 'pursuit-range', aircraft: 'f4f-wildcat', loadout: 'clean' })
   await expect(titleOf(page)).toBeHidden()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' })).toHaveCount(0)
   await expect.poll(() => playerModel(page), { timeout: 30_000 }).toBe('f4f-wildcat-blender')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 60_000 })
   await diveToSea(page)
   await expect(debriefDialog(page)).toContainText('Dev sortie: not recorded')
   await page.screenshot({ path: `${SHOTS}/sortie-quick-launch-debrief.png` })
-  expect(await rosterJson(page)).toBe(before)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toBeNull()
 })
 
-test('unchecking Dev drops a Dev-only mission back to Free Flight', async ({ page }) => {
-  const title = await newPilot(page, 'Toggle Pilot')
-  await title.getByRole('checkbox', { name: DEV }).check()
-  await openOrdersFor(title, 'Training Grounds')
-  await radio(title, 'Scenario', 'Furball (dev)').click()
-  await title.getByRole('button', { name: 'Back' }).click()
-  await title.getByRole('button', { name: 'Back' }).click()
-  await title.getByRole('checkbox', { name: DEV }).uncheck()
-  await openOrdersFor(title, 'Training Grounds')
-  await expect(title.getByRole('radiogroup', { name: 'Scenario' })).not.toContainText('Furball')
-  await expect(radio(title, 'Scenario', 'Free Flight')).toHaveAttribute('aria-checked', 'true')
+test('unchecking Dev drops the Dev-only rows from the picker', async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.goto('/')
+  await toConditions(page, { scenario: 'Free Flight' }) // creates the campaign on the way
+  await page.reload()
+  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
+  const front = page.getByRole('dialog', { name: 'Headquarters' })
+  await front.getByRole('button', { name: /^Open / }).first().click()
+  await front.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
+  await front.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  await expect(front.getByRole('radio', { name: /Furball \(dev\)/ })).toBeVisible()
+  await front.getByRole('button', { name: 'Back' }).click()
+  await front.getByRole('checkbox', { name: /Dev: unlocks/ }).uncheck()
+  await front.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  await expect(front.getByRole('radio', { name: /Furball/ })).toHaveCount(0)
+  await expect(front.getByRole('radio', { name: /Free Flight/ })).toBeVisible()
 })
-
-for (const status of ['kia', 'discharged'] as const) {
-  test(`AD-2: a ${status} pilot launching a Dev sortie is not resurrected; a normal sortie would be`, async ({ page }) => {
-    const name = status === 'kia' ? 'Fallen Pilot' : 'Discharged Pilot'
-    await newPilot(page, name)
-    // Mark the pilot the way the app stores it, then reload so the title reads it.
-    await page.evaluate(([k, n, st]) => {
-      const roster = JSON.parse(window.localStorage.getItem(k)!) as { name: string; status: string }[]
-      for (const p of roster) if (p.name === n) p.status = st
-      window.localStorage.setItem(k, JSON.stringify(roster))
-    }, [ROSTER_KEY, name, status] as const)
-    const read = () => page.evaluate(([k, n]) => (JSON.parse(window.localStorage.getItem(k)!) as { name: string; status: string; resurrections: number }[]).find((p) => p.name === n)!, [ROSTER_KEY, name] as const)
-    await page.reload()
-    const before = await read()
-    expect(before.status).toBe(status)
-
-    // An illegal choice without Dev (the Zero with bombs), so it genuinely needs Dev.
-    await startGame(page, { dev: true, scenario: 'Free Flight', aircraft: 'Zero', loadout: 'Bombs' })
-    await expect(titleOf(page)).toBeHidden()
-    await waitForScenario(page, 'free-flight')
-    const after = await read()
-    expect(after.status).toBe(status)
-    expect(after.resurrections).toBe(before.resurrections)
-
-    await page.reload()
-    const restoredTitle = titleOf(page)
-    await expect(restoredTitle).toBeVisible()
-    await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
-    await expect(restoredTitle.locator('button[aria-pressed]').filter({ hasText: name })).toHaveAccessibleName(
-      new RegExp(`${name} — ENS — 0 — ${status === 'kia' ? 'KIA' : 'DISCHARGED'}$`),
-    )
-
-    // Control: the same pilot on the default, legal sortie is resurrected -- the test can see it.
-    await startGame(page)
-    await expect(titleOf(page)).toBeHidden()
-    const control = await read()
-    expect(control.status).toBe('active')
-    expect(control.resurrections).toBe(before.resurrections + 1)
-  })
-}

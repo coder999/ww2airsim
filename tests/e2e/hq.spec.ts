@@ -48,7 +48,7 @@ const stored = (page: Page, key: string): Promise<string | null> => page.evaluat
 test('create an American and a Japanese campaign: nothing is preselected, the name is required, both survive a reload', async ({ page }) => {
   await openHq(page)
   const hq = hqOf(page)
-  await expect(hq.getByText('Personnel Files')).toBeVisible()
+  await expect(hq.getByText('Personnel Files', { exact: true })).toBeVisible()
   await hq.getByRole('button', { name: 'New campaign' }).click()
   // no nation is checked by default
   await expect(hq.getByRole('radio', { checked: true })).toHaveCount(0)

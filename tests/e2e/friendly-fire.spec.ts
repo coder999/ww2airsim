@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, percentile, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor, recordFrameTime } from './harness.js'
+import { debriefDialog, diveToSea, percentile, startGame, waitForScenario, type DiagWindow, recordFrameTime } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -7,8 +7,7 @@ import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
  * E2E, friendly fire (spec 2026-09-26-friendly-fire-design.md §8), on the
  * reference GPU. What only this tier proves: the whole chain through the
  * shipped DOM -- the radio line's call, the debrief's stamp and forfeit
- * line with no Continue, and the roster row, chip and Dossier after Return
- * to title. Deterministic (tests/render/discharge.test.ts) proves the same models
+ * line with no Continue, and Return to Headquarters. Deterministic (tests/render/discharge.test.ts) proves the same models
  * headless; none of it can see `debrief.ts`'s `show()` or the title's chip.
  *
  * F5A (2026-10-14): nonfatal friendly damage is a warning only (the radio call and the
@@ -30,22 +29,14 @@ test.setTimeout(240_000)
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
-/** The roster flow for a fresh pilot, into the URL's scenario. */
-async function launch(page: Page, scenario: string, label: string, pilot: string): Promise<void> {
+/** Headquarters, a campaign, and the URL's Dev test bed through the real screens. The friendly-fire beds are Dev-only
+ *  (sortie spec A1) and so UNSCORED: they never bank into the campaign (plan F5B), which is why the K.I.A. and
+ *  discharge CLOSURES are proven by `tests/render/campaignBank.test.ts` and the discharge model tests, and this spec
+ *  proves the chain through the shipped DOM up to the debrief. */
+async function launch(page: Page, scenario: string, label: string): Promise<void> {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  // The friendly-fire ranges are Dev-only test beds (sortie spec A1): `?scenario=`
-  // checks Dev (A2), and `recordDevSorties` (SF-R6) keeps the K.I.A. and
-  // DISCHARGED this spec proves on the roster and Dossier.
-  await page.goto(`/?scenario=${scenario}&recordDevSorties`)
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill(pilot)
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
-  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: label }).check()
-  await launchFromOrders(title)
-  await expect(title).toBeHidden()
+  await page.goto(`/?scenario=${scenario}`)
+  await startGame(page, { scenario: label, dev: true })
   await waitForScenario(page, scenario)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
@@ -75,8 +66,7 @@ async function liveChecks(page: Page, what: string): Promise<void> {
 }
 
 test('friendly fire, then death: the radio call, KILLED with the sortie forfeit, and K.I.A. -- not discharged', async ({ page }) => {
-  const PILOT = 'Forfeit Pilot'
-  await launch(page, 'friendly-fire-range', 'Friendly Fire (dev)', PILOT)
+  await launch(page, 'friendly-fire-range', 'Friendly Fire (dev)')
   await expect
     .poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id).sort()), { timeout: 20_000 })
     .toEqual(['ally-1', 'bandit-1', 'f6f-1'])
@@ -126,19 +116,14 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   await page.screenshot({ path: 'test-results/friendly-fire-killed.png' })
   await liveChecks(page, 'range, killed')
 
-  await debrief.getByRole('button', { name: 'Return to title' }).click()
-  const reshown = page.getByRole('dialog', { name: 'Title' })
-  await expect(reshown).toBeVisible()
-  await expect(reshown.getByRole('button', { name: new RegExp(`${PILOT} — ENS — 0 — KIA`) })).toBeVisible()
-  await reshown.getByRole('button', { name: `Dossier: ${PILOT}` }).click()
-  const dossier = page.getByRole('dialog', { name: `Dossier: ${PILOT}` })
-  await expect(dossier).toContainText('K.I.A.')
-  await expect(dossier).not.toContainText('Discharged')
+  await debrief.getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
+  // A Dev test bed is unscored: the campaign has no sortie and no loss.
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, archived: 0 })
 })
 
-test('friendly fire, then a landing: DISHONORABLE DISCHARGE with score 0, and DISCHARGED on the roster and Dossier', async ({ page }) => {
-  const PILOT = 'Discharge Pilot'
-  await launch(page, 'friendly-fire-field', 'Friendly Fire: Field (dev)', PILOT)
+test('friendly fire, then a landing: DISHONORABLE DISCHARGE with score 0', async ({ page }) => {
+  await launch(page, 'friendly-fire-field', 'Friendly Fire: Field (dev)')
   await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
 
   // The range's strafing pass onto the parked ally, then the landing straight
@@ -155,14 +140,7 @@ test('friendly fire, then a landing: DISHONORABLE DISCHARGE with score 0, and DI
   await page.screenshot({ path: 'test-results/friendly-fire-debrief.png' })
   await liveChecks(page, 'field, landed')
 
-  await debrief.getByRole('button', { name: 'Return to title' }).click()
-  const reshown = page.getByRole('dialog', { name: 'Title' })
-  await expect(reshown).toBeVisible()
-  await expect(reshown.getByRole('button', { name: new RegExp(`${PILOT} — ENS — 0 — DISCHARGED`) })).toBeVisible()
-  await expect(reshown.locator('.stamp-chip', { hasText: 'DISCHARGED' })).toBeVisible()
-  await reshown.getByRole('button', { name: `Dossier: ${PILOT}` }).click()
-  const dossier = page.getByRole('dialog', { name: `Dossier: ${PILOT}` })
-  await expect(dossier).toContainText('Discharged')
-  await expect(dossier).toContainText('Field landing · Discharged')
-  await page.screenshot({ path: 'test-results/friendly-fire-dossier.png' })
+  await debrief.getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, archived: 0 })
 })
