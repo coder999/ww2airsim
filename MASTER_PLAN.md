@@ -341,6 +341,11 @@ progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is
 (2026-10-15), not deployed; handoff
 [`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
+#### F5C. Multi-leg sorties, any-friendly-base recovery, unscored pilot skip (M; planned 2026-10-16, runs before F8)
+
+Mark's grilling (2026-10-16) settled it; the plan is [`docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md`](docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md).
+Landing and stopping on any friendly airfield, carrier or anchorage ends a leg, not the sortie: a full debrief offers Continue or End, each landing banks its points permanently (checkpoint banking), the chapter completes at the first qualifying landing, and Continue gives an instant refuel, repair and loadout choice with the aircraft repositioned for takeoff and no clock jump. Training and Single skip the pilot step. Schema bump, old campaigns discarded. Starts after F7B merges; viewing: final product only, unattended.
+
 #### F6. Night operations (L)
 
 Consumes the F5A contract for rank gates: `abilities(tier)` in `docs/campaign-data.md`.
