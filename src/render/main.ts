@@ -3100,6 +3100,8 @@ async function boot(): Promise<void> {
         stepFrame = stopped.frame
         activeFlightRecorder?.note({ tick: lightsFrame.world.tick + 1, kind: 'ground-stop', loadout: pendingGroundStop })
         landingShown = false
+        // The sortie goes on: the record is live again (the stop card froze a copy), one file per sortie (D9).
+        completedFlightRecord = null
         dispatch({ kind: 'debriefClosed' })
       }
       pendingGroundStop = null
