@@ -337,8 +337,8 @@ storage and canonical export/import, the sim's damage-tag destruction credit and
 destruction-only discharge, one scoring table for all play, and the Japanese **Field Patrol**
 mission that gives `ja` a lifeline. The old roster is discarded, not migrated (Mark's D1), so
 "old-save migration" in the gate is satisfied by rejection. **F5B (headquarters, roster UI,
-progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is built on branch
-`plan-f5b-hq` (2026-10-15), not merged or deployed; handoff
+progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is merged to `main`
+(2026-10-15), not deployed; handoff
 [`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
 #### F6. Night operations (L)
@@ -355,7 +355,7 @@ J5 are the initial night consumers. Lieutenant Commander bombsight/torpedosight
 prediction is part of the same campaign ability surface but reuses the sim's real
 weapon predictions rather than changing weapon physics.
 
-**F6A status (merged to `main` 2026-10-15; built 2026-10-14, plan `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md`, handoff `docs/handoff/2026-10-14-f6a-night-renderer-lights.md`, subsystem reference `docs/night.md`):** the renderer half is built and reviewed by Mark at three checkpoints: a fixed "movie night" floor, a fixed waning-gibbous moon and stars, glow sprites, a shared lighting node (flares, pots, beams light ground, sea and airframes), the searchlight beam, flares that descend (OP 1664 M24 rate) and go out in water, aircraft position lights read off each airframe's mesh, a fixed 35% night cockpit, the recorded player lights switch (`N`), Dev-only night takeoff times, and a pure light contract (`src/sim/lights/`) that F6B consumes. **F6B (plan `docs/superpowers/plans/2026-10-15-f6b-night-perception-sights.md`, built 2026-10-15, not yet merged):** AI night perception (blackout is real), flak perception, the lights switch as recorded sim input, and the rank-gated bombsight and torpedosight (Lieutenant Commander and above; Dev and Training Ground open; torpedoes arm on water entry). **Not done by F6A:** AI perception and rank-gated sights (F6B), base light layouts (F8), scenes (F9), and the budget gates still need the sign-off recorded in the handoff.
+**F6A status (merged to `main` 2026-10-15; built 2026-10-14, plan `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md`, handoff `docs/handoff/2026-10-14-f6a-night-renderer-lights.md`, subsystem reference `docs/night.md`):** the renderer half is built and reviewed by Mark at three checkpoints: a fixed "movie night" floor, a fixed waning-gibbous moon and stars, glow sprites, a shared lighting node (flares, pots, beams light ground, sea and airframes), the searchlight beam, flares that descend (OP 1664 M24 rate) and go out in water, aircraft position lights read off each airframe's mesh, a fixed 35% night cockpit, the recorded player lights switch (`N`), Dev-only night takeoff times, and a pure light contract (`src/sim/lights/`) that F6B consumes. **F6B (plan `docs/superpowers/plans/2026-10-15-f6b-night-perception-sights.md`, merged to `main` 2026-10-15):** AI night perception (blackout is real), flak perception, the lights switch as recorded sim input, and the rank-gated bombsight and torpedosight (Lieutenant Commander and above; Dev and Training Ground open; torpedoes arm on water entry). **Not done by F6A:** AI perception and rank-gated sights (F6B), base light layouts (F8), scenes (F9), and the budget gates still need the sign-off recorded in the handoff.
 
 **Acceptance gate:** A4/J4/J5 can be flown without zero-light frustration, blackout
 still matters, every installed light has source support or an explicit gameplay
