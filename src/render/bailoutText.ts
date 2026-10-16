@@ -1,5 +1,5 @@
 /** Every player-facing bailout string, built from the tuning so a tuning change cannot leave the text stale (F7A Task 2). Imperial. */
-import { BAILOUT_TUNING } from '../sim/bailoutTuning.js'
+import { BAILOUT_TUNING, type BailoutTuning } from '../sim/bailoutTuning.js'
 import type { BailoutRejection } from '../sim/bailout.js'
 
 const FT_PER_M = 1 / 0.3048
@@ -7,7 +7,7 @@ const FT_PER_M = 1 / 0.3048
 export const feetText = (m: number): string => `${Math.round(m * FT_PER_M)} ft`
 export const feetPerSecondText = (mps: number): string => `${Math.round(mps * FT_PER_M)} ft/s`
 
-type Tuning = typeof BAILOUT_TUNING
+type Tuning = BailoutTuning
 
 /** The one-line rule, for help text and the GAMEPLAY wording check. */
 export const exitRuleText = (t: Tuning = BAILOUT_TUNING): string =>

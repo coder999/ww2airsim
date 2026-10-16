@@ -173,8 +173,9 @@ import {
   withAircraftState,
   type World,
 } from '../sim/loop.js'
-import { assessRecovery, type RecoveryEnvironment } from '../sim/bailout.js'
-import { recoveryFactsAt } from '../sim/recovery.js'
+import type { RecoveryEnvironment } from '../sim/bailout.js'
+import { bailoutCue, pressSeed, recoveryEnvironmentOf } from './bailoutEdge.js'
+import { refusalText } from './bailoutText.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -2429,6 +2430,12 @@ async function boot(): Promise<void> {
   let pendingBailout = false
   let bailoutNotice: string | null = null
   let bailoutNoticeUntilMs = 0
+  let bailoutCueText: string | null = null
+  let bailoutCueAtMs = -1e9
+  /** The recovery environment a press records and the pre-bailout cue judges by: one function, so they cannot disagree. */
+  const recoveryEnvironmentNow = (): RecoveryEnvironment => recoveryEnvironmentOf({
+    sunElevationDeg: sunState.elevationDeg, cloudCoverages: (bundle?.scenario.weather?.clouds ?? []).map((l) => l.coverage), beaufort,
+  })
   // And the gear and flap levers. Found 2026-09-17 by an E2E screenshot:
   // Playwright's `keyboard.press('KeyF')` is down-and-up within one frame,
   // and the flap light never lit because `nextFrameState` never saw the key
@@ -2930,16 +2937,10 @@ async function boot(): Promise<void> {
     const simStart = import.meta.env.DEV ? performance.now() : 0
     let bailoutInputFrame = inputFrame
     if (pendingBailout) {
-      const recoveryClouds = bundle?.scenario.weather?.clouds ?? []
-      const cloudiness = recoveryClouds.reduce((sum, layer) => sum + layer.coverage, 0)
-        / Math.max(1, recoveryClouds.length)
-      const recoveryEnvironment: RecoveryEnvironment = {
-        daylight: Math.max(0, Math.min(1, (sunState.elevationDeg + 6) / 30)),
-        visibility: Math.max(0, 1 - cloudiness * 0.6),
-        weather: cloudiness,
-        seaState: Math.max(0, Math.min(1, beaufort / 12)),
-      }
-      const requested = requestBailout(inputFrame.world, inputFrame.world.player, recoveryEnvironment)
+      const recoveryEnvironment = recoveryEnvironmentNow()
+      // The seed is chosen HERE, at the press, and recorded in the action below: replays read it from the record.
+      const seed = pressSeed(inputFrame.world.tick, inputFrame.world.player, playerAircraft(inputFrame.world).state.position)
+      const requested = requestBailout(inputFrame.world, inputFrame.world.player, recoveryEnvironment, seed)
       if (requested.ok) {
         bailoutInputFrame = { ...inputFrame, world: requested.world }
         bailoutNotice = 'BAIL OUT · CLEARING AIRFRAME'
@@ -2948,13 +2949,10 @@ async function boot(): Promise<void> {
           kind: 'bailout',
           aircraft: inputFrame.world.player,
           environment: recoveryEnvironment,
+          seed,
         })
       } else {
-        bailoutNotice = requested.reason === 'too-low' ? 'TOO LOW TO BAIL OUT'
-          : requested.reason === 'not-airborne' ? 'BAILOUT REQUIRES AIRBORNE FLIGHT'
-            : requested.reason === 'aircraft-lost' ? 'BAILOUT TOO LATE'
-              : requested.reason === 'already-bailed' ? 'PILOT ALREADY OUT'
-                : 'BAILOUT UNAVAILABLE'
+        bailoutNotice = refusalText(requested.reason)
       }
       bailoutNoticeUntilMs = now + 2_500
     }
@@ -3262,19 +3260,19 @@ async function boot(): Promise<void> {
     } else if (now < bailoutNoticeUntilMs) {
       bailoutHud = bailoutNotice
     } else if (player.impact === null && current.world.combat.aircraft[current.world.player]!.damage.destroyedAt === null) {
-      const under = groundUnder(
-        current.world.terrain,
-        decksOf(current.world.ships),
-        player.state.position.x,
-        player.state.position.z,
-        waterSurfaceContext(current.world.tick * DT, current.world.wind),
-      )
-      if (under !== null && player.state.position.y - under.heightM >= 15) {
-        const cue = assessRecovery(recoveryFactsAt(current.world, player.state.position, under.surface, 0)).cue
-        bailoutHud = `${cue === 'rescue-likely' ? 'RESCUE LIKELY' : cue === 'capture-likely' ? 'CAPTURE LIKELY' : 'CONTESTED'} · J BAIL OUT`
+      // The cue is a prediction for a qualitative line: judged where the canopy would land, in the environment a press
+      // would record, and recomputed four times a second rather than every frame.
+      if (now - bailoutCueAtMs >= 250) {
+        bailoutCueAtMs = now
+        const world = current.world
+        bailoutCueText = bailoutCue(
+          world, recoveryEnvironmentNow(),
+          (x, z) => groundUnder(world.terrain, decksOf(world.ships), x, z, waterSurfaceContext(world.tick * DT, world.wind)),
+        )?.text ?? null
       }
+      bailoutHud = bailoutCueText
     }
-    autopilotBadge.setStatus(current.autopilot, current.bayDoorsNoticeS, current.torpedoNoticeS, bailoutHud)
+    autopilotBadge.setStatus(current.autopilot, { bayDoorsS: current.bayDoorsNoticeS, torpedoS: current.torpedoNoticeS, bailout: bailoutHud })
     pauseBadge.setPaused(current.paused)
     const paddles = paddlesFor(current)
     paddlesBadge.setCue(paddles)

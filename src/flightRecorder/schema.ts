@@ -30,6 +30,8 @@ const action = z.discriminatedUnion('kind', [
     tick: z.number().int().nonnegative(),
     kind: z.literal('bailout'),
     aircraft: z.string().min(1),
+    /** The rescue die's seed, computed at the key press and replayed from here (so a later change to the formula cannot break an old record). */
+    seed: z.number().int().nonnegative().max(0xffff_ffff),
     environment: z.object({ daylight: finite, visibility: finite, weather: finite, seaState: finite }).strict(),
   }).strict(),
   z.object({

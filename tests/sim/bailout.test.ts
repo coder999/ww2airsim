@@ -36,6 +36,9 @@ const worldAt = (altitudeM: number, terrain = flat(10), wind = v3(0, 0, 0)): Wor
   wind,
 })
 
+/** A jump with a fixed recorded seed (the sim never derives one). */
+const jump = (world: World<undefined>) => requestBailout(world, world.player, undefined, 1)
+
 const flyTicks = (world: World<undefined>, count: number): World<undefined> => {
   let current = world
   for (let tick = 0; tick < count; tick++) current = advance(current, DT).world
@@ -59,17 +62,17 @@ const contested = (seed: number): RecoveryFacts => ({
 describe('bailout simulation', () => {
   it('rejects a ground departure, an impossible exit, and a second bailout', () => {
     const parked = { ...worldAt(12), aircraft: [{ ...playerAircraft(worldAt(12)), parked: true }] }
-    expect(requestBailout(parked)).toMatchObject({ ok: false, reason: 'not-airborne' })
-    expect(requestBailout(worldAt(20))).toMatchObject({ ok: false, reason: 'too-low' })
+    expect(jump(parked)).toMatchObject({ ok: false, reason: 'not-airborne' })
+    expect(jump(worldAt(20))).toMatchObject({ ok: false, reason: 'too-low' })
 
-    const first = requestBailout(worldAt(200))
+    const first = jump(worldAt(200))
     expect(first.ok).toBe(true)
     if (!first.ok) return
-    expect(requestBailout(first.world)).toMatchObject({ ok: false, reason: 'already-bailed' })
+    expect(jump(first.world)).toMatchObject({ ok: false, reason: 'already-bailed' })
   })
 
   it('separates the pilot, opens the canopy, drifts with wind, and leaves the airframe running uncontrolled', () => {
-    const requested = requestBailout(worldAt(410, flat(10), v3(12, 0, -4)))
+    const requested = jump(worldAt(410, flat(10), v3(12, 0, -4)))
     expect(requested.ok).toBe(true)
     if (!requested.ok) return
     const initialPilot = requested.parachutist.state.position
@@ -84,14 +87,14 @@ describe('bailout simulation', () => {
   })
 
   it('kills a low-altitude bailout but permits a safely opened canopy to reach land', () => {
-    const low = requestBailout(worldAt(65))
+    const low = jump(worldAt(65))
     expect(low.ok).toBe(true)
     if (!low.ok) return
     const lowFinished = flyTicks(low.world, 600).parachutists![0]!
     expect(lowFinished.state.phase).toBe('dead')
     expect(lowFinished.state.outcome).toBe('killed')
 
-    const high = requestBailout(worldAt(210))
+    const high = jump(worldAt(210))
     expect(high.ok).toBe(true)
     if (!high.ok) return
     const highFinished = flyTicks(high.world, 2_400)
@@ -100,11 +103,12 @@ describe('bailout simulation', () => {
     expect(survivor.state.contact?.surface).toBe('land')
     expect(['rescued', 'captured']).toContain(survivor.state.outcome)
     expect(survivor.recovery?.facts.seed).toBe(survivor.recoverySeed)
-    expect(survivor.recovery?.roll).not.toBeUndefined()
+    expect(survivor.recovery?.roll).toBeTypeOf('number') // nothing here is near a base or ship, so the area is contested and the die is rolled
+    expect(survivor.recoverySeed).toBe(1)
   })
 
   it('records water contact as water rather than silently treating it as land', () => {
-    const request = requestBailout(worldAt(160, flat(0)))
+    const request = jump(worldAt(160, flat(0)))
     expect(request.ok).toBe(true)
     if (!request.ok) return
     const final = flyTicks(request.world, 2_400).parachutists![0]!

@@ -5,9 +5,9 @@ import { add, v3, type Vec3 } from './math/vec3.js'
 import type { Side } from './sides.js'
 import type { GroundUnder } from './world/ground.js'
 
-import { BAILOUT_TUNING, RECOVERY_TUNING, openingSeconds } from './bailoutTuning.js'
+import { BAILOUT_TUNING, RECOVERY_TUNING, openingSeconds, type BailoutTuning, type RecoveryTuning } from './bailoutTuning.js'
 
-type Tuning = typeof BAILOUT_TUNING
+
 
 export type BailoutPhase = 'separating' | 'deploying' | 'canopy' | 'down' | 'dead'
 export type BailoutOutcome = 'rescued' | 'captured' | 'killed'
@@ -75,7 +75,7 @@ export function bailoutEligibility(
   existing: readonly ParachutistEntity[],
   ground: GroundUnder | null,
   destroyed: boolean,
-  tuning: Tuning = BAILOUT_TUNING,
+  tuning: BailoutTuning = BAILOUT_TUNING,
 ): BailoutEligibility {
   if (existing.some((entry) => entry.sourceAircraft === aircraft.id)) return { ok: false, reason: 'already-bailed' }
   if (aircraft.impact !== null || destroyed) return { ok: false, reason: 'aircraft-lost' }
@@ -92,7 +92,7 @@ export function createParachutist(
   eligibility: Extract<BailoutEligibility, { readonly ok: true }>,
   recoverySeed: number,
   recoveryEnvironment: RecoveryEnvironment = DEFAULT_RECOVERY_ENVIRONMENT,
-  tuning: Tuning = BAILOUT_TUNING,
+  tuning: BailoutTuning = BAILOUT_TUNING,
 ): ParachutistEntity {
   // Leave aft and slightly above the cockpit. This is a separation impulse,
   // not an ejection seat: most velocity is inherited from the airframe.
@@ -134,7 +134,7 @@ export function stepParachutist(
   dt: number,
   wind: Vec3 | null,
   groundAt: (x: number, z: number) => GroundUnder | null,
-  tuning: Tuning = BAILOUT_TUNING,
+  tuning: BailoutTuning = BAILOUT_TUNING,
 ): ParachutistEntity {
   const before = entity.state
   if (before.phase === 'down' || before.phase === 'dead') return entity
@@ -223,7 +223,7 @@ const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 
 const miles = (m: number): string => `${(m / 1609.344).toFixed(m < 16_093 ? 1 : 0)} mi`
 
-export function assessRecovery(facts: RecoveryFacts, tuning: typeof RECOVERY_TUNING = RECOVERY_TUNING): RecoveryAssessment {
+export function assessRecovery(facts: RecoveryFacts, tuning: RecoveryTuning = RECOVERY_TUNING): RecoveryAssessment {
   if (facts.friendlyRescuePresent || (facts.control === 'friendly' && facts.surface !== 'water')) {
     return {
       cue: 'rescue-likely',

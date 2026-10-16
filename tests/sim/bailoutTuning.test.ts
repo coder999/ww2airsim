@@ -9,7 +9,7 @@ import { createTerrainField } from '../../src/sim/world/terrain.js'
 import { parseTerrainHeader } from '../../src/sim/world/schema.js'
 import type { GroundUnder } from '../../src/sim/world/ground.js'
 import { bailoutEligibility, createParachutist, stepParachutist } from '../../src/sim/bailout.js'
-import { BAILOUT_TUNING, openingSeconds } from '../../src/sim/bailoutTuning.js'
+import { BAILOUT_TUNING, openingSeconds, type BailoutTuning } from '../../src/sim/bailoutTuning.js'
 
 const f6f = loadAircraftSpec('f6f-hellcat')
 const GROUND_M = 10
@@ -24,7 +24,7 @@ function aircraftAt(aglM: number, forwardMps: number, sinkMps: number) {
 }
 
 /** Fly one exit through the model alone, with the height rule given by `tuning`, and say whether the pilot lives. */
-function survives(aglM: number, forwardMps: number, sinkMps: number, tuning: typeof BAILOUT_TUNING = BAILOUT_TUNING): boolean {
+function survives(aglM: number, forwardMps: number, sinkMps: number, tuning: BailoutTuning = BAILOUT_TUNING): boolean {
   const a = aircraftAt(aglM, forwardMps, sinkMps)
   const e = bailoutEligibility(a, [], FLAT, false, tuning)
   if (!e.ok) return false
@@ -71,6 +71,8 @@ describe('the bailout tuning and the physics model agree (F7A Task 2)', () => {
   })
 })
 
+const jump = (w: World<undefined>) => requestBailout(w, w.player, undefined, 1)
+
 describe('only a too-low jump is refused (Mark, 2026-10-15: arcade rules for the rest)', () => {
   const terrain = createTerrainField(header, 0, new Int16Array(9).fill(100))
   const world = (speed: number, attitudeRollRad = 0, sink = 0): World<undefined> => ({
@@ -79,18 +81,18 @@ describe('only a too-low jump is refused (Mark, 2026-10-15: arcade rules for the
   })
 
   it('allows a jump at any speed, inverted, or nearly stalled', () => {
-    for (const speed of [0, 15, 45, 150, 200, 300]) expect(requestBailout(world(speed)).ok, `speed ${speed}`).toBe(true)
-    expect(requestBailout(world(100, Math.PI)).ok).toBe(true)
-    expect(requestBailout(world(18, 0, 15)).ok).toBe(true)
+    for (const speed of [0, 15, 45, 150, 200, 300]) expect(jump(world(speed)).ok, `speed ${speed}`).toBe(true)
+    expect(jump(world(100, Math.PI)).ok).toBe(true)
+    expect(jump(world(18, 0, 15)).ok).toBe(true)
   })
 
   it('refuses only below the minimum height, and says "too-low"', () => {
-    const low = requestBailout({ ...world(100), aircraft: [{ ...playerAircraft(world(100)), state: { ...playerAircraft(world(100)).state, position: v3(0, 10 + BAILOUT_TUNING.minExitAglM - 1, 0) } }] })
+    const low = jump({ ...world(100), aircraft: [{ ...playerAircraft(world(100)), state: { ...playerAircraft(world(100)).state, position: v3(0, 10 + BAILOUT_TUNING.minExitAglM - 1, 0) } }] })
     expect(low).toMatchObject({ ok: false, reason: 'too-low' })
   })
 
   it('runs a fast inverted jump to a normal outcome without any speed-based kill', () => {
-    let w = requestBailout(world(200, Math.PI)).ok ? (requestBailout(world(200, Math.PI)) as { world: World<undefined> }).world : world(0)
+    let w = jump(world(200, Math.PI)).ok ? (jump(world(200, Math.PI)) as { world: World<undefined> }).world : world(0)
     for (let i = 0; i < 6_000 && w.parachutists![0]!.state.contact === null; i++) w = advance(w, DT).world
     expect(w.parachutists![0]!.state.phase).toBe('down')
   })

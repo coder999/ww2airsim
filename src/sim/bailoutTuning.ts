@@ -8,7 +8,16 @@
  * `tests/sim/bailoutTuning.test.ts` ties the safe-descent rule to the model, so a change here that makes them
  * disagree fails there.
  */
-export const BAILOUT_TUNING = Object.freeze({
+type Xyz = { readonly x: number; readonly y: number; readonly z: number }
+export type BailoutTuning = {
+  readonly minExitAglM: number; readonly safeOpenAglM: number; readonly deploySeconds: number; readonly separationSeconds: number
+  readonly sinkMps: number; readonly canopyHorizontalRate: number; readonly canopyVerticalRate: number
+  readonly survivableContactMps: number; readonly airborneAglM: number
+  readonly exitOffsetM: Xyz; readonly exitImpulseMps: Xyz
+}
+export type RecoveryTuning = { readonly [K in keyof typeof RECOVERY_VALUES]: number }
+
+export const BAILOUT_TUNING: BailoutTuning = Object.freeze({
   /** ESTIMATE. Below this the jump is refused with a message (about 49 ft). The only refusal by height or speed. */
   minExitAglM: 15,
   /** ESTIMATE. Below this a jump cannot complete a safe descent (about 246 ft): the canopy is not full in time. */
@@ -29,13 +38,13 @@ export const BAILOUT_TUNING = Object.freeze({
   /** Exit impulse relative to the airframe, body frame (aft and up), and the pilot's offset from the origin. */
   exitOffsetM: Object.freeze({ x: -2.2, y: 1.2, z: 0 }),
   exitImpulseMps: Object.freeze({ x: -4, y: 1.5, z: 0 }),
-} as const)
+})
 
 /** Seconds of the deployment spent opening the canopy once clear of the airframe. */
-export const openingSeconds = (t: typeof BAILOUT_TUNING = BAILOUT_TUNING): number => t.deploySeconds - t.separationSeconds
+export const openingSeconds = (t: BailoutTuning = BAILOUT_TUNING): number => t.deploySeconds - t.separationSeconds
 
 /** ESTIMATE. How the rescue resolver weighs what is nearby. Distances are metres. */
-export const RECOVERY_TUNING = Object.freeze({
+const RECOVERY_VALUES = {
   /** A friendly ship within this range puts rescue coverage on the water (about 15.5 mi). */
   rescueCoverageM: 25_000,
   /** A base or ship this close is "in control" of the spot (about 9.3 mi), if clearly closer than the other side. */
@@ -56,4 +65,5 @@ export const RECOVERY_TUNING = Object.freeze({
   enemyPresencePenalty: 0.18,
   rescueLikelyAtLeast: 0.67,
   captureLikelyAtMost: 0.33,
-} as const)
+}
+export const RECOVERY_TUNING: RecoveryTuning = Object.freeze(RECOVERY_VALUES)

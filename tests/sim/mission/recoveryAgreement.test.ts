@@ -155,7 +155,8 @@ describe('a bailout agrees with the mission outcome (F7A)', () => {
   /** A real bailout over Tacloban, flown to touchdown, then the outcome forced to `outcome` (the resolver itself is tested elsewhere). */
   function bailedOut(outcome: 'rescued' | 'captured' | 'killed'): World<undefined> {
     const f = frameFor([], 'tacloban', flatField(100))
-    const req = requestBailout({ ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) })
+    const high = { ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) }
+    const req = requestBailout(high, high.player, undefined, 1)
     if (!req.ok) throw new Error(req.reason)
     let w: World<undefined> = req.world
     for (let i = 0; i < 6_000 && w.parachutists![0]!.state.contact === null; i++) w = advance(w, DT).world
@@ -182,7 +183,8 @@ describe('a bailout agrees with the mission outcome (F7A)', () => {
 
   it('while the pilot is still in the air nothing is banked yet', () => {
     const f = frameFor([], 'tacloban', flatField(100))
-    const req = requestBailout({ ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) })
+    const high = { ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) }
+    const req = requestBailout(high, high.player, undefined, 1)
     if (!req.ok) throw new Error(req.reason)
     expect(recoveryOf(req.world)).toBeNull()
   })

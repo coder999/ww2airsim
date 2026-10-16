@@ -33,7 +33,6 @@ import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
 import {
   bailoutEligibility,
-  bailoutSeed,
   createParachutist,
   resolveRecovery,
   stepParachutist,
@@ -711,8 +710,10 @@ export type BailoutRequest<M> =
  * recorded at a tick boundary rather than held as a flight-control level. */
 export function requestBailout<M>(
   world: World<M>,
-  aircraftId: EntityId = world.player,
-  recoveryEnvironment?: RecoveryEnvironment,
+  aircraftId: EntityId,
+  recoveryEnvironment: RecoveryEnvironment | undefined,
+  /** Chosen by the caller at the key press and recorded in the flight record's action; the sim never derives it (F7A Task 6). */
+  recoverySeed: number,
 ): BailoutRequest<M> {
   const aircraft = aircraftById(world, aircraftId)
   if (aircraft === undefined) throw new Error(`world has no aircraft "${aircraftId}"`)
@@ -736,7 +737,7 @@ export function requestBailout<M>(
     aircraft,
     sideOf(world, aircraft),
     eligibility,
-    bailoutSeed(world.tick, aircraft.id, aircraft.state.position),
+    recoverySeed,
     recoveryEnvironment,
   )
   return { ok: true, world: { ...world, parachutists: [...(world.parachutists ?? []), parachutist] }, parachutist }

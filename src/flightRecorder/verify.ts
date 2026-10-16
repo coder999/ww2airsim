@@ -59,7 +59,7 @@ export function verifyFlightRecord(
     if (packet.tick !== world.tick + 1) return { ok: false, tick: packet.tick, message: `packet gap after tick ${world.tick}` }
     for (const action of packet.actions) {
       if (action.kind === 'bailout') {
-        const requested = requestBailout(world, action.aircraft, action.environment)
+        const requested = requestBailout(world, action.aircraft, action.environment, action.seed)
         if (!requested.ok) return { ok: false, tick: packet.tick, message: `recorded bailout rejected: ${requested.reason}` }
         world = requested.world
         continue
