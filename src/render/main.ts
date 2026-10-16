@@ -1240,6 +1240,10 @@ async function boot(): Promise<void> {
       // spawn is content now (Plan 12). Every E2E caller reads this after
       // `waitForTerrain`, i.e. long after both.
       aircraftPositionM: () => (frame ? playerAircraft(frame.world).state.position : spawnPosition ?? v3(0, 0, 0)),
+      parachutists: () => ({
+        entities: frame?.world.parachutists?.length ?? 0,
+        drawn: parachutistView === null ? 0 : (parachutistView.root.children as readonly { readonly visible: boolean }[]).filter((c) => c.visible).length,
+      }),
       bailout: () => {
         const entity = frame === null ? null : playerParachutist(frame.world)
         return entity === null ? null : {
