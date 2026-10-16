@@ -298,7 +298,7 @@ describe.skipIf(terrain === null)('Basic Flying, headless', () => {
     it('landing without ever setting up for it (config never met) is no landing credit: the land step is still waiting', () => {
       const w = hold(strafed(), levelAt(FINAL, 300, 90, 0), 2)
       expect(status(w, 'land')).toBe('inactive')
-      const out = missionOutcome(w.mission!, { kind: 'landed', at: { kind: 'airfield', id: 'tacloban' } as never })
+      const out = missionOutcome(w.mission!, { kind: 'landed', at: { kind: 'airfield', id: 'tacloban' } as never, base: null })
       expect(out.result).toBe('no-badge')
       expect(out.reasons).toEqual(expect.arrayContaining(['Gear and flaps down, under 120 mph: incomplete', 'Land: incomplete']))
     })

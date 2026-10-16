@@ -11,6 +11,7 @@ const OBJECTIVES: Objective[] = [
 ]
 const BADGE = { id: 'strike', name: 'Airfield Strike' }
 const at = { kind: 'airfield', id: 'tacloban', name: 'Tacloban' } as const
+const base = { kind: 'airfield', id: 'tacloban', name: 'Tacloban' } as const
 const s = (status: ObjectiveState['status']): ObjectiveState => ({ status, count: 0, heldTicks: 0 })
 
 function mission(progress: ObjectiveState[], badge: typeof BADGE | null = BADGE): MissionState<undefined> {
@@ -23,7 +24,7 @@ function mission(progress: ObjectiveState[], badge: typeof BADGE | null = BADGE)
 
 describe('missionOutcome (spec 2026-09-25 §2.4)', () => {
   it('a landing at a named base with every primary done earns the badge; a live protect counts as held', () => {
-    const o = missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at })
+    const o = missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at, base })
     expect(o).toEqual({
       result: 'success', badge: BADGE, reasons: [],
       objectives: [
@@ -42,11 +43,25 @@ describe('missionOutcome (spec 2026-09-25 §2.4)', () => {
   })
 
   it('an off-field landing earns no badge', () => {
-    expect(missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at: null }).reasons).toEqual(['Landed off-field'])
+    expect(missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at: null, base: null }).reasons).toEqual(['Landed off-field'])
+  })
+
+  // F5C D3: only a friendly base is a recovery. An enemy field or a carrier the other side holds names a place and fails.
+  it('a landing at a base the player\'s side does not hold earns no badge, and names the field', () => {
+    const enemy = { kind: 'airfield', id: 'dulag', name: 'Dulag' } as const
+    const o = missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at: enemy, base: null })
+    expect(o.result).toBe('no-badge')
+    expect(o.reasons).toEqual(['Landed at Dulag, not a friendly base'])
+  })
+
+  it('any friendly base counts, not only the one the mission suggests', () => {
+    const bayug = { kind: 'airfield', id: 'bayug', name: 'Bayug' } as const
+    const o = missionOutcome(mission([s('complete'), s('active'), s('active')]), { kind: 'landed', at: bayug, base: { kind: 'airfield', id: 'bayug', name: 'Bayug' } })
+    expect(o.result).toBe('success')
   })
 
   it('a failed primary blocks the badge even after a good landing; reasons in fixed order (ruling R16)', () => {
-    const o = missionOutcome(mission([s('active'), s('failed'), s('failed')]), { kind: 'landed', at: null })
+    const o = missionOutcome(mission([s('active'), s('failed'), s('failed')]), { kind: 'landed', at: null, base: null })
     expect(o.reasons).toEqual(['Landed off-field', 'Carrier: failed', 'Hangars: incomplete'])
     expect(o.objectives.map((x) => x.final)).toEqual(['incomplete', 'failed', 'failed'])
   })
@@ -57,11 +72,11 @@ describe('missionOutcome (spec 2026-09-25 §2.4)', () => {
 
   it('an objective still waiting on after is incomplete, even a protect', () => {
     const m = mission([s('complete'), s('inactive'), s('active')])
-    expect(missionOutcome(m, { kind: 'landed', at }).reasons).toEqual(['Carrier: incomplete'])
+    expect(missionOutcome(m, { kind: 'landed', at, base }).reasons).toEqual(['Carrier: incomplete'])
   })
 
   it('a mission with no badge can still succeed', () => {
-    const o = missionOutcome(mission([s('complete'), s('active'), s('active')], null), { kind: 'landed', at })
+    const o = missionOutcome(mission([s('complete'), s('active'), s('active')], null), { kind: 'landed', at, base })
     expect(o.result).toBe('success')
     expect(o.badge).toBeNull()
   })
