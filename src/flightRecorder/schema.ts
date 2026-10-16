@@ -39,7 +39,7 @@ const action = z.discriminatedUnion('kind', [
 
 const evidence = z.object({
   tick: z.number().int().nonnegative(),
-  kind: z.enum(['mission', 'spawn', 'destruction', 'impact', 'release', 'landing', 'outcome']),
+  kind: z.enum(['mission', 'spawn', 'destruction', 'impact', 'release', 'landing', 'sighted', 'outcome']),
   entity: z.string().optional(),
   detail: z.string(),
 }).strict()

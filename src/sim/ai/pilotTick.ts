@@ -21,6 +21,7 @@ import type { PilotAssignment } from './pursuit.js'
 import { airborne } from './airborne.js'
 import { COVER_LATCH_S, formationControls, leaderIsFighting, leaderlessPilot, threatensLeader, wingmanAccepts } from './formation.js'
 import { finishControls, floorTriggerM, heightAboveGround, heightAboveGroundAt, safetyOverride } from './safety.js'
+import type { Perception } from '../lights/perception.js'
 import { isContact, selectTarget, type TargetingView } from './targeting.js'
 import { exemptFromFloor, peelOffRecovery, recoveryControls, recoveryGeometry, shouldReturn, startRecovery, threatAstern, withoutHome, withoutRecovery } from './recovery.js'
 import { takeoffControls } from './takeoff.js'
@@ -39,6 +40,8 @@ export type PilotTickContext = {
   readonly sides: Readonly<Record<string, Side>>
   /** 7e: this tick's ships, already moved (an ingress destination is read live). */
   readonly ships: readonly ShipEntity[]
+  /** F6B: R(T) per aircraft this tick; absent in a day world (the unchanged 8,000 m rule). */
+  readonly perception?: Perception
 }
 
 /** The target a pilot should hold after a choice (7e spec §4.2): a static
@@ -165,7 +168,7 @@ function flyPilot<M>(
     delete handed.takeoff
     pilot = { ...pilot, decision: handed }
   }
-  const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides, terrain: ctx.terrain, decks: ctx.decks }
+  const view: TargetingView<M> = { snapshot, combat: ctx.combat.aircraft, sides: ctx.sides, terrain: ctx.terrain, decks: ctx.decks, ...(ctx.perception === undefined ? {} : { perception: ctx.perception }) }
   // 7f spec §3-4: a wingman's leader, from the start-of-tick snapshot. A
   // down or missing leader hands the wingman its own orders (spec §4).
   let leader: AircraftEntity<M> | null = null

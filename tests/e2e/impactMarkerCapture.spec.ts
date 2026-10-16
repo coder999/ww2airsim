@@ -72,7 +72,7 @@ for (const store of ['bomb', 'rocket'] as const) {
     expect(on.on).toBe(true)
     expect(on.shown, 'a marker is posed').toBe(true)
     expect(on.prediction?.kind).toBe(store)
-    expect(on.label).toMatch(store === 'bomb' ? /^IMPACT BOMB [\d.]+ MI$/ : /^IMPACT ROCKET [\d.]+ MI$/)
+    expect(on.label).toMatch(store === 'bomb' ? /^BOMBSIGHT [\d.]+ MI$/ : /^IMPACT ROCKET [\d.]+ MI$/)
     await page.screenshot({ path: `${OUT}/${store}-marker-chase.png` })
 
     await page.keyboard.press('KeyC')

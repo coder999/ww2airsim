@@ -21,7 +21,7 @@ import {
 } from './graphicsCheck.js'
 import { applyDifficulty } from '../sim/difficulty.js'
 import type { QualityTierName } from './quality.js'
-import { createOverlay } from './overlay.js'
+import { createOverlay, perceptionLines } from './overlay.js'
 import { emptyStores, racksLabel } from '../sim/weapons/stores.js'
 import { floodListRad } from '../sim/weapons/flooding.js'
 import { createAudioSystem, type AudioSystemMemory } from '../audio/system.js'
@@ -55,7 +55,7 @@ import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './f
 import { BUILD_DIRTY, BUILD_ID, browserEnvironment, contentSha256, downloadFlightRecord } from '../flightRecorder/browser.js'
 import { createDevFlightRecorder, type DevFlightRecorder } from '../flightRecorder/recorder.js'
 import type { FlightRecordV1 } from '../flightRecorder/schema.js'
-import { verifyFlightRecord } from '../flightRecorder/verify.js'
+import { launchHourMismatch, verifyFlightRecord } from '../flightRecorder/verify.js'
 import { createFlightRecorderSurface, flightRecorderSurfaceFromQuery } from './flightRecorderSurface.js'
 import { zeroKillsByType, type TargetType } from '../sim/weapons/targetType.js'
 import { CLOUD_TIERS, applyCloudTune, cloudDebugFromQuery, cloudTierFromQuery, createClouds, type CloudTierName } from './scene/clouds.js'
@@ -144,15 +144,16 @@ import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockp
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
-import { createImpactMarker, createImpactPredictor, impactLabel, impactMarkerShown } from './scene/impactMarker.js'
+import { createAnnouncer, createImpactMarker, createImpactPredictor, createTorpedoPredictor, impactLabel, torpedoLabel, torpedoVerdict } from './scene/impactMarker.js'
 import { createImpactBadge } from './impactBadge.js'
+import { createSightLabels, projectToScreen } from './sightLabels.js'
 import { createRadarScope } from './scene/radarScope.js'
 import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { withMainBatteries, withoutMainBatteries, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
 import type { GodMode } from '../sim/godMode.js'
-import { AXIS_VARIANTS, scenarioFileFor } from '../sim/sortie.js'
+import { AXIS_VARIANTS, scenarioFileFor, sightsAllowed, sightsOverrideFromQuery } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type Cloudiness, type SortieChoice } from '../sim/sortie.js'
 import { parseAircraftSpec } from '../sim/content.js'
 import type { AircraftSpec } from '../sim/flight/schema.js'
@@ -165,7 +166,8 @@ import { onGround, supportedContact } from '../sim/ground.js'
 import { groundUnder } from '../sim/world/ground.js'
 import { deckOf, decksOf } from '../sim/world/deck.js'
 import { paddlesCue, type PaddlesCue } from '../sim/paddles.js'
-import { playerAircraft, withAircraftState, type World } from '../sim/loop.js'
+import { playerAircraft, withAircraftState, withNightFacts, withPlayerLights, type World } from '../sim/loop.js'
+import { cloudCoverOf, nightFactsFor, perceptionReport, perceptionTuningFromQuery } from '../sim/lights/perception.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
 import { LOOK_CENTRE } from '../input/lookAround.js'
@@ -675,7 +677,14 @@ async function boot(): Promise<void> {
     // alternative); `off` holds them in a scenario that frees them (the frame-time capture's quiet variant).
     const batteryQuery = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('mainBatteries') : null
     const built = batteryQuery === 'all' ? withMainBatteries(spawned) : batteryQuery === 'off' ? withoutMainBatteries(spawned) : spawned
-    return applyDifficulty(built, quality.difficulty())
+    // F6B: the night fact the AI's perception reads. From the SAME hour and cloud choice the renderer uses, never
+    // from the render quality tier, so a reproduction (which rebuilds through here) gets the same world.
+    const night = nightFactsFor({
+      lights: bundle!.scenario.lights, hour0: scenarioTimeOfDay,
+      cloudCover: cloudCoverOf(cloudLayersForCloudiness(bundle!.scenario.weather.clouds ?? [], pickedCloudiness)),
+      tuning: import.meta.env.DEV ? perceptionTuningFromQuery(window.location.search) : undefined,
+    })
+    return withNightFacts(applyDifficulty(built, quality.difficulty()), night)
   }
 
   // Plan 17 follow-up: which scenario this boot loads, resolved and
@@ -718,6 +727,11 @@ async function boot(): Promise<void> {
   // from the loaded bundle; before that, `true` only for a quick launch (A6),
   // which flies with no pilot and records nothing.
   let devSortie = quick !== null
+  // F6B: the sight gate (Dev and Training Ground always; the campaign and single missions by rank). DEV `?sights=on|off` forces it.
+  const sightsOverride = import.meta.env.DEV ? sightsOverrideFromQuery(window.location.search) : undefined
+  const sightsNow = (): boolean => sightsAllowed({
+    dev: chosen.dev || devSortie, pool: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.pool ?? 'single', sights: chosen.sights,
+  }, sightsOverride)
   // SF-R6: a DEV-build-only switch that records a Dev sortie anyway, read once.
   const recordDevSorties = import.meta.env.DEV ? recordDevSortiesFromQuery(window.location.search, true) : false
   const sortieNeededDev = (choice: SortieChoice): boolean =>
@@ -1428,7 +1442,8 @@ async function boot(): Promise<void> {
         })
       },
       setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
-      playerLightsOn: () => playerLightsOn,
+      playerLightsOn: () => frame === null || playerAircraft(frame.world).lightsOff !== true,
+      perception: () => (frame === null ? { night: false, sunElevationDeg: 0, ambientLux: 0, playerRangeM: 0, playerLit: true, rows: [] } : perceptionReport(frame.world, DT)),
       lights: () => {
         if (!frame) return []
         const eye = frame.eye.position, size = renderer.getSize(new Vector2())
@@ -2049,7 +2064,10 @@ async function boot(): Promise<void> {
   const impactMarker = createImpactMarker() // B2: where a released store would land (scene/impactMarker.ts)
   scene.add(impactMarker.root)
   const impactPredictor = createImpactPredictor()
-  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, tick: 0, detonations: [] }
+  const torpedoPredictor = createTorpedoPredictor()
+  const announceVerdict = createAnnouncer()
+  const sightLabels = createSightLabels(root)
+  let impactDiagnostics: ImpactMarkerDiagnostics = { on: false, shown: false, label: null, prediction: null, torpedo: null, tick: 0, detonations: [] }
 
   // Leyte, drawn from `content/terrain/`. Added to `scene` rather than beside
   // it so it inherits the camera-relative translation applied below -- a
@@ -2492,8 +2510,8 @@ async function boot(): Promise<void> {
   let pendingFlaps = false
   // And the hook lever (Plan 8), latched the same way for the same reason.
   let pendingHook = false
-  // F6A: the player's position lights (N): on, or blacked out. Latched like the levers so the recorder can stamp it on a fixed tick.
-  let playerLightsOn = true
+  // F6A/F6B: the player's position lights (N): on, or blacked out. Latched like the levers. The state lives in the WORLD
+  // (`AircraftEntity.lightsOff`), applied at a fixed tick below and recorded there, so the AI's perception and a replay agree.
   let pendingLights = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
@@ -2691,6 +2709,8 @@ async function boot(): Promise<void> {
       if (record.launch.aircraftSpec !== chosen.aircraftSpec || record.launch.loadout !== chosen.loadout) {
         throw new Error(`Sortie mismatch: launch ${record.launch.aircraftSpec} with ${record.launch.loadout} before reproducing this record.`)
       }
+      const hourProblem = launchHourMismatch(record, scenarioTimeOfDay)
+      if (hourProblem !== null) throw new Error(hourProblem)
       const rebuilt = initialFrameStateFor(buildWorld(frame!.world.terrain), record.launch.assists)
       const initial = rebuilt.groundSpawn && rebuilt.world.terrain !== null
         ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
@@ -2795,7 +2815,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
-    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
+    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { pendingLights = true }
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -2972,6 +2992,13 @@ async function boot(): Promise<void> {
     // before the clear below.
     const replayMouse = mouseDelta
     mouseDelta = NO_MOUSE
+    // F6B: the lights switch is applied to the world HERE, before this frame's fixed steps, and recorded at the same
+    // tick (`verify.ts` applies the recorded action the same way). Held back like the other levers while a chart or the
+    // title is up, or paused, so what is recorded is exactly what was applied.
+    const lightsToggle = pendingLights && !chartOpen && !inputFrame.paused
+    const stepFrame = lightsToggle
+      ? { ...inputFrame, world: withPlayerLights(inputFrame.world, playerAircraft(inputFrame.world).lightsOff === true) }
+      : inputFrame
     const simStart = import.meta.env.DEV ? performance.now() : 0
     if (activeFlightRecorder !== null) {
       const tick = inputFrame.world.tick + 1
@@ -2980,7 +3007,7 @@ async function boot(): Promise<void> {
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
       if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
       if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
-      if (pendingLights) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerLightsOn })
+      if (lightsToggle) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerAircraft(stepFrame.world).lightsOff !== true })
       if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
       if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
       if (pendingWingmanKey !== null) {
@@ -2990,7 +3017,7 @@ async function boot(): Promise<void> {
       }
     }
     let current = nextFrameState(
-      inputFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
+      stepFrame, frameMs / 1000, frameKeys, stepper, quality.arcadeDamage(), frameMouse, godMode,
       activeFlightRecorder?.observe,
     )
     const simMs = import.meta.env.DEV ? performance.now() - simStart : 0
@@ -3278,23 +3305,35 @@ async function boot(): Promise<void> {
     {
       const live = replay === null && !sortieIdle && !debriefUp
       const me = playerAircraft(current.world)
+      // F6B: the rank gate. Closed, `U` can never leave the marker on (the weapons release as ever; only the aid is gated).
+      if (!sightsNow() && current.impactMarker) current = { ...current, impactMarker: false }
       const on = current.impactMarker && live
-      const prediction = impactPredictor(
-        on, me.spec, me.state, current.world.combat.aircraft[me.id]?.stores ?? emptyStores,
-        current.world.terrain, current.world.wind, decksOf(current.world.ships),
-      )
+      const stores = current.world.combat.aircraft[me.id]?.stores ?? emptyStores
+      const decks = decksOf(current.world.ships)
+      const torpedo = torpedoPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const prediction = torpedo !== null ? null : impactPredictor(on, me.spec, me.state, stores, current.world.terrain, current.world.wind, decks)
+      const point = torpedo !== null ? torpedo.entry : prediction?.point ?? null
       const shown = impactMarker.update(
-        prediction?.point ?? null, prediction?.armed ?? true, camera, worldOffset, impactMarkerShown(current.impactMarker, live, prediction),
+        point, prediction?.armed ?? true, camera, worldOffset, on && point !== null,
+        torpedo === null ? undefined : { valid: torpedo.valid, run: torpedo.entry === null ? null : { dir: torpedo.runDir, lengthM: Math.min(torpedo.runRangeM, 900) } },
       )
-      const label = impactLabel(on, prediction, me.state.position)
-      impactBadge.set(label)
+      const label = torpedo !== null ? torpedoLabel(on, torpedo, me.state.position) : impactLabel(on, prediction, me.state.position)
+      impactBadge.set(label, torpedo === null ? 'plain' : torpedo.valid ? 'ok' : 'bad')
+      impactBadge.announce(announceVerdict(torpedoVerdict(torpedo), performance.now()))
+      // Text beside the entry ring (ENTRY), only while a torpedo sight is up.
+      {
+        const showLabels = on && torpedo !== null && torpedo.entry !== null && shown
+        const e = showLabels ? torpedo!.entry! : null
+        const w = window.innerWidth, h = window.innerHeight
+        sightLabels.update(e === null ? null : projectToScreen(e, camera, worldOffset, w, h), showLabels ? (torpedo!.valid ? 'ok' : 'bad') : null)
+      }
       const ring = current.world.combat.impacts
       const detonations: Vec3[] = []
       if (on) for (let i = ring.length - 1; i >= 0 && detonations.length < 8; i--) {
         const hit = ring[i]!
         if ((hit.cause === 'bomb' || hit.cause === 'rocket') && hit.outcome === 'detonated') detonations.push(hit.point)
       }
-      impactDiagnostics = { on, shown, label, prediction, tick: current.world.tick, detonations }
+      impactDiagnostics = { on, shown, label, prediction, torpedo, tick: current.world.tick, detonations }
     }
     // Plan 6: the readout and tracers are stateless views of World.combat;
     // every effect is E1's (fx/, below).
@@ -3587,7 +3626,7 @@ async function boot(): Promise<void> {
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
     applyNight(direction, elevationDeg)
     nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
-      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn, { aircraft: view.poses, ships: view.shipPoses })
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerAircraft(current.world).lightsOff !== true, { aircraft: view.poses, ships: view.shipPoses })
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
@@ -3746,6 +3785,7 @@ async function boot(): Promise<void> {
     }
 
     overlay?.update({
+      perception: perceptionLines(perceptionReport(current.world, DT)),
       frameMs,
       fps: 1000 / Math.max(frameMs, 0.001),
       stepsRun: current.stepsRun,

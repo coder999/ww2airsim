@@ -106,7 +106,7 @@ export function createMissionHud(root: HTMLElement): MissionHudHandle {
   radioEl.setAttribute('aria-label', 'Radio')
   radioEl.setAttribute('aria-live', 'polite')
   radioEl.style.cssText =
-    'position:fixed;left:50%;top:24%;transform:translateX(-50%);padding:6px 14px;' +
+    'position:fixed;left:50%;top:max(24%,140px);transform:translateX(-50%);padding:6px 14px;' +
     'border:1px solid #2b3440;border-radius:6px;background:rgba(12,14,18,.78);color:#bfe8c8;' +
     'font:15px/1.35 ui-monospace,Menlo,monospace;letter-spacing:.04em;max-width:min(720px,80vw);' +
     'pointer-events:none;display:none;z-index:9'

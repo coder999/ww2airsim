@@ -223,6 +223,8 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   // F6A Task 11: the night budget benches (tests/e2e/nightBudget.spec.ts): a lit field and a bay at night.
   { value: 'night-field', label: 'Night Field (dev)', kind: 'range', pool: 'training', dev: true, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Test bed (F6A budget): parked on a Tacloban runway at 18:30 with 30 flare pots and two searchlight beams.' },
   { value: 'night-bay', label: 'Night Bay (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (F6A budget): airborne at 21:00 over a bay with five ships, harbor lights and a parachute flare.' },
+  // F6B: the perception test bed (docs/night.md): an airborne Hellcat at 21:00 with a Zero pair on a parallel track 1.5 mi to the south and one parachute flare. Fly past with position lights on, then blacked out (N).
+  { value: 'night-patrol', label: 'Night Patrol (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (F6B): airborne at 21:00 with two Zeros passing 1.5 miles to the south and a parachute flare ahead. Lights on (N) and they see you from miles away; blacked out, only from about half a mile; the flare lights you up again.' },
   // M2 (2026-10-10): the AA test bed. Airborne, 3 km from an anchored destroyer that shoots (a Fletcher flagged axis, so its AA is the calibrated one) with Tacloban's AAA battery 2 km beyond, also hostile. Best flown with God mode for a look, without it to feel the lethality.
   { value: 'aa-range', label: 'AA Range (dev)', kind: 'range', pool: 'training', dev: true, start: 'airborne', aircraft: 'f6f-hellcat', description: 'Test bed (M2): 2,000 ft up, 2 miles from an anchored destroyer and a ground AAA battery that both shoot at you. Heavy guns throw flak bursts; light guns fire tracers. Fly low and slow to feel it; God mode to just watch.' },
   // M4 (2026-10-10): the main-battery test bed, main batteries on (`mainBatteries`). Airborne at 2,000 ft over San Pedro Bay heading north, 2.5 miles south of a Fletcher steaming against a Kagero 5 miles beyond her, each ordered onto the other; a Cleveland anchored off Tacloban shells the hostile AAA battery there, then joins in.
@@ -299,6 +301,8 @@ export type CampaignSortie = {
   readonly pilotLabel: string
   readonly dev: boolean
   readonly god: boolean
+  /** F6B: the pilot's rank allows the bombsight and torpedosight (`abilities(tier).sights`); rides to the flight as `SortieChoice.sights`. */
+  readonly sights: boolean
   /** An authored night mission's hour, or null for the usual Morning, Midday and Dusk. */
   readonly lockedHour: number | null
   /** Form 5's gate on each aircraft for this pilot and mission. */
@@ -863,7 +867,7 @@ export function createTitleScreen(
       const flying = missions.flyable.find((f) => f.spec.id === draft.aircraftSpec)
       if (flying === undefined) return
       const timeOfDay = campaign.lockedHour ?? (takeoffTime === null ? undefined : hourFor(takeoffTime))
-      const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
+      const choice: SortieChoice = { scenarioId: draft.scenarioId, aircraftSpec: draft.aircraftSpec, loadout: draft.loadout, dev, cloudiness, ...(campaign.sights ? { sights: true } : {}), ...(dev && god ? { god: true } : {}), ...(timeOfDay === undefined ? {} : { timeOfDay }) }
       const refused = campaign.onLaunch(choice)
       if (refused !== null) { launchError.textContent = refused; return }
       hide()

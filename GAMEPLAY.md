@@ -217,6 +217,14 @@ shows water-entry/intercept prediction and whether the current release is valid.
 They are information aids, do not change weapon physics or dispersion, and are
 unavailable to lower-ranked pilots even though those pilots may still release the
 weapons.
+**Change for early ranks (2026-10-15):** the impact marker (**U**), which every
+pilot could use before, is now the bombsight and torpedosight: below Lieutenant
+Commander it is unavailable on scored campaign sorties and Single Missions.
+Training Grounds (the Basic Flying tutorial included) and Dev keep it, so a new
+pilot can still learn it there. Weapons release is never gated. At night,
+position lights (**N**) decide how far enemy pilots and gunners see you: lit,
+about 3.7 miles; blacked out, about half a mile unless a flare or searchlight
+lights you up.
 
 #### Campaign scoring and conduct
 
