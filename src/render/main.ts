@@ -82,7 +82,7 @@ import { cloudLayersForCloudiness } from './cloudiness.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
 import { atmospherePalette, warmIrradianceTable, withMoonLight } from './sky/palette.js'
-import { moonDirection, moonIsKeyLight, nightTuning, nightTuningFromQuery } from './sky/night.js'
+import { cloudLight, moonDirection, moonIsKeyLight, nightTuning, nightTuningFromQuery } from './sky/night.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -308,10 +308,12 @@ async function boot(): Promise<void> {
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
   let nightLightsOffQuery = false
+  let nightCloudsOffQuery = false
   // DEV `?night=floor:1.4,moon:0.3`: the look's tunable constants (sky/night.ts), for CP1.
   if (import.meta.env.DEV) {
     const tuned = nightTuningFromQuery(location.search)
     nightLightsOffQuery = tuned?.lightsOff === true
+    nightCloudsOffQuery = tuned?.cloudsOff === true
     Object.assign(nightTuning, tuned)
     if (tuned?.cockpitDim !== undefined) cockpitTuning.nightDim = tuned.cockpitDim
   }
@@ -3514,8 +3516,11 @@ async function boot(): Promise<void> {
       keyLight: { kind: moonIsKeyLight(elevationDeg) ? 'moon' : 'sun', direction: { x: keyDirection.x, y: keyDirection.y, z: keyDirection.z } },
     }
     clouds.update(view.eye.position, skyTimeS, view.world.wind)
+    // Night: the march's one light is the sun by day and the moon below the horizon, with the ambient scaled to match (sky/night.ts `cloudLight`; all 1 by day).
+    const cloudLit = cloudLight(nightCloudsOffQuery ? 90 : elevationDeg, direction)
     takramCloudPass?.setEnvironment(
-      skyTimeS, direction, cumulusCover(cloudLayers), cloudLayers.find(layer => layer.kind === 'cumulus')?.baseM ?? 750,
+      skyTimeS, cloudLit.direction, cumulusCover(cloudLayers), cloudLayers.find(layer => layer.kind === 'cumulus')?.baseM ?? 750,
+      { sun: cloudLit.sun, ambient: cloudLit.ambient },
     )
     for (const cascade of cascades) {
       cascade.dispatch(skyTimeS)

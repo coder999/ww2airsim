@@ -145,6 +145,10 @@ measures this renderer from now on; the last locked TSL numbers were 5.75 to
 5.77 ms whole-frame p95 at 1440p High against the 8.33 ms gate, before the
 +0.14 ms temporal-pass cost of the edge fix.
 
+### 1.3 Night lighting (2026-10-15)
+
+The TSL march's radiance constants are day values; they are now multiplied per frame by `cloudLight()` (`src/render/sky/night.ts`): exactly 1 with the sun up, then the sun term fades by -6 deg, the moon (fixed key light, `docs/night.md`) takes over and the ambient falls to a night floor by -9 deg. `?night=cloud:` scales it, `?night=clouds:0` restores day lighting. Only the default `takram-tsl` pass honors it; `legacy` and `takram` are day-only. Details and numbers: `docs/night.md`, "clouds were lit as by day at night". A random Form 4 cloudiness roll makes screenshot comparisons unreliable: pass `cloudiness` to `startGame` (`tests/e2e/nightClouds.spec.ts`).
+
 ## 2. Where it lives
 
 | Concern | File |

@@ -14,7 +14,7 @@ import {
 import type { Vec3 } from '../../sim/math/vec3.js'
 import type { FxCloudLimit } from '../fx/fxPass.js'
 import type { ReprojectionResidual } from './cloudPass.js'
-import type { TakramCloudPass } from './takramCloudPass.js'
+import type { CloudLightScale, TakramCloudPass } from './takramCloudPass.js'
 import type { TakramTslAssets } from './takramTslAssets.js'
 
 type F = Node<'float'>
@@ -35,6 +35,7 @@ type TimingRenderer = WebGPURenderer & {
 }
 
 const PI = Math.PI
+const DAY_LIGHT: CloudLightScale = { sun: [1, 1, 1], ambient: 1 }
 const FAR_M = 200_000
 const LAYER_LOW_M = 750
 const LAYER_HIGH_M = 2_200
@@ -255,6 +256,9 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   private readonly aspectNode = uniform(1)
   private readonly sunNode = uniform(new Vector3(0.42, 0.78, 0.46))
   private readonly layerOffsetNode = uniform(0)
+  /** Night light (sky/night.ts `cloudLight`): multipliers on the day radiance constants below, all 1 by day so day pixels are unchanged. */
+  private readonly sunScaleNode = uniform(new Vector3(1, 1, 1))
+  private readonly ambientScaleNode = uniform(1)
   private readonly previousPosition = uniform(new Vector3())
   private readonly previousForward = uniform(new Vector3(0, 0, -1))
   private readonly previousRight = uniform(new Vector3(1, 0, 0))
@@ -271,6 +275,7 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   private coverage = 0.45
   private layerOffsetM = 0
   private sun: Vec3 = { x: 0.42, y: 0.78, z: 0.46 }
+  private light: CloudLightScale = { sun: [1, 1, 1], ambient: 1 }
   resets = 0
 
   constructor(
@@ -342,6 +347,10 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
         const fxViewZ = this.fxLimit.denseViewZAt(fullPixel as unknown as V2)
         farDistance.assign(min(farDistance, fxViewZ.div(max(0.001, dot(direction, this.forwardNode)))))
       }
+      // Hoisted out of the If/Loop below (D3D12 shared-node scope rule, docs/night.md): built here once, read inside.
+      const sunRadiance = vec3(13.5, 12.8, 11.8).mul(this.sunScaleNode).toVar()
+      const skyAmbient = vec3(2.2, 2.8, 4).mul(this.ambientScaleNode).toVar()
+      const groundAmbient = vec3(0.24, 0.27, 0.30).mul(this.ambientScaleNode).toVar()
       If(farDistance.greaterThan(nearDistance), () => {
         const stepSize = float(50).add(nearDistance.mul(0.01)).toVar()
         const distance = nearDistance.add(stepSize.mul(jitter).mul(2)).toVar()
@@ -362,10 +371,10 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
               stepSize.assign(min(1000, stepSize.mul(1.01))); distance.addAssign(stepSize)
             }).Else(() => {
               const opticalDepth = opticalDepthToSun(samplePosition as unknown as V3, weatherMip as unknown as F, shapeMip as unknown as F, jitter as unknown as F)
-              const radiance = vec3(13.5, 12.8, 11.8).mul(multipleScattering(opticalDepth, cosTheta as unknown as F)).toVar()
+              const radiance = sunRadiance.mul(multipleScattering(opticalDepth, cosTheta as unknown as F)).toVar()
               const h = remap(samplePosition.y as unknown as F, low as unknown as F, high as unknown as F).toVar()
-              radiance.addAssign(vec3(2.2, 2.8, 4).mul(h.mul(0.5).add(0.5)).div(4 * PI))
-              radiance.addAssign(vec3(0.24, 0.27, 0.30).mul(float(1).sub(h)))
+              radiance.addAssign(skyAmbient.mul(h.mul(0.5).add(0.5)).div(4 * PI))
+              radiance.addAssign(groundAmbient.mul(float(1).sub(h)))
               radiance.mulAssign(sampleDensity)
               radiance.mulAssign(float(1).sub(exp(sampleDensity.mul(-150)).mul(0.8)))
               const segmentT = exp(sampleDensity.mul(stepSize).negate()).toVar()
@@ -460,8 +469,8 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
   }
 
   setEye(value: Vec3): void { this.eye = { ...value } }
-  setEnvironment(_timeS: number, sun: Vec3, coverage: number, baseM: number): void {
-    this.sun = { ...sun }; this.coverage = clampNumber(coverage, 0, 1); this.layerOffsetM = Number.isFinite(baseM) ? baseM - 750 : 0
+  setEnvironment(_timeS: number, sun: Vec3, coverage: number, baseM: number, light: CloudLightScale = DAY_LIGHT): void {
+    this.sun = { ...sun }; this.light = light; this.coverage = clampNumber(coverage, 0, 1); this.layerOffsetM = Number.isFinite(baseM) ? baseM - 750 : 0
   }
   resetHistory(): void { this.resetPending = true }
 
@@ -515,6 +524,8 @@ class TakramTslCloudPassNode extends TempNode<'vec4'> {
     ;(this.aspectNode as unknown as { value: number }).value = width / height
     ;(this.sunNode as unknown as { value: Vector3 }).value.set(this.sun.x, this.sun.y, this.sun.z)
     ;(this.layerOffsetNode as unknown as { value: number }).value = this.layerOffsetM
+    ;(this.sunScaleNode as unknown as { value: Vector3 }).value.set(...this.light.sun)
+    ;(this.ambientScaleNode as unknown as { value: number }).value = this.light.ambient
     ;(this.historyValid as unknown as { value: number }).value = this.resetPending ? 0 : 1
     this.historyColor.value = this.history[this.current]!.textures[0]!
     this.historyDepth.value = this.history[this.current]!.textures[1]!
@@ -615,7 +626,7 @@ export function createTakramTslCloudPass(options: {
     composite: node as unknown as Node<'vec4'>,
     setResolutionScale() {}, setUpdatePeriod() {},
     setEye(value) { node.setEye(value) },
-    setEnvironment(timeS, sun, coverage, baseM) { node.setEnvironment(timeS, sun, coverage, baseM) },
+    setEnvironment(timeS, sun, coverage, baseM, light) { node.setEnvironment(timeS, sun, coverage, baseM, light) },
     resetHistory() { node.resetHistory() }, historyResets() { return node.resets },
     gpuTimesMs() { return [] },
     gpuPassTimesMs() { return node.gpuPassTimesMs() },

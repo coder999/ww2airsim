@@ -3,7 +3,7 @@ import { atmospherePalette, withMoonLight } from '../../src/render/sky/palette.j
 import { exposureFor } from '../../src/render/exposure.js'
 import {
   MOON_AZIMUTH_DEG, MOON_ELEVATION_DEG, MOON_SWITCH_DEG, duskGlowWeight, moonDirection, moonIsKeyLight, moonWeight,
-  nightTuning, nightTuningFromQuery, starWeight, MOON_LIGHT_SCALE,
+  nightTuning, nightTuningFromQuery, starWeight, MOON_LIGHT_SCALE, cloudLight,
 } from '../../src/render/sky/night.js'
 import { sunDirectionWorld } from '../../src/render/sky/sun.js'
 
@@ -92,5 +92,49 @@ describe('DEV ?night= tuning', () => {
     expect(nightTuningFromQuery('?night=lights:1')).toEqual({ lightsOff: false })
     expect(() => nightTuningFromQuery('?night=flor:1')).toThrow(/unknown key/)
     expect(() => nightTuningFromQuery('?night=floor:x')).toThrow(/name:number/)
+  })
+})
+
+describe('cloud light at night (fix-night-clouds, 2026-10-15)', () => {
+  const SUN = sunDirectionWorld(30, 120)
+  it('is exactly the day look with the sun at or above the horizon (every multiplier 1, the sun direction untouched)', () => {
+    for (const e of [0, 0.5, 5, 30, 68, 90]) {
+      const l = cloudLight(e, SUN)
+      expect(l.sun, `elev ${e}`).toEqual([1, 1, 1])
+      expect(l.ambient, `elev ${e}`).toBe(1)
+      expect(l.direction, `elev ${e}`).toBe(SUN)
+    }
+  })
+  it('at deep night the key light is the moon, white-sun is gone, and the ambient is a small fraction of the day', () => {
+    const l = cloudLight(-46, sunDirectionWorld(-46, 120))
+    const m = moonDirection()
+    expect(l.direction.x).toBeCloseTo(m.x, 6); expect(l.direction.y).toBeCloseTo(m.y, 6); expect(l.direction.z).toBeCloseTo(m.z, 6)
+    // Measured before the fix (2026-10-15): the multipliers did not exist; clouds were as bright as by day.
+    expect(Math.max(...l.sun)).toBeLessThan(0.05)
+    expect(l.ambient).toBeLessThan(0.05)
+    expect(l.sun[2], 'the moon is cool: blue over red').toBeGreaterThan(l.sun[0])
+    expect(Math.min(...l.sun), 'not black').toBeGreaterThan(0)
+  })
+  it('falls monotonically through dusk with no step: <3% of the day level per 0.05 deg, ambient never rising as the sun sinks', () => {
+    let prev = cloudLight(2, SUN)
+    for (let e = 0; e > -30; e -= 0.05) {
+      const l = cloudLight(e, sunDirectionWorld(e, 120))
+      expect(l.ambient, `ambient at ${e.toFixed(2)}`).toBeLessThanOrEqual(prev.ambient + 1e-12)
+      const lumNow = lum(l.sun), lumPrev = lum(prev.sun)
+      expect(Math.abs(lumNow - lumPrev), `sun term at ${e.toFixed(2)}`).toBeLessThan(0.03)
+      expect(Math.abs(l.ambient - prev.ambient), `ambient at ${e.toFixed(2)}`).toBeLessThan(0.03)
+      for (const v of [...l.sun, l.ambient, l.direction.x, l.direction.y, l.direction.z]) expect(Number.isFinite(v)).toBe(true)
+      // The total cloud light (sun or moon term plus ambient) never brightens as the sun sinks: the moon only replaces light the sun has already lost.
+      expect(lum(l.sun) + l.ambient, `total at ${e.toFixed(2)}`).toBeLessThanOrEqual(lum(prev.sun) + prev.ambient + 1e-3)
+      prev = l
+    }
+  })
+  it('the cloud tunable scales the moon and the ambient floor together and is read from ?night=cloud:', () => {
+    const a = cloudLight(-46, SUN, { cloudScale: 1 }), b = cloudLight(-46, SUN, { cloudScale: 2 })
+    expect(b.sun[1] / a.sun[1]).toBeCloseTo(2, 6)
+    expect(b.ambient / a.ambient).toBeCloseTo(2, 6)
+    expect(cloudLight(-46, SUN, { cloudScale: 0 }).ambient).toBe(0)
+    expect(nightTuningFromQuery('?night=cloud:2')).toEqual({ cloudScale: 2 })
+    expect(nightTuning.cloudScale).toBe(1)
   })
 })

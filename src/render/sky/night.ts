@@ -1,10 +1,11 @@
 import { type Vec3 } from '../../sim/math/vec3.js'
 import { sunDirectionWorld } from './sun.js'
+import { exposureFor } from '../exposure.js'
 
 /**
  * The night look (F6A, docs/night.md; Mark's rulings D3 and D5, 2026-10-14).
  * Pure: no three, no DOM. Every number here is a TUNABLE STARTING VALUE chosen
- * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25,cockpit:0.35,lux:1,flarefall:1,lights:0` (lights:0 draws and lights nothing, the budget's lights-off twin; flarefall scales a parachute flare's rate of fall, 3.56 m/s by default; lux scales how strongly lights illuminate ground and sea; cockpit is the night brightness of the panel; phase is the moon's lit fraction; glow scales every light glow's radiance)
+ * by eye at checkpoint CP1, not a measurement; DEV `?night=floor:1.4,moon:0.3,dusk:1.1,glow:1.5,phase:0.25,cockpit:0.35,lux:1,flarefall:1,cloud:1,clouds:0,lights:0` (clouds:0 lights the clouds as by day at any hour, the old look and the day-regression twin; cloud scales how bright moonlit clouds are against the day look; lights:0 draws and lights nothing, the budget's lights-off twin; flarefall scales a parachute flare's rate of fall, 3.56 m/s by default; lux scales how strongly lights illuminate ground and sea; cockpit is the night brightness of the panel; phase is the moon's lit fraction; glow scales every light glow's radiance)
  * overrides them for a session (`nightTuningFromQuery`).
  *
  * D3: a "movie night": a readable blue floor that is never black and is not a
@@ -36,10 +37,10 @@ export const MOON_FULL_DEG = -8
 export const STARS_START_DEG = -4
 export const STARS_FULL_DEG = -9
 
-export type NightTuning = { floorScale: number; moonLightScale: number; duskScale: number; glowScale: number; moonPhase: number; lightScale: number; flareFall: number }
-export type NightQuery = Partial<NightTuning> & { cockpitDim?: number; lightsOff?: boolean }
+export type NightTuning = { floorScale: number; moonLightScale: number; duskScale: number; glowScale: number; moonPhase: number; lightScale: number; flareFall: number; cloudScale: number }
+export type NightQuery = Partial<NightTuning> & { cockpitDim?: number; lightsOff?: boolean; cloudsOff?: boolean }
 /** Live values (DEV query can change them); the exported constants are the defaults. */
-export const nightTuning: NightTuning = { floorScale: NIGHT_FLOOR_SCALE, moonLightScale: MOON_LIGHT_SCALE, duskScale: DUSK_FLOOR_SCALE, glowScale: 1, moonPhase: MOON_ILLUMINATED_FRACTION, lightScale: 1, flareFall: 1 }
+export const nightTuning: NightTuning = { floorScale: NIGHT_FLOOR_SCALE, moonLightScale: MOON_LIGHT_SCALE, duskScale: DUSK_FLOOR_SCALE, glowScale: 1, moonPhase: MOON_ILLUMINATED_FRACTION, lightScale: 1, flareFall: 1, cloudScale: 1 }
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
 const smooth = (a: number, b: number, x: number): number => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t) }
@@ -73,11 +74,66 @@ export function nightTuningFromQuery(search: string): NightQuery | undefined {
     else if (k === 'glow') out.glowScale = n
     else if (k === 'lux') out.lightScale = n
     else if (k === 'flarefall') out.flareFall = n
+    else if (k === 'cloud') out.cloudScale = n
     else if (k === 'lights') out.lightsOff = n === 0
+    else if (k === 'clouds') out.cloudsOff = n === 0
     else if (k === 'shaders') { /* read by lights/irradiance.ts at module load: 0 compiles the shared node out */ }
     else if (k === 'cockpit') { if (n > 1) throw new Error(`${NIGHT_PARAM}: cockpit is a brightness factor in [0, 1]`); out.cockpitDim = n }
     else if (k === 'phase') { if (n > 1) throw new Error(`${NIGHT_PARAM}: phase is a lit fraction in [0, 1]`); out.moonPhase = n }
-    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase, cockpit, lux, flarefall, lights, shaders)`)
+    else throw new Error(`${NIGHT_PARAM}: unknown key ${JSON.stringify(k)} (floor, moon, dusk, glow, phase, cockpit, lux, flarefall, cloud, clouds, lights, shaders)`)
   }
   return out
+}
+
+/**
+ * Cumulus light at night (fix-night-clouds, 2026-10-15; docs/night.md). The cloud march's radiance constants
+ * (takramTslCloudPass.ts) are DAY constants: a white sun term, a blue sky ambient above and a grey ground
+ * bounce below, none of which knew the sun could be down, so night showed day clouds under the star sky. They
+ * now take three per-frame multipliers from here. By day (sun at or above the horizon) every one is exactly 1,
+ * so the day pixels are unchanged (pinned by tests/render/night.test.ts); below the horizon the sun term fades
+ * out, the moon takes over as the one key light, and the sky ambient falls to a night floor.
+ *
+ * Levels are fractions of the DAY cloud radiance, tuned by eye against the night floor (the ocean is albedo
+ * ~0.06 and reads as a dark blue; a white cloud at the same irradiance is ~15x brighter, so these are small
+ * numbers), ESTIMATES, scaled together by the DEV `?night=cloud:` multiplier.
+ */
+export const CLOUD_MOON_LEVEL = 0.009
+export const CLOUD_NIGHT_AMBIENT = 0.010
+/** The sun's term fades out between these sun elevations (1 at the horizon and above). */
+export const CLOUD_SUN_FADE_DEG = -6
+/** The sky ambient and ground bounce fall to the night floor between 0 and this elevation. */
+export const CLOUD_AMBIENT_FADE_DEG = -9
+/** The takram march's day sun radiance (takramTslCloudPass.ts `vec3(13.5, 12.8, 11.8)`), to keep the moon's colour independent of its warm cast. */
+const DAY_SUN_RGB: Rgb3 = [13.5, 12.8, 11.8]
+type Rgb3 = readonly [number, number, number]
+const MOON_TINT_RGB: Rgb3 = [0.78, 0.88, 1.0]
+const lum = (c: Rgb3): number => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+export type CloudLight = {
+  /** Unit vector toward the cloud march's one light: the sun, the moon, or the stronger of the two weighted by their strength. */
+  readonly direction: Vec3
+  /** Multiplier on the march's day sun radiance (all 1 by day). */
+  readonly sun: Rgb3
+  /** Multiplier on the sky ambient and the ground bounce (1 by day). */
+  readonly ambient: number
+}
+/** `sunDir` is the TRUE sun direction (below the horizon at night). Pure; continuous and monotonic in the elevation. */
+export function cloudLight(elevationDeg: number, sunDir: Vec3, tune: Pick<NightTuning, 'cloudScale'> = nightTuning): CloudLight {
+  if (elevationDeg >= 0) return { direction: sunDir, sun: [1, 1, 1], ambient: 1 }
+  // The frame's exposure rises 1.5 EV through dusk to lift the DOME; a cloud lit at its day radiance would be lifted with it
+  // (measured 2026-10-15: sun -3 deg clouds read brighter than +3 deg), so the sun's share is divided back out.
+  const comp = exposureFor(0) / exposureFor(elevationDeg)
+  const ws = smooth(CLOUD_SUN_FADE_DEG, 0, elevationDeg) ** 2 * comp
+  const wm = CLOUD_MOON_LEVEL * tune.cloudScale * moonWeight(elevationDeg)
+  const m = moonDirection()
+  const lights = ws + wm
+  const dir: Vec3 = lights > 0
+    ? { x: (sunDir.x * ws + m.x * wm) / lights, y: (sunDir.y * ws + m.y * wm) / lights, z: (sunDir.z * ws + m.z * wm) / lights }
+    : m
+  const len = Math.hypot(dir.x, dir.y, dir.z) || 1
+  // The moon's colour is its tint at the moon's strength, whatever the warm sun constants say.
+  const sun = DAY_SUN_RGB.map((s, i) => ws + (wm * lum(DAY_SUN_RGB) * MOON_TINT_RGB[i]!) / (s * lum(MOON_TINT_RGB))) as unknown as Rgb3
+  const floor = CLOUD_NIGHT_AMBIENT * tune.cloudScale
+  const ambient = floor + (1 - floor) * smooth(CLOUD_AMBIENT_FADE_DEG, 0, elevationDeg) * comp
+  return { direction: { x: dir.x / len, y: dir.y / len, z: dir.z / len }, sun, ambient }
 }

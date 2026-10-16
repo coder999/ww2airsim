@@ -153,12 +153,16 @@ export async function loadTakramCloudAssets(renderer: WebGPURenderer): Promise<T
   }
 }
 
+/** Per-frame multipliers on the march's day radiance constants (`cloudLight` in sky/night.ts is the source). */
+export type CloudLightScale = { readonly sun: readonly [number, number, number]; readonly ambient: number }
+
 export type TakramCloudPass = {
   readonly composite: Node<'vec4'>
   setResolutionScale(scale: number): void
   setUpdatePeriod(frames: 1 | 8 | 16): void
   setEye(eye: Vec3): void
-  setEnvironment(timeS: number, sun: Vec3, coverage: number, baseM: number): void
+  /** `light` scales the march's day radiance at night (night.ts `cloudLight`); omitted, or all 1, is the day look. The raw-WebGPU twin ignores it (a DEV comparison path, day only). */
+  setEnvironment(timeS: number, sun: Vec3, coverage: number, baseM: number, light?: CloudLightScale): void
   resetHistory(): void
   historyResets(): number
   gpuTimesMs(): readonly number[]
