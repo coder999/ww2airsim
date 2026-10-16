@@ -60,16 +60,23 @@ export function gameplayLights(worldPos: Node<'vec3'>, normal: Node<'vec3'> | nu
   if (SHADERS_OFF) return vec3(0) as unknown as Node<'vec3'>
   return Fn(() => {
     const sum = vec3(0).toVar()
+    // Hoisted OUT of the branch: the nodes passed in (positionWorld, normalWorld) are shared with the material's
+    // own lighting, and three's node builder caches the code of a node where it is FIRST emitted. Left to be
+    // first built inside the If/Loop, that code lives in the branch scope and the sun lighting then reads an
+    // uninitialised variable: every lit model went near-black on ryzen's D3D12 (Tint/HLSL), 2026-10-15
+    // (docs/night.md). Vulkan (nexus 680M) happened to tolerate it.
+    const wp = worldPos.toVar()
+    const nrm = normal === null ? null : normal.toVar()
     // A uniform branch around the loop: with no light active (every daytime frame) the loop body is never reached.
     If(count.greaterThan(0), () => {
     Loop({ start: int(0), end: count, type: 'int', condition: '<' }, ({ i }) => {
       const p = (pos.element(i) as unknown as Node<'vec4'>).toVar()
       const c = (col.element(i) as unknown as Node<'vec4'>).toVar()
       const a = (axis.element(i) as unknown as Node<'vec4'>).toVar()
-      const d = p.xyz.sub(worldPos).toVar()
+      const d = p.xyz.sub(wp).toVar()
       const d2 = max(dot(d, d), 1).toVar()
       const toLight = d.mul(inverseSqrt(d2))
-      const lam = normal === null ? float(1) : max(dot(normal, toLight), 0)
+      const lam = nrm === null ? float(1) : max(dot(nrm, toLight), 0)
       const fade = float(1).sub(smoothstep(p.w.mul(0.8), p.w, sqrt(d2)))
       const spot = select(c.w.greaterThan(-1.5), smoothstep(c.w.sub(0.0015), c.w, dot(toLight.negate(), a.xyz)), float(1))
       sum.addAssign(c.xyz.mul(lam.mul(fade).mul(spot)).div(d2))
