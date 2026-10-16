@@ -15,12 +15,12 @@ import { loadTerrainHeader } from '../../tools/terrain/load.js'
  * Method: the same view is rendered twice, `cloudTier=off` and on. A pixel is a CLOUD pixel when the two frames
  * differ by more than CLOUD_DIFF in luminance (the ocean is deterministic at a fixed hour and the sim is held,
  * so everything else matches). Mean luminance is then read over those pixels in the cloud-on frame.
- * `E2E_CAPTURE_DIR` also saves the PNGs for a person to read.
+ * `NIGHT_CLOUDS_SHOTS=<dir>` also saves the PNGs for a person to read.
  */
 test.setTimeout(420_000)
 const TAC = { x: -29666, z: -47605 }
 const LAT_DEG = loadTerrainHeader().centreLatDeg
-const OUT = process.env.E2E_CAPTURE_DIR
+const OUT = process.env.NIGHT_CLOUDS_SHOTS
 const CLOUD_DIFF = 6
 const threeErrors: string[] = []
 test.beforeEach(({ page }) => {
