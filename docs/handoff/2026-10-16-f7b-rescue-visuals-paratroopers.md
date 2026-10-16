@@ -47,8 +47,21 @@ Branch `f7b-rescue-paratroopers` (worktree `~/projects/ww2airsim-worktrees/f7b`)
 - **Still valid:** `bailout.test.ts`, `bailoutTuning.test.ts`, `campaignBank.test.ts`, the flight-recorder suite and the e2e
   `bailout*` specs (their `modelVisible` reads are all during the canopy phase, which is unchanged).
 - **Known gaps:**
-  - **No budget run, no budget enrollment.** 18 animated canopies + 6 bundles is unmeasured; F10D/F10E's finale budget is where it is
-    first measured (ryzen was off limits). The earlier plan text said "enrolled now"; corrected.
+  - **`paradrop-budget` is RED, by design of the gate (Mark's ruling, 2026-10-16: keep gates as written, do not tune to meet them).**
+    View measured: Tacloban at 300 m, free-flight, 1440p High, look-back held so the 18 men + 6 bundles fill the view behind the
+    transport (a solo view, not a battle). Ryzen, under `hwlock ryzen-budget`, a fresh vite per mode, 6 interleaved loads per
+    arm, median of the per-load GPU p95, 2026-10-16:
+
+    | Mode | no drop | drop | delta | gate |
+    | --- | --- | --- | --- | --- |
+    | `BUDGET_PARAMS=trees=off` | 5.26 ms | 6.85 ms | **+1.58 ms** | 1.0 ms, fails |
+    | trees on | 15.32 ms | 16.70 ms | **+1.38 ms** | 1.0 ms, fails |
+
+    The delta barely moves with the forest, so the cost is the canopies (the drop arm also yields about 20% fewer samples). One
+    trees-off drop load was a 13.8 ms outlier. An earlier 4-load run on a long-lived dev server gave +1.99 ms. The 1.0 ms is a
+    tripwire I chose (the effects budget's number), not a ruling; the two-tier bar proposed in
+    `docs/handoff/2026-10-16-budget-reevaluation.md` is Mark's call and is not applied. Likely cost: each pooled rig draws a canopy,
+    ribs, person, head, boots, helmet and suspension lines (no draw-call profile taken yet).
   - **No E2E assertion** for the stick or the pickup, only the capture tool; the logic is covered by pure tests. The wall-clock
     pickup is not part of a replay (view-only).
   - **A drop is not a recorded action.** `?paradrop` is rebuilt from the URL, so a Dev flight record of such a flight reproduces
