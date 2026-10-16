@@ -316,6 +316,18 @@ Mark ruled 2026-10-15 (A2) that enemy AI detecting the player by radar is a sepa
 
 Size M to L (unchanged). About **16 to 22 new or changed source files** (new: `perception.ts`, sim `sun.ts`, `torpedoPrediction` additions, torpedosight marker; changed: `targeting.ts`, `pilotTick.ts`, `aaFire.ts`, `loop.ts`, `combat.ts` (one extraction), `impactPrediction.ts`, `frame.ts`, `main.ts` (four small places), `verify.ts`, `recorder.ts`, `schema.ts`, `sortie.ts`, legend and bindings text, one Dev scenario), about 10 new test files, no new art. Risk-weighted **1.75 to 2.75 weeks** (revision 2: +0.25 week for the rank-gate wording, tutorial and Training Ground checks, and the F5B `CampaignLaunch` rebase) of agent time plus the three attended checkpoints; the two unknown-cost items are the tuning at CP1 (feel of the numbers) and the F5B/F7A rebase of `main.ts`/`loop.ts` (section 10).
 
+## 13a. Measured results (2026-10-15, built through checkpoint 3)
+
+| Gate | Result |
+| --- | --- |
+| (a) perception sim cost, 24 aircraft, 100 lights, alternating night fact on and off in one process, 7 blocks of 600 ticks, median, ryzen (`tools/perceptionBench.ts`) | off 0.194 ms per tick, on 0.257 ms: **+0.063 ms**, gate 0.15: pass |
+| (b) sight on minus off, GPU, alternating inside one page load | `tests/e2e/sightsBudget.spec.ts` written (bombsight and torpedosight on night-bay, 1440p High, six pairs, gate 0.10 ms); **not run**: needs the ryzen GPU under `hwlock ryzen-budget`, left to the coordinator |
+| (c) nine day views | structural only: with the gate closed or no night fact no new per-frame code runs (predictors are never called with the sight off, `createImpactPredictor` and `createTorpedoPredictor` tests; `perceptionAt` returns null without `night`); not measured |
+| (d) memo | each predictor runs once per sim tick and not at all with the sight off (unit tests) |
+| Ring contrast against the night sea (nexus 680M, 1920x1080) | valid 13:1, invalid 5.7:1 (target 3:1) |
+| Text tones on the worst-case backing | at least 4.5:1, asserted (`impactMarker.test.ts`) |
+| Green versus red luminance | at least 3:1, asserted |
+
 ## 14. What would change this plan
 
 - (D1 is ruled; the `accept?` alternative is closed.)

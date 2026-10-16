@@ -9,6 +9,7 @@ import { playerAircraft } from '../../src/sim/loop.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import { projectToScreen } from '../../src/render/sightLabels.js'
 import { predictImpact, predictTorpedoDrop, type TorpedoPrediction } from '../../src/sim/weapons/impactPrediction.js'
+import { TONE_COLOR } from '../../src/render/impactBadge.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 
 /** B2, the render and input half. The prediction itself is held to the real sim in
@@ -199,5 +200,18 @@ describe('the torpedosight ENTRY label', () => {
     const c = projectToScreen(v3(0, 0, -1000), cam, v3(0, 0, 0), 1920, 1080)!
     expect(c.x).toBeCloseTo(960, 3); expect(c.y).toBeCloseTo(540, 3)
     expect(projectToScreen(v3(0, 0, 1000), cam, v3(0, 0, 0), 1920, 1080)).toBeNull()
+  })
+})
+
+describe('sight text legibility (F6B accessibility check)', () => {
+  const lum = (hex: string): number => {
+    const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4))
+    return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!
+  }
+  it('every badge and label tone is at least 4.5:1 on the worst case: the 82% dark backing over a white sky', () => {
+    // rgba(12,14,18,.82) composited over a white sky in sRGB, then linearized
+    const mix = (c: number): number => { const x = (0.82 * c + 0.18 * 255) / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }
+    const backing = 0.2126 * mix(12) + 0.7152 * mix(14) + 0.0722 * mix(18)
+    for (const [tone, color] of Object.entries(TONE_COLOR)) expect((lum(color) + 0.05) / (backing + 0.05), tone).toBeGreaterThanOrEqual(4.5)
   })
 })

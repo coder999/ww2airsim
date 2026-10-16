@@ -10,7 +10,7 @@
 export type SightTone = 'plain' | 'ok' | 'bad'
 export type ImpactBadgeHandle = { set(label: string | null, tone?: SightTone): void; announce(text: string | null): void }
 
-const TONE_COLOR: Readonly<Record<SightTone, string>> = { plain: '#ff9d75', ok: '#7ee787', bad: '#ff9e97' }
+export const TONE_COLOR: Readonly<Record<SightTone, string>> = { plain: '#ff9d75', ok: '#7ee787', bad: '#ff9e97' }
 
 export function createImpactBadge(root: HTMLElement): ImpactBadgeHandle {
   const el = document.createElement('div')
