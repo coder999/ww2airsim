@@ -9,6 +9,7 @@ import { SCORE_POINTS } from '../campaign/schema.js'
 import type { DebriefMission } from './mission/debriefMission.js'
 import { rankDevice, ribbonElement } from './insignia.js'
 import type { ParachutistEntity } from '../sim/bailout.js'
+import { feetPerSecondText } from './bailoutText.js'
 
 /** A stamp with a ribbon or insignia next to it, outside the stamp so its
  *  rough-ink filter and multiply blend leave the colors alone. */
@@ -88,6 +89,8 @@ export const RECOVERY_MULTIPLIER: Readonly<Record<RecoveryOutcome, number>> = {
   landed: 1.0,
   ditched: 1.0,
   killed: 1.0,
+  // F7A: a bailout keeps the points already earned. The campaign score has no multiplier (src/campaign/scoring.ts); these
+  // rows only keep the table total over `RecoveryOutcome`, they are not a scoring input.
   rescued: 1.0,
   captured: 1.0,
 }
@@ -322,8 +325,8 @@ export function destructionModel(
   }
 }
 
-/** F7A's surface/recovery evidence. Campaign POW closure remains F7B's job;
- * this model reports the physical outcome and banks the already-earned score. */
+/** F7A's surface/recovery evidence. The campaign side (POW closure, replacement, the ledger) is `bankScored`'s and F5A's;
+ * this model reports the physical outcome and the score already earned, which every bailout keeps. */
 export function bailoutModel(
   parachutist: ParachutistEntity,
   killsSinceLastBank: Readonly<Record<TargetType, number>>,
@@ -332,13 +335,15 @@ export function bailoutModel(
   const contact = parachutist.state.contact
   const recovery = parachutist.recovery
   const detail = outcome === 'rescued'
-    ? `You came down ${contact?.surface === 'water' ? 'at sea' : 'on land'} and friendly forces recovered you.`
+    ? `You came down ${contact?.surface === 'water' ? 'at sea' : contact?.surface === 'deck' ? 'on a carrier deck' : 'on land'} and friendly forces recovered you. Mission not credited; the points you earned are kept.`
     : outcome === 'captured'
-      ? 'You survived the descent but were taken prisoner.'
-      : 'The bailout did not leave enough height for a safe canopy descent.'
+      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; the points you earned stay on your file.'
+      : parachutist.state.lowAltitude
+        ? 'The bailout did not leave enough height for the canopy to fill.'
+        : 'The canopy came down too fast to survive the landing.'
   const figures: DebriefFigure[] = [
     { label: 'Surface', value: contact?.surface.toUpperCase() ?? 'NONE' },
-    { label: 'Contact descent', value: contact === null ? '—' : mph(Math.max(0, -contact.verticalSpeedMps)) },
+    { label: 'Contact descent', value: contact === null ? '—' : feetPerSecondText(Math.max(0, -contact.verticalSpeedMps)) },
   ]
   if (recovery !== null) {
     figures.push(

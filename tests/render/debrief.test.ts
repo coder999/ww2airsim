@@ -42,7 +42,7 @@ const parachutist = (outcome: BailoutOutcome, surface: 'land' | 'water' = 'land'
       },
       cue: outcome === 'rescued' ? 'rescue-likely' : 'capture-likely',
       rescueProbability: outcome === 'rescued' ? 1 : 0,
-      factors: [outcome === 'rescued' ? 'friendly-controlled area' : 'enemy-controlled area', surface],
+      factors: [outcome === 'rescued' ? 'friendly-controlled area' : 'enemy-controlled area', surface, 'friendly support 0.6 mi'],
       roll: null,
     },
     state,
@@ -216,12 +216,19 @@ describe('the debrief', () => {
     const rescued = bailoutModel(parachutist('rescued', 'water'), kills)
     expect(rescued).toMatchObject({ headline: 'RESCUED', outcome: 'rescued' })
     expect(rescued.detail).toContain('at sea')
+    expect(rescued.detail).toContain('Mission not credited')
+    expect(rescued.figures).toContainEqual({ label: 'Contact descent', value: '18 ft/s' })
     expect(rescued.figures).toContainEqual({ label: 'Recovery assessment', value: 'RESCUE LIKELY' })
     expect(rescued.score).toEqual(missionScore(kills, 'rescued'))
 
     const captured = bailoutModel(parachutist('captured'), kills)
     expect(captured).toMatchObject({ headline: 'CAPTURED', outcome: 'captured' })
     expect(captured.detail).toContain('prisoner')
+    expect(captured.detail).toContain('new pilot')
+    for (const m of [rescued, captured, bailoutModel(parachutist('killed'), kills)]) {
+      expect(JSON.stringify(m.figures) + m.detail, 'no metric units in the player-facing debrief').not.toMatch(/\bkm\b|\bm\/s\b|\d m\b/)
+    }
+    expect(bailoutModel(parachutist('killed'), kills).detail).toContain('height')
     expect(captured.score).toEqual(missionScore(kills, 'captured'))
   })
 
