@@ -93,7 +93,7 @@ test('friendly fire, then death: the radio call, KILLED with the sortie forfeit,
   // ally: hold Space until it is burning or down, then wait for its destruction to be credited
   // (a burning airplane explodes or crashes a few seconds later).
   await expect
-    .poll(() => combat(page).then((c) => { const ally = c.aircraft.find((a) => a.id === 'ally-1')!; return ally.burning || ally.destroyed }), { timeout: 30_000, message: 'the ally was never put out of the fight' })
+    .poll(() => combat(page).then((c) => { const ally = c.aircraft.find((a) => a.id === 'ally-1')!; return ally.burning || ally.destroyed }), { timeout: 60_000, message: 'the ally was never put out of the fight' })
     .toBe(true)
   await page.keyboard.up('Space')
   await expect

@@ -17,6 +17,9 @@ import { type DiagWindow } from './harness.js'
  */
 const REMOTE = process.env.PW_REMOTE
 test.skip(REMOTE === undefined || process.env.PW_SESSION0 !== undefined, 'needs a headed desktop Chrome on the reference GPU (PW_REMOTE, console or RDP route)')
+// An RDP session paces every frame at its own ~32 Hz (measured 2026-10-16: all six probe profiles read 31.97-32.03 fps,
+// whatever the quality or scale), so the probe cannot grade a real display there. The nightly sets E2E_ROUTE.
+test.skip(process.env.E2E_ROUTE === 'rdp', 'an RDP session caps frames at ~32 Hz; run on the console route')
 test.use({
   connectOptions: REMOTE === undefined ? undefined : {
     wsEndpoint: REMOTE,

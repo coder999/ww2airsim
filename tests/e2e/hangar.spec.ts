@@ -171,6 +171,8 @@ test.describe('the Hangar', () => {
   })
 
   test('3. every modeled propeller turns: two frames 1/60 s apart at full throttle differ', async ({ page }) => {
+    // Two renders per aircraft over every entry: 60 s no longer covers the library on the ryzen RDP route (timed out 2026-10-16).
+    test.setTimeout(300_000)
     for (const id of await entries(page)) {
       await select(page, id)
       if (!hasPart(await current(page), 'prop')) continue

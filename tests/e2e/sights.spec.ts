@@ -20,11 +20,20 @@ async function open(page: Page, u: string): Promise<void> {
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 60, undefined, { timeout: 60_000 })
   await page.waitForTimeout(1500)
 }
+/** U toggles, so press it only while the sight is off: a keypress lost to a slow frame (ryzen RDP, 2026-10-16) is retried, never doubled. */
+async function sightOn(page: Page): Promise<void> {
+  for (let i = 0; i < 6; i++) {
+    if ((await marker(page)).on) return
+    await page.keyboard.press('KeyU')
+    await page.waitForTimeout(1200)
+  }
+  expect((await marker(page)).on, 'U never turned the sight on').toBe(true)
+}
 const marker = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.impactMarker())
 
 test('Dev: U turns the bombsight on and shows where a bomb lands', async ({ page }) => {
   await open(page, url('f6f-hellcat', 'bombs', 350))
-  await page.keyboard.press('KeyU')
+  await sightOn(page)
   await page.waitForFunction(() => (window as DiagWindow).__ww2!.impactMarker().prediction !== null, undefined, { timeout: 10_000 })
   const m = await marker(page)
   expect(m.on).toBe(true)
@@ -44,7 +53,7 @@ test('gate closed (?sights=off): U never turns the sight on, and the bombs still
 
 test('torpedosight: valid inside the envelope (green, DROP OK), invalid too high (NO DROP: TOO HIGH, with the limit)', async ({ page }) => {
   await open(page, url('tbm-3-avenger', 'bombs', 120))
-  await page.keyboard.press('KeyU')
+  await sightOn(page)
   await page.waitForFunction(() => (window as DiagWindow).__ww2!.impactMarker().torpedo !== null, undefined, { timeout: 10_000 })
   // The Avenger's torpedo rides in the bay: doors shut is a NO DROP reason (as the sim refuses the release), so open them (O).
   expect((await marker(page)).torpedo!.reasons).toContain('doors-shut')
@@ -55,8 +64,7 @@ test('torpedosight: valid inside the envelope (green, DROP OK), invalid too high
   expect(ok.label).toMatch(/^TORPEDOSIGHT DROP OK · ENTRY \d+\.\d MI$/)
   expect(ok.shown).toBe(true)
   await open(page, url('tbm-3-avenger', 'bombs', 1200))
-  await page.keyboard.press('KeyU')
-  await page.waitForFunction(() => (window as DiagWindow).__ww2!.impactMarker().on, undefined, { timeout: 10_000 }) // one key at a time: two in the same frame lost one on the ryzen GPU (2026-10-15)
+  await sightOn(page)
   await page.keyboard.press('KeyO')
   await page.waitForFunction(() => { const t = (window as DiagWindow).__ww2!.impactMarker().torpedo; return t !== null && !t.reasons.includes('doors-shut') }, undefined, { timeout: 15_000 })
   const bad = await marker(page)
