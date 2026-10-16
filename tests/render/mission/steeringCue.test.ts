@@ -104,6 +104,43 @@ describe('steeringCueFor', () => {
     expect(finalLocal.z).toBeCloseTo(zoneZ, 9)
   })
 
+  // F5C D3: the authored recovery is only a suggestion; the cue aims at the nearest friendly site this airplane can use.
+  describe('a suggested recovery (any friendly base)', () => {
+    const HOME = { id: 'home', label: 'Land at any friendly base', priority: 'primary', kind: 'land', at: 'tacloban', suggestedRecovery: true }
+    const P38 = [{ id: 'f6f-1', spec: 'p-38-lightning', airborneAt: { position: [0, 3000, 0], headingDeg: 90, speedMps: 120 } }]
+    const CV = { x: -25629, z: -16479 }
+
+    it('steers a carrier-capable airplane to the carrier it is nearest to, not to the authored field', () => {
+      const world = putPlayer(missionWorld({ objectives: [HOME] }), v3(CV.x + 6000, 1500, CV.z), 80, 0)
+      const cue = steeringCueFor(world, null)!
+      expect(cue.label).toMatch(/^(LINEUP|FINAL)/)
+      expect(Math.hypot(cue.target.x - CV.x, cue.target.z - CV.z)).toBeLessThan(8000)
+    })
+
+    it('an airplane that cannot land on a deck is sent to the nearest field instead', () => {
+      const world = putPlayer(missionWorld({ aircraft: [...P38, { id: 'bandit-1', spec: 'f6f-hellcat', tags: ['raid'], airborneAt: { position: [0, 3000, -20000], headingDeg: 90, speedMps: 120 } }], objectives: [HOME] }), v3(CV.x + 6000, 1500, CV.z), 80, 0)
+      const cue = steeringCueFor(world, null)!
+      expect(cue.label).toBe('Land at any friendly base: Tacloban')
+      expect(cue.source).toBe('objective')
+      const tac = world.airfields.find((a) => a.id === 'tacloban')!.runway.center
+      expect(cue.target.x).toBe(tac.x)
+      expect(cue.target.z).toBe(tac.z)
+    })
+
+    it('an authored landing that is NOT a suggestion still aims at its named place', () => {
+      const world = putPlayer(missionWorld({ objectives: [{ ...HOME, suggestedRecovery: undefined, at: 'tacloban' }] }), v3(CV.x + 6000, 1500, CV.z), 80, 0)
+      const cue = steeringCueFor(world, null)!
+      expect(cue.label).toBe('Land at any friendly base')
+      expect(cue.target.x).toBe(world.airfields.find((a) => a.id === 'tacloban')!.runway.center.x)
+    })
+
+    it('the cue follows whichever friendly site is nearest as the airplane moves', () => {
+      const near = (x: number, z: number) => steeringCueFor(putPlayer(missionWorld({ aircraft: P38, objectives: [HOME] }), v3(x, 3000, z), 80, 0), null)!
+      const tac = missionWorld({}).airfields.find((a) => a.id === 'tacloban')!.runway.center
+      expect(near(tac.x + 500, tac.z).label).toContain('Tacloban')
+    })
+  })
+
   it('reads level inside a station altitude band instead of chasing its midpoint', () => {
     let world = missionWorld({ objectives: [{
       id: 'rally', label: 'Rally', priority: 'primary', kind: 'hold', point: EAST_ONE_MILE,
