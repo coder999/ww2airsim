@@ -270,6 +270,14 @@ export function pickerRows(c: Campaign, catalog: readonly MissionDescriptor[], o
   return rows
 }
 
+/**
+ * F5C D1 (Mark, 2026-10-16): an unscored mission (Training, Single) has no pilot to assign, so the picker goes straight
+ * to Flight Conditions at a fixed entry rank (`PRACTICE_TIER`, the Ensign the tutorial is flown at). Dev keeps the pilot
+ * step on every row. A scored row always has it.
+ */
+export const skipsPilotStep = (row: Pick<PickerRow, 'scored'>, dev: boolean): boolean => !row.scored && !dev
+export const PRACTICE_TIER: Tier = 1
+
 export type PilotChoice = {
   readonly id: string; readonly name: string; readonly rankShort: string; readonly tier: Tier; readonly points: number; readonly pointsText: string
   readonly sorties: number; readonly eligible: boolean; readonly reason: IneligibleReason | null; readonly needText: string | null

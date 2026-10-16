@@ -123,6 +123,8 @@ export const TITLE_FORMS = {
 
 /** A headquarters sortie numbers its memos Step 3 to 5 of 5 (Steps 1 and 2 are the picker). */
 const CAMPAIGN_STEP: Readonly<Record<string, string>> = { 'Flight Conditions': 'Step 3 of 5', 'Aircraft Assignment': 'Step 4 of 5', 'Ordnance Requisition': 'Step 5 of 5' }
+/** The same memos when the pilot step is skipped (F5C D1, Training and Single). */
+const PRACTICE_STEP: Readonly<Record<string, string>> = { 'Flight Conditions': 'Step 2 of 4', 'Aircraft Assignment': 'Step 3 of 4', 'Ordnance Requisition': 'Step 4 of 4' }
 
 /** Form 5's text when no aircraft qualifies for the mission; Next stays disabled. */
 export const NO_AIRCRAFT = 'No aircraft on the roster can fly this mission. Check Dev in Headquarters to fly anything.'
@@ -299,6 +301,8 @@ export type CampaignSortie = {
   readonly scenarioId: string
   /** The assigned pilot as the forms name him: rank abbreviation, then name. */
   readonly pilotLabel: string
+  /** F5C D1: the pilot step was skipped (an unscored mission), so the forms are Steps 2 to 4 of 4. */
+  readonly skipsPilot?: boolean
   readonly dev: boolean
   readonly god: boolean
   /** F6B: the pilot's rank allows the bombsight and torpedosight (`abilities(tier).sights`); rides to the flight as `SortieChoice.sights`. */
@@ -531,7 +535,7 @@ export function createTitleScreen(
       const memo = memoPanel()
       memo.panel.style.display = 'none'
       memo.panel.style.marginTop = 'auto'
-      memo.sheet.appendChild(letterhead(f.kicker, f.title, campaign === null ? f.number : CAMPAIGN_STEP[f.title] ?? f.number))
+      memo.sheet.appendChild(letterhead(f.kicker, f.title, campaign === null ? f.number : (campaign.skipsPilot === true ? PRACTICE_STEP : CAMPAIGN_STEP)[f.title] ?? f.number))
       const routing = document.createElement('dl')
       routing.className = 'routing'
       const routingTerm = document.createElement('dt')

@@ -156,7 +156,7 @@ export function exactBallotLabel(label: string): RegExp {
 }
 
 /**
- * Through Headquarters to the first launch memo (Flight Conditions, "Step 3 of 5") for a picker row, and returns the
+ * Through Headquarters to the first launch memo (Flight Conditions, "Step 3 of 5"; "Step 2 of 4" when the pilot step is skipped, F5C D1) for a picker row, and returns the
  * Title dialog. The row is chosen from the UNSCORED Training Grounds / Single Missions sections, which carry no rank
  * gates, so a spec gets the mission it names whoever the pilot is; `scored` picks the scored row instead. A campaign is
  * opened (or created) on the way. This is the one copy of the path every harness helper and spec shares.
@@ -198,8 +198,10 @@ export async function toConditions(
     ? rows.and(hq.locator(`[data-id="${bootId}"]`)).first()
     : rows.filter({ hasText: new RegExp(`^${options.scenario.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!:)`) }).first()
   await row.click()
-  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
-  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  // F5C D1 (2026-10-16): an unscored row (Training, Single) has no pilot step unless Dev is on; a scored row always has one.
+  const pilotStep = options.scored === true || await dev.isChecked()
+  await hq.getByRole('button', { name: pilotStep ? /Next: assign a pilot/ : /Next: flight conditions/ }).click()
+  if (pilotStep) await hq.getByRole('button', { name: /^Assign / }).first().click()
   return title
 }
 

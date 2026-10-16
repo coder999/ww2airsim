@@ -15,14 +15,15 @@ import { ballotOption, ensureStampFilter, radioGroup } from '../ui/navalComms.js
 import { formatPoints } from './format.js'
 import {
   SERVICE_NAME, archiveModel, chaptersModel, commanderDossierModel, hqModel, importConflictModel, pickerRows,
-  pilotChoices, pilotDossierModel, type ArchiveFilter, type PickerOption, type PickerRow,
+  pilotChoices, pilotDossierModel, skipsPilotStep, type ArchiveFilter, type PickerOption, type PickerRow,
 } from './model.js'
 import type { Session } from '../campaignSession.js'
 import { createSettingsDialog, type SettingsDialogHandle, type SettingsModel } from '../settings.js'
 import { titleModel } from '../titleScreen.js'
 import { createAboutPanel } from '../ui/aboutMemo.js'
 
-export type AssignRequest = { readonly row: PickerRow; readonly pilotId: string; readonly pilotIneligible: boolean }
+/** `pilotId` is `null` when the pilot step was skipped (an unscored mission, F5C D1): the sortie is flown at the practice rank. */
+export type AssignRequest = { readonly row: PickerRow; readonly pilotId: string | null; readonly pilotIneligible: boolean }
 
 export type HqDeps = {
   readonly session: Session
@@ -691,11 +692,16 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
     const m = sheet('Flight Operations', 'Sortie Orders', 'Step 1 of 5')
     const steps = el('div')
     steps.style.cssText = 'display:flex;margin:0 0 14px;font-family:var(--font-display);font-size:11px;letter-spacing:.1em;text-transform:uppercase'
-    ;['1 Mission', '2 Pilot', '3 Conditions', '4 Aircraft', '5 Ordnance'].forEach((t, i) => {
-      const s = el('span', t)
-      s.style.cssText = `flex:1;border:1px solid ${i === 0 ? 'var(--stamp-blue)' : 'var(--rule-heavy)'};padding:5px 8px;text-align:center;margin-left:-1px;color:${i === 0 ? 'var(--stamp-blue)' : 'var(--ink-faint)'}`
-      steps.appendChild(s)
-    })
+    // F5C D1: an unscored mission has no pilot step, so its strip is four steps long.
+    const drawSteps = (skipPilot: boolean): void => {
+      steps.replaceChildren()
+      ;(skipPilot ? ['1 Mission', '2 Conditions', '3 Aircraft', '4 Ordnance'] : ['1 Mission', '2 Pilot', '3 Conditions', '4 Aircraft', '5 Ordnance']).forEach((t, i) => {
+        const s = el('span', t)
+        s.style.cssText = `flex:1;border:1px solid ${i === 0 ? 'var(--stamp-blue)' : 'var(--rule-heavy)'};padding:5px 8px;text-align:center;margin-left:-1px;color:${i === 0 ? 'var(--stamp-blue)' : 'var(--ink-faint)'}`
+        steps.appendChild(s)
+      })
+    }
+    drawSteps(false)
     m.sheet.appendChild(steps)
     let selected: PickerRow | undefined = rows.find((r) => r.id === v.selected)
     const group = radioGroup('Mission')
@@ -706,6 +712,9 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
     next.disabled = true
     next.style.opacity = '.45'
     const showSelected = (): void => {
+      const skip = selected !== undefined && skipsPilotStep(selected, deps.dev.get())
+      drawSteps(skip)
+      next.textContent = skip ? 'Next: flight conditions' : 'Next: assign a pilot'
       for (const [k, e2] of optionEls) e2.setAttribute('aria-checked', String(selected !== undefined && k === `${selected.section}:${selected.id}`))
       next.disabled = selected === undefined
       next.style.opacity = selected === undefined ? '.45' : ''
@@ -753,7 +762,16 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
         group.appendChild(e2)
       }
     }
-    next.addEventListener('click', () => { if (selected !== undefined) go({ kind: 'pilot', rowId: `${selected.section}:${selected.id}` }) })
+    next.addEventListener('click', () => {
+      if (selected === undefined) return
+      // F5C D1: no pilot step for Training and Single (Dev keeps it); the sortie goes straight to Flight Conditions.
+      if (skipsPilotStep(selected, deps.dev.get()) && deps.onAssign !== undefined) {
+        view = { kind: 'choose', focus: v.focus, selected: selected.id } // Back from Form 4 reopens this selection
+        deps.onAssign({ row: selected, pilotId: null, pilotIneligible: false })
+        return
+      }
+      go({ kind: 'pilot', rowId: `${selected.section}:${selected.id}` })
+    })
     const right = el('div')
     right.append(briefHost)
     m.sheet.appendChild(buttonRow(back('Back', { kind: 'hq' }), next))
