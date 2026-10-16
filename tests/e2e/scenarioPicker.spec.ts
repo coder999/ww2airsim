@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { seaStateFor } from '../../src/render/ocean/weather.js'
 import { CLOUDINESS_OPTIONS } from '../../src/render/cloudiness.js'
 import { TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours } from '../../src/render/sky/sun.js'
-import { debriefDialog, exactBallotLabel, spawnUrl, startGame, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
+import { debriefDialog, exactBallotLabel, spawnUrl, startGame, toConditions, waitForScenario, type DiagWindow } from './harness.js'
 
 /**
- * E2E, the title screen's scenario picker. Plan 9 Task 7: picking a
+ * E2E, the scenario picker (Headquarters' Training Grounds and Single Missions rows, then the launch memos; plan F5B). Plan 9 Task 7: picking a
  * scenario no longer navigates to `?scenario=<id>` and reloads -- it swaps
  * the entity list in place, via `main.ts`'s `loadScenario`. What only a
  * browser can prove is that this stays true end to end: the URL never
@@ -24,15 +24,7 @@ test('a direct Flattop Hunt URL boots its racks-only Avenger with a legal loadou
   // rails, so validation replaced the title with a bad-content failure.
   await page.goto('/?scenario=flattop-hunt')
   await waitForScenario(page, 'flattop-hunt')
-
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Direct Flattop Test')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Missions')
-  await expect(title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Flattop Hunt' })).toBeChecked()
-  await title.getByRole('button', { name: 'Next' }).click()
+  const title = await toConditions(page, { scenario: 'Flattop Hunt' })
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await expect(title.getByRole('radiogroup', { name: 'Loadout' }).getByRole('radio', { name: 'Torpedo' })).toBeChecked()
@@ -41,55 +33,29 @@ test('a direct Flattop Hunt URL boots its racks-only Avenger with a legal loadou
 test('picking a different scenario swaps entities and its cockpit in place, with no navigation', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
   const urlBefore = page.url()
+  const title = await toConditions(page, { scenario: 'Flattop Hunt' })
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
 
-  // Select a pilot (required before New game enables -- design §3/Plan 9
-  // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
-  // pilot AND immediately presses New Game, with no gap to interact with the
-  // scenario radiogroup in between -- and this test's whole point is picking
-  // a scenario, and in some cases re-checking it, before that click. Not a
-  // gap in `startGame`; just a different job.
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Scenario Swap Test')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Missions')
-
-  const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(scenarioGroup.getByRole('radio', { name: 'Basic Flying' })).toBeChecked()
-  await expect(scenarioGroup.getByRole('radio', { name: 'Flattop Hunt' })).toBeVisible()
-
-  await scenarioGroup.getByRole('radio', { name: 'Flattop Hunt' }).check()
-  await launchFromOrders(title)
-
-  // No reload: the title hides immediately and the URL never carries
-  // `?scenario=`, unlike the pre-Task-7 navigation this replaces.
+  // No reload: the title hides immediately and the URL never carries `?scenario=`.
   await expect(title).toBeHidden()
-  // Wait for the renderer's live bundle identity via `waitForScenario`, not
-  // a `groundHeightM()` poll; the entity assertion below separately waits
-  // for the asynchronous model rebuild to finish.
+  // Wait for the renderer's live bundle identity via `waitForScenario`, not a `groundHeightM()` poll.
   await waitForScenario(page, 'flattop-hunt')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
   expect(page.url()).toBe(urlBefore)
 
-  // The real, different entity list flattop-hunt.json carries -- not
-  // free-flight's f6f-2 wingman, and not an empty/default world relabelled.
+  // The real, different entity list flattop-hunt.json carries -- not free-flight's f6f-2 wingman.
   await expect.poll(
     () => page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id).sort()),
     { timeout: 30_000 },
   ).toEqual(['avenger-1', 'avenger-2', 'avenger-3', 'avenger-4'])
 
-  // Regression, 2026-10-12: the panel was constructed once from Free
-  // Flight's Hellcat and never rebuilt by the in-page scenario switch. C
-  // therefore moved to the Avenger pilot position with no dashboard. Read
-  // the production panel family's live diagnostic rather than treating a
-  // screenshot as a correctness oracle (docs/testing.md, Philosophy).
-  // Frame samples, rather than DOM key events, drive the camera control; hold
-  // C long enough to cross a frame exactly as the shared flight sweep does.
+  // Regression, 2026-10-12: the panel was constructed once from Free Flight's Hellcat and never rebuilt by the
+  // in-page scenario switch. Read the production panel family's live diagnostic rather than a screenshot.
   await page.keyboard.down('KeyC')
   await page.waitForTimeout(400)
   await page.keyboard.up('KeyC')
@@ -103,35 +69,17 @@ test('picking a different scenario swaps entities and its cockpit in place, with
 test('picking the already-loaded scenario also stays in place (the same code path, scenarioId === requestedScenarioId)', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
   const urlBefore = page.url()
+  const title = await toConditions(page, { scenario: 'Free Flight' })
 
-  // Select a pilot (required before New game enables -- design §3/Plan 9
-  // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
-  // pilot AND immediately presses New Game, with no gap to interact with the
-  // scenario radiogroup in between -- and this test's whole point is picking
-  // a scenario, and in some cases re-checking it, before that click. Not a
-  // gap in `startGame`; just a different job.
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Same Scenario Test')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
-
-  // Free Flight is already checked (the production default).
+  // Free Flight is the production default scenario: this launch takes the same-scenario branch.
   const selectedCloudiness = CLOUDINESS_OPTIONS.find((option) => option.value === 'cloudy')!
-  await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('radiogroup', { name: 'Cloudiness' })
     .getByRole('radio', { name: exactBallotLabel(selectedCloudiness.label) }).check()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Next' }).click()
   await title.getByRole('button', { name: 'Launch' }).click()
   await expect(title).toBeHidden()
-  // This branch never calls `loadScenario` (main.ts: `scenarioId ===
-  // requestedScenarioId` skips straight to a synchronous `rebuildFrame`), so
-  // there is no async switch to race -- `waitForScenario` here is
-  // belt-and-braces, not the fix this test needed.
   await waitForScenario(page, 'free-flight')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
@@ -145,86 +93,39 @@ test('picking the already-loaded scenario also stays in place (the same code pat
   expect(coverage).toBeCloseTo(selectedCloudiness.coverage, 5)
 })
 
-test('return to title after an in-place scenario switch preselects the scenario actually loaded, not the one this boot started with', async ({ page }) => {
-  // Regression test for a bug review found in this task: `TitleScreenHandle.
-  // show()` used to take no argument, so it could only ever rebuild the
-  // scenario radiogroup off `createTitleScreen`'s OWN `currentScenarioId`
-  // closure -- fixed once at construction and never updated by a later
-  // `loadScenario` switch. A player who switched scenarios in-session, then
-  // returned to title via a debrief's "Return to title" button, saw the
-  // ORIGINAL boot scenario still checked; pressing New game without
-  // re-touching the radio silently switched back to it. `titleScreen.test.ts`
-  // has this bug's type-level contract (no DOM there); this is the real,
-  // whole-browser round trip.
+test('returning to Headquarters after an in-place scenario switch leaves a working front door', async ({ page }) => {
+  // Replaces the old "return to title preselects the scenario actually loaded" regression: Headquarters picks its
+  // scenario explicitly now, so what must hold is the round trip itself -- dive, debrief, Return to Headquarters,
+  // and a second launch of a different scenario.
   //
-  // `spawnUrl({x:0,y:120,z:0})` is a DEV override on the URL, which
-  // `main.ts`'s `loadScenario` re-applies on EVERY call (not just the
-  // initial one) -- so the airplane starts 120 m over open water no matter
-  // which scenario this test switches to, letting it reuse `contact.spec.ts`'s
-  // steep-dive-into-the-sea trick to reach a debrief quickly regardless.
+  // `spawnUrl({x:0,y:120,z:0})` is a DEV override on the URL which `main.ts`'s `loadScenario` re-applies on EVERY
+  // call, so the airplane starts 120 m over open water whichever scenario this test switches to, letting it reuse
+  // `contact.spec.ts`'s steep-dive-into-the-sea trick to reach a debrief quickly.
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(spawnUrl({ x: 0, y: 120, z: 0 }))
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
-
-  // Select a pilot (required before New game enables -- design §3/Plan 9
-  // Task 5) via the "New pilot" inline form, self-contained here rather than
-  // via harness.ts's `startGame`: that helper (since `d9c7203`) selects a
-  // pilot AND immediately presses New Game, with no gap to interact with the
-  // scenario radiogroup in between -- and this test's whole point is picking
-  // a scenario, and in some cases re-checking it, before that click. Not a
-  // gap in `startGame`; just a different job.
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Regression Test')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
-
-  const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(scenarioGroup.getByRole('radio', { name: 'Free Flight' })).toBeChecked()
-  await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await launchFromOrders(title)
-  await expect(title).toBeHidden()
-
-  // `waitForScenario`, not a `groundHeightM()` poll: see that helper's doc
-  // comment (harness.ts). This exact test failed on the reference GPU
-  // 2026-09-24 with the previous scenario's stale entity list -- root cause
-  // was `onNewGame` crashing on a real TDZ `ReferenceError` before
-  // `loadScenario` ever ran (fixed in `main.ts`, see `roster`'s declaration
-  // there); `groundHeightM()` is still the wrong signal to wait on here even
-  // with that crash gone, for the reason `waitForScenario`'s own comment
-  // gives.
+  const first = await toConditions(page, { scenario: 'Gunnery Range' })
+  await first.getByRole('button', { name: 'Next' }).click()
+  await first.getByRole('button', { name: 'Next' }).click()
+  await first.getByRole('button', { name: 'Launch' }).click()
+  await expect(first).toBeHidden()
   await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
-  // The real, different entity list, confirming the switch actually landed
-  // before this test goes on to crash and return to title.
   const ids = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
   expect(ids.sort()).toEqual(['f6f-1', 'target-1', 'target-2'])
 
   await page.keyboard.down('ArrowUp')
   await debriefDialog(page).waitFor({ timeout: 30_000 })
   await page.keyboard.up('ArrowUp')
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
 
-  const reshownTitle = page.getByRole('dialog', { name: 'Title' })
-  await expect(reshownTitle).toBeVisible()
-  // The scenario row is hidden (design §3) until a pilot is selected, same
-  // as the very first title build -- this fresh `build()` starts with no
-  // pilot selected again, so the roster persisted across the crash/return
-  // trip (`saveRoster`, roster.ts) is what makes the SAME pilot pickable
-  // here rather than needing another "New pilot" round trip.
-  // Scoped to the roster row's own button[aria-pressed] marker (set only by
-  // makePilotButton): since the Dossier sheet landed, a bare
-  // getByRole('button', { name: /Regression Test/ }) also matches that
-  // row's "Dossier: Regression Test" button and is a strict-mode violation.
-  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Regression Test' }).click()
-  await openOrdersFor(reshownTitle, 'Training Grounds')
-  const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
-  // The fix: Gunnery Range, what is ACTUALLY loaded -- not Free Flight, what
-  // this boot started with (the bug).
-  await expect(reshownScenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await expect(reshownScenarioGroup.getByRole('radio', { name: 'Free Flight' })).not.toBeChecked()
+  const second = await toConditions(page, { scenario: 'Free Flight' })
+  await second.getByRole('button', { name: 'Next' }).click()
+  await second.getByRole('button', { name: 'Next' }).click()
+  await second.getByRole('button', { name: 'Launch' }).click()
+  await waitForScenario(page, 'free-flight')
 })
 
 /**
@@ -239,7 +140,7 @@ const weatherOf = (id: string): WeatherJson =>
   (JSON.parse(readFileSync(fileURLToPath(new URL(`../../content/scenarios/${id}.json`, import.meta.url)), 'utf8')) as { weather: WeatherJson }).weather
 
 const SWITCHES = [
-  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range', cloudiness: 'Sunny' },
+  { boot: '/', from: 'free-flight', to: 'gunnery-range', label: 'Gunnery Range', cloudiness: 'Clear' },
   { boot: '/?scenario=gunnery-range', from: 'gunnery-range', to: 'airfield-strike', label: 'Airfield Strike', cloudiness: 'Overcast' },
 ] as const
 

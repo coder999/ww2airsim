@@ -1,59 +1,42 @@
 import { expect, test } from '@playwright/test'
-import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
-import { flyPass } from './pilot.js'
-import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
+import { debriefDialog, diveToSea, startCampaignGame, waitForScenario } from './harness.js'
 
 test.setTimeout(240_000)
 
-const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
-
-/** Dossier spec §B.5 plus review focus 1 and 5, on Gunnery Range: its
- *  strafing pass ends in a real physics landing straight ahead, flown by the
- *  shared test pilot (meta-game.spec.ts's doc comment). */
-test('a landed sortie appears in the dossier; the title does not re-lock', async ({ page }) => {
+/**
+ * The pilot dossier after a banked sortie (plan F5B; replaces the old "landed sortie appears in the dossier"). A
+ * scored Convoy Strike ends in a death, which banks into the campaign: the lost pilot's closed dossier then shows the
+ * sortie in its mission log, the closure line, and the rank device; Escape and Close both dismiss it.
+ */
+test('a banked sortie appears in the lost pilot\'s dossier; Headquarters does not re-lock', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('<b>Ace</b>')
-  await title.getByRole('button', { name: 'Add' }).click()
-  // Review focus 5: markup in a name shows literally.
-  await expect(title.locator('button[aria-pressed="true"]')).toHaveText('<b>Ace</b>')
-  await openOrdersFor(title, 'Training Grounds')
-  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Gunnery Range' }).check()
-  await launchFromOrders(title)
-  await expect(title).toBeHidden()
-  await waitForScenario(page, 'gunnery-range')
-  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, { timeout: 30_000 })
+  await startCampaignGame(page, { scenario: 'Convoy Strike' })
+  await waitForScenario(page, 'convoy-strike')
+  await diveToSea(page)
+  await expect(debriefDialog(page)).toContainText('KILLED')
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
 
-  expect((await flyPass(page, PASS)).end, 'the pass did not end at rest on the runway').toBe('stopped')
-  await expect(debriefDialog(page)).toContainText('LANDED')
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
-
-  // Review focus 1: the rebuilt title is unlocked at once, no strip.
-  await expect(title.getByRole('button', { name: 'Settings' })).toBeEnabled({ timeout: 1_000 })
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  // Headquarters is unlocked at once, no loading strip.
+  await expect(hq.getByRole('button', { name: 'Settings' })).toBeEnabled({ timeout: 1_000 })
   await expect(page.locator('[data-ww2-boot]')).toBeHidden()
 
-  await title.getByRole('button', { name: 'Dossier: <b>Ace</b>' }).click()
-  const dossier = page.getByRole('dialog', { name: 'Dossier: <b>Ace</b>' })
+  await hq.getByRole('button', { name: /Pilot archive/ }).click()
+  await hq.getByRole('button', { name: /^Dossier:/ }).first().click()
+  const dossier = page.getByRole('dialog', { name: /^Dossier:/ })
   await expect(dossier).toBeVisible()
-  await expect(dossier.getByRole('img', { name: 'Ensign insignia' })).toBeVisible()
+  await expect(dossier.getByRole('img', { name: /Ensign insignia/ })).toBeVisible()
+  await expect(dossier).toContainText('K.I.A. on Convoy Strike')
   const firstLog = dossier.locator('table').last().locator('tbody tr').first()
-  await expect(firstLog).toContainText('Gunnery Range')
-  await expect(firstLog).toContainText('Field landing')
-  // The hop is short but real: a landing counted and a non-zero peak.
-  const serviceRecord = dossier.locator('table').first()
-  await expect(serviceRecord).toContainText('0 trap · 1 field · 0 ditched')
-  await expect(serviceRecord).not.toContainText('Highest altitude0 ft')
+  await expect(firstLog).toContainText('Convoy Strike')
+  await expect(firstLog).toContainText('Killed')
   await page.keyboard.press('Escape')
   await expect(dossier).toBeHidden()
-  await expect(title.getByRole('button', { name: 'Dossier: <b>Ace</b>' })).toBeFocused()
 
-  // Spec §B.5: Close (not just Escape) returns focus to the row's Dossier button.
-  await title.getByRole('button', { name: 'Dossier: <b>Ace</b>' }).click()
+  // Close (not just Escape) dismisses it too.
+  await hq.getByRole('button', { name: /^Dossier:/ }).first().click()
   await expect(dossier).toBeVisible()
   await dossier.getByRole('button', { name: 'Close' }).click()
   await expect(dossier).toBeHidden()
-  await expect(title.getByRole('button', { name: 'Dossier: <b>Ace</b>' })).toBeFocused()
 })

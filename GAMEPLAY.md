@@ -95,59 +95,52 @@ per mission in the WWII USN palette (Mark, 2026-10-10). The designs are
 `RIBBONS` in `src/render/insignia.ts`; a mission without one fails
 `tests/render/insignia.test.ts`. Ribbons show in the Dossier's rack, on the
 debrief beside BADGE AWARDED, and on each mission row of the picker, faded
-until earned. Each rank is shown as its 1944 USN collar device (same file),
-in the roster, the Dossier header and beside a debrief promotion.
+until earned. Each rank is shown as its 1944 USN collar device (`rankDevice` in the same file; the Japanese devices are labeled estimates),
+in the Headquarters roster, the dossier and beside a debrief promotion.
 
-### Pilot roster
+### Headquarters and the campaign roster
 
-The main menu is a roster of pilot records:
+The front door is **Air Group Headquarters** (shipped by F5B, 2026-10-15). A new
+visitor sees **Personnel Files**: start a campaign (U.S. Navy or Imperial Japanese Navy, a player
+name) or open, export, import or delete a saved one. Import offers Replace or Cancel; there is no
+keep-both and no migration of the old roster, which is discarded. Inside a campaign the Headquarters
+shows the five-pilot roster (rank, score, record), the Commander's dossier and an Operations grid.
+Each living pilot has a service record with kills, badges and a mission log; a lost pilot's file
+stays on the roster as history and a replacement Ensign is posted.
 
-```
-name, rank, cumulativeScore, missionsFlown, sorties,
-kills (by type), badges[], status: 'active' | 'kia', resurrections,
-career { flightSeconds, landings { trap, field, ditched },
-         maxAltitudeM, maxTrueAirspeedMps },
-log[] (the latest 200 debriefs)
-```
+A scored sortie is picked mission first (the current chapter or Non-campaign missions), then a pilot
+(**Assign**), then Flight Conditions, Aircraft and Ordnance (shown as steps 3 to 5 of 5) and Launch.
+**Training** and **Single** missions sit in the same Headquarters and are **unscored**: they bank
+nothing, and the pause screen keeps Continue and Restart. A scored sortie is final: Pause offers
+**Abandon Sortie** (the sortie is forfeited and banked as lost) and no Restart, and the debrief shows
+a **Campaign Ledger** with only **Return to Headquarters**. A sortie banks exactly once, however it ends.
 
-Each roster row's **Dossier** button opens that pilot's service record,
-kills, badges and mission log (`src/render/dossier.ts`).
-Each roster row also has its own **New game** button. Starting from the row
-selects that pilot and opens the sortie forms; there is no separate disabled
-global button or hidden “select a pilot first” state.
+Which aircraft a mission offers is one table, `content/campaign/mission-aircraft.json`, read by the
+catalog and by the Aircraft form (an aircraft above the pilot's rank is dimmed, "Needs <rank>").
+P-38 is not on any list: every offered aircraft must be flyable by an entry-rank pilot.
 
-**Resurrection** flips `status` from `kia` back to `active` and increments
-`resurrections`. It does not erase the death. The roster stays simultaneously
-honest and forgiving.
+**Dev** is a checkbox in the same screens. It unlocks the Dev rows, Night takeoff, God mode and the
+whole aircraft list, and a one-click "Create dev campaign" makes a throwaway campaign. A sortie is
+scored only if nothing is overridden: any Dev override makes it unscored (`unscoredReason` in
+`src/render/campaignSession.ts`), but a Dev launch of an ordinary scored mission with no override
+still scores and still records a flight record.
 
 ### Persistence
 
-`localStorage`, key `ww2airsim.roster.v1` (`src/render/roster.ts`; the
-original IndexedDB plan was dropped, Mark's call, 2026-09-23). Records from
-before the Dossier load with a zeroed `career` and an empty `log`. JSON
-export and import exist in `roster.ts` so a pilot can survive a cleared
-browser, but no UI calls them yet (master spec §15, row 9). Save/load round-trip equality is a property test (master spec §11). Server-side
-sync against existing auth infrastructure is possible later but is not worth
-the coupling now.
+`localStorage` over the injected `StoragePort` (`src/campaign/storage.ts`; keys, the interrupted-sortie
+record and the stale-revision guard are in `docs/campaign-data.md`, "The shell"). The old
+`ww2airsim.roster.v1` key is purged at load. Export and import are in the Personnel Files screen.
 
 ### Mission selector
 
-The launch sequence is six memo forms: Squadron Roster, Flight Type, Sortie
-Orders, Flight Conditions, Aircraft Assignment and Ordnance Requisition.
-Flight Type separates operational **Missions** from the **Training Grounds**.
-It recommends that new pilots complete Basic Flying, Torpedo Qualification
-and Carrier Qualification before operational missions. Sortie Orders then
-shows only the chosen kind, with Back and Next at the top-right so a long list
-does not hide navigation below the fold.
-
-Flight Conditions chooses takeoff time and cloudiness. Cloudiness is rolled
-when the New Game screen opens, with Sunny, Partly Cloudy, Cloudy and Overcast
-equally likely; the pilot may keep the roll or select another report. The
-following forms assign the aircraft and its available clean, bomb, rocket or
-combined loadout. Aircraft figures spell out structure and subsystem **hit
-points** and list total engine power in horsepower. Stores feed their real mass
-and drag into the flight model, so the loadout screen is a performance
-decision, not decoration.
+Headquarters offers four sections: the current chapter (`content/campaign/chapters.json`), Non-campaign
+missions, Training Grounds and Single missions. The launch memos after the pilot are Flight Conditions,
+Aircraft Assignment and Ordnance Requisition. A scored mission with an authored hour locks the takeoff
+time; Dev can still pick Morning, Midday, Dusk or Night. Cloudiness is rolled when Flight Conditions
+opens (Clear, Partly Cloudy, Cloudy, Overcast equally likely) and the pilot may pick another. The
+loadout form lists the aircraft's real stores, whose mass and drag feed the flight model. Aircraft
+figures spell out hit points and list engine power in horsepower. The last form shows the Difficulty
+from Settings and, when it applies, "Not recorded: ..." for what will not bank.
 
 ### Planned Leyte campaigns (not yet shipped)
 
@@ -373,7 +366,7 @@ There is no pitch or bank gate.
 | --- | --- | --- |
 | Gear | at least 95% down | `GEAR_DOWN_FRACTION` |
 | Sink rate | 4.0 m/s or less (about 790 ft/min; a flown approach measures 1.47 m/s) | `MAX_SUPPORTED_SINK_MPS` |
-| Speed | 1.42 × current (flap-adjusted) stall speed or less, while descending | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
+| Speed | 1.42 × the clean stall speed (139 mph for the F6F) or less, at any flap setting, while descending (Mark 2026-10-15: flaps used to lower this to 120 mph) | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
 
 Speed and sink are judged relative to the surface, so a moving deck counts as
 at rest.

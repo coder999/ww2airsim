@@ -109,7 +109,7 @@ for (const tier of ['high', 'medium', 'low'] as const) {
       await page.waitForFunction(() => (window as DiagWindow).__ww2?.groundHeightM() !== null
         && (window as DiagWindow).__ww2?.groundHeightM() !== undefined)
       await expect(page.getByRole('dialog', { name: 'Title' })).toBeVisible()
-      await page.getByRole('dialog', { name: 'Title' }).evaluate((el) => { el.style.visibility = 'hidden' })
+      await page.evaluate(() => document.querySelectorAll('[data-ww2-title], [data-ww2-hq]').forEach((el) => { (el as HTMLElement).style.visibility = 'hidden' }))
       await page.waitForTimeout(1000)
       expect(await page.evaluate(() => (window as DiagWindow).__ww2!.clouds().tier)).toBe(tier)
       expect(await page.evaluate(() => (window as DiagWindow).__ww2!.clouds().renderer)).toBe('takram-tsl')

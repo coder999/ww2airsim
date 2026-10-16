@@ -8,7 +8,7 @@ const combinedCumulusCoverage = (layers: readonly CloudLayer[]): number =>
 describe('sortie cloudiness', () => {
   it('offers the four weather reports in increasing cloud-cover order', () => {
     expect(CLOUDINESS_OPTIONS.map(({ value, label }) => ({ value, label }))).toEqual([
-      { value: 'sunny', label: 'Sunny' },
+      { value: 'sunny', label: 'Clear' },
       { value: 'partly-cloudy', label: 'Partly Cloudy' },
       { value: 'cloudy', label: 'Cloudy' },
       { value: 'overcast', label: 'Overcast' },

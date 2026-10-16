@@ -36,10 +36,12 @@ const fixtureWind = (page: Page) =>
  * (spec §3: "preselected and changeable") and flies with Both. Since the
  * sortie forms the loadout is on Form 6, so this walks there and launches.
  */
-async function flyWithBoth(title: Locator) {
-  await title.getByRole('button', { name: 'Next' }).click()
-  await title.getByRole('button', { name: 'Next' }).click()
-  await title.getByRole('button', { name: 'Next' }).click()
+async function flyWithBoth(page: Page, hq: Locator) {
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await title.getByRole('button', { name: 'Next' }).click() // Flight Conditions -> Aircraft
+  await title.getByRole('button', { name: 'Next' }).click() // Aircraft -> Ordnance
   const loadout = title.getByRole('radiogroup', { name: 'Loadout' })
   await expect(loadout.getByRole('radio', { name: 'Clean (recommended)' })).toHaveAttribute('aria-checked', 'true')
   await loadout.getByRole('radio', { name: 'Both' }).check()
@@ -53,21 +55,21 @@ const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true
 const steeringCue = (page: Page) => page.getByLabel('Steering cue', { exact: true })
 const mission = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.mission())
 
-async function orders(page: Page, pilot: string) {
+/** Headquarters with Dev on, a campaign open, on the Training grounds and Single missions picker. The fixtures are
+ *  Dev-only (sortie spec A1) and so UNSCORED (plan F5B): they show the mission UI, banking nothing. */
+async function orders(page: Page, _pilot: string) {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  // The fixtures are Dev-only (sortie spec A1); `recordDevSorties` (SF-R6)
-  // keeps the badge and Dossier this spec proves.
-  await page.goto('/?recordDevSorties')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill(pilot)
-  await title.getByRole('button', { name: 'Add' }).click()
-  await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
-  await title.getByRole('button', { name: 'New game' }).click()
-  await title.getByRole('radiogroup', { name: 'Flight type' }).getByRole('radio', { name: 'Missions' }).check()
-  await title.getByRole('button', { name: 'Next' }).click()
-  return title
+  await page.goto('/')
+  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await hq.waitFor({ timeout: 60_000 })
+  await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
+  await hq.getByRole('button', { name: 'Create dev campaign (U.S.)' }).click()
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  return hq
 }
+
+const fixtureRow = (hq: Locator, label: string) => hq.locator('[role="radio"][data-section="single"]').filter({ hasText: label })
 
 async function onStrip(page: Page, id: string) {
   await waitForScenario(page, id)
@@ -103,17 +105,15 @@ async function expectNoHudOverlap(page: Page, required = ['Objective', 'Radio', 
 }
 
 test('briefing, objective line, radio line, held-group spawn, chart, debrief, badge, stamp and dossier', async ({ page }) => {
-  const title = await orders(page, 'Mission UI Pilot')
-  const scenario = title.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(scenario).not.toContainText('Free Flight')
-  await scenario.getByRole('radio', { name: 'UI Fixture (dev)' }).check()
-  const briefing = title.getByRole('region', { name: 'Briefing' })
+  const hq = await orders(page, 'Mission UI Pilot')
+  await fixtureRow(hq, 'UI Fixture (dev)').click()
+  const briefing = hq.getByRole('region', { name: 'Briefing' })
   await expect(briefing).toContainText('DEV FIXTURE. Take off from Tacloban')
   for (const text of ['PRIMARY', 'Take off', 'Recover', 'SECONDARY', 'Target', '1400 local', await fixtureWind(page), 'Clear', 'UI Fixture Wings (dev)']) {
     await expect(briefing).toContainText(text)
   }
   await page.screenshot({ path: 'test-results/m2-briefing.png' })
-  await flyWithBoth(title)
+  await flyWithBoth(page, hq)
   await onStrip(page, 'dev-mission-ui')
 
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
@@ -151,21 +151,17 @@ test('briefing, objective line, radio line, held-group spawn, chart, debrief, ba
   }
   await page.screenshot({ path: 'test-results/m2-debrief.png' })
 
-  await debrief.getByRole('button', { name: 'Return to title' }).click()
-  await title.locator('button[aria-pressed]').first().click()
-  await title.getByRole('button', { name: 'New game' }).click()
-  await title.getByRole('button', { name: 'Next' }).click()
-  await expect(title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'UI Fixture (dev)' })).toContainText('AWARDED')
-  await title.getByRole('button', { name: 'Back' }).click()
-  await title.getByRole('button', { name: 'Back' }).click()
-  await title.getByRole('button', { name: 'Dossier: Mission UI Pilot' }).click()
-  await expect(page.getByRole('dialog', { name: 'Dossier: Mission UI Pilot' })).toContainText('UI Fixture Wings (dev)')
+  // A Dev fixture is unscored: the badge shows on the debrief but is not banked, so Return to Headquarters finds the
+  // campaign unchanged. (The scored badge path is `campaignBank.test.ts` and `bankScored`'s badgeId.)
+  await debrief.getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { banked: 0 } })
 })
 
 test('steering cue follows the current objective and a chart override', async ({ page }) => {
-  const title = await orders(page, 'Steering Cue Pilot')
-  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'UI Fixture (dev)' }).check()
-  await flyWithBoth(title)
+  const hq = await orders(page, 'Steering Cue Pilot')
+  await fixtureRow(hq, 'UI Fixture (dev)').click()
+  await flyWithBoth(page, hq)
   await onStrip(page, 'dev-mission-ui')
 
   await expect(objectiveLine(page)).toHaveText('TAKE OFF')
@@ -208,9 +204,9 @@ test('steering cue follows the current objective and a chart override', async ({
 })
 
 test('an intermediate landing shows on the radio line and the flight continues (spec §2.4)', async ({ page }) => {
-  const title = await orders(page, 'Circuit Pilot')
-  await title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio', { name: 'Circuit Fixture (dev)' }).check()
-  await flyWithBoth(title)
+  const hq = await orders(page, 'Circuit Pilot')
+  await fixtureRow(hq, 'Circuit Fixture (dev)').click()
+  await flyWithBoth(page, hq)
   await onStrip(page, 'dev-mission-circuit')
   await expect(objectiveLine(page)).toHaveText('CIRCUIT 0/2')
 

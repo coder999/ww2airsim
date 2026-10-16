@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { type DiagWindow } from './harness.js'
+import { toConditions as headquartersToConditions, type DiagWindow } from './harness.js'
 import { DEV_TAKEOFF_HOURS } from '../../src/render/sky/sun.js'
 
 /**
@@ -10,20 +10,7 @@ test.setTimeout(150_000)
 
 async function toConditions(page: Page, dev: boolean) {
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
-  const existingPilot = title.locator('button[aria-pressed]').first()
-  if (await existingPilot.isVisible()) await existingPilot.click()
-  else {
-    await title.getByRole('button', { name: 'New pilot' }).click()
-    await title.getByPlaceholder('Pilot name').fill('Test Pilot')
-    await title.getByRole('button', { name: 'Add' }).click()
-  }
-  if (dev) await title.getByRole('checkbox', { name: 'Dev — unlocks everything' }).check()
-  await title.getByRole('button', { name: 'New game' }).first().click()
-  await title.getByRole('button', { name: 'Next' }).click() // flight type
-  await title.getByRole('button', { name: 'Next' }).click() // scenario
-  return title
+  return headquartersToConditions(page, { dev })
 }
 
 test('night takeoff times are offered only while Dev is checked', async ({ page }) => {

@@ -77,3 +77,13 @@ export function makeCampaign(args: {
   if (!v.ok) throw new Error(`fixture produced an invalid campaign: ${JSON.stringify(v.issues)}`)
   return c
 }
+
+const TIERS: Tier[] = [1, 2, 3, 4, 5, 6]
+/** All 252 multisets of five live tiers (the F5A state space, shared with the UI proof of F5B). */
+export function tierMultisets(): [Tier, Tier, Tier, Tier, Tier][] {
+  const out: [Tier, Tier, Tier, Tier, Tier][] = []
+  for (const a of TIERS) for (const b of TIERS) for (const c of TIERS) for (const d of TIERS) for (const e of TIERS) {
+    if (a <= b && b <= c && c <= d && d <= e) out.push([a, b, c, d, e])
+  }
+  return out
+}

@@ -7,11 +7,11 @@ import { describe, expect, it } from 'vitest'
 import {
   bankSortie, checkInvariants, exportCampaign, importCampaign, launchSortie, lifeline, loadCampaign, missionLock,
   saveCampaign, zeroCounts, DEFAULT_POOLS, offers,
-  type Campaign, type Faction, type MissionDescriptor, type SortieEndKind, type SortieReport, type Tier,
+  type Campaign, type Faction, type MissionDescriptor, type SortieEndKind, type SortieReport,
 } from '../../src/campaign/index.js'
 import { loadAircraftSpec } from '../../tools/content/load.js'
 import { plannedCatalog, shippedCatalog } from '../fixtures/catalog.js'
-import { makeCampaign } from '../fixtures/campaign.js'
+import { makeCampaign, tierMultisets } from '../fixtures/campaign.js'
 import { startWalk, walkRng, walkStep } from '../fixtures/walk.js'
 import { NOW } from './helpers.js'
 
@@ -38,14 +38,7 @@ describe('layer 1: each faction ships an entry-rank non-campaign mission', () =>
 
 // ---- layer 2: the exhaustive abstract model check -------------------------------------------------
 
-const TIERS: Tier[] = [1, 2, 3, 4, 5, 6]
-function multisets(): [Tier, Tier, Tier, Tier, Tier][] {
-  const out: [Tier, Tier, Tier, Tier, Tier][] = []
-  for (const a of TIERS) for (const b of TIERS) for (const c of TIERS) for (const d of TIERS) for (const e of TIERS) {
-    if (a <= b && b <= c && c <= d && d <= e) out.push([a, b, c, d, e])
-  }
-  return out
-}
+const multisets = tierMultisets
 
 /** Every terminal outcome: SortieEndKind x success x difficulty x friendly destruction, without the combinations that are the same sortie (difficulty only matters on a success that is not forfeit). */
 const OUTCOMES: { name: string; over: Partial<SortieReport>; difficulty: 'easy' | 'normal' | 'hard' }[] = (() => {

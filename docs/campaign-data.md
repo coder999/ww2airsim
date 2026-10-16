@@ -51,6 +51,20 @@ exports, not edits to a persisted shape.
 | `exchange.ts` | `exportCampaign`, `importCampaign`, `campaignFromJson` |
 | `storage.ts` | `saveCampaign`, `loadCampaign`, `listCampaigns`, `deleteCampaign`, the profile, over an injected `StoragePort` |
 
+## The shell (F5B, 2026-10-15)
+
+`src/render/campaignSession.ts` is the only code that touches storage and the reducers. It owns the
+open campaign, `launchSortie` before takeoff (the pending sortie is persisted so a reload resumes as
+interrupted), `bankSortie` exactly once per sortie (a latch), abandon-as-lost, the stale-revision guard
+and the purge of the legacy roster key. `campaignBank.ts` turns a finished sortie into the debrief's
+Campaign Ledger. `src/render/hq/` is the UI: `model.ts` (screen state), `launchRules.ts` (what a row,
+pilot and aircraft allow), `missionAircraft.ts` (reads `content/campaign/mission-aircraft.json`),
+`chapters.ts` (reads `content/campaign/chapters.json`).
+**Unscored rule:** Training, Single and any Dev override never call `launchSortie` (`unscoredReason`).
+**F6/F7 seam:** a new chapter or mission is a row in `chapters.json` plus its aircraft in
+`mission-aircraft.json`; `tests/render/hq/missionAircraft.test.ts` fails if any offered aircraft is
+refused by `eligibility`. Nothing in `src/campaign/` changed for F5B.
+
 ## How the sim feeds it
 
 `AircraftCombat.tagged` and `tagCredits` (`src/sim/weapons/combat.ts`) are the sim half of destruction credit.
