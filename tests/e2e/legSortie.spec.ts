@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { debriefDialog, hopClear, landAndStop, quickLaunch, startCampaignGame, startGame, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, hopClear, landAndStop, quickLaunch, startCampaignGame, startGame, stopAtThreshold, waitForScenario, type DiagWindow } from './harness.js'
 
 /**
  * F5C (2026-10-16): multi-leg sorties in a real browser. A full stop at a friendly base raises the stop card (Continue
@@ -23,6 +23,8 @@ test('a scored hop: the landing banks a leg and raises the stop card; Continue r
   const launched = await campaign(page)
   expect(launched?.pending).toMatchObject({ missionId: 'airfield-strike', legs: [], bankedPoints: 0 })
 
+  // Airfield Strike spawns at the strip's centre; the hop helpers are tuned for the threshold, so start there.
+  await stopAtThreshold(page)
   await hopClear(page)
   await landAndStop(page, 'debrief')
   const card = debriefDialog(page)

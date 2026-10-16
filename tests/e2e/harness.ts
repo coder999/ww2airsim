@@ -442,6 +442,20 @@ export async function hopClear(page: Page): Promise<void> {
 }
 
 /**
+ * F5C: moves a parked aircraft from the runway's centre to the takeoff threshold through the real ground stop (the DEV
+ * hook `__ww2.groundStop`, same recorded path as Continue Sortie), so `hopClear` and `landAndStop` -- tuned for the
+ * z = +700 spot of the Dev fixtures -- work in a mission that spawns at `runwayCenter`. Ends at rest on the threshold.
+ */
+export async function stopAtThreshold(page: Page, loadout = 'both'): Promise<void> {
+  const before = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraftPositionM())
+  expect(await page.evaluate((l) => (window as DiagWindow).__ww2!.groundStop(l), loadout), 'not at rest on a friendly base').toBe(true)
+  await page.waitForFunction(([x, z]) => {
+    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
+    return Math.hypot(p.x - x!, p.z - z!) > 100 && (window as DiagWindow).__ww2!.supportedContact()
+  }, [before.x, before.z] as const, { timeout: 15_000 })
+}
+
+/**
  * From wherever `hopClear` left the airplane: the test pilot's landing onto
  * Tacloban's runway ahead (see the body), then brakes held until `until`: the debrief dialog, or (`'stopped'`) the mission log
  * recording a NEW landing -- more landing entries than when this call began

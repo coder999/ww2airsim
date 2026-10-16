@@ -22,11 +22,15 @@ not this file.
 
 ### Scoring
 
-Points **bank however the flight ends** — landed, ditched or killed (Mark,
-2026-09-27). Unlike the 1991 original, the game resurrects pilots, so death is
-not the end of a career and a pilot whose points cross a threshold is promoted
-posthumously. What a ditching or a death costs is the **badge**: a mission's
-badge needs a landing (see Badges). **Destroying** something on your own side
+Points **bank at each landing at a friendly base**, for good (Mark, 2026-10-16;
+"The sortie, the stop and the recovery rule" below). A ditching or a rescue banks
+what you earned since your last landing. A **death or a capture, and Abandon,
+forfeit only the points not yet banked**: whatever an earlier landing banked stays
+(F5C; until then, since 2026-09-27, a death banked everything it had earned).
+Unlike the 1991 original, the game resurrects pilots, so death is not the end of a
+career; a pilot whose banked points cross a threshold is promoted, and the
+promotion takes effect from the next sortie. A ditching or a death still costs the
+**badge**: a mission's badge needs a landing at a friendly base (see Badges). **Destroying** something on your own side
 forfeits the whole sortie, 0 points, however it ends (since F5A, 2026-10-14);
 merely damaging it earns a radio warning and nothing more. A friendly ship counts
 as destroyed when its hull reaches the bottom, 90 seconds after the killing blow.
@@ -53,7 +57,7 @@ Recovery multiplier applied to the mission total:
 | --- | --- |
 | Landed at carrier or airfield | 1.0 |
 | Ditched | 1.0 |
-| Killed | 1.0 |
+| Killed | 1.0 (the figures shown; the points not banked at an earlier landing are forfeit) |
 | Any of the above after friendly fire | 0 (forfeit) |
 
 ### Ranks
@@ -86,8 +90,8 @@ unchanged.
 ### Badges
 
 Objective-based, not score-based. Each scenario defines named objectives;
-completing them and then landing awards that scenario's badge; a ditching or a
-death earns none (`src/sim/mission/outcome.ts`). This deliberately rewards
+completing them and then landing at any friendly base awards that scenario's badge
+(one per mission per pilot); a ditching or a death earns none (`src/sim/mission/outcome.ts`). This deliberately rewards
 flying the brief, and bringing the airplane home, over farming kills.
 
 Each badge is shown as a ribbon: invented, not a real decoration, one design
@@ -111,9 +115,12 @@ stays on the roster as history and a replacement Ensign is posted.
 A scored sortie is picked mission first (the current chapter or Non-campaign missions), then a pilot
 (**Assign**), then Flight Conditions, Aircraft and Ordnance (shown as steps 3 to 5 of 5) and Launch.
 **Training** and **Single** missions sit in the same Headquarters and are **unscored**: they bank
-nothing, and the pause screen keeps Continue and Restart. A scored sortie is final: Pause offers
-**Abandon Sortie** (the sortie is forfeited and banked as lost) and no Restart, and the debrief shows
-a **Campaign Ledger** with only **Return to Headquarters**. A sortie banks exactly once, however it ends.
+nothing, and the pause screen keeps Continue and Restart. They have **no pilot step** (F5C, Mark
+2026-10-16): the picker goes straight to Flight Conditions (steps 2 to 4 of 4) at a fixed Ensign
+practice rank. **Dev** keeps the pilot step on every row. A scored sortie has no Restart: Pause offers
+**Abandon Sortie** (the unbanked points are forfeited and the sortie is banked as lost), and every
+landing at a friendly base raises a stop card with a **Campaign Ledger** (see "The sortie, the stop and
+the recovery rule"). A sortie closes exactly once, however it ends.
 
 Which aircraft a mission offers is one table, `content/campaign/mission-aircraft.json`, read by the
 catalog and by the Aircraft form (an aircraft above the pilot's rank is dimmed, "Needs <rank>").
@@ -274,14 +281,47 @@ score.
 #### Campaign structure and missions
 
 Campaign chapters unlock and must be completed in sequence. Success requires both
-the primary objective and the mission's authored recovery: use the reachable
-carrier, runway, or seaplane anchorage when it exists; a friendly egress boundary
+the primary objective and a landing at **any friendly base** (F5C, Mark 2026-10-16:
+the authored recovery point is only the suggested one; a friendly egress boundary
 is valid only when the historically appropriate recovery point lies outside the
-playable world. A normal failure banks destruction points but does not award the
+playable world). A normal failure banks destruction points but does not award the
 badge, change canonical campaign state, or unlock the next chapter. The chapter
 remains available to retry with any eligible living pilot. A chapter that has been
-completed is not replayable; Non-Campaign Missions always are. In a campaign a
-landing ends the sortie: there is no Continue, and the result is banked once.
+completed is not replayable; Non-Campaign Missions always are. The chapter completes
+at the **first qualifying landing**; later flying earns more points but cannot undo it.
+
+##### The sortie, the stop and the recovery rule
+
+A **sortie** runs from launch to its end; a **leg** runs from a takeoff to a full stop on a
+friendly airfield, carrier deck or anchorage (F5C, Mark 2026-10-16).
+
+- **Any friendly base counts.** Friendly means held by your side in the mission's world at that
+  time: an airfield by its side (a scenario may hand one to the other side), a ship by its side,
+  and a seaplane anchorage the scenario declares or a friendly ship within 1.2 mi. Once the
+  primary objective is met the objective line reads **Land at any friendly base** and the steering
+  cue points to the nearest friendly site your aircraft can use (a carrier only for a
+  carrier-capable airplane, water only for a flying boat). No lesser successes: every recovery
+  multiplier is x1.0.
+- **A full stop prompts; nothing else does.** Touching down and stopping on a friendly base raises
+  the full debrief as a **stop card** with **Continue Sortie** and **End Sortie**. A touch-and-go, a
+  go-around, a stop on open ground, at an enemy-held field or on water away from a friendly
+  anchorage never does: that landing ends the sortie as it always did. Training and Single
+  missions get the same card; nothing banks either way.
+- **Each landing banks.** The points earned since the last bank are permanent, with the badge and
+  any promotion announced then (the Campaign Ledger shows the landing's bank). The badge needs the
+  primary objective only, once per mission per pilot. A promotion takes effect from the *next*
+  sortie: rank gates (aircraft, bombsight, torpedosight) are fixed at launch for the whole sortie.
+- **Continue Sortie** keeps the same aircraft and pilot, refuels, repairs and rearms them to a
+  loadout you choose from the aircraft's allowed ones, and repositions them with a short fade:
+  on a runway, at the threshold of the end facing the wind; on a carrier, at the launch spot of
+  the moving deck (the ship keeps steaming); on the water, where you stopped, into the wind (if a
+  ship is too close the card says why and offers End Sortie only). The mission clock, the time
+  of day, the weather, the AI and the ships do not jump. There is no taxiing.
+- **End Sortie** closes it. A death, a capture, Abandon, a friendly kill or a closed tab forfeits
+  only what was not yet banked; a killed or captured pilot is still lost and replaced. The sortie
+  counts once in the adjusted score however many landings it made, and the mission log shows one
+  entry with its landings inside.
+- Flap-landing, bailout (**J**) and being rescued are never a mission success.
 
 Repeatable **Non-Campaign Missions** are always available inside headquarters to
 earn points and develop replacement pilots without advancing the story or changing
@@ -362,12 +402,14 @@ scenes and epilogues, after their results are safely banked.
 
 Campaign state autosaves between sorties in a versioned, exportable record. The
 initial campaign does not support mid-flight save/resume: an active sortie must be
-completed, abandoned, or restarted. Development flight recordings are diagnostic
+completed, abandoned, or restarted. Closing the tab mid-sortie abandons it; what its earlier
+landings banked stays. Development flight recordings are diagnostic
 replays, not player save slots.
 
 ### In-flight guidance
 
-The objective line names the current job. The steering cue sits in the scene:
+The objective line names the current job; once the primary objective is met it reads **Land at any
+friendly base** and the cue aims at the nearest friendly site your aircraft can use. The steering cue sits in the scene:
 an amber arrow floating ahead of the nose, a little above the gun line, turned
 the way to the destination, with its name and range in miles beside it. Once
 the destination is in front of you and on screen, the arrow gives way to an
@@ -380,7 +422,8 @@ destination until the selection disappears or is destroyed.
 
 Post-mission: targets destroyed with per-item points, mission total, recovery
 multiplier applied, banked total, badges awarded, and any promotion. The header names the mission flown and,
-for a banked campaign sortie, its chapter and pilot.
+for a banked campaign sortie, its chapter and pilot. A landing at a friendly base shows the same card as
+a **stop card** (Continue Sortie, End Sortie, the Ordnance choice for the next leg, and the landing's bank).
 
 ### Landing and ditching rules
 
