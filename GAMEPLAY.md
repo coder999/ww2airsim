@@ -54,8 +54,6 @@ Recovery multiplier applied to the mission total:
 | Landed at carrier or airfield | 1.0 |
 | Ditched | 1.0 |
 | Killed | 1.0 |
-| Rescued after bailout | 1.0 |
-| Captured after bailout | 1.0 |
 | Any of the above after friendly fire | 0 (forfeit) |
 
 ### Ranks
@@ -318,20 +316,32 @@ and anchorage lamps, blackout-controlled ship and harbor lights, documented Leyt
 navigation lights, fires, tracers, and authored flares make the night chapters
 playable. A4, J4, and J5 are the initial night missions.
 
-Press **J** to bail out of a still-airborne aircraft. The pilot separates from the
-airframe, the abandoned aircraft continues under neutral controls, and a generic
-wartime parachute opens after two seconds when there is enough height. An exit below
-15 m AGL is refused; an exit below 75 m AGL cannot complete a safe canopy descent.
-Wind carries the parachute to land, water, or a carrier deck.
+Press **J** once to bail out of a still-airborne aircraft; there is no confirmation
+step. The pilot separates from the airframe, the abandoned aircraft flies on with
+neutral controls (it cannot fire, and what it hits is still charged to you, friendly
+or enemy), and a generic wartime parachute opens two seconds after the jump when there
+is enough height. A jump from under about 49 ft above the ground is refused with an
+on-screen message; anything else is allowed, however fast, inverted or stalled the
+airplane is, and the physics decides whether you live. About 246 ft is needed for a
+safe descent, and you come down at about 18 ft/s; **all of these numbers are estimates**
+(`src/sim/bailoutTuning.ts`). Wind carries the parachute to land, water, or a carrier
+deck, and the canopy sways a little as it falls.
 
-Friendly rescue or overwhelming enemy control gives deterministic rescue or capture;
-contested locations use a recorded seeded decision based on territory, nearby bases
-and ships, rescue/enemy assets, surface, weather, visibility, and time. The HUD gives
-only a qualitative **Rescue likely**, **Contested**, or **Capture likely** indication
-before exit; the debrief records the actual evidence. The reusable bailout, parachute,
-and recovery foundation ships in F7A. Campaign POW archival and automatic roster
-replacement, plus J5's mass paratrooper drop, remain F7B work. There is no modern
-ejection seat and no initial prisoner-recovery mission.
+Friendly rescue or overwhelming enemy control gives rescue or capture outright;
+contested locations use a seeded decision based on territory, nearby bases and ships,
+rescue and enemy presence, surface, weather, visibility, and time. The seed is chosen
+when you press **J** and recorded with the flight. Before you jump, the HUD gives only
+a qualitative **Rescue likely**, **Contested**, or **Capture likely** indication,
+judged where the canopy would come down; the debrief records the actual evidence.
+
+**A bailout is never a mission success.** A rescued pilot returns and the sortie keeps
+the points already earned, but there is no badge, no completion or difficulty bonus and
+no campaign progress. A captured pilot is closed as a prisoner of war and replaced by
+an entry-rank pilot (the campaign ledger already does both). A jump that cannot be
+survived is a death. The sortie ends when you touch down. What is left for F7B is the
+presentation of those results (the prisoner and replacement in the debrief and the
+archive, the pickup shown at the landing spot) and J5's mass paratrooper drop. There
+is no modern ejection seat and no initial prisoner-recovery mission.
 
 Tacloban, Dulag, Buri, Bayug, San Pablo, Tanauan, Ormoc, the beachhead, ports, and
 naval/seaplane areas use consistent canonical layouts. Construction, damage,

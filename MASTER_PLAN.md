@@ -366,21 +366,24 @@ budget and accessibility checks.
 
 Consumes the F5A contract: `SortieEndKind` `rescued`/`captured`, `SortieFacts` for the bailout seed, automatic replacement (`docs/campaign-data.md`).
 
-**F7A bailout and rescue foundation done 2026-10-14:** deliberate player
-bailout, fixed-tick pilot/airframe separation, the approved parachute rig,
-wind-aware land/water/deck contact, deterministic and recorded recovery,
-qualitative risk guidance, debrief/scoring integration, and exact recorder
-reproduction are implemented and reference-GPU proven. Handoff and final
-captures: [`docs/handoff/2026-10-14-f7a-bailout-rescue.md`](docs/handoff/2026-10-14-f7a-bailout-rescue.md).
-**F7B remains open:** campaign POW archival/replacement and J5's mass
-paratrooper integration consume the F7A entity and recovery contract.
+**F7A bailout and rescue foundation (rebased onto F5B, 2026-10-15):** a single press of `J` bails out;
+only a jump from under about 49 ft is refused (message on screen), everything else is allowed and the physics
+decides. Fixed-tick pilot/airframe separation, the approved parachute rig with a view-only sway, wind-aware
+land/water/deck contact, a seeded rescue decision whose seed is chosen at the press and recorded in the flight
+record, a qualitative pre-jump cue, and the debrief. The sim decides success: `rescued` and `captured` are never a
+mission success (`src/sim/mission/outcome.ts`), and the shell banks them through `session.bank` as `SortieEndKind`
+`rescued`, `captured` or `killed`. `src/campaign/` is untouched: F5A's `bankSortie` already closes a captured pilot as
+a POW, refills the five-pilot roster and counts rescues. Plan: [`docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md`](docs/superpowers/plans/2026-10-15-f7a-bailout-rescue-revised.md); handoff: [`docs/handoff/2026-10-15-f7a-bailout-rescue.md`](docs/handoff/2026-10-15-f7a-bailout-rescue.md).
+**F7B remains open, and is smaller than first written:** presentation of the POW and replacement results F5A
+already banks (debrief and archive), generic rescue visuals (a raft or launch at a water touchdown), and J5's mass
+paratrooper drop reusing the F7A entity and the canopy sway. F10 owns the A4 scripted raft, boat and buoy.
 
 
 Add deliberate bailout from a still-airborne aircraft, pilot/airframe separation,
 parachute descent and surface contact, deterministic extreme rescue/capture results,
-recorded seeded contested results, qualitative pre-bailout risk, debrief evidence,
-permanent initial-campaign POW archives, and five-pilot roster replacement. Reuse
-the approved pilot/parachute rig and simulation foundation for J5's paratrooper
+recorded seeded contested results, qualitative pre-bailout risk, and debrief evidence
+(F7A, done). F7B presents the POW archive and roster replacement that F5A already banks.
+Reuse the approved pilot/parachute rig and simulation foundation for J5's paratrooper
 drop. There is no modern ejection seat and no initial prisoner-recovery mission.
 
 **Acceptance gate:** impossible and low-altitude bailout, friendly rescue, capture,

@@ -33,10 +33,15 @@ exports, not edits to a persisted shape.
 - **`SortieFacts` reserved keys.** `launchSortie` writes `aircraft` and `loadout` into `pending.facts` (the
   frozen `PendingSortie` has no field for either, and the log entry needs both). F6 and F7 hang their own keys
   beside them and must not reuse those two.
-- **F7A recovery boundary.** The simulator now resolves a survived bailout to `rescued` or `captured` and
-  preserves the recovery seed and evidence in deterministic world/recorder state. F7B remains the owner of
-  translating `captured` into a permanent POW archive, filling the five-pilot roster vacancy, and writing the
-  campaign-specific bailout facts beside the two reserved launch keys.
+- **F7A recovery boundary (2026-10-15).** The simulator resolves a bailout to `rescued`, `captured` or `killed`
+  and the shell banks it through `session.bank` (`SORTIE_END_OF`, `src/render/campaignSession.ts`). **`bankSortie`
+  already does the campaign half**: `captured` closes the pilot as `pow` and refills the roster in the same call,
+  `rescued` keeps the pilot and counts a rescue (`tests/render/campaignBank.test.ts`, "after a bailout"). A bailout
+  is never a success: the sim decides (`missionOutcome`), and `bankScored` forces `success` false for every end but
+  `landed`. F7A writes no `SortieFacts` key and `src/campaign/` is untouched. The seed and the resolver evidence live
+  in the debrief and the Dev flight record, not the campaign log (`LogEntry` has no field for them; persisting them
+  would be a `schemaVersion` bump). F7B's remaining scope: showing the POW and replacement in the debrief and the
+  archive, rescue visuals, and J5's paratroopers.
 - **One transaction per sortie.** `bankSortie` is called exactly once per sortie (D12: a landing ends the sortie
   in campaign mode, no Continue). A sortie left pending at load is an abandonment (D7), applied by `loadCampaign`.
 

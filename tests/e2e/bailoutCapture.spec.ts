@@ -21,6 +21,8 @@ test('collects final bailout, rescue, and capture evidence', async ({ page }) =>
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.bailout()), { timeout: 10_000 })
     .toMatchObject({ phase: 'canopy', modelVisible: true })
   await page.screenshot({ path: `${OUT}/01-canopy-over-tacloban.png` })
+  await page.waitForTimeout(1_500) // the sway: a second frame of the same descent
+  await page.screenshot({ path: `${OUT}/01b-canopy-sway.png` })
   await page.keyboard.press('KeyT')
   await debriefDialog(page).waitFor({ timeout: 60_000 })
   await expect(debriefDialog(page)).toContainText('RESCUED')
@@ -51,4 +53,10 @@ test('collects final bailout, rescue, and capture evidence', async ({ page }) =>
   await debriefDialog(page).waitFor({ timeout: 60_000 })
   await expect(debriefDialog(page)).toContainText('KILLED')
   await page.screenshot({ path: `${OUT}/05-low-altitude-failure.png` })
+
+  await page.goto(url({ x: 0, y: 9, z: 0 }))
+  await waitForTerrain(page)
+  await page.keyboard.press('KeyJ')
+  await expect(page.getByText(/TOO LOW TO BAIL OUT/)).toBeVisible({ timeout: 5_000 })
+  await page.screenshot({ path: `${OUT}/06-too-low-refused.png` })
 })

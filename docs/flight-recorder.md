@@ -18,8 +18,9 @@ digests, launch settings, fixed-tick controls, discrete actions/events,
 one-second checksums, and final/debrief state. It does not contain terrain,
 models, textures, or audio.
 
-A bailout is a V1 tick-boundary action. It records the aircraft and the frozen
-daylight, visibility, weather, and sea-state inputs used by recovery. Separation,
+A bailout is a V1 tick-boundary action. It records the aircraft, the rescue die's seed (chosen at the key press and
+replayed from the record, never recomputed) and the frozen daylight, visibility, weather, and sea-state inputs used
+by recovery. Separation,
 surface contact, and the seeded rescue/capture result then remain ordinary
 fixed-tick world state, so verification reproduces the complete lifecycle rather
 than injecting an outcome after the simulation step.

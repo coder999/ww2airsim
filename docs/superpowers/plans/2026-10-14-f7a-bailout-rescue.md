@@ -1,5 +1,7 @@
 # F7A Bailout and Rescue — implementation plan
 
+> **Superseded 2026-10-15** by [2026-10-15-f7a-bailout-rescue-revised.md](2026-10-15-f7a-bailout-rescue-revised.md), which corrects several claims here (the 28 ft canopy, F7B owning POW closure, the recorded seed, a 1.0 recovery multiplier). Kept as history.
+
 **Date:** 2026-10-14
 **Branch/worktree:** `plan-f7a-bailout-rescue` / `/home/mark/projects/ww2airsim-plan-f7a-bailout-rescue`
 **Base:** `b1dda8a4837ad27c129614857c3c317237fbfefa`
