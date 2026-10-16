@@ -32,8 +32,7 @@ merged in, and the rework below runs on top. Plan: `docs/superpowers/plans/2026-
 No dev slot is reserved. A loopback dev server for this branch was started on nexus port 5190 (`npx vite --port 5190`,
 loopback only). **Tell me when you want a tunneled slot** (5174 is F6B's, 5175 the lighting fix's).
 
-Reference captures, taken on nexus's local GPU (a 680M; the page reports the reference-platform string because the browser
-reports it, but it is not the ryzen GPU) in `docs/handoff/2026-10-15-f7a-bailout-rescue-shots/`:
+Reference captures, retaken 2026-10-15 on **ryzen's GPU** (console-session Playwright server, slot `ww2airsim-2.windomlane.org`, after the lighting hotfix `aa098745` merged; the airplane is lit normally) in `docs/handoff/2026-10-15-f7a-bailout-rescue-shots/`:
 
 | File | What to look at |
 | --- | --- |
@@ -44,10 +43,8 @@ reports it, but it is not the ryzen GPU) in `docs/handoff/2026-10-15-f7a-bailout
 | `05-low-altitude-failure.png` | A jump from about 200 ft (under the 246 ft rule) is allowed and ends KILLED. |
 | `06-too-low-refused.png` | The refusal message at about 30 ft, pilot still flying. |
 
-Things only your eye finds: the rig's pose and scale under the canopy, the sway amplitude, whether the HUD cue wording
-reads right, and that the airplane silhouette looks dark in these captures (that is the F6A lighting regression on
-models, being fixed separately; do not read it as a bailout defect). **The ryzen reference-GPU pass is not done** (the
-lighting fix is pending and hangar case 15 is red there until it merges); run `npm run capture:e2e -- bailoutCapture.spec.ts` on a tunneled slot when ready.
+Things only your eye finds: the rig's pose and scale under the canopy, the sway amplitude, whether the HUD cue wording reads right.
+The E2E `bailout.spec` (5) and `bailoutCampaign.spec` (1) also pass on ryzen's GPU (6/6, 3.7 min).
 
 ## Tests
 
@@ -76,7 +73,7 @@ architecture boundary tests.
   (comment in `debrief.ts`). Cosmetic.
 - **The instant replay** carries the parachutist in its recorded world (tested), but its automatic camera still follows the
   abandoned airplane, not the pilot. Not changed.
-- **E2E ran on nexus's 680M**, not ryzen. `bailout.spec` 5/5 and `bailoutCampaign` 1/1 pass there. The full E2E suite was not run.
+- Only the two bailout E2E specs were run (ryzen GPU, 6/6; also nexus 680M). The full E2E suite was not run.
 - **Contested odds are a distance heuristic** (`RECOVERY_TUNING`) until F8 gives real territory.
 - The physics is thin (no opening shock or wind blast; touchdown survival is a vertical-speed test), so a 390 kt inverted
   jump lives. That is the ruled arcade behavior, recorded here, not hidden.

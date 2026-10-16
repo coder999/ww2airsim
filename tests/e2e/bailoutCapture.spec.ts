@@ -56,6 +56,7 @@ test('collects final bailout, rescue, and capture evidence', async ({ page }) =>
 
   await page.goto(url({ x: 0, y: 9, z: 0 }))
   await waitForTerrain(page)
+  await page.waitForTimeout(1_500) // let the first frames present: the refusal shot was once a bare sky-blue field
   await page.keyboard.press('KeyJ')
   await expect(page.getByText(/TOO LOW TO BAIL OUT/)).toBeVisible({ timeout: 5_000 })
   await page.screenshot({ path: `${OUT}/06-too-low-refused.png` })
