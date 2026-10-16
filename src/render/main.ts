@@ -433,6 +433,8 @@ async function boot(): Promise<void> {
   // until the rebuilt frame replaces the old one. The player's airframe and
   // the engine audio belong to the OLD sortie until then, so both stay hidden.
   let swapPending = false
+  // Assigned once the scene exists (`buildScenery`, below); `onNewGame` can fire before that.
+  let buildSceneryRef: ((world: World<undefined>, field: TerrainField, eye: { readonly x: number; readonly y: number; readonly z: number }) => void) | null = null
   let devStores: AircraftSpec['stores'] = undefined
   // Updated by every successful `loadScenario` call. Renderer state that is
   // owned by the player's aircraft is synchronized after the replacement
@@ -665,10 +667,11 @@ async function boot(): Promise<void> {
           a.pilot ? { ...a, pilot: { ...a.pilot, skill: forcedPilotSkill === 'veteran' ? VETERAN_SKILL : GREEN_SKILL } } : a,
         )
       : w.aircraft
+    // A swapped-in world keeps the booted heightfield, but its firm runway rectangles belong to ITS airfields.
     const withTerrainField = {
       ...w,
       aircraft: skilledAircraft,
-      terrain,
+      terrain: terrain !== null && coverData !== null ? { ...terrain, cover: coverFieldFor(w.airfields, coverData) } : terrain,
       structures: rebuildStructures(w.structures, w.airfields, terrain),
     }
     // M5: the Settings dialog's Difficulty, baked into the world this sortie starts from (so a pick takes
@@ -942,6 +945,7 @@ async function boot(): Promise<void> {
       void loadScenario(choice).then(() => {
         devSortie = sortieNeededDev(choice)
         rebuildFrame()
+        if (frame?.world.terrain) buildSceneryRef?.(frame.world, frame.world.terrain, frame.eye.position)
         swapPending = false
         performance.measure('sortie-swap', 'sortie-swap-start')
       }).catch((err: unknown) => {
@@ -1419,6 +1423,7 @@ async function boot(): Promise<void> {
       canopy: canopyStatus,
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
+      sceneryAirfields: () => sceneryAirfieldIds,
       setTreesVisible: visible => { if (vegetation !== null) vegetation.object.visible = visible },
       // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
@@ -1706,6 +1711,82 @@ async function boot(): Promise<void> {
   // frame `vegetation` above is: both need the real terrain heightfield,
   // which arrives asynchronously (`loadTerrainProgressively` below).
   let airfieldHandles: readonly ReturnType<typeof createAirfield>[] = []
+  let sceneryAirfieldIds: readonly string[] = []
+  /**
+   * Strips, airfield scenery, towns, villages and trees, built for the airfields
+   * and vehicles of the world that is loaded (Plan 12; `inAirfieldClearing` and
+   * the hut and vehicle exclusions all read that list). Called when terrain first
+   * arrives and again after an in-place scenario swap: the boot world is Free
+   * Flight (Tacloban, Dulag), so a swap to Convoy Strike used to leave its
+   * recovery field, Bayug, with no strip and trees growing over it (Mark,
+   * 2026-10-15). A swap to a world with the same airfields and vehicles keeps
+   * what is built.
+   */
+  let builtSceneryKey = ''
+  let sceneryObjects: readonly Object3D[] = []
+  const buildScenery = (world: World<undefined>, field: TerrainField, eye: { readonly x: number; readonly y: number; readonly z: number }): void => {
+    const key = [...world.airfields.map((a) => a.id), '|', ...world.vehicles.map((v) => `${v.id}@${Math.round(v.state.position.x)},${Math.round(v.state.position.z)}`)].join(',')
+    if (key === builtSceneryKey) return
+    builtSceneryKey = key
+    for (const o of sceneryObjects) {
+      scene.remove(o)
+      o.traverse((c) => (c as { geometry?: { dispose(): void } }).geometry?.dispose())
+    }
+    // One strip and one set of airfield scenery per airfield the world
+    // carries (Plan 12), not one hardcoded Tacloban.
+    const airfields = world.airfields.map((a) => ({ runway: createRunway(field, a), airfield: createAirfield(field, a, sceneryTextures) }))
+    const added: Object3D[] = airfields.flatMap((f) => [f.runway, f.airfield.object])
+    airfieldHandles = airfields.map((f) => f.airfield)
+    sceneryAirfieldIds = world.airfields.map((a) => a.id)
+    // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
+    // `hutFootprints` can be handed straight in: a hut is never inside an
+    // airfield's own clearing (excluded during placement, `townHutFootprints`),
+    // so nothing else keeps trees off it the way `inAirfieldClearing` already
+    // keeps them off `AIRFIELD_HUTS`.
+    const towns = createTowns(field, placesData as { towns: readonly Town[] }, world.airfields, sceneryTextures)
+    added.push(towns.object)
+    // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
+    // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
+    const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
+      ? createVillages(field, villagesData as readonly Village[], world.airfields)
+      : null
+    if (villages) added.push(villages.object)
+    // Scenario-authored armor has to be visible and attackable. Reuse the
+    // vegetation system's rectangular exclusions, with 12 m of working
+    // room around each hull, so trees do not grow through or immediately
+    // mask a tank while preserving the jungle between dispersed pairs.
+    const vehicleFootprints = world.vehicles
+      .map((vehicle) => ({
+        x: vehicle.state.position.x,
+        z: vehicle.state.position.z,
+        width: vehicle.spec.widthM + 24,
+        length: vehicle.spec.lengthM + 24,
+      }))
+    vegetation = createVegetation(field, world.airfields, [
+      ...towns.hutFootprints,
+      ...(villages?.footprints ?? []),
+      ...vehicleFootprints,
+    ])
+    // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
+    // which forces its own full recompose at `lastX/lastZ`: left at their
+    // (0, 0) default -- open sea, never where the airplane actually is --
+    // both recomposes would be thrown away the instant the next frame's
+    // `vegetation.update(current.eye...)` below finds a different cell and
+    // recomposes a third time. One wasted recompose is cheap; this was two
+    // (whole-branch review, 2026-09-18).
+    vegetation.object.visible = quality.settings.snapshot().treesEnabled && !forceTreesOff
+    vegetation.update(eye.x, eye.z, eye.y)
+    // The tier may already have been chosen by the time terrain arrives --
+    // by the probe, or by a Settings pick made while the terrain loaded.
+    // `sceneryTier` is where `applySceneryTier` parks it for exactly this
+    // moment, since `vegetation` does not exist to receive it any earlier.
+    vegetation.setTier(sceneryTier)
+    if (cover !== null) vegetation.setCover(cover)
+    added.push(vegetation.object)
+    scene.add(...added)
+    sceneryObjects = added
+  }
+  buildSceneryRef = buildScenery
   void loadCover().then(
     data => {
       // Anything thrown here is a bug in this block, not a bad or missing
@@ -2301,6 +2382,7 @@ async function boot(): Promise<void> {
     const base: DebriefModel = banked === null ? shown : { ...withoutContinue, noRestart: true }
     const finalModel: DebriefModel = {
       ...base,
+      missionName: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.label ?? chosen.scenarioId,
       ...(fromHq ? { returnLabel: 'Return to Headquarters' } : {}),
       ...(banked === null ? {} : {
         bankedTotal: banked.bankedTotal, campaign: banked.campaign,
@@ -3918,58 +4000,7 @@ async function boot(): Promise<void> {
     // and unconditionally, not only for a ground spawn: an airfield is a
     // place in the world, and a DEV `?spawnX/Y/Z` flight should be able to
     // see it too.
-    if (arrived !== null) {
-      // One strip and one set of airfield scenery per airfield the world
-      // carries (Plan 12), not one hardcoded Tacloban.
-      const airfields = next.world.airfields.map((a) => ({ runway: createRunway(arrived, a), airfield: createAirfield(arrived, a, sceneryTextures) }))
-      scene.add(...airfields.flatMap((f) => [f.runway, f.airfield.object]))
-      airfieldHandles = airfields.map((f) => f.airfield)
-      // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
-      // `hutFootprints` can be handed straight in: a hut is never inside an
-      // airfield's own clearing (excluded during placement, `townHutFootprints`),
-      // so nothing else keeps trees off it the way `inAirfieldClearing` already
-      // keeps them off `AIRFIELD_HUTS`.
-      const towns = createTowns(arrived, placesData as { towns: readonly Town[] }, next.world.airfields, sceneryTextures)
-      scene.add(towns.object)
-      // L3 Phase 2: invented nipa-hut villages, DEV-only behind `?villages=on`
-      // until Mark approves them (docs/superpowers/plans/2026-10-09-l3-land-quality.md).
-      const villages = import.meta.env.DEV && new URLSearchParams(location.search).get('villages') === 'on'
-        ? createVillages(arrived, villagesData as readonly Village[], next.world.airfields)
-        : null
-      if (villages) scene.add(villages.object)
-      // Scenario-authored armor has to be visible and attackable. Reuse the
-      // vegetation system's rectangular exclusions, with 12 m of working
-      // room around each hull, so trees do not grow through or immediately
-      // mask a tank while preserving the jungle between dispersed pairs.
-      const vehicleFootprints = next.world.vehicles
-        .map((vehicle) => ({
-          x: vehicle.state.position.x,
-          z: vehicle.state.position.z,
-          width: vehicle.spec.widthM + 24,
-          length: vehicle.spec.lengthM + 24,
-        }))
-      vegetation = createVegetation(arrived, next.world.airfields, [
-        ...towns.hutFootprints,
-        ...(villages?.footprints ?? []),
-        ...vehicleFootprints,
-      ])
-      // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
-      // which forces its own full recompose at `lastX/lastZ`: left at their
-      // (0, 0) default -- open sea, never where the airplane actually is --
-      // both recomposes would be thrown away the instant the next frame's
-      // `vegetation.update(current.eye...)` below finds a different cell and
-      // recomposes a third time. One wasted recompose is cheap; this was two
-      // (whole-branch review, 2026-09-18).
-      vegetation.object.visible = quality.settings.snapshot().treesEnabled && !forceTreesOff
-      vegetation.update(next.eye.position.x, next.eye.position.z, next.eye.position.y)
-      // The tier may already have been chosen by the time terrain arrives --
-      // by the probe, or by a Settings pick made while the terrain loaded.
-      // `sceneryTier` is where `applySceneryTier` parks it for exactly this
-      // moment, since `vegetation` does not exist to receive it any earlier.
-      vegetation.setTier(sceneryTier)
-      if (cover !== null) vegetation.setCover(cover)
-      scene.add(vegetation.object)
-    }
+    if (arrived !== null) buildScenery(next.world, arrived, next.eye.position)
     frame = next.groundSpawn && arrived !== null ? settleOnTerrain(next, arrived) : next
     if (quick !== null && arrived !== null && activeFlightRecorder === null) startDevFlightRecorder(frame.world)
   }, finestFetchedLevel).catch((err: unknown) => {

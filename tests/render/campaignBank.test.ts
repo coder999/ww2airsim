@@ -46,6 +46,13 @@ describe('banking a finished campaign sortie (plan F5B Task 10)', () => {
     expect(after.human.ledger.banked).toBe(1)
   })
 
+  it('names the chapter for a chapter sortie and the pilot for any, for the debrief header', () => {
+    const chapter = view(bankScored(setup(new MapPort(), 0, mission({ kind: 'campaign', chapterId: 'A1', authoredBonus: 0 })).input()))
+    expect(chapter.campaign.chapterLine).toBe('A1 Over the Beaches')
+    expect(chapter.campaign.pilotLine).toMatch(/\S, \S/)
+    expect(view(bankScored(setup().input())).campaign.chapterLine).toBeUndefined()
+  })
+
   it('a death archives the pilot, names the replacement, earns no promotion and never reports success', () => {
     const { session, input, pilotId } = setup()
     const v = view(bankScored(input({ end: 'killed', success: true })))

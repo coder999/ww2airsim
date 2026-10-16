@@ -129,6 +129,8 @@ export function missionScore(
 /** What a banked campaign sortie adds to the debrief (plan F5B, D6). Plain lines, built by the shell from the banked log entry. */
 export type CampaignDebrief = {
   readonly pilotLine: string
+  /** The chapter the sortie was flown for ("A2 Taffy 3"); absent for a non-campaign mission. */
+  readonly chapterLine?: string
   readonly rows: readonly DebriefFigure[]
   readonly notices: readonly string[]
 }
@@ -136,6 +138,8 @@ export type CampaignDebrief = {
 export type DebriefFigure = { readonly label: string; readonly value: string }
 
 export type DebriefModel = {
+  /** The mission just flown, as the picker names it (Mark, 2026-10-15: the debrief did not say). */
+  readonly missionName?: string
   readonly headline: string
   readonly detail: string
   readonly figures: readonly DebriefFigure[]
@@ -358,6 +362,12 @@ export function bailoutModel(
     score: missionScore(killsSinceLastBank, outcome),
     outcome,
   }
+}
+
+/** The header line naming what was flown: mission, then (a banked campaign sortie) its chapter and pilot. */
+export function debriefHeading(model: DebriefModel): string | null {
+  const parts = [model.missionName, model.campaign?.chapterLine, model.campaign?.pilotLine].filter((p): p is string => p !== undefined)
+  return parts.length === 0 ? null : parts.join(' \u2014 ')
 }
 
 export type DebriefHandle = {
@@ -598,6 +608,13 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       letterheadText.append(letterheadKicker, letterheadTitle)
       letterhead.appendChild(letterheadText)
       sheet.appendChild(letterhead)
+      const heading = debriefHeading(model)
+      if (heading !== null) {
+        const mission = plainRow(heading)
+        mission.setAttribute('data-ww2-debrief-heading', '')
+        mission.style.cssText += ';font-weight:700;margin-bottom:6px'
+        sheet.appendChild(mission)
+      }
       // Sortie spec A5: said first, so the figures below read as what WOULD
       // have been earned.
       if (model.notRecorded === true) sheet.appendChild(plainRow(DEV_SORTIE_STAMP))

@@ -30,6 +30,7 @@ test('a scored sortie that bails out banks once, with no success, and the pilot 
   expect(jump?.outcome === 'rescued' || jump?.outcome === 'captured' || jump?.outcome === 'killed').toBe(true)
 
   await expect(debrief).toContainText('Campaign Ledger')
+  await expect(debrief).toContainText('Convoy Strike') // the heading names the mission for a bailout too
   await expect(debrief.getByRole('button', { name: 'Continue' })).toHaveCount(0)
   const after = await campaign(page)
   expect(after?.pending).toBeNull()
