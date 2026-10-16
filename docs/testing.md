@@ -79,6 +79,12 @@ feature. Mark's viewing is a checkpoint, never a gate (AGENTS.md). Only the auto
   takeoff. `waterOperations.spec.ts` is the corresponding correctness E2E:
   it asserts the authored afloat state, alternate racks, takeoff, float
   retraction and an empty WebGPU/console-error set.
+- **F5C final visual checkpoint (2026-10-16).** `legCapture.spec.ts` records the stop card with its
+  Campaign Ledger, the runway repositioning, the debrief of a second landing, the moving carrier deck (two frames
+  three seconds apart) and the water. `legSortie.spec.ts` is the correctness twin (stop card, no clock jump, one log
+  entry with legs, one continuous flight record, the three placements). Both use the DEV hook `__ww2.groundStop(loadout)`
+  to reach a placement without flying a landing first; the landings themselves are flown by `hopClear`/`landAndStop`.
+  Run through `npm run capture:e2e -- legCapture.spec.ts`; `E2E_CAPTURE_DIR` selects the output.
 - **L1/L2 final visual checkpoint.** `l1l2Capture.spec.ts` records fixed
   procedural/textured building views plus static and fixed-phase shore views.
   Run it through `npm run capture:e2e -- l1l2Capture.spec.ts`;
@@ -123,6 +129,14 @@ history resets and zero validation errors.
 ### Known gaps
 
 Things nothing automated covers, recorded here rather than as skipped tests:
+
+- **F5C (2026-10-16): a flying boat's stop card is headless-only.** The Catalina's landing on San Pedro Bay, the
+  anchorage test and the relaunch placement are pinned in `tests/sim/mission/legEnd.test.ts` and
+  `tests/sim/groundStop.test.ts`; no browser spec flies a water landing (a browser water placement is reached with the
+  DEV hook from the afloat start). A carrier stop card is likewise pinned headlessly, with the browser reaching the deck
+  placement through the hook.
+- **F5C: the first-leg landings in E2E start at the threshold.** `hopClear`/`landAndStop` are tuned for the z = +700 spot, so
+  a mission that spawns at `runwayCenter` first calls `stopAtThreshold` (a recorded ground stop with no leg banked).
 
 - **D3D12 and Vulkan disagree on TSL control-flow scope (found 2026-10-15).** A shared node first built inside an `If`/`Loop` (here `positionWorld`/`normalWorld` in `gameplayLights`) rendered every lit model near-black on ryzen's D3D12 while nexus's Vulkan was fine, so a green nexus run does not clear a shader change. Hangar case 15 (0.6x to 1.5x of flat) caught it only on ryzen; case 15b now pins the lighting node against `night=shaders:0`. Details: `docs/night.md`.
 - **ryzen budget regression found 2026-10-16: the distance-forest merge `e6b2476f` (2026-10-13), not noise.** This supersedes the "bimodal, cause unknown" note below, which was a theory and is retracted.

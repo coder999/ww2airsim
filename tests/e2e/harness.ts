@@ -198,9 +198,12 @@ export async function toConditions(
     ? rows.and(hq.locator(`[data-id="${bootId}"]`)).first()
     : rows.filter({ hasText: new RegExp(`^${options.scenario.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!:)`) }).first()
   await row.click()
-  // F5C D1 (2026-10-16): an unscored row (Training, Single) has no pilot step unless Dev is on; a scored row always has one.
-  const pilotStep = options.scored === true || await dev.isChecked()
-  await hq.getByRole('button', { name: pilotStep ? /Next: assign a pilot/ : /Next: flight conditions/ }).click()
+  // F5C D1 (2026-10-16): an unscored row (Training, Single) has no pilot step unless Dev is on; a scored row always has
+  // one. Read which button the picker shows rather than guessing from the checkbox.
+  const next = hq.getByRole('button', { name: /Next: (assign a pilot|flight conditions)/ })
+  await next.waitFor()
+  const pilotStep = /assign a pilot/.test((await next.textContent()) ?? '')
+  await next.click()
   if (pilotStep) await hq.getByRole('button', { name: /^Assign / }).first().click()
   return title
 }
