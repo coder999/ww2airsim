@@ -133,7 +133,8 @@ Things nothing automated covers, recorded here rather than as skipped tests:
   - `flightRecorder` "Dev sortie records…" and `hq` "export then import…" called `download.path()`, which throws over a remote Playwright server. Fixed 2026-10-16 with `saveAs()`; both pass on the RDP route.
   - Nearly every GPU budget spec failed (old and new alike, `terrainTextures` shows textures-on faster than off); read as the bimodal noise above, not a night-work regression. F6A/F6B gates still need a clean retake.
   - `cloudShadow` ×2 fail on `main` before this work. `sights` ×2, `friendly-fire` death, `hangar` case 3 and `qualityProbeChrome` are the known timing/contention flakes.
-  - Not yet investigated: `fx` cloud ordering (takram), `instantReplay` auto-replay, `mission-ui` landing-at-rest.
+  - `instantReplay` asserted a "Banked total:" debrief line, which a Dev sortie no longer has (unscored since F5B); it now asserts the always-present "Recovery:" line. Fixed 2026-10-16.
+  - `mission-ui` landing-at-rest passed on rerun (flake). `fx` cloud ordering (takram native) passed on rerun but only just: limited 118 vs a floor of 104 (0.34 of clear sky; 2026-10-12 baseline was 0.431), so it is near its threshold and may have drifted with the night cloud lighting. Open, watch it.
 
 - **A first-time visitor's audio context.** Nothing automated proves it starts suspended and resumes on the first gesture.
   - On the reference desktop the context is already `running` at boot. The likely cause, unverified, is Chrome's Media Engagement Index for an origin Mark flies on often. So the assertion would pass on a fresh profile and fail on the runner.

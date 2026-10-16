@@ -34,7 +34,7 @@ test('crash auto-replays once, skip is immediate, and Watch replay returns to de
 
   const debrief = debriefDialog(page)
   await expect(debrief).toBeVisible()
-  await expect(debrief.getByText(/^Banked total:/)).toHaveCount(1)
+  await expect(debrief.getByText(/^Recovery:/)).toHaveCount(1)
   expect(await replayState(page)).toBeNull()
 
   await debrief.getByRole('button', { name: 'Restart' }).click()
@@ -50,15 +50,15 @@ test('crash auto-replays once, skip is immediate, and Watch replay returns to de
   expect(Date.now() - skippedAt).toBeLessThan(1000)
   await secondDive
 
-  const bankedBeforeWatch = await debrief.getByText(/^Banked total:/).textContent()
+  const recoveryBeforeWatch = await debrief.getByText(/^Recovery:/).textContent()
   await debrief.getByRole('button', { name: 'Watch replay' }).click()
   await expect.poll(() => replayState(page)).not.toBeNull()
   await expect(debrief).toBeHidden()
   await page.keyboard.press('Escape')
   await expect.poll(() => replayState(page)).toBeNull()
   await expect(debrief).toBeVisible()
-  await expect(debrief.getByText(/^Banked total:/)).toHaveText(bankedBeforeWatch ?? '')
-  await expect(debrief.getByText(/^Banked total:/)).toHaveCount(1)
+  await expect(debrief.getByText(/^Recovery:/)).toHaveText(recoveryBeforeWatch ?? '')
+  await expect(debrief.getByText(/^Recovery:/)).toHaveCount(1)
 })
 
 test('manual replay controls, cameras and effects stay isolated from the held flight', async ({ page }) => {
