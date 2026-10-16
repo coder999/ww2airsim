@@ -2,6 +2,7 @@ import type { ContactSurface } from './contact.js'
 import type { World } from './loop.js'
 import type { Vec3 } from './math/vec3.js'
 import { sideOf, type Side } from './sides.js'
+import { RECOVERY_TUNING } from './bailoutTuning.js'
 import { DEFAULT_RECOVERY_ENVIRONMENT, type RecoveryEnvironment, type RecoveryFacts } from './bailout.js'
 
 const horizontalDistance = (a: Vec3, b: { readonly x: number; readonly z: number }): number =>
@@ -41,15 +42,15 @@ export function recoveryFactsAt<M>(
 
   const friendlySupportM = nearest(friendlyDistances)
   const enemySupportM = nearest(enemyDistances)
-  const friendlyRescuePresent = friendlyShips.some((distance) => distance <= 25_000)
-  const friendlyStrong = friendlySupportM !== null && friendlySupportM <= 15_000
-    && (enemySupportM === null || friendlySupportM * 1.25 < enemySupportM)
-  const enemyStrong = enemySupportM !== null && enemySupportM <= 15_000
-    && (friendlySupportM === null || enemySupportM * 1.25 < friendlySupportM)
+  const friendlyRescuePresent = friendlyShips.some((distance) => distance <= RECOVERY_TUNING.rescueCoverageM)
+  const friendlyStrong = friendlySupportM !== null && friendlySupportM <= RECOVERY_TUNING.controlM
+    && (enemySupportM === null || friendlySupportM * RECOVERY_TUNING.controlRatio < enemySupportM)
+  const enemyStrong = enemySupportM !== null && enemySupportM <= RECOVERY_TUNING.controlM
+    && (friendlySupportM === null || enemySupportM * RECOVERY_TUNING.controlRatio < friendlySupportM)
   const control = friendlyStrong ? 'friendly' : enemyStrong ? 'enemy' : 'contested'
-  const enemyPresence = enemyShips.some((distance) => distance <= 10_000)
+  const enemyPresence = enemyShips.some((distance) => distance <= RECOVERY_TUNING.enemyPresenceM)
     || world.aircraft.some((entry) => entry.id !== world.player && sideOf(world, entry) !== friendly
-      && entry.impact === null && horizontalDistance(position, entry.state.position) <= 10_000)
+      && entry.impact === null && horizontalDistance(position, entry.state.position) <= RECOVERY_TUNING.enemyPresenceM)
 
   return {
     seed,

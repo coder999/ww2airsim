@@ -5,11 +5,9 @@ import { add, v3, type Vec3 } from './math/vec3.js'
 import type { Side } from './sides.js'
 import type { GroundUnder } from './world/ground.js'
 
-/** Gameplay estimates for the approved 28-foot wartime personnel canopy. */
-export const BAILOUT_MIN_EXIT_AGL_M = 15
-export const BAILOUT_SAFE_OPEN_AGL_M = 75
-export const BAILOUT_DEPLOY_SECONDS = 2
-export const PARACHUTE_SINK_MPS = 5.5
+import { BAILOUT_TUNING, RECOVERY_TUNING, openingSeconds } from './bailoutTuning.js'
+
+type Tuning = typeof BAILOUT_TUNING
 
 export type BailoutPhase = 'separating' | 'deploying' | 'canopy' | 'down' | 'dead'
 export type BailoutOutcome = 'rescued' | 'captured' | 'killed'
@@ -77,14 +75,15 @@ export function bailoutEligibility(
   existing: readonly ParachutistEntity[],
   ground: GroundUnder | null,
   destroyed: boolean,
+  tuning: Tuning = BAILOUT_TUNING,
 ): BailoutEligibility {
   if (existing.some((entry) => entry.sourceAircraft === aircraft.id)) return { ok: false, reason: 'already-bailed' }
   if (aircraft.impact !== null || destroyed) return { ok: false, reason: 'aircraft-lost' }
   if (ground === null) return { ok: false, reason: 'ground-unavailable' }
   const aglM = aircraft.state.position.y - ground.heightM
-  if (aircraft.parked || aglM <= 3) return { ok: false, reason: 'not-airborne', aglM }
-  if (aglM < BAILOUT_MIN_EXIT_AGL_M) return { ok: false, reason: 'too-low', aglM }
-  return { ok: true, aglM, lowAltitude: aglM < BAILOUT_SAFE_OPEN_AGL_M }
+  if (aircraft.parked || aglM <= tuning.airborneAglM) return { ok: false, reason: 'not-airborne', aglM }
+  if (aglM < tuning.minExitAglM) return { ok: false, reason: 'too-low', aglM }
+  return { ok: true, aglM, lowAltitude: aglM < tuning.safeOpenAglM }
 }
 
 export function createParachutist(
@@ -93,11 +92,12 @@ export function createParachutist(
   eligibility: Extract<BailoutEligibility, { readonly ok: true }>,
   recoverySeed: number,
   recoveryEnvironment: RecoveryEnvironment = DEFAULT_RECOVERY_ENVIRONMENT,
+  tuning: Tuning = BAILOUT_TUNING,
 ): ParachutistEntity {
   // Leave aft and slightly above the cockpit. This is a separation impulse,
   // not an ejection seat: most velocity is inherited from the airframe.
-  const offset = qRotate(aircraft.state.attitude, v3(-2.2, 1.2, 0))
-  const impulse = qRotate(aircraft.state.attitude, v3(-4, 1.5, 0))
+  const offset = qRotate(aircraft.state.attitude, v3(tuning.exitOffsetM.x, tuning.exitOffsetM.y, tuning.exitOffsetM.z))
+  const impulse = qRotate(aircraft.state.attitude, v3(tuning.exitImpulseMps.x, tuning.exitImpulseMps.y, tuning.exitImpulseMps.z))
   const state: ParachutistState = {
     tick: aircraft.state.tick,
     position: add(aircraft.state.position, offset),
@@ -134,6 +134,7 @@ export function stepParachutist(
   dt: number,
   wind: Vec3 | null,
   groundAt: (x: number, z: number) => GroundUnder | null,
+  tuning: Tuning = BAILOUT_TUNING,
 ): ParachutistEntity {
   const before = entity.state
   if (before.phase === 'down' || before.phase === 'dead') return entity
@@ -141,10 +142,10 @@ export function stepParachutist(
   const ageS = (tick - before.phaseStartedTick) * dt
   let phase = before.phase
   let phaseStartedTick = before.phaseStartedTick
-  if (phase === 'separating' && ageS >= 0.75) {
+  if (phase === 'separating' && ageS >= tuning.separationSeconds) {
     phase = 'deploying'
     phaseStartedTick = tick
-  } else if (phase === 'deploying' && ageS >= BAILOUT_DEPLOY_SECONDS - 0.75) {
+  } else if (phase === 'deploying' && ageS >= openingSeconds(tuning)) {
     phase = 'canopy'
     phaseStartedTick = tick
   }
@@ -152,9 +153,9 @@ export function stepParachutist(
   const air = wind ?? v3(0, 0, 0)
   const velocity = phase === 'canopy'
     ? v3(
-        approach(before.velocity.x, air.x, dt * 0.9),
-        approach(before.velocity.y, air.y - PARACHUTE_SINK_MPS, dt * 2.2),
-        approach(before.velocity.z, air.z, dt * 0.9),
+        approach(before.velocity.x, air.x, dt * tuning.canopyHorizontalRate),
+        approach(before.velocity.y, air.y - tuning.sinkMps, dt * tuning.canopyVerticalRate),
+        approach(before.velocity.z, air.z, dt * tuning.canopyHorizontalRate),
       )
     : v3(before.velocity.x, before.velocity.y - 9.80665 * dt, before.velocity.z)
   const position = add(before.position, v3(velocity.x * dt, velocity.y * dt, velocity.z * dt))
@@ -166,7 +167,7 @@ export function stepParachutist(
       surface: ground.surface,
       verticalSpeedMps: velocity.y - ground.velocity.y,
     }
-    const survived = phase === 'canopy' && !before.lowAltitude && contact.verticalSpeedMps >= -9
+    const survived = phase === 'canopy' && !before.lowAltitude && contact.verticalSpeedMps >= -tuning.survivableContactMps
     const landed: ParachutistState = {
       ...before,
       tick,
@@ -220,7 +221,9 @@ export type RecoveryRecord = {
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 
-export function assessRecovery(facts: RecoveryFacts): RecoveryAssessment {
+const miles = (m: number): string => `${(m / 1609.344).toFixed(m < 16_093 ? 1 : 0)} mi`
+
+export function assessRecovery(facts: RecoveryFacts, tuning: typeof RECOVERY_TUNING = RECOVERY_TUNING): RecoveryAssessment {
   if (facts.friendlyRescuePresent || (facts.control === 'friendly' && facts.surface !== 'water')) {
     return {
       cue: 'rescue-likely',
@@ -235,24 +238,25 @@ export function assessRecovery(facts: RecoveryFacts): RecoveryAssessment {
     return { cue: 'capture-likely', rescueProbability: 0, factors: ['enemy-controlled area', facts.surface] }
   }
 
+  const t = tuning
   const factors: string[] = ['contested area', facts.surface]
-  let probability = 0.5
+  let probability = t.baseProbability
   if (facts.friendlySupportM !== null) {
-    probability += Math.max(0, 0.2 - facts.friendlySupportM / 100_000)
-    factors.push(`friendly support ${Math.round(facts.friendlySupportM / 1000)} km`)
+    probability += Math.max(0, t.supportMax - facts.friendlySupportM / t.supportFadeM)
+    factors.push(`friendly support ${miles(facts.friendlySupportM)}`)
   }
   if (facts.enemySupportM !== null) {
-    probability -= Math.max(0, 0.2 - facts.enemySupportM / 100_000)
-    factors.push(`enemy support ${Math.round(facts.enemySupportM / 1000)} km`)
+    probability -= Math.max(0, t.supportMax - facts.enemySupportM / t.supportFadeM)
+    factors.push(`enemy support ${miles(facts.enemySupportM)}`)
   }
-  probability += (clamp01(facts.daylight) - 0.5) * 0.16
-  probability += (clamp01(facts.visibility) - 0.5) * 0.2
-  probability -= clamp01(facts.weather) * 0.12
-  if (facts.surface === 'water') probability -= 0.12 + clamp01(facts.seaState) * 0.12
-  if (facts.enemyPresence) { probability -= 0.18; factors.push('enemy presence') }
+  probability += (clamp01(facts.daylight) - 0.5) * t.daylightWeight
+  probability += (clamp01(facts.visibility) - 0.5) * t.visibilityWeight
+  probability -= clamp01(facts.weather) * t.weatherWeight
+  if (facts.surface === 'water') probability -= t.waterBase + clamp01(facts.seaState) * t.seaStateWeight
+  if (facts.enemyPresence) { probability -= t.enemyPresencePenalty; factors.push('enemy presence') }
   factors.push(facts.daylight >= 0.5 ? 'daylight' : 'darkness')
   factors.push(facts.visibility >= 0.5 ? 'usable visibility' : 'poor visibility')
-  return { cue: probability >= 0.67 ? 'rescue-likely' : probability <= 0.33 ? 'capture-likely' : 'contested', rescueProbability: clamp01(probability), factors }
+  return { cue: probability >= t.rescueLikelyAtLeast ? 'rescue-likely' : probability <= t.captureLikelyAtMost ? 'capture-likely' : 'contested', rescueProbability: clamp01(probability), factors }
 }
 
 /** Stable 32-bit mix; the recorded seed is the only random input. */
@@ -276,7 +280,7 @@ export function resolveRecovery(facts: RecoveryFacts): { readonly outcome: Exclu
 
 export const bailoutEvidence = (entity: ParachutistEntity, factors: readonly string[] = []): string => {
   const contact = entity.state.contact
-  const surface = contact === null ? 'no surface contact' : `${contact.surface} contact at ${contact.verticalSpeedMps.toFixed(1)} m/s`
+  const surface = contact === null ? 'no surface contact' : `${contact.surface} contact at ${Math.abs(contact.verticalSpeedMps * 3.28084).toFixed(0)} ft/s`
   const result = entity.state.outcome ?? (entity.state.phase === 'down' ? 'awaiting recovery' : entity.state.phase)
   return `Bailout ${result}: ${surface}${factors.length === 0 ? '' : `; ${factors.join(', ')}`}`
 }
