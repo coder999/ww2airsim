@@ -337,8 +337,9 @@ storage and canonical export/import, the sim's damage-tag destruction credit and
 destruction-only discharge, one scoring table for all play, and the Japanese **Field Patrol**
 mission that gives `ja` a lifeline. The old roster is discarded, not migrated (Mark's D1), so
 "old-save migration" in the gate is satisfied by rejection. **F5B (headquarters, roster UI,
-progression screens, `roster.ts` deletion, `startGame()` rewrite, Quit/Abandon button, Japanese
-insignia) is not started.**
+progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is built on branch
+`plan-f5b-hq` (2026-10-15), not merged or deployed; handoff
+[`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
 #### F6. Night operations (L)
 
