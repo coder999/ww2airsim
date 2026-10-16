@@ -3148,7 +3148,7 @@ async function boot(): Promise<void> {
       a.position.set(pose.position.x, pose.position.y, pose.position.z)
       a.quaternion.set(pose.attitude.x, pose.attitude.y, pose.attitude.z, pose.attitude.w)
     })
-    parachutistView?.sync(playerParachutist(view.world))
+    parachutistView?.sync(playerParachutist(view.world), view.world.wind)
     // The hulls share the simulation support sea with amphibians and carrier
     // decks. Models point along local +x, with pitch about +z and roll about +x.
     setEnsignTime(performance.now() / 1000)
