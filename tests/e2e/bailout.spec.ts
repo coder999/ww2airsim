@@ -39,3 +39,31 @@ test('bailing out over enemy Dulag resolves capture', async ({ page }) => {
   expect(text).toContain('CAPTURED')
   expect(await bailout(page)).toMatchObject({ phase: 'down', outcome: 'captured', surface: 'land' })
 })
+
+test('bailing out over open water resolves with the water contact on record', async ({ page }) => {
+  await page.goto(bailoutUrl({ x: 0, y: 180, z: 0 }))
+  await waitForTerrain(page)
+  await page.keyboard.press('KeyJ')
+  await page.keyboard.press('KeyT')
+  await debriefDialog(page).waitFor({ timeout: 60_000 })
+  expect(await bailout(page)).toMatchObject({ phase: 'down', surface: 'water' })
+  expect(await debriefDialog(page).innerText()).toMatch(/RESCUED|CAPTURED/)
+})
+
+test('a jump from too low is refused with a message on screen and the pilot keeps flying', async ({ page }) => {
+  // About 30 ft above the sea: under the roughly 49 ft the canopy needs even to start.
+  await page.goto(bailoutUrl({ x: 0, y: 9, z: 0 }))
+  await waitForTerrain(page)
+  await page.keyboard.press('KeyJ')
+  await expect(page.getByText(/TOO LOW TO BAIL OUT/)).toBeVisible({ timeout: 5_000 })
+  expect(await bailout(page)).toBeNull()
+})
+
+test('a jump from under the safe-descent height is allowed and ends badly: killed, no rescue', async ({ page }) => {
+  await page.goto(bailoutUrl({ x: 0, y: 60, z: 0 }))
+  await waitForTerrain(page)
+  await page.keyboard.press('KeyJ')
+  await debriefDialog(page).waitFor({ timeout: 60_000 })
+  expect(await debriefDialog(page).innerText()).toContain('KILLED')
+  expect(await bailout(page)).toMatchObject({ phase: 'dead', outcome: 'killed' })
+})
