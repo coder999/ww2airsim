@@ -137,7 +137,9 @@ Headquarters offers four sections: the current chapter (`content/campaign/chapte
 missions, Training Grounds and Single missions. The launch memos after the pilot are Flight Conditions,
 Aircraft Assignment and Ordnance Requisition. A scored mission with an authored hour locks the takeoff
 time; Dev can still pick Morning, Midday, Dusk or Night. Cloudiness is rolled when Flight Conditions
-opens (Clear, Partly Cloudy, Cloudy, Overcast equally likely) and the pilot may pick another. The
+opens (Clear, Partly Cloudy, Cloudy, Overcast equally likely) and the pilot may pick another; a mission with a
+recommended weather (Convoy Strike: Overcast, to drop in on the convoy through the clouds) opens on it, tagged
+"(recommended)". The
 loadout form lists the aircraft's real stores, whose mass and drag feed the flight model. Aircraft
 figures spell out hit points and list engine power in horsepower. The last form shows the Difficulty
 from Settings and, when it applies, "Not recorded: ..." for what will not bank.
@@ -350,7 +352,8 @@ destination until the selection disappears or is destroyed.
 ### Debrief
 
 Post-mission: targets destroyed with per-item points, mission total, recovery
-multiplier applied, banked total, badges awarded, and any promotion.
+multiplier applied, banked total, badges awarded, and any promotion. The header names the mission flown and,
+for a banked campaign sortie, its chapter and pilot.
 
 ### Landing and ditching rules
 

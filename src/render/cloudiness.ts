@@ -16,6 +16,15 @@ export const CLOUDINESS_OPTIONS: readonly CloudinessOption[] = [
   { value: 'overcast', label: 'Overcast', coverage: 0.58 },
 ]
 
+/** A mission's recommended weather (the picker row's `recommendedCloudiness`) is Form 4's default and carries the
+ *  "(recommended)" tag, like a recommended loadout. A pick the player already made stands; otherwise the
+ *  recommendation; otherwise this build's roll. */
+export const cloudinessDefault = (picked: Cloudiness | undefined, recommended: Cloudiness | undefined, rolled: Cloudiness): Cloudiness =>
+  picked ?? recommended ?? rolled
+
+export const cloudinessLabel = (option: CloudinessOption, recommended: Cloudiness | undefined): string =>
+  option.value === recommended ? `${option.label} (recommended)` : option.label
+
 const DEFAULT_CUMULUS: Omit<CloudLayer, 'coverage'> = {
   kind: 'cumulus',
   baseM: 1200,

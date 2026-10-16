@@ -4,10 +4,11 @@
  * it from the three end sites (impact, destruction, landing) and from Abandon; the session's latch and the
  * reducer's own `no-pending` rejection make a second call bank nothing.
  */
-import { adjustedScore, formatName, tierOf, type Campaign, type SortieEndKind } from '../campaign/index.js'
+import { adjustedScore, formatName, tierOf, type Campaign, type ChapterId, type SortieEndKind } from '../campaign/index.js'
 import type { CampaignDebrief } from './debrief.js'
 import { buildReport, type Session } from './campaignSession.js'
 import { formatAdjusted, formatPoints } from './hq/format.js'
+import { chapterInfo } from './hq/chapters.js'
 import { FATE_LABEL, rankName } from './hq/model.js'
 import type { TargetType } from '../sim/weapons/targetType.js'
 
@@ -52,10 +53,10 @@ export function bankScored(i: BankInput): BankedView | { readonly refused: strin
   if (!r.ok) return { refused: r.error.message }
   const after = r.value.campaign
   const save = i.session.lastSave()
-  return describe(before, after, pending.pilotId, pilotBefore.points, survives, save !== null && !save.ok ? save.error : undefined)
+  return describe(before, after, pending.pilotId, pending.chapterId, pilotBefore.points, survives, save !== null && !save.ok ? save.error : undefined)
 }
 
-function describe(before: Campaign, after: Campaign, pilotId: string, pointsBefore: number, survives: boolean, saveError: string | undefined): BankedView {
+function describe(before: Campaign, after: Campaign, pilotId: string, chapterId: ChapterId | null, pointsBefore: number, survives: boolean, saveError: string | undefined): BankedView {
   const pilot = after.pilots[pilotId]!
   const entry = pilot.log.at(-1)
   const human = after.human.log.at(-1)
@@ -89,7 +90,7 @@ function describe(before: Campaign, after: Campaign, pilotId: string, pointsBefo
   return {
     bankedTotal: pilot.points,
     ...(promoted ? { promotedTo: rankName(f, tierAfter), promotedTier: { faction: f, tier: tierAfter } } : {}),
-    campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierAfter)}`, rows, notices },
+    campaign: { pilotLine: `${formatName(pilot.name, f)}, ${rankName(f, tierAfter)}`, ...(chapterId === null ? {} : { chapterLine: `${chapterId} ${chapterInfo(chapterId).title}` }), rows, notices },
     ...(saveError === undefined ? {} : { saveError }),
   }
 }

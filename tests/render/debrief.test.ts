@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { DEV_SORTIE_STAMP, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
+import { DEV_SORTIE_STAMP, debriefHeading, debriefModel, destructionModel, killsSince, landingModel, missionScore, watchReplayAction, withNotRecorded } from '../../src/render/debrief.js'
 import { withMissionDebrief } from '../../src/render/mission/debriefMission.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
@@ -295,5 +295,19 @@ describe('the Dev sortie stamp (sortie spec A5)', () => {
     expect(withNotRecorded(m, true).headline).toBe(m.headline)
     expect(withNotRecorded(m, false)).toBe(m)
     expect(DEV_SORTIE_STAMP).toBe('Dev sortie: not recorded')
+  })
+})
+
+describe('the debrief header names what was flown (Mark, 2026-10-15)', () => {
+  const m = debriefModel(impact(), createState({ velocity: v3(40, -2, 0) }), zeroKillsByType())
+  it('is the mission name alone for an unscored sortie, and nothing for a model that carries none', () => {
+    expect(debriefHeading({ ...m, missionName: 'Convoy Strike' })).toBe('Convoy Strike')
+    expect(debriefHeading(m)).toBeNull()
+  })
+  it('adds the chapter and the pilot for a banked campaign sortie', () => {
+    const campaign = { pilotLine: 'Ens. Test Pilot, Ensign', chapterLine: 'A2 Taffy 3', rows: [], notices: [] }
+    expect(debriefHeading({ ...m, missionName: 'Taffy 3', campaign })).toBe('Taffy 3 \u2014 A2 Taffy 3 \u2014 Ens. Test Pilot, Ensign')
+    expect(debriefHeading({ ...m, missionName: 'Convoy Strike', campaign: { ...campaign, chapterLine: undefined } as never }))
+      .toBe('Convoy Strike \u2014 Ens. Test Pilot, Ensign')
   })
 })

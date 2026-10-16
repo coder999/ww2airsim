@@ -525,3 +525,9 @@ a Japanese player. Reference: [campaign-data.md](campaign-data.md); measurements
 forms in Dev, with a `transport` role and operable cargo doors; it carries nothing and drops
 nothing yet. Verified with `flyableAll.spec.ts` (nexus GPU), the Hangar spec and the full unit
 suite. See the [handoff](handoff/2026-10-14-ki57-onboard.md). Not deployed.
+
+**Convoy Strike playtest polish (branch `fix-hq-polish`, 2026-10-15).** Form 4 recommends Overcast for Convoy Strike
+(`recommendedCloudiness` on the picker row); the debrief header names the mission, plus chapter and pilot for a banked
+sortie; Bayug's strip, scenery and tree clearing are now built for the world that is loaded, not the boot world's
+airfields (root cause: an in-place scenario swap kept Free Flight's Tacloban and Dulag, so Bayug had no strip and trees
+grew over it; verified 2026-10-15 by `tests/e2e/sceneryAirfields.spec.ts`, red before the fix). Not merged.

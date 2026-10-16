@@ -10,12 +10,12 @@ import { briefingRequest } from './mission/briefing.js'
 import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeoffTime, takeoffHours, type DevTakeoffTime, type TakeoffTime } from './sky/sun.js'
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
-import { DEV_STORES_SPEC_ID, needsDevStores, type SortieChoice, type StartKind } from '../sim/sortie.js'
+import { DEV_STORES_SPEC_ID, needsDevStores, type Cloudiness, type SortieChoice, type StartKind } from '../sim/sortie.js'
 import { formAircraft } from './hq/missionAircraft.js'
 import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, withAircraft, type FlowContext, type SortieDraft } from './sortieFlow.js'
 import { aircraftRowLabel, storesLine, type FlyableAircraft } from './sortie/flyable.js'
 import { SCENARIO_ID } from './content.js'
-import { CLOUDINESS_OPTIONS, randomCloudiness } from './cloudiness.js'
+import { CLOUDINESS_OPTIONS, cloudinessDefault, cloudinessLabel, randomCloudiness } from './cloudiness.js'
 
 /**
  * The title screen (design: docs/superpowers/specs/2026-09-19-title-screen-design.md;
@@ -166,6 +166,8 @@ export type ScenarioOption = {
   readonly start: StartKind
   readonly aircraft: string
   readonly recommendedLoadout?: Loadout
+  /** Form 4's recommended weather for this mission: its default and tagged "(recommended)". Absent: the build's roll. */
+  readonly recommendedCloudiness?: Cloudiness
   readonly description?: string
 }
 
@@ -235,7 +237,7 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'torpedo-qualification', label: 'Torpedo Qualification', kind: 'mission', pool: 'training', badge: { id: 'torpedo-qualified', name: 'Torpedo Qualified' }, dev: false, start: 'airfield', aircraft: 'tbm-3-avenger', recommendedLoadout: 'bombs' },
   { value: 'deck-quals-mission', label: 'Carrier Qualification', kind: 'mission', pool: 'training', badge: { id: 'carrier-qualified', name: 'Carrier Qualified' }, dev: false, start: 'carrier', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'airfield-strike', label: 'Airfield Strike', kind: 'mission', pool: 'noncampaign', badge: { id: 'airfield-strike', name: 'Airfield Strike' }, dev: false, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
-  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', pool: 'noncampaign', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
+  { value: 'convoy-strike', label: 'Convoy Strike', kind: 'mission', pool: 'noncampaign', badge: { id: 'convoy-strike', name: 'Convoy Strike' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both', recommendedCloudiness: 'overcast' },
   { value: 'tank-buster', label: 'Tank Buster', kind: 'mission', pool: 'noncampaign', badge: { id: 'tank-buster', name: 'Tank Buster' }, dev: false, start: 'airborne', aircraft: 'f6f-hellcat', recommendedLoadout: 'both' },
   // M4. "Air Combat" above is not a substring of this label, so e2e's
   // substring selectors still find one row each.
@@ -638,13 +640,17 @@ export function createTitleScreen(
     // Each new title-screen build rolls one of the four player-facing
     // weather reports. The roll is only an initial selection: Back/Next keep
     // the player's pick for this sortie, and clicking a row replaces it.
-    let cloudiness = randomCloudiness()
+    const rolledCloudiness = randomCloudiness()
+    let pickedCloudiness: Cloudiness | undefined
+    let cloudiness = rolledCloudiness
     const cloudinessGroup = radioGroup('Cloudiness')
     const renderCloudiness = (): void => {
       cloudinessGroup.replaceChildren()
+      const recommended = optionOf(draft.scenarioId)?.recommendedCloudiness
+      cloudiness = cloudinessDefault(pickedCloudiness, recommended, rolledCloudiness)
       const rows = new Map<typeof cloudiness, HTMLDivElement>()
       for (const option of CLOUDINESS_OPTIONS) {
-        const el = ballotOption(option.label, '', () => { cloudiness = option.value; renderCloudiness() })
+        const el = ballotOption(cloudinessLabel(option, recommended), '', () => { pickedCloudiness = option.value; renderCloudiness() })
         rows.set(option.value, el)
         cloudinessGroup.appendChild(el)
       }
