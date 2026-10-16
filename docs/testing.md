@@ -130,7 +130,7 @@ Things nothing automated covers, recorded here rather than as skipped tests:
   - Not tested: display refresh behavior, a foreground against an occluded or minimized window, the `rdp` route against the console route, and a longer capture to see whether the state flips inside one page load.
   - So: read a single ryzen budget number as one draw from two modes. Use the median of at least 5 fresh page loads per view, and do not read one 13 ms nightly p95 as a regression by itself. An alternating on/off comparison inside one page load (lights on minus off, F6A gate c) cancels the page-load state and stays trustworthy.
 - **Nightly 2026-10-16 (`main` `51f81ca8`, RDP route): 319 pass, 30 fail, 18 of them budget.** Verified from `report-2026-10-16*.json` the same day. Not product regressions as far as read so far:
-  - `flightRecorder` "Dev sortie records…" and `hq` "export then import…" call `download.path()`, which throws over a remote Playwright server ("Path is not available when connecting remotely"); they need `saveAs()`. Test-harness defect, open.
+  - `flightRecorder` "Dev sortie records…" and `hq` "export then import…" called `download.path()`, which throws over a remote Playwright server. Fixed 2026-10-16 with `saveAs()`; both pass on the RDP route.
   - Nearly every GPU budget spec failed (old and new alike, `terrainTextures` shows textures-on faster than off); read as the bimodal noise above, not a night-work regression. F6A/F6B gates still need a clean retake.
   - `cloudShadow` ×2 fail on `main` before this work. `sights` ×2, `friendly-fire` death, `hangar` case 3 and `qualityProbeChrome` are the known timing/contention flakes.
   - Not yet investigated: `fx` cloud ordering (takram), `instantReplay` auto-replay, `mission-ui` landing-at-rest.

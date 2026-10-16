@@ -21,7 +21,7 @@ test('ordinary play has no recorder session, export control, or reproduction sur
   await expect(page.getByRole('button', { name: 'Export flight record' })).toHaveCount(0)
 })
 
-test('a Dev sortie records fixed ticks and exports a valid compressed .ww2flight', async ({ page }) => {
+test('a Dev sortie records fixed ticks and exports a valid compressed .ww2flight', async ({ page }, testInfo) => {
   await page.goto('/?flightRecorder=1')
   await expect(page.locator('[data-ww2-flight-recorder]')).toBeVisible()
   await startGame(page, { dev: true, scenario: 'Free Flight' })
@@ -40,9 +40,10 @@ test('a Dev sortie records fixed ticks and exports a valid compressed .ww2flight
   await exportButton.click()
   const download = await pending
   expect(download.suggestedFilename()).toMatch(/^free-flight-.*\.ww2flight$/)
-  const path = await download.path()
-  expect(path).not.toBeNull()
-  const record = await decodeFlightRecord(new Uint8Array(await readFile(path!)))
+  // saveAs, not path(): path() throws on a remote Playwright server (the nightly's route)
+  const path = testInfo.outputPath('export.ww2flight')
+  await download.saveAs(path)
+  const record = await decodeFlightRecord(new Uint8Array(await readFile(path)))
   expect(record).toMatchObject({
     format: 'ww2flight',
     version: 1,

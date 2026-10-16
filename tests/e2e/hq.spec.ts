@@ -117,7 +117,7 @@ test('the archive shows an imported campaign\'s losses by fate, newest first, an
   await expect(hq.locator('tbody tr')).toContainText('Scramble')
 })
 
-test('export then import: a clash offers Replace or Cancel (no Keep both); Cancel changes nothing; a roster array is rejected', async ({ page }) => {
+test('export then import: a clash offers Replace or Cancel (no Keep both); Cancel changes nothing; a roster array is rejected', async ({ page }, testInfo) => {
   await openHq(page)
   const hq = hqOf(page)
   await newCampaign(page, 'Exporter', 'U.S. Navy')
@@ -126,7 +126,10 @@ test('export then import: a clash offers Replace or Cancel (no Keep both); Cance
   await hq.getByRole('button', { name: 'Export this campaign' }).click()
   const file = await download
   expect(file.suggestedFilename()).toMatch(/^ww2airsim-american-.*-r\d+-\d{4}-\d{2}-\d{2}\.json$/)
-  const text = Buffer.from(await (await import('node:fs/promises')).readFile((await file.path())!)).toString('utf8')
+  // saveAs, not path(): path() throws on a remote Playwright server (the nightly's route)
+  const saved = testInfo.outputPath('export.json')
+  await file.saveAs(saved)
+  const text = Buffer.from(await (await import('node:fs/promises')).readFile(saved)).toString('utf8')
 
   const before = await page.evaluate(() => Object.fromEntries(Object.entries(localStorage)))
   let chooser = page.waitForEvent('filechooser')
