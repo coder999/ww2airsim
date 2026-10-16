@@ -78,6 +78,16 @@ export type FlightRecorderDiagnostics = {
  * production bundle check in the Task 15 report for confirmation it does
  * not survive `npm run build`.
  */
+export type CampaignDiagnostics = {
+  readonly id: string
+  readonly faction: 'us' | 'ja'
+  readonly revision: number
+  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string; readonly aircraft: string } | null
+  readonly live: readonly { readonly id: string; readonly points: number; readonly sorties: number }[]
+  readonly archived: number
+  readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number }
+}
+
 export type Ww2Diagnostics = {
   readonly reversedDepthBuffer: boolean
   readonly adapter: AdapterVerdict
@@ -457,6 +467,8 @@ export type Ww2Diagnostics = {
    * the requested id before trusting `aircraft()`/`ships()` to reflect it.
    */
   readonly scenarioId: () => string | null
+  /** The open campaign, read-only, for E2E (plan F5B): its id, faction, revision, the pending sortie, the live five and the Commander's ledger. `null` when none is open. */
+  readonly campaign: () => CampaignDiagnostics | null
   /** The model id of the loaded GLB actually drawn for the player (falling back to the
    *  hand-built root's name), or null before one is built: sortie forms E2E proves the
    *  chosen aircraft is the one drawn. */
@@ -552,7 +564,17 @@ export type Ww2Diagnostics = {
   /** Plan 16c: the apparent solar hour in force this frame, the sun's
    *  elevation and azimuth (degrees, azimuth from north clockwise) and the
    *  unit direction toward it in the world frame (+z south). */
-  readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number } }
+  readonly sun: () => { readonly timeOfDay: number; readonly elevationDeg: number; readonly azimuthDeg: number; readonly direction: { readonly x: number; readonly y: number; readonly z: number }; readonly keyLight: { readonly kind: 'sun' | 'moon'; readonly direction: { readonly x: number; readonly y: number; readonly z: number } } }
+  /** F6A: the gameplay-light irradiance at a world point and unit normal (null = omnidirectional), read back from the GPU and computed by the CPU twin from the same selected lights. */
+  readonly lightIrradianceAt: (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => Promise<{ readonly gpu: readonly number[]; readonly cpu: readonly number[]; readonly lit: number }>
+  /** F6A: the searchlight beams drawn last frame: length, what ends them, and the pixel a point `fraction` of the way along each is at (null if behind the eye). */
+  readonly beams: (fraction: number) => readonly { readonly lengthM: number; readonly screen: { readonly x: number; readonly y: number } | null; readonly axis: readonly number[] }[]
+  /** F6A DEV: draws and lights nothing (false) or restores the lights (true) at runtime, so a budget run can alternate lights on and off in ONE page load (the cost twin that survives machine drift). */
+  readonly setLightsOn: (on: boolean) => void
+  /** F6A: whether the player's position lights are on (N). */
+  readonly playerLightsOn: () => boolean
+  /** F6A: every scenario light the renderer drew last frame, with the pixel its glow is centered on (CSS pixels; null when behind the eye). */
+  readonly lights: () => readonly { readonly id: string; readonly kind: string; readonly lit: boolean; readonly distanceM: number; readonly screen: { readonly x: number; readonly y: number } | null }[]
   /** Entity-scaling plan (2026-10-10): per-frame main-thread cost, sim share, ticks run, and what the
    *  frame submitted (`main.ts`'s `cpuFrameSamples` says how each is taken). Reset by `resetFrameTimes`. */
   readonly cpuFrameSamples: () => readonly CpuFrameSample[]

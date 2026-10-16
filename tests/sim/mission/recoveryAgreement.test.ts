@@ -3,7 +3,9 @@ import { initialFrameStateFor, nextFrameState, type FrameState } from '../../../
 import { debriefModel, destructionModel, landingModel } from '../../../src/render/debrief.js'
 import { parseScenario, worldFromScenario } from '../../../src/sim/scenario.js'
 import { bundleForScenario, loadAircraftSpec, loadAirfield } from '../../../tools/content/load.js'
-import { playerAircraft, withAircraftState } from '../../../src/sim/loop.js'
+import { advance, playerAircraft, requestBailout, withAircraftState, type World } from '../../../src/sim/loop.js'
+import { DT } from '../../../src/sim/flight/model.js'
+import { bailoutModel } from '../../../src/render/debrief.js'
 import { createState } from '../../../src/sim/flight/state.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
 import { deckOf, deckWorld } from '../../../src/sim/world/deck.js'
@@ -146,5 +148,42 @@ describe('the render banking path and the mission outcome agree (spec §1, §5)'
     const outcome = missionOutcome(world.mission!, recoveryOf(world)!)
     expect(outcome.reasons).toEqual(['Killed', 'Recover: incomplete'])
     expectReasonsIffNoBadge(outcome)
+  })
+})
+
+describe('a bailout agrees with the mission outcome (F7A)', () => {
+  /** A real bailout over Tacloban, flown to touchdown, then the outcome forced to `outcome` (the resolver itself is tested elsewhere). */
+  function bailedOut(outcome: 'rescued' | 'captured' | 'killed'): World<undefined> {
+    const f = frameFor([], 'tacloban', flatField(100))
+    const req = requestBailout({ ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) })
+    if (!req.ok) throw new Error(req.reason)
+    let w: World<undefined> = req.world
+    for (let i = 0; i < 6_000 && w.parachutists![0]!.state.contact === null; i++) w = advance(w, DT).world
+    const p = w.parachutists![0]!
+    return { ...w, parachutists: [{ ...p, state: { ...p.state, outcome } }] }
+  }
+
+  it.each(['rescued', 'captured', 'killed'] as const)('%s: the debrief model and recoveryOf say the same word, and the badge rule says no', (outcome) => {
+    const w = bailedOut(outcome)
+    const model = bailoutModel(w.parachutists![0]!, kills)
+    expect(model.outcome).toBe(outcome)
+    expect(recoveryOf(w)).toEqual({ kind: outcome })
+    const o = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(o.result).toBe('no-badge')
+    expect(o.badge).toBeNull()
+    expectReasonsIffNoBadge(o)
+  })
+
+  it('the abandoned airframe\'s own impact cannot turn a rescue into a death', () => {
+    const w = bailedOut('rescued')
+    const crashed = { ...w, aircraft: w.aircraft.map((a) => a.id === w.player ? { ...a, impact: { tick: 1, kind: 'destroyed' as const } as never } : a) }
+    expect(recoveryOf(crashed)).toEqual({ kind: 'rescued' })
+  })
+
+  it('while the pilot is still in the air nothing is banked yet', () => {
+    const f = frameFor([], 'tacloban', flatField(100))
+    const req = requestBailout({ ...f.world, aircraft: f.world.aircraft.map((a) => ({ ...a, state: { ...a.state, position: v3(TAC.x, 400, TAC.z) } })) })
+    if (!req.ok) throw new Error(req.reason)
+    expect(recoveryOf(req.world)).toBeNull()
   })
 })

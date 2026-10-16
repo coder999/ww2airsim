@@ -1,4 +1,4 @@
-import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type Object3D } from 'three'
+import { Group, PerspectiveCamera, Scene, Vector2, Vector3, type MeshBasicMaterial, type Object3D } from 'three'
 import { setEnsignTime } from './scene/ensign.js'
 import { positionWorld } from 'three/tsl'
 import { applyRenderScale, initRenderer, normalizeGpuError, pixelRatioFor, rendererQueue, renderScaleFromQuery } from './renderer.js'
@@ -40,12 +40,15 @@ import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
 import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
+import { createHeadquarters } from './hq/bootHq.js'
+import { SORTIE_END_OF, type Session } from './campaignSession.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
 import { createBootProgress } from './bootProgress.js'
 import { track } from './analytics.js'
-import { bankSortie, loadRoster, saveRoster, type LogOutcome, type SortieFacts } from './roster.js'
+import { bankScored, type BankedView } from './campaignBank.js'
+import { formatName, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
@@ -78,7 +81,8 @@ import { MAP_SIDE_M, cloudShadowFromQuery, createCloudShadow } from './scene/clo
 import { cloudLayersForCloudiness } from './cloudiness.js'
 import { loadSkyNoise } from './sky/load.js'
 import { DEFAULT_TIME_OF_DAY, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery } from './sky/sun.js'
-import { atmospherePalette, warmIrradianceTable } from './sky/palette.js'
+import { atmospherePalette, warmIrradianceTable, withMoonLight } from './sky/palette.js'
+import { moonDirection, moonIsKeyLight, nightTuning, nightTuningFromQuery } from './sky/night.js'
 import { atmosphereFromQuery, disposeAtmosphereLuts, getAtmosphereLuts, type AtmosphereLutName } from './sky/atmosphereLuts.js'
 import type { CloudLayer } from '../sim/scenario.js'
 import { createTracers } from './scene/tracers.js'
@@ -128,12 +132,15 @@ import { loadSceneryTextures, sceneryTexturesFromQuery, type SceneryTextures } f
 import placesData from '../../content/scenery/places.json' with { type: 'json' }
 import villagesData from '../../content/scenery/villages.json' with { type: 'json' }
 import { createSky } from './scene/sky.js'
-import { applySun, createLighting, cumulusCover } from './scene/lighting.js'
+import { createNightLights } from './lights/nightLights.js'
+import { LIGHT_GAIN, createIrradianceProbe, irradianceAtCpu } from './lights/irradiance.js'
+import { applyNight, applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
 import { canopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
+import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockpitDim.js'
 import type { CockpitFamily } from './scene/cockpitLayouts.js'
 import { createGunPipper, poseGunPipper } from './scene/gunPipper.js'
 import { createSteeringArrow } from './scene/steeringArrow.js'
@@ -309,11 +316,19 @@ async function boot(): Promise<void> {
   let pickedCloudiness: Cloudiness | undefined
   // Hoisted beside the hour it overrides: `onNewGame`'s same-scenario path reads it, and the title is clickable before boot reaches the sky.
   const forcedTimeOfDay = import.meta.env.DEV ? timeOfDayFromQuery(location.search) : undefined
+  let nightLightsOffQuery = false
+  // DEV `?night=floor:1.4,moon:0.3`: the look's tunable constants (sky/night.ts), for CP1.
+  if (import.meta.env.DEV) {
+    const tuned = nightTuningFromQuery(location.search)
+    nightLightsOffQuery = tuned?.lightsOff === true
+    Object.assign(nightTuning, tuned)
+    if (tuned?.cockpitDim !== undefined) cockpitTuning.nightDim = tuned.cockpitDim
+  }
   /** A2: applies a newly loaded scenario's weather (clouds, hour, sea state)
    *  to the live sky and ocean. Null until boot has built them; boot's own
    *  first `loadScenario` reads the bundle directly instead. */
   let applyScenarioWeather: ((weather: ScenarioBundle['scenario']['weather']) => void) | null = null
-  let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 } }
+  let sunState = { timeOfDay: DEFAULT_TIME_OF_DAY, elevationDeg: 90, azimuthDeg: 180, direction: { x: 0, y: 1, z: 0 }, keyLight: { kind: 'sun' as 'sun' | 'moon', direction: { x: 0, y: 1, z: 0 } } }
   /** Photoreal Task 9 fix 2: the boot-time irradiance table build, ms (DEV readout). */
   let irradianceTableMs: number | null = null
   // Plan 17, read by the DEV hook's `radar()` below and by Task 3's render
@@ -357,8 +372,13 @@ async function boot(): Promise<void> {
    * reachable yet, or a dev-URL bypass), which is exactly
    * `bankMissionResult`'s own no-op guard below.
    */
-  let roster = loadRoster()
-  let currentPilotId: string | null = null
+  /** The campaign sortie being flown (F5B): set at Launch when the campaign has a pending sortie, so it banks exactly once;
+   *  null for an unscored sortie (Training, Single Missions, Dev) and a quick launch. */
+  let scoredSortie: { readonly sortieId: string } | null = null
+  // Declared here (not beside the headquarters, further down) for the same TDZ reason as `frame`: `onNewGame` reads them.
+  let hqSession: Session | null = null
+  let hqHandle: { show(): void } | null = null
+  let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
    * The player's `killsByType` as of the last bank -- a landing/ditching/
    * death that already scored them. Reset to zero on every New Game and every
@@ -379,6 +399,10 @@ async function boot(): Promise<void> {
   // hoisting it further, alongside `loadScenario` below which needs it to
   // exist, changes nothing observable.
   const scene = new Scene()
+  // F6A: the scenario's night lights (equipment models and one glow batch); lights are drawn from `lightsAt`, never stored.
+  const nightLights = createNightLights(scene)
+  const irradianceProbe = createIrradianceProbe()
+  if (nightLightsOffQuery) nightLights.setTier('off')
   // Plan 9 Task 7 round 2: hoisted together with `loadScenario` just below,
   // for the same TDZ reason as `roster` above and `frame`/`audio`/
   // `buildWorld` further down -- `loadScenario`'s only unguarded call site
@@ -534,6 +558,7 @@ async function boot(): Promise<void> {
     spawnPosition = nextSpawnedAt
     loadedAircraftSpec = choice.aircraftSpec
     scenarioEntities = await buildScenarioEntities(scene, nextScenarioWorld, scenarioEntities, loadRegisteredAirframe, loadShips)
+    await nightLights.setScenario(nextBundle.scenario.lights ?? [])
     applyScenarioWeather?.(nextBundle.scenario.weather)
   }
   /**
@@ -803,7 +828,7 @@ async function boot(): Promise<void> {
   // so its first build shows the locked state, and advanced below at each
   // stage this function already passes through.
   const boot = createBootProgress()
-  const title = createTitleScreen(root, requestedScenarioId, (choice, pilotId) => {
+  const title = createTitleScreen(root, requestedScenarioId, (choice) => {
     chosen = choice
     pickedTimeOfDay = choice.timeOfDay
     pickedCloudiness = choice.cloudiness
@@ -821,8 +846,9 @@ async function boot(): Promise<void> {
     // the baseline resets to zero same as Restart does below; see this
     // plan's own "Ruling" section for why calling `startSortie` again here
     // would double-count it (never do that in this callback).
-    roster = loadRoster()
-    currentPilotId = pilotId
+    // F5B: the pilot comes from the campaign's pending sortie.
+    const pendingSortie = hqSession?.current()?.pending ?? null
+    scoredSortie = pendingSortie === null ? null : { sortieId: pendingSortie.sortieId }
     scoredThroughKillsByType = zeroKillsByType()
     segment = EMPTY_SEGMENT
     // A click is the user gesture the autoplay policy wants; this is the
@@ -914,13 +940,26 @@ async function boot(): Promise<void> {
     if (bundle !== null && applyScenarioWeather !== null) applyScenarioWeather(bundle.scenario.weather)
     else scenarioTimeOfDay = forcedTimeOfDay ?? pickedTimeOfDay ?? bundle?.scenario.weather.timeOfDay ?? DEFAULT_TIME_OF_DAY
     rebuildFrame()
-  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) }, recordDevSorties)
+  }, quality.settings, boot, { options: SCENARIO_OPTIONS, flyable, ordnanceNames: loadOrdnanceNames(), loadScenario: (id) => loadScenarioFile(id) })
   // A quick launch (A6, SF-R9) builds the title and hides it at once rather
   // than skipping it: `title.up()` gates keys and pausing in several places,
   // and "Return to title" must work as after any flight. No pilot is chosen,
   // so `currentPilotId` stays null and nothing banks. Audio stays suspended
   // until the first click, since no New game click supplied the gesture.
   if (quick !== null) title.hide()
+  // F5B: Headquarters is the front door. It sits above the title (which stays up, so the world is held and flight keys
+  // stay off) and appears once the boot is ready, as the old roster memo did. A quick launch has no campaign.
+  if (quick === null) {
+    const booted = createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id), title, settings: quality.settings })
+    hqSession = booted.session
+    hqHandle = booted.hq
+    hqCatalogNow = booted.catalogNow
+    const showHq = (): void => booted.hq.show()
+    if (boot.ready) showHq()
+    else {
+      const off = boot.onChange(() => { if (boot.ready) { off(); showHq() } })
+    }
+  }
 
   const canvas = document.createElement('canvas')
   root.appendChild(canvas)
@@ -1301,6 +1340,17 @@ async function boot(): Promise<void> {
       // `await buildScenarioEntities` (now a vehicle GLB fetch too) and the `.then(rebuildFrame)`, so
       // reading `bundle` alone reported the new id while `frame` still held the old roster.
       scenarioId: () => (swapPending ? null : bundle?.scenario.id ?? null),
+      campaign: () => {
+        const c = hqSession?.current() ?? null
+        if (c === null) return null
+        return {
+          id: c.id, faction: c.faction, revision: c.revision,
+          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? '') },
+          live: c.roster.live.map((id) => ({ id, points: c.pilots[id]!.points, sorties: c.pilots[id]!.sorties })),
+          archived: Object.keys(c.pilots).length - c.roster.live.length,
+          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned },
+        }
+      },
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
       // stamped by modelCache when there is one, rather than trusting the wrapper root's label.
       // The hand-built Wildcat has no cache URL and names its own root instead.
@@ -1378,6 +1428,31 @@ async function boot(): Promise<void> {
       radarPixelAt: (bearingRad: number, rangeMi: number) => radarScope.readAt(renderer, bearingRad, rangeMi),
       // Plan 16c: the hour in force and where the sun is, for the specs.
       sun: () => sunState,
+      lightIrradianceAt: async (x: number, y: number, z: number, normal: readonly [number, number, number] | null) => {
+        const n = normal === null ? null : { x: normal[0], y: normal[1], z: normal[2] }
+        const gpu = await irradianceProbe.read(renderer, { x, y, z }, n)
+        const sel = nightLights.selected()
+        return { gpu, cpu: irradianceAtCpu(sel, { x, y, z }, n, LIGHT_GAIN * nightTuning.lightScale), lit: sel.length }
+      },
+      beams: (fraction: number) => {
+        if (!frame) return []
+        const eye = frame.eye.position, size = renderer.getSize(new Vector2())
+        return nightLights.beamsDrawn().map((b) => {
+          const t = b.lengthM * fraction
+          const p = new Vector3(b.origin.x + b.axis.x * t - eye.x, b.origin.y + b.axis.y * t - eye.y, b.origin.z + b.axis.z * t - eye.z).project(camera)
+          return { lengthM: b.lengthM, axis: [b.axis.x, b.axis.y, b.axis.z], screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
+        })
+      },
+      setLightsOn: (on: boolean) => nightLights.setTier(on ? (fxTier === 'off' ? 'high' : fxTier) : 'off'),
+      playerLightsOn: () => playerLightsOn,
+      lights: () => {
+        if (!frame) return []
+        const eye = frame.eye.position, size = renderer.getSize(new Vector2())
+        return nightLights.anchors().map((a) => {
+          const p = new Vector3(a.x - eye.x, a.y - eye.y, a.z - eye.z).project(camera)
+          return { id: a.id, kind: a.kind, lit: a.lit, distanceM: Math.hypot(a.x - eye.x, a.y - eye.y, a.z - eye.z), screen: p.z > 1 ? null : { x: ((p.x + 1) / 2) * size.x, y: ((1 - p.y) / 2) * size.y } }
+        })
+      },
       // Plan 17: the radar scope's live state, same `frame`-guard as `combat`
       // above -- the hook is installed before the first frame exists.
       radar: () => (frame ? { rangeMi: selectedRadarRangeMi, sweepRad: radarSweepRad, contacts: radarContactList } : null),
@@ -1753,6 +1828,7 @@ async function boot(): Promise<void> {
     fxTier = name
     fxSystem?.setCapacity(FX_TIERS[name].capacity)
     fxPass?.setTier(FX_TIERS[name])
+    nightLights.setTier(name)
     waterWake.setTier(name)
   }
   // `qualityChecked` itself is declared much earlier now (beside `quality`),
@@ -1874,6 +1950,7 @@ async function boot(): Promise<void> {
   // same `frame.render` pose each frame.
   await ensureCockpitTextFont()
   let panel = createPanel(spec)
+  const cockpitDimmer = createCockpitDimmer()
   resizePanel(panel, window.innerWidth / window.innerHeight)
   let radarScope = createRadarScope()
   radarScope.attachTo(panel.radar.face)
@@ -2116,6 +2193,8 @@ async function boot(): Promise<void> {
     // just once at boot -- so a return-to-title after an in-session switch
     // preselects what is really loaded, not whatever this boot started with.
     title.show(requestedScenarioId)
+    // F5B: a flight that came from Headquarters returns there (the title stays up beneath it, holding the world).
+    if (hqSession?.current() != null) hqHandle?.show()
   }
   /** Whether the landing debrief is up for the landing `frame.landing.report`
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
@@ -2167,92 +2246,51 @@ async function boot(): Promise<void> {
   let replayHistoryCut = false
   /** DEV (`__ww2.renderedPlayerPositionM`): the player's airframe root as drawn this frame. */
   let renderedPlayerPosition: Vec3 | null = null
-  /** Assembles this bank's dossier record (dossier spec §B.2) from the flight
-   *  `segment` just flown plus whatever main.ts already tracks live -- the
-   *  scenario, aircraft and loadout in play right now. */
-  const sortieFacts = (outcome: LogOutcome, world: FrameState['world']): SortieFacts => ({
-    at: new Date().toISOString(),
-    scenarioId: requestedScenarioId,
-    aircraft: playerAircraft(world).spec.name,
-    loadout: chosen.loadout,
-    outcome,
-    segment,
-  })
-  /**
-   * Applies one mission's score to whichever pilot is flying and persists the
-   * roster immediately, so both this debrief's own figures and the title
-   * screen's next `show()` (which re-reads `loadRoster()`) agree with no
-   * extra plumbing. A no-op before `onNewGame` has ever fired.
-   *
-   * Whole-branch review I-2/I-3: `killsSinceLastBank` is threaded through to
-   * `applyMissionResultToRoster` so the pilot's career `killsByType`
-   * actually accumulates (I-2 -- before this it was written nowhere).
-   * Returns the pilot's post-bank cumulative score and, if this mission
-   * crossed a rank threshold, the new rank's name -- design §1's other two
-   * promised debrief figures (I-3), read off the roster entry BEFORE and
-   * AFTER banking so a promotion is reported only when the rank actually
-   * changed, not merely recomputed to the same value. `null` on the same
-   * no-op guard as before (`currentPilotId === null`) and if the pilot
-   * somehow is not found (unreachable in practice: `currentPilotId` only
-   * ever comes from a pilot actually in `roster`).
-   */
-  /** How a debrief banks after friendly fire: a survivor is discharged, a
-   *  death is only forfeit, and a clean sortie is neither. */
-  const friendlyFireBank = (model: DebriefModel): 'discharged' | 'forfeit' | null =>
-    model.discharge !== undefined ? 'discharged' : model.forfeit !== undefined ? 'forfeit' : null
-  const bankMissionResult = (
-    scoreTotal: number,
-    outcome: 'landed' | 'ditched' | 'killed' | 'rescued' | 'captured',
-    killsSinceLastBank: Readonly<Record<TargetType, number>>,
-    sortie: SortieFacts,
-    friendlyFire: 'discharged' | 'forfeit' | null,
-    badgeId: string | null,
-  ): { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null => {
-    const discharged = friendlyFire === 'discharged'
-    track('mission_outcome', { mission: requestedScenarioId, outcome, score: scoreTotal })
-    if (currentPilotId === null) return null
-    // A Dev sortie (sortie spec A5) banks nothing: `bankSortie` hands the same
-    // roster back, so there is nothing to save and no figure to show.
-    const devUnrecorded = devSortie && !recordDevSorties
-    const before = roster.find((p) => p.id === currentPilotId) ?? null
-    const next = bankSortie(roster, currentPilotId, { devSortie: devUnrecorded, scoreTotal, outcome, killsSinceLastBank, sortie, friendlyFire, badgeId })
-    if (next === roster) return null
-    roster = next
-    saveRoster(roster)
-    const after = roster.find((p) => p.id === currentPilotId) ?? null
-    if (after === null) return null
-    const promotedTo = !discharged && before !== null && before.rank.abbrev !== after.rank.abbrev ? after.rank.name : undefined
-    return { bankedTotal: after.cumulativeScore, promotedTo }
+  /** One bank of the pending campaign sortie (plan F5B Task 10). `null` for an unscored sortie or a quick launch. The
+   *  reducer and the session latch make a second call bank nothing. */
+  const bankCampaign = (end: SortieEndKind, world: FrameState['world'], success: boolean, badgeId: string | null, landing: 'trap' | 'field' | 'ditched' | 'water' | null): BankedView | null => {
+    if (scoredSortie === null || hqSession === null) return null
+    const player = world.combat.aircraft[world.player]!
+    const out = bankScored({
+      session: hqSession, end, success, badgeId,
+      player: { tagCredits: player.tagCredits, friendlyKills: player.friendlyKills, friendlyFire: player.friendlyFire !== null },
+      flight: { flightSeconds: segment.flightSeconds, maxAltitudeM: segment.maxAltitudeM, maxTrueAirspeedMps: segment.maxTrueAirspeedMps, landing },
+      authoredBonusOf: (id) => hqCatalogNow()?.find((m) => m.id === id)?.authoredBonus ?? 0,
+    })
+    scoredSortie = null
+    if (out === null || 'refused' in out) return null
+    return out
   }
   /**
-   * The one place all three debrief call sites below merge `bankMissionResult`'s
-   * return into the model actually shown (whole-branch review I-3) -- kept in
-   * one function rather than repeated three times so the merge shape cannot
-   * drift between the impact/destruction/landing sites. `banked === null`
-   * (no pilot flying -- a dev-URL bypass, or the roster flow never reached)
-   * shows the model exactly as built, with neither figure.
+   * The one place all three debrief call sites below merge the banked result into the model actually shown, so the
+   * merge shape cannot drift between the impact/destruction/landing sites. `banked === null` (an unscored sortie, a
+   * quick launch) shows the model as built. A banked sortie has no Continue and no Restart: it ends here, and the one
+   * way out is back to Headquarters. An unscored sortie from Headquarters keeps both but returns there too.
    */
   const showDebrief = (
     model: DebriefModel,
-    banked: { readonly bankedTotal: number; readonly promotedTo: string | undefined } | null,
+    banked: BankedView | null,
     onContinue: (() => void) | undefined,
     onWatchReplay: (() => void) | undefined,
   ): void => {
-    // `exactOptionalPropertyTypes`: spread `promotedTo` in only when it is
-    // actually a string, rather than assigning it `undefined` -- the two are
-    // different things under this tsconfig, and `DebriefModel.promotedTo` is
-    // typed as absent-or-string, not string-or-undefined (matching
-    // `continueLabel`'s existing convention on the same type).
-    // The one merge point for all three sites, so the Dev stamp (sortie spec
-    // A5) reaches every debrief without a fourth copy at each call.
     const shown = withNotRecorded(model, devSortie && !recordDevSorties)
-    const finalModel = banked === null
-      ? shown
-      : { ...shown, bankedTotal: banked.bankedTotal, ...(banked.promotedTo !== undefined ? { promotedTo: banked.promotedTo } : {}) }
+    const fromHq = hqSession?.current() != null
+    const { continueLabel, ...withoutContinue } = shown
+    void continueLabel // a banked sortie ends here: the destructure is how Continue is dropped
+    const base: DebriefModel = banked === null ? shown : { ...withoutContinue, noRestart: true }
+    const finalModel: DebriefModel = {
+      ...base,
+      ...(fromHq ? { returnLabel: 'Return to Headquarters' } : {}),
+      ...(banked === null ? {} : {
+        bankedTotal: banked.bankedTotal, campaign: banked.campaign,
+        ...(banked.promotedTo !== undefined && banked.promotedTier !== undefined ? { promotedTo: banked.promotedTo, promotedTier: banked.promotedTier } : {}),
+        ...(banked.saveError !== undefined ? { saveError: banked.saveError } : {}),
+      }),
+    }
     if (activeFlightRecorder !== null) completedFlightRecord = activeFlightRecorder.finish(frame!.world, finalModel)
     debrief.show(
       finalModel,
-      onContinue,
+      banked === null ? onContinue : undefined,
       returnToTitle,
       onWatchReplay,
       completedFlightRecord === null ? undefined : () => { void exportDevFlightRecord() },
@@ -2400,6 +2438,9 @@ async function boot(): Promise<void> {
   let pendingFlaps = false
   // And the hook lever (Plan 8), latched the same way for the same reason.
   let pendingHook = false
+  // F6A: the player's position lights (N): on, or blacked out. Latched like the levers so the recorder can stamp it on a fixed tick.
+  let playerLightsOn = true
+  let pendingLights = false
   let navigationMapState = CLOSED_NAVIGATION_MAP
   const NO_KEYS: ReadonlySet<string> = new Set()
   const clearMapInput = (): void => {
@@ -2411,6 +2452,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -2442,11 +2484,12 @@ async function boot(): Promise<void> {
   pauseScreen = createPauseScreen(root, quality.settings, {
     snapshot: () => {
       if (bundle === null) throw new Error('Pause dossier requires a loaded scenario')
-      const pilot = currentPilotId === null ? null : roster.find((candidate) => candidate.id === currentPilotId) ?? null
+      const open = hqSession?.current() ?? null
+      const pilot = open === null || open.pending === null ? null : open.pilots[open.pending.pilotId] ?? null
       return {
-        pilotName: pilot?.name ?? 'Unassigned pilot',
-        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.killsByType,
-        careerKills: pilot?.killsByType ?? zeroKillsByType(),
+        pilotName: pilot === null || open === null ? 'Unassigned pilot' : formatName(pilot.name, open.faction),
+        currentKills: frame!.world.combat.aircraft[frame!.world.player]!.tagCredits,
+        careerKills: pilot === null ? zeroKillsByType() : (pilot.counts as Readonly<Record<TargetType, number>>),
         world: frame!.world,
         selectedNavigationId: navigationMapState.selectedId,
         briefing: briefingModel(bundle.scenario, pilot?.badges ?? []),
@@ -2466,13 +2509,20 @@ async function boot(): Promise<void> {
     },
     onAbort: () => {
       if (navigationMapState.open) navigationMapState = closeNavigationMap(navigationMapState).state
-      // Unlike a debrief return, aborting an active sortie banks nothing. Drop
-      // every flight-only surface and recording before showing the roster;
-      // the next New game rebuild supplies a fresh world.
+      // A scored campaign sortie is ABANDONED here (F5B, Quit/Abandon): zero points, the pilot lives, the sortie still
+      // counts against the adjusted score. An unscored one banks nothing. Either way drop every flight-only surface and
+      // recording; the next launch supplies a fresh world.
+      if (scoredSortie !== null && hqSession !== null && hqSession.current()?.pending != null) {
+        hqSession.abandon()
+        track('mission_outcome', { mission: requestedScenarioId, outcome: 'abandoned', score: 0 })
+      }
+      scoredSortie = null
       resetFlightUi()
       clearMapInput()
       title.show(requestedScenarioId)
+      if (hqSession?.current() != null) hqHandle?.show()
     },
+    scoredSortie: () => scoredSortie !== null,
     ...(import.meta.env.DEV ? {
       canExportFlightRecord: () => activeFlightRecorder !== null,
       onExportFlightRecord: () => { void exportDevFlightRecord() },
@@ -2635,6 +2685,8 @@ async function boot(): Promise<void> {
   }
 
   window.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + a key with text selected is the browser's copy (the dev overlay's position line): not a game key.
+    if ((e.ctrlKey || e.metaKey) && (window.getSelection()?.toString() ?? '') !== '') return
     // Nothing reaches the game while the title is up; the title owns Enter.
     if (title.up()) return
     // A replay owns the keyboard: nothing below -- no flight latch, no page
@@ -2697,6 +2749,7 @@ async function boot(): Promise<void> {
     if (BINDINGS.toggleGear.includes(e.code as never) && !e.repeat) pendingGear = true
     if (BINDINGS.toggleFlaps.includes(e.code as never) && !e.repeat) pendingFlaps = true
     if (BINDINGS.toggleHook.includes(e.code as never) && !e.repeat) pendingHook = true
+    if (BINDINGS.toggleNavLights.includes(e.code as never) && !e.repeat) { playerLightsOn = !playerLightsOn; pendingLights = true }
     if (BINDINGS.toggleFlightData.includes(e.code as never) && !e.repeat) {
       e.preventDefault()
       flightData.toggle()
@@ -2759,6 +2812,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -2795,6 +2849,11 @@ async function boot(): Promise<void> {
     const trianglesAtStart = import.meta.env.DEV ? renderer.info.render.triangles : 0
     const frameMs = now - last
     last = now
+    // A scenario switch is loading: `scenarioEntities` is already the NEW scenario's while `frame.world` is still the
+    // old one until `rebuildFrame`, so drawing now would throw in `entityViews` whenever the old world had more ships
+    // than the new scenario (free-flight's three to Night Range's none) and kill the loop at tick 0 (found 2026-10-15
+    // launching Night Range from Headquarters; the old title hit it too, and so does Gunnery Range).
+    if (swapPending) return
 
     // Collected for `window.__ww2.frameTimesMs()`; see that member's comment
     // in diagnostics.ts for what this quantity is and is not. Recorded at the
@@ -2906,6 +2965,7 @@ async function boot(): Promise<void> {
       if (pendingGear) activeFlightRecorder.note({ tick, kind: 'control', control: 'gear', value: !inputFrame.gearDown })
       if (pendingFlaps) activeFlightRecorder.note({ tick, kind: 'control', control: 'flaps', value: !inputFrame.flapDown })
       if (pendingHook) activeFlightRecorder.note({ tick, kind: 'control', control: 'hook', value: !inputFrame.hookDown })
+      if (pendingLights) activeFlightRecorder.note({ tick, kind: 'control', control: 'lights', value: playerLightsOn })
       if (pendingDropBomb) activeFlightRecorder.note({ tick, kind: 'control', control: 'bomb', value: true })
       if (pendingFireRockets) activeFlightRecorder.note({ tick, kind: 'control', control: 'rockets', value: true })
       if (pendingWingmanKey !== null) {
@@ -2945,6 +3005,7 @@ async function boot(): Promise<void> {
     pendingGear = false
     pendingFlaps = false
     pendingHook = false
+    pendingLights = false
     pendingDropBomb = false
     pendingFireRockets = false
     pendingWingmanKey = null
@@ -3159,6 +3220,8 @@ async function boot(): Promise<void> {
       view.world.wind,
       view.world.combat.aircraft[viewPlayer.id] ?? null,
     )
+    // F6A: the panel's basic materials dim with the night (scene/cockpitDim.ts); after updatePanel, which rewrites the lamps.
+    cockpitDimmer.apply(panel.root, cockpitDimFor(sunState.elevationDeg), [panel.lights.gear, panel.lights.flap, panel.lights.hook, panel.lights.bay].map((m) => m.material as MeshBasicMaterial))
     audio.setView(view.cameraMode === 'cockpit' ? 'cockpit' : 'chase')
     audio.setCameraZoom(view.cameraMode === 'cockpit' ? 1 : current.orbit.zoom)
     if (replay === null) {
@@ -3416,17 +3479,12 @@ async function boot(): Promise<void> {
       && bailoutResult.state.contact !== null && shownBailoutTick !== bailoutResult.state.contact.tick
     ) {
       shownBailoutTick = bailoutResult.state.contact.tick
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const model = withDischarge(bailoutModel(bailoutResult, killsSinceLastBank), current.world)
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(
-        model.score.total,
-        bailoutResult.state.outcome,
-        killsSinceLastBank,
-        sortieFacts(bailoutResult.state.outcome, current.world),
-        friendlyFireBank(model),
-        null,
-      )
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      // The sim decides success (a bailout is never one: `missionOutcome`), exactly as at the other end sites.
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(bailoutModel(bailoutResult, killsSinceLastBank), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: bailoutResult.state.outcome, score: model.score.total })
+      const banked = bankCampaign(SORTIE_END_OF[bailoutResult.state.outcome], current.world, success, badgeId, null)
       segment = EMPTY_SEGMENT
       pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
       dispatch({ kind: 'crashBanked' })
@@ -3434,17 +3492,11 @@ async function boot(): Promise<void> {
     const hit = player.impact
     if (bailoutResult === null && hit !== null && shownImpactTick !== hit.tick) {
       shownImpactTick = hit.tick
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(
-        model.score.total,
-        hit.kind === 'ditched' ? 'ditched' : 'killed',
-        killsSinceLastBank,
-        sortieFacts(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world),
-        friendlyFireBank(model),
-        badgeId,
-      )
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(debriefModel(hit, player.state, killsSinceLastBank), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: hit.kind === 'ditched' ? 'ditched' : 'killed', score: model.score.total })
+      const banked = bankCampaign(hit.kind === 'ditched' ? 'ditched' : 'killed', current.world, success, badgeId, hit.kind === 'ditched' ? 'ditched' : null)
       segment = EMPTY_SEGMENT
       pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
       dispatch({ kind: 'crashBanked' })
@@ -3459,10 +3511,11 @@ async function boot(): Promise<void> {
       shownDestructionTick !== playerDamage.destroyedAt
     ) {
       shownDestructionTick = playerDamage.destroyedAt
-      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-      const { model, badgeId } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !playerDamage.attacker.startsWith(COLLISION_ATTACKER_PREFIX) && !current.world.aircraft.some((x) => x.id === playerDamage.attacker), collisionShipName(current.world, playerDamage.attacker)), current.world), current.world)
-      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-      const banked = bankMissionResult(model.score.total, 'killed', killsSinceLastBank, sortieFacts('killed', current.world), friendlyFireBank(model), badgeId)
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(destructionModel(player.state, playerDamage.attacker, killsSinceLastBank, playerDamage.attacker !== null && !playerDamage.attacker.startsWith(COLLISION_ATTACKER_PREFIX) && !current.world.aircraft.some((x) => x.id === playerDamage.attacker), collisionShipName(current.world, playerDamage.attacker)), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: 'killed', score: model.score.total })
+      const banked = bankCampaign('killed', current.world, success, badgeId, null)
       segment = EMPTY_SEGMENT
       pendingDebrief = { show: () => showDebrief(model, banked, undefined, watchReplay) }
       dispatch({ kind: 'crashBanked' })
@@ -3484,8 +3537,8 @@ async function boot(): Promise<void> {
       } else {
         landingShown = true
         frame = withPaused(current, true)
-        const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.killsByType, scoredThroughKillsByType)
-        const { model, badgeId } = withMissionDebrief(
+        const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+        const { model, badgeId, success } = withMissionDebrief(
           withDischarge(landingModel(
             current.landing.report,
             killsSinceLastBank,
@@ -3493,15 +3546,9 @@ async function boot(): Promise<void> {
           ), current.world),
           current.world,
         )
-        scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.killsByType
-        const banked = bankMissionResult(
-          model.score.total,
-          'landed',
-          killsSinceLastBank,
-          sortieFacts(landingKind(current.landing.report), current.world),
-          friendlyFireBank(model),
-          badgeId,
-        )
+        scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+        track('mission_outcome', { mission: requestedScenarioId, outcome: 'landed', score: model.score.total })
+        const banked = bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))
         segment = EMPTY_SEGMENT
         showDebrief(model, banked, () => {
           frame = acknowledgeLanding(frame!)
@@ -3566,12 +3613,20 @@ async function boot(): Promise<void> {
     const hour = sunClock(scenarioTimeOfDay, skyTimeS)
     const { elevationDeg, azimuthDeg } = sunPosition(TERRAIN_HEADER.centreLatDeg, hour)
     const direction = sunDirectionWorld(elevationDeg, azimuthDeg)
-    applySun(lights, atmospherePalette(view.eye.position.y, elevationDeg), direction, elevationDeg,
+    // F6A night: below MOON_SWITCH_DEG the one directional light is the fixed moon (sky/night.ts).
+    const keyDirection = moonIsKeyLight(elevationDeg) ? moonDirection() : direction
+    applySun(lights, withMoonLight(atmospherePalette(view.eye.position.y, elevationDeg), elevationDeg), keyDirection, elevationDeg,
       cloudTier === 'off' ? 0 : cumulusCover(cloudLayers))
+    applyNight(direction, elevationDeg)
+    nightLights.update(view.world, skyTimeS, (2 * Math.tan((camera.fov * Math.PI) / 360)) / Math.max(1, renderer.getDrawingBufferSize(new Vector2()).height), view.eye.position,
+      cloudTier === 'off' ? null : (cloudLayers.find((l) => l.kind === 'cumulus')?.baseM ?? null), playerLightsOn, { aircraft: view.poses, ships: view.shipPoses })
     // Phase A: a fixed exposure per sun elevation (exposure.ts), so dusk
     // reads dim but not black. One uniform write; no pipeline rebuild.
     framePipeline.setExposure(exposureFor(elevationDeg))
-    sunState = { timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z } }
+    sunState = {
+      timeOfDay: hour, elevationDeg, azimuthDeg, direction: { x: direction.x, y: direction.y, z: direction.z },
+      keyLight: { kind: moonIsKeyLight(elevationDeg) ? 'moon' : 'sun', direction: { x: keyDirection.x, y: keyDirection.y, z: keyDirection.z } },
+    }
     clouds.update(view.eye.position, skyTimeS, view.world.wind)
     takramCloudPass?.setEnvironment(
       skyTimeS, direction, cumulusCover(cloudLayers), cloudLayers.find(layer => layer.kind === 'cumulus')?.baseM ?? 750,

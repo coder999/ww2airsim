@@ -1,4 +1,5 @@
 import { skyIrradiance, sunColorAt, type Rgb } from './atmosphere.js'
+import { MOON_ELEVATION_DEG, duskGlowWeight, moonIsKeyLight, moonWeight, nightTuning } from './night.js'
 
 /**
  * The scene's light as a function of eye altitude and sun elevation, from the
@@ -48,6 +49,14 @@ const TWILIGHT_HORIZON = scaled(srgbHexToLinear(0x3a3a5a), TWILIGHT_SCALE)
 /** The irradiance a dome of the floor's radiance gives an up-facing surface
  *  (π × its mean radiance, weighted toward the horizon band). */
 const TWILIGHT_UP: Rgb = scaled(mixRgb(TWILIGHT_ZENITH, TWILIGHT_HORIZON, 0.6), Math.PI)
+
+/**
+ * The deep-night horizon (F6A, docs/night.md): what `TWILIGHT_HORIZON` fades to
+ * as the dusk glow dies between -6 and -18 deg. A blue a little lighter than
+ * the zenith, with no warm band, so dusk (J5) and deep night (A4/J4) differ
+ * by a measurable amount (night.spec.ts). Starting value, tuned at CP1.
+ */
+const NIGHT_HORIZON = scaled(srgbHexToLinear(0x1a2a4d), TWILIGHT_SCALE)
 
 export type SkyPalette = {
   /** The DirectionalLight's color: transmitted sun × SUN_ILLUMINANCE. */
@@ -177,13 +186,39 @@ function paletteFrom(hM: number, elevationDeg: number, irr: { up: Rgb; down: Rgb
   // the model has gone dark. Continuous in elevation, never NaN (F > 0).
   const f = luminance(TWILIGHT_UP), l = luminance(up)
   const twilight = (f * f) / (l * l + f * f)
+  // F6A: the floor's horizon fades from the dusk's to the night's, and the whole
+  // floor takes the night scale. At >= -6 deg glow is 1 and scale applies only
+  // through `twilight` (~1 there), so the dusk look is the one that shipped.
+  const glow = duskGlowWeight(elevationDeg)
+  const horizon = mixRgb(NIGHT_HORIZON, TWILIGHT_HORIZON, glow)
+  const k = twilight * (nightTuning.floorScale + (nightTuning.duskScale - nightTuning.floorScale) * glow)
+  const floorUp: Rgb = scaled(mixRgb(TWILIGHT_ZENITH, horizon, 0.6), Math.PI)
   return {
     sunColor,
     sunIntensity: 1,
-    zenith: scaled(TWILIGHT_ZENITH, twilight),
-    horizon: scaled(TWILIGHT_HORIZON, twilight),
-    fillSky: added(up, scaled(TWILIGHT_UP, twilight)),
-    fillGround: added(down, scaled(TWILIGHT_UP, twilight * SCENE_GROUND_ALBEDO)),
+    zenith: scaled(TWILIGHT_ZENITH, k),
+    horizon: scaled(horizon, k),
+    fillSky: added(up, scaled(floorUp, k)),
+    fillGround: added(down, scaled(floorUp, k * SCENE_GROUND_ALBEDO)),
     twilight,
   }
+}
+
+/** The moon's tint: cool, unit luminance. */
+const MOON_TINT: Rgb = [0.78, 0.88, 1.0]
+
+/**
+ * Below `MOON_SWITCH_DEG` the scene's one directional light is the moon, so
+ * every existing sun-lit path (terrain, ocean, beaches, lit materials, fx)
+ * works at night with no second DirectionalLight (plan §3.5 item 4). Returns
+ * the palette with `sunColor` replaced by the moon's irradiance on a surface
+ * facing it: `nightTuning.moonLightScale` x the floor's up irradiance, divided by
+ * sin(moon elevation) so a HORIZONTAL surface gets that fraction. Unchanged
+ * while the sun is the light.
+ */
+export function withMoonLight(palette: SkyPalette, elevationDeg: number): SkyPalette {
+  if (!moonIsKeyLight(elevationDeg)) return palette
+  const horizontal = luminance(palette.fillSky) * nightTuning.moonLightScale * moonWeight(elevationDeg)
+  const facing = horizontal / Math.sin((MOON_ELEVATION_DEG * Math.PI) / 180)
+  return { ...palette, sunColor: scaled(MOON_TINT, facing / luminance(MOON_TINT)) }
 }

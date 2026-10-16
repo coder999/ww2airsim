@@ -2,6 +2,7 @@
 import type { Object3D } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { disposeMeshTree } from './dispose.js'
+import { addGameplayLightsToMaterials } from '../lights/irradiance.js'
 
 /**
  * One loaded model, as one aircraft or ship sees it (A6M Zero spec §7.1).
@@ -21,7 +22,11 @@ export interface ModelInstance {
 /** Parses a URL into a scene graph. Injectable so Node tests never run GLTFLoader. */
 export type ParseModel = (url: string) => Promise<Object3D>
 
-export const parseGltf: ParseModel = async (url) => (await new GLTFLoader().loadAsync(url)).scene
+export const parseGltf: ParseModel = async (url) => {
+  const scene = (await new GLTFLoader().loadAsync(url)).scene
+  addGameplayLightsToMaterials(scene) // F6A: night lights reach lit materials as an emissive term (lights/irradiance.ts)
+  return scene
+}
 
 export interface ModelCache {
   acquire(url: string): Promise<ModelInstance>

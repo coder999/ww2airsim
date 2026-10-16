@@ -38,7 +38,8 @@ const action = z.discriminatedUnion('kind', [
   }).strict(),
   z.object({
     tick: z.number().int().nonnegative(), kind: z.literal('control'),
-    control: z.enum(['gear', 'flaps', 'hook', 'bay-doors', 'bomb', 'rockets']), value: z.boolean(),
+    // 'lights' (F6A, additive: old records still parse): the player's position lights, true = on, false = blacked out. No sim effect until F6B.
+    control: z.enum(['gear', 'flaps', 'hook', 'bay-doors', 'bomb', 'rockets', 'lights']), value: z.boolean(),
   }).strict(),
 ])
 

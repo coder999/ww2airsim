@@ -5,7 +5,6 @@ import { createState } from '../../src/sim/flight/state.js'
 import { v3 } from '../../src/sim/math/vec3.js'
 import type { Impact } from '../../src/sim/loop.js'
 import { zeroKillsByType } from '../../src/sim/weapons/targetType.js'
-import { applyMissionResultToRoster, createPilot, type PilotRecord } from '../../src/render/roster.js'
 import { deckOf, deckWorld } from '../../src/sim/world/deck.js'
 import { landOnce, missionWorld } from '../sim/mission/fixture.js'
 import type { BailoutOutcome, ParachutistEntity } from '../../src/sim/bailout.js'
@@ -281,57 +280,27 @@ describe('killsSince', () => {
   })
 })
 
-describe('the land -> continue -> one more kill -> land again sequence (Plan 9 Task 6 Review Focus)', () => {
-  // `main.ts` keeps a `scoredThroughKillsByType` baseline it updates to the
-  // aircraft's current cumulative `killsByType` at every bank (landing,
-  // ditching or death) and never on Continue -- so a second landing after
-  // Continue must bank only the kills earned since the FIRST landing, not
-  // the flight's whole cumulative total a second time. This drives exactly
-  // that sequence through the same pure functions `main.ts`'s debrief call
-  // sites use (`killsSince`, `landingModel`, `applyMissionResultToRoster`),
-  // without a DOM or `main.ts`'s own boot() closure.
-  it('banks only the second landing\'s own kill, not the cumulative total again', () => {
+describe('the land -> continue -> one more kill -> land again sequence (an unscored sortie keeps Continue)', () => {
+  // `main.ts` keeps a `scoredThroughKillsByType` baseline it moves to the player's `tagCredits` (F5B: one scoring
+  // table, destruction credit by damage tag) at every debrief and never on Continue -- so a second landing after
+  // Continue shows only the credit earned since the FIRST landing. A banked campaign sortie has no Continue at all;
+  // this sequence is what a Training or Single Missions sortie still does.
+  it('shows only the second landing\'s own credit, not the cumulative total again', () => {
     const report = { touchdownSinkMps: 1, touchdownSpeedMps: 40, rollOutM: 300, tick: 1, at: null } as const
-    const pilot = createPilot('Boyington')
-    let roster: readonly PilotRecord[] = [pilot]
-    let scoredThroughKillsByType = zeroKillsByType()
+    let scoredThrough = zeroKillsByType()
 
-    // One fighter kill, then a first landing: banks that one kill at the
-    // 1.0x landed multiplier (500 points).
     const afterFirstFlight = { ...zeroKillsByType(), fighter: 1 }
-    const firstDelta = killsSince(afterFirstFlight, scoredThroughKillsByType)
+    const firstDelta = killsSince(afterFirstFlight, scoredThrough)
     expect(firstDelta.fighter).toBe(1)
     const firstModel = landingModel(report, firstDelta)
     expect(firstModel.score.total).toBe(500)
-    scoredThroughKillsByType = afterFirstFlight
-    roster = applyMissionResultToRoster(roster, pilot.id, firstModel.score.total, 'landed', firstDelta)
-    expect(roster[0]!.cumulativeScore).toBe(500)
-    // I-2: the career killsByType banked the delta, not the raw cumulative.
-    expect(roster[0]!.killsByType.fighter).toBe(1)
+    scoredThrough = afterFirstFlight
 
-    // Continue (no bank, baseline untouched), fly on, get exactly ONE more
-    // kill -- the aircraft's `killsByType` is now cumulative since boot, not
-    // since the first landing, so it reads 2 fighters, not 1.
+    // Continue (baseline untouched), fly on, one more credit: the cumulative reads 2, the delta must read 1.
     const afterContinuing = { ...zeroKillsByType(), fighter: 2 }
-    const secondDelta = killsSince(afterContinuing, scoredThroughKillsByType)
-    // The whole point of the baseline: this must be 1 (one new kill), never
-    // 2 (the raw cumulative total) -- the double-banking bug this plan's
-    // Review Focus names.
+    const secondDelta = killsSince(afterContinuing, scoredThrough)
     expect(secondDelta.fighter).toBe(1)
-    const secondModel = landingModel(report, secondDelta)
-    expect(secondModel.score.total).toBe(500) // one more fighter kill, not two
-    scoredThroughKillsByType = afterContinuing
-    roster = applyMissionResultToRoster(roster, pilot.id, secondModel.score.total, 'landed', secondDelta)
-
-    // 500 (first landing) + 500 (second landing's one new kill) = 1000, NOT
-    // 500 + 1000 (re-banking both cumulative fighter kills the second time).
-    expect(roster[0]!.cumulativeScore).toBe(1000)
-    expect(roster[0]!.missionsFlown).toBe(2)
-    // I-2: killsByType accumulated by DELTA across both bankings (1 + 1 = 2),
-    // not re-banked from the aircraft's raw cumulative (which would read 2
-    // the first time and 2 again the second, i.e. never wrongly doubled, but
-    // also never wrongly stuck at 1).
-    expect(roster[0]!.killsByType.fighter).toBe(2)
+    expect(landingModel(report, secondDelta).score.total).toBe(500)
   })
 })
 

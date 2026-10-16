@@ -41,7 +41,7 @@ render quality with auto-detect.
 **A2. Scenario switch loads that scenario's weather (S). Done 2026-10-08** (`7249619f`): hour, cloud deck and sea state follow the launched scenario, both directions (`clouds.md` #10 closed). Handoff as A1.
 
 **A3. Time-of-day picker (S-M). Done 2026-10-09; moved to dedicated Flight Conditions Form 4 on 2026-10-11** (merge of `a3a4-launch`): the form offers Morning, Midday and Dusk (Mark's ruling), each hour from the sun model (0740, 1200 and 1645 at Leyte), with the one nearest the scenario's historical hour suggested. Handoff `docs/handoff/2026-10-09-a3-a4-launch.md`.
-- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **There is no night lighting.** The approved campaign adds it under F6 rather than extending A3 in isolation.
+- **Today:** Flight Conditions owns takeoff time and cloudiness; Sortie Orders is reserved for mission or Training Ground selection. **Night lighting exists as of F6A (plan 9 of 22, 2026-10-14; merged to `main` 2026-10-15): a Dev-only Night takeoff choice, a movie-night renderer and the light contract; see F6.** The approved campaign consumes it under F6 rather than extending A3 in isolation.
 
 **A4. Quality auto-detect that measures the right thing (M). Done 2026-10-09; superseded by A6.** The first implementation measured a short frame-rate sample and put a Render Quality choice on Form 4. Its useful lesson was that one tier without resolution is not a complete recommendation; A6 replaces its probe and UI.
 
@@ -337,8 +337,9 @@ storage and canonical export/import, the sim's damage-tag destruction credit and
 destruction-only discharge, one scoring table for all play, and the Japanese **Field Patrol**
 mission that gives `ja` a lifeline. The old roster is discarded, not migrated (Mark's D1), so
 "old-save migration" in the gate is satisfied by rejection. **F5B (headquarters, roster UI,
-progression screens, `roster.ts` deletion, `startGame()` rewrite, Quit/Abandon button, Japanese
-insignia) is not started.**
+progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is built on branch
+`plan-f5b-hq` (2026-10-15), not merged or deployed; handoff
+[`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
 #### F6. Night operations (L)
 
@@ -353,6 +354,8 @@ navigation-light roster; do not invent universal aircraft headlights. A4, J4, an
 J5 are the initial night consumers. Lieutenant Commander bombsight/torpedosight
 prediction is part of the same campaign ability surface but reuses the sim's real
 weapon predictions rather than changing weapon physics.
+
+**F6A status (merged to `main` 2026-10-15; built 2026-10-14, plan `docs/superpowers/plans/2026-10-14-f6a-night-renderer-lights.md`, handoff `docs/handoff/2026-10-14-f6a-night-renderer-lights.md`, subsystem reference `docs/night.md`):** the renderer half is built and reviewed by Mark at three checkpoints: a fixed "movie night" floor, a fixed waning-gibbous moon and stars, glow sprites, a shared lighting node (flares, pots, beams light ground, sea and airframes), the searchlight beam, flares that descend (OP 1664 M24 rate) and go out in water, aircraft position lights read off each airframe's mesh, a fixed 35% night cockpit, the recorded player lights switch (`N`), Dev-only night takeoff times, and a pure light contract (`src/sim/lights/`) that F6B consumes. **Not done by F6A:** AI perception and rank-gated sights (F6B), base light layouts (F8), scenes (F9), and the budget gates still need the sign-off recorded in the handoff.
 
 **Acceptance gate:** A4/J4/J5 can be flown without zero-light frustration, blackout
 still matters, every installed light has source support or an explicit gameplay
@@ -502,7 +505,7 @@ one plan for the lot.
 good" flight verdict and the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in both DEV and production
 builds. DEV can still select `legacy` or the native-WGSL `takram` path by
-query. Form 2 rolls an equally likely Sunny, Partly Cloudy, Cloudy or Overcast
+query. Form 2 rolls an equally likely Clear, Partly Cloudy, Cloudy or Overcast
 initial selection which the player may change; it adjusts combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. No deployment
 followed from this work.
@@ -533,7 +536,7 @@ merge. The rejected adaptive-sampling follow-up remains preserved separately.
 **Promoted 2026-10-11 (Mark):** after the edge-history fix (`docs/clouds.md` §1.2),
 `takram-tsl` is the default renderer on `main` in DEV and production; `legacy` and
 `takram` stay selectable by query in DEV.
-Flight Conditions now also rolls an equally likely Sunny, Partly Cloudy,
+Flight Conditions now also rolls an equally likely Clear, Partly Cloudy,
 Cloudy or Overcast initial selection, which the player may change; it sets combined cumulus
 coverage while preserving scenario cloud geometry and cirrus. Handoff:
 `docs/handoff/2026-10-11-k-clouds-v3-tsl-port.md`.

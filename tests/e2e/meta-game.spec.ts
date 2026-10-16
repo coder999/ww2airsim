@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, percentile, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor, recordFrameTime } from './harness.js'
+import { debriefDialog, percentile, startGame, toConditions, waitForScenario, type DiagWindow, recordFrameTime } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -36,26 +36,14 @@ const PASS = rangePass('gunnery-range', 'target-1', groundTruthTerrain())
 
 const combat = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.combat()!)
 
-test('roster, live scoring and a dynamic scenario switch all work together in one session', async ({ page }) => {
+test('a campaign, a scored-table debrief, Return to Headquarters and a dynamic scenario switch all work together in one session', async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
 
-  // -- Pick/create a pilot (design §3, Plan 9 Task 5), the same inline
-  // "New pilot" flow `scenarioPicker.spec.ts` already exercises.
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Meta Acceptance Pilot')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
+  // -- A campaign and Gunnery Range through the real screens (an UNSCORED Training row: nothing banks).
+  await startGame(page, { scenario: 'Gunnery Range' })
 
-  const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
-  await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await launchFromOrders(title)
-  await expect(title).toBeHidden()
-
-  // First in-place switch: boot's own default (free-flight, never shown)
-  // to gunnery-range.
+  // First in-place switch: boot's own default (free-flight, never shown) to gunnery-range.
   await waitForScenario(page, 'gunnery-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
@@ -75,40 +63,24 @@ test('roster, live scoring and a dynamic scenario switch all work together in on
   console.log(`meta-game: target-1 destroyed after ${afterKill.player.shots} shots, ${afterKill.player.hits} hits`)
 
   await expect(debriefDialog(page)).toContainText('LANDED')
-  // -- Real, non-zero score, banked with the 1.0 "landed" multiplier: one
-  // 500-point fighter kill (`POINTS_BY_TARGET_TYPE`, debrief.ts). Still
-  // Ensign (design §8's ladder, `RANK_LADDER` in roster.ts): 500 points does
-  // not clear the 2,500-point Lieutenant (jg) threshold, so no promotion is
-  // reachable from this one sortie -- the brief's "(if fresh) a promotion"
-  // is conditional for exactly this reason, not a gap in this assertion.
+  // -- Real, non-zero credit at the one scoring table: one 500-point fighter kill by damage tag. A Training sortie
+  // shows the figures but banks nothing, and offers no Campaign Ledger.
   await expect(debriefDialog(page)).toContainText('score 500')
+  await expect(debriefDialog(page).getByText('Campaign Ledger')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/meta-game-landed.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
-  const reshownTitle = page.getByRole('dialog', { name: 'Title' })
-  await expect(reshownTitle).toBeVisible()
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
+  // The campaign is unchanged: an unscored sortie is not in the ledger.
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })
 
-  // -- Roster round trip: the SAME pilot, with the updated total, read back
-  // from `localStorage` by `show()` -- not a fresh, zeroed entry.
-  await expect(reshownTitle.getByRole('button', { name: /Meta Acceptance Pilot — ENS — 500/ })).toBeVisible()
-  // Scoped to the roster row's own marker (`button[aria-pressed]`, set only
-  // by `makePilotButton`): since the Dossier sheet landed, a bare
-  // `getByRole('button', { name: /Meta Acceptance Pilot/ })` also matches
-  // that row's "Dossier: Meta Acceptance Pilot" button and is a strict-mode
-  // violation -- the same marker `startGame` in harness.ts already uses.
-  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Meta Acceptance Pilot' }).click()
-  await openOrdersFor(reshownTitle, 'Training Grounds')
-
-  // -- Second in-session switch: gunnery-range -> pursuit-range ("Air
-  // Combat" here, `SCENARIO_OPTIONS`), without a page navigation.
+  // -- Second in-session switch: gunnery-range -> pursuit-range ("Air Combat" here), without a page navigation.
   const urlBeforeSwitch = page.url()
-  const reshownScenarioGroup = reshownTitle.getByRole('radiogroup', { name: 'Scenario' })
-  await expect(reshownScenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  // `exact`: since 2026-09-25 the picker also lists "Air Combat: Veteran",
-  // which a substring match would also select (a strict-mode violation).
-  await reshownScenarioGroup.getByRole('radio', { name: 'Air Combat', exact: true }).check()
-  await launchFromOrders(reshownTitle)
-  await expect(reshownTitle).toBeHidden()
+  const title = await toConditions(page, { scenario: 'Air Combat' })
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
+  await expect(title).toBeHidden()
 
   await waitForScenario(page, 'pursuit-range')
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {

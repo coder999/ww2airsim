@@ -1,0 +1,420 @@
+{
+ "id": "night-field",
+ "player": "player-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "aircraft": [
+  {
+   "id": "player-1",
+   "spec": "f6f-hellcat",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": "runwayCenter"
+   },
+   "chocked": false
+  }
+ ],
+ "ships": [],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 0,
+  "timeOfDay": 18.5
+ },
+ "lights": [
+  {
+   "id": "pot-w00",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48305
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w01",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48205
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w02",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48105
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w03",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48005
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w04",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47905
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w05",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47805
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w06",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47705
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w07",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47605
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w08",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47505
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w09",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47405
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w10",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47305
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w11",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47205
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w12",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47105
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w13",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47005
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w14",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -46905
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e00",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48305
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e01",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48205
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e02",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48105
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e03",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48005
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e04",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47905
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e05",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47805
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e06",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47705
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e07",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47605
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e08",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47505
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e09",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47405
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e10",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47305
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e11",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47205
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e12",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47105
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e13",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47005
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e14",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -46905
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "beam-0",
+   "kind": "searchlight",
+   "at": {
+    "x": -29816,
+    "z": -47305
+   },
+   "color": "white",
+   "state": "on",
+   "aim": {
+    "azimuthDeg": 10,
+    "elevationDeg": 72,
+    "sweepDegPerS": 3
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "beam-1",
+   "kind": "searchlight",
+   "at": {
+    "x": -29516,
+    "z": -47305
+   },
+   "color": "white",
+   "state": "on",
+   "aim": {
+    "azimuthDeg": -15,
+    "elevationDeg": 72,
+    "sweepDegPerS": 3
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  }
+ ]
+}

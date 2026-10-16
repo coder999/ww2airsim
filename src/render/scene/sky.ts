@@ -1,7 +1,8 @@
 import { BackSide, Mesh, SphereGeometry, type Object3D } from 'three'
-import { MeshBasicNodeMaterial } from 'three/webgpu'
-import { clamp, color, dot, float, mix, normalize, positionLocal, positionWorld, smoothstep, sqrt, step } from 'three/tsl'
-import { sunDirectionNode } from './lighting.js'
+import { MeshBasicNodeMaterial, type Node } from 'three/webgpu'
+import { Fn, If, clamp, color, cross, dot, float, floor, fract, length, mix, normalize, positionLocal, positionWorld, sin, smoothstep, sqrt, step, vec3 } from 'three/tsl'
+import { moonDiscNode, moonPhaseNode, nightStarsNode, trueSunDirectionNode } from './lighting.js'
+import { MOON_ANGULAR_RADIUS_DEG, moonDirection } from '../sky/night.js'
 import { skyRadiance } from './atmosphereShading.js'
 import { getAtmosphereLuts } from '../sky/atmosphereLuts.js'
 import { SUN_ILLUMINANCE } from '../sky/palette.js'
@@ -58,6 +59,57 @@ export const SUN_ANGULAR_RADIUS_DEG = 0.2665
  * as the brightest thing in the frame (photoreal Task 9 ruling).
  */
 export const SUN_DISC_RADIANCE = 40
+
+/** Star lattice density (cells per radian of the unit sphere), star radius in cells, and share of cells holding a star. Look constants (CP1). */
+const STAR_CELLS = 140
+const STAR_RADIUS_CELLS = 0.22
+const STAR_SHARE = 0.035
+/** HDR radiance of a star and of the moon's lit limb, scene units before exposure. */
+const STAR_RADIANCE = 1.1
+export const MOON_RADIANCE = 1.1
+
+/** Procedural stars along a unit direction: a jittered 3-D lattice, one point per chosen cell. */
+function starField(dir: Node<'vec3'>): Node<'vec3'> {
+  const p = dir.mul(STAR_CELLS)
+  const cell = floor(p)
+  const f = fract(p)
+  const hash = (k: number) => fract(sin(dot(cell, vec3(12.9898 + k, 78.233 - k, 37.719 + 2 * k))).mul(43758.5453))
+  const centre = vec3(hash(1), hash(2), hash(3)).mul(0.6).add(0.2)
+  const d = length(f.sub(centre))
+  const chosen = step(float(1 - STAR_SHARE), hash(0))
+  const tint = mix(vec3(0.75, 0.85, 1), vec3(1, 0.9, 0.75), hash(4))
+  return tint.mul(chosen).mul(smoothstep(STAR_RADIUS_CELLS, 0, d)).mul(float(0.35).add(hash(5).mul(0.65))).mul(STAR_RADIANCE)
+}
+
+/**
+ * The fixed moon (D5, amended by Mark 2026-10-14 after CP1): a small disc of
+ * `MOON_ANGULAR_RADIUS_DEG` toward `moonDirection()`, WANING (lit limb on the
+ * left), `nightTuning.moonPhase` of it lit (0.7 = a gibbous). Only the LIT part is
+ * drawn: the dark side adds exactly nothing, so there is no dark disc, outline
+ * or earthshine against the sky. The terminator is a soft ellipse
+ * (x = k sqrt(1 - y^2), k = 2f - 1: 0 half, 1 full, negative a crescent), the limb
+ * darkens gently, and slow low-frequency "maria" break the flat shape.
+ * Screen axes at the moon: right = moon x up.
+ */
+function moonDisc(dir: Node<'vec3'>): Node<'vec3'> {
+  const m = moonDirection()
+  const md = normalize(vec3(m.x, m.y, m.z))
+  const right = normalize(cross(md, vec3(0, 1, 0)))
+  const up = cross(right, md)
+  const sinR = Math.sin(MOON_ANGULAR_RADIUS_DEG * Math.PI / 180)
+  const x = dot(dir, right).div(sinR), y = dot(dir, up).div(sinR)
+  const r2 = x.mul(x).add(y.mul(y))
+  const r = sqrt(r2)
+  const inside = float(1).sub(smoothstep(0.88, 1, r)).mul(step(0, dot(dir, md)))
+  const k = moonPhaseNode.mul(2).sub(1)
+  const edge = sqrt(clamp(float(1).sub(y.mul(y)), 0, 1)).mul(k).sub(x)
+  const lit = smoothstep(-0.12, 0.12, edge)
+  // Limb darkening: 1 at the centre, 0.7 at the rim.
+  const limb = float(1).sub(float(0.3).mul(r2))
+  // Maria: a few slow sines, 12% deep, so the face is not a flat rigid shape.
+  const maria = float(1).sub(float(0.12).mul(sin(x.mul(3.1).add(y.mul(1.7))).mul(sin(y.mul(4.3).sub(x.mul(1.1)).add(1.3))).add(1).mul(0.5)))
+  return vec3(0.82, 0.9, 1).mul(inside).mul(lit).mul(limb).mul(maria).mul(MOON_RADIANCE)
+}
 
 /**
  * Whether the dome is sea or sky at a given vertical component of the unit
@@ -125,7 +177,7 @@ export function createSky(): Object3D {
   // 1 - 0.6(1 - sqrt(1 - r^2)) with r the fraction of the radius, times the
   // transmittance toward the sun (which carries the below-horizon fade).
   // The cloud pass composites over it and dims it correctly.
-  const sun = normalize(sunDirectionNode)
+  const sun = normalize(trueSunDirectionNode)
   const sinR = Math.sin(SUN_ANGULAR_RADIUS_DEG * Math.PI / 180)
   const d = dot(dir, sun)
   // Fraction of the radius from the chord, sin(angle) / sin(radius); the
@@ -135,7 +187,15 @@ export function createSky(): Object3D {
   const r = clamp(rRaw, 0, 1)
   const limb = float(1).sub(float(1).sub(sqrt(float(1).sub(r.mul(r)))).mul(0.6))
   const disc = getAtmosphereLuts().sunTransmittanceNode().mul(SUN_ILLUMINANCE * SUN_DISC_RADIANCE).mul(limb.mul(inside))
-  material.colorNode = mix(color(SEA_COLOUR), above.add(disc), step(0, y))
+  // Stars and moon cost a dozen sines per dome pixel: skipped entirely (a uniform branch) while the sun is up.
+  const night = Fn(() => {
+    const out = vec3(0).toVar()
+    If(nightStarsNode.greaterThan(0).or(moonDiscNode.greaterThan(0)), () => {
+      out.assign(starField(dir).mul(nightStarsNode).add(moonDisc(dir).mul(moonDiscNode)))
+    })
+    return out
+  })()
+  material.colorNode = mix(color(SEA_COLOUR), above.add(disc).add(night), step(0, y))
   const sky = new Mesh(new SphereGeometry(SKY_RADIUS_M, SKY_WIDTH_SEGMENTS, SKY_HEIGHT_SEGMENTS), material)
   // Background first: a 45 km dome must never paint over the 400 km ocean.
   sky.renderOrder = -1

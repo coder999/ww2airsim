@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  DEFAULT_TIME_OF_DAY, LAST_TAKEOFF_BEFORE_SUNSET_H, nearestTakeoffTime, takeoffHours, SCENARIO_DAY_OF_YEAR, TACLOBAN_LAT_DEG, solarDeclinationDeg, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery,
+  DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, LAST_TAKEOFF_BEFORE_SUNSET_H, nearestTakeoffTime, takeoffHours, SCENARIO_DAY_OF_YEAR, TACLOBAN_LAT_DEG, solarDeclinationDeg, sunClock, sunDirectionWorld, sunPosition, timeOfDayFromQuery,
 } from '../../src/render/sky/sun.js'
 
 describe('solar geometry (Plan 16c), Tacloban on 1944-10-20', () => {
@@ -59,6 +59,14 @@ describe('solar geometry (Plan 16c), Tacloban on 1944-10-20', () => {
     expect(() => timeOfDayFromQuery('?timeOfDay=sunset')).toThrow(/timeOfDay/)
     expect(() => timeOfDayFromQuery('?timeOfDay=24')).toThrow(/timeOfDay/)
     expect(() => timeOfDayFromQuery('?timeOfDay=-1')).toThrow(/timeOfDay/)
+  })
+})
+
+describe('Dev night takeoff times (F6A Task 9)', () => {
+  it('late dusk is the J5 sun (about -9 deg) and night the A4/J4 sun (about -46 deg), on the fixed scenario day', () => {
+    expect(Math.abs(sunPosition(TACLOBAN_LAT_DEG, DEV_TAKEOFF_HOURS['late-dusk']).elevationDeg + 9)).toBeLessThan(1)
+    expect(Math.abs(sunPosition(TACLOBAN_LAT_DEG, DEV_TAKEOFF_HOURS.night).elevationDeg + 46)).toBeLessThan(1)
+    expect(Object.keys(takeoffHours(TACLOBAN_LAT_DEG)), 'the daytime choices are unchanged').toEqual(['morning', 'midday', 'dusk'])
   })
 })
 

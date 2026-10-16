@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { debriefDialog, waitForScenario, type DiagWindow, launchFromOrders, openOrdersFor } from './harness.js'
+import { debriefDialog, startGame, toConditions, waitForScenario, type DiagWindow } from './harness.js'
 import { flyPass } from './pilot.js'
 import { groundTruthTerrain, rangePass } from '../pilot/rangePass.js'
 
@@ -53,91 +53,57 @@ async function flyOneGunneryRangeSortie(page: Page): Promise<void> {
     timeout: 30_000,
   })
   const flown = await flyPass(page, PASS)
-  expect(flown.end, 'the pass did not end at rest on the runway').toBe('stopped')
+  const imp = flown.end === 'stopped' ? null : await page.evaluate(() => JSON.stringify((window as DiagWindow).__ww2!.impact()))
+  expect(flown.end, `the pass did not end at rest on the runway: ${imp}`).toBe('stopped')
   expect((await combat(page)).player.kills, 'target-1 was never destroyed').toBeGreaterThan(0)
   await debriefDialog(page).waitFor({ timeout: 30_000 })
   await expect(debriefDialog(page)).toContainText('LANDED')
 }
 
-test('land, return to title, New game, land again: a second debrief shows and the score banks a second time (C-1)', async ({
+test('land, return to Headquarters, launch again: a second debrief shows (C-1), and an unscored sortie banks nothing either time', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
-
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Relaunch Test Pilot')
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Training Grounds')
-
-  const scenarioGroup = title.getByRole('radiogroup', { name: 'Scenario' })
-  await scenarioGroup.getByRole('radio', { name: 'Gunnery Range' }).check()
-  await launchFromOrders(title)
-  await expect(title).toBeHidden()
+  await startGame(page, { scenario: 'Gunnery Range' })
   await waitForScenario(page, 'gunnery-range')
 
-  // -- First sortie and landing: the baseline bank.
+  // -- First sortie and landing.
   await flyOneGunneryRangeSortie(page)
   await expect(debriefDialog(page)).toContainText('score 500')
-  // I-3: the debrief now shows the recovery multiplier actually applied and
-  // the pilot's banked cumulative total, neither of which it rendered at all
-  // before this review.
+  // The debrief shows the recovery multiplier actually applied. A Training sortie banks nothing, so there is no ledger.
   await expect(debriefDialog(page)).toContainText('Recovery: LANDED (×1)')
-  await expect(debriefDialog(page)).toContainText('Banked total: 500')
+  await expect(debriefDialog(page).getByText('Campaign Ledger')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/meta-game-relaunch-first-landing.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
-  const reshownTitle = page.getByRole('dialog', { name: 'Title' })
-  await expect(reshownTitle).toBeVisible()
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await expect(hq.getByText('Air Group Headquarters')).toBeVisible()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })
 
-  // -- Roster round trip proves the first bank actually landed in
-  // `localStorage`, same as `meta-game.spec.ts`'s acceptance check.
-  await expect(reshownTitle.getByRole('button', { name: /Relaunch Test Pilot — ENS — 500/ })).toBeVisible()
-  // Scoped to the roster row's own button[aria-pressed] marker: a bare
-  // getByRole('button', { name: /Relaunch Test Pilot/ }) also matches that
-  // row's "Dossier: Relaunch Test Pilot" button and is a strict-mode
-  // violation (regression from the Dossier button, Tasks 2-8).
-  await reshownTitle.locator('button[aria-pressed]').filter({ hasText: 'Relaunch Test Pilot' }).click()
-  await openOrdersFor(reshownTitle, 'Training Grounds')
+  // Same scenario -- this is `onNewGame`'s SAME-scenario branch (a direct `rebuildFrame()` call, not
+  // `loadScenario(...).then(rebuildFrame)`), the other of the two paths through `onNewGame` the fix has to cover.
+  const title = await toConditions(page, { scenario: 'Gunnery Range' })
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Next' }).click()
+  await title.getByRole('button', { name: 'Launch' }).click()
+  await expect(title).toBeHidden()
 
-  // Same scenario -- this is `onNewGame`'s SAME-scenario branch (a direct
-  // `rebuildFrame()` call, not `loadScenario(...).then(rebuildFrame)`), the
-  // other of the two paths through `onNewGame` the fix has to cover.
-  await expect(scenarioGroup.getByRole('radio', { name: 'Gunnery Range' })).toBeChecked()
-  await launchFromOrders(reshownTitle)
-  await expect(reshownTitle).toBeHidden()
-
-  // The world rebuilt fresh: target-1 is alive again, not still wrecked from
-  // the first sortie.
+  // The world rebuilt fresh: target-1 is alive again, not still wrecked from the first sortie.
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.groundHeightM() ?? null) !== null, undefined, {
     timeout: 30_000,
   })
   const secondSortieTargets = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraft().map((a) => a.id))
   expect(secondSortieTargets.sort()).toEqual(['f6f-1', 'target-1', 'target-2'])
 
-  // -- THE fix under test: a second landing, on a `frame` rebuilt through
-  // `onNewGame` rather than Restart, must still raise a debrief. Before the
-  // fix, `landingShown` was still `true` from the first landing and this
-  // would time out inside `flyOneGunneryRangeSortie`'s own
-  // `debriefDialog(page).waitFor(...)`.
+  // -- THE fix under test: a second landing, on a `frame` rebuilt through `onNewGame` rather than Restart, must still
+  // raise a debrief. Before the fix, `landingShown` was still `true` from the first landing.
   await flyOneGunneryRangeSortie(page)
   await expect(debriefDialog(page)).toContainText('score 500')
-  // The banked total is now the SUM across both sorties (1000), not the
-  // second mission's own 500 -- proof `applyMissionResult` added to the
-  // pilot's existing cumulative score rather than replacing it.
-  await expect(debriefDialog(page)).toContainText('Banked total: 1000')
   await page.screenshot({ path: 'test-results/meta-game-relaunch-second-landing.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to title' }).click()
-  const finalTitle = page.getByRole('dialog', { name: 'Title' })
-  await expect(finalTitle).toBeVisible()
-
-  // -- The score increased from the first bank: 500 -> 1000, not stuck at
-  // 500 (a second mission that silently never banked) and not a fresh,
-  // zeroed pilot.
-  await expect(finalTitle.getByRole('button', { name: /Relaunch Test Pilot — ENS — 1000/ })).toBeVisible()
-
+  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  await expect(hq.getByText('Air Group Headquarters')).toBeVisible()
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })

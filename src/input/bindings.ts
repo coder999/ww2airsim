@@ -103,6 +103,9 @@ export const BINDINGS = {
   // A bare letter for the reason `throttleDown` documents: no modifier a
   // browser can intercept.
   toggleMute: ['KeyQ'],
+  // F6A (2026-10-14). `N` for navigation lights: the player's position lights on or blacked out. A recorded
+  // action (flightRecorder/schema.ts, control 'lights') with no sim effect until F6B makes the AI see it.
+  toggleNavLights: ['KeyN'],
   // The pursuit autopilot (Mark, 2026-09-25): HELD, like the brakes -- the
   // stick is flown toward the nearest enemy only while the key is down (see
   // src/sim/ai/autoPursuit.ts). He asked for `A`, which is WASD roll-left, and

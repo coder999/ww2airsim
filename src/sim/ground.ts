@@ -393,7 +393,11 @@ export function maxSupportedSinkMps(landClass: LandClass): number {
  */
 /**
  * Ceiling on ground speed for a descending arrival to count as a landing, as a
- * multiple of the configuration's stall speed (`effectiveStallSpeedMps`).
+ * multiple of the CLEAN stall speed (`spec.reference.stallSpeedMps`), at any
+ * flap setting. **Mark 2026-10-15:** it used the flap-adjusted figure, which
+ * made extending flaps LOWER the limit (120 mph down, 139 mph up) and crashed a
+ * 126 mph, 1 mph-sink touchdown with flaps down. The limit is now 139.2 mph
+ * regardless of flaps (the figure he accepted on 2026-09-17, see below).
  *
  * **1.42 because Mark specified 120 mph, 2026-09-17.** He asked for "under
  * 120 mph when it touches down or else it's a crash", and 120 mph is
@@ -403,8 +407,8 @@ export function maxSupportedSinkMps(landClass: LandClass): number {
  * stall speed and the same rule should mean the same thing for it. Was 1.6,
  * which worked out at 135 mph with the flaps out.
  *
- * What it implies, stated because the multiple form hides it: with the flaps
- * out the cap is exactly 120.0 mph, and CLEAN it is 139.2 mph. A clean wing
+ * (Historical, superseded by the 2026-10-15 note above: the cap used to be
+ * 120.0 mph with the flaps out and 139.2 mph clean; it is now 139.2 either way.) A clean wing
  * needs more speed to fly at all -- it stalls at 98 mph against 84.5 -- so the
  * same multiple is a higher absolute speed, which is the behaviour a
  * stall-relative rule is for. If the 120 mph should be absolute regardless of
@@ -536,7 +540,9 @@ export function supportedContact(
   const rel = sub(state.velocity, surfaceVelocity)
   const speed = length(rel)
   const descending = rel.y < -ARRIVAL_SINK_THRESHOLD_MPS
-  const stallMps = effectiveStallSpeedMps(spec, state.flapFraction)
+  // CLEAN stall, not the flap-adjusted one: flaps must never lower the survivable
+  // touchdown speed (Mark 2026-10-15; flaps down was 120 mph, up was 139 mph).
+  const stallMps = spec.reference.stallSpeedMps
   return (surface === 'land' || surface === 'deck')
     && landClass !== 'forest'
     && onGround(spec, state, groundHeightM, surfaceVelocity)

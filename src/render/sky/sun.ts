@@ -53,6 +53,14 @@ export function takeoffHours(latDeg: number, dayOfYear = SCENARIO_DAY_OF_YEAR): 
   }
 }
 
+/**
+ * Night takeoff choices (F6A Task 9, Mark 2026-10-14), offered in Dev only: rank gating belongs to F5. Hours are
+ * apparent solar time on the fixed scenario day (D4): `late-dusk` is the J5 hour (sun about -9 deg), `night` the
+ * A4/J4 hours (sun about -46 deg).
+ */
+export const DEV_TAKEOFF_HOURS = { 'late-dusk': 18.5, night: 21 } as const
+export type DevTakeoffTime = keyof typeof DEV_TAKEOFF_HOURS
+
 /** The takeoff time nearest `hour` (a scenario's historical hour): Form 2's suggestion. */
 export function nearestTakeoffTime(hour: number, hours: Readonly<Record<TakeoffTime, number>>): TakeoffTime {
   const times = Object.keys(hours) as TakeoffTime[]

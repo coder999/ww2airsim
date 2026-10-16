@@ -1,15 +1,12 @@
-import { readFileSync } from 'node:fs'
 import { describe, it, expect, expectTypeOf } from 'vitest'
 import type { SortieChoice } from '../../src/sim/sortie.js'
 import {
   titleModel, LOADOUT_OPTIONS, DEFAULT_LOADOUT, SCENARIO_OPTIONS, isKnownScenarioId,
-  pilotButtonLabel, pilotStatusChip, selectedPilotLabel, isValidPilotName, sortiePilotLabel, TITLE_FORMS,
-  createTitleScreen, NEW_PILOT_GUIDANCE,
-  type TitleScreenHandle,
+  TITLE_FORMS, createTitleScreen,
+  type CampaignSortie, type TitleScreenHandle,
 } from '../../src/render/titleScreen.js'
 import { creditsLine } from '../../src/render/legend.js'
 import { SCENARIO_ID } from '../../src/render/content.js'
-import { createPilot } from '../../src/render/roster.js'
 import { createSettingsModel } from '../../src/render/settings.js'
 import { ballotOption, radioGroup } from '../../src/render/ui/navalComms.js'
 import { readyBootProgress } from '../../src/render/bootProgress.js'
@@ -121,7 +118,7 @@ describe('the title screen scenario picker', () => {
   it('offers every scenario this build ships, and the production default is one of them', () => {
     expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'water-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
-      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
+      'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'night-range', 'night-field', 'night-bay', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
       'flattop-hunt', 'escort', 'surigao-strait', 'field-patrol', 'dev-mission-ui', 'dev-mission-circuit',
     ])
     // `SCENARIO_ID` (content.ts) is the production boot default; a picker
@@ -195,77 +192,23 @@ describe('the title screen scenario picker', () => {
   })
 })
 
-describe('the title screen roster step (Plan 9, design §3)', () => {
-  // `createTitleScreen`'s DOM wiring (the pilot list, the New pilot inline
-  // form, `show()`) is deliberately untested here for the same reason as the
-  // scenario/loadout rows above -- no `document` in this suite's `node`
-  // environment. These three functions are what the roster step's DOM is
-  // built off of, the same split.
-  it('labels a pilot button with name, rank abbreviation and cumulative score', () => {
-    const pilot = createPilot('Boyington')
-    const label = pilotButtonLabel(pilot)
-    expect(label).toContain('Boyington')
-    expect(label).toContain(pilot.rank.abbrev)
-    expect(label).toContain(String(pilot.cumulativeScore))
+describe('the title screen hosts the launch memos for a Headquarters sortie (plan F5B)', () => {
+  // `createTitleScreen`'s DOM needs a `document`, which this suite's `node` environment lacks;
+  // `tests/e2e/hqLaunch.spec.ts` drives it. What is pinned here is the contract between the headquarters and the title.
+  it('onNewGame receives one SortieChoice: the pilot is the campaign\'s, not the title\'s (type-level contract)', () => {
+    expectTypeOf<Parameters<typeof createTitleScreen>[2]>().toEqualTypeOf<(choice: SortieChoice) => void>()
   })
 
-  it('whole-branch review M-1: marks a kia pilot\'s button distinctly from an active one', () => {
-    const active = createPilot('Boyington')
-    expect(pilotButtonLabel(active)).not.toContain('KIA')
-
-    const kia = { ...active, status: 'kia' as const }
-    expect(pilotButtonLabel(kia)).toContain('KIA')
-  })
-
-  it('friendly-fire spec §6: a discharged pilot reads DISCHARGED on the button and the status chip', () => {
-    const d = { ...createPilot('Boyington'), status: 'discharged' as const }
-    expect(pilotButtonLabel(d)).toContain('— DISCHARGED')
-    expect(pilotButtonLabel(d)).not.toContain('KIA')
-    expect(pilotStatusChip('discharged')).toEqual({ text: 'DISCHARGED', color: '--stamp-red' })
-    expect(pilotStatusChip('kia')).toEqual({ text: 'K.I.A.', color: '--stamp-red' })
-    expect(pilotStatusChip('active')).toEqual({ text: 'Active', color: '--stamp-black' })
-  })
-
-  it('labels the selected-pilot header with the pilot\'s name and full rank name', () => {
-    const pilot = createPilot('Boyington')
-    const label = selectedPilotLabel(pilot)
-    expect(label).toContain('Boyington')
-    expect(label).toContain(pilot.rank.name)
-  })
-
-  it('accepts a real name and rejects an empty or whitespace-only one', () => {
-    // The same rule `createPilot` (roster.ts) itself throws on -- this is
-    // what lets the DOM layer reject inline instead of catching that throw.
-    expect(isValidPilotName('Boyington')).toBe(true)
-    expect(isValidPilotName('  Boyington  ')).toBe(true)
-    expect(isValidPilotName('')).toBe(false)
-    expect(isValidPilotName('   ')).toBe(false)
-  })
-
-  it('onNewGame receives one SortieChoice and the pilot id, null only for a quick launch (type-level contract, sortie forms)', () => {
-    // The DOM that calls it lives in `createTitleScreen` (this suite runs in
-    // `node`); the contract is checked against the real signature, so a
-    // change to either side fails here and at `tsc --noEmit`.
-    expectTypeOf<Parameters<typeof createTitleScreen>[2]>().toEqualTypeOf<(choice: SortieChoice, pilotId: string | null) => void>()
+  it('a sortie begun from Headquarters carries its pilot label, gate, takeoff lock, launch and Back (type-level contract)', () => {
+    expectTypeOf<CampaignSortie['aircraftGate']>().toEqualTypeOf<(specId: string) => { readonly ok: true } | { readonly ok: false; readonly text: string }>()
+    expectTypeOf<CampaignSortie['lockedHour']>().toEqualTypeOf<number | null>()
+    expectTypeOf<CampaignSortie['onLaunch']>().toEqualTypeOf<(choice: SortieChoice) => string | null>()
+    expectTypeOf<TitleScreenHandle['beginSortie']>().toEqualTypeOf<(req: CampaignSortie) => void>()
   })
 
   it('show() requires the currently-loaded scenario id, not a zero-arg call (type-level contract, Plan 9 Task 7 bugfix)', () => {
-    // The bug (found by review): `TitleScreenHandle.show` used to take no
-    // argument at all, so `main.ts`'s "return to title" path could only ever
-    // rebuild the picker off `createTitleScreen`'s OWN `currentScenarioId`
-    // closure -- fixed once at construction, and never updated by an
-    // in-session `loadScenario` switch (Plan 9 Task 7's whole point). A
-    // return-to-title after switching scenarios left the radiogroup showing
-    // whichever scenario this boot originally started with.
-    //
-    // The DOM behaviour this drives (`build`'s scenario radio reflecting the
-    // reassigned `currentScenarioId`) needs a real `document`, same caveat as
-    // the test above. What's provable here without one is the fixed
-    // contract: `show` now REQUIRES a scenario id, which is what makes
-    // `main.ts`'s `title.show(requestedScenarioId)` call site -- passing its
-    // own live tracking variable, not nothing -- the only thing that
-    // type-checks. A regression back to a 0-arg `show()` would make this
-    // assignment fail `tsc --noEmit` (part of `npm run verify`).
+    // `main.ts`'s `title.show(requestedScenarioId)` passes its own live tracking variable; a regression to a 0-arg
+    // `show()` fails `tsc --noEmit` (part of `npm run verify`).
     const fakeShow: TitleScreenHandle['show'] = (currentScenarioId: string): void => {
       expect(typeof currentScenarioId).toBe('string')
     }
@@ -273,7 +216,7 @@ describe('the title screen roster step (Plan 9, design §3)', () => {
   })
 })
 
-describe('the title screen as six sequential memo forms (sortie spec)', () => {
+describe('the launch memos (sortie spec; plan F5B keeps Forms 4 to 6)', () => {
   // The DOM (step switching, Back, Enter) needs a `document`, which this
   // suite's `node` environment lacks; `tests/e2e/title.spec.ts` drives it.
   // What is pinned here is the text the two forms and the buttons that move
@@ -287,28 +230,18 @@ describe('the title screen as six sequential memo forms (sortie spec)', () => {
     expect(m.dev).toBe('Dev — unlocks everything')
   })
 
-  it('numbers the six forms and gives each its own letterhead', () => {
-    expect(Object.keys(TITLE_FORMS)).toEqual(['roster', 'type', 'orders', 'conditions', 'aircraft', 'ordnance'])
-    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual([
-      'Form 1 of 6', 'Form 2 of 6', 'Form 3 of 6', 'Form 4 of 6', 'Form 5 of 6', 'Form 6 of 6',
-    ])
-    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual([
-      'Squadron Roster', 'Flight Type', 'Sortie Orders', 'Flight Conditions', 'Aircraft Assignment', 'Ordnance Requisition',
-    ])
-    expect(NEW_PILOT_GUIDANCE).toContain('Basic Flying, Torpedo Qualification and Carrier Qualification')
+  it('keeps the three launch memos, numbered as their original forms, each with its own letterhead', () => {
+    // Headquarters' picker replaced Squadron Roster, Flight Type and Sortie Orders (plan F5B, Mark's ruling Q3); a
+    // headquarters sortie re-numbers these Step 3 to 5 of 5 (`CAMPAIGN_STEP` in titleScreen.ts).
+    expect(Object.keys(TITLE_FORMS)).toEqual(['conditions', 'aircraft', 'ordnance'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.number)).toEqual(['Form 4 of 6', 'Form 5 of 6', 'Form 6 of 6'])
+    expect(Object.values(TITLE_FORMS).map((f) => f.title)).toEqual(['Flight Conditions', 'Aircraft Assignment', 'Ordnance Requisition'])
   })
 
   it('gives the About memo its own letterhead', () => {
     const m = titleModel()
     expect(m.aboutKicker).not.toBe('')
     expect(m.aboutTitle).not.toBe('')
-  })
-
-  it('names the pilot on the orders form by rank abbreviation and name', () => {
-    const pilot = createPilot('Boyington')
-    const label = sortiePilotLabel(pilot)
-    expect(label).toContain('Boyington')
-    expect(label).toContain(pilot.rank.abbrev)
   })
 
   it('shares the ballot helpers with Settings from navalComms.ts, not a second copy', () => {
@@ -329,29 +262,5 @@ describe('the loading strip (loading spec §A.2)', () => {
     type Params = Parameters<typeof createTitleScreen>
     const boot: Params[4] = readyBootProgress()
     expect(boot?.ready).toBe(true)
-  })
-})
-
-describe('Dossier lifecycle wiring (Task 8 review fix round 1)', () => {
-  // Neither leak is DOM-observable in this node-environment suite -- both
-  // need a real `window` and a real return-to-title/double-click to
-  // reproduce (E2E's job, see tests/e2e/dossier.spec.ts) -- so this pins
-  // the source wiring the same way tests/render/bootProgress.test.ts pins
-  // main.ts's stage calls: a regression that drops either line compiles and
-  // passes every other test, but leaks a `window` keydown listener (a
-  // return-to-title while the Dossier is open) or stacks two panels (a
-  // double-click on a Dossier button).
-  const src = readFileSync(new URL('../../src/render/titleScreen.ts', import.meta.url), 'utf8')
-
-  it("hide() destroys any open Dossier, the same way it destroys the settings dialog", () => {
-    expect(src).toMatch(/openDossierClose\?\.\(\)\s*\n\s*openDossierClose = null/)
-  })
-
-  it('the Dossier button click guards against opening a second panel', () => {
-    expect(src).toContain('if (openDossierClose !== null) return')
-  })
-
-  it("a closed Dossier's onClose clears the tracked handle before refocusing the row", () => {
-    expect(src).toMatch(/openDossierClose = null\s*\n\s*dossierButton\.focus\(\)/)
   })
 })

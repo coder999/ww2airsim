@@ -1,0 +1,210 @@
+{
+ "id": "night-bay",
+ "player": "player-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "aircraft": [
+  {
+   "id": "player-1",
+   "spec": "f6f-hellcat",
+   "airborneAt": {
+    "position": [
+     -27466,
+     420,
+     -50805
+    ],
+    "headingDeg": 90,
+    "speedMps": 70,
+    "throttle": 0.5
+   }
+  }
+ ],
+ "ships": [
+  {
+   "id": "ship-0",
+   "spec": "essex-cv",
+   "side": "allied",
+   "waypoints": [
+    [
+     -26666,
+     -51605
+    ],
+    [
+     -23666,
+     -49605
+    ]
+   ],
+   "speedMps": 6
+  },
+  {
+   "id": "ship-1",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -26316,
+     -51405
+    ],
+    [
+     -23316,
+     -49405
+    ]
+   ],
+   "speedMps": 6
+  },
+  {
+   "id": "ship-2",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25966,
+     -51205
+    ],
+    [
+     -22966,
+     -49205
+    ]
+   ],
+   "speedMps": 6
+  },
+  {
+   "id": "ship-3",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25616,
+     -51005
+    ],
+    [
+     -22616,
+     -49005
+    ]
+   ],
+   "speedMps": 6
+  },
+  {
+   "id": "ship-4",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25266,
+     -50805
+    ],
+    [
+     -22266,
+     -48805
+    ]
+   ],
+   "speedMps": 6
+  }
+ ],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 0,
+  "timeOfDay": 21
+ },
+ "lights": [
+  {
+   "id": "flare-bay",
+   "kind": "flare",
+   "at": {
+    "x": -25366,
+    "z": -50605,
+    "altitudeM": 500
+   },
+   "color": "warm",
+   "state": "on",
+   "fixed": true,
+   "schedule": {
+    "onAtS": 0,
+    "burnS": 3600
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-ship-0",
+   "kind": "fixture",
+   "at": {
+    "ship": "ship-0",
+    "offset": [
+     0,
+     12,
+     0
+    ]
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-ship-1",
+   "kind": "fixture",
+   "at": {
+    "ship": "ship-1",
+    "offset": [
+     0,
+     12,
+     0
+    ]
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-ship-2",
+   "kind": "fixture",
+   "at": {
+    "ship": "ship-2",
+    "offset": [
+     0,
+     12,
+     0
+    ]
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-ship-3",
+   "kind": "fixture",
+   "at": {
+    "ship": "ship-3",
+    "offset": [
+     0,
+     12,
+     0
+    ]
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-ship-4",
+   "kind": "fixture",
+   "at": {
+    "ship": "ship-4",
+    "offset": [
+     0,
+     12,
+     0
+    ]
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night budget bench (docs/night.md): a render test bed, not a historical layout"
+  }
+ ]
+}

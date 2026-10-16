@@ -84,7 +84,7 @@ async function waitForTerrainOnly(page: Page): Promise<void> {
 }
 
 function settingsDialog(page: Page) {
-  return page.getByRole('dialog', { name: 'Settings' })
+  return page.locator('[data-ww2-settings]:visible').last()
 }
 
 test('fresh profile: preflight finishes before mission selection, and its recommendation is reused after reload', async ({ page }) => {
@@ -93,7 +93,7 @@ test('fresh profile: preflight finishes before mission selection, and its recomm
   await page.goto('/')
   await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 90_000 })
   console.log((await verdict).text())
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await title.getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
@@ -107,7 +107,7 @@ test('fresh profile: preflight finishes before mission selection, and its recomm
   // A current verdict is reused: no session exists after the reload.
   await page.reload()
   await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Headquarters' }).getByRole('button', { name: 'Settings' }).click()
   await expect(settingsDialog(page).locator('.stamp', { hasText: 'Recommended' })).toHaveCount(2)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.graphicsCheck().session)).toBeNull()
@@ -119,7 +119,7 @@ test('Difficulty: a Recruit pick in the dialog reaches the sortie it launches (M
   // Deterministic (tests/sim/difficultyLethality.test.ts). The AA scale is 1 at Veteran by construction.
   await page.goto(RANGE)
   await waitForTerrainOnly(page)
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Headquarters' }).getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   const row = dlg.getByRole('radiogroup', { name: 'Difficulty' })
   await expect(row.getByRole('radio', { name: /Veteran\b/ })).toHaveAttribute('aria-checked', 'true')
@@ -136,7 +136,7 @@ test('an explicit Simple-row pick becomes custom across reload without erasing t
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   await waitForTerrainOnly(page)
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await title.getByRole('button', { name: 'Settings' }).click()
   let dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
@@ -154,7 +154,7 @@ test('an explicit Simple-row pick becomes custom across reload without erasing t
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.qualityProbeChecked())).toBe(true)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.oceanTier())).toBe('low')
 
-  const reshownTitle = page.getByRole('dialog', { name: 'Title' })
+  const reshownTitle = page.getByRole('dialog', { name: 'Headquarters' })
   await reshownTitle.getByRole('button', { name: 'Settings' }).click()
   dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
@@ -191,7 +191,7 @@ test('Render Scale: 50, 75 and 100% resize the canvas live, persist, and apply a
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   await waitForTerrainOnly(page)
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Headquarters' }).getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   const row = dlg.getByRole('radiogroup', { name: 'Render scale' })
   // The default is 100%: nothing changes until a player picks (Mark's ruling).
@@ -271,7 +271,7 @@ test('rapid Ocean picks settle on the last choice after older cascade rebuilds f
   await page.goto('/')
   await waitForTerrainOnly(page)
 
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await title.getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   await dlg.getByRole('button', { name: /Advanced/ }).click()
@@ -296,7 +296,7 @@ test('Advanced Scenery override to Low changes only Scenery: Ocean and Clouds st
   // be visible at High scenery (project-ww2airsim-low-tier-hides-trees).
   await page.goto('/')
   await waitForTerrainOnly(page)
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await title.getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
@@ -370,7 +370,7 @@ test('Damage Model Arcade: a hard-G/overspeed maneuver does not destroy the airf
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto(RANGE)
   await waitForTerrainOnly(page)
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await title.getByRole('button', { name: 'Settings' }).click()
   const dlg = settingsDialog(page)
   await expect(dlg).toBeVisible()
@@ -448,55 +448,38 @@ test('Damage Model Arcade: a hard-G/overspeed maneuver does not destroy the airf
   recordFrameTime(p95)
 })
 
-test('roster screen composites its letterhead/stamp/table over the WebGPU canvas, and the stamp actually renders', async ({
+test('Headquarters composites its letterhead/stamp/table over the WebGPU canvas, and the stamp actually renders', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
   await waitForTerrainOnly(page)
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill('Composite Check Pilot')
-  await title.getByRole('button', { name: 'Add' }).click()
-  // Scoped to the roster row's own button[aria-pressed] marker: a bare
-  // getByRole('button', { name: /Composite Check Pilot/ }) also matches
-  // that row's "Dossier: Composite Check Pilot" button and is a
-  // strict-mode violation (regression from the Dossier button, Tasks 2-8).
-  await expect(title.locator('button[aria-pressed]').filter({ hasText: 'Composite Check Pilot' })).toBeVisible()
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await expect(hq).toBeVisible()
+  await hq.getByRole('button', { name: 'New campaign' }).click()
+  await hq.getByPlaceholder('Player name').fill('Composite Check Pilot')
+  await hq.getByRole('radiogroup', { name: 'Service' }).getByRole('radio', { name: /U\.S\. Navy/ }).click()
+  await hq.getByRole('button', { name: 'Next' }).click()
+  await hq.getByRole('button', { name: 'Enlist' }).click()
+  await expect(hq.getByText('Air Group Headquarters')).toBeVisible()
 
-  // `:visible`, not a bare class selector: the title overlay also contains
-  // the Settings dialog's own hidden `.letterhead`/`.sheet` (built once,
-  // regardless of whether it has ever been opened -- `titleScreen.ts`'s
-  // `build()` always calls `createSettingsDialog`), so a bare `.locator`
-  // here is a strict-mode violation the first time this runs, not a rare one.
-  await expect(title.locator('.letterhead:visible')).toBeVisible()
-  await expect(title.locator('.form-table:visible')).toBeVisible()
-  const stamp = title.locator('.stamp:visible', { hasText: 'Confidential' })
+  // `:visible`, not a bare class selector: the overlay also contains the Settings and About dialogs' own hidden
+  // `.letterhead`/`.sheet` (built once, whether or not ever opened), so a bare `.locator` is a strict-mode violation.
+  await expect(hq.locator('.letterhead:visible')).toBeVisible()
+  await expect(hq.locator('.form-table:visible').first()).toBeVisible()
+  const stamp = hq.locator('.stamp:visible', { hasText: 'Confidential' })
   await expect(stamp).toBeVisible()
 
-  // A non-zero rendered box -- necessary, but (per this task's own review)
-  // NOT sufficient: a stamp whose `filter: url(#stampRough)` never resolves
-  // at all renders completely normally, same box, same visibility, same
-  // computed-style string still naming the id -- none of that changes
-  // depending on whether the filter element actually exists. Confirmed for
-  // real by the reviewer: an unfiltered stamp next to a correctly-filtered
-  // one look and measure identically by every property read off the STAMP
-  // element itself. The claim in `ensureStampFilter`'s own doc comment
-  // (`navalComms.ts`) that an unresolved reference is "not rendered at all"
-  // does not hold on this actual browser -- flagged, not fixed here (see
-  // this task's report).
+  // A non-zero rendered box -- necessary, but NOT sufficient: a stamp whose `filter: url(#stampRough)` never resolves
+  // renders completely normally, same box, same visibility. The actual check below is that the filter ELEMENT
+  // resolves; it is the one assertion that goes red when a screen forgets `ensureStampFilter()`.
   const box = await stamp.boundingBox()
   expect(box, 'the Confidential stamp has no bounding box at all').not.toBeNull()
   expect(box!.width).toBeGreaterThan(0)
   expect(box!.height).toBeGreaterThan(0)
-  // The actual check: the filter ELEMENT resolves, not a property of the
-  // stamp. This is the one assertion that goes red when a screen forgets
-  // `ensureStampFilter()` -- confirmed by the reviewer running this exact
-  // check against a document with no `<filter id="stampRough">` at all.
   expect(await stampFilterResolves(page)).toBe(true)
 
-  await page.screenshot({ path: 'test-results/roster-composite.png' })
+  await page.screenshot({ path: 'test-results/headquarters-composite.png' })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
 
@@ -556,7 +539,7 @@ test('Trees applies in Settings and pause, persists, and stays independent of sc
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/?spawnX=-36629&spawnY=457&spawnZ=-47829&cloudTier=off')
   await waitForTerrainOnly(page)
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Headquarters' }).getByRole('button', { name: 'Settings' }).click()
   let dlg = settingsDialog(page)
   let trees = dlg.getByRole('radiogroup', { name: 'Trees', exact: true })
   await expect(trees.getByRole('radio', { name: /\bOn\b/ })).toHaveAttribute('aria-checked', 'true')
@@ -572,7 +555,7 @@ test('Trees applies in Settings and pause, persists, and stays independent of sc
   await page.reload()
   await waitForTerrainOnly(page)
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.vegetation())).toMatchObject({ visible: false, generated: 0, distant: { generated: 0 }, coarse: { generated: 0 } })
-  await page.getByRole('dialog', { name: 'Title' }).getByRole('button', { name: 'Settings' }).click()
+  await page.getByRole('dialog', { name: 'Headquarters' }).getByRole('button', { name: 'Settings' }).click()
   dlg = settingsDialog(page)
   trees = dlg.getByRole('radiogroup', { name: 'Trees', exact: true })
   await expect(trees.getByRole('radio', { name: /\bOff\b/ })).toHaveAttribute('aria-checked', 'true')

@@ -145,6 +145,14 @@ His answer: "no i like 139.2 mph - close enough." So this is **settled, not an
 open question** -- the gate stays a stall multiple, and a clean arrival is
 judged against the speed a clean wing actually needs to fly.
 
+**Mark 2026-10-15: the gate now uses the CLEAN stall speed at every flap setting.**
+The flap-adjusted figure made extending flaps lower the limit to 120 mph (a
+126 mph, 1 mph-sink touchdown with flaps down crashed). `supportedContact` now
+multiplies `spec.reference.stallSpeedMps`, so the limit is 139.2 mph flaps up or
+down. Test: `tests/sim/softField.test.ts`, "speed gate ignores the flaps".
+`effectiveStallSpeedMps` is unchanged and still used by the AI takeoff, go-around
+and carrier approach speed.
+
 **The sink gate stays at 4.0 m/s**, and the reason it needed documenting is
 that the question was asked badly. Mark read 4 m/s as a forward speed — "just
 8.9 mph, that is very slow" — which is a fair reading of a bare number beside

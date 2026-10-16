@@ -124,6 +124,11 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
+- **ryzen frame-time numbers are bimodal, and the cause is unknown (measured 2026-10-15).** The same unmodified view lands in a fast state (about 5-9 ms gpu p95) or a slow state (about 12-15 ms) depending on the page load, and slow mode shows roughly 50-65 samples/s instead of 120, so it looks like a low-frame-rate state, not just longer frames.
+  - Round-robin A/B, 8 fresh loads per condition on `runway` and `low-land-600`, under `hwlock ryzen-budget`, console-session Playwright server, `origin/main` `996565d2`: stopping Agent DVR (a camera NVR service using about 40% of a core and some GPU 3D), stopping the ASUS `LightingService`, and the High performance power plan each made no consistent difference. Bimodality appeared in every condition. Raw samples and the restore log: [handoff](handoff/2026-10-15-ryzen-budget-noise-ab.md).
+  - Not tested: display refresh behavior, a foreground against an occluded or minimized window, the `rdp` route against the console route, and a longer capture to see whether the state flips inside one page load.
+  - So: read a single ryzen budget number as one draw from two modes. Use the median of at least 5 fresh page loads per view, and do not read one 13 ms nightly p95 as a regression by itself. An alternating on/off comparison inside one page load (lights on minus off, F6A gate c) cancels the page-load state and stays trustworthy.
+
 - **A first-time visitor's audio context.** Nothing automated proves it starts suspended and resumes on the first gesture.
   - On the reference desktop the context is already `running` at boot. The likely cause, unverified, is Chrome's Media Engagement Index for an origin Mark flies on often. So the assertion would pass on a fresh profile and fail on the runner.
   - `void audio.resume()` in `main.ts`'s keydown listener is exercised by `audio.spec.ts`. That it runs before the first sound is wanted has to be checked by hand, once, in a fresh profile. Measured 2026-09-18.

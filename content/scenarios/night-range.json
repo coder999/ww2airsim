@@ -1,0 +1,689 @@
+{
+ "id": "night-range",
+ "player": "player-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "aircraft": [
+  {
+   "id": "player-1",
+   "spec": "f6f-hellcat",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": "runwayCenter"
+   },
+   "chocked": false
+  },
+  {
+   "id": "lit-hellcat",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     -29066,
+     420,
+     -46705
+    ],
+    "headingDeg": 90,
+    "speedMps": 70,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 900
+    }
+   }
+  },
+  {
+   "id": "lit-avenger",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     -30366,
+     520,
+     -48805
+    ],
+    "headingDeg": 0,
+    "speedMps": 60,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 1400
+    }
+   }
+  },
+  {
+   "id": "dark-zero",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "airborneAt": {
+    "position": [
+     -27866,
+     480,
+     -47905
+    ],
+    "headingDeg": 180,
+    "speedMps": 70,
+    "throttle": 0.4
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 1100
+    }
+   }
+  },
+  {
+   "id": "park-hellcat",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": 18,
+     "z": 70
+    }
+   },
+   "chocked": true
+  },
+  {
+   "id": "park-zero",
+   "spec": "a6m2-zero",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": -20,
+     "z": 125
+    }
+   },
+   "chocked": true
+  },
+  {
+   "id": "park-avenger",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "parkedAt": {
+    "airfield": "tacloban",
+    "spot": {
+     "x": 20,
+     "z": 180
+    }
+   },
+   "chocked": true
+  }
+ ],
+ "ships": [],
+ "weather": {
+  "windFromDeg": 90,
+  "windMps": 0,
+  "timeOfDay": 21
+ },
+ "lights": [
+  {
+   "id": "pot-w00",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48355
+   },
+   "color": "warm",
+   "state": "unlit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w01",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48255
+   },
+   "color": "warm",
+   "state": "unlit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w02",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48155
+   },
+   "color": "warm",
+   "state": "unlit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w03",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -48055
+   },
+   "color": "warm",
+   "state": "unlit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w04",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47955
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w05",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47855
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w06",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47755
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w07",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47655
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w08",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47555
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w09",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47455
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w10",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47355
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w11",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47255
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w12",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47155
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w13",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -47055
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w14",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -46955
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-w15",
+   "kind": "pot",
+   "at": {
+    "x": -29690,
+    "z": -46855
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e00",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48355
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e01",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48255
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e02",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48155
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e03",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -48055
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e04",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47955
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e05",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47855
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e06",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47755
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e07",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47655
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e08",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47555
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e09",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47455
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e10",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47355
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e11",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47255
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e12",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47155
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e13",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -47055
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e14",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -46955
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "pot-e15",
+   "kind": "pot",
+   "at": {
+    "x": -29642,
+    "z": -46855
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-thr0",
+   "kind": "fixture",
+   "at": {
+    "x": -29696,
+    "z": -46815
+   },
+   "color": "white",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-thr1",
+   "kind": "fixture",
+   "at": {
+    "x": -29636,
+    "z": -46815
+   },
+   "color": "white",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "harbor-red",
+   "kind": "fixture",
+   "at": {
+    "x": -27966,
+    "z": -45905
+   },
+   "color": "red",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "flare-1",
+   "kind": "flare",
+   "at": {
+    "x": -29166,
+    "z": -47805,
+    "altitudeM": 520
+   },
+   "color": "warm",
+   "state": "on",
+   "schedule": {
+    "onAtS": 1,
+    "burnS": 180
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout",
+   "fixed": true
+  },
+  {
+   "id": "search-1",
+   "kind": "searchlight",
+   "at": {
+    "x": -29786,
+    "z": -47405
+   },
+   "color": "white",
+   "state": "on",
+   "aim": {
+    "azimuthDeg": 20,
+    "elevationDeg": 70,
+    "sweepDegPerS": 4
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): a render test bed, not a historical layout"
+  },
+  {
+   "id": "nav-player",
+   "kind": "nav",
+   "at": {
+    "aircraft": "player-1",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-hellcat",
+   "kind": "nav",
+   "at": {
+    "aircraft": "lit-hellcat",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-avenger",
+   "kind": "nav",
+   "at": {
+    "aircraft": "lit-avenger",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "nav-zero",
+   "kind": "nav",
+   "at": {
+    "aircraft": "dark-zero",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "off",
+   "blackoutExempt": false,
+   "source": "gameplay",
+   "sourceNote": "F6A night test range (docs/night.md): position lights are the standard red/green/white scheme"
+  },
+  {
+   "id": "flare-drift",
+   "kind": "flare",
+   "at": {
+    "x": -30066,
+    "z": -47905,
+    "altitudeM": 450
+   },
+   "color": "warm",
+   "state": "on",
+   "schedule": {
+    "onAtS": 1,
+    "burnS": 180
+   },
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: a flare that behaves like one (descends, drifts 4 m/s west by its authored driftMps, goes out on water, burns briefly on land); flare-1 is the fixed lighting demo",
+   "driftMps": [
+    -4,
+    0
+   ]
+  },
+  {
+   "id": "nav-hellcat-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-hellcat",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
+  },
+  {
+   "id": "nav-zero-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-zero",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
+  },
+  {
+   "id": "nav-avenger-parked",
+   "kind": "nav",
+   "at": {
+    "aircraft": "park-avenger",
+    "point": "all"
+   },
+   "color": "white",
+   "state": "on",
+   "source": "gameplay",
+   "sourceNote": "F6A night test range: parked aircraft with position lights, for close-up wingtip checks"
+  }
+ ]
+}

@@ -10,11 +10,11 @@ test.setTimeout(120_000)
 
 const SWAP_BUDGET_MS = 1000
 
-test('title: no airplane drawn, no engine sound, and a chosen aircraft swaps in under a second', async ({ page }) => {
+test('front door: no airplane drawn, no engine sound, and a chosen aircraft swaps in under a second', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await expect(title).toBeVisible()
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
+  await expect(title).toBeVisible({ timeout: 60_000 })
   await page.waitForFunction(() => (window as DiagWindow).__ww2 !== undefined)
 
   // A click is the gesture that unlocks audio; the menu must stay silent after it.
