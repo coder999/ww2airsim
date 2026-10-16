@@ -53,7 +53,8 @@ async function flyOneGunneryRangeSortie(page: Page): Promise<void> {
     timeout: 30_000,
   })
   const flown = await flyPass(page, PASS)
-  expect(flown.end, 'the pass did not end at rest on the runway').toBe('stopped')
+  const imp = flown.end === 'stopped' ? null : await page.evaluate(() => JSON.stringify((window as DiagWindow).__ww2!.impact()))
+  expect(flown.end, `the pass did not end at rest on the runway: ${imp}`).toBe('stopped')
   expect((await combat(page)).player.kills, 'target-1 was never destroyed').toBeGreaterThan(0)
   await debriefDialog(page).waitFor({ timeout: 30_000 })
   await expect(debriefDialog(page)).toContainText('LANDED')

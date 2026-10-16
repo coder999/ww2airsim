@@ -228,12 +228,13 @@ export async function startGame(
  */
 export async function startCampaignGame(
   page: Page,
-  options: { readonly scenario: string; readonly pilot?: number; readonly aircraft?: string; readonly loadout?: string; readonly faction?: 'us' | 'ja' } & { readonly existing?: boolean },
+  options: { readonly scenario: string; readonly pilot?: number; readonly aircraft?: string; readonly loadout?: string; readonly faction?: 'us' | 'ja' } & { readonly existing?: boolean; readonly dev?: boolean },
 ): Promise<void> {
   const title = page.getByRole('dialog', { name: 'Title' })
   await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
   const hq = page.getByRole('dialog', { name: 'Headquarters' })
   await hq.waitFor({ timeout: 60_000 })
+  if (options.dev === true) await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
   if (await hq.getByText('Personnel Files', { exact: true }).isVisible()) {
     if (options.existing === true) await hq.getByRole('button', { name: /^Open / }).first().click()
     else {
