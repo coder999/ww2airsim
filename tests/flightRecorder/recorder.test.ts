@@ -296,6 +296,23 @@ describe('Dev Flight Recorder', () => {
       } finally { random.mockRestore(); now.mockRestore() }
     })
 
+    it('a lights switch and a bailout in the same tick replay exactly (the live frame applies lights first; the record lists bailout first)', () => {
+      const initial = bailoutStart()
+      const recorder = createDevFlightRecorder(header(), initial)
+      recorder.note({ tick: initial.tick, kind: 'bailout', aircraft: initial.player, environment, seed: 5 })
+      recorder.note({ tick: initial.tick + 1, kind: 'control', control: 'lights', value: false })
+      const lit = withPlayerLights(initial, false)
+      const requested = requestBailout(lit, lit.player, environment, 5)
+      if (!requested.ok) throw new Error(requested.reason)
+      let world = requested.world
+      for (let i = 0; i < 2_400 && world.parachutists?.[0]?.state.outcome === null; i++) {
+        world = advance(world, DT, undefined, undefined, false, undefined, recorder.observe).world
+      }
+      const record = recorder.finish(world)
+      expect(record.packets[0]!.actions.map((x) => x.kind)).toEqual(['bailout', 'control'])
+      expect(verifyFlightRecord(record, initial)).toMatchObject({ ok: true, ticks: record.packets.length })
+    })
+
     it('the strict parser rejects a bailout action that carries no seed', () => {
       const { record } = fly(3)
       const clone = JSON.parse(JSON.stringify(record)) as { packets: { actions: Record<string, unknown>[] }[] }
