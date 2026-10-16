@@ -341,6 +341,11 @@ progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is
 (2026-10-15), not deployed; handoff
 [`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
+#### F5C. Multi-leg sorties, any-friendly-base recovery, unscored pilot skip (M; planned 2026-10-16, runs before F8)
+
+Mark's grilling (2026-10-16) settled it; the plan is [`docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md`](docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md).
+Landing and stopping on any friendly airfield, carrier or anchorage ends a leg, not the sortie: a full debrief offers Continue or End, each landing banks its points permanently (checkpoint banking), the chapter completes at the first qualifying landing, and Continue gives an instant refuel, repair and loadout choice with the aircraft repositioned for takeoff and no clock jump. Training and Single skip the pilot step. Schema bump, old campaigns discarded. Starts after F7B merges; viewing: final product only, unattended.
+
 #### F6. Night operations (L)
 
 Consumes the F5A contract for rank gates: `abilities(tier)` in `docs/campaign-data.md`.
@@ -494,6 +499,8 @@ H1-H3: those names already mean the Hangar plans.)
 - **Plan:** `docs/superpowers/plans/2026-10-08-h0-render-budget.md`.
 - **Done 2026-10-10, Mark's rulings applied** (handoff `docs/handoff/2026-10-08-h0-render-budget.md`, "Rulings and the as-merged result"): the cloud-edge re-march skip is the default, so every High view clears 8.33 ms at 1440p; in-deck-1900 has its own 10.0 ms gate (9.51 ms measured); terrainTextures' runway keeps 9.0 ms. Every view but in-deck is inside the 7.5 ms margin (worst: deckquals 7.01 ms).
 
+**Budget re-evaluation (2026-10-16):** the red budget specs trace to the distance-forest merge `e6b2476f` and to ship trails (`night-bay`), not to the night work or the machine; nothing changed, gates stay red until Mark rules at home. Causes, entity scaling on current main, and a proposed two-tier bar: [`docs/handoff/2026-10-16-budget-reevaluation.md`](docs/handoff/2026-10-16-budget-reevaluation.md).
+
 **Entity scaling (measured 2026-10-11):** about 5 to 10 extra aircraft fit the original 120 Hz bar, not 30; the main thread's draw calls and, in a furball, the sim's bullet contact test bound first. Handoff `docs/handoff/2026-10-10-entity-scaling.md` (ranked fixes inside). **Projectile-contact broad phase and aircraft far LOD done and merged 2026-10-11 (`0ca520d9`):** conservative swept-sphere rejection and allocation-free nearest selection cut the measured tight 30-aircraft sim mean 82% (5.56 -> 1.01 ms/tick) and tight 60 + 20 mean 81% (22.94 -> 4.32 ms/tick), without changing the exact narrow phase or deterministic outcomes. Intact aircraft beyond 0.75 mi share a one-draw, vertex-colored silhouette per model; full articulation returns inside 0.62 mi and damage always forces it. Mission-60 calls fell 75% (1,741 -> 437) and tight-60 calls 41% (1,745 -> 1,025) in the frozen nexus-GPU A/B; the indexed shared proxies added about 9 MB at mission 60. Follow-ups: `docs/handoff/2026-10-11-entity-contact-broadphase.md` and `docs/handoff/2026-10-11-aircraft-draw-call-lod.md`.
 
 **Reference re-baseline measured 2026-10-12 (`9aca2377`), merged to `main` in `3997106d`:** 120 locked RX 6700 XT captures, with three repeats per point, show the strict 1440p High 120 Hz limit still near five extra aircraft or ships once both GPU and main-thread p95 are counted. The aircraft-only GPU limit moved to 10–20 close aircraft or 20–30 spread aircraft; 30 aircraft in either layout now fit the separate 60 Hz GPU and CPU p95 bars. At 20 ships, hiding the hulls cuts frozen GPU p95 from 14.60 to 6.58 ms in the tight view; turning effects off at tight 30 aircraft cuts 13.88 to 12.16 ms. **Next scaling pass:** reduce ship draw calls for mixed battles, then remeasure. Profile near-aircraft submissions and effects separately for dense aircraft-only fights; lower-triangle far aircraft remain an option for large spread formations. Handoff and raw rows: `docs/handoff/2026-10-12-entity-scaling-rebaseline.md`.
@@ -558,6 +565,8 @@ coverage while preserving scenario cloud geometry and cirrus. Handoff:
    shadow darkness, ocean shadowing at dusk, and crimson dusk clouds. The
    accepted soft dense center and slight thin-wisp breakup are not unattended
    tuning targets.
+
+**Forest canopy rework (planned 2026-10-16; plan [`docs/superpowers/plans/2026-10-16-forest-canopy-rework.md`](docs/superpowers/plans/2026-10-16-forest-canopy-rework.md)):** buys back the ~8 ms the distance-forest merge costs (evidence: [`docs/handoff/2026-10-16-budget-reevaluation.md`](docs/handoff/2026-10-16-budget-reevaluation.md)). Stand interiors become a canopy relief surface, individual trees stay at stand edges (about 3 rows) and as sparse emergents, the near trees are untouched, and nothing becomes the default without Mark's yes (two attended checkpoints). Parallel with F5C.
 
 ### Track L: Terrain (size L)
 
