@@ -6,7 +6,7 @@ test('Takram native and TSL GPU budgets are recorded at 1440p High', async ({ pa
   test.setTimeout(180_000)
   await page.setViewportSize({ width: 2560, height: 1440 })
   const measure = async (url: string): Promise<{ p50: number; p95: number; samples: number }> => {
-    await page.goto(url)
+    await page.goto(url + (process.env.BUDGET_PARAMS ? '&' + process.env.BUDGET_PARAMS : ''))
     await waitForTerrain(page)
     await page.waitForTimeout(2000)
     await page.evaluate(() => (window as DiagWindow).__ww2!.resetFrameTimes())
