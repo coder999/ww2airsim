@@ -4,7 +4,7 @@
  * way it faces, what it carries, and what it must NOT have touched (the clock, the AI, the ships, the mission log).
  */
 import { describe, expect, it } from 'vitest'
-import { checkGroundStop, groundStop, LAUNCH_SPOT_FROM_STERN_M, runwayStart, THRESHOLD_MARGIN_M, WATER_CLEARANCE_M } from '../../src/sim/groundStop.js'
+import { checkGroundStop, groundStop, LAUNCH_FUEL_KG, LAUNCH_SPOT_FROM_STERN_M, runwayStart, THRESHOLD_MARGIN_M, WATER_CLEARANCE_M } from '../../src/sim/groundStop.js'
 import { canonicalStringify } from '../../src/flightRecorder/canonical.js'
 import { initialFrameStateFor, withGroundStop, type FrameState } from '../../src/render/frame.js'
 import { parseScenario, worldFromScenario } from '../../src/sim/scenario.js'
@@ -59,7 +59,7 @@ describe('a runway stop (D8)', () => {
     expect(p.state.flapFraction).toBe(0)
     expect(p.state.gearFraction).toBe(1)
     expect(p.controls).toMatchObject({ brake: 1, gearDown: true, flapDown: false, throttle: 0 })
-    expect(p.state.fuelKg).toBe(HELLCAT.mass.fuelCapacityKg)
+    expect(p.state.fuelKg).toBe(LAUNCH_FUEL_KG)
     expect(p.state.engineRpm).toEqual(before.state.engineRpm) // the engine is still running
     expect(p.state.tick).toBe(f.world.tick)
     expect(p.impact).toBeNull()
@@ -96,6 +96,15 @@ describe('a runway stop (D8)', () => {
     expect(out.world.mission).toBe(worn.mission)
     expect(out.world.wind).toBe(worn.wind)
     expect(out.world.accumulatorSeconds).toBe(worn.accumulatorSeconds)
+  })
+
+  it('refuels to the load the sortie launched with: a drained tank is topped up, a fuller one is kept, never past the tank', () => {
+    const f = landedAtTacloban()
+    const withFuel = (kg: number) => withAircraftState(f.world, f.world.player, { ...playerAircraft(f.world).state, fuelKg: kg })
+    const fuelAfter = (kg: number) => { const o = groundStop(withFuel(kg), 'clean'); if (!o.ok) throw new Error(o.reason); return playerAircraft(o.world).state.fuelKg }
+    expect(fuelAfter(20)).toBe(LAUNCH_FUEL_KG)
+    expect(fuelAfter(LAUNCH_FUEL_KG + 100)).toBe(LAUNCH_FUEL_KG + 100)
+    expect(fuelAfter(1e9)).toBe(HELLCAT.mass.fuelCapacityKg)
   })
 
   it('is deterministic: the same stop twice gives the same bytes', () => {
@@ -183,7 +192,7 @@ describe('a water stop (D8)', () => {
     expect(headingDeg(p.state)).toBeCloseTo(120, 3)
     expect(p.state.flapFraction).toBe(1)
     expect(p.state.gearFraction).toBe(0)
-    expect(p.state.fuelKg).toBe(loadAircraftSpec('pby-5a-catalina').mass.fuelCapacityKg)
+    expect(p.state.fuelKg).toBe(LAUNCH_FUEL_KG)
   })
 
   it('an unsafe spot says why: a ship within the clearance blocks the relaunch', () => {

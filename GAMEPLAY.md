@@ -311,7 +311,7 @@ friendly airfield, carrier deck or anchorage (F5C, Mark 2026-10-16).
   any promotion announced then (the Campaign Ledger shows the landing's bank). The badge needs the
   primary objective only, once per mission per pilot. A promotion takes effect from the *next*
   sortie: rank gates (aircraft, bombsight, torpedosight) are fixed at launch for the whole sortie.
-- **Continue Sortie** keeps the same aircraft and pilot, refuels, repairs and rearms them to a
+- **Continue Sortie** keeps the same aircraft and pilot, refuels (to the load the sortie launched with), repairs and rearms them to a
   loadout you choose from the aircraft's allowed ones, and repositions them with a short fade:
   on a runway, at the threshold of the end facing the wind; on a carrier, at the launch spot of
   the moving deck (the ship keeps steaming); on the water, where you stopped, into the wind (if a

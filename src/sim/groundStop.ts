@@ -39,6 +39,8 @@ export const LAUNCH_SPOT_FROM_STERN_M = 21
 export const THRESHOLD_MARGIN_M = 25
 /** A ship closer than this to a stopped flying boat makes the relaunch unsafe. */
 export const WATER_CLEARANCE_M = 300
+/** What a scenario aircraft starts with: `createState`'s default fuel. */
+export const LAUNCH_FUEL_KG = createState().fuelKg
 /** A roll-out that ends this far past a strip's end, or beside it, still stopped at that field. */
 export const OVERRUN_M = 400
 
@@ -134,7 +136,9 @@ export function groundStop<M>(world: World<M>, loadout: Loadout): GroundStopResu
   if (!check.ok) return check
   const spec = player.spec
   const rest = restingOn(world, player)
-  const fuelKg = spec.mass.fuelCapacityKg
+  // Refueled to the load the sortie LAUNCHED with (every scenario aircraft starts at `createState`'s default, not a full
+  // tank), so leg 2 takes off as heavy as leg 1 did; never below what is left.
+  const fuelKg = Math.min(spec.mass.fuelCapacityKg, Math.max(player.state.fuelKg, LAUNCH_FUEL_KG))
   const tick = world.tick
   let state: AircraftState
   let controls: Controls
