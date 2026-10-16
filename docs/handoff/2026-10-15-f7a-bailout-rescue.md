@@ -82,3 +82,5 @@ architecture boundary tests.
 ## Verification
 
 `REMOTE_RUN_OVERFLOW=0 remote-run bash -c 'npm run verify; echo VERIFY_EXIT=$?'` on ryzen, 2026-10-15: **exit 0** (typecheck, eslint `--max-warnings 0`, dependency-cruiser, then 471 test files passed, 1 skipped; 7040 passed | 14 skipped (7054)). The merge-time run before the tuning work had one unrelated slow test time out under load (`ships stay in the support sea ... two runs agree`, 36 s) that passed in the full run. Run on the tree at commit `9ae30948`; the handoff, captures and spec edits came after.
+
+**After merging `aa098745` (lighting hotfix), 2026-10-15:** full gate rerun on ryzen: typecheck, lint and depcruise clean, 470 of 471 files passed, 7039 of 7040 tests; the one failure was the known load flake `tests/sim/soak.test.ts` 'ships stay in the support sea ...' (34.6 s against its 30 s limit, ryzen shared with F6B), which **passes alone in 14.6 s** (5/5 in the file). Nothing else failed.
