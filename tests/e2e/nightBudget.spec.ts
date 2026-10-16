@@ -25,8 +25,6 @@ test.beforeEach(({ page }) => {
 test.afterEach(() => { expect(errors, errors.join('\n')).toEqual([]) })
 
 type NightView = { readonly name: string; readonly url: string; readonly lights: boolean }
-/** Query params for an A/B run, e.g. BUDGET_PARAMS=trees=off (the same hook budget.spec.ts has). */
-const extra = Object.fromEntries(new URLSearchParams(process.env.BUDGET_PARAMS ?? ''))
 const launch = (scenario: string): string => withParams('/', { scenario, launch: '1', aircraft: 'f6f-hellcat', loadout: 'clean', god: '1' })
 export const NIGHT_VIEWS: readonly NightView[] = [
   { name: 'night-floor-600', url: withParams(spawnUrl({ x: TAC.x, y: 600, z: TAC.z - 6000 }), { timeOfDay: '21' }), lights: false },
@@ -37,7 +35,7 @@ export const NIGHT_VIEWS: readonly NightView[] = [
 
 async function p95Once(page: Page, url: string): Promise<number> {
   await page.setViewportSize({ width: 2560, height: 1440 })
-  await page.goto(withParams(url, { cloudTier: 'high', oceanTier: 'high', ...extra }))
+  await page.goto(withParams(url, { cloudTier: 'high', oceanTier: 'high' }))
   await waitForTerrain(page)
   await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 240, undefined, { timeout: 60_000 })
   await page.waitForTimeout(3000)
@@ -66,7 +64,7 @@ for (const view of NIGHT_VIEWS) {
     // (measured 2026-10-14: the same view swung 5 to 15 ms between loads) cancels out of the difference.
     test(`1440p budget (high): ${view.name} lights cost at most ${LIGHTS_COST_MS} ms of gpu p95`, async ({ page }) => {
       await page.setViewportSize({ width: 2560, height: 1440 })
-      await page.goto(withParams(view.url, { cloudTier: 'high', oceanTier: 'high', ...extra }))
+      await page.goto(withParams(view.url, { cloudTier: 'high', oceanTier: 'high' }))
       await waitForTerrain(page)
       // A freshly loaded page spends its first seconds before the world is rendering at full cost (samples of 2 to 3 ms
       // were seen, 2026-10-14): wait for 4 s of sim, then sample.
