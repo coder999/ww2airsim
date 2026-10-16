@@ -373,7 +373,7 @@ There is no pitch or bank gate.
 | --- | --- | --- |
 | Gear | at least 95% down | `GEAR_DOWN_FRACTION` |
 | Sink rate | 4.0 m/s or less (about 790 ft/min; a flown approach measures 1.47 m/s) | `MAX_SUPPORTED_SINK_MPS` |
-| Speed | 1.42 × current (flap-adjusted) stall speed or less, while descending | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
+| Speed | 1.42 × the clean stall speed (139 mph for the F6F) or less, at any flap setting, while descending (Mark 2026-10-15: flaps used to lower this to 120 mph) | `MAX_SUPPORTED_SPEED_STALL_MULTIPLE` |
 
 Speed and sink are judged relative to the surface, so a moving deck counts as
 at rest.

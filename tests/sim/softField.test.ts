@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { gunzipSync } from 'node:zlib'
 import { readFileSync } from 'node:fs'
-import { supportedContact, rollingResistanceN, MAX_SUPPORTED_SINK_MPS, SOFT_FIELD_MAX_SINK_MPS, SOFT_FIELD_ROLLING_MULTIPLIER } from '../../src/sim/ground.js'
+import { supportedContact, rollingResistanceN, MAX_SUPPORTED_SPEED_STALL_MULTIPLE, MAX_SUPPORTED_SINK_MPS, SOFT_FIELD_MAX_SINK_MPS, SOFT_FIELD_ROLLING_MULTIPLIER } from '../../src/sim/ground.js'
 import { step } from '../../src/sim/flight/model.js'
 import { createState } from '../../src/sim/flight/state.js'
 import { nextLandingTracking, NO_LANDING } from '../../src/sim/landing.js'
@@ -112,6 +112,34 @@ describe('supportedContact by land class', () => {
     })
     const g = groundUnder(withCover(uniform(PADDY)), [], AWAY.x, AWAY.z)!
     expect(supportedContact(f6f, fast, g.heightM, g.surface, g.velocity, g.landClass)).toBe(false)
+  })
+})
+
+describe('supportedContact speed gate ignores the flaps (Mark 2026-10-15)', () => {
+  const MPH = 0.44704
+  const touch = (speedMps: number, sinkMps: number, flaps: number, cover: CoverField | null = null): boolean => {
+    const s = createState({
+      position: v3(AWAY.x, LAND_M + H, AWAY.z), velocity: v3(speedMps, -sinkMps, 0), attitude: qIdentity(), gearFraction: 1, flapFraction: flaps,
+    })
+    const g = groundUnder(withCover(cover), [], AWAY.x, AWAY.z)!
+    return supportedContact(f6f, s, g.heightM, g.surface, g.velocity, g.landClass)
+  }
+  const cleanLimit = MAX_SUPPORTED_SPEED_STALL_MULTIPLE * f6f.reference.stallSpeedMps
+
+  it('carries 126 mph with a 1 mph sink, flaps down or up (flaps down was 120 mph, a crash)', () => {
+    for (const flaps of [0, 0.5, 1]) expect(touch(126 * MPH, 1 * MPH, flaps)).toBe(true)
+  })
+
+  it('the limit is the clean figure at every flap setting, and still rejects above it', () => {
+    for (const flaps of [0, 1]) {
+      expect(touch(cleanLimit - 0.5, 1, flaps)).toBe(true)
+      expect(touch(cleanLimit + 0.5, 1, flaps)).toBe(false)
+    }
+  })
+
+  it('still rejects a hard sink and woodland at that speed', () => {
+    expect(touch(126 * MPH, MAX_SUPPORTED_SINK_MPS + 0.01, 1)).toBe(false)
+    expect(touch(126 * MPH, 1 * MPH, 1, uniform(FOREST))).toBe(false)
   })
 })
 
