@@ -41,3 +41,5 @@ What the measurement found and fixed (each confirmed by an alternating A/B, not 
 **Update 2026-10-15:** a controlled A/B found ryzen's frame times are bimodal (fast about 5-9 ms, slow about 12-15 ms per page load) with no identified cause, so a single run cannot settle gates (a) and (b); judge them on the median of at least 5 fresh loads per view or on the nightly's trend. See `docs/testing.md` "Known gaps" and [the A/B](2026-10-15-ryzen-budget-noise-ab.md).
 
 **Open for the first quiet run:** gates (a) and (b). If (a) fails the plan's fallback is sprites-only (D1); if only (b) fails on the night floor, the lever is the cloud tier, not the lights (the floor view has no lights).
+
+**Update 2026-10-15 (D3D12 fix):** on ryzen every lit model rendered near-black (hangar case 15 failed for all 23 fixtures) since Tasks 5-6; shared nodes were first built inside the lighting node's `If`/`Loop`. Fixed by hoisting them with `toVar()`; see `docs/night.md` "shared-node scope bug on D3D12". Gates (a)/(b) above were measured on the broken shader, so their model-cost numbers should be retaken.

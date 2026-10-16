@@ -38,6 +38,10 @@ nexus 680M: **0 red pixels**. The ocean mesh (400 km) covers everything the dome
 is latent and was not "fixed"; nothing observable changed. If the ocean mesh ever stops short of the horizon, the
 branch is `domeColourFor` in `src/render/scene/sky.ts`.
 
+## Finding: shared-node scope bug on D3D12 (2026-10-15)
+
+**D3D12 near-black models, fixed 2026-10-15.** From F6A Tasks 5-6 (a8d97fb2) every lit model rendered 0.06x to 0.45x of its flat luminance on ryzen (RX 6700 XT, D3D12 via Tint) even with no light active; nexus's Vulkan 680M was fine. Cause (A/B on ki-84-frank and p-38-lightning, hangar luminance, ryzen console session): `gameplayLights()` handed `positionWorld`/`normalWorld` straight into the `If`+`Loop`, so three's node builder first emitted their code INSIDE the branch scope, and the material's own sun lighting reused that variable outside it (uninitialised on D3D12). Not the loop, the `min` clamp or the emissive slot: a trivial loop body, an unrolled 8 slots with no branch, and `night=shaders:0` all rendered 0.0913 / 0.2138; the full body in `Loop` or in `If` rendered 0.0075 / 0.0168; hoisting `worldPos.toVar()` and `normal.toVar()` above the `If` with the unchanged `If`+`Loop` restored 0.0913 / 0.2138. Fix: those two `toVar()`s in `src/render/lights/irradiance.ts`; the daytime cost is unchanged (the branch still skips the loop). Pinned by hangar case 15b (lit vs `shaders:0` luminance within 2%, red before the fix on ryzen). Rule: inside a TSL `If`/`Loop`, never be the first to build a shared node (positionWorld, normalWorld, diffuseColor...); `.toVar()` it outside first.
+
 ## Sources (Task 1)
 
 Anything below not tied to a citation is an ESTIMATE and is labeled where the number lives (`INTENSITY_CD` in
