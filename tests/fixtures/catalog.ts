@@ -9,25 +9,18 @@
 import { readFileSync } from 'node:fs'
 import { loadAircraftSpec, loadScenario } from '../../tools/content/load.js'
 import { SCENARIO_OPTIONS } from '../../src/render/titleScreen.js'
-import { sideOf } from '../../src/sim/sides.js'
+import { factsFromScenario } from '../../src/render/campaignSession.js'
+import { withMissionAircraft } from '../../src/render/hq/missionAircraft.js'
 import {
   buildCatalog, type ChapterId, type Faction, type MissionDescriptor, type ScenarioFacts, type Tier,
 } from '../../src/campaign/index.js'
 
 export function scenarioFacts(id: string): ScenarioFacts {
-  const s = loadScenario(id)
-  const world = { player: s.player }
-  const player = s.aircraft.find((a) => a.id === s.player)!
-  const mySide = sideOf(world, player)
-  return {
-    timeOfDay: s.weather?.timeOfDay ?? 12,
-    nation: loadAircraftSpec(player.spec).side,
-    friendlies: s.aircraft.filter((a) => a.id !== s.player && sideOf(world, a) === mySide)
-      .map((a) => ({ spec: a.spec, follows: a.pilot?.leader !== undefined })),
-  }
+  // The one implementation the browser shell also uses (F5B Task 3); only the file reads differ.
+  return factsFromScenario(loadScenario(id), (spec) => loadAircraftSpec(spec).side)
 }
 
-export const shippedCatalog = (): MissionDescriptor[] => buildCatalog(SCENARIO_OPTIONS, scenarioFacts)
+export const shippedCatalog = (): MissionDescriptor[] => withMissionAircraft(buildCatalog(SCENARIO_OPTIONS, scenarioFacts))
 
 const AIRCRAFT_ID: Readonly<Record<string, string[]>> = {
   'F6F Hellcat': ['f6f-hellcat'], 'TBM-3 Avenger': ['tbm-3-avenger'], 'P-38 Lightning': ['p-38-lightning'],

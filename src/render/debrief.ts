@@ -7,8 +7,7 @@ import type { LandingReport } from '../sim/landing.js'
 import { TARGET_TYPES, type TargetType } from '../sim/weapons/targetType.js'
 import { SCORE_POINTS } from '../campaign/schema.js'
 import type { DebriefMission } from './mission/debriefMission.js'
-import { insigniaElement, ribbonElement } from './insignia.js'
-import { RANK_LADDER } from './roster.js'
+import { rankDevice, ribbonElement } from './insignia.js'
 
 /** A stamp with a ribbon or insignia next to it, outside the stamp so its
  *  rough-ink filter and multiply blend leave the colors alone. */
@@ -123,6 +122,13 @@ export function missionScore(
   return { rows, total: rows.reduce((sum, r) => sum + r.score, 0), multiplier }
 }
 
+/** What a banked campaign sortie adds to the debrief (plan F5B, D6). Plain lines, built by the shell from the banked log entry. */
+export type CampaignDebrief = {
+  readonly pilotLine: string
+  readonly rows: readonly DebriefFigure[]
+  readonly notices: readonly string[]
+}
+
 export type DebriefFigure = { readonly label: string; readonly value: string }
 
 export type DebriefModel = {
@@ -166,6 +172,15 @@ export type DebriefModel = {
   readonly notRecorded?: true
   readonly bankedTotal?: number
   readonly promotedTo?: string
+  /** F5B: the tier promoted to, so the stamp's device is drawn by faction and tier, not found by rank name. */
+  readonly promotedTier?: { readonly faction: 'us' | 'ja'; readonly tier: 1 | 2 | 3 | 4 | 5 | 6 }
+  /** F5B: a sortie banked into a campaign: the ledger lines, and what happened to the pilot. */
+  readonly campaign?: CampaignDebrief
+  /** F5B: the headquarters sortie's way out (replaces "Return to title"); a banked sortie also has no Restart. */
+  readonly returnLabel?: string
+  readonly noRestart?: true
+  /** F5B: the last save failed, so this progress is not stored. */
+  readonly saveError?: string
   /** M2: present only for a mission world (`withMissionDebrief`). */
   readonly mission?: DebriefMission
   /**
@@ -600,8 +615,21 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         promoted.className = 'stamp stamp--violet stamp--md stamp--rotate-3'
         promoted.style.marginTop = '10px'
         promoted.textContent = `Promoted to ${model.promotedTo}!`
-        const rank = RANK_LADDER.find((r) => r.name === model.promotedTo)
-        sheet.appendChild(beside(promoted, rank === undefined ? null : insigniaElement(rank, 40)))
+        const t = model.promotedTier
+        sheet.appendChild(beside(promoted, t === undefined ? null : rankDevice(t.faction, t.tier, 40, model.promotedTo)))
+      }
+
+      if (model.saveError !== undefined) {
+        const warn = plainRow(`Progress NOT saved: ${model.saveError}`)
+        warn.setAttribute('role', 'alert')
+        warn.style.cssText += ';color:var(--stamp-red);border:2px solid var(--stamp-red);padding:6px 10px;margin-top:8px'
+        sheet.appendChild(warn)
+      }
+      if (model.campaign !== undefined) {
+        sheet.appendChild(sectionTitle('Campaign Ledger'))
+        sheet.appendChild(plainRow(model.campaign.pilotLine))
+        for (const r of model.campaign.rows) sheet.appendChild(figureRow(r.label, r.value))
+        for (const n of model.campaign.notices) sheet.appendChild(plainRow(n))
       }
 
       // ---- Targets Destroyed ----
@@ -672,7 +700,9 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       }
       if (watchReplayAction(onWatchReplay) !== null) buttons.appendChild(watchReplay)
       if (onExportFlightRecord !== undefined) buttons.appendChild(exportFlight)
-      buttons.append(restart, returnToTitle)
+      returnToTitle.textContent = model.returnLabel ?? 'Return to title'
+      if (model.noRestart !== true) buttons.appendChild(restart)
+      buttons.appendChild(returnToTitle)
       sheet.appendChild(buttons)
 
       const finePrint = document.createElement('div')
@@ -685,6 +715,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
       panel.appendChild(sheet)
       backdrop.style.display = 'flex'
       if (model.continueLabel !== undefined) cont.focus()
+      else if (model.noRestart === true) returnToTitle.focus()
       else restart.focus()
     },
     hide(): void {

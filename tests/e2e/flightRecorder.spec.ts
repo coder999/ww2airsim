@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 import { decodeFlightRecord } from '../../src/flightRecorder/codec.js'
-import { startGame, type DiagWindow } from './harness.js'
+import { startCampaignGame, startGame, type DiagWindow } from './harness.js'
 
 test.setTimeout(120_000)
 
@@ -61,4 +61,21 @@ test('a Dev sortie records fixed ticks and exports a valid compressed .ww2flight
   // visible UI.
   await expect(reproduction.locator('[role="status"]')).toContainText(/Verified \d+ ticks bit-identically/)
   await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.replay())).not.toBeNull()
+})
+
+test('Dev checked on a scored mission still records and offers the export; the same mission without Dev does not', async ({ page }) => {
+  await page.goto('/')
+  await startCampaignGame(page, { scenario: 'Airfield Strike', dev: true })
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.flightRecorder().packetCount ?? 0) > 60)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.flightRecorder())).toMatchObject({ active: true, valid: true })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign()?.pending?.missionId)).toBe('airfield-strike')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Export flight record' })).toBeVisible()
+
+  await page.goto('/')
+  await startCampaignGame(page, { scenario: 'Airfield Strike' })
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 60)
+  expect((await page.evaluate(() => (window as DiagWindow).__ww2!.flightRecorder())).active).toBe(false)
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: 'Export flight record' })).toHaveCount(0)
 })

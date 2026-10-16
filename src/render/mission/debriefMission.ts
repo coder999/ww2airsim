@@ -50,7 +50,9 @@ export function missionDebrief<M>(world: World<M>, forfeit = false): DebriefMiss
  * Apply it AFTER `withDischarge`: a forfeit model (`model.forfeit`) earns no
  * badge, and the discharge overlay's own fields pass through unchanged.
  */
-export function withMissionDebrief<M>(model: DebriefModel, world: World<M>): { readonly model: DebriefModel; readonly badgeId: string | null } {
+export function withMissionDebrief<M>(model: DebriefModel, world: World<M>): { readonly model: DebriefModel; readonly badgeId: string | null; readonly success: boolean } {
   const mission = missionDebrief(world, model.forfeit !== undefined)
-  return mission === null ? { model, badgeId: null } : { model: { ...model, mission }, badgeId: mission.badge?.id ?? null }
+  // `success` is the mission verdict (objective and authored recovery, and not a forfeit), NOT "a badge was awarded":
+  // a mission with no badge still succeeds (F5B).
+  return mission === null ? { model, badgeId: null, success: false } : { model: { ...model, mission }, badgeId: mission.badge?.id ?? null, success: mission.verdict === 'MISSION COMPLETE' || mission.verdict.startsWith('BADGE AWARDED: ') }
 }

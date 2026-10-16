@@ -77,6 +77,16 @@ export type FlightRecorderDiagnostics = {
  * production bundle check in the Task 15 report for confirmation it does
  * not survive `npm run build`.
  */
+export type CampaignDiagnostics = {
+  readonly id: string
+  readonly faction: 'us' | 'ja'
+  readonly revision: number
+  readonly pending: { readonly sortieId: string; readonly pilotId: string; readonly missionId: string; readonly difficulty: string; readonly aircraft: string } | null
+  readonly live: readonly { readonly id: string; readonly points: number; readonly sorties: number }[]
+  readonly archived: number
+  readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number }
+}
+
 export type Ww2Diagnostics = {
   readonly reversedDepthBuffer: boolean
   readonly adapter: AdapterVerdict
@@ -448,6 +458,8 @@ export type Ww2Diagnostics = {
    * the requested id before trusting `aircraft()`/`ships()` to reflect it.
    */
   readonly scenarioId: () => string | null
+  /** The open campaign, read-only, for E2E (plan F5B): its id, faction, revision, the pending sortie, the live five and the Commander's ledger. `null` when none is open. */
+  readonly campaign: () => CampaignDiagnostics | null
   /** The model id of the loaded GLB actually drawn for the player (falling back to the
    *  hand-built root's name), or null before one is built: sortie forms E2E proves the
    *  chosen aircraft is the one drawn. */

@@ -710,7 +710,7 @@ test('the mobile Hangar uses a compact picker, full-width model, and collapsible
 
 test("the title's Hangar button opens the hangar", async ({ page }) => {
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   // A6 runs the first-visit graphics check before exposing the title controls.
   // Wait for that real readiness seam instead of Playwright's 5 s visibility default.
   await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
@@ -725,7 +725,7 @@ test("the title's Hangar button opens the hangar", async ({ page }) => {
 
 test("the title's checked Dev box exposes the selected asset's exact id in the Hangar details", async ({ page }) => {
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
+  const title = page.getByRole('dialog', { name: 'Headquarters' })
   await page.waitForFunction(() => document.querySelector('[data-ww2-title]')?.getAttribute('data-ww2-ready') === 'true', undefined, { timeout: 60_000 })
   await title.getByRole('checkbox', { name: /Dev/ }).check()
   await title.getByRole('button', { name: 'Hangar' }).click()

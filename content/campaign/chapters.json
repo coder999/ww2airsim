@@ -1,0 +1,125 @@
+{
+ "note": "Stand-in until F10 authors the chapters; every field is checked against GAMEPLAY.md's chapter table by tests/render/hq/chapters.test.ts.",
+ "chapters": [
+  {
+   "id": "A1",
+   "faction": "us",
+   "title": "Over the Beaches",
+   "date": "20 Oct",
+   "label": "historical composite",
+   "aircraft": "F6F Hellcat",
+   "minRank": "Ensign",
+   "action": "Defend the invasion fleet in a combat air patrol"
+  },
+  {
+   "id": "A2",
+   "faction": "us",
+   "title": "Taffy 3",
+   "date": "25 Oct",
+   "label": "historical action, compressed",
+   "aircraft": "TBM-3 Avenger",
+   "minRank": "Ensign",
+   "action": "Bomb or torpedo a surface force during the Battle off Samar"
+  },
+  {
+   "id": "A3",
+   "faction": "us",
+   "title": "The Long Column",
+   "date": "3 Nov",
+   "label": "historical action, compressed",
+   "aircraft": "P-38 Lightning",
+   "minRank": "Lieutenant",
+   "action": "Attack a Japanese armored column"
+  },
+  {
+   "id": "A4",
+   "faction": "us",
+   "title": "Dumbo in the Gulf",
+   "date": "5 Nov",
+   "label": "historical composite",
+   "aircraft": "PBY-5A Catalina",
+   "minRank": "Lieutenant (junior grade)",
+   "action": "Night air-sea rescue and anchorage recovery"
+  },
+  {
+   "id": "A5",
+   "faction": "us",
+   "title": "Close the Ormoc Lifeline",
+   "date": "11 Nov",
+   "label": "historical composite",
+   "aircraft": "F6F Hellcat",
+   "minRank": "Commander",
+   "action": "Escort bombers against the reinforcement route"
+  },
+  {
+   "id": "A6",
+   "faction": "us",
+   "title": "Battle for the Airfields",
+   "date": "6–7 Dec",
+   "label": "historical action, compressed",
+   "aircraft": "P-38 Lightning",
+   "minRank": "Captain",
+   "action": "Large bombing-and-dogfight finale"
+  },
+  {
+   "id": "J1",
+   "faction": "ja",
+   "title": "Defend the Fields",
+   "date": "18 Oct",
+   "label": "historical composite",
+   "aircraft": "A6M2 Zero",
+   "minRank": "Kaigun Shōi",
+   "action": "Defend Japanese-held airfields"
+  },
+  {
+   "id": "J2",
+   "faction": "ja",
+   "title": "Break the Landing",
+   "date": "20 Oct",
+   "label": "historical composite",
+   "aircraft": "B5N2 Kate",
+   "minRank": "Kaigun Shōi",
+   "action": "Strike American invasion shipping"
+  },
+  {
+   "id": "J3",
+   "faction": "ja",
+   "title": "Road to Burauen",
+   "date": "3 Nov",
+   "label": "historical composite",
+   "aircraft": "Ki-43 Oscar",
+   "minRank": "Kaigun Shōi",
+   "action": "Defend an armored column from air attack"
+  },
+  {
+   "id": "J4",
+   "faction": "ja",
+   "title": "Destroyers in the Bay",
+   "date": "3 Dec",
+   "label": "historical composite",
+   "aircraft": "B5N2 Kate",
+   "minRank": "Kaigun Chūi",
+   "action": "Night torpedo attack amid a surface engagement"
+  },
+  {
+   "id": "J5",
+   "faction": "ja",
+   "title": "Night Drop on Burauen",
+   "date": "6 Dec",
+   "label": "historical composite",
+   "aircraft": "Mitsubishi Ki-57 “Topsy”",
+   "minRank": "Kaigun Taii",
+   "action": "Fly and release a paratrooper drop at night"
+  },
+  {
+   "id": "J6",
+   "faction": "ja",
+   "title": "Operation Te-Go",
+   "date": "7 Dec",
+   "label": "alternate history",
+   "aircraft": "Ki-43 Oscar or A6M2 Zero",
+   "minRank": "Kaigun Taisa",
+   "action": "Alternate-history combined bombing-and-dogfight finale"
+  }
+ ]
+}

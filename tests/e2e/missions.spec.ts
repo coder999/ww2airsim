@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test'
-import { debriefDialog, diveToSea, hopClear, openOrdersFor, waitForScenario, type DiagWindow } from './harness.js'
+import { debriefDialog, diveToSea, hopClear, waitForScenario, type DiagWindow } from './harness.js'
 import { loadScenario } from '../../tools/content/load.js'
 import { BINDINGS } from '../../src/input/bindings.js'
 
@@ -29,16 +29,24 @@ const objectiveLine = (page: Page) => page.getByLabel('Objective', { exact: true
 const radioLine = (page: Page) => page.getByRole('status', { name: 'Radio' })
 const mission = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2!.mission())
 
-/** The same new-pilot path to Sortie Orders as mission-ui.spec.ts's. */
-async function orders(page: Page, pilot: string): Promise<Locator> {
+/**
+ * Headquarters with a campaign open, on the Training grounds and Single missions picker (plan F5B; replaces the old
+ * new-pilot path to Sortie Orders). The unscored sections carry no rank gates, so every mission below can be picked
+ * whoever the pilot is, and a mission's briefing is the same one the scored row shows. Returns the Headquarters dialog.
+ */
+async function orders(page: Page, _pilot: string): Promise<Locator> {
   await page.setViewportSize({ width: 2560, height: 1440 })
   await page.goto('/')
-  const title = page.getByRole('dialog', { name: 'Title' })
-  await title.getByRole('button', { name: 'New pilot' }).click()
-  await title.getByPlaceholder('Pilot name').fill(pilot)
-  await title.getByRole('button', { name: 'Add' }).click()
-  await openOrdersFor(title, 'Missions')
-  return title
+  await page.waitForSelector('[data-ww2-title][data-ww2-ready="true"]', { timeout: 60_000 })
+  const hq = page.getByRole('dialog', { name: 'Headquarters' })
+  await hq.waitFor({ timeout: 60_000 })
+  await hq.getByRole('button', { name: 'New campaign' }).click()
+  await hq.getByPlaceholder('Player name').fill('Mission Tester')
+  await hq.getByRole('radiogroup', { name: 'Service' }).getByRole('radio', { name: /U\.S\. Navy/ }).click()
+  await hq.getByRole('button', { name: 'Next' }).click()
+  await hq.getByRole('button', { name: 'Enlist' }).click()
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  return hq
 }
 
 /** Every `figureRow` (src/render/ui/navalComms.ts: a div of a label span
@@ -57,7 +65,7 @@ const figureRows = (root: Locator) =>
  */
 async function briefingFor(page: Page, title: Locator, id: Id, label: string) {
   const s = loadScenario(id)
-  const choices = title.getByRole('radiogroup', { name: 'Scenario' }).getByRole('radio')
+  const choices = title.locator('[role="radio"][data-section="training"], [role="radio"][data-section="single"]')
   // `has` evaluates its locator relative to each candidate radio. A locator
   // rooted at `title` can therefore never match from inside a radio, even when
   // the title contains the requested text. Match the candidate's own text and
@@ -93,10 +101,12 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
 
 /** After Launch: the scenario is live and the entities exist. `atOrdnance`
  *  runs on Form 6, before Launch (the loadout lives there since the sortie forms). */
-async function launched(page: Page, title: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
-  await title.getByRole('button', { name: 'Next' }).click()
-  await title.getByRole('button', { name: 'Next' }).click()
-  await title.getByRole('button', { name: 'Next' }).click()
+async function launched(page: Page, hq: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  const title = page.getByRole('dialog', { name: 'Title' })
+  await title.getByRole('button', { name: 'Next' }).click() // Flight Conditions -> Aircraft
+  await title.getByRole('button', { name: 'Next' }).click() // Aircraft -> Ordnance
   await atOrdnance?.(title)
   await title.getByRole('button', { name: 'Launch' }).click()
   await waitForScenario(page, id)

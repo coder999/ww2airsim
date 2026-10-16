@@ -22,6 +22,8 @@ export type PauseScreenOptions<M> = {
   readonly onResume: () => void
   readonly onRestart: () => void
   readonly onAbort: () => void
+  /** F5B: a campaign sortie that will be banked. Restart is not offered (a sortie banks exactly once) and Abort becomes Abandon, which forfeits the whole sortie. */
+  readonly scoredSortie?: () => boolean
   readonly onSelectNavigation: (id: string) => void
   /** N2: both callbacks are supplied only in a Dev build; the predicate keeps
    * the control absent during an ordinary non-Dev sortie in that build. */
@@ -331,6 +333,9 @@ export function createPauseScreen<M>(
   function renderSnapshot(snapshot: PauseScreenSnapshot<M>): void {
     if (exportFlight !== null) exportFlight.style.display = options.canExportFlightRecord?.() === true ? '' : 'none'
     shownSnapshot = snapshot
+    const scored = options.scoredSortie?.() === true
+    restart.style.display = scored ? 'none' : ''
+    abort.textContent = scored ? 'Abandon Sortie' : 'Abort Mission'
     pilotLine.textContent = `Pilot: ${snapshot.pilotName}`
     tallyBody.replaceChildren()
     for (const type of TARGET_TYPES) {
@@ -408,11 +413,14 @@ export function createPauseScreen<M>(
   function showConfirmation(kind: Confirmation): void {
     pendingConfirmation = kind
     confirmationKicker.textContent = kind === 'restart' ? 'Sortie restart request' : 'Sortie termination request'
-    confirmationTitle.textContent = kind === 'restart' ? 'Restart This Mission?' : 'Abort This Mission?'
+    const scored = options.scoredSortie?.() === true
+    confirmationTitle.textContent = kind === 'restart' ? 'Restart This Mission?' : scored ? 'Abandon This Sortie?' : 'Abort This Mission?'
     confirmationDetail.textContent = kind === 'restart'
       ? 'Current mission progress and kills will be lost. The mission will restart from the beginning.'
-      : 'Current mission progress and kills will be lost. The sortie will end without a debrief or score.'
-    confirmAction.textContent = kind === 'restart' ? 'Restart Mission' : 'Abort Mission'
+      : scored
+        ? 'You score nothing for this sortie, it still counts against your adjusted score, and the pilot returns unharmed.'
+        : 'Current mission progress and kills will be lost. The sortie will end without a debrief or score.'
+    confirmAction.textContent = kind === 'restart' ? 'Restart Mission' : scored ? 'Abandon Sortie' : 'Abort Mission'
     folder.style.display = 'none'
     confirmationPanel.style.display = 'block'
     keepFlying.focus()
