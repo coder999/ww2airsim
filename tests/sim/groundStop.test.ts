@@ -107,6 +107,13 @@ describe('a runway stop (D8)', () => {
     expect(fuelAfter(1e9)).toBe(HELLCAT.mass.fuelCapacityKg)
   })
 
+  it('night: a blacked-out aircraft stays blacked out across the stop (the lights switch is the pilot\'s, not the field\'s)', () => {
+    const f = landedAtTacloban()
+    const dark = { ...f.world, aircraft: f.world.aircraft.map((a) => (a.id === f.world.player ? { ...a, lightsOff: true as const } : a)) }
+    const out = groundStop(dark, 'clean')
+    expect(out.ok && playerAircraft(out.world).lightsOff).toBe(true)
+  })
+
   it('is deterministic: the same stop twice gives the same bytes', () => {
     const f = landedAtTacloban({ windFromDeg: 90, windMps: 4 })
     const a = groundStop(f.world, 'bombs')
