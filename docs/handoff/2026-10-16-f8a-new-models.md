@@ -50,6 +50,10 @@ partly under the info card; orbit in the Hangar for a better angle. Nexus captur
 - Extended `tests/tools/models/buildingModels.test.ts` to the four (footprint within 1%, height 2%, ground origin, budget, textures, z-fight, winding-safe parts).
 - `blenderEntries.test.ts` rebuilds every Blender entry byte-identically, which covers the four and proves every existing model is unchanged.
 
-**Tests updated:** `buildingModels.test.ts` (roster completeness now counts F8A), `tests/e2e/hangar.spec.ts` (building budget/url list).  
+**Tests updated:** `buildingModels.test.ts` (roster completeness now counts F8A), `tests/render/hangar/models.test.ts` (building count 10 to 14), `tests/e2e/hangar.spec.ts` (building budget/url list).  
 **Tests still valid:** `staticModels`, Hangar roster and provenance, `blenderEntries`, `kitBuildings`.  
 **Known gaps:** `tests/e2e/fixtures/flat-luminance.json` (Hangar check 15) has no rows for these models, because it needs flat predecessors measured on the reference GPU; the e2e `hangar.spec.ts` was not run (needs ryzen's GPU; the updated list is unrun). No gameplay use; ramp slope and widths are guesses; the Navy Quonset manual was never read.
+
+## Verification
+
+`REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` on ryzen, 2026-10-16: exit 0 (not piped); 483 test files passed, 1 skipped; 7,203 tests passed, 14 skipped. Focused run first: `tests/tools/models tests/render` on nexus (one failure, the Hangar building count 10, reconciled to 14).
