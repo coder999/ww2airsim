@@ -13,6 +13,7 @@ import type { TerrainField } from './world/terrain.js'
 import { add, length, scale, sub, v3, type Vec3 } from './math/vec3.js'
 import type { Side } from './sides.js'
 import type { TargetSides } from './weapons/friendlyFire.js'
+import type { StructureEntity } from './weapons/structures.js'
 
 /**
  * Air-to-ship collision (Mark, 2026-10-10): an airplane that collides with a ship is destroyed,
@@ -59,11 +60,23 @@ export const SUPERSTRUCTURE: Readonly<Record<ShipSpec['role'], SuperstructureBox
 /** Name of the debrief's cause: `damage.attacker` for an airplane that hit a ship. */
 export const COLLISION_ATTACKER_PREFIX = 'collision:'
 
-/** The name of the ship a collision death hit, or undefined when `attacker` is not a collision. */
-export function collisionShipName(world: { readonly ships: readonly ShipEntity[] }, attacker: string | null): string | undefined {
+/**
+ * The name of what a collision death hit, or undefined when `attacker` is not a collision: a ship's class name, or
+ * (F8A Task 4) a structure as "hangar at Tacloban". The id is the last resort.
+ */
+export function collisionShipName(
+  world: { readonly ships: readonly ShipEntity[]; readonly structures?: readonly Pick<StructureEntity, 'id' | 'kind' | 'airfield'>[]; readonly airfields?: readonly { readonly id: string; readonly name: string }[] },
+  attacker: string | null,
+): string | undefined {
   if (attacker === null || !attacker.startsWith(COLLISION_ATTACKER_PREFIX)) return undefined
   const id = attacker.slice(COLLISION_ATTACKER_PREFIX.length)
-  return world.ships.find((s) => s.id === id)?.spec.name ?? id
+  const ship = world.ships.find((s) => s.id === id)
+  if (ship !== undefined) return ship.spec.name
+  const structure = world.structures?.find((s) => s.id === id)
+  if (structure === undefined) return id
+  const kind = structure.kind.replace(/-/g, ' ')
+  const base = world.airfields?.find((a) => a.id === structure.airfield)?.name
+  return base === undefined ? kind : `${kind} at ${base}`
 }
 
 type Volume = { readonly cx: number; readonly cz: number; readonly hx: number; readonly hz: number; readonly topM: number }

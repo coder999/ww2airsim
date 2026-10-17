@@ -30,6 +30,7 @@ import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
 import { bounceState, refuel, restoreCombat, type GodMode } from './godMode.js'
 import { stepShipCollisions } from './shipCollision.js'
+import { stepStructureCollisions } from './structureCollision.js'
 import { stepVehicle, type VehicleEntity } from './world/vehicles.js'
 import { waterSurfaceContext, type WaterSurfaceContext } from './waterSurface.js'
 import { BAILOUT_TUNING } from './bailoutTuning.js'
@@ -1197,6 +1198,11 @@ export function advance<M>(
     })
     aircraft = collided.aircraft
     combat = collided.combat
+    // F8A: an airplane into a building's hit box. After combat, so a structure bombed to rubble this tick is no obstacle;
+    // the same objects back when nothing collided.
+    const crashed = stepStructureCollisions({ tick, start: aircraftAtStart, aircraft, structures, combat, player: world.player, god: god !== undefined })
+    aircraft = crashed.aircraft
+    combat = crashed.combat
     // God mode: put the player back to pristine before anything reads the
     // damage (credit for a kill, the mission's own checks), so a hit never lands.
     if (god !== undefined) {
