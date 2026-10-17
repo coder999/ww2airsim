@@ -1,0 +1,338 @@
+{
+  "id": "a4-dumbo-in-the-gulf",
+  "player": "pby-1",
+  "airfields": [
+    "tacloban"
+  ],
+  "sites": [
+    "jinamoc"
+  ],
+  "anchorages": [
+    {
+      "id": "san-pedro-bay",
+      "name": "San Pedro Bay anchorage",
+      "position": [
+        -27500,
+        -46000
+      ],
+      "radiusM": 1500
+    }
+  ],
+  "aircraft": [
+    {
+      "id": "pby-1",
+      "spec": "pby-5a-catalina",
+      "afloatAt": {
+        "position": [
+          -27500,
+          -46090
+        ],
+        "headingDeg": 135
+      }
+    }
+  ],
+  "ships": [],
+  "vehicles": [
+    {
+      "id": "raft-1",
+      "spec": "type-a3-life-raft-survivors",
+      "waypoints": [
+        [
+          -17320,
+          -39430
+        ]
+      ],
+      "speedMps": 0,
+      "headingDeg": 60,
+      "survivors": 3,
+      "side": "allied",
+      "tags": [
+        "rescue"
+      ]
+    },
+    {
+      "id": "survivor-1",
+      "spec": "type-a3-life-raft-survivors",
+      "waypoints": [
+        [
+          -17650,
+          -39200
+        ]
+      ],
+      "speedMps": 0,
+      "headingDeg": 200,
+      "survivors": 1,
+      "side": "allied",
+      "tags": [
+        "rescue"
+      ]
+    }
+  ],
+  "weather": {
+    "windFromDeg": 135,
+    "windMps": 4.4,
+    "timeOfDay": 21,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 900,
+        "thicknessM": 500,
+        "coverage": 0.3
+      }
+    ]
+  },
+  "lights": [
+    {
+      "id": "raft-flare",
+      "kind": "flare",
+      "at": {
+        "x": -17320,
+        "z": -39430,
+        "altitudeM": 90
+      },
+      "color": "warm",
+      "state": "on",
+      "fixed": true,
+      "schedule": {
+        "onAtS": 0,
+        "burnS": 7200
+      },
+      "source": "gameplay",
+      "sourceNote": "A4: the raft's signal flare, a scheduled light that stands in for the survivors' hand-fired flare. A real M24 would burn 3 minutes and descend; this one hangs lit all mission so the search can be flown (docs/night.md, caps 4 flares). Placement and burn time are a gameplay choice, no 1944 raft or flare event is claimed."
+    },
+    {
+      "id": "survivor-lamp",
+      "kind": "fixture",
+      "at": {
+        "x": -17650,
+        "z": -39200,
+        "altitudeM": 1.5
+      },
+      "color": "white",
+      "state": "lit",
+      "source": "gameplay",
+      "sourceNote": "A4: the separated survivor's signal lamp. The dye marker F3 names is daylight-only and is not drawn; a lamp stands in so the secondary can be found at night. A gameplay choice."
+    }
+  ],
+  "objectives": [
+    {
+      "id": "takeoff",
+      "label": "Take off from the anchorage",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "open-water"
+    },
+    {
+      "id": "search",
+      "label": "Enter the search area",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -19020,
+        "z": -37730
+      },
+      "radiusM": 4000,
+      "after": "takeoff"
+    },
+    {
+      "id": "flare",
+      "label": "Find the survivors' flare",
+      "priority": "primary",
+      "kind": "state",
+      "near": {
+        "entity": "raft-1",
+        "radiusM": 3000
+      },
+      "after": "search"
+    },
+    {
+      "id": "touchdown",
+      "label": "Land within 150 yards of the raft",
+      "priority": "primary",
+      "kind": "landedNear",
+      "entity": "raft-1",
+      "radiusM": 137.16,
+      "after": "flare"
+    },
+    {
+      "id": "pickup",
+      "label": "Take three survivors aboard",
+      "priority": "primary",
+      "kind": "pickup",
+      "raft": "raft-1",
+      "survivors": 3,
+      "withinM": 30.48,
+      "groundSpeedMps": 1.03,
+      "dwellS": 20,
+      "after": "touchdown"
+    },
+    {
+      "id": "home",
+      "label": "Return to the anchorage",
+      "priority": "primary",
+      "kind": "land",
+      "at": "open-water",
+      "suggestedRecovery": true,
+      "after": "pickup"
+    },
+    {
+      "id": "survivor",
+      "label": "Recover the separated survivor",
+      "priority": "secondary",
+      "kind": "pickup",
+      "raft": "survivor-1",
+      "survivors": 1,
+      "withinM": 30.48,
+      "groundSpeedMps": 1.03,
+      "dwellS": 20,
+      "after": "pickup"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "tasking",
+      "when": {
+        "at": 3
+      },
+      "then": [
+        {
+          "message": "Dumbo control: Catalina, a fighter pilot is down in the gulf, seven miles southeast of the anchorage. Raft group of three, and one man separated. Search area marked. Launch when ready."
+        }
+      ]
+    },
+    {
+      "id": "sighted",
+      "when": {
+        "completed": "flare"
+      },
+      "then": [
+        {
+          "message": "Dumbo: Flare in sight. Set down near the raft and take them aboard."
+        }
+      ]
+    },
+    {
+      "id": "down",
+      "when": {
+        "completed": "touchdown"
+      },
+      "then": [
+        {
+          "message": "Dumbo: Down. Ease up to the raft and hold still, slower than two knots, while they climb in."
+        }
+      ]
+    },
+    {
+      "id": "aboard",
+      "when": {
+        "completed": "pickup"
+      },
+      "then": [
+        {
+          "spawn": "recon"
+        },
+        {
+          "message": "Dumbo: Three aboard. Radar shows two bogeys east of you at ten miles. Get them home, and the other man if you can reach him."
+        }
+      ]
+    },
+    {
+      "id": "found",
+      "when": {
+        "completed": "survivor"
+      },
+      "then": [
+        {
+          "message": "Dumbo: The fourth man is aboard. All four. Head for the anchorage."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "recon",
+      "aircraft": [
+        {
+          "id": "oscar-1",
+          "spec": "ki-43-oscar",
+          "airborneAt": {
+            "position": [
+              -9000,
+              1500,
+              -47500
+            ],
+            "headingDeg": 250,
+            "speedMps": 90
+          },
+          "pilot": {
+            "ingress": {
+              "route": [
+                {
+                  "x": -13500,
+                  "z": -44500,
+                  "altitudeM": 1500,
+                  "speedMps": 90
+                },
+                {
+                  "x": -16500,
+                  "z": -42500,
+                  "altitudeM": 1500,
+                  "speedMps": 90
+                },
+                {
+                  "x": -12000,
+                  "z": -40000,
+                  "altitudeM": 1500,
+                  "speedMps": 90
+                },
+                {
+                  "x": -8000,
+                  "z": -38000,
+                  "altitudeM": 1500,
+                  "speedMps": 90
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "oscar-2",
+          "spec": "ki-43-oscar",
+          "airborneAt": {
+            "position": [
+              -8400,
+              1600,
+              -47200
+            ],
+            "headingDeg": 250,
+            "speedMps": 90
+          },
+          "pilot": {
+            "leader": "oscar-1",
+            "slot": 1
+          }
+        }
+      ]
+    }
+  ],
+  "population": {
+    "airborne": 3,
+    "ships": 0
+  },
+  "freezeOnSuccess": true,
+  "badge": {
+    "id": "dumbo-in-the-gulf",
+    "name": "Dumbo in the Gulf"
+  },
+  "briefing": {
+    "situation": "Dumbo in the Gulf (5 November, night). You fly a PBY-5A from the lit San Pedro Bay anchorage to find a downed fighter pilot's raft in the search area to the southeast, about seven miles out. Land on the water within 150 yards of the raft, ease up to it and stay slower than two knots for twenty seconds while three men climb aboard, then take off and bring them home to the anchorage. A fourth man is adrift a short taxi from the raft: take him aboard too, if you can. Two Japanese fighters may pass at a distance once the first men are aboard. This is a composite mission: no specific documented rescue is reenacted. Water landings at night are hard: the approach and touchdown are yours to judge.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "Task Force 77's Operation Plan 13-44 coordinated the rescue of downed aviators in Leyte Gulf and used PBY flying boats, with seaplane tenders, where it was practical; PBYs of the Navy's patrol squadrons operated from the gulf with tender support through the campaign. This mission is a composite written for the game. The crew, the night, the raft and the pilot are invented, and no documented rescue is reenacted.",
+    "sources": [
+      "Task Force 77, Operation Plan 13-44, Annex G (air-sea rescue): https://www.ibiblio.org/hyperwar/USN/rep/Leyte/OpPlan/13-44-G.html",
+      "Dictionary of American Naval Aviation Squadrons, vol. 2, VPB-33: https://www.history.navy.mil/content/dam/nhhc/research/histories/naval-aviation/dictionary-of-american-naval-aviation-squadrons-volume-2/pdfs/chap4-3.pdf"
+    ]
+  }
+}

@@ -19,7 +19,7 @@ const ids = readdirSync('content/vehicles').filter((f) => f.endsWith('.json')).m
 
 describe('vehicle specs (every one enrolled)', () => {
   it('enrolls the four original specs, the five F8A ones, the F8C rescue launch and the F10B life raft', () => {
-    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'type-a3-life-raft-survivors', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
+    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type-a3-life-raft-survivors', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
   })
 
   it.each(ids)('%s loads, names a registered model and rig, and is the size of its glb (10%)', async (id) => {
