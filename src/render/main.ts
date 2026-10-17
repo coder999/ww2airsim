@@ -2840,7 +2840,7 @@ async function boot(): Promise<void> {
     freshHeldFrame()
     playScene(scene, { markSeen: false, holdAfter: true, onDone: () => { title.show(requestedScenarioId); hqHandle?.show() } })
   }
-  /** Director "Copy view": a link that reopens exactly this scene, time and camera, plus a snapshot with the build and sky, downloaded and copied. */
+  /** Director "Save view JSON": a link that reopens exactly this scene, time and camera, plus a snapshot with the build and sky, downloaded and copied. */
   const shareDirectorView = async (sceneId: string, tSeconds: number, eye: SceneEye): Promise<string> => {
     const r = (n: number): number => Math.round(n * 100) / 100
     const url = new URL(location.href)
@@ -2864,7 +2864,7 @@ async function boot(): Promise<void> {
       setTimeout(() => URL.revokeObjectURL(href), 1000)
     } catch (error) { failures.push(`Download failed: ${String(error)}`) }
     try { await navigator.clipboard.writeText(json) } catch (error) { failures.push(`Clipboard failed: ${String(error)}`) }
-    return failures.length === 0 ? 'View downloaded and copied: it holds a link that reopens this exact time and camera.' : failures.join('\n')
+    return failures.length === 0 ? 'View JSON downloaded and copied: it holds a link that reopens this exact time and camera.' : failures.join('\n')
   }
   const startDirector = (scene: SceneFile): void => {
     frame = withPaused(frame!, true)

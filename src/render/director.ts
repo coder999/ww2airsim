@@ -244,9 +244,9 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
   const record = button('Record path', () => {
     dispatch(state.samples !== null ? { kind: 'stop' } : { kind: 'record', eye: deps.getFlownEye() })
   })
-  const save = button('Save', () => { void saveScene() })
+  const save = button('Save scene JSON', () => { void saveScene() })
   if (deps.onShareView !== undefined) {
-    const share = button('Copy view', () => { void deps.onShareView!(state.tSeconds).then((line) => message(line), (error: unknown) => message(String(error), true)) })
+    const share = button('Save view JSON', () => { void deps.onShareView!(state.tSeconds).then((line) => message(line), (error: unknown) => message(String(error), true)) })
     share.title = 'Copy a link and a debugging snapshot of exactly what is on screen (time, camera, build)'
   }
   ui.appendChild(status)

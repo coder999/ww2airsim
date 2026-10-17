@@ -49,7 +49,7 @@ test('director mode opens on a scene, drops a key at the scrubbed time, and save
   await bar.getByRole('button', { name: 'Drop key' }).click()
   await expect(bar.locator('.director-key')).toHaveCount(before + 1)
   const download = page.waitForEvent('download')
-  await bar.getByRole('button', { name: 'Save' }).click()
+  await bar.getByRole('button', { name: 'Save scene JSON' }).click()
   const file = await download
   expect(file.suggestedFilename()).toBe('demo-opening.json')
   const chunks: Buffer[] = []
@@ -198,12 +198,15 @@ test('a drag holds the world 1:1 under the pointer: the point grabbed is the poi
   }
 })
 
-test('the map shows the camera, and Copy view gives a link that reopens the same time and camera', async ({ page }) => {
+test('the map shows the camera, and Save view JSON gives a link that reopens the same time and camera', async ({ page }) => {
   await page.goto('/?scenario=escort&launch&director=demo-opening')
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   await page.keyboard.press('KeyM')
   await expect(page.locator('[data-director-sheet] svg').first()).toContainText('Camera')
+  // the in-flight map's recovery-point prompts do not apply to the director
+  await expect(page.locator('[data-director-sheet]')).not.toContainText('recovery point')
+  await expect(page.locator('[data-director-sheet]')).not.toContainText('airfield or carrier')
   await page.keyboard.press('KeyM')
   await bar.getByLabel('Scene time in seconds').fill('4.5')
   await page.keyboard.down('KeyW')
@@ -211,7 +214,7 @@ test('the map shows the camera, and Copy view gives a link that reopens the same
   await page.keyboard.up('KeyW')
   const eye = await page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
   const download = page.waitForEvent('download')
-  await bar.getByRole('button', { name: 'Copy view' }).click()
+  await bar.getByRole('button', { name: 'Save view JSON' }).click()
   const file = await download
   const chunks: Buffer[] = []
   for await (const chunk of await file.createReadStream()) chunks.push(chunk as Buffer)

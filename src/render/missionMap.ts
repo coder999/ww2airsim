@@ -369,7 +369,8 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
 
   const instruction = document.createElement('p')
   instruction.style.cssText = 'margin:8px 0 0;color:var(--ink-faint);font-size:12px'
-  instruction.textContent = 'Select an airfield or carrier for course and range. Scroll to zoom, drag to pan, double-click to reset. North is up.'
+  // Director mode (`onJump`) has no recovery point to pick, so it drops the selection hint.
+  instruction.textContent = `${options.onJump === undefined ? 'Select an airfield or carrier for course and range. ' : ''}Scroll to zoom, drag to pan, double-click to reset. North is up.`
   panel.appendChild(instruction)
 
   const objectivesList = document.createElement('div')
@@ -558,7 +559,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
       content.appendChild(line)
       detail.textContent = `${selected.label} — ${courseLabel(player, selected)}`
     } else {
-      detail.textContent = 'Select a friendly recovery point.'
+      detail.textContent = options.onJump === undefined ? 'Select a friendly recovery point.' : ''
     }
 
     const projections = points.map((point) => projectPoint(point, bounds, CHART_WIDTH, CHART_HEIGHT))
