@@ -40,8 +40,10 @@ exports, not edits to a persisted shape.
   is never a success: the sim decides (`missionOutcome`), and `bankScored` forces `success` false for every end but
   `landed`. F7A writes no `SortieFacts` key and `src/campaign/` is untouched. The seed and the resolver evidence live
   in the debrief and the Dev flight record, not the campaign log (`LogEntry` has no field for them; persisting them
-  would be a `schemaVersion` bump). F7B's remaining scope: showing the POW and replacement in the debrief and the
-  archive, rescue visuals, and J5's paratroopers.
+  would be a `schemaVersion` bump). The POW and replacement were already shown
+  by F5B (`src/render/campaignBank.ts`, the archive's P.O.W. filter; verified 2026-10-16). F7B (2026-10-16) added the
+  water-rescue raft and launch and the paratrooper drop primitive (`dropStick`, `World.drops`, `ParachutistEntity.kind`),
+  and touched nothing here.
 - **One transaction per sortie.** `bankSortie` is called exactly once per sortie (D12: a landing ends the sortie
   in campaign mode, no Continue). A sortie left pending at load is an abandonment (D7), applied by `loadCampaign`.
 

@@ -3,7 +3,7 @@
 MASTER_PLAN Track F7, second half (plan 12 of the 22 in the
 [F3 dependency table](../specs/2026-10-14-leyte-campaign-definition.md#11-dependency-checked-plan-count)).
 F7A (bailout, merged 2026-10-15) and F5B (headquarters and debrief, merged 2026-10-15) are the frozen inputs.
-**Status: plan approved 2026-10-16; implementation starting.** Size: M.
+**Status: built 2026-10-16 on branch `f7b-rescue-paratroopers`; handoff [`docs/handoff/2026-10-16-f7b-rescue-visuals-paratroopers.md`](../../handoff/2026-10-16-f7b-rescue-visuals-paratroopers.md).** Size: M.
 
 ## Header
 
@@ -56,8 +56,8 @@ The MASTER_PLAN wording is corrected in Task 6.
 
 | # | Question | Proposed |
 | --- | --- | --- |
-| 1 | Supply bundles: new `kind` on `ParachutistEntity`, or a separate entity? | One entity type with an optional `kind: 'bundle'`, omitted for a person, so every pre-F7B world and recording stays byte-identical (the same trick F7A used for `World.parachutists`). A separate type would need a second array in `World`, `loop.ts`, the recorder and the frame. |
-| 2 | How does a transport drop? | A pure function `dropStick(aircraft, count, kind, seed)` in `src/sim/bailout.ts`, called by a scripted command that F10D wires to the Ki-57 and the player's drop key. F7B adds the function and a Dev trigger, not mission logic. |
+| 1 | Supply bundles: new `kind` on `ParachutistEntity`, or a separate entity? | One entity type with an optional `kind: 'trooper' \| 'bundle'`, omitted for a bailing pilot (built that way: a dropped man needs to be told apart from a pilot, because only a pilot's jump gets the rescue roll and marks its airframe abandoned), so every pre-F7B world and recording stays byte-identical (the same trick F7A used for `World.parachutists`). A separate type would need a second array in `World`, `loop.ts`, the recorder and the frame. |
+| 2 | How does a transport drop? | A pure function `dropStick` in `src/sim/bailout.ts`, run from a scripted `World.drops` list (a recorded player action would be a flight-record schema change, which F10D can make with the Ki-57's drop key). F7B adds the function, the list, and a DEV-only `?paradrop=6,2` query, not mission logic. |
 | 3 | Do dropped AI paratroopers get a rescue/capture roll? | No. They run the same descent and contact physics; `outcome` stays `null` unless it is the player (the roll is the player's `J` decision). Only surface contact is recorded, for F10D to read. |
 | 4 | Rescue pickup timing | Cosmetic: a pure function of ticks since touchdown. The launch spawns at a fixed standoff, approaches in a fixed time, and the sortie's end is unchanged (it ends on touchdown, F7A). |
 | 5 | Branch | Ask at start, per AGENTS.md. Recommended: `main` in place, single session, so Mark can see it on `ww2airsim.windomlane.org`. |
@@ -65,8 +65,7 @@ The MASTER_PLAN wording is corrected in Task 6.
 ## Tasks
 
 TDD throughout: each task names its failing test first. **No ryzen** (Mark, 2026-10-16: a budget run holds it): run
-tests locally on nexus, one heavy job at a time (parallel agents have OOM-killed nexus). Budget enrollment is written
-but not measured until ryzen is free.
+tests locally on nexus, one heavy job at a time (parallel agents have OOM-killed nexus). No budget run was made (ryzen held).
 
 1. **Drop primitive (sim).** Test first: `dropStick` returns N entities at stable spacing along the aircraft's track,
    same inputs give byte-identical output, and a world with no drop is byte-identical to before (the existing golden
@@ -107,8 +106,9 @@ Run unattended (see Header): captures go in the handoff. Mark's viewing is a che
 
 ## Risks
 
-- **Budget.** 18 animated canopies plus 6 bundles is new draw load in the J5 night scene. Enrolled now, measured on
-  ryzen later; the F10E performance gate is the real limit (24 airborne, 10 ships).
+- **Budget.** 18 animated canopies plus 6 bundles is new draw load in the J5 night scene. Not enrolled and not
+  measured by F7B (ryzen held; corrected 2026-10-16 after the build, the earlier text said "enrolled now"). The F10D/F10E
+  scene budget is where it is first measured (24 airborne, 10 ships).
 - **Replay.** Any new field on `ParachutistEntity` that is always present changes every checksum. Task 2's guard is the
   existing golden recordings.
 - **Scope creep into F10D.** The word "effective" appears nowhere in F7B's code.

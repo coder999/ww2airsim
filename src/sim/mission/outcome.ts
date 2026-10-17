@@ -1,3 +1,4 @@
+import { isPilotJump } from '../bailout.js'
 import type { LandingAt } from '../landing.js'
 import type { World } from '../loop.js'
 import type { Badge } from './schema.js'
@@ -26,7 +27,7 @@ export function recoveryOf<M>(world: World<M>): Recovery | null {
   const player = world.aircraft.find((a) => a.id === world.player)
   if (player === undefined) throw new Error(`recoveryOf: no player aircraft "${world.player}"`)
   // A pilot who jumped is judged by the descent, never by the abandoned airframe's later crash. Still in the air: no recovery yet.
-  const jumper = world.parachutists?.find((p) => p.sourceAircraft === world.player)
+  const jumper = world.parachutists?.find((p) => isPilotJump(p) && p.sourceAircraft === world.player)
   if (jumper !== undefined) return jumper.state.outcome === null ? null : { kind: jumper.state.outcome }
   if (player.impact !== null) return { kind: player.impact.kind === 'ditched' ? 'ditched' : 'killed' }
   if (world.combat.aircraft[world.player]?.damage.destroyedAt != null) return { kind: 'killed' }

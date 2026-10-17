@@ -32,6 +32,7 @@ export const CAPTURE_TEST_FILES = [
   'nightCapture.spec.ts',
   'nightPerceptionCapture.spec.ts',
   'nightSightsCapture.spec.ts',
+  'paradropCapture.spec.ts',
   'pbyCapture.spec.ts',
   'pursuitAutopilotCapture.spec.ts',
   'rangeTestCapture.spec.ts',
