@@ -183,6 +183,7 @@ import {
   playerAircraft,
   playerParachutist,
   requestBailout,
+  requestDrop,
   withAircraftState,
   withNightFacts,
   withPlayerLights,
@@ -190,7 +191,7 @@ import {
 } from '../sim/loop.js'
 import type { RecoveryEnvironment } from '../sim/bailout.js'
 import { bailoutCue, pressSeed, recoveryEnvironmentOf } from './bailoutEdge.js'
-import { refusalText } from './bailoutText.js'
+import { dropRefusalText, refusalText } from './bailoutText.js'
 import { cloudCoverOf, nightFactsFor, perceptionReport, perceptionTuningFromQuery } from '../sim/lights/perception.js'
 import { sideOf } from '../sim/sides.js'
 import { NEUTRAL } from '../input/keyboard.js'
@@ -2620,6 +2621,7 @@ async function boot(): Promise<void> {
   // E4: a wingman call (1, 2, 3), latched the same way: the key's code, or null.
   let pendingWingmanKey: string | null = null
   let pendingBailout = false
+  let pendingDrop = false
   let bailoutNotice: string | null = null
   let bailoutNoticeUntilMs = 0
   let bailoutCueText: string | null = null
@@ -2656,6 +2658,7 @@ async function boot(): Promise<void> {
     pendingFireRockets = false
     pendingWingmanKey = null
     pendingBailout = false
+    pendingDrop = false
   }
   const closeNavigationChart = (): void => {
     if (!navigationMapState.open) return
@@ -3108,6 +3111,7 @@ async function boot(): Promise<void> {
       e.preventDefault()
       pendingBailout = true
     }
+    if (BINDINGS.dropCargo.includes(e.code as never) && !e.repeat) pendingDrop = true
     if ([...BINDINGS.wingmanAttack, ...BINDINGS.wingmanCover, ...BINDINGS.wingmanFormUp].includes(e.code as never) && !e.repeat) pendingWingmanKey = e.code
     // Space scrolls the page and activates a focused button; neither is
     // what a pilot holding the trigger means (Plan 6). Not latched like the
@@ -3200,6 +3204,7 @@ async function boot(): Promise<void> {
     pendingFireRockets = false
     pendingWingmanKey = null
     pendingBailout = false
+    pendingDrop = false
   })
 
   // The choice is made here, at the edge, so sim/ carries no build flag:
@@ -3355,6 +3360,19 @@ async function boot(): Promise<void> {
       }
       bailoutNoticeUntilMs = now + 2_500
     }
+    // F10D: the cargo drop, applied here at a fixed tick and recorded at the same one (`verify.ts` applies it the same way). After the
+    // bailout, so the recorded action order is the applied order.
+    if (pendingDrop && !chartOpen && !inputFrame.paused) {
+      const dropped = requestDrop(bailoutInputFrame.world, bailoutInputFrame.world.player)
+      if (dropped.ok) {
+        bailoutInputFrame = { ...bailoutInputFrame, world: dropped.world }
+        bailoutNotice = 'CARGO AWAY'
+        activeFlightRecorder?.note({ tick: inputFrame.world.tick + 1, kind: 'drop', aircraft: inputFrame.world.player })
+      } else {
+        bailoutNotice = dropRefusalText(dropped.reason)
+      }
+      bailoutNoticeUntilMs = now + 2_500
+    }
     if (activeFlightRecorder !== null) {
       const tick = bailoutInputFrame.world.tick + 1
       if (pendingPause) activeFlightRecorder.note({ tick, kind: 'pause', paused: !inputFrame.paused })
@@ -3407,6 +3425,7 @@ async function boot(): Promise<void> {
     pendingFireRockets = false
     pendingWingmanKey = null
     pendingBailout = false
+    pendingDrop = false
     frame = current
     {
       // Guarded on the world clock actually having moved: `advance` (Task 7

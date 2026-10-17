@@ -24,7 +24,7 @@ import { buildStructures, type StructureEntity } from './weapons/structures.js'
 import type { PilotAssignment } from './ai/pursuit.js'
 import { burningControls, pilotTick, type PilotTickContext } from './ai/pilotTick.js'
 import type { MissionState } from './mission/state.js'
-import { stepMission } from './mission/step.js'
+import { noseHeadingDeg, stepMission } from './mission/step.js'
 import { respotPlayer } from './mission/respot.js'
 import { spawnInto, type SpawnParts } from './mission/spawn.js'
 import { airfieldSideOf, sideOf, sidesOf, type Side } from './sides.js'
@@ -38,6 +38,7 @@ import {
   bailoutEligibility,
   createParachutist,
   dropStick,
+  CARGO_DROP,
   isPilotJump,
   resolveRecovery,
   stepParachutist,
@@ -749,6 +750,52 @@ function dropFor<M>(
   if (ground === null) return []
   const agl = source.state.position.y - ground.heightM
   return dropStick(source, sideOf(world, source), order.count, order.kind, agl < BAILOUT_TUNING.safeOpenAglM)
+}
+
+/**
+ * F10D: the cargo stick a transport leaves with right now (six rigs, then two bundles), each carrying the envelope the aircraft was in.
+ * Pure and shared by the player's `requestDrop` and the AI's drop in `advance`. `[]` when there is nothing to drop (not a transport,
+ * doors not fully open, parked, down, or already dropped). The caller says why through `dropRefusal` when it needs the reason.
+ */
+export type DropRefusal = 'no-cargo' | 'doors-shut' | 'already-dropped' | 'not-airborne'
+export function dropRefusal<M>(world: Pick<World<M>, 'combat' | 'parachutists'>, a: AircraftEntity<M>): DropRefusal | null {
+  if (a.spec.role !== 'transport' || a.spec.bayDoors === undefined) return 'no-cargo'
+  if (a.parked || a.impact !== null || (world.combat.aircraft[a.id]?.damage.destroyedAt ?? null) !== null) return 'not-airborne'
+  if ((world.parachutists ?? []).some((p) => p.kind !== undefined && p.sourceAircraft === a.id)) return 'already-dropped'
+  if (a.state.bayDoorFraction < 1) return 'doors-shut'
+  return null
+}
+
+export function cargoStick<M>(
+  world: Pick<World<M>, 'terrain' | 'wind' | 'ships' | 'aircraft' | 'tick'> & { readonly player: EntityId },
+  a: AircraftEntity<M>, side: Side,
+): readonly ParachutistEntity[] {
+  const water = waterSurfaceContext(world.tick * DT, world.wind)
+  const ground = groundUnder(world.terrain, decksOf(world.ships), a.state.position.x, a.state.position.z, water)
+  const low = ground !== null && a.state.position.y - ground.heightM < BAILOUT_TUNING.safeOpenAglM
+  const release = {
+    airspeedMps: length(airVelocity(a.state, world.wind)),
+    groundSpeedMps: Math.hypot(a.state.velocity.x, a.state.velocity.z),
+    altitudeM: a.state.position.y,
+    headingDeg: noseHeadingDeg(a.state.attitude),
+  }
+  return [
+    ...dropStick(a, side, CARGO_DROP.men, 'trooper', low, release),
+    ...dropStick(a, side, CARGO_DROP.bundles, 'bundle', low, release),
+  ]
+}
+
+export type DropRequest<M> =
+  | { readonly ok: true; readonly world: World<M> }
+  | { readonly ok: false; readonly world: World<M>; readonly reason: DropRefusal }
+
+/** F10D: the player's drop key. A one-shot entity change recorded at a tick boundary (the `drop` flight-record action), like `requestBailout`. */
+export function requestDrop<M>(world: World<M>, aircraftId: EntityId): DropRequest<M> {
+  const a = aircraftById(world, aircraftId)
+  if (a === undefined) throw new Error(`world has no aircraft "${aircraftId}"`)
+  const reason = dropRefusal(world, a)
+  if (reason !== null) return { ok: false, world, reason }
+  return { ok: true, world: { ...world, parachutists: [...(world.parachutists ?? []), ...cargoStick(world, a, sideOf(world, a))] } }
 }
 
 export type BailoutRequest<M> =

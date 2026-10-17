@@ -4,7 +4,7 @@ import { DT } from '../sim/flight/model.js'
 import type { Controls } from '../sim/flight/state.js'
 import { groundStop } from '../sim/groundStop.js'
 import type { Loadout } from '../sim/weapons/stores.js'
-import { advance, withControls, withPlayerLights, requestBailout, type Stepper, type World } from '../sim/loop.js'
+import { advance, withControls, withPlayerLights, requestBailout, requestDrop, type Stepper, type World } from '../sim/loop.js'
 import { worldChecksum, worldSummary } from './checksum.js'
 import type { FlightRecordV1 } from './schema.js'
 
@@ -64,6 +64,13 @@ export function verifyFlightRecord(
         const requested = requestBailout(world, action.aircraft, action.environment, action.seed)
         if (!requested.ok) return { ok: false, tick: packet.tick, message: `recorded bailout rejected: ${requested.reason}` }
         world = requested.world
+        continue
+      }
+      // F10D: the player's cargo drop. The live press was validated, so a refusal here is a divergence.
+      if (action.kind === 'drop') {
+        const dropped = requestDrop(world, action.aircraft)
+        if (!dropped.ok) return { ok: false, tick: packet.tick, message: `recorded drop rejected: ${dropped.reason}` }
+        world = dropped.world
         continue
       }
       // F5C: the ground stop between two legs. The loadout was validated live, so a refusal here is a divergence.
