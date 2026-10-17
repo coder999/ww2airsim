@@ -135,6 +135,13 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('released'), targets: refs, store: z.enum(['bomb', 'rocket', 'torpedo']), count: z.number().int().positive().optional() }).strict(),
   /** F10-0: at least `count` (default 1) of the named ships are below `belowHpFraction` of their hull points (a hit, not a sinking), or sunk (A2, J2, J4). */
   z.object({ ...base, kind: z.literal('damage'), targets: refs, belowHpFraction: z.number().gt(0).lte(1), count: z.number().int().positive().optional() }).strict(),
+  /** F10-0: airfield state. `min` (default all) of the named fields are serviceable (and, with `heldBy`, held by the player's side or the enemy's).
+   *  A positive test completes the first tick it holds. With `keep` it is a standing order, as `protect` is: it fails the moment fewer fields meet it
+   *  and completes when its window closes or the mission ends (A6: keep two of three; J6: drive both to Japanese control, then hold them). */
+  z.object({
+    ...base, kind: z.literal('field'), airfields: z.array(id).min(1), min: z.number().int().positive().optional(),
+    serviceable: z.boolean().optional(), heldBy: z.enum(['player', 'enemy']).optional(), keep: z.boolean().optional(),
+  }).strict(),
   /** F10-0: complete when at least `n` of the earlier objectives `of` are complete; fails once too many have failed for that to be possible.
    *  `any` is n = 1 and `all` is n = their number (J1: three of five groups intact; J2: a Maru or a half-hull Fletcher). */
   z.object({ ...base, kind: z.literal('atLeast'), n: z.number().int().positive(), of: z.array(id).min(1) }).strict(),
@@ -156,6 +163,10 @@ export type TriggerAction = z.infer<typeof TriggerActionObject>
 /** Fires once (spec §2.2). */
 export const TriggerObject = z.object({ id, when: TriggerWhenObject, then: z.array(TriggerActionObject).min(1) }).strict()
 export type Trigger = z.infer<typeof TriggerObject>
+
+/** F10-0: a field is serviceable while at least `minFraction` of its named structures (ids or tags) are alive. A trigger's `setServiceable` overrides it. */
+export const FieldRuleObject = z.object({ airfield: id, structures: refs, minFraction: z.number().gt(0).lte(1) }).strict()
+export type FieldRule = z.infer<typeof FieldRuleObject>
 
 export const BadgeObject = z.object({ id, name: z.string().min(1) }).strict()
 export type Badge = z.infer<typeof BadgeObject>

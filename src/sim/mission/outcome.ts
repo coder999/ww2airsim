@@ -45,7 +45,7 @@ export type FinalStatus = 'complete' | 'incomplete' | 'failed'
 export function finalStatus(o: ResolvedObjective, p: ObjectiveState): FinalStatus {
   if (p.status === 'failed') return 'failed'
   if (p.status === 'complete') return 'complete'
-  if (p.status === 'active' && (o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches')) return 'complete'
+  if (p.status === 'active' && (o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || (o.kind === 'field' && o.keep === true))) return 'complete'
   return 'incomplete'
 }
 

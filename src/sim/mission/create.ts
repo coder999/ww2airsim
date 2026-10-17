@@ -3,7 +3,7 @@ import type { EntityId } from '../loop.js'
 import type { Side } from '../sides.js'
 import type { RespotOrder } from './respot.js'
 import { NO_PASS } from './passes.js'
-import type { Badge, Objective, Trigger } from './schema.js'
+import type { Badge, FieldRule, Objective, Trigger } from './schema.js'
 import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from './state.js'
 
 /** Anything an objective may name: an aircraft or ship (start or held) or
@@ -38,10 +38,16 @@ export function createMission<M>(input: {
   readonly held: readonly HeldGroup<M>[]
   readonly entities: readonly Taggable[]
   readonly respot: RespotOrder | null
+  readonly fieldRules?: readonly FieldRule[]
 }): MissionState<M> {
   const resolve = (where: string, refs: readonly string[]) => resolveRefs(input.scenarioId, where, refs, input.entities)
   const sideOfId = new Map(input.entities.map((e) => [e.id, e.side]))
   const kindOfId = new Map(input.entities.map((e) => [e.id, e.kind]))
+  function requireCount(where: string, count: number | undefined, resolved: readonly EntityId[]): void {
+    if (count !== undefined && count > resolved.length) {
+      throw new Error(`scenario "${input.scenarioId}": ${where} asks for ${count} of ${resolved.length} targets`)
+    }
+  }
   function requireKind(where: string, ids: readonly EntityId[], want: 'aircraft' | 'ship'): void {
     for (const id of ids) {
       const kind = kindOfId.get(id)
@@ -79,19 +85,22 @@ export function createMission<M>(input: {
         requireSide(where, resolved, 'opposite')
         return { ...o, resolved }
       }
-      case 'arrive': return { ...o, resolved: resolve(where, o.targets) }
+      case 'arrive': {
+        const resolved = resolve(where, o.targets)
+        requireCount(where, o.count, resolved)
+        return { ...o, resolved }
+      }
       case 'released': {
         const resolved = resolve(where, o.targets)
         requireKind(where, resolved, 'aircraft')
+        requireCount(where, o.count, resolved)
         return { ...o, resolved }
       }
       case 'damage': {
         const resolved = resolve(where, o.targets)
         requireKind(where, resolved, 'ship')
         requireSide(where, resolved, 'opposite')
-        if (o.count !== undefined && o.count > resolved.length) {
-          throw new Error(`scenario "${input.scenarioId}": ${where} asks for ${o.count} of ${resolved.length} targets`)
-        }
+        requireCount(where, o.count, resolved)
         return { ...o, resolved }
       }
       default: return { ...o, resolved: [] }
@@ -112,6 +121,7 @@ export function createMission<M>(input: {
     if (o.kind === 'hold' && o.relativeTo !== undefined) addRefs(`objective "${o.id}" relativeTo`, [o.relativeTo])
   }
   for (const t of input.triggers) whenRefs(`trigger "${t.id}"`, t.when)
+  const fieldRules = (input.fieldRules ?? []).map((r) => ({ airfield: r.airfield, ids: resolve(`fieldRules for "${r.airfield}"`, r.structures), minFraction: r.minFraction }))
   return {
     scenarioId: input.scenarioId,
     objectives,
@@ -128,5 +138,6 @@ export function createMission<M>(input: {
     pendingRespotTick: null,
     pass: NO_PASS,
     refs,
+    fieldRules,
   }
 }

@@ -6,6 +6,7 @@ import type { VehicleEntity } from '../world/vehicles.js'
 import type { RespotOrder } from './respot.js'
 import type { PassTracking } from './passes.js'
 import type { Badge, Objective, Trigger } from './schema.js'
+import type { Side } from '../sides.js'
 
 /**
  * A mission in flight (spec 2026-09-25 §1): the resolved definition, which
@@ -119,10 +120,14 @@ export type MissionState<M> = {
   /** F10-0: airfield state a trigger changed mid-mission (`setServiceable`, `setSide`), keyed by airfield id. Absent until one does, so a mission
    *  that never uses it carries no new field. */
   readonly fields?: Readonly<Record<string, FieldOverride>>
+  /** F10-0: serviceability derived from a field's own structures, resolved to ids when the world was built (empty for a mission with none). */
+  readonly fieldRules: readonly ResolvedFieldRule[]
 }
 
+export type ResolvedFieldRule = { readonly airfield: string; readonly ids: readonly EntityId[]; readonly minFraction: number }
+
 /** What a trigger set on an airfield. A missing key leaves the content's value. */
-export type FieldOverride = { readonly serviceable?: boolean; readonly side?: 'allied' | 'axis' }
+export type FieldOverride = { readonly serviceable?: boolean; readonly side?: Side }
 
 type Message = Extract<MissionLogEntry, { kind: 'message' }>
 type Landing = Extract<MissionLogEntry, { kind: 'landing' }>

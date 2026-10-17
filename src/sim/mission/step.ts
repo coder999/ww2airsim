@@ -17,6 +17,7 @@ import type { Gone, PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type FieldOverride, type MissionLogEntry, type MissionState, type ObjectiveState, type ObjectiveStatus, type ResolvedObjective } from './state.js'
 import { waterSurfaceContext } from '../waterSurface.js'
 import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
+import { effectiveFields, fieldMeets, fieldState } from './fields.js'
 import type { StructureEntity } from '../weapons/structures.js'
 
 /**
@@ -143,13 +144,6 @@ function isGone<M>(g: Gone, m: MissionState<M>, t: MissionTick<M>): boolean {
   })
 }
 
-/** Whether a field is serviceable right now: a trigger's override, else the content's value (absent means serviceable). */
-export function fieldServiceable<M>(m: MissionState<M>, airfields: readonly Airfield[], id: string): boolean {
-  const override = m.fields?.[id]?.serviceable
-  if (override !== undefined) return override
-  return airfields.find((a) => a.id === id)?.serviceable !== false
-}
-
 type Context<M> = {
   readonly m: MissionState<M>
   /** An objective's status as the current pass stands (file order: an earlier objective's new status is already in). */
@@ -199,8 +193,8 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       // F10-0: the landing counts only while the fields it names are (un)serviceable at this tick.
       const need = o.requires
       if (need !== undefined) {
-        if (need.serviceable?.some((id) => !fieldServiceable(c.m, c.t.airfields, id)) === true) return p
-        if (need.unserviceable?.some((id) => fieldServiceable(c.m, c.t.airfields, id)) === true) return p
+        if (need.serviceable?.some((id) => !fieldState(c.m, c.t, id).serviceable) === true) return p
+        if (need.unserviceable?.some((id) => fieldState(c.m, c.t, id).serviceable) === true) return p
       }
       const n = p.count + 1
       return { ...p, count: n, status: n >= (o.count ?? 1) ? 'complete' : 'active' }
@@ -265,6 +259,13 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
         return d !== undefined && ship !== undefined && (d.destroyedTick !== null || d.hp / ship.spec.hullHp < o.belowHpFraction)
       }).length
       const need = o.count ?? 1
+      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'field': {
+      const want = { serviceable: o.serviceable ?? true, heldBy: o.heldBy }
+      const n = o.airfields.filter((id) => fieldMeets(c.m, c.t, id, want)).length
+      const need = o.min ?? o.airfields.length
+      if (o.keep === true) return n < need ? { ...p, count: n, status: 'failed' } : n === p.count ? p : { ...p, count: n }
       return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
     }
     case 'atLeast': {
@@ -352,8 +353,10 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     pass = r.pass
     passEvent = r.event
   }
+  // F10-0: the recovery rule sees the field state as the mission has changed it (a bombed field, a captured one).
+  const seen = effectiveFields(m, t)
   const base = landing === null ? null : friendlyBaseAt(
-    { player: t.player, aircraft: t.aircraft, airfields: t.airfields, structures: t.structures, ships: t.ships, anchorages: t.anchorages },
+    { player: t.player, aircraft: t.aircraft, airfields: seen.airfields, structures: seen.structures, ships: t.ships, anchorages: t.anchorages },
     landing.at, player.state.position,
   )
   // 2. Objectives.

@@ -19,11 +19,11 @@ export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null 
   const primaries = m.objectives.map((o, i) => ({ o, p: m.progress[i]! })).filter(({ o }) => o.priority === 'primary')
   const failed = primaries.some(({ p }) => p.status === 'failed')
   const parts = primaries
-    .filter(({ o, p }) => p.status === 'active' && o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches')
+    .filter(({ o, p }) => p.status === 'active' && o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches' && !(o.kind === 'field' && o.keep === true))
     .slice(0, MAX_SHOWN)
     .map(({ o, p }) => {
       const name = o.label.toUpperCase()
-      if (o.kind === 'destroy') return `${name} ${p.count}/${o.count ?? o.resolved.length}`
+      if (o.kind === 'destroy' || o.kind === 'arrive' || o.kind === 'released') return `${name} ${p.count}/${o.count ?? o.resolved.length}`
       if (o.kind === 'land' && (o.count ?? 1) > 1) return `${name} ${p.count}/${o.count}`
       if (o.kind === 'hold') return `${name} ${Math.floor(p.heldTicks * DT + 1e-9)}/${o.seconds} S`
       return name

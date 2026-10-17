@@ -16,7 +16,7 @@ import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, t
 import { airfieldSideOf, sideOf, type Side } from './sides.js'
 import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject, innerBelowOuter, innerMessage, planeStateIsEmpty } from './mission/schema.js'
+import { BadgeObject, BriefingObject, FieldRuleObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject, innerBelowOuter, innerMessage, planeStateIsEmpty } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
@@ -313,6 +313,8 @@ const ScenarioShape = z.object({
    *  never sees them. */
   objectives: z.array(ObjectiveObject).min(1).optional(),
   triggers: z.array(TriggerObject).min(1).optional(),
+  /** F10-0: serviceability derived from a field's own structures (`FieldRuleObject`). */
+  fieldRules: z.array(FieldRuleObject).min(1).optional(),
   heldGroups: z.array(HeldGroupObject).min(1).optional(),
   badge: BadgeObject.optional(),
   briefing: BriefingObject.optional(),
@@ -496,6 +498,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   if (s.objectives === undefined) {
     if (s.triggers !== undefined) issue('triggers need objectives: a scenario without objectives is not a mission', ['triggers'])
     if (s.heldGroups !== undefined) issue('heldGroups need objectives: a scenario without objectives is not a mission', ['heldGroups'])
+    if (s.fieldRules !== undefined) issue('fieldRules need objectives: a scenario without objectives is not a mission', ['fieldRules'])
     if (s.badge !== undefined) issue('badge needs objectives: a scenario without objectives is not a mission', ['badge'])
     if (s.briefing !== undefined) issue('briefing needs objectives: a scenario without objectives is not a mission', ['briefing'])
     if (s.history !== undefined) issue('history needs objectives: a scenario without objectives is not a mission', ['history'])
@@ -510,6 +513,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   dupes(objectives.map((o) => o.id), 'objective', 'objectives')
   dupes(triggers.map((t) => t.id), 'trigger', 'triggers')
   dupes(held.map((g) => g.id), 'held group', 'heldGroups')
+  for (const [ri, r] of (s.fieldRules ?? []).entries()) {
+    if (!s.airfields.includes(r.airfield)) issue(`fieldRules names "${r.airfield}", which is not one of airfields`, ['fieldRules', ri, 'airfield'])
+  }
 
   const startAircraft = new Set(s.aircraft.map((a) => a.id))
   const startShips = new Set(s.ships.map((sh) => sh.id))
@@ -548,13 +554,17 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       ? (isShipParked(player.parkedAt) ? player.parkedAt.ship : player.parkedAt.airfield)
       : null
   const objectiveIds = new Set(objectives.map((o) => o.id))
+  /** Whether an objective can ever read failed: a standing order, a corridor, a group test, or anything with a window. */
+  const canFail = (o: (typeof objectives)[number]): boolean =>
+    o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast'
+    || (o.kind === 'field' && o.keep === true) || (o.kind === 'state' && o.failOnExit === true) || o.until !== undefined
   /** `when` references that name objectives (shared by triggers and `until`). */
   const checkWhen = (w: z.infer<typeof TriggerObject>['when'], path: (string | number)[]): void => {
     if ('completed' in w && !objectiveIds.has(w.completed)) issue(`when.completed names "${w.completed}", which is not an objective`, [...path, 'completed'])
     if ('failed' in w) {
       const o = objectives.find((x) => x.id === w.failed)
       if (o === undefined) issue(`when.failed names "${w.failed}", which is not an objective`, [...path, 'failed'])
-      else if (o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches') issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'failed'])
+      else if (!canFail(o)) issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'failed'])
     }
   }
   objectives.forEach((o, i) => {
@@ -599,6 +609,10 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       for (const field of [...(o.requires.serviceable ?? []), ...(o.requires.unserviceable ?? [])]) {
         if (!s.airfields.includes(field)) issue(`land.requires names "${field}", which is not one of airfields`, [...path, 'requires'])
       }
+    }
+    if (o.kind === 'field') {
+      for (const field of o.airfields) if (!s.airfields.includes(field)) issue(`field.airfields names "${field}", which is not one of airfields`, [...path, 'airfields'])
+      if (o.min !== undefined && o.min > o.airfields.length) issue(`field asks for ${o.min} of ${o.airfields.length} airfields`, [...path, 'min'])
     }
     if (o.until !== undefined) checkWhen(o.until, [...path, 'until'])
     if (o.kind === 'destroy' && o.fresh === true && o.after === undefined) {
@@ -1049,6 +1063,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       playerSide: sideOf(s, s.aircraft.find((a) => a.id === s.player)!),
       objectives: s.objectives,
       triggers: s.triggers ?? [],
+      fieldRules: s.fieldRules ?? [],
       badge: s.badge ?? null,
       held,
       respot,
