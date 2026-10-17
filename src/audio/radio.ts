@@ -38,6 +38,25 @@ export const WAVE_OFF_ECHO_S = 6
  * (for example "Raid 1 of 2") is silent: no line was recorded for it.
  */
 export const RADIO_LINES: Readonly<Record<string, string | null>> = {
+  // F10B begin (chapters A4-A5, 2026-10-17): text-only like every chapter radio line (Decision 7).
+  "Dumbo control: The search area is marked on your chart, seven miles southeast. The survivors will fire a flare when they hear you.": null,
+  "Dumbo: Flare in sight. Set down near the raft and take them aboard.": null,
+  "Dumbo: Down. Ease up to the raft and hold still, slower than two knots, while they climb in.": null,
+  "Dumbo: Three aboard. Radar shows two bogeys east of you at ten miles. Get them home, and the other man if you can reach him.": null,
+  "Dumbo: The fourth man is aboard. All four. Head for the anchorage.": null,
+  "Strike lead: Ormoc Bay ahead. Hellcats, stay with the Avengers; they are the whole point of this.": null,
+  "Strike lead: bandits, two Oscars, low from the west.": null,
+  "Strike lead: Zeros over the convoy, four of them.": null,
+  "Strike lead: Fish away. Rally east of the bay.": null,
+  "Strike lead: Rally point. Three Avengers up. Take her home.": null,
+  "Strike lead: we are losing Avengers.": null,
+  "Anchorage control: Fighter pilot down in the gulf, southeast of the anchorage. A raft of three and one man adrift.": null,
+  "Launch crew: Casting off. We will follow you out as far as the channel.": null,
+  "Anchorage control: Dumbo, you are cleared to launch. Take her up when ready.": null,
+  "Strike lead: Avengers form up over the ridge. Hellcats, you are with us.": null,
+  "Strike lead: Ormoc Bay ahead, a convoy in the bay. Expect fighters.": null,
+  "Fighter director: Hellcats, your station is on the Avengers. Keep the Zeros off them.": null,
+  // F10B end
   'Essex CIC: Hold CAP over the task group, angels ten. Raid expected from the northwest.': 'radio_tower_cap_station',
   'Essex CIC: Bogeys bearing three-three-eight, twenty miles, angels eleven, closing.': 'radio_tower_raid_bogeys_338',
   'Essex CIC: Second raid bearing three-three-six, twenty-two miles.': 'radio_tower_raid_second_wave_336',
