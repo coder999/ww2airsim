@@ -1,0 +1,500 @@
+{
+ "id": "j5-night-drop-on-burauen",
+ "player": "topsy-1",
+ "airfields": [
+  "san-pablo"
+ ],
+ "sites": [
+  "san-pablo"
+ ],
+ "aircraft": [
+  {
+   "id": "topsy-1",
+   "spec": "ki-57-ii-topsy",
+   "side": "axis",
+   "tags": [
+    "transports"
+   ],
+   "airborneAt": {
+    "position": [
+     -62581,
+     900,
+     -16596
+    ],
+    "headingDeg": 80,
+    "speedMps": 80,
+    "throttle": 0.7
+   }
+  },
+  {
+   "id": "topsy-2",
+   "spec": "ki-57-ii-topsy",
+   "side": "axis",
+   "tags": [
+    "transports",
+    "transports-ai"
+   ],
+   "airborneAt": {
+    "position": [
+     -62656,
+     900,
+     -16329
+    ],
+    "headingDeg": 80,
+    "speedMps": 80,
+    "throttle": 0.7
+   },
+   "pilot": {
+    "ingress": {
+     "route": [
+      {
+       "x": -45303,
+       "z": -19389,
+       "altitudeM": 900,
+       "speedMps": 80
+      },
+      {
+       "x": -40576,
+       "z": -20222,
+       "altitudeM": 500,
+       "speedMps": 80
+      },
+      {
+       "x": -36932,
+       "z": -20865,
+       "altitudeM": 500,
+       "speedMps": 80
+      },
+      {
+       "x": -58000,
+       "z": -16750,
+       "altitudeM": 900,
+       "speedMps": 80
+      }
+     ],
+     "attack": "airdrop",
+     "dropAt": {
+      "x": -40034,
+      "z": -20318,
+      "radiusM": 250
+     }
+    }
+   }
+  },
+  {
+   "id": "topsy-3",
+   "spec": "ki-57-ii-topsy",
+   "side": "axis",
+   "tags": [
+    "transports",
+    "transports-ai"
+   ],
+   "airborneAt": {
+    "position": [
+     -62743,
+     900,
+     -16821
+    ],
+    "headingDeg": 80,
+    "speedMps": 80,
+    "throttle": 0.7
+   },
+   "pilot": {
+    "ingress": {
+     "route": [
+      {
+       "x": -45390,
+       "z": -19881,
+       "altitudeM": 900,
+       "speedMps": 80
+      },
+      {
+       "x": -40663,
+       "z": -20715,
+       "altitudeM": 500,
+       "speedMps": 80
+      },
+      {
+       "x": -37019,
+       "z": -21357,
+       "altitudeM": 500,
+       "speedMps": 80
+      },
+      {
+       "x": -58000,
+       "z": -17250,
+       "altitudeM": 900,
+       "speedMps": 80
+      }
+     ],
+     "attack": "airdrop",
+     "dropAt": {
+      "x": -40121,
+      "z": -20810,
+      "radiusM": 250
+     }
+    }
+   }
+  },
+  {
+   "id": "oscar-1",
+   "spec": "ki-43-oscar",
+   "side": "axis",
+   "tags": [
+    "escort"
+   ],
+   "airborneAt": {
+    "position": [
+     -62897,
+     940,
+     -16662
+    ],
+    "headingDeg": 80,
+    "speedMps": 85,
+    "throttle": 0.7
+   },
+   "pilot": {
+    "leader": "topsy-1",
+    "slot": 1,
+    "skill": "green"
+   }
+  },
+  {
+   "id": "zero-1",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "tags": [
+    "escort"
+   ],
+   "airborneAt": {
+    "position": [
+     -62856,
+     940,
+     -16426
+    ],
+    "headingDeg": 80,
+    "speedMps": 85,
+    "throttle": 0.7
+   },
+   "pilot": {
+    "leader": "topsy-1",
+    "slot": 2,
+    "skill": "green"
+   }
+  }
+ ],
+ "heldGroups": [
+  {
+   "id": "intercept",
+   "aircraft": [
+    {
+     "id": "p38-0",
+     "spec": "p-38-lightning",
+     "side": "allied",
+     "tags": [
+      "p38"
+     ],
+     "airborneAt": {
+      "position": [
+       -45000,
+       2200,
+       -27000
+      ],
+      "headingDeg": 250,
+      "speedMps": 150,
+      "throttle": 0.8
+     },
+     "pilot": {
+      "skill": "green"
+     }
+    },
+    {
+     "id": "p38-1",
+     "spec": "p-38-lightning",
+     "side": "allied",
+     "tags": [
+      "p38"
+     ],
+     "airborneAt": {
+      "position": [
+       -44500,
+       2200,
+       -26600
+      ],
+      "headingDeg": 250,
+      "speedMps": 150,
+      "throttle": 0.8
+     },
+     "pilot": {
+      "skill": "green"
+     }
+    },
+    {
+     "id": "p38-2",
+     "spec": "p-38-lightning",
+     "side": "allied",
+     "tags": [
+      "p38"
+     ],
+     "airborneAt": {
+      "position": [
+       -44000,
+       2200,
+       -26200
+      ],
+      "headingDeg": 250,
+      "speedMps": 150,
+      "throttle": 0.8
+     },
+     "pilot": {
+      "skill": "green"
+     }
+    },
+    {
+     "id": "p38-3",
+     "spec": "p-38-lightning",
+     "side": "allied",
+     "tags": [
+      "p38"
+     ],
+     "airborneAt": {
+      "position": [
+       -43500,
+       2200,
+       -25800
+      ],
+      "headingDeg": 250,
+      "speedMps": 150,
+      "throttle": 0.8
+     },
+     "pilot": {
+      "skill": "green"
+     }
+    }
+   ]
+  }
+ ],
+ "ships": [],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 0,
+  "timeOfDay": 18.5
+ },
+ "objectives": [
+  {
+   "id": "gate",
+   "label": "Fly the corridor to the drop area",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": -45346,
+    "z": -19635
+   },
+   "radiusM": 1500
+  },
+  {
+   "id": "corridor",
+   "label": "Hold the drop corridor",
+   "priority": "primary",
+   "kind": "state",
+   "airspeedMps": [
+    60,
+    95
+   ],
+   "altitudeM": [
+    440,
+    580
+   ],
+   "headingDeg": [
+    65,
+    95
+   ],
+   "dwellS": 20,
+   "failOnExit": true,
+   "after": "gate"
+  },
+  {
+   "id": "drop-player",
+   "label": "Drop your stick on the fires",
+   "priority": "primary",
+   "kind": "drop",
+   "targets": [
+    "topsy-1"
+   ],
+   "zone": {
+    "point": {
+     "x": -39930,
+     "z": -20590
+    },
+    "radiusM": 900
+   },
+   "corridor": {
+    "airspeedMps": [
+     60,
+     95
+    ],
+    "altitudeM": [
+     440,
+     580
+    ],
+    "headingDeg": [
+     65,
+     95
+    ]
+   },
+   "after": "corridor"
+  },
+  {
+   "id": "drop-ai",
+   "label": "A second transport drops",
+   "priority": "primary",
+   "kind": "drop",
+   "targets": [
+    "transports-ai"
+   ],
+   "count": 1,
+   "zone": {
+    "point": {
+     "x": -39930,
+     "z": -20590
+    },
+    "radiusM": 900
+   },
+   "corridor": {
+    "airspeedMps": [
+     60,
+     95
+    ],
+    "altitudeM": [
+     440,
+     580
+    ],
+    "headingDeg": [
+     65,
+     95
+    ]
+   },
+   "after": "drop-player"
+  },
+  {
+   "id": "egress",
+   "label": "Clear the area to the west",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": -58000,
+    "z": -17000
+   },
+   "radiusM": 3000,
+   "after": "drop-ai"
+  },
+  {
+   "id": "all-drop",
+   "label": "All three transports drop",
+   "priority": "secondary",
+   "kind": "drop",
+   "targets": [
+    "transports"
+   ],
+   "zone": {
+    "point": {
+     "x": -39930,
+     "z": -20590
+    },
+    "radiusM": 900
+   },
+   "corridor": {
+    "airspeedMps": [
+     60,
+     95
+    ],
+    "altitudeM": [
+     440,
+     580
+    ],
+    "headingDeg": [
+     65,
+     95
+    ]
+   }
+  },
+  {
+   "id": "bundles",
+   "label": "Four of six bundles land in the marked area",
+   "priority": "secondary",
+   "kind": "bundles",
+   "targets": [
+    "transports"
+   ],
+   "zone": {
+    "point": {
+     "x": -39930,
+     "z": -20590
+    },
+    "radiusM": 900
+   },
+   "min": 4
+  }
+ ],
+ "triggers": [
+  {
+   "id": "brief",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "message": "Formation lead: three Topsies on the fires at San Pablo. Hold the corridor, open the doors, drop on the fires."
+    }
+   ]
+  },
+  {
+   "id": "intercept",
+   "when": {
+    "at": 100
+   },
+   "then": [
+    {
+     "spawn": "intercept"
+    },
+    {
+     "message": "Escort lead: Lightnings, five miles, high. Stay on course."
+    }
+   ]
+  },
+  {
+   "id": "on-corridor",
+   "when": {
+    "completed": "corridor"
+   },
+   "then": [
+    {
+     "message": "Open the doors (O) and drop (Y) over the fires."
+    }
+   ]
+  }
+ ],
+ "recovery": {
+  "kind": "egress",
+  "objective": "egress"
+ },
+ "population": {
+  "airborne": 9,
+  "ships": 0
+ },
+ "badge": {
+  "id": "night-drop-on-burauen",
+  "name": "Night Drop on Burauen"
+ },
+ "briefing": {
+  "situation": "Burauen, 6 December 1944, 1830, the light going. You lead two more Ki-57 transports east over the ridge from the Ormoc side with a Ki-43 and a Zero as escort. Hold the drop corridor on the signal fires at San Pablo, open the cargo doors (O) and drop your stick (Y): six squad rigs and two supply bundles from each transport. At least one other transport must drop too. Four P-38s are up. There is no field to land at: crossing the western gate is the recovery.",
+  "loadout": "clean"
+ },
+ "history": {
+  "text": "On 6 December 1944 Japanese transports dropped paratroops on the Burauen airfields as part of Operation Te-Go (Army, Leyte, ch. XVII). This mission is inspired by that drop, not a reconstruction of it: the Ki-57 is representative of the transports, the formation, the escort, the four P-38s and the time are invented for the game, and each rig stands for a squad, not an individual man.",
+  "sources": [
+   "U.S. Army, Leyte: The Return to the Philippines, ch. XVII (1954), https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-17.html",
+   "U.S. Army, Leyte: The Return to the Philippines, ch. VIII (1954), https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html"
+  ]
+ }
+}
