@@ -47,12 +47,17 @@
    "authoredBonus": 0
   },
   "A6": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
-   "coordinated": false,
+   "scenario": "a6-battle-for-the-airfields",
+   "badge": {
+    "id": "battle-for-the-airfields",
+    "name": "Battle for the Airfields"
+   },
+   "start": "airfield",
+   "aircraft": [
+    "p-38-lightning"
+   ],
+   "recommendedLoadout": "both",
+   "coordinated": true,
    "authoredBonus": 0
   },
   "J1": {

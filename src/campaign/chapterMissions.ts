@@ -5,6 +5,7 @@ import type { MissionDescriptor } from './eligibility.js'
 import { rankLabel } from './ranks.js'
 import { CHAPTER_IDS, chaptersOf, type ChapterId, type Faction, type Tier } from './schema.js'
 import { isNightHour } from './catalog.js'
+import { windowsForChapter } from './worldStates.js'
 
 /**
  * The twelve chapter missions (F10-0, 2026-10-17). `content/campaign/chapter-missions.json` is the one place a chapter says which scenario it
@@ -50,6 +51,12 @@ export function chapterMinTier(chapter: ChapterId): Tier {
 /** The chapter that flies this scenario, among the authored ones, or `null` (a pooled mission, a range, an unauthored chapter). */
 export function chapterOfScenario(scenarioId: string, reg: ChapterRegistry = CHAPTER_MISSIONS): ChapterId | null {
   return CHAPTER_IDS.find((c) => reg[c].scenario === scenarioId) ?? null
+}
+
+/** The site windows a chapter's scenario plays in (a new campaign's `launchWindows`), or none for any other scenario: what a test loads a chapter scenario with. */
+export function chapterWindows(scenarioId: string, reg: ChapterRegistry = CHAPTER_MISSIONS): Readonly<Record<string, string>> {
+  const c = chapterOfScenario(scenarioId, reg)
+  return c === null ? {} : windowsForChapter(c)
 }
 
 /** The airplanes a chapter's scenario offers (authored first), for Form 5 and the sortie rules; `null` for any other scenario. */

@@ -208,11 +208,11 @@
     "parked": "tacloban-en-air-1"
    },
    "firstAction": {
-    "site": "tanauan",
-    "x": 0,
-    "z": 0,
+    "site": "tacloban",
+    "x": -9000,
+    "z": 5000,
     "basis": "invented",
-    "note": "F3 gives A6 no geometry for first contact (only 1-2 min after launch). Tanauan, 17 km from Tacloban and the one F8A site the Japanese lodgment threatens (it is 'visibly under construction' in this window), stands for it until F10 places the raid. Replace with the authored contact point."
+    "note": "F3 A6: first action 1-2 min after launch. The raid contact is placed 6.5 mi (10.4 km) west-southwest of the player's start, where the Ki-43 sweep and the P-38 climb-out meet about 115 s after brake release; F3 gives no geometry for this point, so it is invented, chosen to meet F3's 2-minute limit (F10E, 2026-10-17; it replaces the Tanauan stand-in)."
    },
    "takeoffS": 30,
    "taxiMps": 8,
@@ -226,7 +226,8 @@
     ],
     "budgetS": 420
    },
-   "f3": "launch from Tacloban; first action 1-2 min; recovery at serviceable allied Tacloban, Bayug or Buri within 7 min (the nearest legal one is checked; F8B made Bayug and Buri real)"
+   "f3": "launch from Tacloban; first action 1-2 min; recovery at serviceable allied Tacloban, Bayug or Buri within 7 min (the nearest legal one is checked; F8B made Bayug and Buri real)",
+   "scenario": "a6-battle-for-the-airfields"
   },
   {
    "id": "J1",

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { loadScenario, loadScenarioBundle } from '../../../tools/content/load.js'
-import { CHAPTER_MISSIONS } from '../../../src/campaign/index.js'
+import { CHAPTER_MISSIONS, chapterWindows } from '../../../src/campaign/index.js'
 
 const IDS = readdirSync(new URL('../../../content/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
@@ -26,7 +26,7 @@ describe('every shipped scenario', () => {
   })
 
   it.each(IDS)('%s builds, and has a mission exactly when it declares objectives', (id) => {
-    const bundle = loadScenarioBundle(id)
+    const bundle = loadScenarioBundle(id, chapterWindows(id)) // a chapter is built in the site windows it plays in
     const world = worldFromScenario(bundle, null)
     expect(world.mission === null).toBe(bundle.scenario.objectives === undefined)
   })

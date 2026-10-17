@@ -270,19 +270,21 @@
     "speedMps": 120
    },
    "pilot": {
-    "skill": "green",
+    "skill": "veteran",
     "ingress": {
      "route": [
       {
-       "x": -42000,
-       "z": -23000,
-       "altitudeM": 3600,
+       "x": -52000,
+       "z": -24000,
+       "altitudeM": 3000,
        "speedMps": 120
       }
      ],
      "destination": {
-      "airfield": "buri"
-     }
+      "airfield": "bayug",
+      "aim": "bayug-hangars"
+     },
+     "attack": "dive-bomb"
     }
    }
   },
@@ -303,7 +305,7 @@
     "speedMps": 120
    },
    "pilot": {
-    "skill": "green",
+    "skill": "veteran",
     "leader": "a6m2-1",
     "slot": 1
    }
@@ -325,7 +327,7 @@
     "speedMps": 120
    },
    "pilot": {
-    "skill": "green",
+    "skill": "veteran",
     "leader": "a6m2-1",
     "slot": 2
    }
@@ -347,7 +349,7 @@
     "speedMps": 120
    },
    "pilot": {
-    "skill": "green",
+    "skill": "veteran",
     "leader": "a6m2-1",
     "slot": 3
    }
@@ -683,7 +685,7 @@
     "buri-radio",
     "buri-dispersal"
    ],
-   "minFraction": 0.5
+   "minFraction": 0.6
   },
   {
    "airfield": "bayug",
@@ -692,7 +694,7 @@
     "bayug-fuel",
     "bayug-ammo-bunker-1"
    ],
-   "minFraction": 0.5
+   "minFraction": 0.6
   },
   {
    "airfield": "san-pablo",
@@ -701,7 +703,7 @@
     "san-pablo-dispersal",
     "san-pablo-camp-2"
    ],
-   "minFraction": 0.5
+   "minFraction": 0.6
   }
  ],
  "freezeOnSuccess": true,
@@ -823,20 +825,20 @@
      "airborneAt": {
       "position": [
        -74000,
-       3500,
+       2000,
        -14000
       ],
       "headingDeg": 76.4,
       "speedMps": 89
      },
      "pilot": {
-      "skill": "green",
+      "skill": "veteran",
       "ingress": {
        "route": [
         {
-         "x": -41025,
-         "z": -22005,
-         "altitudeM": 3500,
+         "x": -55602,
+         "z": -18466,
+         "altitudeM": 2000,
          "speedMps": 89
         }
        ],
@@ -857,14 +859,14 @@
      "airborneAt": {
       "position": [
        -74043,
-       3500,
+       2000,
        -13899
       ],
       "headingDeg": 76.4,
       "speedMps": 89
      },
      "pilot": {
-      "skill": "green",
+      "skill": "veteran",
       "leader": "ki21-1",
       "slot": 1
      }
@@ -878,14 +880,14 @@
      "airborneAt": {
       "position": [
        -74170,
-       3500,
+       2000,
        -14140
       ],
       "headingDeg": 76.4,
       "speedMps": 89
      },
      "pilot": {
-      "skill": "green",
+      "skill": "veteran",
       "leader": "ki21-1",
       "slot": 2
      }
@@ -915,8 +917,8 @@
       "ingress": {
        "route": [
         {
-         "x": -19000,
-         "z": -24000,
+         "x": -17397,
+         "z": -22286,
          "altitudeM": 600,
          "speedMps": 85
         }
