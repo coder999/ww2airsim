@@ -99,3 +99,20 @@ test('in director mode the wheel dollies the camera along its view, 500 ft a not
   expect(dx / moved).toBeCloseTo(Math.cos(before.pitchDeg * Math.PI / 180) * Math.cos(yaw), 1)
   expect(dz / moved).toBeCloseTo(-Math.cos(before.pitchDeg * Math.PI / 180) * Math.sin(yaw), 1)
 })
+
+test('in director mode a drag moves the view like a touch screen: right turns it left, up turns it down', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  const turn = (a: number, b: number): number => ((((b - a) % 360) + 540) % 360) - 180
+  const before = await eyeOf()
+  await page.mouse.move(600, 300)
+  await page.mouse.down()
+  await page.mouse.move(700, 250, { steps: 5 }) // right and up
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+  const after = await eyeOf()
+  expect(turn(before.yawDeg, after.yawDeg)).toBeGreaterThan(0.5) // yaw rises counter-clockwise from above: a turn to the left
+  expect(after.pitchDeg).toBeLessThan(before.pitchDeg - 0.5) // looks down
+})

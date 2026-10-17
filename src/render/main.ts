@@ -3437,8 +3437,9 @@ async function boot(): Promise<void> {
       }
       if (!d.keyed) {
         // Keys fine-tune; the wheel is the fast move: each notch dollies DIRECTOR_WHEEL_M along where the camera points (scroll up is forward).
-        // The wheel is withheld from `stepManual`, which would spend it on flying speed.
-        d.free = stepManual(d.free, { mouse: { ...replayMouse, wheelNotches: 0 }, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
+        // The wheel is withheld from `stepManual`, which would spend it on flying speed. Drag is inverted from the replay's Manual camera:
+        // the view follows the finger like a touch screen (drag right turns it left, drag up turns it down).
+        d.free = stepManual(d.free, { mouse: { ...replayMouse, dxPx: -replayMouse.dxPx, dyPx: -replayMouse.dyPx, wheelNotches: 0 }, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
         if (replayMouse.wheelNotches !== 0) {
           const run = -replayMouse.wheelNotches * DIRECTOR_WHEEL_M
           const { yawRad, pitchRad } = d.free

@@ -165,7 +165,7 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
   ui.appendChild(style)
   const help = doc.createElement('div')
   help.className = 'director-help'
-  help.textContent = 'Fly: W/S forward and back, A/D strafe, Q/E down and up, drag to look. Wheel: 500 ft per notch along the view (scroll up is forward). Drop key stores the view you see.'
+  help.textContent = 'Fly: W/S forward and back, A/D strafe, Q/E down and up, drag to look (the view follows your finger: drag right turns left, drag up turns down). Wheel: 500 ft per notch along the view (scroll up is forward). Drop key stores the view you see.'
   ui.appendChild(help)
   const markers = doc.createElement('div')
   markers.className = 'director-markers'
