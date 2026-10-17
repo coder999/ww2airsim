@@ -18,17 +18,20 @@ import { flatField } from './mission/fixture.js'
 const ids = readdirSync('content/vehicles').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort()
 
 describe('vehicle specs (every one enrolled)', () => {
-  it('enrolls the four original specs, the five F8A ones and the F8C rescue launch', () => {
-    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
+  it('enrolls the four original specs, the five F8A ones, the F8C rescue launch and the F10B life raft', () => {
+    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'type-a3-life-raft-survivors', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
   })
 
   it.each(ids)('%s loads, names a registered model and rig, and is the size of its glb (10%)', async (id) => {
     const spec = loadVehicleSpec(id)
     expect(spec.id).toBe(id)
-    expect(Object.keys(STATIC_MODELS.vehicle)).toContain(spec.view.model)
-    expect(Object.keys(VEHICLE_RIGS)).toContain(spec.view.model)
-    expect(existsSync(`content/vehicles/${spec.view.model}.glb`)).toBe(true)
-    const b = getBounds(onlyScene(await modelIO().readBinary(new Uint8Array(readFileSync(`content/vehicles/${spec.view.model}.glb`)))))
+    // F10B: a spec may draw an equipment model (the life raft), which has no rig.
+    const kind = spec.view.kind ?? 'vehicle'
+    expect(Object.keys(STATIC_MODELS[kind])).toContain(spec.view.model)
+    if (kind === 'vehicle') expect(Object.keys(VEHICLE_RIGS)).toContain(spec.view.model)
+    const glb = `content/${kind === 'vehicle' ? 'vehicles' : 'equipment'}/${spec.view.model}.glb`
+    expect(existsSync(glb)).toBe(true)
+    const b = getBounds(onlyScene(await modelIO().readBinary(new Uint8Array(readFileSync(glb)))))
     const near = (got: number, want: number): number => Math.abs(got - want) / want
     expect(near(spec.lengthM, b.max[0] - b.min[0]), 'length').toBeLessThan(0.10)
     expect(near(spec.widthM, b.max[2] - b.min[2]), 'width').toBeLessThan(0.10)
@@ -44,8 +47,8 @@ describe('vehicle specs (every one enrolled)', () => {
 describe('craft that float (F8C)', () => {
   const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, loop: false, headingRad: 1 }
 
-  it('the landing craft and the rescue launch say so, and no other spec does', () => {
-    expect(ids.filter((i) => loadVehicleSpec(i).floats === true)).toEqual(['lcvp', 'usaaf-63ft-rescue-boat'])
+  it('the landing craft, the life raft and the rescue launch say so, and no other spec does', () => {
+    expect(ids.filter((i) => loadVehicleSpec(i).floats === true)).toEqual(['lcvp', 'type-a3-life-raft-survivors', 'usaaf-63ft-rescue-boat'])
   })
 
   it('a floating craft rests on the sea surface, level, whatever the ground under it; a truck on the same ground sits on it', () => {

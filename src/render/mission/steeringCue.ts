@@ -166,7 +166,7 @@ function objectiveTarget<M>(world: World<M>, points: readonly MapPoint[]): Steer
       if (recovery !== null) return recovery
     }
   }
-  else if (active.kind === 'reach' || active.kind === 'hold') point = points.find((p) => p.id === `station:${active.id}`) ?? null
+  else if (active.kind === 'reach' || active.kind === 'hold' || active.kind === 'pickup' || active.kind === 'landedNear') point = points.find((p) => p.id === `station:${active.id}`) ?? null
   else if (active.kind === 'release' && active.target !== undefined) point = points.find((p) => entityId(p) === active.target) ?? null
   else if (active.kind === 'destroy') {
     const ids = new Set(active.resolved)

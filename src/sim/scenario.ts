@@ -248,6 +248,8 @@ const ScenarioVehicleObject = z.object({
   headingDeg: finite.optional(),
   /** Optional scenario durability override; the vehicle spec remains the default. */
   hp: positive.optional(),
+  /** F10B: people waiting on this craft (a raft group), the capacity a `pickup` objective draws on. */
+  survivors: z.number().int().positive().optional(),
   tags: tagList,
   side: SideField,
 }).strict().refine((v) => v.speedMps === 0 || v.waypoints.length >= 2, {
@@ -626,9 +628,12 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       ? (isShipParked(player.parkedAt) ? player.parkedAt.ship : player.parkedAt.airfield)
       : null
   const objectiveIds = new Set(objectives.map((o) => o.id))
+  const allVehicleList = [...s.vehicles, ...held.flatMap((g) => g.vehicles ?? [])]
+  const allVehicles = new Set(allVehicleList.map((v) => v.id))
+  const vehicleTags = new Set(allVehicleList.flatMap((v) => v.tags ?? []))
   /** Whether an objective can ever read failed: a standing order, a corridor, a group test, or anything with a window. */
   const canFail = (o: (typeof objectives)[number]): boolean =>
-    o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast' || o.kind === 'preventRelease'
+    o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast' || o.kind === 'preventRelease' || o.kind === 'pickup'
     || (o.kind === 'field' && o.keep === true) || (o.kind === 'state' && o.failOnExit === true) || (o.kind === 'release' && o.window !== undefined) || o.until !== undefined
   /** `when` references that name objectives (shared by triggers and `until`). */
   const checkWhen = (w: z.infer<typeof TriggerObject>['when'], path: (string | number)[]): void => {
@@ -667,7 +672,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       issue('withinM and targets go together: a range needs something to be in range of', [...path, 'withinM'])
     }
     if (o.kind === 'state' && planeStateIsEmpty(o)) {
-      issue(`objective "${o.id}": a state objective needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle`, path)
+      issue(`objective "${o.id}": a state objective needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle, headingDeg, groundSpeedMps, near`, path)
     }
     if (o.kind === 'approaches' && objectives.findIndex((x) => x.kind === 'approaches') !== i) {
       issue('a mission may declare one approaches objective (M3-R11)', [...path, 'kind'])
@@ -689,6 +694,8 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
       for (const field of o.airfields) if (!s.airfields.includes(field)) issue(`field.airfields names "${field}", which is not one of airfields`, [...path, 'airfields'])
       if (o.min !== undefined && o.min > o.airfields.length) issue(`field asks for ${o.min} of ${o.airfields.length} airfields`, [...path, 'min'])
     }
+    if (o.kind === 'landedNear' && (o.entity === undefined) === (o.point === undefined)) issue(`objective "${o.id}": landedNear needs exactly one of entity and point`, path)
+    if (o.kind === 'pickup' && !allVehicles.has(o.raft) && !vehicleTags.has(o.raft)) issue(`pickup.raft "${o.raft}" is not a vehicle id or tag of this scenario`, [...path, 'raft'])
     if (o.until !== undefined) checkWhen(o.until, [...path, 'until'])
     if (o.kind === 'destroy' && o.fresh === true && o.after === undefined) {
       issue('fresh counts from when the objective wakes up, so it needs an after', [...path, 'fresh'])
@@ -843,7 +850,7 @@ function buildVehicle(bundle: ScenarioBundle, v: ScenarioVehicle, terrain: Terra
     ...(v.headingDeg === undefined ? {} : { headingRad: (v.headingDeg * Math.PI) / 180 }),
   }
   const state = createVehicleState(spec, orders, terrain)
-  return { id: v.id, spec, state, previous: state, orders, ...(v.side === undefined ? {} : { side: v.side }) }
+  return { id: v.id, spec, state, previous: state, orders, ...(v.side === undefined ? {} : { side: v.side }), ...(v.survivors === undefined ? {} : { survivors: v.survivors }) }
 }
 
 /** The entity's `side`, only when the content says one, so a scenario
@@ -1041,7 +1048,7 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const mobile = [
     ...[...s.aircraft, ...heldAircraft].map(tagged('aircraft')),
     ...[...s.ships, ...heldShips].map(tagged('ship')),
-    ...[...s.vehicles, ...heldVehicles].map(tagged('vehicle')),
+    ...[...s.vehicles, ...heldVehicles].map((v) => ({ ...tagged('vehicle')(v), ...(v.survivors === undefined ? {} : { survivors: v.survivors }) })),
   ]
   const buildings = s.airfields.flatMap((a) => {
     const field = lookup(bundle.airfields, a, 'airfield')

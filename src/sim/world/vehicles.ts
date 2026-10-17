@@ -20,7 +20,8 @@ const VehicleSpecObject = z.object({
   targetType: z.enum(['building', 'tank', 'light-vehicle', 'landing-craft']).default('building'),
   /** F8C: a craft that rests on the sea surface (y = sea level, no pitch or roll from the ground under it). Absent for every land vehicle. */
   floats: z.boolean().optional(),
-  view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict(),
+  /** `kind` (F10B): which model folder the glb lives in. Absent is `content/vehicles/`; `equipment` draws an existing equipment model (A4's life raft) with no rig. */
+  view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/), kind: z.enum(['vehicle', 'equipment']).optional() }).strict(),
 }).strict()
 
 export type VehicleSpec = z.infer<typeof VehicleSpecObject>
@@ -56,6 +57,8 @@ export type VehicleEntity = {
   readonly previous: VehicleState
   readonly orders: VehicleOrders
   readonly side?: Side
+  /** F10B: people waiting on this craft, for a `pickup` objective (A4's raft). Static: who has come aboard is the objective's own count. Absent for every other vehicle. */
+  readonly survivors?: number
 }
 
 function terrainPose(position: Vec3, headingRad: number, spec: VehicleSpec, terrain: TerrainField | null): Pick<VehicleState, 'position' | 'pitchRad' | 'rollRad'> {

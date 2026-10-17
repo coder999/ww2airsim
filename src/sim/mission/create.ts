@@ -8,7 +8,7 @@ import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from 
 
 /** Anything an objective may name: an aircraft or ship (start or held) or
  *  an airfield structure, with its group tags and side. */
-export type Taggable = { readonly id: EntityId; readonly tags: readonly string[]; readonly side: Side; /** F10-0: what the entity is; `released` and `damage` need aircraft and ships. Optional so a fixture without it still builds. */ readonly kind?: 'aircraft' | 'ship' | 'vehicle' | 'structure' }
+export type Taggable = { readonly id: EntityId; readonly tags: readonly string[]; readonly side: Side; /** F10-0: what the entity is; `released` and `damage` need aircraft and ships. Optional so a fixture without it still builds. */ readonly kind?: 'aircraft' | 'ship' | 'vehicle' | 'structure'; /** F10B: people waiting on a rescue vehicle. */ readonly survivors?: number }
 
 /**
  * `refs` (entity ids and/or tags) to entity ids, deduplicated in first-seen
@@ -124,6 +124,16 @@ export function createMission<M>(input: {
         requireCount(where, o.count, resolved)
         return { ...o, resolved }
       }
+      case 'pickup': {
+        const resolved = resolve(where, [o.raft])
+        for (const id of resolved) {
+          if (kindOfId.get(id) !== 'vehicle') throw new Error(`scenario "${input.scenarioId}": ${where} names "${id}", which is not a vehicle`)
+          const waiting = input.entities.find((e) => e.id === id)?.survivors ?? 0
+          if (o.survivors > waiting) throw new Error(`scenario "${input.scenarioId}": ${where} asks for ${o.survivors} survivors from "${id}", which carries ${waiting}`)
+        }
+        if (resolved.length !== 1) throw new Error(`scenario "${input.scenarioId}": ${where} names "${o.raft}", which must be exactly one vehicle`)
+        return { ...o, resolved }
+      }
       default: return { ...o, resolved: [] }
     }
   })
@@ -133,6 +143,7 @@ export function createMission<M>(input: {
     for (const name of names) if (refs[name] === undefined) refs[name] = resolve(where, [name])
   }
   const whenRefs = (where: string, w: Trigger['when']): void => {
+    if ('state' in w && w.state.near !== undefined) addRefs(where, [w.state.near.entity])
     if (!('gone' in w)) return
     addRefs(where, w.gone.targets)
     if (typeof w.gone.awayFrom === 'string') addRefs(where, [w.gone.awayFrom])
@@ -140,6 +151,8 @@ export function createMission<M>(input: {
   for (const o of input.objectives) {
     if (o.until !== undefined) whenRefs(`objective "${o.id}" until`, o.until)
     if (o.kind === 'hold' && o.relativeTo !== undefined) addRefs(`objective "${o.id}" relativeTo`, [o.relativeTo])
+    if (o.kind === 'state' && o.near !== undefined) addRefs(`objective "${o.id}" near`, [o.near.entity])
+    if (o.kind === 'landedNear' && o.entity !== undefined) addRefs(`objective "${o.id}" entity`, [o.entity])
   }
   for (const t of input.triggers) whenRefs(`trigger "${t.id}"`, t.when)
   const fieldRules = (input.fieldRules ?? []).map((r) => ({ airfield: r.airfield, ids: resolve(`fieldRules for "${r.airfield}"`, r.structures), minFraction: r.minFraction }))

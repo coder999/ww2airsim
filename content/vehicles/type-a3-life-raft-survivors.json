@@ -1,0 +1,16 @@
+{
+  "id": "type-a3-life-raft-survivors",
+  "name": "Type A-3 Life Raft with Survivors",
+  "lengthM": 2.63,
+  "widthM": 1.69,
+  "heightM": 0.9,
+  "maxSpeedMps": 0.5,
+  "turnRateRadPerS": 0.1,
+  "hp": 30,
+  "targetType": "light-vehicle",
+  "floats": true,
+  "view": {
+    "model": "type-a3-life-raft-survivors",
+    "kind": "equipment"
+  }
+}

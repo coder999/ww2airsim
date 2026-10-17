@@ -121,8 +121,13 @@ const headingWithin = (r: readonly [number, number], h: number): boolean => (r[0
  * still in transit is neither), the throttle lever, altitude above sea level
  * and air-relative speed (`gauges.ts` 'airspeed'). Pure.
  */
-export function planeStateHolds<M>(want: PlaneState, p: AircraftEntity<M>, wind: Vec3 | null): boolean {
+export function planeStateHolds<M>(want: PlaneState, p: AircraftEntity<M>, wind: Vec3 | null, nearM?: (ref: string) => number | null): boolean {
   const s = p.state
+  if (want.near !== undefined) {
+    // F10B: no distance function (a bare fixture) or no living member of the reference means nothing is near.
+    const d = nearM?.(want.near.entity) ?? null
+    if (d === null || d > want.near.radiusM) return false
+  }
   if (want.gear !== undefined && !(want.gear === 'down' ? s.gearFraction >= 1 : s.gearFraction <= 0)) return false
   if (want.flaps !== undefined && !(want.flaps === 'down' ? s.flapFraction >= 1 : s.flapFraction <= 0)) return false
   if (want.bayDoors !== undefined && !(want.bayDoors === 'open' ? s.bayDoorFraction >= 1 : s.bayDoorFraction <= 0)) return false
@@ -131,6 +136,19 @@ export function planeStateHolds<M>(want: PlaneState, p: AircraftEntity<M>, wind:
   if (want.headingDeg !== undefined && !headingWithin(want.headingDeg, noseHeadingDeg(s.attitude))) return false
   if (want.groundSpeedMps !== undefined && !within(want.groundSpeedMps, Math.hypot(s.velocity.x, s.velocity.z))) return false
   return want.airspeedMps === undefined || within(want.airspeedMps, length(airVelocity(s, wind)))
+}
+
+/** F10B: the horizontal distance from (`x`, `z`) to the nearest living, spawned member of the named reference (an id or a tag), or `null` when there is none. */
+function nearestM<M>(m: MissionState<M>, t: MissionTick<M>, ref: string, x: number, z: number): number | null {
+  let best: number | null = null
+  for (const id of m.refs[ref] ?? []) {
+    if (!isPresent(t, id) || isDestroyed(t, id)) continue
+    const q = positionOf(t, id)
+    if (q === null) continue
+    const d = Math.hypot(q.x - x, q.z - z)
+    if (best === null || d < best) best = d
+  }
+  return best
 }
 
 /** The living, spawned members of `ids`, and the horizontal centroid of their positions (null when there are none). */
@@ -175,6 +193,10 @@ type Context<M> = {
   readonly alive: boolean
   readonly recovery: LandingTracking
   readonly landing: LandingReport | null
+  /** F10B: where that landing's touchdown was (the report itself carries no position), or `null` when there is no landing. */
+  readonly touchdown: { readonly x: number; readonly z: number } | null
+  /** F10B: `planeStateHolds`'s distance to a named entity, from the player. */
+  readonly nearM: (ref: string) => number | null
   /** F5C D3: the friendly base the landing came to rest on, or `null` (also `null` when there is no landing). */
   readonly base: FriendlyBase | null
   /** How the player's pass at the `approaches` ship resolved this tick. */
@@ -235,7 +257,7 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
     }
     case 'state': {
       if (!c.alive) return p
-      const holds = planeStateHolds(o, c.player, c.t.wind)
+      const holds = planeStateHolds(o, c.player, c.t.wind, c.nearM)
       if (o.dwellS === undefined) return holds ? { ...p, status: 'complete' } : p
       if (!holds) return p.heldTicks === 0 ? p : { ...p, heldTicks: 0, ...(o.failOnExit === true ? { status: 'failed' as const } : {}) }
       const held = p.heldTicks + 1
@@ -273,6 +295,24 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       if (c.passEvent !== 'missed') return p
       const missed = p.count + 1
       return { ...p, count: missed, status: missed > (o.maxMissed ?? 0) ? 'failed' : 'active' }
+    }
+    case 'landedNear': {
+      // A supported water landing (`at.kind` water; a ditching never reports one) whose touchdown lies inside the circle.
+      if (c.landing === null || c.landing.at?.kind !== 'water' || c.touchdown === null) return p
+      const d = o.entity !== undefined ? nearestM(c.m, c.t, o.entity, c.touchdown.x, c.touchdown.z) : Math.hypot(c.touchdown.x - o.point!.x, c.touchdown.z - o.point!.z)
+      return d !== null && d <= o.radiusM ? { ...p, count: 1, status: 'complete' } : p
+    }
+    case 'pickup': {
+      if (!c.alive) return p
+      const raft = o.resolved[0]!
+      // The survivors are lost with the craft: the rescue cannot be made.
+      if (isDestroyed(c.t, raft)) return { ...p, status: 'failed' }
+      const q = positionOf(c.t, raft)
+      const v = c.player.state.velocity
+      const holds = q !== null && Math.hypot(q.x - here.x, q.z - here.z) <= o.withinM && Math.hypot(v.x, v.z) <= o.groundSpeedMps
+      if (!holds) return p.heldTicks === 0 ? p : { ...p, heldTicks: 0 }
+      const held = p.heldTicks + 1
+      return held >= ticksFor(o.dwellS) ? { ...p, heldTicks: held, count: o.survivors, status: 'complete' } : { ...p, heldTicks: held }
     }
     case 'arrive': {
       const seen = p.seen ?? []
@@ -340,7 +380,7 @@ function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly 
     const id = w.failed
     return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'failed'
   }
-  if ('state' in w) return c.alive && planeStateHolds(w.state, c.player, c.t.wind)
+  if ('state' in w) return c.alive && planeStateHolds(w.state, c.player, c.t.wind, c.nearM)
   if ('gone' in w) return isGone(w.gone, m, c.t)
   return c.alive && insideStation(w.enters, c.player.state.position)
 }
@@ -367,6 +407,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   //    this tick, `state` after (loop.ts `stepAircraftEntity`).
   let recovery = m.recovery
   let landing: LandingReport | null = null
+  let touchdown: { readonly x: number; readonly z: number } | null = null
   if (alive) {
     recovery = nextLandingTracking(
       player.spec,
@@ -380,6 +421,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     )
     if (recovery.report !== null) {
       landing = recovery.report
+      touchdown = recovery.touchdown
       recovery = NO_LANDING
     }
   }
@@ -427,7 +469,8 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     }
   }
   const c: Context<M> = {
-    m, t, player, alive, recovery, landing, base, passEvent,
+    m, t, player, alive, recovery, landing, touchdown, base, passEvent,
+    nearM: (ref) => nearestM(m, t, ref, player.state.position.x, player.state.position.z),
     status: (id) => (progress ?? m.progress)[m.objectives.findIndex((x) => x.id === id)]!.status,
   }
   let advanced: { readonly id: string; readonly label: string; readonly n: number; readonly count: number; readonly done: boolean } | null = null
@@ -452,6 +495,10 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       }
       if (o.kind === 'land' && next.count > p.count) {
         advanced ??= { id: o.id, label: o.label, n: next.count, count: o.count ?? 1, done: next.status === 'complete' }
+      }
+      // F10B: any water landing while `landedNear` is waiting is an intermediate one, hit or miss: the pilot takes off and tries again.
+      if (o.kind === 'landedNear' && landing !== null && landing.at?.kind === 'water') {
+        advanced ??= { id: o.id, label: o.label, n: next.count, count: 1, done: false }
       }
       if (next.status === 'complete') added.push({ tick: t.tick, kind: 'objective', id: o.id, status: 'complete' })
       if (next.status === 'failed') {

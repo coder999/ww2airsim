@@ -56,9 +56,11 @@ const planeStateShape = {
   headingDeg: z.tuple([finite, finite]).refine(([lo, hi]) => lo >= 0 && lo < 360 && hi >= 0 && hi < 360, { message: 'headingDeg must lie within [0, 360)' }).optional(),
   /** F10-0: speed over the ground (the world frame, so a floating airplane's drift counts), horizontal. */
   groundSpeedMps: range.refine(([lo]) => lo >= 0, { message: 'groundSpeedMps must not be negative' }).optional(),
+  /** F10B (A4): the player is within `radiusM` (horizontal) of a living entity, named by id or tag: "the flare is in sight". The nearest living member of a tag counts. */
+  near: z.object({ entity: id, radiusM: positive }).strict().optional(),
 }
 /** The names `planeStateShape` declares, in a fixed order (for the empty check). */
-export const PLANE_STATE_FIELDS = ['gear', 'flaps', 'bayDoors', 'airspeedMps', 'altitudeM', 'throttle', 'headingDeg', 'groundSpeedMps'] as const
+export const PLANE_STATE_FIELDS = ['gear', 'flaps', 'bayDoors', 'airspeedMps', 'altitudeM', 'throttle', 'headingDeg', 'groundSpeedMps', 'near'] as const
 const hasField = (o: Partial<Record<(typeof PLANE_STATE_FIELDS)[number], unknown>>): boolean => PLANE_STATE_FIELDS.some((k) => o[k] !== undefined)
 const nonEmptyPlaneState = { message: 'a plane-state test needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle, headingDeg, groundSpeedMps' }
 
@@ -170,6 +172,14 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   }).strict(),
   /** F10D: at least `min` supply bundles dropped by the named transports have landed inside `zone` (J5's secondary). */
   z.object({ ...base, kind: z.literal('bundles'), targets: refs, zone: StationObject, min: z.number().int().positive() }).strict(),
+  /** F10B (A4): a SUPPORTED WATER landing whose touchdown lies within `radiusM` of an entity (`entity`, id or tag) or a world point (`point`): exactly one (`checkMission` enforces it: a refine here would take the member out of the discriminated union).
+   *  A landing on water while this is active is always an intermediate one (a radio line, no debrief, no pause), hit or miss, so a miss lets
+   *  the pilot taxi, take off and try again instead of ending the sortie. It is a waypoint of a longer graph and is never the objective that ends one. */
+  z.object({ ...base, kind: z.literal('landedNear'), entity: id.optional(), point: PointObject.optional(), radiusM: positive }).strict(),
+  /** F10B (A4): take `survivors` aboard from the rescue vehicle `raft` (a floating vehicle placed with `survivors`): the player stays within `withinM`
+   *  (horizontal) of it, at no more than `groundSpeedMps` over the ground, for `dwellS` unbroken seconds (a break zeroes the dwell). The aboard count is the
+   *  objective's own `count`, part of the mission state the world checksum and a save already carry. */
+  z.object({ ...base, kind: z.literal('pickup'), raft: id, survivors: z.number().int().positive(), withinM: positive, groundSpeedMps: positive, dwellS: positive }).strict(),
   /** F10-0: complete when at least `n` of the earlier objectives `of` are complete; fails once too many have failed for that to be possible.
    *  `any` is n = 1 and `all` is n = their number (J1: three of five groups intact; J2: a Maru or a half-hull Fletcher). */
   z.object({ ...base, kind: z.literal('atLeast'), n: z.number().int().positive(), of: z.array(id).min(1) }).strict(),

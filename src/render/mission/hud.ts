@@ -27,6 +27,7 @@ export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null 
       if (o.kind === 'bundles') return `${name} ${p.count}/${o.min}`
       if (o.kind === 'land' && (o.count ?? 1) > 1) return `${name} ${p.count}/${o.count}`
       if (o.kind === 'hold') return `${name} ${Math.floor(p.heldTicks * DT + 1e-9)}/${o.seconds} S`
+      if (o.kind === 'pickup') return `${name} ${Math.floor(p.heldTicks * DT + 1e-9)}/${o.dwellS} S`
       return name
     })
   if (parts.length > 0) return `${failed ? 'NO BADGE · ' : ''}${parts.join(' · ')}`

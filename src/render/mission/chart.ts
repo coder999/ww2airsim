@@ -141,6 +141,18 @@ export function objectiveMarks<M>(world: World<M>): ObjectiveMarks {
           radiusM: o.radiusM,
         })
         break
+      // F10B: the raft the pickup is for, and the raft or point a water landing is aimed at, are stations (the raft drifts: read live).
+      case 'pickup':
+      case 'landedNear': {
+        const at = o.kind === 'pickup' ? vehicleById.get(o.resolved[0]!)?.state.position : o.point ?? vehicleById.get(mission.refs[o.entity!]?.[0] ?? '')?.state.position
+        if (at !== undefined) {
+          stations.push({
+            id: `station:${o.id}`, kind: 'station', label: o.label, x: at.x, z: at.z, targetable: true, objective: 'station',
+            radiusM: o.kind === 'pickup' ? o.withinM : o.radiusM,
+          })
+        }
+        break
+      }
       // Its ship is already on the chart, and the objective list shows its
       // status like every other objective's.
       case 'approaches':

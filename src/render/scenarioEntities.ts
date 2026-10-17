@@ -75,10 +75,10 @@ export async function buildScenarioEntities(
   const [settled, shipSettled, vehicleSettled, heldSettled, heldShipSettled, heldVehicleSettled] = await Promise.all([
     Promise.allSettled(world.aircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(world.ships.map((s) => loadShip(s.spec))),
-    Promise.allSettled(world.vehicles.map((v) => loadVehicle(v.spec.view.model))),
+    Promise.allSettled(world.vehicles.map((v) => loadVehicle(v.spec.view.model, v.spec.view.kind))),
     Promise.allSettled(heldAircraft.map((a) => loadAirframe(a.spec.view.model, a.spec.stores))),
     Promise.allSettled(heldShips.map((s) => loadShip(s.spec))),
-    Promise.allSettled(heldVehicles.map((v) => loadVehicle(v.spec.view.model))),
+    Promise.allSettled(heldVehicles.map((v) => loadVehicle(v.spec.view.model, v.spec.view.kind))),
   ])
   const all = [...settled, ...shipSettled, ...vehicleSettled, ...heldSettled, ...heldShipSettled, ...heldVehicleSettled]
   const failed = all.find((r): r is PromiseRejectedResult => r.status === 'rejected')

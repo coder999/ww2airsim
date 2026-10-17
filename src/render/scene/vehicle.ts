@@ -11,11 +11,16 @@ export type VehicleView = {
   dispose(): void
 }
 
-export type LoadVehicleView = (modelId: string) => Promise<VehicleView>
+/** `kind` (F10B): `equipment` for a vehicle spec that draws an equipment model (A4's life raft), which has no rig. */
+export type LoadVehicleView = (modelId: string, kind?: 'vehicle' | 'equipment') => Promise<VehicleView>
 
-export const loadRegisteredVehicleView: LoadVehicleView = async (modelId) => {
-  const instance = await acquireModel(staticModelUrlFor('vehicle', modelId))
-  const rigFor = VEHICLE_RIGS[modelId]
+const STILL_RIG: VehicleRig = {
+  parts: [], mounts: [], drive() {}, state: () => ({}), dispose() {},
+}
+
+export const loadRegisteredVehicleView: LoadVehicleView = async (modelId, kind = 'vehicle') => {
+  const instance = await acquireModel(staticModelUrlFor(kind, modelId))
+  const rigFor = kind === 'equipment' ? (): VehicleRig => STILL_RIG : VEHICLE_RIGS[modelId]
   if (rigFor === undefined) { instance.release(); throw new Error(`no vehicle rig for "${modelId}"`) }
   let rig: VehicleRig
   try { rig = rigFor(instance.root) } catch (error) { instance.release(); throw error }
