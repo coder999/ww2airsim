@@ -3098,6 +3098,11 @@ async function boot(): Promise<void> {
     void audio.resume()
     pressed.add(e.code)
   })
+  // F9 DEV: the director bar stops key events at its own edge (so a focused button or slider does not also fly the
+  // game), which would starve the free camera of W/A/S/D/Q/E after any click on the bar. Capture phase sees them first.
+  const DIRECTOR_FLY_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE']
+  window.addEventListener('keydown', (e) => { if (director !== null && DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.add(e.code) }, true)
+  window.addEventListener('keyup', (e) => { if (DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.delete(e.code) }, true)
   window.addEventListener('keyup', (e) => {
     pressed.delete(e.code)
     replayHeld.delete(e.code)

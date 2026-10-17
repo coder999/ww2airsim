@@ -57,3 +57,24 @@ test('director mode opens on a scene, drops a key at the scrubbed time, and save
   expect(saved.camera).toHaveLength(before + 1)
   expect(saved.camera.some((k) => Math.abs(k.t - 7.3) < 1e-3)).toBe(true)
 })
+
+test('director mode flies the camera in space even with a bar control focused', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  // focus a bar control: its key handlers stop propagation, which used to starve the free camera of W/A/S/D/Q/E
+  await bar.getByRole('button', { name: 'Play preview' }).focus()
+  await bar.getByRole('button', { name: 'Play preview' }).click() // starts, then...
+  await bar.getByRole('button', { name: 'Pause preview' }).click() // ...pauses: back to editing, button still focused
+  const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!.position)
+  const before = await eyeOf()
+  await page.keyboard.down('KeyW')
+  await page.waitForTimeout(600)
+  await page.keyboard.up('KeyW')
+  const after = await eyeOf()
+  expect(Math.hypot(after[0] - before[0], after[2] - before[2])).toBeGreaterThan(5)
+  await page.keyboard.down('KeyE')
+  await page.waitForTimeout(400)
+  await page.keyboard.up('KeyE')
+  expect((await eyeOf())[1]).toBeGreaterThan(after[1] + 3)
+})
