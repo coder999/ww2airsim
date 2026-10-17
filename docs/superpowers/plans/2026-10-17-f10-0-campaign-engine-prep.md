@@ -1,6 +1,6 @@
 # F10-0: campaign engine prep (plan, 2026-10-17)
 
-Part of [F10](2026-10-17-f10-campaign-missions-master.md); read its Decisions and Rules first. **Status: plan only.**
+Part of [F10](2026-10-17-f10-campaign-missions-master.md); read its Decisions and Rules first. **Status: built 2026-10-17 on `f10-0-prep`; the as-built contract is `docs/campaign-data.md`, "Chapter missions", and the deviations are in the handoff.**
 
 ## Header
 

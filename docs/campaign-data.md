@@ -190,6 +190,53 @@ Esc opens the director sheet (a pause-style overlay) on its Director controls ta
 The world follows
 the bar: forward at up to 120 ticks a frame, restarted from the top when the bar goes back, so a long scrub re-simulates.
 
+## Chapter missions (F10-0, 2026-10-17)
+
+Plan: `superpowers/plans/2026-10-17-f10-campaign-missions-master.md`. The twelve chapters are built by five batches (F10A-E) on
+what F10-0 added; this is the contract they share.
+
+**The registry.** `content/campaign/chapter-missions.json` has one entry per chapter, all empty until its batch fills it:
+`scenario` (the scenario file's id, a slug of the title), `badge`, `start`, `aircraft` (the chapter's OWN list, the authored
+airplane first: Decision 11; J6 offers two), `recommendedLoadout`, `coordinated` (authored, not derived), `authoredBonus` (A4:
+2500). `src/campaign/chapterMissions.ts` reads it. **A chapter is enrolled only when its entry is complete AND its scenario file
+loads**: otherwise it has no descriptor, no picker row and no Headquarters mission, so a half-built chapter cannot reach a player or
+crash the shell (`buildShellCatalog`; a test). An enrolled chapter is a `kind: 'campaign'` descriptor and a picker row in the new
+`campaign` pool (`SCENARIO_OPTIONS` derives them, between the pooled rows and the Dev fixtures), and is never also in
+Single Missions. The minimum rank comes from `chapters.json` through the rank table (`chapterMinTier`).
+
+**The mission vocabulary** (`src/sim/mission/schema.ts`; evaluated in `step.ts`; every addition is optional, so every existing
+scenario plays as before): objective kinds `arrive` (AI entities reach a zone, remembered), `released` (AI aircraft have released a
+store, read from their combat records), `damage` (a ship below a fraction of its hull, or sunk), `atLeast` (n of earlier objectives:
+any/all), and `field` (airfield state; with `keep` it is a standing order); on any objective `until` (a window: a `protect` or `deny`
+completes when it closes, anything else fails) and on `destroy` `fresh` (count only kills after the objective woke up); `state` gains
+`headingDeg`, `groundSpeedMps`, `dwellS` (a continuous match, a break zeroes it) and `failOnExit` (a corridor); `hold` gains
+`resetOnExit` and `relativeTo` (the station follows a group's centroid); a station may be an annulus (`innerRadiusM`); trigger
+`when.gone` (named entities destroyed, on the ground, or beyond a radius; an unspawned held entity has not left) and `then`
+`complete`, `fail`, `setServiceable`, `setSide`; `land.requires` (a landing counts only while named fields are (un)serviceable).
+
+**Airfield state is mutable** (`src/sim/mission/fields.ts`): a trigger's `setServiceable` / `setSide` and a scenario's `fieldRules`
+(serviceable while a fraction of the field's own structures live) override the content's value. The recovery rule (`friendlyBaseAt`),
+`land.requires` and the `field` objective all read it through `fieldState`; a mission with none of these reads the content. Known
+limit: the AI's home and steering choices still read the content's value, not the mission's.
+
+**Egress** (Decision 9): a scenario's `recovery: { kind: 'egress', objective }` names a `reach` objective; completing it with every
+primary done is the recovery and earns the badge (`recoveryOf` returns `egressed`), and a landing at a friendly base is NOT a success
+there. The shell ends the sortie when the player crosses (`egressModel`, banked as a landing's outcome with no touchdown; no Continue).
+
+**Continue Sortie** (Decision 13): a scenario that sets `freezeOnSuccess` freezes its script at the landing that completes it
+(`MissionState.latched`: no objective, trigger, spawn, respot or pass changes; landings are still logged), so Continue is a free
+sortie. A landing that does not qualify leaves the script running. Every chapter sets it (an egress chapter ends at its gate).
+
+**Population** (`population: { airborne, ships, close? }`): checked at load against the start entities plus the heaviest set of held
+groups that can coexist; a group spawned by another's `when.gone` never overlaps it. The close set is the aircraft tagged `close`.
+
+**Scoring fix:** a downed transport AIRCRAFT (the Ki-57) credits the bomber row, 750, not the merchant `transport` row, 500
+(`aircraftTargetType`). The Ki-57 also has an unarmed `combat` block now; before it, a hit did nothing.
+
+**Proof:** `tests/campaign/chapterMatrix.test.ts` runs the nine generic paths (success, normal failure, abandon, KIA, POW, bailout,
+discharge, restart, retry) for every chapter, against a fixture descriptor now and the real one once authored. A fit row in
+`mission-fit.json` may name a `scenario`; it must then start where that scenario starts (`linkProblem`).
+
 ## The shell (F5B, 2026-10-15)
 
 `src/render/campaignSession.ts` is the only code that touches storage and the reducers. It owns the
@@ -200,9 +247,11 @@ Campaign Ledger. `src/render/hq/` is the UI: `model.ts` (screen state), `launchR
 pilot and aircraft allow), `missionAircraft.ts` (reads `content/campaign/mission-aircraft.json`),
 `chapters.ts` (reads `content/campaign/chapters.json`).
 **Unscored rule:** Training, Single and any Dev override never call `launchSortie` (`unscoredReason`).
-**F6/F7 seam:** a new chapter or mission is a row in `chapters.json` plus its aircraft in
-`mission-aircraft.json`; `tests/render/hq/missionAircraft.test.ts` fails if any offered aircraft is
-refused by `eligibility`. Nothing in `src/campaign/` changed for F5B.
+**F6/F7 seam:** a new NON-CAMPAIGN mission is a picker row plus its aircraft in `mission-aircraft.json`;
+`tests/render/hq/missionAircraft.test.ts` fails if any offered aircraft is refused by `eligibility`. A CHAPTER is not wired
+that way: see "Chapter missions" below (a stale version of this line said a chapter was a row in `chapters.json`; that file
+is only titles, dates and the minimum rank, and the catalog never read a chapter from it). Nothing in `src/campaign/`
+changed for F5B.
 
 ## How the sim feeds it
 
