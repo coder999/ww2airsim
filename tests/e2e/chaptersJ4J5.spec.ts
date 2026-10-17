@@ -48,6 +48,7 @@ test('J5: the cargo doors, then Y drops the stick into the world once, and a sec
   await page.goto('/?scenario=j5-night-drop-on-burauen&launch&spawnX=-43000&spawnY=600&spawnZ=-20000')
   await waitForScenario(page, 'j5-night-drop-on-burauen')
   await skipOpening(page)
+  await page.waitForFunction(() => ((window as DiagWindow).__ww2?.tick() ?? 0) > 180, undefined, { timeout: 60_000 }) // the world is stepping before a key is pressed
   const rigs = () => page.evaluate(() => (window as DiagWindow).__ww2!.parachutists().entities)
   expect(await rigs()).toBe(0)
   // Doors shut: the key drops nothing (its on-screen message rides the autopilot badge, not asserted by text here).
@@ -58,7 +59,7 @@ test('J5: the cargo doors, then Y drops the stick into the world once, and a sec
   await page.keyboard.down(BINDINGS.toggleBayDoors[0])
   await page.waitForTimeout(250)
   await page.keyboard.up(BINDINGS.toggleBayDoors[0])
-  await page.waitForTimeout(12_000) // 6 s of door travel, on a slow local GPU
+  await expect.poll(() => page.evaluate(() => (window as DiagWindow).__ww2!.playerFlight()!.state.bayDoorFraction), { timeout: 40_000 }).toBe(1)
   await page.keyboard.press(BINDINGS.dropCargo[0].replace(/^Key/, '').toLowerCase())
   await expect.poll(rigs, { timeout: 10_000 }).toBe(8)
   await page.keyboard.press(BINDINGS.dropCargo[0].replace(/^Key/, '').toLowerCase())
