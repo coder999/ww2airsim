@@ -102,8 +102,12 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
 /** After Launch: the scenario is live and the entities exist. `atOrdnance`
  *  runs on Form 6, before Launch (the loadout lives there since the sortie forms). */
 async function launched(page: Page, hq: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
-  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
-  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  // F5C D1: an unscored row (these are Training and Single) has no pilot step unless Dev is on.
+  const next = hq.getByRole('button', { name: /Next: (assign a pilot|flight conditions)/ })
+  await next.waitFor()
+  const pilotStep = /assign a pilot/.test((await next.textContent()) ?? '')
+  await next.click()
+  if (pilotStep) await hq.getByRole('button', { name: /^Assign / }).first().click()
   const title = page.getByRole('dialog', { name: 'Title' })
   await title.getByRole('button', { name: 'Next' }).click() // Flight Conditions -> Aircraft
   await title.getByRole('button', { name: 'Next' }).click() // Aircraft -> Ordnance

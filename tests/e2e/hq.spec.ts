@@ -245,8 +245,10 @@ test('F5C D1: Training and Single skip the pilot step (Step 2 of 4, fixed practi
   await expect(hq.getByRole('button', { name: /Next: assign a pilot/ })).toBeVisible()
   await expect(hq.getByText('5 Ordnance')).toBeVisible()
 
-  // Dev keeps it on every row, Training included.
+  // Dev keeps it on every row, Training included. (The Dev box lives on the Headquarters page, not the picker.)
+  await hq.getByRole('button', { name: 'Back' }).click()
   await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
   await hq.getByRole('radio', { name: /Free Flight/ }).first().click()
   await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
   await expect(hq.getByText('Squadron Roster')).toBeVisible()
