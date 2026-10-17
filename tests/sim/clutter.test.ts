@@ -51,7 +51,7 @@ describe('procedural clutter', () => {
     const field = airfieldFor(tac, 'buildup')!
     const bad = { ...field.clutter!, areas: [{ ...field.clutter!.areas[0]!, density: { gnome: 1 } }] }
     expect(() => clutterTotal(bad)).toThrow(/gnome/)
-    const dense = { ...tac, windows: { ...tac.windows, buildup: { ...tac.windows.buildup, clutter: { 'north-apron': { tent: 400 } } } } }
+    const dense = { ...tac, windows: { ...tac.windows, buildup: { ...tac.windows.buildup!, clutter: { 'north-apron': { tent: 400 } } } } }
     expect(() => airfieldFor(dense, 'buildup')).toThrow(/ceiling/)
   })
 })

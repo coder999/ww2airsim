@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import siteWindows from '../../../content/campaign/site-windows.json'
+import siteWindows from '../../../content/campaign/site-windows.json' with { type: 'json' }
 import { LightSpecSchema, type LightSpec } from '../lights/lights.js'
 import { parseScenario, type Scenario, type ScenarioAircraft, type ScenarioVehicle } from '../scenario.js'
 import { BUILDING_KINDS, BUILDING_STATES, localToWorld, parseAirfield, runwayHeadingRad, type Airfield } from './airfields.js'
@@ -210,3 +210,25 @@ export function expandScenario(scenario: Scenario, sites: Readonly<Record<string
   })
   return { scenario: next, airfields }
 }
+
+/**
+ * DEV `?siteState=tacloban:buildup,dulag:assault` (F8A Task 9): which sites to merge into whatever scenario loads, and in
+ * which window. `null` when the query has none. A malformed pair or an unknown window throws, loudly, because this is a
+ * developer asking for a state and a silent fallback would show the wrong one.
+ */
+export function siteStateFromQuery(search: string): { readonly sites: readonly string[]; readonly windows: Readonly<Record<string, string>> } | null {
+  const raw = new URLSearchParams(search).get('siteState')
+  if (raw === null || raw === '') return null
+  const windows: Record<string, string> = {}
+  for (const pair of raw.split(',')) {
+    const [site, window, ...rest] = pair.split(':')
+    if (site === undefined || site === '' || window === undefined || rest.length > 0) throw new Error(`siteState: "${pair}" is not <site>:<window>`)
+    if (!WINDOW_IDS.includes(window)) throw new Error(`siteState: "${window}" is not a window (${WINDOW_IDS.join(', ')})`)
+    windows[site] = window
+  }
+  return { sites: Object.keys(windows), windows }
+}
+
+/** The scenario with `sites` named (kept in order, no repeats), for the loader to expand. */
+export const withSiteNames = (scenario: Scenario, sites: readonly string[]): Scenario =>
+  ({ ...scenario, sites: [...new Set([...(scenario.sites ?? []), ...sites])] })

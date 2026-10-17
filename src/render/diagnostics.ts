@@ -530,6 +530,8 @@ export type Ww2Diagnostics = {
   readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly drawnInstances: number; readonly distant: DistantTreeStats; coarse: DistantTreeStats; readonly fadeMode: 'whole' | 'pixel' | 'soft'; readonly fadeStartM: number; readonly fadeEndM: number; readonly visible: boolean; readonly tier: string } | null
   /** Ids of the airfields whose strip and scenery are in the scene right now (the loaded world's own, after any in-place scenario swap). */
   readonly sceneryAirfields: () => readonly string[]
+  /** F8A: per airfield in the scene, how many building glbs replaced their placeholders, which failed, and the instanced clutter by kind. */
+  readonly siteScenery: () => readonly { readonly airfield: string; readonly modelsAttached: number; readonly modelsFailed: readonly string[]; readonly clutter: Readonly<Record<string, number>> }[]
   /** DEV comparison: isolates tree draws without changing terrain materials or quality. */
   readonly setTreesVisible: (visible: boolean) => void
   /** E1: the effects pool and pass. `tier` is 'off' under ?fx=off; `cpuMs` is

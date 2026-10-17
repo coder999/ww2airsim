@@ -39,6 +39,7 @@ export const CAPTURE_TEST_FILES = [
   'rangeTestCapture.spec.ts',
   'shipCaptures.spec.ts',
   'shipCollisionCapture.spec.ts',
+  'siteStateCapture.spec.ts',
   'surfacesCapture.spec.ts',
   'takramGameCapture.spec.ts',
   'terrainCostCapture.spec.ts',

@@ -157,6 +157,7 @@ import { createWaterWake, waterWakeSources } from './scene/waterWake.js'
 import { loadScenarioBundle, loadScenarioFile } from './scenarioLoad.js'
 import { withMainBatteries, withoutMainBatteries, withTestDrop, worldFromScenario, type Scenario, type ScenarioBundle } from '../sim/scenario.js'
 import { swarmFromQuery, withSwarm } from '../sim/swarm.js'
+import { siteStateFromQuery, withSiteNames } from '../sim/world/sites.js'
 import type { GodMode } from '../sim/godMode.js'
 import { AXIS_VARIANTS, scenarioFileFor, sightsAllowed, sightsOverrideFromQuery } from '../sim/sortie.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, sortieBundle, startKindOf, validateSortie, type Cloudiness, type SortieChoice } from '../sim/sortie.js'
@@ -473,7 +474,7 @@ async function boot(): Promise<void> {
   // 2026-10-10): N AI aircraft and M ships added to whatever scenario loads, around the spawn override
   // (heading east, as the override flies) or the player's airborne start.
   const swarm = import.meta.env.DEV ? swarmFromQuery(window.location.search) : null
-  const extendScenario = import.meta.env.DEV && swarm !== null
+  const swarmScenario = import.meta.env.DEV && swarm !== null
     ? (s: Scenario): Scenario => {
         const start = s.aircraft.find((a) => a.id === s.player)
         const airborne = start !== undefined && 'airborneAt' in start ? start.airborneAt : null
@@ -483,6 +484,11 @@ async function boot(): Promise<void> {
         return withSwarm(s, swarm, { x: at.x, y: at.y, z: at.z, headingDeg: override ? 90 : airborne!.headingDeg })
       }
     : undefined
+  // DEV `?siteState=tacloban:buildup,...` (sim/world/sites.ts, F8A Task 9): merge those sites, in those windows, into
+  // whatever scenario loads. A scenario file's own `sites` are drawn in the window the same query names, or pre-invasion.
+  const siteState = import.meta.env.DEV ? siteStateFromQuery(window.location.search) : null
+  const extendScenario = siteState === null ? swarmScenario
+    : (s: Scenario): Scenario => withSiteNames(swarmScenario === undefined ? s : swarmScenario(s), siteState.sites)
   // `?swarmHide=1` (DEV) keeps the swarm flying but draws none of it: the render cost of its meshes,
   // by difference, i.e. the most any level-of-detail scheme for them could buy back.
   const swarmHidden = import.meta.env.DEV && swarm !== null && new URLSearchParams(window.location.search).get('swarmHide') === '1'
@@ -540,7 +546,7 @@ async function boot(): Promise<void> {
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
       scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
     }
-    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario)
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev, authored: spec.id === option?.aircraft })
@@ -1441,6 +1447,7 @@ async function boot(): Promise<void> {
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
       sceneryAirfields: () => sceneryAirfieldIds,
+      siteScenery: () => airfieldHandles.map((h, i) => ({ airfield: sceneryAirfieldIds[i] ?? '', modelsAttached: siteModelResults.get(h)?.attached ?? 0, modelsFailed: siteModelResults.get(h)?.failed ?? [], clutter: h.clutterCounts })),
       setTreesVisible: visible => { if (vegetation !== null) vegetation.object.visible = visible },
       // E1: the effects pool, for the E2E captures and budget.
       fx: () => ({
@@ -1733,6 +1740,7 @@ async function boot(): Promise<void> {
   // frame `vegetation` above is: both need the real terrain heightfield,
   // which arrives asynchronously (`loadTerrainProgressively` below).
   let airfieldHandles: readonly ReturnType<typeof createAirfield>[] = []
+  const siteModelResults = new WeakMap<object, { attached: number; failed: readonly string[] }>()
   let sceneryAirfieldIds: readonly string[] = []
   /**
    * Strips, airfield scenery, towns, villages and trees, built for the airfields
@@ -1763,7 +1771,10 @@ async function boot(): Promise<void> {
     airfieldHandles = airfields.map((f) => f.airfield)
     // F8A: a site's buildings are glbs; the procedural placeholders draw until each arrives.
     for (const h of airfieldHandles) {
-      void h.loadModels().then(({ failed }) => { if (failed.length > 0) console.warn(`building models failed to load, placeholders kept: ${failed.join(', ')}`) })
+      void h.loadModels().then((out) => {
+        siteModelResults.set(h, out)
+        if (out.failed.length > 0) console.warn(`building models failed to load, placeholders kept: ${out.failed.join(', ')}`)
+      })
     }
     sceneryAirfieldIds = world.airfields.map((a) => a.id)
     // Towns and villages (Plan 13d Task 3), built before `vegetation` so its

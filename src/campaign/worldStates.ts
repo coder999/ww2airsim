@@ -8,7 +8,7 @@
  * Only the F8A sites are listed. F8B (Buri, Bayug, San Pablo) and F8C (Ormoc, the beaches, San Pedro Bay) add their keys to
  * `SITES`, `PLAY` and `SUCCESS` below; a key this file does not own is passed through untouched.
  */
-import siteWindows from '../../content/campaign/site-windows.json'
+import siteWindows from '../../content/campaign/site-windows.json' with { type: 'json' }
 import { CHAPTER_IDS } from './schema.js'
 
 export const WINDOW_IDS: readonly string[] = siteWindows.windows.map((w) => w.id)
