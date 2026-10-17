@@ -23,7 +23,7 @@ describe('J6 content: the locked finale populations (F3 sections 2 and 4)', () =
   const scenario = loadScenario(ID)
   const held = scenario.heldGroups ?? []
   const everyAircraft = [...scenario.aircraft, ...held.flatMap((g) => g.aircraft ?? [])]
-  const sideOfPlane = (a: { id: string; side?: string }) => a.side ?? (a.id === scenario.player ? 'allied' : 'axis')
+  const sideOfPlane = (a: { id: string; side?: string | undefined }) => a.side ?? (a.id === scenario.player ? 'allied' : 'axis')
 
   it('builds', () => { expect(() => worldFromScenario(bundle(), null)).not.toThrow() })
 

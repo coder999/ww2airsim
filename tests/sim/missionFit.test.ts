@@ -156,7 +156,7 @@ describe('a row linked to a scenario (F10-0)', () => {
     expect(linkProblem(row, sites, at)).toBeNull()
     expect(linkProblem(row, sites, { x: at.x + 100, z: at.z })).toBeNull() // inside the tolerance
     expect(linkProblem(row, sites, { x: at.x + 1000, z: at.z })).toMatch(/^link: A6 starts 1000 m from where scenario "escort" starts/)
-    expect(linkProblem({ ...rowOf('A6'), scenario: undefined }, sites, { x: 0, z: 0 })).toBeNull() // not linked: nothing to compare
+    expect(linkProblem((({ scenario, ...r }) => (void scenario, r))(rowOf('A6')) as FilledRow, sites, { x: 0, z: 0 })).toBeNull() // not linked: nothing to compare
     expect(realStart('escort').x).toBeCloseTo(-16536, -2) // the reader finds a real scenario's start (escort.json: airborneAt -16536, 3500, -34186)
   })
 })
