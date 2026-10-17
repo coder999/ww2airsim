@@ -20,6 +20,8 @@ export type HeadquartersDeps = {
   readonly loadScenario: (id: string) => Promise<Scenario>
   readonly title: TitleScreenHandle
   readonly settings: SettingsModel
+  /** F9: HQ's Watch opening / Watch epilogue. */
+  readonly onWatchScene?: (sceneId: string) => void
   readonly onHide?: () => void
 }
 
@@ -112,6 +114,7 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     pickFile: pickTextFile,
     today: () => new Date().toISOString().slice(0, 10),
     onAssign: (r: AssignRequest) => { void assign(r) },
+    ...(deps.onWatchScene === undefined ? {} : { onWatchScene: deps.onWatchScene }),
     ...(deps.onHide === undefined ? {} : { onHide: deps.onHide }),
   })
   let resolved: readonly MissionDescriptor[] | null = null

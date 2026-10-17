@@ -4,7 +4,7 @@
  * from `hq/model.ts` and the campaign reducers; nothing here computes rank, score or eligibility. Every
  * player-supplied or pilot-supplied string reaches the DOM through `textContent` only.
  */
-import { COMMAND_TITLES, commandTitleOf, isValidPlayerName, PLAYER_NAME_MAX, type Campaign, type Faction, type MissionDescriptor } from '../../campaign/index.js'
+import { COMMAND_TITLES, chaptersOf, commandTitleOf, openingSceneId, victorySceneId, isValidPlayerName, PLAYER_NAME_MAX, type Campaign, type Faction, type MissionDescriptor } from '../../campaign/index.js'
 import type { Scenario } from '../../sim/scenario.js'
 import { TITLE_ART_URL } from '../content.js'
 import { rankDevice } from '../insignia.js'
@@ -42,6 +42,8 @@ export type HqDeps = {
   readonly today: () => string
   /** Task 8 wires this to Flight Conditions; until then the picker says so. */
   readonly onAssign?: (r: AssignRequest) => void
+  /** F9: replay a campaign scene (the current chapter's opening, the epilogue once won). Absent: no Watch buttons. */
+  readonly onWatchScene?: (sceneId: string) => void
   readonly onHide?: () => void
 }
 
@@ -537,7 +539,21 @@ export function createHq(root: HTMLElement, deps: HqDeps): HqHandle {
         ['Pilots lost', d.lossesText], ['Abandoned', String(d.abandoned)], ['Chapters', d.chaptersText]]))
     const full = inkButton('Full Dossier')
     full.addEventListener('click', () => void commanderDossier(c))
-    right.appendChild(buttonRow(full))
+    const watch: HTMLButtonElement[] = []
+    if (deps.onWatchScene !== undefined) {
+      const current = chaptersOf(c.faction).find((id) => !c.progress.completed.includes(id))
+      if (current !== undefined) {
+        const b = inkButton('Watch opening')
+        b.addEventListener('click', () => deps.onWatchScene!(openingSceneId(current)))
+        watch.push(b)
+      }
+      if (c.progress.victory) {
+        const b = inkButton('Watch epilogue')
+        b.addEventListener('click', () => deps.onWatchScene!(victorySceneId(c.faction === 'us' ? 'A6' : 'J6')))
+        watch.push(b)
+      }
+    }
+    right.appendChild(buttonRow(full, ...watch))
     m.sheet.appendChild(cols(left, right))
 
     m.sheet.appendChild(sectionTitle('Operations'))

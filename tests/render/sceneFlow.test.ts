@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { worldChecksum } from '../../src/flightRecorder/checksum.js'
-import { markSceneSeen } from '../../src/campaign/index.js'
+import { markSceneSeen, openingSceneId, sceneUnseen, victorySceneId } from '../../src/campaign/index.js'
 import { skipScene } from '../../src/sim/scene/preroll.js'
 import { parseScene } from '../../src/sim/scene/schema.js'
 import {
-  beginPlayback, handoffWorld, loadScene, openingSceneId, playbackDone, sceneUnseen, sceneView, skipPlayback, stepPlayback, victorySceneId,
+  beginPlayback, handoffWorld, loadScene, playbackDone, sceneView, skipPlayback, stepPlayback,
 } from '../../src/render/sceneFlow.js'
 import { fresh } from '../campaign/helpers.js'
 import { REACH_FAR, missionWorld } from '../sim/mission/fixture.js'

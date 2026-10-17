@@ -5,7 +5,6 @@ import { v3 } from '../sim/math/vec3.js'
 import { sceneAt } from '../sim/scene/camera.js'
 import { beginPreroll, handoffPreroll, stepPreroll, type Preroll } from '../sim/scene/preroll.js'
 import { parseScene, type Scene } from '../sim/scene/schema.js'
-import type { Campaign, ChapterId } from '../campaign/index.js'
 import type { EyeTransform, SurfaceHeightAt } from './camera.js'
 import { posesFor } from './frame.js'
 import { sceneUrl } from './content.js'
@@ -14,12 +13,6 @@ import { sceneUrl } from './content.js'
  * F9 flow (plan 2026-10-17): when a scene plays, how it is loaded, and one pure playback state the frame loop drives.
  * Live playback and skip both finish through `stepPreroll`, so they land in the same world.
  */
-
-export const openingSceneId = (chapter: ChapterId): string => `${chapter.toLowerCase()}-opening`
-export const victorySceneId = (chapter: ChapterId): string => `${chapter.toLowerCase()}-victory`
-
-/** Openings and victories play once per campaign; replays from HQ ignore this. */
-export const sceneUnseen = (c: Campaign, sceneId: string): boolean => !c.scenesSeen.includes(sceneId)
 
 /** A missing, unreadable or invalid scene is `null`, never an error: the flight proceeds without it (plan gate: fail safely). */
 export async function loadScene(id: string, fetchText: (url: string) => Promise<string> = async (u) => (await fetch(u)).text()): Promise<Scene | null> {

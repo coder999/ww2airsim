@@ -51,7 +51,7 @@ import { bankLegScored, bankScored, type BankedView } from './campaignBank.js'
 import { buildLegCard, createStopFade } from './legCard.js'
 import { checkGroundStop } from '../sim/groundStop.js'
 import type { Loadout } from '../sim/weapons/stores.js'
-import { formatName, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
+import { formatName, openingSceneId, sceneUnseen, victorySceneId, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
 import { EMPTY_SEGMENT, landingKind, stepSegment, type FlightSegment } from './flightRecord.js'
@@ -118,7 +118,7 @@ import { replayKeyAction } from '../replay/keys.js'
 import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
 import { stepFlow, type ReplayFlow, type ReplayFlowEffect, type ReplayFlowEvent } from '../replay/flow.js'
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
-import { beginPlayback, handoffWorld, loadScene, openingSceneId, playbackDone, sceneUnseen, sceneView, skipPlayback, stepPlayback, victorySceneId, type ScenePlayback } from './sceneFlow.js'
+import { beginPlayback, handoffWorld, loadScene, playbackDone, sceneView, skipPlayback, stepPlayback, type ScenePlayback } from './sceneFlow.js'
 import type { Scene as SceneFile } from '../sim/scene/schema.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
@@ -391,7 +391,7 @@ async function boot(): Promise<void> {
   let scoredSortie: { readonly sortieId: string } | null = null
   // Declared here (not beside the headquarters, further down) for the same TDZ reason as `frame`: `onNewGame` reads them.
   let hqSession: Session | null = null
-  let hqHandle: { show(): void } | null = null
+  let hqHandle: { show(): void; hide(): void } | null = null
   let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
    * The player's `killsByType` as of the last bank -- a landing/ditching/
@@ -995,7 +995,7 @@ async function boot(): Promise<void> {
   // F5B: Headquarters is the front door. It sits above the title (which stays up, so the world is held and flight keys
   // stay off) and appears once the boot is ready, as the old roster memo did. A quick launch has no campaign.
   if (quick === null) {
-    const booted = createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id), title, settings: quality.settings })
+    const booted = createHeadquarters(root, { flyable, loadScenario: (id) => loadScenarioFile(id), title, settings: quality.settings, onWatchScene: (id) => { void watchScene(id) } })
     hqSession = booted.session
     hqHandle = booted.hq
     hqCatalogNow = booted.catalogNow
@@ -2810,6 +2810,22 @@ async function boot(): Promise<void> {
     if (scene === null || scene.world.scenario !== requestedScenarioId) { done(); return }
     freshHeldFrame()
     playScene(scene, { markSeen: true, holdAfter: true, onDone: done })
+  }
+  /** HQ "Watch opening" / "Watch epilogue": the scene on its own scenario, nothing banked, back to Headquarters after. */
+  const watchScene = async (id: string): Promise<void> => {
+    const scene = await loadScene(id)
+    const option = scene === null ? undefined : SCENARIO_OPTIONS.find((o) => o.value === scene.world.scenario)
+    if (scene === null || option === undefined) return // nothing to show: Headquarters stays up
+    title.hide()
+    hqHandle?.hide()
+    const aircraftSpec = option.aircraft ?? chosen.aircraftSpec
+    if (option.value !== requestedScenarioId || aircraftSpec !== loadedAircraftSpec) {
+      requestedScenarioId = option.value
+      chosen = { ...chosen, scenarioId: option.value, aircraftSpec }
+      await loadScenario(chosen)
+    }
+    freshHeldFrame()
+    playScene(scene, { markSeen: false, holdAfter: true, onDone: () => { title.show(requestedScenarioId); hqHandle?.show() } })
   }
   const startOpening = async (id: string): Promise<void> => {
     const scene = await loadScene(id)
