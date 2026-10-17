@@ -26,15 +26,20 @@ const scenarioAt = (hours: Record<string, number>) => async (id: string) => {
 }
 
 describe('the real registry', () => {
-  it('has all twelve chapters, each either empty or complete, and none authored yet', () => {
+  it('has all twelve chapters, each either empty or complete', () => {
     expect(Object.keys(CHAPTER_MISSIONS)).toEqual([...CHAPTER_IDS])
     for (const c of CHAPTER_IDS) {
       const m = CHAPTER_MISSIONS[c]
       const started = m.scenario !== null || m.badge !== null || m.start !== null || m.aircraft.length > 0
       expect(started ? isAuthored(m) : true, `${c} is half filled in`).toBe(true)
     }
-    expect(authoredChapters('us')).toEqual([])
     expect(SCENARIO_OPTIONS.filter((o) => o.pool === 'campaign')).toEqual(chapterOptions())
+    // every authored chapter is a picker row whose scenario is the one the registry names, with the airplane list restated
+    for (const c of [...authoredChapters('us'), ...authoredChapters('ja')]) {
+      const row = SCENARIO_OPTIONS.find((o) => o.value === CHAPTER_MISSIONS[c].scenario)
+      expect(row, `${c} has no picker row`).toBeDefined()
+      expect(row!.aircraftList).toEqual(CHAPTER_MISSIONS[c].aircraft)
+    }
   })
   it('reads each chapter\'s minimum rank through the rank table (F3 section 3)', () => {
     expect(CHAPTER_IDS.map((c) => chapterMinTier(c))).toEqual([1, 1, 3, 2, 5, 6, 1, 1, 1, 2, 3, 6])

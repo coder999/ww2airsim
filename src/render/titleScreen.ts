@@ -282,7 +282,9 @@ export function chapterOptions(reg: ChapterRegistry = CHAPTER_MISSIONS): Scenari
   })
 }
 
-export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [...POOLED_OPTIONS, ...chapterOptions()]
+/** Chapters sit between the pooled rows and the Dev fixtures, which stay last (sortie spec A1). */
+const isFixture = (o: ScenarioOption): boolean => o.value.startsWith('dev-mission-')
+export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [...POOLED_OPTIONS.filter((o) => !isFixture(o)), ...chapterOptions(), ...POOLED_OPTIONS.filter(isFixture)]
 
 /** The picker's rows: every row with Dev, the non-dev rows without (A1). */
 export function scenarioOptions(dev: boolean): readonly ScenarioOption[] {

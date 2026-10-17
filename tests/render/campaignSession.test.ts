@@ -19,7 +19,7 @@ class MapPort implements StoragePort {
 }
 
 const clean: UnscoredInput = { section: 'noncampaign', devScenario: false, devRules: false, pilotIneligible: false, devTakeoff: false, god: false }
-const sectionOf = (pool: string): PickerSection => (pool === 'training' ? 'training' : pool === 'single' ? 'single' : 'noncampaign')
+const sectionOf = (pool: string): PickerSection => (pool === 'training' ? 'training' : pool === 'single' ? 'single' : pool === 'campaign' ? 'campaign' : 'noncampaign')
 
 describe('unscoredReason: when is a sortie not banked (plan F5B Task 2, A4)', () => {
   it('a clean campaign or non-campaign sortie is scored, even with Dev checked but unused', () => {
@@ -42,8 +42,8 @@ describe('unscoredReason: when is a sortie not banked (plan F5B Task 2, A4)', ()
   it('every scenario row has a defined outcome: the pool decides the section, only pooled non-dev rows are scored', () => {
     const scored = SCENARIO_OPTIONS.filter((o) => unscoredReason({ ...clean, section: sectionOf(o.pool), devScenario: o.dev }) === null)
     expect(scored.length).toBeGreaterThan(0) // an empty filter must not pass vacuously
-    expect(scored.every((o) => o.pool === 'noncampaign' && !o.dev)).toBe(true)
-    expect(scored.map((o) => o.value)).toEqual(SCENARIO_OPTIONS.filter((o) => o.pool === 'noncampaign' && !o.dev).map((o) => o.value))
+    expect(scored.every((o) => (o.pool === 'noncampaign' || o.pool === 'campaign') && !o.dev)).toBe(true)
+    expect(scored.map((o) => o.value)).toEqual(SCENARIO_OPTIONS.filter((o) => (o.pool === 'noncampaign' || o.pool === 'campaign') && !o.dev).map((o) => o.value))
   })
 
   it('every reason has player-facing text', () => {

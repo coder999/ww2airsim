@@ -6,6 +6,7 @@
 import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { friendlyBaseAt, friendlySites, nearestFriendlySite, siteUsableBy, SHIP_RECOVERY_RADIUS_M } from '../../src/sim/friendly.js'
+import { CHAPTER_MISSIONS } from '../../src/campaign/index.js'
 import { playerAircraft, type World } from '../../src/sim/loop.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
@@ -110,7 +111,9 @@ describe('every shipped scenario declares which sites are friendly (F5C content 
   })
 
   it('pins which missions carry a suggested recovery (a new mission must opt in deliberately)', () => {
-    const withSuggestion = SCENARIOS.filter((id) => {
+    // The pooled and test-bed missions. A chapter is held to a rule of its own below, so a chapter batch never edits this list.
+    const chapterIds = new Set(Object.values(CHAPTER_MISSIONS).flatMap((m) => (m.scenario === null ? [] : [m.scenario])))
+    const withSuggestion = SCENARIOS.filter((id) => !chapterIds.has(id)).filter((id) => {
       const o = world(id).mission?.objectives ?? []
       return o.some((x) => x.kind === 'land' && x.suggestedRecovery === true)
     })
@@ -118,5 +121,15 @@ describe('every shipped scenario declares which sites are friendly (F5C content 
       'airfield-strike', 'combat-air-patrol', 'convoy-strike', 'dev-mission-ui', 'escort', 'field-patrol',
       'flattop-hunt', 'scramble', 'single-combat', 'surigao-strait', 'tank-buster',
     ])
+  })
+
+  it('every authored chapter ends deliberately: a suggested recovery, or an egress gate (Mark, 2026-10-17)', () => {
+    for (const m of Object.values(CHAPTER_MISSIONS)) {
+      if (m.scenario === null) continue
+      const w = world(m.scenario)
+      const suggests = (w.mission?.objectives ?? []).some((x) => x.kind === 'land' && x.suggestedRecovery === true)
+      const egress = w.mission?.egress !== undefined
+      expect(suggests || egress, `${m.scenario} neither suggests a recovery nor ends at an egress gate`).toBe(true)
+    }
   })
 })
