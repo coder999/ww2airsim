@@ -750,6 +750,13 @@ unknown or mismatched records fail with actionable messages; normal non-Dev play
 allocates no recorder buffer and exposes no recorder UI. Detailed contract:
 [`campaign brainstorm §13`](docs/superpowers/notes/2026-10-12-leyte-campaign-brainstorm.md#13-dev-flight-recorder).
 
+**N3. Director mode: later ideas (Mark, 2026-10-17; ideas only, not planned, not sized).** F9 built director mode as a keyframe tool over a mission's own world
+(`docs/campaign-data.md`, "Scenes"). Two directions for later, neither started:
+- **A blank-slate scene.** Start from an empty world and drag in airplanes (and presumably ships and vehicles), re-orient them and set their initial speed, then direct over them.
+  The scene file's `world` is already a union (`{source:'mission', scenario}`), so a `source: 'fresh'` variant is the planned place for it without changing the format (F9 plan, decision 3).
+- **Sky and render controls inside director mode:** time of day, clouds, trees and the render quality settings. Mark leans towards putting them in the pause-style director
+  sheet (the flight pause screen already has a Visual Quality tab) rather than a separate sidebar; undecided.
+
 ## 2. Proposed order
 
 Tracks with no dependency between them run in parallel worktrees, as the
