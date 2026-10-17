@@ -1,0 +1,104 @@
+{
+ "note": "Mission-fit table (F8A Task 10, 2026-10-16): hand-transcribed from F3 section 4, one row per chapter. A 'filled' row has a start, a first-action point and a cruise speed in world terms and is checked by tests/sim/missionFit.test.ts against the real site layout within `ceilingS` at 1x; a 'pending' row names the F8 plan that closes it and why. A failing row is a finding to report, never to tune (Mark, 2026-10-16).",
+ "ceilingS": 420,
+ "rows": [
+  {
+   "id": "A1",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Start is Essex 12-15 mi east of the landing area and first contact is over the landing beaches, which are F8C layouts.",
+   "f3": "launch from Essex; raid contact inside 15 mi; first action 3-4 min"
+  },
+  {
+   "id": "A2",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts airborne 8-12 mi southeast of a surface engagement off Samar; no F8A site is on the route.",
+   "f3": "airborne start; surface engagement inside 12 mi; first action 2-3 min"
+  },
+  {
+   "id": "A3",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts west of the ridge after an Ormoc search; the column and the Ormoc port are F8C. Recovery lands at Tacloban (F8A) 6-7 min from the column.",
+   "f3": "airborne start; column inside 12 mi; first action 2-3 min; recovery 6-7 min to Tacloban"
+  },
+  {
+   "id": "A4",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts afloat at the San Pedro Bay anchorage, an F8C site.",
+   "f3": "water takeoff; search area inside 10 mi; first action 5-6 min including takeoff"
+  },
+  {
+   "id": "A5",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Westbound to Ormoc with four TBMs; the convoy and Ormoc are F8C.",
+   "f3": "airborne escort start; intercept 2-3 min; convoy 5-6 min"
+  },
+  {
+   "id": "A6",
+   "status": "filled",
+   "aircraft": "p-38-lightning",
+   "start": {
+    "site": "tacloban",
+    "window": "endgame",
+    "parked": "tacloban-en-air-1"
+   },
+   "firstAction": {
+    "site": "tanauan",
+    "x": 0,
+    "z": 0,
+    "basis": "invented",
+    "note": "F3 gives A6 no geometry for first contact (only 1-2 min after launch). Tanauan, 17 km from Tacloban and the one F8A site the Japanese lodgment threatens (it is 'visibly under construction' in this window), stands for it until F10 places the raid. Replace with the authored contact point."
+   },
+   "takeoffS": 30,
+   "taxiMps": 8,
+   "cruiseMps": 140,
+   "f3": "launch from Tacloban; first action 1-2 min; recovery at Tacloban, Bayug or Buri within 7 min (the inland fields are F8B)"
+  },
+  {
+   "id": "J1",
+   "status": "pending",
+   "closedBy": "F8B",
+   "reason": "Starts engine-running at Buri, an F8B site.",
+   "f3": "surface start at Buri; first action 2-3 min including takeoff"
+  },
+  {
+   "id": "J2",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts southeast of Leyte Gulf over shipping; no F8A site is on the route.",
+   "f3": "airborne start; CAP 2-3 min; ships 5-6 min"
+  },
+  {
+   "id": "J3",
+   "status": "pending",
+   "closedBy": "F8B",
+   "reason": "Orbits a column bound for Buri and lands at Bayug, both F8B.",
+   "f3": "airborne start; first action 2-3 min; recovery Bayug 3-5 min"
+  },
+  {
+   "id": "J4",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts west of Ormoc Bay; Ormoc and the bay are F8C.",
+   "f3": "airborne start; first action under 2 min"
+  },
+  {
+   "id": "J5",
+   "status": "pending",
+   "closedBy": "F8C",
+   "reason": "Starts west of the ridge over the Burauen drop zone; the fields are F8B and the western approach is F8C.",
+   "f3": "airborne start; intercept 2-3 min; drop 5-6 min"
+  },
+  {
+   "id": "J6",
+   "status": "pending",
+   "closedBy": "F8B",
+   "reason": "Starts at a Japanese-held Buri or Bayug (F8B); Tacloban and Dulag are the unusable F8A fields it targets.",
+   "f3": "launch from Buri or Bayug; first action 2-3 min"
+  }
+ ]
+}
