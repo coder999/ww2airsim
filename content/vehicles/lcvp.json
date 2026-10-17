@@ -1,0 +1,14 @@
+{
+  "id": "lcvp",
+  "name": "LCVP Landing Craft",
+  "lengthM": 11.08,
+  "widthM": 3.28,
+  "heightM": 2.1,
+  "maxSpeedMps": 6.2,
+  "turnRateRadPerS": 0.35,
+  "hp": 80,
+  "targetType": "landing-craft",
+  "view": {
+    "model": "lcvp"
+  }
+}

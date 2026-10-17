@@ -1,4 +1,5 @@
 import type { World } from '../sim/loop.js'
+import type { BuildingKind } from '../sim/world/airfields.js'
 import type { FriendlyFire } from '../sim/weapons/friendlyFire.js'
 import type { DebriefModel } from './debrief.js'
 
@@ -30,7 +31,13 @@ export function friendlyDestroyedBy<M>(world: World<M>): boolean {
   return (world.combat.aircraft[world.player]?.friendlyKills ?? 0) > 0
 }
 
-const STRUCTURE_WORDS = { hangar: 'Hangar', tower: 'Control tower', aaa: 'AAA battery' } as const
+const STRUCTURE_WORDS: Readonly<Record<BuildingKind, string>> = {
+  hangar: 'Hangar', tower: 'Control tower', aaa: 'AAA battery',
+  'ammunition-bunker': 'Ammunition bunker', 'barracks-and-huts': 'Barracks', 'coastal-gun-battery': 'Coastal gun battery',
+  'fuel-tank-farm': 'Fuel tank farm', 'pier-and-warehouses': 'Pier and warehouses', 'radio-radar-station': 'Radio station',
+  revetment: 'Revetment', 'quonset-hut-20x48': 'Quonset hut', 'pontoon-pier-segment': 'Pontoon pier',
+  'jinamoc-seaplane-ramp': 'Seaplane ramp', 'ormoc-customs-building': 'Customs building',
+}
 
 /** A name for what was hit, in the debrief's own style: class name then id
  *  for a ship or airplane ("Essex-class fleet carrier cv-1"), and kind then

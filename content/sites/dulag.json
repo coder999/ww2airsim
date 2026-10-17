@@ -1,0 +1,614 @@
+{
+ "id": "dulag",
+ "name": "Dulag",
+ "airfield": "dulag",
+ "base": {
+  "runway": {
+   "center": {
+    "x": -31629,
+    "z": -16479
+   },
+   "headingDeg": 0,
+   "lengthM": 1500,
+   "widthM": 45
+  },
+  "apron": null,
+  "clearing": null,
+  "buildings": [
+   {
+    "id": "dulag-hangar-1",
+    "kind": "hangar",
+    "x": -146,
+    "z": -150,
+    "widthM": 35,
+    "lengthM": 43,
+    "hp": 120,
+    "heightM": 14.4,
+    "tags": [
+     "dulag-hangars"
+    ],
+    "basis": "invented",
+    "cite": "Carried from content/bases/dulag.json (Plan 13d gameplay layout, scaled to the approved hangar model)."
+   },
+   {
+    "id": "dulag-shed-1",
+    "kind": "quonset-hut-20x48",
+    "x": -146,
+    "z": -245,
+    "widthM": 6.5,
+    "lengthM": 15.7,
+    "hp": 40,
+    "heightM": 4.4,
+    "tags": [
+     "dulag-hangars"
+    ],
+    "basis": "inferred",
+    "cite": "content/bases/dulag.json carries a small maintenance shed here (dulag-hangar-2); the site draws it as a Quonset, an inferred stand-in."
+   },
+   {
+    "id": "dulag-aaa-1",
+    "kind": "aaa",
+    "x": -60,
+    "z": 0,
+    "widthM": 6,
+    "lengthM": 6,
+    "hp": 30,
+    "heightM": 2.3,
+    "tags": [
+     "dulag-aaa"
+    ],
+    "basis": "invented",
+    "cite": "Carried from content/bases/dulag.json (M3 gameplay emplacement)."
+   },
+   {
+    "id": "dulag-aaa-2",
+    "kind": "aaa",
+    "x": -100,
+    "z": -350,
+    "widthM": 6,
+    "lengthM": 6,
+    "hp": 30,
+    "heightM": 2.3,
+    "tags": [
+     "dulag-aaa"
+    ],
+    "basis": "invented",
+    "cite": "Carried from content/bases/dulag.json (M3 gameplay emplacement)."
+   },
+   {
+    "id": "dulag-fuel-farm",
+    "kind": "fuel-tank-farm",
+    "x": -330,
+    "z": 200,
+    "widthM": 55,
+    "lengthM": 55,
+    "hp": 80,
+    "heightM": 9.3,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "dulag-ammo-bunker-1",
+    "kind": "ammunition-bunker",
+    "x": -300,
+    "z": -330,
+    "widthM": 16,
+    "lengthM": 12,
+    "hp": 90,
+    "heightM": 3.6,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "dulag-barracks-1",
+    "kind": "barracks-and-huts",
+    "x": -250,
+    "z": -420,
+    "widthM": 24,
+    "lengthM": 29.2,
+    "hp": 60,
+    "heightM": 6.0,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   }
+  ],
+  "clutterAreas": [
+   {
+    "id": "camp",
+    "x": -200,
+    "z": -100,
+    "widthM": 160,
+    "lengthM": 200
+   },
+   {
+    "id": "strip",
+    "x": 0,
+    "z": 0,
+    "widthM": 80,
+    "lengthM": 1500
+   },
+   {
+    "id": "dump",
+    "x": -300,
+    "z": 100,
+    "widthM": 120,
+    "lengthM": 160
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "army-leyte-ch11": {
+   "claim": "Tacloban and Dulag construction problems and mud; an additional Tacloban dock and lighterage wharves by 1 Dec",
+   "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html"
+  },
+  "wikipedia-dulag": {
+   "claim": "Dulag Airfield: seized shortly after the Leyte landing, 475th Fighter Group arriving 28 Oct 1944 (read 2026-09-17)",
+   "url": "https://en.wikipedia.org/wiki/Dulag_Airfield"
+  },
+  "marine-aviation-philippines": {
+   "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov",
+   "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+  },
+  "navy-bases-ch29": {
+   "claim": "Quonset huts for offices and quarters at Tacloban and Tolosa",
+   "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm"
+  }
+ },
+ "reference": {
+  "source": "Runway is content/bases/dulag.json verbatim (a test pins the agreement); its heading 0 and 1500 x 45 m are that file's ASSUMPTION and ESTIMATE, carried here. Windows follow the F3 section 5 Dulag row. Terrain at Dulag is rolling (8 to 20 m near the strip), checked 2026-10-16."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": true,
+   "side": "axis",
+   "serviceable": false,
+   "note": "Japanese-held but rough and unserviceable.",
+   "states": {
+    "dulag-shed-1": "damaged"
+   },
+   "added": [],
+   "vehicles": [
+    {
+     "id": "dulag-pre-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -150,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "tent": 0.1,
+     "drum": 0.1
+    },
+    "strip": {
+     "rut": 0.04,
+     "mud": 0.04
+    }
+   }
+  },
+  "assault": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Captured 21 Oct; still unserviceable.",
+   "states": {
+    "dulag-hangar-1": "damaged",
+    "dulag-shed-1": "destroyed",
+    "dulag-fuel-farm": "damaged"
+   },
+   "added": [],
+   "vehicles": [
+    {
+     "id": "dulag-as-1",
+     "spec": "caterpillar-d7-3t",
+     "x": -50,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-as-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-as-3",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -30,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "tent": 0.4,
+     "drum": 0.3,
+     "crate": 0.2,
+     "mud": 0.6,
+     "rut": 0.5,
+     "sandbag": 0.3
+    },
+    "strip": {
+     "mud": 0.1,
+     "rut": 0.08,
+     "crater": 0.03
+    },
+    "dump": {
+     "drum": 0.4,
+     "crate": 0.3
+    }
+   }
+  },
+  "buildup": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "Muddy construction and support field; limited later use (475th Fighter Group from 28 Oct).",
+   "states": {
+    "dulag-shed-1": "damaged"
+   },
+   "added": [
+    {
+     "id": "dulag-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -215,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -199,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -183,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "dulag-bu-1",
+     "spec": "caterpillar-d7-3t",
+     "x": -50,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-2",
+     "spec": "caterpillar-d7-3t",
+     "x": -40,
+     "z": -500,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-3",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-4",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -60,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-5",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -30,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [
+    {
+     "id": "dulag-bu-air-1",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -300,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-air-2",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -260,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-bu-air-3",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": 200,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "tent": 0.6,
+     "drum": 0.5,
+     "crate": 0.4,
+     "mud": 0.8,
+     "rut": 0.8,
+     "sandbag": 0.4,
+     "mat": 0.15
+    },
+    "strip": {
+     "mud": 0.12,
+     "rut": 0.1,
+     "mat": 0.03
+    },
+    "dump": {
+     "drum": 0.7,
+     "crate": 0.5,
+     "mud": 0.5
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "American support site and Japanese target.",
+   "states": {
+    "dulag-shed-1": "damaged"
+   },
+   "added": [
+    {
+     "id": "dulag-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -215,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -199,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -183,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "dulag-en-1",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-en-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -60,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-en-3",
+     "spec": "caterpillar-d7-3t",
+     "x": -50,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-en-4",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -30,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [
+    {
+     "id": "dulag-en-air-1",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -300,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "dulag-en-air-2",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -260,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "tent": 0.5,
+     "drum": 0.4,
+     "crate": 0.3,
+     "mud": 0.6,
+     "rut": 0.6,
+     "sandbag": 0.3,
+     "mat": 0.15
+    },
+    "strip": {
+     "mud": 0.1,
+     "rut": 0.08,
+     "mat": 0.03
+    },
+    "dump": {
+     "drum": 0.6,
+     "crate": 0.4,
+     "mud": 0.4
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Bomb-damaged and unusable (alternate history).",
+   "states": {
+    "dulag-hangar-1": "destroyed",
+    "dulag-shed-1": "destroyed",
+    "dulag-fuel-farm": "destroyed",
+    "dulag-quonset-1": "destroyed",
+    "dulag-quonset-2": "damaged"
+   },
+   "added": [
+    {
+     "id": "dulag-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -215,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -199,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    },
+    {
+     "id": "dulag-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -183,
+     "z": -50,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX records Quonsets at Tacloban and Tolosa, not Dulag; a support field of this kind is inferred to have had them, so the huts are labeled inferred."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "dulag-j6-1",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 40,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "crater": 0.15,
+     "mud": 0.5,
+     "rut": 0.4,
+     "tent": 0.1
+    },
+    "strip": {
+     "crater": 0.12,
+     "mud": 0.1
+    },
+    "dump": {
+     "crater": 0.2,
+     "drum": 0.2
+    }
+   }
+  }
+ }
+}

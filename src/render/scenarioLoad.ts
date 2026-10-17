@@ -3,7 +3,8 @@ import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds,
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
 import { parseVehicleSpec } from '../sim/world/vehicles.js'
-import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl, vehicleUrl } from './content.js'
+import { expandScenario, parseSite } from '../sim/world/sites.js'
+import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl, siteUrl, vehicleUrl } from './content.js'
 import { withPlayerSpec } from '../sim/sortie.js'
 
 /**
@@ -36,7 +37,7 @@ export async function loadScenarioFile(id: string, fetchImpl: typeof fetch = fet
  *  fetched and parsed like any other the scenario names. `extend` (DEV only,
  *  the entity-scaling swarm) rewrites the scenario at the same point, for the
  *  same reason. */
-export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string, extend?: (s: Scenario) => Scenario): Promise<ScenarioBundle> {
+export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string, extend?: (s: Scenario) => Scenario, siteWindows: Readonly<Record<string, string>> = {}): Promise<ScenarioBundle> {
   const json = async (url: string): Promise<unknown> => {
     const res = await fetchImpl(url)
     if (!res.ok) throw new Error(`Failed to fetch content ${url}: ${res.status} ${res.statusText}`)
@@ -44,7 +45,7 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
   }
   const parsed = await loadScenarioFile(id, fetchImpl)
   const chosen = playerSpec === undefined ? parsed : withPlayerSpec(parsed, playerSpec)
-  const scenario = extend === undefined ? chosen : extend(chosen)
+  const extended = extend === undefined ? chosen : extend(chosen)
   // Deduplicated and fetched in parallel: the free-flight scenario names one
   // aircraft spec twice (two Hellcats) and Tacloban twice (the strip and both
   // parked airplanes), so the naive form would ask for the same file four
@@ -58,7 +59,11 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
     const values = await Promise.all(unique.map(async (i) => [i, parse(await json(url(i)))] as const))
     return Object.fromEntries(values)
   }
-  const [aircraftSpecs, shipSpecs, vehicleSpecs, airfields] = await Promise.all([
+  // F8: sites are merged in before the spec tables are built, so what a window adds has its specs fetched (the node
+  // twin is `bundleForScenario`). A scenario with no `sites` comes back as it went in.
+  const siteTable = await table(extended.sites ?? [], siteUrl, parseSite)
+  const { scenario, airfields: siteFields } = expandScenario(extended, siteTable, siteWindows)
+  const [aircraftSpecs, shipSpecs, vehicleSpecs, baseFields] = await Promise.all([
     table(scenarioAircraftSpecIds(scenario), aircraftUrl, parseAircraftSpec),
     table(scenarioShipSpecIds(scenario), shipUrl, parseShipSpec),
     table(scenarioVehicleSpecIds(scenario), vehicleUrl, parseVehicleSpec),
@@ -66,7 +71,7 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
       ...scenario.airfields,
       ...scenario.aircraft.flatMap((a) =>
         isParkedAircraft(a) && !isShipParked(a.parkedAt) ? [a.parkedAt.airfield] : []),
-    ], airfieldUrl, parseAirfield),
+    ].filter((a) => siteFields[a] === undefined), airfieldUrl, parseAirfield),
   ])
-  return { scenario, aircraftSpecs, shipSpecs, vehicleSpecs, airfields }
+  return { scenario, aircraftSpecs, shipSpecs, vehicleSpecs, airfields: { ...baseFields, ...siteFields } }
 }

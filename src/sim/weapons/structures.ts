@@ -2,6 +2,7 @@ import { v3, type Vec3 } from '../math/vec3.js'
 import { localToWorld, runwayHeadingRad, type Airfield } from '../world/airfields.js'
 import { heightAt, type TerrainField } from '../world/terrain.js'
 import type { Side } from '../sides.js'
+import type { BuildingKind } from '../world/airfields.js'
 
 /** A strike target derived from airfield content, never stepped (spec §3.5:
  *  "no motion, no aging"). Built once at world creation from EVERY airfield's
@@ -10,7 +11,7 @@ import type { Side } from '../sides.js'
 export type StructureEntity = {
   readonly id: string
   readonly airfield: string
-  readonly kind: 'hangar' | 'tower' | 'aaa'
+  readonly kind: BuildingKind
   readonly position: Vec3
   readonly headingRad: number
   readonly halfSize: { readonly x: number; readonly y: number; readonly z: number }
@@ -32,15 +33,18 @@ export function buildStructures(
   for (const a of airfields) {
     const heading = runwayHeadingRad(a)
     for (const b of a.buildings) {
+      // F8A: rubble is a visual only; a destroyed building has no hit box to bomb, strafe or fly into.
+      if (b.state === 'destroyed') continue
       const world = localToWorld(a, b.x, b.z)
       const groundHeightM = terrain === null ? 0 : heightAt(terrain, world.x, world.z)
+      const heightM = b.heightM ?? BUILDING_HEIGHT_M
       out.push({
         id: b.id,
         airfield: a.id,
         kind: b.kind,
-        position: v3(world.x, groundHeightM + BUILDING_HEIGHT_M / 2, world.z),
-        headingRad: heading,
-        halfSize: { x: b.widthM / 2, y: BUILDING_HEIGHT_M / 2, z: b.lengthM / 2 },
+        position: v3(world.x, groundHeightM + heightM / 2, world.z),
+        headingRad: heading + (b.headingDeg === undefined ? 0 : (b.headingDeg * Math.PI) / 180),
+        halfSize: { x: b.widthM / 2, y: heightM / 2, z: b.lengthM / 2 },
         hp: b.hp,
       })
     }

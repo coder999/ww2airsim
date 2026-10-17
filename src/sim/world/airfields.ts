@@ -19,15 +19,38 @@ const positive = finite.refine((n) => n > 0, { message: 'must be greater than ze
 const RectObject = z.object({ x: finite, z: finite, widthM: positive, lengthM: positive }).strict()
 export type Rect = z.infer<typeof RectObject>
 
+/**
+ * Every kind a base may place (F8A Task 3, 2026-10-16): the three the sim always had, then the other seven approved
+ * R4 buildings and the four F8A models. A kind other than `hangar | tower | aaa` is also a model id of the same name
+ * (`STATIC_MODELS.building`, enforced by tests/sim/world/buildingKinds.test.ts), so the renderer draws that glb.
+ */
+export const BUILDING_KINDS = [
+  'hangar', 'tower', 'aaa',
+  'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses',
+  'radio-radar-station', 'revetment',
+  'quonset-hut-20x48', 'pontoon-pier-segment', 'jinamoc-seaplane-ramp', 'ormoc-customs-building',
+] as const
+export type BuildingKind = typeof BUILDING_KINDS[number]
+
+/** What a window says about one building (F8A, plan Design). Absent means `intact`. */
+export const BUILDING_STATES = ['intact', 'damaged', 'destroyed', 'construction'] as const
+export type BuildingState = typeof BUILDING_STATES[number]
+
 const BuildingObject = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(['hangar', 'tower', 'aaa']),
+    kind: z.enum(BUILDING_KINDS),
     x: finite,
     z: finite,
     widthM: positive,
     lengthM: positive,
     hp: positive,
+    /** F8A: rotation about +y relative to the runway frame, clockwise from above; absent is 0 (the runway's own frame). */
+    headingDeg: finite.optional(),
+    /** F8A: the window's say on this building. `destroyed` is rubble with no hit box; absent is `intact`. */
+    state: z.enum(BUILDING_STATES).optional(),
+    /** F8A: hit-box height. Absent keeps the generic 10 m every building had before F8A. */
+    heightM: positive.optional(),
     /** Mission group tags (spec 2026-09-25 §2.1, e.g. `dulag-hangars`), so an
      *  objective can name a set of buildings. Optional; no shipped base
      *  carried any before M3. */
@@ -60,6 +83,16 @@ const AirfieldObject = z
      *  default for anything not the player); a scenario may override it with
      *  `airfieldSides`. Read through `airfieldSideOf`, src/sim/sides.ts. */
     side: z.enum(['allied', 'axis']).optional(),
+    /** F8A: whether the field may be recovered to. Absent means serviceable, as every base before F8A. */
+    serviceable: z.boolean().optional(),
+    /** F8A: procedural ground clutter (mats, tents, drums, ...), render only; see `src/sim/world/clutter.ts`. */
+    clutter: z.object({
+      seed: z.number().int().nonnegative(),
+      areas: z.array(z.object({
+        id: z.string().min(1), x: finite, z: finite, widthM: positive, lengthM: positive,
+        density: z.record(z.string(), z.number().nonnegative()),
+      }).strict()),
+    }).strict().optional(),
     reference: z.object({ source: z.string().min(1) }).strict(),
   })
   .strict()

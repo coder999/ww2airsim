@@ -1,0 +1,14 @@
+{
+  "id": "caterpillar-d7-3t",
+  "name": "Caterpillar D7 Bulldozer",
+  "lengthM": 4.08,
+  "widthM": 2.43,
+  "heightM": 1.89,
+  "maxSpeedMps": 3.5,
+  "turnRateRadPerS": 0.4,
+  "hp": 70,
+  "targetType": "light-vehicle",
+  "view": {
+    "model": "caterpillar-d7-3t"
+  }
+}

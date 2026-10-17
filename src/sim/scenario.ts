@@ -265,6 +265,9 @@ const ScenarioShape = z.object({
   id,
   player: id,
   airfields: z.array(id).min(1),
+  /** F8: canonical site ids (`content/sites/<id>.json`). A loader merges each site's chosen window (airfield, vehicles, parked
+   *  aircraft, lights) into this scenario before the world is built (`expandScenario`, src/sim/world/sites.ts); absent means none. */
+  sites: z.array(id).min(1).optional(),
   /** Legitimate strike targets (Plan 6b, spec §2.4): which of `airfields`'
    *  structures count toward the `RAZED` counter. Absent means none do --
    *  matching every scenario shipped before this field existed. */

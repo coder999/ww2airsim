@@ -1,0 +1,14 @@
+{
+  "id": "type38-75mm-field-gun",
+  "name": "Type 38 75 mm Field Gun",
+  "lengthM": 5.63,
+  "widthM": 2.1,
+  "heightM": 1.34,
+  "maxSpeedMps": 2.5,
+  "turnRateRadPerS": 0.3,
+  "hp": 50,
+  "targetType": "light-vehicle",
+  "view": {
+    "model": "type38-75mm-field-gun"
+  }
+}

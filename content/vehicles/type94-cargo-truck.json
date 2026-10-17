@@ -1,0 +1,14 @@
+{
+  "id": "type94-cargo-truck",
+  "name": "Type 94 6-wheeled Truck",
+  "lengthM": 5.35,
+  "widthM": 1.9,
+  "heightM": 2.25,
+  "maxSpeedMps": 15.0,
+  "turnRateRadPerS": 0.5,
+  "hp": 40,
+  "targetType": "light-vehicle",
+  "view": {
+    "model": "type94-cargo-truck"
+  }
+}

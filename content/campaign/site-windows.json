@@ -1,0 +1,10 @@
+{
+  "note": "The one list of site-state window ids (F8, 2026-10-16): src/sim/world/sites.ts validates site files against it and src/campaign/worldStates.ts keys Campaign.world values by it. Columns are docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md section 5; the order is the campaign's.",
+  "windows": [
+    { "id": "pre-invasion", "dates": "18-19 Oct 1944" },
+    { "id": "assault", "dates": "20-24 Oct 1944" },
+    { "id": "buildup", "dates": "late Oct-Nov 1944" },
+    { "id": "endgame", "dates": "6-7 Dec 1944" },
+    { "id": "j6-alternate", "dates": "7 Dec 1944, alternate history" }
+  ]
+}

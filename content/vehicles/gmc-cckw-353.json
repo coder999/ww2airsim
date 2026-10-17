@@ -1,0 +1,14 @@
+{
+  "id": "gmc-cckw-353",
+  "name": "GMC CCKW 353 2.5-ton Truck",
+  "lengthM": 6.86,
+  "widthM": 2.24,
+  "heightM": 2.36,
+  "maxSpeedMps": 20.0,
+  "turnRateRadPerS": 0.5,
+  "hp": 60,
+  "targetType": "light-vehicle",
+  "view": {
+    "model": "gmc-cckw-353"
+  }
+}

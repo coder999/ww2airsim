@@ -1,0 +1,450 @@
+{
+ "id": "tanauan",
+ "name": "Tanauan",
+ "airfield": "tanauan",
+ "base": {
+  "runway": {
+   "center": {
+    "x": -31752,
+    "z": -30273
+   },
+   "headingDeg": 0,
+   "lengthM": 1500,
+   "widthM": 45
+  },
+  "apron": null,
+  "clearing": null,
+  "buildings": [],
+  "clutterAreas": [
+   {
+    "id": "camp",
+    "x": -160,
+    "z": -110,
+    "widthM": 140,
+    "lengthM": 140
+   },
+   {
+    "id": "strip",
+    "x": 0,
+    "z": 0,
+    "widthM": 80,
+    "lengthM": 1500
+   },
+   {
+    "id": "dump",
+    "x": -250,
+    "z": 200,
+    "widthM": 100,
+    "lengthM": 120
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "army-leyte-ch18": {
+   "claim": "Buri and San Pablo abandonment; Tanauan work after 28 Nov, operation on 16 Dec",
+   "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-18.html"
+  },
+  "marine-aviation-philippines": {
+   "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov",
+   "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+  },
+  "navy-bases-ch29": {
+   "claim": "Quonset huts for offices and quarters at Tacloban and Tolosa",
+   "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm"
+  }
+ },
+ "reference": {
+  "source": "Runway center fitted to terrain 2026-10-16 with tools/sites/survey.ts (11.0721 N 125.0090 E, about 17 km south of Tacloban): of the grid points within 3.5 km of Tanauan town, heading 0 over this strip has the least relief for 2 km (4 m, all land above 2.7 m); heading 0 also matches Tacloban and Dulag. Length 1500 and width 45 m are the same ESTIMATES as the other bases; the Army history gives no Tanauan dimensions. No Tanauan runway exists in any window before work began after 28 Nov."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": false,
+   "side": "allied",
+   "serviceable": false,
+   "note": "No field: the site is farmland.",
+   "states": {},
+   "added": [],
+   "vehicles": [],
+   "parked": [],
+   "lights": [],
+   "clutter": {}
+  },
+  "assault": {
+   "built": false,
+   "side": "allied",
+   "serviceable": false,
+   "note": "No field: the site is farmland.",
+   "states": {},
+   "added": [],
+   "vehicles": [],
+   "parked": [],
+   "lights": [],
+   "clutter": {}
+  },
+  "buildup": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Site selected after the Buri/San Pablo abandonment; first clearing and a site office after 28 Nov.",
+   "states": {},
+   "added": [
+    {
+     "id": "tanauan-office",
+     "kind": "quonset-hut-20x48",
+     "x": -110,
+     "z": -120,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Construction camps used Quonsets (Navy ch. XXIX); a site office there is inferred, not documented for Tanauan."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tanauan-bu-1",
+     "spec": "caterpillar-d7-3t",
+     "x": 0,
+     "z": -200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-bu-2",
+     "spec": "caterpillar-d7-3t",
+     "x": 20,
+     "z": 300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-bu-3",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -60,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "strip": {
+     "rut": 0.08,
+     "mud": 0.08
+    },
+    "camp": {
+     "tent": 0.2,
+     "drum": 0.1,
+     "mud": 0.3,
+     "rut": 0.2
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Visibly under construction, not yet operational (the Army history dates operation to 16 Dec).",
+   "states": {
+    "tanauan-barracks-1": "construction",
+    "tanauan-fuel-farm": "construction",
+    "tanauan-tower": "construction"
+   },
+   "added": [
+    {
+     "id": "tanauan-office",
+     "kind": "quonset-hut-20x48",
+     "x": -110,
+     "z": -120,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Construction camps used Quonsets (Navy ch. XXIX); a site office there is inferred, not documented for Tanauan."
+    },
+    {
+     "id": "tanauan-barracks-1",
+     "kind": "barracks-and-huts",
+     "x": -200,
+     "z": -150,
+     "widthM": 24,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-fuel-farm",
+     "kind": "fuel-tank-farm",
+     "x": -300,
+     "z": 250,
+     "widthM": 55,
+     "lengthM": 55,
+     "hp": 80,
+     "heightM": 9.3,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-tower",
+     "kind": "tower",
+     "x": -60,
+     "z": -60,
+     "widthM": 10,
+     "lengthM": 10,
+     "hp": 40,
+     "heightM": 16.4,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-aaa-1",
+     "kind": "aaa",
+     "x": -80,
+     "z": 50,
+     "widthM": 6,
+     "lengthM": 6,
+     "hp": 30,
+     "heightM": 2.3,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -110,
+     "z": -90,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX; inferred for Tanauan."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tanauan-en-1",
+     "spec": "caterpillar-d7-3t",
+     "x": 0,
+     "z": -200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-2",
+     "spec": "caterpillar-d7-3t",
+     "x": 20,
+     "z": 300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-3",
+     "spec": "caterpillar-d7-3t",
+     "x": 0,
+     "z": 50,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-4",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -60,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-5",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -30,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-6",
+     "spec": "gmc-cckw-353",
+     "x": -150,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-en-7",
+     "spec": "willys-mb-jeep",
+     "x": -60,
+     "z": -10,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "strip": {
+     "mat": 0.03,
+     "rut": 0.08,
+     "mud": 0.1
+    },
+    "camp": {
+     "tent": 0.4,
+     "drum": 0.4,
+     "crate": 0.3,
+     "mud": 0.4,
+     "rut": 0.4,
+     "sandbag": 0.2
+    },
+    "dump": {
+     "drum": 0.5,
+     "crate": 0.5,
+     "mat": 0.2
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Interrupted construction site (alternate history).",
+   "states": {
+    "tanauan-barracks-1": "construction",
+    "tanauan-fuel-farm": "construction",
+    "tanauan-tower": "construction",
+    "tanauan-office": "damaged",
+    "tanauan-quonset-2": "destroyed"
+   },
+   "added": [
+    {
+     "id": "tanauan-office",
+     "kind": "quonset-hut-20x48",
+     "x": -110,
+     "z": -120,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Construction camps used Quonsets (Navy ch. XXIX); a site office there is inferred, not documented for Tanauan."
+    },
+    {
+     "id": "tanauan-barracks-1",
+     "kind": "barracks-and-huts",
+     "x": -200,
+     "z": -150,
+     "widthM": 24,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-fuel-farm",
+     "kind": "fuel-tank-farm",
+     "x": -300,
+     "z": 250,
+     "widthM": 55,
+     "lengthM": 55,
+     "hp": 80,
+     "heightM": 9.3,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-tower",
+     "kind": "tower",
+     "x": -60,
+     "z": -60,
+     "widthM": 10,
+     "lengthM": 10,
+     "hp": 40,
+     "heightM": 16.4,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-aaa-1",
+     "kind": "aaa",
+     "x": -80,
+     "z": 50,
+     "widthM": 6,
+     "lengthM": 6,
+     "hp": 30,
+     "heightM": 2.3,
+     "basis": "invented",
+     "cite": "Tanauan construction layout is invented: the Army history gives the site and the dates (work after 28 Nov, operation 16 Dec), not a building plan."
+    },
+    {
+     "id": "tanauan-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -110,
+     "z": -90,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Navy ch. XXIX; inferred for Tanauan."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tanauan-j6-1",
+     "spec": "caterpillar-d7-3t",
+     "x": 0,
+     "z": -200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    },
+    {
+     "id": "tanauan-j6-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -60,
+     "headingDeg": 40,
+     "basis": "invented",
+     "cite": "Gameplay layout of a construction site."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "strip": {
+     "rut": 0.06,
+     "mud": 0.1,
+     "crater": 0.06
+    },
+    "camp": {
+     "tent": 0.1,
+     "mud": 0.4,
+     "crater": 0.1
+    },
+    "dump": {
+     "drum": 0.3,
+     "crater": 0.1
+    }
+   }
+  }
+ }
+}

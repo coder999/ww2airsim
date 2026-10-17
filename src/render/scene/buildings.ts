@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { groundNoise } from '../terrain/surface.js'
 import type { SceneryTextureLayer, SceneryTextures } from './sceneryTextures.js'
+import type { BuildingKind } from '../../sim/world/airfields.js'
 
 /**
  * Shared mesh-construction plumbing for both `airfield.ts` (hangars, the
@@ -112,19 +113,28 @@ export function createBuildingMaterials(textures?: SceneryTextures | null): Buil
  * rubble pile, a smoke column, or nothing at all (towns' huts, never a
  * strike target) at the same spot.
  */
+/**
+ * The procedural shape standing for a kind (F8A Task 3). Only `hangar`, `tower` and `hut` have their own shapes; every
+ * other kind is a closed hut-sized shell, the fallback when its glb has not loaded and the shape under the rubble.
+ * `aaa` was always drawn by the hut/hangar path (a 6 m box) and stays on it.
+ */
+export const proceduralShape = (kind: BuildingKind | 'hut'): 'hangar' | 'tower' | 'hut' | 'aaa' =>
+  kind === 'hangar' || kind === 'tower' || kind === 'aaa' ? kind : 'hut'
+
 export function drawBuilding(
   collector: ReturnType<typeof makeCollector>,
-  b: { kind: 'hangar' | 'tower' | 'hut' | 'aaa'; x: number; z: number; width: number; length: number },
+  b: { kind: BuildingKind | 'hut'; x: number; z: number; width: number; length: number },
   field: TerrainField,
   materials: BuildingMaterials,
 ): number {
+  const shape = proceduralShape(b.kind)
   const { steel, timber, concrete, dark, white } = materials
   const { add, box } = collector
   const { x, z } = b
   const y = Math.max(...[-1, 1].flatMap(sx => [-1, 1].map(sz =>
     heightAt(field, x + sx * b.width / 2, z + sz * b.length / 2))))
   box(x, y - 0.5, z, b.width + 1, 0.8, b.length + 1, concrete)
-  if (b.kind === 'tower') {
+  if (shape === 'tower') {
     for (const dx of [-3.5, 3.5]) for (const dz of [-3.5, 3.5]) {
       box(x + dx, y, z + dz, 0.45, 10, 0.45, timber)
     }
@@ -138,12 +148,12 @@ export function drawBuilding(
     for (let i = 0; i < 16; i++) box(x + 5, y + i * 0.5, z + 4 - i * 0.55, 1.2, 0.16, 0.6, timber)
     return y
   }
-  const wall = b.kind === 'hangar' ? 5.5 : 2.8
-  const roofHeight = b.kind === 'hangar' ? b.width * 0.25 : 2.2
+  const wall = shape === 'hangar' ? 5.5 : 2.8
+  const roofHeight = shape === 'hangar' ? b.width * 0.25 : 2.2
   box(x - b.width / 2, y, z, 0.35, wall, b.length, steel)
   box(x + b.width / 2, y, z, 0.35, wall, b.length, steel)
-  box(x, y, z - b.length / 2, b.width, wall, 0.3, b.kind === 'hut' ? timber : dark)
-  if (b.kind === 'hut') box(x, y, z + b.length / 2, b.width, wall, 0.3, timber)
+  box(x, y, z - b.length / 2, b.width, wall, 0.3, shape === 'hut' ? timber : dark)
+  if (shape === 'hut') box(x, y, z + b.length / 2, b.width, wall, 0.3, timber)
   // Barrel roof, open toward the apron; an actual shell, not a solid block.
   const positions: number[] = [], indices: number[] = []
   const segments = 16
@@ -162,7 +172,7 @@ export function drawBuilding(
   add(roof, steel)
   // Close the curved gable at the rear; huts are closed at both ends.
   // Without this, a view through the hangar sees sky through its back wall.
-  for (const end of b.kind === 'hut' ? [-1, 1] : [-1]) {
+  for (const end of shape === 'hut' ? [-1, 1] : [-1]) {
     const gablePositions = [x, y + wall, z + end * b.length / 2]
     const gableIndices: number[] = []
     for (let i = 0; i <= segments; i++) {

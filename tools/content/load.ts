@@ -5,6 +5,7 @@ import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds,
 import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 import { parseVehicleSpec, type VehicleSpec } from '../../src/sim/world/vehicles.js'
+import { expandScenario, parseSite, type Site } from '../../src/sim/world/sites.js'
 
 /**
  * Node-only content loader, used by tests and tools. The browser build loads
@@ -54,20 +55,28 @@ export function loadAirfield(id: string): Airfield {
   return parseAirfield(readContentJson('airfield', 'bases', id))
 }
 
+export function loadSite(id: string): Site {
+  return parseSite(readContentJson('site', 'sites', id))
+}
+
 export function loadScenario(id: string): Scenario {
   return parseScenario(readContentJson('scenario', 'scenarios', id))
 }
 
 /** Every content file a scenario names, loaded and validated. Node only;
  *  `src/render/scenarioLoad.ts` is the browser twin. */
-export function loadScenarioBundle(id: string): ScenarioBundle {
-  return bundleForScenario(loadScenario(id))
+export function loadScenarioBundle(id: string, siteWindows: Readonly<Record<string, string>> = {}): ScenarioBundle {
+  return bundleForScenario(loadScenario(id), siteWindows)
 }
 
 /** Every content file an already-parsed scenario names, loaded and
  *  validated -- the half of `loadScenarioBundle` that does not care where the
  *  scenario itself came from (a test fixture, for one). */
-export function bundleForScenario(scenario: Scenario): ScenarioBundle {
+export function bundleForScenario(parsed: Scenario, siteWindows: Readonly<Record<string, string>> = {}): ScenarioBundle {
+  // F8: a scenario that names `sites` is expanded with each site's chosen window before its content is gathered, so the
+  // vehicles and parked aircraft the window adds have their specs loaded. A scenario with no `sites` is returned as is.
+  const sites = Object.fromEntries((parsed.sites ?? []).map((i) => [i, loadSite(i)]))
+  const { scenario, airfields: siteFields } = expandScenario(parsed, sites, siteWindows)
   const table = <T>(ids: readonly string[], load: (i: string) => T): Readonly<Record<string, T>> =>
     Object.fromEntries([...new Set(ids)].map((i) => [i, load(i)]))
   return {
@@ -75,10 +84,13 @@ export function bundleForScenario(scenario: Scenario): ScenarioBundle {
     aircraftSpecs: table(scenarioAircraftSpecIds(scenario), loadAircraftSpec),
     shipSpecs: table(scenarioShipSpecIds(scenario), loadShipSpec),
     vehicleSpecs: table(scenarioVehicleSpecIds(scenario), loadVehicleSpec),
-    airfields: table([
-      ...scenario.airfields,
-      ...scenario.aircraft.flatMap((a) =>
-        isParkedAircraft(a) && !isShipParked(a.parkedAt) ? [a.parkedAt.airfield] : []),
-    ], loadAirfield),
+    airfields: {
+      ...table([
+        ...scenario.airfields,
+        ...scenario.aircraft.flatMap((a) =>
+          isParkedAircraft(a) && !isShipParked(a.parkedAt) ? [a.parkedAt.airfield] : []),
+      ].filter((a) => siteFields[a] === undefined), loadAirfield),
+      ...siteFields,
+    },
   }
 }

@@ -1,0 +1,1306 @@
+{
+ "id": "tacloban",
+ "name": "Tacloban",
+ "airfield": "tacloban",
+ "base": {
+  "runway": {
+   "center": {
+    "x": -29666,
+    "z": -47605
+   },
+   "headingDeg": 0,
+   "lengthM": 1500,
+   "widthM": 45
+  },
+  "apron": {
+   "x": -116,
+   "z": -60,
+   "widthM": 158,
+   "lengthM": 465
+  },
+  "clearing": {
+   "x": -152.5,
+   "z": -60,
+   "widthM": 235,
+   "lengthM": 540
+  },
+  "buildings": [
+   {
+    "id": "tacloban-hangar-1",
+    "kind": "hangar",
+    "x": -146,
+    "z": -150,
+    "widthM": 34,
+    "lengthM": 42,
+    "hp": 120,
+    "heightM": 14.4,
+    "basis": "invented",
+    "cite": "Carried verbatim from content/bases/tacloban.json (Plan 6b/9 gameplay layout, never a survey)."
+   },
+   {
+    "id": "tacloban-hangar-2",
+    "kind": "hangar",
+    "x": -146,
+    "z": -245,
+    "widthM": 34,
+    "lengthM": 42,
+    "hp": 120,
+    "heightM": 14.4,
+    "basis": "invented",
+    "cite": "Carried verbatim from content/bases/tacloban.json (Plan 6b/9 gameplay layout, never a survey)."
+   },
+   {
+    "id": "tacloban-hangar-3",
+    "kind": "hangar",
+    "x": -146,
+    "z": 100,
+    "widthM": 35,
+    "lengthM": 43,
+    "hp": 120,
+    "heightM": 14.4,
+    "basis": "invented",
+    "cite": "Carried verbatim from content/bases/tacloban.json (Plan 6b/9 gameplay layout, never a survey)."
+   },
+   {
+    "id": "tacloban-tower",
+    "kind": "tower",
+    "x": -76,
+    "z": -55,
+    "widthM": 10,
+    "lengthM": 10,
+    "hp": 40,
+    "heightM": 16.4,
+    "basis": "invented",
+    "cite": "Carried verbatim from content/bases/tacloban.json (Plan 6b/9 gameplay layout, never a survey)."
+   },
+   {
+    "id": "tacloban-aaa-1",
+    "kind": "aaa",
+    "x": -100,
+    "z": 30,
+    "widthM": 6,
+    "lengthM": 6,
+    "hp": 30,
+    "heightM": 2.3,
+    "basis": "invented",
+    "cite": "Carried verbatim from content/bases/tacloban.json (Plan 6b/9 gameplay layout, never a survey)."
+   },
+   {
+    "id": "tacloban-aaa-2",
+    "kind": "aaa",
+    "x": -100,
+    "z": -330,
+    "widthM": 6,
+    "lengthM": 6,
+    "hp": 30,
+    "heightM": 2.3,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-aaa-3",
+    "kind": "aaa",
+    "x": -80,
+    "z": 300,
+    "widthM": 6,
+    "lengthM": 6,
+    "hp": 30,
+    "heightM": 2.3,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-fuel-farm",
+    "kind": "fuel-tank-farm",
+    "x": -330,
+    "z": 250,
+    "widthM": 55,
+    "lengthM": 55,
+    "hp": 80,
+    "heightM": 9.3,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-ammo-bunker-1",
+    "kind": "ammunition-bunker",
+    "x": -330,
+    "z": -330,
+    "widthM": 16,
+    "lengthM": 12,
+    "hp": 90,
+    "heightM": 3.6,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-ammo-bunker-2",
+    "kind": "ammunition-bunker",
+    "x": -300,
+    "z": -330,
+    "widthM": 16,
+    "lengthM": 12,
+    "hp": 90,
+    "heightM": 3.6,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-radio-station",
+    "kind": "radio-radar-station",
+    "x": -100,
+    "z": 260,
+    "widthM": 16,
+    "lengthM": 12,
+    "hp": 50,
+    "heightM": 22.3,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-barracks-1",
+    "kind": "barracks-and-huts",
+    "x": -330,
+    "z": -100,
+    "widthM": 24,
+    "lengthM": 29.2,
+    "hp": 60,
+    "heightM": 6.0,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-revetment-1",
+    "kind": "revetment",
+    "x": -62,
+    "z": 340,
+    "widthM": 20,
+    "lengthM": 30,
+    "hp": 40,
+    "heightM": 3.2,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   },
+   {
+    "id": "tacloban-revetment-2",
+    "kind": "revetment",
+    "x": -62,
+    "z": 390,
+    "widthM": 20,
+    "lengthM": 30,
+    "hp": 40,
+    "heightM": 3.2,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+   }
+  ],
+  "clutterAreas": [
+   {
+    "id": "north-apron",
+    "x": -116,
+    "z": -190,
+    "widthM": 150,
+    "lengthM": 200
+   },
+   {
+    "id": "south-camp",
+    "x": -270,
+    "z": 330,
+    "widthM": 160,
+    "lengthM": 220
+   },
+   {
+    "id": "strip",
+    "x": 0,
+    "z": 0,
+    "widthM": 80,
+    "lengthM": 1500
+   },
+   {
+    "id": "dump",
+    "x": -300,
+    "z": -150,
+    "widthM": 120,
+    "lengthM": 160
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "army-leyte-ch11": {
+   "claim": "Tacloban and Dulag construction problems and mud; an additional Tacloban dock and lighterage wharves by 1 Dec",
+   "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html"
+  },
+  "navy-bases-ch29": {
+   "claim": "Quonset huts for offices and quarters at Tacloban and Tolosa",
+   "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm"
+  },
+  "coast-pilot": {
+   "claim": "Tacloban red harbor light",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/3/39/United_States_coast_pilot%2C_Philippine_Islands_%28IA_cu31924007510633%29.pdf"
+  },
+  "marine-aviation-philippines": {
+   "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov",
+   "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+  }
+ },
+ "reference": {
+  "source": "Runway, apron and clearing are content/bases/tacloban.json verbatim (a test pins the agreement). Windows follow the F3 section 5 Tacloban row; building poses are gameplay layout except where a placement cites a source, and every placement carries its basis. Terrain checked 2026-10-16: land west of the strip, sea east of it south of z=+300."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Japanese operational field; J1-era target context.",
+   "states": {},
+   "added": [],
+   "vehicles": [
+    {
+     "id": "tacloban-pre-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-pre-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -130,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-pre-3",
+     "spec": "type38-75mm-field-gun",
+     "x": -115,
+     "z": 35,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [
+    {
+     "id": "tacloban-pre-air-1",
+     "spec": "ki-43-oscar",
+     "x": -58,
+     "z": -285,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-pre-air-2",
+     "spec": "ki-43-oscar",
+     "x": -58,
+     "z": -255,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-pre-air-3",
+     "spec": "a6m2-zero",
+     "x": -58,
+     "z": -215,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "lights": [],
+   "clutter": {
+    "north-apron": {
+     "tent": 0.15,
+     "drum": 0.15,
+     "crate": 0.1
+    },
+    "dump": {
+     "drum": 0.4,
+     "crate": 0.3,
+     "tent": 0.1
+    }
+   }
+  },
+  "assault": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Captured 20 Oct; emergency reconstruction, not yet serviceable.",
+   "states": {
+    "tacloban-hangar-2": "destroyed",
+    "tacloban-tower": "damaged",
+    "tacloban-hangar-1": "damaged",
+    "tacloban-radio-station": "damaged"
+   },
+   "added": [],
+   "vehicles": [
+    {
+     "id": "tacloban-as-1",
+     "spec": "caterpillar-d7-3t",
+     "x": -60,
+     "z": -300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-as-2",
+     "spec": "caterpillar-d7-3t",
+     "x": -30,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-as-3",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-as-4",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -130,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-as-5",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -160,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-as-6",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -40,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "north-apron": {
+     "tent": 0.5,
+     "drum": 0.35,
+     "crate": 0.3,
+     "sandbag": 0.4,
+     "mud": 0.5,
+     "rut": 0.4
+    },
+    "strip": {
+     "crater": 0.05,
+     "mat": 0.02,
+     "rut": 0.03
+    },
+    "dump": {
+     "drum": 0.6,
+     "crate": 0.5,
+     "tent": 0.15
+    }
+   }
+  },
+  "buildup": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "Principal American operational field: mat expansion, congestion, dispersals.",
+   "states": {
+    "tacloban-hangar-2": "destroyed"
+   },
+   "added": [
+    {
+     "id": "tacloban-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tacloban-bu-1",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -130,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-3",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -160,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-4",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -190,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-5",
+     "spec": "gmc-cckw-353",
+     "x": -220,
+     "z": 400,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-6",
+     "spec": "caterpillar-d7-3t",
+     "x": -60,
+     "z": -300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-7",
+     "spec": "caterpillar-d7-3t",
+     "x": -30,
+     "z": 200,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-8",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -40,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-9",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": 0,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-10",
+     "spec": "m4-sherman",
+     "x": -200,
+     "z": 330,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-11",
+     "spec": "gmc-cckw-353",
+     "x": -200,
+     "z": -330,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-12",
+     "spec": "caterpillar-d7-3t",
+     "x": -290,
+     "z": -40,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [
+    {
+     "id": "tacloban-bu-air-1",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -285,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-2",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -255,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-3",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -215,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-4",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -185,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-5",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -135,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-6",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -105,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-7",
+     "spec": "f4u-corsair",
+     "x": -58,
+     "z": 60,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-bu-air-8",
+     "spec": "f4u-corsair",
+     "x": -58,
+     "z": 95,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "lights": [
+    {
+     "id": "tacloban-pot-0",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": -600
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-1",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": -600
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-2",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": -300
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-3",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": -300
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-4",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": 0
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-5",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": 0
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-harbor-light",
+     "kind": "fixture",
+     "at": {
+      "x": -60,
+      "z": -560
+     },
+     "color": "red",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Tacloban had a red harbor light (prewar U.S. Coast Pilot); its placement beside this airfield is a gameplay choice, and its 1944 state is not claimed."
+    }
+   ],
+   "clutter": {
+    "north-apron": {
+     "tent": 0.7,
+     "drum": 0.7,
+     "crate": 0.6,
+     "sandbag": 0.5,
+     "mud": 0.6,
+     "rut": 0.7,
+     "mat": 0.3
+    },
+    "south-camp": {
+     "tent": 0.5,
+     "drum": 0.4,
+     "crate": 0.4,
+     "mud": 0.5,
+     "rut": 0.4
+    },
+    "strip": {
+     "mat": 0.04,
+     "rut": 0.03,
+     "crater": 0.01
+    },
+    "dump": {
+     "drum": 0.9,
+     "crate": 0.8,
+     "sandbag": 0.4,
+     "mud": 0.4
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "American operational field; A6 start and Japanese target. Second dock built.",
+   "states": {
+    "tacloban-hangar-2": "destroyed"
+   },
+   "added": [
+    {
+     "id": "tacloban-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-pier",
+     "kind": "pier-and-warehouses",
+     "x": 190,
+     "z": -350,
+     "widthM": 100,
+     "lengthM": 40,
+     "hp": 100,
+     "heightM": 11.0,
+     "basis": "sourced",
+     "cite": "army-leyte-ch11"
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tacloban-en-1",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -130,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-3",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -160,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-4",
+     "spec": "gmc-cckw-353",
+     "x": 160,
+     "z": -300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-5",
+     "spec": "gmc-cckw-353",
+     "x": 160,
+     "z": -330,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-6",
+     "spec": "willys-mb-jeep",
+     "x": -90,
+     "z": -40,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-7",
+     "spec": "caterpillar-d7-3t",
+     "x": -60,
+     "z": -300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-8",
+     "spec": "m4-sherman",
+     "x": -200,
+     "z": 330,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [
+    {
+     "id": "tacloban-en-air-1",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -285,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-air-2",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -255,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-air-3",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -215,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-air-4",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -185,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-air-5",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -135,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-en-air-6",
+     "spec": "p-38-lightning",
+     "x": -58,
+     "z": -105,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "lights": [
+    {
+     "id": "tacloban-pot-0",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": -600
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-1",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": -600
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-2",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": -300
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-3",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": -300
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-4",
+     "kind": "pot",
+     "at": {
+      "x": -30,
+      "z": 0
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-pot-5",
+     "kind": "pot",
+     "at": {
+      "x": 30,
+      "z": 0
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Runway flare pots are historical at Leyte field night operations; the count and spacing here are a gameplay choice."
+    },
+    {
+     "id": "tacloban-harbor-light",
+     "kind": "fixture",
+     "at": {
+      "x": -60,
+      "z": -560
+     },
+     "color": "red",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Tacloban had a red harbor light (prewar U.S. Coast Pilot); its placement beside this airfield is a gameplay choice, and its 1944 state is not claimed."
+    }
+   ],
+   "clutter": {
+    "north-apron": {
+     "tent": 0.6,
+     "drum": 0.6,
+     "crate": 0.5,
+     "sandbag": 0.5,
+     "mud": 0.4,
+     "rut": 0.5,
+     "mat": 0.3
+    },
+    "south-camp": {
+     "tent": 0.5,
+     "drum": 0.4,
+     "crate": 0.4,
+     "mud": 0.3,
+     "rut": 0.3
+    },
+    "strip": {
+     "mat": 0.04,
+     "rut": 0.02
+    },
+    "dump": {
+     "drum": 0.9,
+     "crate": 0.8,
+     "sandbag": 0.4,
+     "mud": 0.3
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Bomb-damaged and unusable; American withdrawal (alternate history).",
+   "states": {
+    "tacloban-hangar-1": "destroyed",
+    "tacloban-hangar-2": "destroyed",
+    "tacloban-hangar-3": "damaged",
+    "tacloban-tower": "destroyed",
+    "tacloban-fuel-farm": "destroyed",
+    "tacloban-radio-station": "destroyed",
+    "tacloban-quonset-1": "damaged",
+    "tacloban-quonset-2": "destroyed",
+    "tacloban-quonset-3": "destroyed",
+    "tacloban-pier": "damaged"
+   },
+   "added": [
+    {
+     "id": "tacloban-quonset-1",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-2",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 420,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": -245,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": -229,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -213,
+     "z": 448,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 40,
+     "heightM": 4.4,
+     "basis": "sourced",
+     "cite": "navy-bases-ch29"
+    },
+    {
+     "id": "tacloban-pier",
+     "kind": "pier-and-warehouses",
+     "x": 190,
+     "z": -350,
+     "widthM": 100,
+     "lengthM": 40,
+     "hp": 100,
+     "heightM": 11.0,
+     "basis": "sourced",
+     "cite": "army-leyte-ch11"
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "tacloban-j6-1",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -100,
+     "headingDeg": 90,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-j6-2",
+     "spec": "gmc-cckw-353",
+     "x": -100,
+     "z": -130,
+     "headingDeg": 40,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    },
+    {
+     "id": "tacloban-j6-3",
+     "spec": "caterpillar-d7-3t",
+     "x": -60,
+     "z": -300,
+     "headingDeg": 0,
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "north-apron": {
+     "tent": 0.2,
+     "drum": 0.4,
+     "crate": 0.2,
+     "mud": 0.4,
+     "rut": 0.4,
+     "crater": 0.15
+    },
+    "strip": {
+     "crater": 0.12,
+     "rut": 0.02
+    },
+    "south-camp": {
+     "crater": 0.1,
+     "tent": 0.1
+    },
+    "dump": {
+     "drum": 0.3,
+     "crater": 0.2
+    }
+   }
+  }
+ }
+}
