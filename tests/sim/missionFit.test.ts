@@ -3,7 +3,10 @@ import { readdirSync } from 'node:fs'
 import table from '../../content/campaign/mission-fit.json'
 import chapters from '../../content/campaign/chapters.json'
 import { loadAircraftSpec, loadSite } from '../../tools/content/load.js'
-import { fitOf, problemsOf, type FilledRow } from '../../tools/sites/missionFit.js'
+import { fitOf, linkProblem, problemsOf, startWorldOf, type FilledRow } from '../../tools/sites/missionFit.js'
+import { loadScenarioBundle } from '../../tools/content/load.js'
+import { worldFromScenario } from '../../src/sim/scenario.js'
+import { playerAircraft } from '../../src/sim/loop.js'
 
 /**
  * The mission-fit gate (F8A Task 10, plan decision 4; extended by F8B, 2026-10-17, and closed by F8C, 2026-10-17). Every F3
@@ -138,5 +141,21 @@ describe('mission-fit table', () => {
     if (start.kind !== 'parked') throw new Error('A6 starts parked')
     expect(() => fitOf({ ...a6, start: { ...start, parked: 'nobody' } }, sites)).toThrow(/nobody/)
     expect(() => fitOf({ ...a6, start: { ...start, site: 'tanauan', window: 'assault' } }, sites)).toThrow(/no field/)
+  })
+})
+
+describe('a row linked to a scenario (F10-0)', () => {
+  const realStart = (scenario: string) => { const p = playerAircraft(worldFromScenario(loadScenarioBundle(scenario), null)).state.position; return { x: p.x, z: p.z } }
+  it('every row that names a scenario starts where that scenario starts', () => {
+    for (const r of filled.filter((x) => x.scenario !== undefined)) expect(linkProblem(r, sites, realStart(r.scenario!)), r.id).toBeNull()
+  })
+  it('the check can fail: a start that moved, or a row with no link, is told apart', () => {
+    const row = { ...rowOf('A6'), scenario: 'escort' } // a real scenario, nowhere near Tacloban's parked start
+    const at = startWorldOf(row, sites)
+    expect(linkProblem(row, sites, at)).toBeNull()
+    expect(linkProblem(row, sites, { x: at.x + 100, z: at.z })).toBeNull() // inside the tolerance
+    expect(linkProblem(row, sites, { x: at.x + 1000, z: at.z })).toMatch(/^link: A6 starts 1000 m from where scenario "escort" starts/)
+    expect(linkProblem(rowOf('A6'), sites, { x: 0, z: 0 })).toBeNull() // not linked: nothing to compare
+    expect(realStart('escort').x).toBeCloseTo(-16536, -2) // the reader finds a real scenario's start (escort.json: airborneAt -16536, 3500, -34186)
   })
 })

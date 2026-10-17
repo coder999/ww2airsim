@@ -30,6 +30,8 @@ export type Start =
 export type FilledRow = {
   readonly id: string
   readonly status: 'filled'
+  /** F10-0: the scenario this row measures. Once a chapter is built, the row's start must be where that scenario really starts (`linkProblem`). */
+  readonly scenario?: string
   readonly aircraft: string
   /** The player's side: whose fields are legal to recover to. */
   readonly side: 'allied' | 'axis'
@@ -149,6 +151,33 @@ export function fitOf(row: FilledRow, sites: Readonly<Record<string, Site>>): Fi
     taxiM, taxiS, takeoffS, flightM, flightS, totalS: taxiS + takeoffS + flightS, taxiBlockedBy: blockedBy,
     rangeM: Math.hypot(target.x - from.x, target.z - from.z), recovery, illegal, lamps,
   }
+}
+
+/** Where the row says the airplane starts, in world meters (the parked spot, or the site-local start point). */
+export function startWorldOf(row: FilledRow, sites: Readonly<Record<string, Site>>): { readonly x: number; readonly z: number } {
+  const site = sites[row.start.site]
+  if (site === undefined) throw new Error(`${row.id}: site not loaded`)
+  if (row.start.kind === 'parked') {
+    const field = airfieldFor(site, row.start.window)
+    const spot = site.windows[row.start.window]?.parked.find((p) => p.id === (row.start as { parked: string }).parked)
+    if (field === null || spot === undefined) throw new Error(`${row.id}: no parked start`)
+    return localToWorld(field, spot.x, spot.z)
+  }
+  return localToWorld(frameOf(site), row.start.x, row.start.z)
+}
+
+/** How far a linked row's start may sit from the scenario's real start (F10-0): a spot in a site's frame against the world the scenario builds. */
+export const LINK_TOLERANCE_M = 250
+
+/**
+ * F10-0: a row linked to a scenario (`scenario`) must start where that scenario starts, so a chapter whose geometry moves forces its row to follow.
+ * `real` is the player's world position at tick 0, read by the caller from the built world. Null when the row agrees (or is not linked).
+ */
+export function linkProblem(row: FilledRow, sites: Readonly<Record<string, Site>>, real: { readonly x: number; readonly z: number }): string | null {
+  if (row.scenario === undefined) return null
+  const at = startWorldOf(row, sites)
+  const d = Math.hypot(at.x - real.x, at.z - real.z)
+  return d <= LINK_TOLERANCE_M ? null : `link: ${row.id} starts ${Math.round(d)} m from where scenario "${row.scenario}" starts (row ${Math.round(at.x)},${Math.round(at.z)}; scenario ${Math.round(real.x)},${Math.round(real.z)})`
 }
 
 /**
