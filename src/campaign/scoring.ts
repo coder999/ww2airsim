@@ -12,11 +12,11 @@ export const rosterBonusOf = (tiers: readonly Tier[]): number => tiers.reduce((s
 export const destructionPoints = (counts: Counts): number => SCORE_CLASSES.reduce((sum, k) => sum + counts[k] * SCORE_POINTS[k], 0)
 
 /**
- * The ends that forfeit whatever the sortie had not yet banked (F5C D5, 2026-10-16): a pilot who does not come
- * back, or who walks away, keeps only what an earlier landing banked. A ditching or a rescue survives and banks.
- * One place, so the rule can be flipped without touching the reducers.
+ * The ends that forfeit whatever the sortie had not yet banked. Mark ruled 2026-10-16: only Abandon does. A death or a
+ * capture still banks the destruction earned since the last landing (the 2026-09-27 rule), and ditching and rescue bank
+ * too; banked stays banked either way (F5C D5). One place, so the rule can be flipped without touching the reducers.
  */
-export const FORFEITING_ENDS: readonly SortieReport['end'][] = ['abandoned', 'killed', 'captured']
+export const FORFEITING_ENDS: readonly SortieReport['end'][] = ['abandoned']
 /** A destroyed friendly forfeits the unbanked part whatever the end was (F5A, D6). */
 export const forfeitsUnbanked = (r: Pick<SortieReport, 'end' | 'friendlyDestroyed'>): boolean =>
   r.friendlyDestroyed || FORFEITING_ENDS.includes(r.end)

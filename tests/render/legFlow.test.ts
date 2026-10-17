@@ -137,7 +137,7 @@ describe('a two-leg sortie (D2-D9)', () => {
     expect(end.pilots[pilotId]!.career).toMatchObject({ landings: { field: 2 }, flightSeconds: 1300 })
   })
 
-  it('a death after a bank keeps the bank and loses the rest (D5)', () => {
+  it('a death after a bank keeps the bank, and still banks what it earned since (Mark 2026-10-16)', () => {
     const { session, pilotId, frame0 } = setup()
     const down = { ...frame0, world: destroyNow(frame0.world, ['bandit-1']) }
     const one = landAndBank(session, down, TAC, 'Tacloban', credits({ fighter: 1 }), 600)
@@ -148,7 +148,7 @@ describe('a two-leg sortie (D2-D9)', () => {
     })
     expect(killed).not.toBeNull()
     const c = session.current()!
-    expect(c.pilots[pilotId]).toMatchObject({ status: 'kia', points: 1000 })
+    expect(c.pilots[pilotId]).toMatchObject({ status: 'kia', points: 2000 }) // 1000 banked at the landing + two more fighters
     expect(c.progress.completed).toEqual(['A1'])
     expect(tierOf(c.pilots[pilotId]!.points)).toBe(1)
     expect(c.human.ledger.points).toBeGreaterThanOrEqual(1000)

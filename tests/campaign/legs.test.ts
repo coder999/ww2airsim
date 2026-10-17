@@ -29,16 +29,16 @@ describe('bankLeg: checkpoint banking (D4)', () => {
     expect(l1.revision).toBe(l0.revision + 1)
   })
 
-  it('the Mark example: leg 1 +500 landed, leg 2 +200 then killed banks the 500 only (D5)', () => {
+  it('leg 1 +500 landed, leg 2 +200 then killed: the death still banks the 200 (Mark 2026-10-16), and the 500 stays', () => {
     // 200 points is not one target, so use a 500 fighter on leg 1 and 100 light vehicles x2 on leg 2.
     const l0 = launch(fresh(), 0, mission())
     const pid = l0.roster.live[0]!
     const l1 = bank(l0, leg(l0, 1, { counts: counts({ fighter: 1 }) }))
     const closed = accept(bankSortie(l1, report(l1, { end: 'killed', counts: counts({ fighter: 1, 'light-vehicle': 2 }) }), NOW))
-    expect(closed.pilots[pid]).toMatchObject({ status: 'kia', points: 500 })
-    expect(closed.human.ledger.points).toBe(500)
+    expect(closed.pilots[pid]).toMatchObject({ status: 'kia', points: 700 })
+    expect(closed.human.ledger.points).toBe(700)
     expect(closed.human.ledger.counts.fighter).toBe(1)
-    expect(closed.human.ledger.counts['light-vehicle']).toBe(0)
+    expect(closed.human.ledger.counts['light-vehicle']).toBe(2)
     expect(closed.human.stats.losses.kia).toBe(1)
   })
 
@@ -179,7 +179,7 @@ describe('bankLeg: checkpoint banking (D4)', () => {
 
 describe('model check: end kind x landings banked x qualified x unbanked work', () => {
   const ENDS: SortieEndKind[] = ['landed', 'ditched', 'killed', 'rescued', 'captured', 'abandoned']
-  const FORFEITS: SortieEndKind[] = ['killed', 'captured', 'abandoned']
+  const FORFEITS: SortieEndKind[] = ['abandoned'] // Mark 2026-10-16: a death or a capture still banks its delta
   const sumLog = (es: readonly { points: number }[]) => es.reduce((s, e) => s + e.points, 0)
   let states = 0
 

@@ -1,0 +1,686 @@
+[
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 0,
+    "n": 242,
+    "gpuP50": 3.9318800000000005,
+    "gpuP95": 4.0264,
+    "cpuWorkP50": 3.2000000178813934,
+    "cpuWorkP95": 4,
+    "drawCalls": 96,
+    "triangles": 2818684,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 0,
+    "n": 225,
+    "gpuP50": 4.53736,
+    "gpuP95": 4.64944,
+    "cpuWorkP50": 4.5999999940395355,
+    "cpuWorkP95": 6,
+    "drawCalls": 98,
+    "triangles": 2876864,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 0,
+    "n": 234,
+    "gpuP50": 4.8359999999999985,
+    "gpuP95": 5.336800000000001,
+    "cpuWorkP50": 4.699999988079071,
+    "cpuWorkP95": 6.0999999940395355,
+    "drawCalls": 100,
+    "triangles": 2934864,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 0,
+    "n": 246,
+    "gpuP50": 4.592080000000001,
+    "gpuP95": 4.690760000000001,
+    "cpuWorkP50": 6.0999999940395355,
+    "cpuWorkP95": 7.5,
+    "drawCalls": 101,
+    "triangles": 3127024,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 2.5,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 0,
+    "n": 232,
+    "gpuP50": 4.895040000000002,
+    "gpuP95": 14.261199999999999,
+    "cpuWorkP50": 7.5999999940395355,
+    "cpuWorkP95": 9.099999994039536,
+    "drawCalls": 102,
+    "triangles": 3349620,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 1.0999999940395355,
+      "coarse": 2.7999999821186066
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 0,
+    "n": 260,
+    "gpuP50": 3.9804,
+    "gpuP95": 4.060960000000001,
+    "cpuWorkP50": 3.0999999940395355,
+    "cpuWorkP95": 4.300000011920929,
+    "drawCalls": 96,
+    "triangles": 2818684,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 1,
+    "n": 264,
+    "gpuP50": 4.350519999999998,
+    "gpuP95": 4.78008,
+    "cpuWorkP50": 4.5999999940395355,
+    "cpuWorkP95": 5.700000017881393,
+    "drawCalls": 98,
+    "triangles": 2876744,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 1,
+    "n": 261,
+    "gpuP50": 4.01644,
+    "gpuP95": 4.0892,
+    "cpuWorkP50": 4.700000017881393,
+    "cpuWorkP95": 5.9000000059604645,
+    "drawCalls": 100,
+    "triangles": 2934864,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 1,
+    "n": 241,
+    "gpuP50": 4.60688,
+    "gpuP95": 4.706520000000002,
+    "cpuWorkP50": 6.200000017881393,
+    "cpuWorkP95": 7.800000011920929,
+    "drawCalls": 101,
+    "triangles": 3127024,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 1,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 1,
+    "n": 174,
+    "gpuP50": 4.12444,
+    "gpuP95": 5.424279999999999,
+    "cpuWorkP50": 14.599999994039536,
+    "cpuWorkP95": 17.69999998807907,
+    "drawCalls": 102,
+    "triangles": 3349680,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 1.0999999940395355,
+      "coarse": 1.199999988079071
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 1,
+    "n": 239,
+    "gpuP50": 3.95128,
+    "gpuP95": 4.060120000000001,
+    "cpuWorkP50": 4.699999988079071,
+    "cpuWorkP95": 6,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 1,
+    "n": 408,
+    "gpuP50": 4.601400000000002,
+    "gpuP95": 7.924639999999999,
+    "cpuWorkP50": 4.200000017881393,
+    "cpuWorkP95": 5.199999988079071,
+    "drawCalls": 96,
+    "triangles": 2818684,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 2,
+    "n": 316,
+    "gpuP50": 6.032919999999999,
+    "gpuP95": 11.927640000000004,
+    "cpuWorkP50": 5.4000000059604645,
+    "cpuWorkP95": 6.5,
+    "drawCalls": 100,
+    "triangles": 2934684,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 2,
+    "n": 260,
+    "gpuP50": 6.83704,
+    "gpuP95": 13.513760000000001,
+    "cpuWorkP50": 6.800000011920929,
+    "cpuWorkP95": 8.400000005960464,
+    "drawCalls": 101,
+    "triangles": 3126964,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 2.9000000059604645,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 2,
+    "n": 192,
+    "gpuP50": 5.1481200000000005,
+    "gpuP95": 14.67812,
+    "cpuWorkP50": 9.5,
+    "cpuWorkP95": 11.900000005960464,
+    "drawCalls": 102,
+    "triangles": 3349800,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 1.4000000059604645,
+      "coarse": 4.5999999940395355
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 2,
+    "n": 339,
+    "gpuP50": 4.530239999999999,
+    "gpuP95": 4.591839999999999,
+    "cpuWorkP50": 4.0999999940395355,
+    "cpuWorkP95": 5.0999999940395355,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 2,
+    "n": 264,
+    "gpuP50": 4.52464,
+    "gpuP95": 4.85244,
+    "cpuWorkP50": 4.299999982118607,
+    "cpuWorkP95": 5.300000011920929,
+    "drawCalls": 96,
+    "triangles": 2818684,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 2,
+    "n": 284,
+    "gpuP50": 3.9802,
+    "gpuP95": 12.1652,
+    "cpuWorkP50": 7.300000011920929,
+    "cpuWorkP95": 8.599999994039536,
+    "drawCalls": 98,
+    "triangles": 2876744,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 3,
+    "n": 235,
+    "gpuP50": 4.546000000000001,
+    "gpuP95": 8.773040000000002,
+    "cpuWorkP50": 10.800000011920929,
+    "cpuWorkP95": 13.200000017881393,
+    "drawCalls": 101,
+    "triangles": 3126964,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 1.800000011920929,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 3,
+    "n": 192,
+    "gpuP50": 4.28512,
+    "gpuP95": 11.8098,
+    "cpuWorkP50": 12.5,
+    "cpuWorkP95": 16.399999976158142,
+    "drawCalls": 102,
+    "triangles": 3349680,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 1.9000000059604645,
+      "coarse": 1.5
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 3,
+    "n": 360,
+    "gpuP50": 3.9552799999999997,
+    "gpuP95": 4.03648,
+    "cpuWorkP50": 4.5,
+    "cpuWorkP95": 5.800000011920929,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 3,
+    "n": 342,
+    "gpuP50": 5.210279999999999,
+    "gpuP95": 12.325400000000002,
+    "cpuWorkP50": 4.4000000059604645,
+    "cpuWorkP95": 5.800000011920929,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 3,
+    "n": 238,
+    "gpuP50": 6.325240000000001,
+    "gpuP95": 13.328959999999999,
+    "cpuWorkP50": 7.5,
+    "cpuWorkP95": 9.299999982118607,
+    "drawCalls": 98,
+    "triangles": 2876684,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 3,
+    "n": 244,
+    "gpuP50": 5.26296,
+    "gpuP95": 14.03092,
+    "cpuWorkP50": 7.299999982118607,
+    "cpuWorkP95": 9.199999988079071,
+    "drawCalls": 100,
+    "triangles": 2934564,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 4,
+    "n": 165,
+    "gpuP50": 12.921839999999998,
+    "gpuP95": 15.637199999999998,
+    "cpuWorkP50": 12.900000005960464,
+    "cpuWorkP95": 17.30000001192093,
+    "drawCalls": 102,
+    "triangles": 3349620,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 1.699999988079071,
+      "coarse": 1.5
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 4,
+    "n": 369,
+    "gpuP50": 4.522080000000002,
+    "gpuP95": 6.15296,
+    "cpuWorkP50": 4.200000017881393,
+    "cpuWorkP95": 5.199999988079071,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 4,
+    "n": 331,
+    "gpuP50": 4.521719999999999,
+    "gpuP95": 10.807720000000002,
+    "cpuWorkP50": 4.5,
+    "cpuWorkP95": 5.699999988079071,
+    "drawCalls": 96,
+    "triangles": 2818684,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 4,
+    "n": 276,
+    "gpuP50": 5.288679999999999,
+    "gpuP95": 13.246960000000003,
+    "cpuWorkP50": 7.300000011920929,
+    "cpuWorkP95": 9.400000005960464,
+    "drawCalls": 98,
+    "triangles": 2876684,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 4,
+    "n": 238,
+    "gpuP50": 4.08716,
+    "gpuP95": 13.831280000000001,
+    "cpuWorkP50": 7.300000011920929,
+    "cpuWorkP95": 8.899999976158142,
+    "drawCalls": 100,
+    "triangles": 2934564,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 4,
+    "n": 237,
+    "gpuP50": 4.576119999999998,
+    "gpuP95": 6.683239999999999,
+    "cpuWorkP50": 10.5,
+    "cpuWorkP95": 12,
+    "drawCalls": 101,
+    "triangles": 3127024,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 2.4000000059604645,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "canopy-only",
+    "round": 5,
+    "n": 342,
+    "gpuP50": 4.506600000000001,
+    "gpuP95": 4.6053999999999995,
+    "cpuWorkP50": 4.5999999940395355,
+    "cpuWorkP95": 5.4000000059604645,
+    "drawCalls": 96,
+    "triangles": 2818864,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "base",
+    "round": 5,
+    "n": 369,
+    "gpuP50": 3.92412,
+    "gpuP95": 4.02124,
+    "cpuWorkP50": 4.200000017881393,
+    "cpuWorkP95": 5.4000000059604645,
+    "drawCalls": 96,
+    "triangles": 2818744,
+    "near": 0,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-whole",
+    "round": 5,
+    "n": 293,
+    "gpuP50": 4.497839999999999,
+    "gpuP95": 4.9128,
+    "cpuWorkP50": 7.4000000059604645,
+    "cpuWorkP95": 8.599999994039536,
+    "drawCalls": 98,
+    "triangles": 2876684,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "near-soft",
+    "round": 5,
+    "n": 307,
+    "gpuP50": 4.499680000000001,
+    "gpuP95": 4.91432,
+    "cpuWorkP50": 7,
+    "cpuWorkP95": 8.200000017881393,
+    "drawCalls": 100,
+    "triangles": 2934744,
+    "near": 725,
+    "distant": 0,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 0,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "plus-crowns",
+    "round": 5,
+    "n": 240,
+    "gpuP50": 5.1193599999999995,
+    "gpuP95": 12.30848,
+    "cpuWorkP50": 9.5,
+    "cpuWorkP95": 10.900000005960464,
+    "drawCalls": 101,
+    "triangles": 3127024,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 0,
+    "maxUpdateMs": {
+      "distant": 3.699999988079071,
+      "coarse": 0
+    }
+  },
+  {
+    "view": "photo",
+    "arm": "full",
+    "round": 5,
+    "n": 164,
+    "gpuP50": 13.076880000000001,
+    "gpuP95": 15.958559999999999,
+    "cpuWorkP50": 12.199999988079071,
+    "cpuWorkP95": 16.799999982118607,
+    "drawCalls": 102,
+    "triangles": 3349680,
+    "near": 725,
+    "distant": 7355,
+    "coarse": 43491,
+    "maxUpdateMs": {
+      "distant": 2.7999999821186066,
+      "coarse": 1.2000000178813934
+    }
+  }
+]

@@ -24,11 +24,11 @@ not this file.
 
 Points **bank at each landing at a friendly base**, for good (Mark, 2026-10-16;
 "The sortie, the stop and the recovery rule" below). A ditching or a rescue banks
-what you earned since your last landing. A **death or a capture, and Abandon,
-forfeit only the points not yet banked**: whatever an earlier landing banked stays
-(F5C; until then, since 2026-09-27, a death banked everything it had earned).
+what you earned since your last landing, and so does a death or a capture
+(Mark, 2026-09-27, confirmed 2026-10-16). **Only Abandon forfeits the points not yet
+banked**; whatever an earlier landing banked always stays.
 Unlike the 1991 original, the game resurrects pilots, so death is not the end of a
-career; a pilot whose banked points cross a threshold is promoted, and the
+career; a pilot whose points cross a threshold is promoted, and the
 promotion takes effect from the next sortie. A ditching or a death still costs the
 **badge**: a mission's badge needs a landing at a friendly base (see Badges). **Destroying** something on your own side
 forfeits the whole sortie, 0 points, however it ends (since F5A, 2026-10-14);
@@ -57,7 +57,7 @@ Recovery multiplier applied to the mission total:
 | --- | --- |
 | Landed at carrier or airfield | 1.0 |
 | Ditched | 1.0 |
-| Killed | 1.0 (the figures shown; the points not banked at an earlier landing are forfeit) |
+| Killed | 1.0 |
 | Any of the above after friendly fire | 0 (forfeit) |
 
 ### Ranks
@@ -317,8 +317,9 @@ friendly airfield, carrier deck or anchorage (F5C, Mark 2026-10-16).
   the moving deck (the ship keeps steaming); on the water, where you stopped, into the wind (if a
   ship is too close the card says why and offers End Sortie only). The mission clock, the time
   of day, the weather, the AI and the ships do not jump. There is no taxiing.
-- **End Sortie** closes it. A death, a capture, Abandon, a friendly kill or a closed tab forfeits
-  only what was not yet banked; a killed or captured pilot is still lost and replaced. The sortie
+- **End Sortie** closes it. Abandon, a closed tab or a friendly kill forfeits only what was not yet
+  banked; a death or a capture banks what it earned since the last landing, and the killed or captured
+  pilot is still lost and replaced. The sortie
   counts once in the adjusted score however many landings it made, and the mission log shows one
   entry with its landings inside.
 - Flap-landing, bailout (**J**) and being rescued are never a mission success.

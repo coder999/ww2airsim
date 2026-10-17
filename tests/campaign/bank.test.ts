@@ -61,23 +61,23 @@ describe('bankSortie acceptance matrix (GAMEPLAY.md, MASTER_PLAN F5 gate)', () =
     expect(bankSortie(l, report(l, { counts: counts({ fighter: 1.5 }) }), NOW).ok).toBe(false)
   })
 
-  it('loss: KIA forfeits the unbanked points (F5C D5), closes the dossier and the pilot leaves the roster', () => {
+  it('loss: KIA keeps the points earned since the last landing (Mark 2026-10-16), closes the dossier and the pilot leaves the roster', () => {
     const c = fresh()
     const id = c.roster.live[2]!
     const after = fly(c, 2, mission(), { end: 'killed', counts: counts({ fighter: 2, building: 1 }) })
     const p = after.pilots[id]!
     expect(p.status).toBe('kia')
-    expect(p.points).toBe(0)
+    expect(p.points).toBe(1150)
     expect(p.closure).toMatchObject({ reason: 'kia', sortieId: 'c1:s1' })
     expect(after.roster.live).not.toContain(id)
     expect(after.human.stats.losses.kia).toBe(1)
-    expect(after.human.ledger.points).toBe(0) // no roster bonus without success
+    expect(after.human.ledger.points).toBe(1150) // no roster bonus without success
   })
 
-  it('POW: archived as pow, the unbanked points forfeited (F5C D5)', () => {
+  it('POW: archived as pow, points kept (Mark 2026-10-16)', () => {
     const after = fly(fresh(), 0, mission(), { end: 'captured', counts: counts({ tank: 1 }) })
     const p = Object.values(after.pilots).find((x) => x.status === 'pow')!
-    expect(p.points).toBe(0)
+    expect(p.points).toBe(300)
     expect(after.human.stats.losses.pow).toBe(1)
   })
 

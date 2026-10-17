@@ -8,6 +8,8 @@ losing the look.
 
 ## Header
 
+- **Status (2026-10-16): paused by Mark after checkpoint 1, nothing merged.** See the handoff for what was learned.
+
 - **Branch:** `plan-forest-canopy`, worktree `/home/mark/projects/ww2airsim-plan-forest-canopy`.
 - **Order (Mark, 2026-10-16):** runs **in parallel with F5C** (different files: terrain and rendering here, shell, sim and campaign there).
   Ryzen measurement stays under `hwlock ryzen-budget`, so the two plans' test runs do not collide.

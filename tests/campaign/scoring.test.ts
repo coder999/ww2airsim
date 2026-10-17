@@ -52,12 +52,8 @@ describe('scoreSortie: one case per path', () => {
       .toEqual({ destruction: 0, difficulty: 0, completion: 0, forfeited: true })
   })
 
-  // F5C D5 (2026-10-16): a pilot who does not come back keeps only what an earlier landing banked.
-  it.each(['killed', 'captured'] as const)('%s forfeits the unbanked part (F5C D5)', (end) => {
-    expect(scoreSortie(report({ end, success: false, counts: one('tank', 3) }), { difficulty: 'normal' })).toMatchObject({ destruction: 0, forfeited: true })
-  })
-
-  it.each(['rescued', 'ditched'] as const)('%s survives, so it keeps legitimate destruction (GAMEPLAY.md)', (end) => {
+  // Mark 2026-10-16: only Abandon (above) forfeits the unbanked part; a death or a capture still banks what it earned.
+  it.each(['killed', 'captured', 'rescued', 'ditched'] as const)('%s keeps legitimate destruction (GAMEPLAY.md)', (end) => {
     expect(scoreSortie(report({ end, success: false, counts: one('tank', 3) }), { difficulty: 'normal' }).destruction).toBe(900)
   })
 })
