@@ -127,7 +127,13 @@ describe('J4 content (F3 section 4)', () => {
   it('a night mission at 2130 on the buildup window, with the port dark (F3 section 8), no torpedosight needed (Chui is below the rank gate)', () => {
     expect(scenario.weather.timeOfDay).toBe(21.5)
     expect(windowsForChapter('J4')).toMatchObject({ ormoc: 'buildup' })
-    expect(scenario.lights!.map((l) => l.id), 'the flare is the only light: the Ormoc site adds none in buildup').toEqual(['flare-1'])
+    const authored = scenario.lights!
+    expect(authored.filter((l) => l.kind === 'flare').map((l) => l.id)).toEqual(['flare-1'])
+    // The Ormoc site adds none in buildup (F3 section 8); the rest are the opening's scenery: gun flashes on negative mission times (they never show in
+    // the flight) and the burning Shiratsuyu's three pots.
+    const rest = authored.filter((l) => l.kind !== 'flare')
+    expect(rest.filter((l) => l.kind === 'fixture').every((l) => l.schedule!.offAtS! <= 0)).toBe(true)
+    expect(rest.filter((l) => l.kind === 'pot').map((l) => 'ship' in l.at && l.at.ship)).toEqual(['shiratsuyu', 'shiratsuyu', 'shiratsuyu'])
     expect(chapters.chapters.find((c) => c.id === 'J4')).toMatchObject({ aircraft: 'B5N2 Kate', minRank: 'Kaigun Chūi' })
   })
   it('is honest: historical composite, the Kate attack and the flare-layer invented, sources with a year or URL', () => {

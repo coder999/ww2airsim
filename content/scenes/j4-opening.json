@@ -1,0 +1,93 @@
+{
+  "id": "j4-opening",
+  "chapter": "J4",
+  "kind": "opening",
+  "durationS": 15,
+  "world": {
+    "source": "mission",
+    "scenario": "j4-destroyers-in-the-bay"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -85000,
+        900,
+        -15500
+      ],
+      "yawDeg": 33.7,
+      "pitchDeg": -5.6,
+      "ease": "inOut"
+    },
+    {
+      "t": 4,
+      "position": [
+        -81500,
+        350,
+        -19500
+      ],
+      "yawDeg": 19.7,
+      "pitchDeg": -4.3,
+      "ease": "inOut"
+    },
+    {
+      "t": 9,
+      "position": [
+        -80600,
+        320,
+        -18000
+      ],
+      "yawDeg": 24.5,
+      "pitchDeg": -1.5,
+      "ease": "inOut"
+    },
+    {
+      "t": 12,
+      "position": [
+        -81200,
+        300,
+        -16200
+      ],
+      "yawDeg": 45.1,
+      "pitchDeg": 6,
+      "ease": "inOut"
+    },
+    {
+      "t": 15,
+      "position": [
+        -81747,
+        318,
+        -14301
+      ],
+      "yawDeg": 58.5,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Ormoc Bay. Their destroyers are shelling the port and ours are answering."
+      }
+    },
+    {
+      "t": 8,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: the Avenger is laying its flare. Torpedo a Fletcher inside the light."
+      }
+    },
+    {
+      "t": 13,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: your airplane. Come in from the west."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "ai"
+  }
+}
