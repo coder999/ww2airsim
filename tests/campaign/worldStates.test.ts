@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import chapters from '../../content/campaign/chapters.json'
 import siteWindows from '../../content/campaign/site-windows.json'
 import { CHAPTER_IDS } from '../../src/campaign/schema.js'
-import { applyChapterSuccess, F8A_SITES, WINDOW_IDS, windowsForChapter } from '../../src/campaign/worldStates.js'
+import { applyChapterSuccess, F8A_SITES, F8B_SITES, WINDOW_IDS, windowsForChapter } from '../../src/campaign/worldStates.js'
 import { createCampaign } from '../../src/campaign/roster.js'
 
 /**
@@ -26,7 +26,9 @@ const EXPECT: Readonly<Record<string, string>> = {
   J6: 'j6-alternate',
 }
 
-describe('chapter-to-windows table (F8A Task 2)', () => {
+const SITES = [...F8A_SITES, ...F8B_SITES]
+
+describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
   it('knows every chapter the campaign has, exactly', () => {
     expect([...CHAPTER_IDS].sort()).toEqual(Object.keys(EXPECT).sort())
     expect(chapters.chapters.map((c) => c.id).sort()).toEqual(Object.keys(EXPECT).sort())
@@ -37,10 +39,17 @@ describe('chapter-to-windows table (F8A Task 2)', () => {
     expect(WINDOW_IDS).toEqual(siteWindows.windows.map((w) => w.id))
   })
 
-  it.each(Object.entries(EXPECT))('%s plays every F8A site in %s', (chapter, window) => {
+  it('names the F8B sites: Buri, Bayug and San Pablo', () => {
+    expect([...F8B_SITES]).toEqual(['buri', 'bayug', 'san-pablo'])
+  })
+
+  // F3 section 3 dates every chapter and section 5 gives each field one state per window, so every F8A and F8B site is drawn
+  // in the same window for a chapter. (J3 is the one place this puts a Japanese pilot's recovery field, Bayug, in American hands:
+  // 3 Nov is in the "late Oct-Nov" column. That is an F3 inconsistency the mission-fit table reports, not something to hide here.)
+  it.each(Object.entries(EXPECT))('%s plays every F8A and F8B site in %s', (chapter, window) => {
     const got = windowsForChapter(chapter)
-    expect(Object.keys(got).sort()).toEqual([...F8A_SITES].sort())
-    expect(Object.values(got)).toEqual(F8A_SITES.map(() => window))
+    expect(Object.keys(got).sort()).toEqual([...SITES].sort())
+    expect(Object.values(got)).toEqual(SITES.map(() => window))
   })
 
   it('an unknown chapter throws, in both calls', () => {
@@ -53,17 +62,27 @@ describe('chapter-to-windows table (F8A Task 2)', () => {
     expect(after).toEqual({ tacloban: 'assault', dulag: 'assault' })
   })
 
-  it('A6 victory keeps the field running into the endgame; J5 changes no field; J6 turns every F8A site to the alternate', () => {
-    expect(applyChapterSuccess({ tacloban: 'assault' }, 'A6')).toEqual({ tacloban: 'endgame', dulag: 'endgame', tanauan: 'endgame' })
+  it('A6 victory keeps every field running into the endgame; J5 changes no field; J6 turns every site to the alternate', () => {
+    const all = (w: string): Record<string, string> => Object.fromEntries(SITES.map((s) => [s, w]))
+    expect(applyChapterSuccess({ tacloban: 'assault' }, 'A6')).toEqual(all('endgame'))
     expect(applyChapterSuccess({ tacloban: 'endgame' }, 'J5')).toEqual({ tacloban: 'endgame' })
-    expect(applyChapterSuccess({}, 'J6')).toEqual({ tacloban: 'j6-alternate', dulag: 'j6-alternate', tanauan: 'j6-alternate' })
+    expect(applyChapterSuccess({}, 'J6')).toEqual(all('j6-alternate'))
+  })
+
+  it('F8B (F3 section 4): the Burauen fields change on A6 and J6 only; A1 names Tacloban and Dulag, J5 captures no field', () => {
+    for (const chapter of ['A1', 'A2', 'A3', 'A4', 'A5', 'J1', 'J2', 'J3', 'J4', 'J5']) {
+      const got = applyChapterSuccess({}, chapter)
+      for (const s of F8B_SITES) expect(got[s], `${chapter} must not write ${s}`).toBeUndefined()
+    }
+    expect(Object.fromEntries(F8B_SITES.map((s) => [s, applyChapterSuccess({}, 'A6')[s]]))).toEqual({ buri: 'endgame', bayug: 'endgame', 'san-pablo': 'endgame' })
+    expect(Object.fromEntries(F8B_SITES.map((s) => [s, applyChapterSuccess({}, 'J6')[s]]))).toEqual({ buri: 'j6-alternate', bayug: 'j6-alternate', 'san-pablo': 'j6-alternate' })
   })
 
   it('keeps keys it does not own (F8B and F8C sites) and never mutates its input', () => {
-    const before = { buri: 'assault', tacloban: 'pre-invasion' }
+    const before = { ormoc: 'assault', tacloban: 'pre-invasion' } // F8C's Ormoc is not in this table yet
     const frozen = Object.freeze({ ...before })
     const after = applyChapterSuccess(frozen, 'A1')
-    expect(after.buri).toBe('assault')
+    expect(after.ormoc).toBe('assault')
     expect(frozen).toEqual(before)
   })
 

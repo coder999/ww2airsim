@@ -1,0 +1,609 @@
+{
+  "id": "bayug",
+  "name": "Bayug",
+  "airfield": "bayug",
+  "base": {
+    "runway": {
+      "center": {
+        "x": -45100,
+        "z": -20700
+      },
+      "headingDeg": 0,
+      "lengthM": 1500,
+      "widthM": 45
+    },
+    "apron": null,
+    "clearing": null,
+    "buildings": [
+      {
+        "id": "bayug-tower",
+        "kind": "tower",
+        "x": -60,
+        "z": 0,
+        "widthM": 10,
+        "lengthM": 10,
+        "hp": 40,
+        "heightM": 16.1,
+        "tags": [
+          "bayug-tower"
+        ],
+        "basis": "invented",
+        "cite": "Carried from content/bases/bayug.json (a gameplay addition there), scaled to the approved model."
+      },
+      {
+        "id": "bayug-aaa-1",
+        "kind": "aaa",
+        "x": -100,
+        "z": 200,
+        "widthM": 6,
+        "lengthM": 6,
+        "hp": 30,
+        "heightM": 2.1,
+        "tags": [
+          "bayug-aaa"
+        ],
+        "basis": "invented",
+        "cite": "Carried from content/bases/bayug.json (a gameplay addition there), scaled to the approved model."
+      },
+      {
+        "id": "bayug-aaa-2",
+        "kind": "aaa",
+        "x": 110,
+        "z": -300,
+        "widthM": 6,
+        "lengthM": 6,
+        "hp": 30,
+        "heightM": 2.1,
+        "tags": [
+          "bayug-aaa"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "bayug-hangar-1",
+        "kind": "hangar",
+        "x": 170,
+        "z": -150,
+        "widthM": 35,
+        "lengthM": 43,
+        "hp": 120,
+        "heightM": 14.1,
+        "tags": [
+          "bayug-hangars"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "bayug-barracks-1",
+        "kind": "barracks-and-huts",
+        "x": 285,
+        "z": -60,
+        "widthM": 24,
+        "lengthM": 29.2,
+        "hp": 60,
+        "heightM": 6.0,
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "bayug-fuel-farm",
+        "kind": "fuel-tank-farm",
+        "x": 260,
+        "z": 280,
+        "widthM": 55,
+        "lengthM": 55,
+        "hp": 80,
+        "heightM": 9.0,
+        "tags": [
+          "bayug-fuel"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "bayug-ammo-bunker-1",
+        "kind": "ammunition-bunker",
+        "x": 300,
+        "z": -270,
+        "widthM": 16.1,
+        "lengthM": 12,
+        "hp": 90,
+        "heightM": 3.5,
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      }
+    ],
+    "clutterAreas": [
+      {
+        "id": "camp",
+        "x": 240,
+        "z": -120,
+        "widthM": 160,
+        "lengthM": 260
+      },
+      {
+        "id": "dump",
+        "x": 260,
+        "z": 280,
+        "widthM": 140,
+        "lengthM": 160
+      },
+      {
+        "id": "strip",
+        "x": 0,
+        "z": 0,
+        "widthM": 80,
+        "lengthM": 1500
+      }
+    ]
+  },
+  "sources": {
+    "f3-site-lock": {
+      "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+      "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+    },
+    "army-leyte-ch8": {
+      "claim": "Burauen airfields: San Pablo about 5 mi west of Dulag, 2 mi east of Burauen, east-west, 164 x 4,920 ft, overgrown and unoccupied; Bayug just north of the highway, a half mile east of Burauen, about 5,000 ft; Buri about 1 mi northeast of Burauen, east-west, 5,000 ft, the most important of the three",
+      "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html"
+    },
+    "army-leyte-ch11": {
+      "claim": "Mud and field construction problems; Buri and San Pablo abandoned, Bayug work continued (late Nov 1944)",
+      "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html"
+    },
+    "marine-aviation-philippines": {
+      "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov; the inland fields abandoned",
+      "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+    }
+  },
+  "reference": {
+    "source": "Runway, apron and clearing are content/bases/bayug.json verbatim (a test pins the agreement; Convoy Strike lands there). Its 1,500 x 45 m (4,921 ft) already is the Army history's \"about 5,000 ft\" (ch. VIII); heading 0 and the 45 m width are that file's ASSUMPTION and ESTIMATE. That base was fitted to the flattest 1.5 km line the terrain offers and lies 2.7 km west of Bayug's true position (the true field is a half mile EAST of Burauen), so Bayug is not at its Army offset from Burauen; this is carried, not corrected, because moving it would move Convoy Strike's recovery field. Terrain: flat (48 to 57 m) on the east side where the camp stands, hills to the west. Windows follow the F3 section 5 Bayug row."
+  },
+  "windows": {
+    "pre-invasion": {
+      "built": true,
+      "side": "axis",
+      "serviceable": true,
+      "note": "Japanese dry-weather strip.",
+      "states": {},
+      "added": [],
+      "vehicles": [
+        {
+          "id": "bayug-pre-1",
+          "spec": "type94-cargo-truck",
+          "x": 150,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-pre-2",
+          "spec": "type38-75mm-field-gun",
+          "x": 120,
+          "z": 220,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "bayug-pre-air-1",
+          "spec": "ki-43-oscar",
+          "x": 58,
+          "z": 150,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-pre-air-2",
+          "spec": "ki-43-oscar",
+          "x": 58,
+          "z": 190,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.3,
+          "drum": 0.3
+        },
+        "dump": {
+          "drum": 0.5,
+          "crate": 0.3
+        }
+      }
+    },
+    "assault": {
+      "built": true,
+      "side": "allied",
+      "serviceable": false,
+      "note": "Captured after inland fighting; still unserviceable.",
+      "states": {
+        "bayug-hangar-1": "damaged",
+        "bayug-tower": "damaged",
+        "bayug-fuel-farm": "destroyed",
+        "bayug-aaa-2": "destroyed"
+      },
+      "added": [],
+      "vehicles": [
+        {
+          "id": "bayug-as-1",
+          "spec": "gmc-cckw-353",
+          "x": 150,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-as-2",
+          "spec": "willys-mb-jeep",
+          "x": 90,
+          "z": 0,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-as-3",
+          "spec": "caterpillar-d7-3t",
+          "x": 70,
+          "z": 250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.8,
+          "drum": 0.6,
+          "crate": 0.4,
+          "mud": 1.0,
+          "rut": 0.8,
+          "sandbag": 0.5,
+          "crater": 0.1
+        },
+        "dump": {
+          "drum": 0.4,
+          "crate": 0.4,
+          "crater": 0.3
+        },
+        "strip": {
+          "crater": 0.05,
+          "mud": 0.15,
+          "rut": 0.12
+        }
+      }
+    },
+    "buildup": {
+      "built": true,
+      "side": "allied",
+      "serviceable": true,
+      "note": "Limited American dry-weather use continues (command and reconnaissance field).",
+      "states": {
+        "bayug-hangar-1": "damaged",
+        "bayug-fuel-farm": "damaged",
+        "bayug-aaa-2": "destroyed"
+      },
+      "added": [],
+      "vehicles": [
+        {
+          "id": "bayug-bu-1",
+          "spec": "gmc-cckw-353",
+          "x": 150,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-2",
+          "spec": "gmc-cckw-353",
+          "x": 150,
+          "z": -90,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-3",
+          "spec": "willys-mb-jeep",
+          "x": 90,
+          "z": 0,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-4",
+          "spec": "caterpillar-d7-3t",
+          "x": 70,
+          "z": 250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-5",
+          "spec": "willys-mb-jeep",
+          "x": 90,
+          "z": 30,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "bayug-bu-air-1",
+          "spec": "p-38-lightning",
+          "x": 58,
+          "z": 150,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-air-2",
+          "spec": "p-38-lightning",
+          "x": 58,
+          "z": 190,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-bu-air-3",
+          "spec": "p-38-lightning",
+          "x": 58,
+          "z": 230,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 1.0,
+          "drum": 0.8,
+          "crate": 0.6,
+          "mud": 1.0,
+          "rut": 1.0,
+          "sandbag": 0.5,
+          "mat": 0.2
+        },
+        "dump": {
+          "drum": 0.9,
+          "crate": 0.8,
+          "mud": 0.6
+        },
+        "strip": {
+          "mat": 0.07,
+          "rut": 0.08,
+          "mud": 0.1
+        }
+      }
+    },
+    "endgame": {
+      "built": true,
+      "side": "allied",
+      "serviceable": true,
+      "note": "American-held finale objective (A6).",
+      "states": {
+        "bayug-hangar-1": "damaged",
+        "bayug-fuel-farm": "damaged",
+        "bayug-aaa-2": "destroyed"
+      },
+      "added": [],
+      "vehicles": [
+        {
+          "id": "bayug-en-1",
+          "spec": "gmc-cckw-353",
+          "x": 150,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-en-2",
+          "spec": "willys-mb-jeep",
+          "x": 90,
+          "z": 0,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-en-3",
+          "spec": "caterpillar-d7-3t",
+          "x": 70,
+          "z": 250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-en-4",
+          "spec": "gmc-cckw-353",
+          "x": 150,
+          "z": -90,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "bayug-en-air-1",
+          "spec": "p-38-lightning",
+          "x": 58,
+          "z": 150,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-en-air-2",
+          "spec": "p-38-lightning",
+          "x": 58,
+          "z": 190,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 1.0,
+          "drum": 0.8,
+          "crate": 0.6,
+          "mud": 0.8,
+          "rut": 0.8,
+          "sandbag": 0.8,
+          "crater": 0.1
+        },
+        "dump": {
+          "drum": 0.8,
+          "crate": 0.7,
+          "crater": 0.2
+        },
+        "strip": {
+          "mat": 0.06,
+          "rut": 0.06,
+          "crater": 0.03
+        }
+      }
+    },
+    "j6-alternate": {
+      "built": true,
+      "side": "axis",
+      "serviceable": true,
+      "note": "Japanese-controlled serviceable recovery field (alternate history).",
+      "states": {
+        "bayug-hangar-1": "damaged",
+        "bayug-fuel-farm": "damaged",
+        "bayug-aaa-2": "destroyed"
+      },
+      "added": [],
+      "vehicles": [
+        {
+          "id": "bayug-j6-1",
+          "spec": "type94-cargo-truck",
+          "x": 150,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-j6-2",
+          "spec": "type94-cargo-truck",
+          "x": 150,
+          "z": -90,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-j6-3",
+          "spec": "type38-75mm-field-gun",
+          "x": 120,
+          "z": 220,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-j6-4",
+          "spec": "type95-kurogane",
+          "x": 90,
+          "z": 0,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "bayug-alt-air-1",
+          "spec": "ki-43-oscar",
+          "x": 58,
+          "z": 150,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-alt-air-2",
+          "spec": "ki-43-oscar",
+          "x": 58,
+          "z": 190,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "bayug-alt-air-3",
+          "spec": "a6m2-zero",
+          "x": 58,
+          "z": 230,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.6,
+          "drum": 0.6,
+          "crate": 0.4,
+          "mud": 0.8,
+          "rut": 0.8,
+          "crater": 0.25
+        },
+        "dump": {
+          "drum": 0.6,
+          "crate": 0.4,
+          "crater": 0.3
+        },
+        "strip": {
+          "crater": 0.04,
+          "mud": 0.1,
+          "rut": 0.1
+        }
+      }
+    }
+  }
+}

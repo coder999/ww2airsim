@@ -1,0 +1,702 @@
+{
+  "id": "san-pablo",
+  "name": "San Pablo",
+  "airfield": "san-pablo",
+  "base": {
+    "runway": {
+      "center": {
+        "x": -39930,
+        "z": -20590
+      },
+      "headingDeg": 80,
+      "lengthM": 1500,
+      "widthM": 50
+    },
+    "apron": null,
+    "clearing": {
+      "x": 0,
+      "z": 0,
+      "widthM": 760,
+      "lengthM": 1700
+    },
+    "buildings": [
+      {
+        "id": "san-pablo-revetment-1",
+        "kind": "revetment",
+        "x": -290,
+        "z": 120,
+        "widthM": 20,
+        "lengthM": 30,
+        "hp": 40,
+        "heightM": 3.0,
+        "tags": [
+          "san-pablo-dispersal"
+        ],
+        "basis": "invented",
+        "cite": "The airfield schema needs at least one strike target. The Army history says the field was overgrown and unoccupied, not that nothing was prepared; one grown-over dispersal bay, outside the open drop-zone ground, is the least-invented thing that satisfies the schema."
+      }
+    ],
+    "clutterAreas": [
+      {
+        "id": "camp",
+        "x": -300,
+        "z": -220,
+        "widthM": 120,
+        "lengthM": 160
+      },
+      {
+        "id": "dump",
+        "x": -330,
+        "z": 250,
+        "widthM": 120,
+        "lengthM": 140
+      },
+      {
+        "id": "strip",
+        "x": 0,
+        "z": 0,
+        "widthM": 80,
+        "lengthM": 1500
+      }
+    ]
+  },
+  "sources": {
+    "f3-site-lock": {
+      "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+      "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+    },
+    "army-leyte-ch8": {
+      "claim": "Burauen airfields: San Pablo about 5 mi west of Dulag, 2 mi east of Burauen, east-west, 164 x 4,920 ft, overgrown and unoccupied; Bayug just north of the highway, a half mile east of Burauen, about 5,000 ft; Buri about 1 mi northeast of Burauen, east-west, 5,000 ft, the most important of the three",
+      "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html"
+    },
+    "army-leyte-ch11": {
+      "claim": "Mud and field construction problems; Buri and San Pablo abandoned, Bayug work continued (late Nov 1944)",
+      "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html"
+    },
+    "army-leyte-ch17": {
+      "claim": "Operation Te-Go: attacks on the Buri and San Pablo airfields on 6-7 Dec 1944",
+      "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-17.html"
+    },
+    "marine-aviation-philippines": {
+      "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov; the inland fields abandoned",
+      "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+    }
+  },
+  "reference": {
+    "source": "Runway width and length are the Army history (ch. VIII: east-west, 164 x 4,920 ft = 50 x 1,500 m, overgrown, unoccupied by the Japanese, 2 mi east of Burauen); center and heading 80 are FITTED to the shipped terrain near that offset (tools/sites/surveyStrip.ts, 2026-10-17): all land, about 4 m of relief over 1.5 km. The base has ONE building, a grown-over dispersal revetment the schema one-target minimum forces (its placement cite says so); nothing else stood here before the invasion, and every other structure arrives in the window that builds it (`added`). The clearing is 760 x 1,700 m of open ground around the strip, the J5/J6 drop zone; no building stands inside its central 400 m (a test pins that). There is no \"overgrown weeds\" clutter kind, so the overgrown pre-invasion field is shown by absence. Windows follow the F3 section 5 San Pablo row; the endgame is serviceable and the alternate is not (F8 plan, F8B detail, ruling 3)."
+  },
+  "windows": {
+    "pre-invasion": {
+      "built": true,
+      "side": "axis",
+      "serviceable": false,
+      "note": "Overgrown with weeds and unoccupied by the Japanese (Army ch. VIII).",
+      "states": {},
+      "added": [],
+      "vehicles": [],
+      "parked": [],
+      "lights": [],
+      "clutter": {}
+    },
+    "assault": {
+      "built": true,
+      "side": "allied",
+      "serviceable": false,
+      "note": "Captured 23 Oct, still poor.",
+      "states": {},
+      "added": [
+        {
+          "id": "san-pablo-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -250,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "san-pablo-as-1",
+          "spec": "gmc-cckw-353",
+          "x": -250,
+          "z": -180,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-as-2",
+          "spec": "willys-mb-jeep",
+          "x": -240,
+          "z": -140,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-as-3",
+          "spec": "caterpillar-d7-3t",
+          "x": -100,
+          "z": 400,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.8,
+          "drum": 0.4,
+          "crate": 0.3,
+          "mud": 0.8,
+          "rut": 0.6
+        },
+        "strip": {
+          "mud": 0.1,
+          "rut": 0.1,
+          "crater": 0.02
+        }
+      }
+    },
+    "buildup": {
+      "built": true,
+      "side": "allied",
+      "serviceable": false,
+      "note": "Construction attempted, then abandoned 25 Nov.",
+      "states": {
+        "san-pablo-tower": "construction",
+        "san-pablo-fuel-farm": "construction"
+      },
+      "added": [
+        {
+          "id": "san-pablo-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -250,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-camp-2",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -190,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-tower",
+          "kind": "tower",
+          "x": -270,
+          "z": 20,
+          "widthM": 10,
+          "lengthM": 10,
+          "hp": 40,
+          "heightM": 16.1,
+          "tags": [
+            "san-pablo-tower"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-fuel-farm",
+          "kind": "fuel-tank-farm",
+          "x": -330,
+          "z": 250,
+          "widthM": 55,
+          "lengthM": 55,
+          "hp": 80,
+          "heightM": 9.0,
+          "tags": [
+            "san-pablo-fuel"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "san-pablo-bu-1",
+          "spec": "caterpillar-d7-3t",
+          "x": -60,
+          "z": -400,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-bu-2",
+          "spec": "caterpillar-d7-3t",
+          "x": 40,
+          "z": 100,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-bu-3",
+          "spec": "caterpillar-d7-3t",
+          "x": -80,
+          "z": 500,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-bu-4",
+          "spec": "gmc-cckw-353",
+          "x": -250,
+          "z": -180,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-bu-5",
+          "spec": "gmc-cckw-353",
+          "x": -250,
+          "z": -140,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-bu-6",
+          "spec": "willys-mb-jeep",
+          "x": -240,
+          "z": -100,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 1.0,
+          "drum": 0.8,
+          "crate": 0.6,
+          "mud": 1.4,
+          "rut": 1.4,
+          "sandbag": 0.4
+        },
+        "dump": {
+          "drum": 0.8,
+          "crate": 0.6,
+          "mud": 1.0
+        },
+        "strip": {
+          "mat": 0.04,
+          "mud": 0.2,
+          "rut": 0.2
+        }
+      }
+    },
+    "endgame": {
+      "built": true,
+      "side": "allied",
+      "serviceable": true,
+      "note": "Principal airborne drop and lodgment area (J5); the abandoned construction stands.",
+      "states": {
+        "san-pablo-tower": "construction",
+        "san-pablo-fuel-farm": "construction"
+      },
+      "added": [
+        {
+          "id": "san-pablo-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -250,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-camp-2",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -190,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-tower",
+          "kind": "tower",
+          "x": -270,
+          "z": 20,
+          "widthM": 10,
+          "lengthM": 10,
+          "hp": 40,
+          "heightM": 16.1,
+          "tags": [
+            "san-pablo-tower"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-fuel-farm",
+          "kind": "fuel-tank-farm",
+          "x": -330,
+          "z": 250,
+          "widthM": 55,
+          "lengthM": 55,
+          "hp": 80,
+          "heightM": 9.0,
+          "tags": [
+            "san-pablo-fuel"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "san-pablo-en-1",
+          "spec": "gmc-cckw-353",
+          "x": -250,
+          "z": -180,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-en-2",
+          "spec": "caterpillar-d7-3t",
+          "x": -60,
+          "z": -400,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-en-3",
+          "spec": "willys-mb-jeep",
+          "x": -240,
+          "z": -100,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [
+        {
+          "id": "san-pablo-pot-0",
+          "kind": "pot",
+          "at": {
+            "x": -90,
+            "z": -500
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-1",
+          "kind": "pot",
+          "at": {
+            "x": 90,
+            "z": -500
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-2",
+          "kind": "pot",
+          "at": {
+            "x": -90,
+            "z": -250
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-3",
+          "kind": "pot",
+          "at": {
+            "x": 90,
+            "z": -250
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-4",
+          "kind": "pot",
+          "at": {
+            "x": -90,
+            "z": 0
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-5",
+          "kind": "pot",
+          "at": {
+            "x": 90,
+            "z": 0
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-6",
+          "kind": "pot",
+          "at": {
+            "x": -90,
+            "z": 250
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-7",
+          "kind": "pot",
+          "at": {
+            "x": 90,
+            "z": 250
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-8",
+          "kind": "pot",
+          "at": {
+            "x": -90,
+            "z": 500
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        },
+        {
+          "id": "san-pablo-pot-9",
+          "kind": "pot",
+          "at": {
+            "x": 90,
+            "z": 500
+          },
+          "color": "warm",
+          "state": "lit",
+          "source": "gameplay",
+          "sourceNote": "Runway flare pots and signal fires are historical at Leyte field night operations; their count and placement here are a gameplay choice."
+        }
+      ],
+      "clutter": {
+        "camp": {
+          "tent": 0.8,
+          "drum": 0.6,
+          "crate": 0.4,
+          "mud": 0.8,
+          "rut": 0.8
+        },
+        "dump": {
+          "drum": 0.6,
+          "crate": 0.4
+        },
+        "strip": {
+          "mud": 0.12,
+          "rut": 0.12,
+          "crater": 0.02
+        }
+      }
+    },
+    "j6-alternate": {
+      "built": true,
+      "side": "axis",
+      "serviceable": false,
+      "note": "Japanese-controlled lodgment (alternate history).",
+      "states": {
+        "san-pablo-tower": "destroyed",
+        "san-pablo-fuel-farm": "destroyed",
+        "san-pablo-camp-1": "destroyed",
+        "san-pablo-camp-2": "damaged"
+      },
+      "added": [
+        {
+          "id": "san-pablo-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -250,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-camp-2",
+          "kind": "barracks-and-huts",
+          "x": -300,
+          "z": -190,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-tower",
+          "kind": "tower",
+          "x": -270,
+          "z": 20,
+          "widthM": 10,
+          "lengthM": 10,
+          "hp": 40,
+          "heightM": 16.1,
+          "tags": [
+            "san-pablo-tower"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-fuel-farm",
+          "kind": "fuel-tank-farm",
+          "x": -330,
+          "z": 250,
+          "widthM": 55,
+          "lengthM": 55,
+          "hp": 80,
+          "heightM": 9.0,
+          "tags": [
+            "san-pablo-fuel"
+          ],
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "san-pablo-j6-1",
+          "spec": "type94-cargo-truck",
+          "x": -250,
+          "z": -140,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-j6-2",
+          "spec": "type94-cargo-truck",
+          "x": -250,
+          "z": -100,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-j6-3",
+          "spec": "type94-cargo-truck",
+          "x": -250,
+          "z": -60,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-j6-4",
+          "spec": "type38-75mm-field-gun",
+          "x": -200,
+          "z": 150,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "san-pablo-j6-5",
+          "spec": "type38-75mm-field-gun",
+          "x": -200,
+          "z": 190,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.8,
+          "drum": 0.6,
+          "crate": 0.6,
+          "mud": 0.8,
+          "rut": 0.8,
+          "crater": 0.3
+        },
+        "dump": {
+          "drum": 0.4,
+          "crate": 0.4,
+          "crater": 0.3
+        },
+        "strip": {
+          "crater": 0.03,
+          "mud": 0.1,
+          "rut": 0.1
+        }
+      }
+    }
+  }
+}

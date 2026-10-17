@@ -1,5 +1,5 @@
 {
- "note": "Mission-fit table (F8A Task 10, 2026-10-16): hand-transcribed from F3 section 4, one row per chapter. A 'filled' row has a start, a first-action point and a cruise speed in world terms and is checked by tests/sim/missionFit.test.ts against the real site layout within `ceilingS` at 1x; a 'pending' row names the F8 plan that closes it and why. A failing row is a finding to report, never to tune (Mark, 2026-10-16).",
+ "note": "Mission-fit table (F8A Task 10 2026-10-16, extended by F8B 2026-10-17): hand-transcribed from F3 section 4, one row per chapter. A 'filled' row has a start, a first-action point and a cruise speed in world terms and is checked by tests/sim/missionFit.test.ts against the real site layout within `ceilingS` at 1x; a 'pending' row names the F8 plan that closes it and why. A row with `recovery` also checks the flight home to the nearest named field that is LEGAL in the window the chapter plays in (held by the player's side and serviceable, F3 section 2) against F3's recovery budget; `withinM` is F3's own range where it gives one. A failing row is a finding to report, never to tune (Mark, 2026-10-16): it carries `expectFail`, and the test asserts it still fails that check. Every constant (cruise, taxi, roll, landing allowance) and every start or first-action point F3 does not locate is an ESTIMATE or INVENTED, labeled in its row.",
  "ceilingS": 420,
  "rows": [
   {
@@ -41,7 +41,9 @@
    "id": "A6",
    "status": "filled",
    "aircraft": "p-38-lightning",
+   "side": "allied",
    "start": {
+    "kind": "parked",
     "site": "tacloban",
     "window": "endgame",
     "parked": "tacloban-en-air-1"
@@ -56,14 +58,48 @@
    "takeoffS": 30,
    "taxiMps": 8,
    "cruiseMps": 140,
-   "f3": "launch from Tacloban; first action 1-2 min; recovery at Tacloban, Bayug or Buri within 7 min (the inland fields are F8B)"
+   "landingS": 60,
+   "recovery": {
+    "sites": [
+     "tacloban",
+     "bayug",
+     "buri"
+    ],
+    "budgetS": 420
+   },
+   "f3": "launch from Tacloban; first action 1-2 min; recovery at serviceable allied Tacloban, Bayug or Buri within 7 min (the nearest legal one is checked; F8B made Bayug and Buri real)"
   },
   {
    "id": "J1",
-   "status": "pending",
-   "closedBy": "F8B",
-   "reason": "Starts engine-running at Buri, an F8B site.",
-   "f3": "surface start at Buri; first action 2-3 min including takeoff"
+   "status": "filled",
+   "aircraft": "a6m2-zero",
+   "side": "axis",
+   "start": {
+    "kind": "parked",
+    "site": "buri",
+    "window": "pre-invasion",
+    "parked": "buri-pre-air-1"
+   },
+   "firstAction": {
+    "site": "buri",
+    "x": 0,
+    "z": -9000,
+    "basis": "invented",
+    "note": "F3 J1: attackers come inside 6 mi (9,656 m) of Buri; the American carriers lie east, so the first contact is placed 9,000 m east of the Buri runway center, on its axis. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "withinM": 9656,
+   "takeoffS": 25,
+   "taxiMps": 8,
+   "cruiseMps": 108,
+   "landingS": 60,
+   "recovery": {
+    "sites": [
+     "buri",
+     "bayug"
+    ],
+    "budgetS": 240
+   },
+   "f3": "surface start at Buri, engine running; first action 2-3 min including takeoff; attackers inside 6 mi; recovery Buri in 3-4 min (Bayug only if Buri becomes unserviceable)"
   },
   {
    "id": "J2",
@@ -74,10 +110,37 @@
   },
   {
    "id": "J3",
-   "status": "pending",
-   "closedBy": "F8B",
-   "reason": "Orbits a column bound for Buri and lands at Bayug, both F8B.",
-   "f3": "airborne start; first action 2-3 min; recovery Bayug 3-5 min"
+   "status": "filled",
+   "aircraft": "ki-43-oscar",
+   "side": "axis",
+   "start": {
+    "kind": "airborne",
+    "site": "buri",
+    "x": 0,
+    "z": 7000,
+    "basis": "invented",
+    "note": "F3 J3: the player orbits a column bound for Burauen but gives no position; invented as 7,000 m west of the Buri runway center (the road from the west), at cruise speed."
+   },
+   "firstAction": {
+    "site": "buri",
+    "x": -100,
+    "z": 3500,
+    "basis": "invented",
+    "note": "F3 J3: four P-38s attack in two waves 2-3 min in, over a road column heading for the Buri dispersal zone; the first wave's contact point is invented as 3,500 m west of Buri. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "cruiseMps": 108,
+   "landingS": 60,
+   "recovery": {
+    "sites": [
+     "bayug"
+    ],
+    "budgetS": 300
+   },
+   "expectFail": {
+    "check": "legality",
+    "why": "F3 section 3 says J3 is 3 Nov and recovers at Bayug; F3 section 5 puts 3 Nov in the 'late Oct-Nov' column, where Bayug is American ('limited American dry-weather use continues'). A Japanese pilot cannot land at an American field, so J3's authored recovery is not a legal field in the window the F8 table plays it in. Geometry is fine (Bayug is about 4 km from the first action). Only Mark or F3 can settle it: play J3 in pre-invasion for the Burauen fields, or change F3."
+   },
+   "f3": "airborne start orbiting the column; first action 2-3 min; recovery Bayug in 3-5 min"
   },
   {
    "id": "J4",
@@ -88,17 +151,57 @@
   },
   {
    "id": "J5",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts west of the ridge over the Burauen drop zone; the fields are F8B and the western approach is F8C.",
-   "f3": "airborne start; intercept 2-3 min; drop 5-6 min"
+   "status": "filled",
+   "aircraft": "ki-57-ii-topsy",
+   "side": "axis",
+   "start": {
+    "kind": "airborne",
+    "site": "san-pablo",
+    "x": 0,
+    "z": 23000,
+    "basis": "invented",
+    "note": "F3 J5: the formation starts west of the ridge but gives no position; invented as 23 km west of the San Pablo runway center, which at 80 m/s puts the drop inside F3's 5-6 min. The row therefore proves the drop zone is reachable and open ground, not the travel time."
+   },
+   "firstAction": {
+    "site": "san-pablo",
+    "x": 0,
+    "z": 0,
+    "basis": "invented",
+    "note": "The drop zone is the San Pablo strip and its cleared surround (Army ch. VIII; F3 section 5 'principal airborne drop/lodgment area'); its exact marked rectangle is F10's, so the strip center stands for it. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "cruiseMps": 80,
+   "f3": "airborne start west of the ridge; intercept 2-3 min; drop 5-6 min; egress by the western gate (no field recovery)"
   },
   {
    "id": "J6",
-   "status": "pending",
-   "closedBy": "F8B",
-   "reason": "Starts at a Japanese-held Buri or Bayug (F8B); Tacloban and Dulag are the unusable F8A fields it targets.",
-   "f3": "launch from Buri or Bayug; first action 2-3 min"
+   "status": "filled",
+   "aircraft": "a6m2-zero",
+   "side": "axis",
+   "start": {
+    "kind": "parked",
+    "site": "buri",
+    "window": "j6-alternate",
+    "parked": "buri-alt-air-1"
+   },
+   "firstAction": {
+    "site": "buri",
+    "x": 0,
+    "z": -10000,
+    "basis": "invented",
+    "note": "F3 J6: the American P-38 response meets the escort 2-3 min after launch; invented as 10,000 m east of Buri, toward Dulag where the P-38s launch. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "takeoffS": 25,
+   "taxiMps": 8,
+   "cruiseMps": 108,
+   "landingS": 60,
+   "recovery": {
+    "sites": [
+     "buri",
+     "bayug"
+    ],
+    "budgetS": 420
+   },
+   "f3": "launch from Japanese-held Buri or Bayug; first action 2-3 min; recovery at serviceable Japanese Buri or Bayug within 7 min"
   }
  ]
 }

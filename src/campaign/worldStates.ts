@@ -5,15 +5,18 @@
  * keeps it opaque; the window ids are the one list in `content/campaign/site-windows.json`, shared with
  * `src/sim/world/sites.ts`.
  *
- * Only the F8A sites are listed. F8B (Buri, Bayug, San Pablo) and F8C (Ormoc, the beaches, San Pedro Bay) add their keys to
- * `SITES`, `PLAY` and `SUCCESS` below; a key this file does not own is passed through untouched.
+ * The F8A and F8B sites are listed. F8C (Ormoc, the beaches, San Pedro Bay) adds its keys to `SITES` below; a key this file
+ * does not own is passed through untouched. F8B (2026-10-17) added Buri, Bayug and San Pablo: they play in the same window as
+ * every other site for a chapter, and F3 section 4 changes them only on A6 (all three stay American, `endgame`) and J6 (all
+ * three Japanese, `j6-alternate`); A1 names Tacloban and Dulag only and J5 "captures no field by itself".
  */
 import siteWindows from '../../content/campaign/site-windows.json' with { type: 'json' }
 import { CHAPTER_IDS } from './schema.js'
 
 export const WINDOW_IDS: readonly string[] = siteWindows.windows.map((w) => w.id)
 export const F8A_SITES = ['tacloban', 'dulag', 'tanauan'] as const
-const SITES: readonly string[] = F8A_SITES
+export const F8B_SITES = ['buri', 'bayug', 'san-pablo'] as const
+const SITES: readonly string[] = [...F8A_SITES, ...F8B_SITES]
 
 type World = Readonly<Record<string, string>>
 const all = (window: string): Readonly<Record<string, string>> => Object.fromEntries(SITES.map((s) => [s, window]))
@@ -31,7 +34,8 @@ const PLAY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 
 /**
  * What a chapter's success writes into `world` (F3 section 4, "State transition"). A chapter with no line changes no
- * F8A site: J5 "captures no field by itself"; A2-A5 and J1-J4 name none.
+ * site: J5 "captures no field by itself"; A2-A5 and J1-J4 name none. A1 names only Tacloban and Dulag, so the Burauen fields
+ * stay where they were after it.
  */
 const SUCCESS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   A1: { tacloban: 'assault', dulag: 'assault' },

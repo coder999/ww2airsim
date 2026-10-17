@@ -17,11 +17,13 @@ import { groundTruthTerrain } from '../../../tools/sites/terrain.js'
  */
 const ids = readdirSync('content/sites').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort()
 const sites: Readonly<Record<string, Site>> = Object.fromEntries(ids.map((i) => [i, loadSite(i)]))
+/** [site, window] pairs that are a field with nothing on it, by the sources. */
+const UNOCCUPIED: readonly (readonly [string, string])[] = [['san-pablo', 'pre-invasion']]
 const raw = (id: string): Record<string, unknown> => JSON.parse(readFileSync(`content/sites/${id}.json`, 'utf8')) as Record<string, unknown>
 
 describe('site files: schema and loader', () => {
-  it('enrolls exactly the F8A sites (F8B and F8C add theirs)', () => {
-    expect(ids).toEqual(['dulag', 'tacloban', 'tanauan'])
+  it('enrolls exactly the F8A and F8B sites (F8C adds its own)', () => {
+    expect(ids).toEqual(['bayug', 'buri', 'dulag', 'san-pablo', 'tacloban', 'tanauan'])
   })
 
   it('window ids come from the one list in content/campaign/site-windows.json, in campaign order', () => {
@@ -62,7 +64,8 @@ describe('site files: schema and loader', () => {
 })
 
 describe('site files: runway agrees with the base content it replaces', () => {
-  it.each(['tacloban', 'dulag'])('%s runway, apron and clearing equal content/bases', (id) => {
+  // F8B: Bayug joins (its base is the runway Convoy Strike lands on). Buri and San Pablo have no base file; their strips are fitted.
+  it.each(['tacloban', 'dulag', 'bayug'])('%s runway, apron and clearing equal content/bases', (id) => {
     const base = loadAirfield(id)
     const s = sites[id]!
     expect(s.base.runway).toEqual(base.runway)
@@ -108,8 +111,15 @@ describe('site files: placements are labeled and persist', () => {
       expect(win.vehicles.length, `${id} ${w}`).toBeLessThanOrEqual(VEHICLE_CAP)
       expect(win.parked.length, `${id} ${w}`).toBeLessThanOrEqual(PARKED_CAP)
       const field = airfieldFor(sites[id]!, w)
-      if (win.built) expect(field!.buildings.length, `${id} ${w}`).toBeGreaterThan(0)
-      else expect(field).toBeNull()
+      // The one near-exemption (F8B): San Pablo before the invasion was "overgrown with weeds and had not been occupied by the
+      // Japanese" (Army, Leyte, ch. VIII). The airfield schema needs one strike target, so that window holds exactly one grown-over
+      // revetment and nothing else: the exemption cannot hide content.
+      const unoccupied = UNOCCUPIED.some(([s, ww]) => s === id && ww === w)
+      if (unoccupied) {
+        expect(field!.buildings.map((b) => b.id), `${id} ${w} is declared unoccupied`).toEqual(['san-pablo-revetment-1'])
+        expect(win.vehicles.length + win.parked.length + win.lights.length + win.added.length, `${id} ${w} is declared unoccupied`).toBe(0)
+      } else if (win.built) expect(field!.buildings.length, `${id} ${w}`).toBeGreaterThan(0)
+      if (!win.built) expect(field).toBeNull()
     }
   })
 })
@@ -136,12 +146,15 @@ describe('site files: the layout stands on the real ground', () => {
     expect(bad).toEqual([])
   })
 
-  it('Tanauan strip is fitted to terrain: all land, under 5 m of relief over the full length and 3 sigma width', () => {
-    const a = airfieldFor(sites.tanauan!, 'endgame')!
+  // [site, window, most relief allowed along the strip]: the shipped terrain's best near each field, measured 2026-10-17
+  // (surveyStrip.ts): Buri about 6 m, San Pablo about 4 m, Bayug about 6 m over its full 1.5 km.
+  const FITS: readonly (readonly [string, string, number])[] = [['tanauan', 'endgame', 5], ['buri', 'pre-invasion', 7], ['san-pablo', 'endgame', 7], ['bayug', 'pre-invasion', 8]]
+  it.each(FITS)('%s strip is fitted to terrain: all land, under the stated relief over the full length and 3 sigma width', (id, window, relief) => {
+    const a = airfieldFor(sites[id]!, window)!
     const hs: number[] = []
-    for (let z = -750; z <= 750; z += 25) for (const x of [-22.5, 0, 22.5]) { const w = localToWorld(a, x, z); hs.push(heightAt(terrain, w.x, w.z)) }
+    for (let z = -a.runway.lengthM / 2; z <= a.runway.lengthM / 2; z += 25) for (const x of [-a.runway.widthM / 2, 0, a.runway.widthM / 2]) { const w = localToWorld(a, x, z); hs.push(heightAt(terrain, w.x, w.z)) }
     expect(Math.min(...hs), 'lowest strip sample').toBeGreaterThan(1.5)
-    expect(Math.max(...hs) - Math.min(...hs), 'relief along the strip').toBeLessThan(5)
+    expect(Math.max(...hs) - Math.min(...hs), 'relief along the strip').toBeLessThan(relief)
   })
 })
 
@@ -182,11 +195,50 @@ describe('site files: F3 section 5 (hand-transcribed) and a layout that works', 
     tacloban: { 'pre-invasion': ['axis', true, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
     dulag: { 'pre-invasion': ['axis', false, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
     tanauan: { 'pre-invasion': ['allied', false, false], assault: ['allied', false, false], buildup: ['allied', false, true], endgame: ['allied', false, true], 'j6-alternate': ['allied', false, true] },
+    // F8B, F3 section 5: Buri "principal Japanese inland field", "captured after inland fighting", "dry-weather use, then construction
+    // abandoned 25 Nov", "American-held, attacked and temporarily penetrated", "Japanese-controlled and serviceable enough for recovery".
+    buri: { 'pre-invasion': ['axis', true, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['axis', true, true] },
+    // Bayug "Japanese dry-weather strip", "captured after inland fighting", "limited American dry-weather use continues", "American-held
+    // finale objective", "Japanese-controlled and serviceable recovery field".
+    bayug: { 'pre-invasion': ['axis', true, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['axis', true, true] },
+    // San Pablo "overgrown, unused by Japanese", "captured, still poor", "construction attempted then abandoned 25 Nov", "principal airborne
+    // drop/lodgment area", "Japanese-controlled lodgment/field". `serviceable` for the last two is the F8 plan's ruling 3 (the F8B detail):
+    // endgame true (A6 keeps three fields above their threshold), alternate false (J6 asks only that San Pablo stay Japanese-controlled).
+    'san-pablo': { 'pre-invasion': ['axis', false, true], assault: ['allied', false, true], buildup: ['allied', false, true], endgame: ['allied', true, true], 'j6-alternate': ['axis', false, true] },
   }
   it.each(Object.keys(TABLE))('%s: every window says what F3 section 5 says', (id) => {
     for (const w of WINDOW_IDS) {
       const win = sites[id]!.windows[w]!
       expect([win.side, win.serviceable, win.built], `${id} ${w}`).toEqual(TABLE[id]![w])
+    }
+  })
+
+  it('Buri and San Pablo are the Army history\'s strips: lengths 5,000 ft and 4,920 ft, San Pablo 164 ft wide, both near east-west', () => {
+    const ft = (m: number): number => m / 0.3048
+    expect(ft(sites.buri!.base.runway.lengthM)).toBeCloseTo(5000, -1)
+    expect(ft(sites['san-pablo']!.base.runway.lengthM)).toBeCloseTo(4920, -1)
+    expect(ft(sites['san-pablo']!.base.runway.widthM)).toBeCloseTo(164, -1)
+    expect(ft(sites.bayug!.base.runway.lengthM)).toBeGreaterThan(4900) // the base's 1,500 m, "about 5,000 ft"
+    for (const id of ['buri', 'san-pablo']) expect(Math.abs(sites[id]!.base.runway.headingDeg - 90), `${id} heading`).toBeLessThanOrEqual(15)
+  })
+
+  it('J1 names five critical groups at Buri; each exists as a tagged building (or revetment) in the pre-invasion field', () => {
+    const tags = new Set(sites.buri!.base.buildings.flatMap((b) => b.tags ?? []))
+    for (const t of ['buri-fuel', 'buri-radio', 'buri-north-hangar', 'buri-south-hangar', 'buri-dispersal']) expect(tags.has(t), t).toBe(true)
+    // and the dispersal has aircraft in it for the J1 start, Japanese and parked
+    const pre = sites.buri!.windows['pre-invasion']!
+    expect(pre.parked.some((p) => p.spec === 'a6m2-zero')).toBe(true)
+    expect(pre.parked.every((p) => (p.side ?? pre.side) === 'axis')).toBe(true)
+  })
+
+  it('San Pablo keeps open drop-zone ground: no hit box in the central 400 m of the clearing, in every window, and a clearing at least 600 m wide', () => {
+    const s = sites['san-pablo']!
+    expect(s.base.clearing!.widthM).toBeGreaterThanOrEqual(600)
+    expect(s.base.clearing!.lengthM).toBeGreaterThanOrEqual(1500)
+    for (const w of WINDOW_IDS) {
+      const a = airfieldFor(s, w)!
+      const inside = a.buildings.filter((b) => Math.abs(b.x) - b.widthM / 2 < 200 && Math.abs(b.z) - b.lengthM / 2 < a.runway.lengthM / 2 + 50).map((b) => b.id)
+      expect(inside, `${w}: buildings in the open zone`).toEqual([])
     }
   })
 

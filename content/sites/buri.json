@@ -1,0 +1,915 @@
+{
+  "id": "buri",
+  "name": "Buri",
+  "airfield": "buri",
+  "base": {
+    "runway": {
+      "center": {
+        "x": -41025,
+        "z": -22005
+      },
+      "headingDeg": 80,
+      "lengthM": 1524,
+      "widthM": 45
+    },
+    "apron": null,
+    "clearing": {
+      "x": -80,
+      "z": 0,
+      "widthM": 560,
+      "lengthM": 1000
+    },
+    "buildings": [
+      {
+        "id": "buri-tower",
+        "kind": "tower",
+        "x": -75,
+        "z": -60,
+        "widthM": 10,
+        "lengthM": 10,
+        "hp": 40,
+        "heightM": 16.1,
+        "tags": [
+          "buri-tower"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "buri-hangar-n",
+        "kind": "hangar",
+        "x": -150,
+        "z": -170,
+        "widthM": 35,
+        "lengthM": 43,
+        "hp": 120,
+        "heightM": 14.1,
+        "tags": [
+          "buri-north-hangar"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-hangar-s",
+        "kind": "hangar",
+        "x": 150,
+        "z": 170,
+        "widthM": 35,
+        "lengthM": 43,
+        "hp": 120,
+        "heightM": 14.1,
+        "tags": [
+          "buri-south-hangar"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-fuel-farm",
+        "kind": "fuel-tank-farm",
+        "x": -270,
+        "z": 280,
+        "widthM": 55,
+        "lengthM": 55,
+        "hp": 80,
+        "heightM": 9.0,
+        "tags": [
+          "buri-fuel"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-radio-station",
+        "kind": "radio-radar-station",
+        "x": 170,
+        "z": -320,
+        "widthM": 16,
+        "lengthM": 12,
+        "hp": 50,
+        "heightM": 22.0,
+        "tags": [
+          "buri-radio"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-revetment-1",
+        "kind": "revetment",
+        "x": -62,
+        "z": 330,
+        "widthM": 20,
+        "lengthM": 30,
+        "hp": 40,
+        "heightM": 3.0,
+        "tags": [
+          "buri-dispersal"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-revetment-2",
+        "kind": "revetment",
+        "x": -62,
+        "z": 380,
+        "widthM": 20,
+        "lengthM": 30,
+        "hp": 40,
+        "heightM": 3.0,
+        "tags": [
+          "buri-dispersal"
+        ],
+        "basis": "inferred",
+        "cite": "Follows from F3 section 4 J1, which tracks this group at Buri; its pose is invented."
+      },
+      {
+        "id": "buri-aaa-1",
+        "kind": "aaa",
+        "x": -95,
+        "z": -360,
+        "widthM": 6,
+        "lengthM": 6,
+        "hp": 30,
+        "heightM": 2.1,
+        "tags": [
+          "buri-aaa"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "buri-aaa-2",
+        "kind": "aaa",
+        "x": 95,
+        "z": 330,
+        "widthM": 6,
+        "lengthM": 6,
+        "hp": 30,
+        "heightM": 2.1,
+        "tags": [
+          "buri-aaa"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "buri-aaa-3",
+        "kind": "aaa",
+        "x": -110,
+        "z": 60,
+        "widthM": 6,
+        "lengthM": 6,
+        "hp": 30,
+        "heightM": 2.1,
+        "tags": [
+          "buri-aaa"
+        ],
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "buri-ammo-bunker-1",
+        "kind": "ammunition-bunker",
+        "x": -300,
+        "z": -250,
+        "widthM": 16.1,
+        "lengthM": 12,
+        "hp": 90,
+        "heightM": 3.5,
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      },
+      {
+        "id": "buri-barracks-1",
+        "kind": "barracks-and-huts",
+        "x": -300,
+        "z": -130,
+        "widthM": 24,
+        "lengthM": 29.2,
+        "hp": 60,
+        "heightM": 6.0,
+        "basis": "invented",
+        "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+      }
+    ],
+    "clutterAreas": [
+      {
+        "id": "camp",
+        "x": -260,
+        "z": -190,
+        "widthM": 180,
+        "lengthM": 260
+      },
+      {
+        "id": "dispersal",
+        "x": -80,
+        "z": 300,
+        "widthM": 110,
+        "lengthM": 160
+      },
+      {
+        "id": "dump",
+        "x": -270,
+        "z": 280,
+        "widthM": 140,
+        "lengthM": 160
+      },
+      {
+        "id": "strip",
+        "x": 0,
+        "z": 0,
+        "widthM": 80,
+        "lengthM": 1524
+      }
+    ]
+  },
+  "sources": {
+    "f3-site-lock": {
+      "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+      "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+    },
+    "army-leyte-ch8": {
+      "claim": "Burauen airfields: San Pablo about 5 mi west of Dulag, 2 mi east of Burauen, east-west, 164 x 4,920 ft, overgrown and unoccupied; Bayug just north of the highway, a half mile east of Burauen, about 5,000 ft; Buri about 1 mi northeast of Burauen, east-west, 5,000 ft, the most important of the three",
+      "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html"
+    },
+    "army-leyte-ch11": {
+      "claim": "Mud and field construction problems; Buri and San Pablo abandoned, Bayug work continued (late Nov 1944)",
+      "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html"
+    },
+    "army-leyte-ch17": {
+      "claim": "Operation Te-Go: attacks on the Buri and San Pablo airfields on 6-7 Dec 1944",
+      "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-17.html"
+    },
+    "marine-aviation-philippines": {
+      "claim": "Tacloban and Dulag construction problems; Tanauan work after 28 Nov; the inland fields abandoned",
+      "url": "https://www.ibiblio.org/hyperwar/USMC/USMC-M-AvPhil/USMC-M-AvPhil-2.html"
+    },
+    "f3-j1-groups": {
+      "claim": "J1 tracks five critical groups at Buri: fuel farm, radio station, north hangar, south hangar, parked-aircraft dispersal",
+      "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#j1--defend-the-fields"
+    }
+  },
+  "reference": {
+    "source": "Runway length is the Army history (ch. VIII: east-west, 5,000 ft, about 1 mi northeast of Burauen) = 1,524 m; width 45 m is an ESTIMATE carried from the other bases. Center and heading 80 are FITTED to the shipped terrain near the Army offset (tools/sites/surveyStrip.ts, 2026-10-17): all land, about 6 m of relief over 1.5 km, the best the terrain offers near that offset. Windows follow the F3 section 5 Buri row. Every building pose is invented gameplay layout; the five J1 groups (north and south hangar, fuel farm, radio station, dispersal revetments) exist because F3 section 4 J1 requires them, and are labeled inferred."
+  },
+  "windows": {
+    "pre-invasion": {
+      "built": true,
+      "side": "axis",
+      "serviceable": true,
+      "note": "Principal Japanese inland field; the J1 start (engine-running at Buri) and its five critical groups.",
+      "states": {},
+      "added": [],
+      "vehicles": [
+        {
+          "id": "buri-pre-1",
+          "spec": "type94-cargo-truck",
+          "x": -110,
+          "z": -100,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-2",
+          "spec": "type94-cargo-truck",
+          "x": -110,
+          "z": -130,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-3",
+          "spec": "type38-75mm-field-gun",
+          "x": -130,
+          "z": 30,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-4",
+          "spec": "type94-cargo-truck",
+          "x": -230,
+          "z": 230,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "buri-pre-air-1",
+          "spec": "a6m2-zero",
+          "x": -58,
+          "z": -300,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-air-2",
+          "spec": "a6m2-zero",
+          "x": -58,
+          "z": -270,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-air-3",
+          "spec": "ki-43-oscar",
+          "x": -58,
+          "z": -240,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-air-4",
+          "spec": "ki-43-oscar",
+          "x": -58,
+          "z": -210,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-pre-air-5",
+          "spec": "ki-43-oscar",
+          "x": -58,
+          "z": -180,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.3,
+          "drum": 0.3
+        },
+        "dump": {
+          "drum": 0.6,
+          "crate": 0.4
+        },
+        "dispersal": {
+          "rut": 0.2
+        }
+      }
+    },
+    "assault": {
+      "built": true,
+      "side": "allied",
+      "serviceable": false,
+      "note": "Captured after inland fighting; still unserviceable.",
+      "states": {
+        "buri-hangar-n": "damaged",
+        "buri-hangar-s": "destroyed",
+        "buri-tower": "damaged",
+        "buri-fuel-farm": "destroyed",
+        "buri-radio-station": "damaged",
+        "buri-barracks-1": "destroyed",
+        "buri-aaa-1": "destroyed",
+        "buri-revetment-1": "damaged"
+      },
+      "added": [],
+      "vehicles": [
+        {
+          "id": "buri-as-1",
+          "spec": "caterpillar-d7-3t",
+          "x": -60,
+          "z": -300,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-as-2",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -100,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-as-3",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -130,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-as-4",
+          "spec": "willys-mb-jeep",
+          "x": -90,
+          "z": -40,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.8,
+          "drum": 0.6,
+          "crate": 0.4,
+          "mud": 1.0,
+          "rut": 0.8,
+          "sandbag": 0.5,
+          "crater": 0.15
+        },
+        "dump": {
+          "drum": 0.5,
+          "crate": 0.4,
+          "crater": 0.3
+        },
+        "dispersal": {
+          "mud": 0.6,
+          "rut": 0.6,
+          "crater": 0.2
+        },
+        "strip": {
+          "crater": 0.05,
+          "mud": 0.15,
+          "rut": 0.12
+        }
+      }
+    },
+    "buildup": {
+      "built": true,
+      "side": "allied",
+      "serviceable": true,
+      "note": "Dry-weather American use; construction abandoned 25 Nov.",
+      "states": {
+        "buri-hangar-s": "destroyed",
+        "buri-hangar-n": "construction",
+        "buri-fuel-farm": "damaged",
+        "buri-barracks-1": "destroyed",
+        "buri-aaa-1": "destroyed"
+      },
+      "added": [
+        {
+          "id": "buri-us-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -310,
+          "z": -40,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "buri-bu-1",
+          "spec": "caterpillar-d7-3t",
+          "x": -60,
+          "z": -300,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-2",
+          "spec": "caterpillar-d7-3t",
+          "x": 200,
+          "z": 250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-3",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -100,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-4",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -130,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-5",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -160,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-6",
+          "spec": "willys-mb-jeep",
+          "x": -90,
+          "z": -20,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-7",
+          "spec": "gmc-cckw-353",
+          "x": 230,
+          "z": -250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-8",
+          "spec": "caterpillar-d7-3t",
+          "x": -200,
+          "z": 130,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "buri-bu-air-1",
+          "spec": "p-38-lightning",
+          "x": -58,
+          "z": -300,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-air-2",
+          "spec": "p-38-lightning",
+          "x": -58,
+          "z": -260,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-bu-air-3",
+          "spec": "p-38-lightning",
+          "x": -58,
+          "z": -220,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 1.2,
+          "drum": 1.0,
+          "crate": 0.8,
+          "mud": 1.4,
+          "rut": 1.4,
+          "sandbag": 0.6,
+          "mat": 0.2
+        },
+        "dump": {
+          "drum": 1.2,
+          "crate": 1.0,
+          "mud": 0.8
+        },
+        "dispersal": {
+          "mud": 0.8,
+          "rut": 1.0,
+          "mat": 0.3
+        },
+        "strip": {
+          "mat": 0.08,
+          "rut": 0.1,
+          "mud": 0.1
+        }
+      }
+    },
+    "endgame": {
+      "built": true,
+      "side": "allied",
+      "serviceable": true,
+      "note": "American-held, attacked and temporarily penetrated (Te-Go, 6-7 Dec).",
+      "states": {
+        "buri-hangar-s": "destroyed",
+        "buri-hangar-n": "damaged",
+        "buri-tower": "damaged",
+        "buri-radio-station": "damaged",
+        "buri-fuel-farm": "destroyed",
+        "buri-barracks-1": "destroyed",
+        "buri-aaa-1": "destroyed",
+        "buri-us-camp-1": "damaged"
+      },
+      "added": [
+        {
+          "id": "buri-us-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -310,
+          "z": -40,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "buri-en-1",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -100,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-2",
+          "spec": "gmc-cckw-353",
+          "x": -110,
+          "z": -130,
+          "headingDeg": 90,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-3",
+          "spec": "willys-mb-jeep",
+          "x": -90,
+          "z": -20,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-4",
+          "spec": "willys-mb-jeep",
+          "x": -90,
+          "z": 20,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-5",
+          "spec": "caterpillar-d7-3t",
+          "x": -200,
+          "z": 130,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-6",
+          "spec": "gmc-cckw-353",
+          "x": 230,
+          "z": -250,
+          "headingDeg": 0,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "buri-en-air-1",
+          "spec": "p-38-lightning",
+          "x": -58,
+          "z": -300,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-en-air-2",
+          "spec": "p-38-lightning",
+          "x": -58,
+          "z": -260,
+          "side": "allied",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 1.0,
+          "drum": 0.8,
+          "crate": 0.6,
+          "mud": 1.0,
+          "rut": 1.0,
+          "sandbag": 0.8,
+          "crater": 0.2
+        },
+        "dump": {
+          "drum": 0.6,
+          "crate": 0.6,
+          "crater": 0.4
+        },
+        "dispersal": {
+          "mud": 0.6,
+          "rut": 0.8,
+          "crater": 0.15
+        },
+        "strip": {
+          "crater": 0.04,
+          "mat": 0.06,
+          "rut": 0.08
+        }
+      }
+    },
+    "j6-alternate": {
+      "built": true,
+      "side": "axis",
+      "serviceable": true,
+      "note": "Japanese-controlled and serviceable enough for recovery (alternate history).",
+      "states": {
+        "buri-hangar-s": "destroyed",
+        "buri-hangar-n": "damaged",
+        "buri-fuel-farm": "damaged",
+        "buri-tower": "damaged",
+        "buri-barracks-1": "destroyed",
+        "buri-us-camp-1": "destroyed"
+      },
+      "added": [
+        {
+          "id": "buri-us-camp-1",
+          "kind": "barracks-and-huts",
+          "x": -310,
+          "z": -40,
+          "widthM": 24,
+          "lengthM": 29.2,
+          "hp": 60,
+          "heightM": 6.0,
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "buri-j6-1",
+          "spec": "type94-cargo-truck",
+          "x": -110,
+          "z": -100,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-j6-2",
+          "spec": "type94-cargo-truck",
+          "x": -110,
+          "z": -130,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-j6-3",
+          "spec": "type94-cargo-truck",
+          "x": -110,
+          "z": -160,
+          "headingDeg": 90,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-j6-4",
+          "spec": "type38-75mm-field-gun",
+          "x": -130,
+          "z": 30,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-j6-5",
+          "spec": "type38-75mm-field-gun",
+          "x": 130,
+          "z": 20,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-j6-6",
+          "spec": "type95-kurogane",
+          "x": -90,
+          "z": -20,
+          "headingDeg": 0,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "parked": [
+        {
+          "id": "buri-alt-air-1",
+          "spec": "a6m2-zero",
+          "x": -58,
+          "z": -300,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-alt-air-2",
+          "spec": "a6m2-zero",
+          "x": -58,
+          "z": -270,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-alt-air-3",
+          "spec": "ki-43-oscar",
+          "x": -58,
+          "z": -240,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        },
+        {
+          "id": "buri-alt-air-4",
+          "spec": "ki-43-oscar",
+          "x": -58,
+          "z": -210,
+          "side": "axis",
+          "basis": "invented",
+          "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
+        }
+      ],
+      "lights": [],
+      "clutter": {
+        "camp": {
+          "tent": 0.6,
+          "drum": 0.6,
+          "crate": 0.4,
+          "mud": 0.8,
+          "rut": 0.8,
+          "crater": 0.3
+        },
+        "dump": {
+          "drum": 0.6,
+          "crate": 0.4,
+          "crater": 0.3
+        },
+        "dispersal": {
+          "rut": 0.6,
+          "crater": 0.2
+        },
+        "strip": {
+          "crater": 0.04,
+          "mud": 0.1,
+          "rut": 0.1
+        }
+      }
+    }
+  }
+}
