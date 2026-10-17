@@ -66,6 +66,7 @@ export const LEGEND_ROWS: readonly LegendRow[] = [
   // keys are on its bar, not here: they mean nothing in flight.
   { label: 'Replay (paused)', bindings: ['replay'] },
   { label: 'Bail out', bindings: ['bailout'] },
+  { label: 'Drop cargo (transport, doors open)', bindings: ['dropCargo'] },
 ]
 
 const NAMED: Readonly<Record<string, string>> = {
