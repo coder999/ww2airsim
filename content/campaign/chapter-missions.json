@@ -112,11 +112,16 @@
    "authoredBonus": 0
   },
   "J5": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j5-night-drop-on-burauen",
+   "badge": {
+    "id": "night-drop-on-burauen",
+    "name": "Night Drop on Burauen"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "ki-57-ii-topsy"
+   ],
+   "recommendedLoadout": "clean",
    "coordinated": false,
    "authoredBonus": 0
   },

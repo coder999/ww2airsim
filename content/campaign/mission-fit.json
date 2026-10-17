@@ -365,6 +365,7 @@
   {
    "id": "J5",
    "status": "filled",
+   "scenario": "j5-night-drop-on-burauen",
    "aircraft": "ki-57-ii-topsy",
    "side": "axis",
    "start": {
@@ -373,7 +374,7 @@
     "x": 0,
     "z": 23000,
     "basis": "invented",
-    "note": "F3 J5: the formation starts west of the ridge but gives no position; invented as 23 km west of the San Pablo runway center, which at 80 m/s puts the drop inside F3's 5-6 min. The row therefore proves the drop zone is reachable and open ground, not the travel time."
+    "note": "F3 J5: the formation starts west of the ridge but gives no position; invented as 23 km west of the San Pablo runway center, which at 80 m/s puts the drop inside F3's 5-6 min. The row therefore proves the drop zone is reachable and open ground, not the travel time. F10D (2026-10-17): kept as the authored start; the scenario j5-night-drop-on-burauen starts here and the row is linked to it. The drop zone is a 900 m circle on the strip's centre, the row's first action."
    },
    "firstAction": {
     "site": "san-pablo",
