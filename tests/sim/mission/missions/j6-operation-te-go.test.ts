@@ -10,7 +10,6 @@ import { fieldState } from '../../../../src/sim/mission/fields.js'
 import { ticksFor, radioMessages } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
 import type { ParachutistEntity } from '../../../../src/sim/bailout.js'
-import { progressOf } from '../fixture.js'
 import { deckRun, destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from '../fly.js'
 
 /**
@@ -116,7 +115,7 @@ const escortFor = (w: World<undefined>, seconds: number): World<undefined> => {
   return world
 }
 const takeoff = (): World<undefined> => {
-  let w = deckRun(fresh(), { flaps: false, climbToM: 300 })
+  const w = deckRun(fresh(), { flaps: false, climbToM: 300 })
   return hold(w, FAR, ticksFor(80) - w.tick)
 }
 /** Takes off, lets the response spawn and shoots it down, escorts the Sallys, stages their release and two landed Topsy sticks: the flip has happened. */

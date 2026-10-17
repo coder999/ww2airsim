@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadScenario, loadScenarioBundle } from '../../../../tools/content/load.js'
-import { parseScenario, worldFromScenario, type Scenario } from '../../../../src/sim/scenario.js'
+import { parseScenario, worldFromScenario } from '../../../../src/sim/scenario.js'
 import { windowsForChapter } from '../../../../src/campaign/worldStates.js'
 import type { World } from '../../../../src/sim/loop.js'
 import { airborne } from '../../../../src/sim/ai/airborne.js'
@@ -17,8 +17,7 @@ import { deckRun, destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from
  * the chapter's window. The flown half is below it.
  */
 const ID = 'a6-battle-for-the-airfields'
-const bundle = () => loadScenarioBundle(ID, windowsForChapter('A6'))
-const specOf = (s: Scenario) => (e: { spec: string }) => e.spec
+const specOf = () => (e: { spec: string }) => e.spec
 
 describe('A6 content: the locked finale populations (F3 sections 2 and 4)', () => {
   const scenario = loadScenario(ID)
@@ -36,7 +35,7 @@ describe('A6 content: the locked finale populations (F3 sections 2 and 4)', () =
 
   it('has ten allied ships (one Essex, one Pennsylvania, one Cleveland, two Fletchers, five Type B Marus)', () => {
     const ships = [...scenario.ships, ...held.flatMap((g) => g.ships ?? [])]
-    expect(ships.map(specOf(scenario)).sort()).toEqual(['cleveland-cl', 'essex-cv', 'fletcher-dd', 'fletcher-dd', 'pennsylvania-bb', 'type-b-maru', 'type-b-maru', 'type-b-maru', 'type-b-maru', 'type-b-maru'])
+    expect(ships.map(specOf()).sort()).toEqual(['cleveland-cl', 'essex-cv', 'fletcher-dd', 'fletcher-dd', 'pennsylvania-bb', 'type-b-maru', 'type-b-maru', 'type-b-maru', 'type-b-maru', 'type-b-maru'])
     expect(ships.every((s) => s.side === 'allied')).toBe(true)
   })
 
@@ -179,7 +178,7 @@ describe.skipIf(terrain === null)('A6, headless: success, failure and the edge p
   }, 600000)
 
   it('six releases fail the raid objective at that tick, and a bomber that released then died is not a stop', () => {
-    let w = afterRelief()
+    const w = afterRelief()
     expect(progressOf(w, 'stop').status).toBe('complete') // five already stopped: nothing can undo it
     let early = deckRun(fresh(), { flaps: false, climbToM: 300 })
     early = hold(early, FAR, ticksFor(50) - early.tick)
