@@ -65,11 +65,11 @@
    "authoredBonus": 0
   },
   "J2": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j2-break-the-landing",
+   "badge": { "id": "j2-break-the-landing", "name": "Break the Landing" },
+   "start": "airborne",
+   "aircraft": ["b5n2-kate"],
+   "recommendedLoadout": "torpedoes",
    "coordinated": false,
    "authoredBonus": 0
   },

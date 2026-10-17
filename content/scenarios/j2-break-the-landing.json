@@ -1,0 +1,499 @@
+{
+  "id": "j2-break-the-landing",
+  "player": "kate-1",
+  "airfields": [
+    "dulag"
+  ],
+  "airfieldSides": {
+    "dulag": "axis"
+  },
+  "aircraft": [
+    {
+      "id": "kate-1",
+      "spec": "b5n2-kate",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -17291,
+          1500,
+          -17955
+        ],
+        "headingDeg": 338,
+        "speedMps": 75
+      }
+    },
+    {
+      "id": "kate-2",
+      "spec": "b5n2-kate",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -17440,
+          1500,
+          -17750
+        ],
+        "headingDeg": 338,
+        "speedMps": 75
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "kate-1",
+        "slot": 1
+      }
+    },
+    {
+      "id": "kate-3",
+      "spec": "b5n2-kate",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -17080,
+          1500,
+          -17890
+        ],
+        "headingDeg": 338,
+        "speedMps": 75
+      },
+      "pilot": {
+        "skill": "green",
+        "leader": "kate-1",
+        "slot": 2
+      }
+    },
+    {
+      "id": "cap-1",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -21500,
+          1800,
+          -28200
+        ],
+        "headingDeg": 80,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green"
+      },
+      "tags": [
+        "cap"
+      ]
+    },
+    {
+      "id": "cap-2",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -21800,
+          1900,
+          -28500
+        ],
+        "headingDeg": 80,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green"
+      },
+      "tags": [
+        "cap"
+      ]
+    },
+    {
+      "id": "cap-3",
+      "spec": "f6f-hellcat",
+      "side": "allied",
+      "airborneAt": {
+        "position": [
+          -21200,
+          1700,
+          -28450
+        ],
+        "headingDeg": 80,
+        "speedMps": 90
+      },
+      "pilot": {
+        "skill": "green"
+      },
+      "tags": [
+        "cap"
+      ]
+    }
+  ],
+  "ships": [
+    {
+      "id": "maru-1",
+      "spec": "type-b-maru",
+      "side": "allied",
+      "tags": [
+        "maru"
+      ],
+      "waypoints": [
+        [
+          -27092,
+          -42213
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "maru-2",
+      "spec": "type-b-maru",
+      "side": "allied",
+      "tags": [
+        "maru"
+      ],
+      "waypoints": [
+        [
+          -27101,
+          -40913
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "maru-3",
+      "spec": "type-b-maru",
+      "side": "allied",
+      "tags": [
+        "maru"
+      ],
+      "waypoints": [
+        [
+          -27938,
+          -39965
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "maru-4",
+      "spec": "type-b-maru",
+      "side": "allied",
+      "tags": [
+        "maru"
+      ],
+      "waypoints": [
+        [
+          -27854,
+          -38626
+        ]
+      ],
+      "speedMps": 0
+    },
+    {
+      "id": "fletcher-1",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -24545,
+          -42327
+        ],
+        [
+          -26577,
+          -37540
+        ]
+      ],
+      "speedMps": 7,
+      "tags": [
+        "fletcher"
+      ]
+    },
+    {
+      "id": "fletcher-2",
+      "spec": "fletcher-dd",
+      "side": "allied",
+      "waypoints": [
+        [
+          -23809,
+          -42014
+        ],
+        [
+          -25841,
+          -37228
+        ]
+      ],
+      "speedMps": 7,
+      "tags": [
+        "fletcher"
+      ]
+    },
+    {
+      "id": "cleveland",
+      "spec": "cleveland-cl",
+      "side": "allied",
+      "waypoints": [
+        [
+          -23293,
+          -40926
+        ],
+        [
+          -24700,
+          -37613
+        ]
+      ],
+      "speedMps": 6
+    },
+    {
+      "id": "pennsylvania",
+      "spec": "pennsylvania-bb",
+      "side": "allied",
+      "waypoints": [
+        [
+          -22724,
+          -39707
+        ],
+        [
+          -23427,
+          -38050
+        ]
+      ],
+      "speedMps": 2
+    }
+  ],
+  "vehicles": [
+    {
+      "id": "lcvp-1",
+      "spec": "lcvp",
+      "side": "allied",
+      "tags": [
+        "lcvp"
+      ],
+      "waypoints": [
+        [
+          -27242,
+          -42207
+        ],
+        [
+          -30374,
+          -42092
+        ]
+      ],
+      "speedMps": 4,
+      "loop": true
+    },
+    {
+      "id": "lcvp-2",
+      "spec": "lcvp",
+      "side": "allied",
+      "tags": [
+        "lcvp"
+      ],
+      "waypoints": [
+        [
+          -27239,
+          -40972
+        ],
+        [
+          -30277,
+          -42261
+        ]
+      ],
+      "speedMps": 4,
+      "loop": true
+    },
+    {
+      "id": "lcvp-3",
+      "spec": "lcvp",
+      "side": "allied",
+      "tags": [
+        "lcvp"
+      ],
+      "waypoints": [
+        [
+          -28076,
+          -40024
+        ],
+        [
+          -30746,
+          -41156
+        ]
+      ],
+      "speedMps": 4,
+      "loop": true
+    },
+    {
+      "id": "lcvp-4",
+      "spec": "lcvp",
+      "side": "allied",
+      "tags": [
+        "lcvp"
+      ],
+      "waypoints": [
+        [
+          -27992,
+          -38685
+        ],
+        [
+          -31214,
+          -40052
+        ]
+      ],
+      "speedMps": 4,
+      "loop": true
+    }
+  ],
+  "weather": {
+    "timeOfDay": 15.25,
+    "windFromDeg": 0,
+    "windMps": 3,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1000,
+        "thicknessM": 800,
+        "coverage": 0.6
+      }
+    ]
+  },
+  "population": {
+    "airborne": 6,
+    "ships": 8
+  },
+  "recovery": {
+    "kind": "egress",
+    "objective": "gate"
+  },
+  "objectives": [
+    {
+      "id": "cap",
+      "label": "Penetrate the CAP",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -22500,
+        "z": -31500
+      },
+      "radiusM": 2500,
+      "altitudeM": [
+        200,
+        3500
+      ]
+    },
+    {
+      "id": "maru",
+      "label": "Sink a transport",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "maru"
+      ],
+      "count": 1,
+      "after": "cap"
+    },
+    {
+      "id": "escort",
+      "label": "Damage a destroyer or cruiser below half hull",
+      "priority": "secondary",
+      "kind": "damage",
+      "targets": [
+        "fletcher",
+        "cleveland"
+      ],
+      "belowHpFraction": 0.5,
+      "count": 1,
+      "after": "cap"
+    },
+    {
+      "id": "hit",
+      "label": "Sink a transport or cripple an escort",
+      "priority": "primary",
+      "kind": "atLeast",
+      "n": 1,
+      "of": [
+        "maru",
+        "escort"
+      ],
+      "after": "cap"
+    },
+    {
+      "id": "gate",
+      "label": "Cross the western egress gate",
+      "priority": "primary",
+      "kind": "reach",
+      "point": {
+        "x": -46500,
+        "z": -41000
+      },
+      "radiusM": 3000,
+      "altitudeM": [
+        0,
+        6000
+      ],
+      "after": "hit"
+    },
+    {
+      "id": "lcvps",
+      "label": "Sink two landing craft",
+      "priority": "secondary",
+      "kind": "destroy",
+      "targets": [
+        "lcvp"
+      ],
+      "count": 2
+    }
+  ],
+  "triggers": [
+    {
+      "id": "orders",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Observer: Strike the shipping. No fighter escort. Attack by eye."
+        }
+      ]
+    },
+    {
+      "id": "through-cap",
+      "when": {
+        "completed": "cap"
+      },
+      "then": [
+        {
+          "message": "Observer: Through the fighters. Pick a transport or an escort."
+        }
+      ]
+    },
+    {
+      "id": "withdraw",
+      "when": {
+        "completed": "hit"
+      },
+      "then": [
+        {
+          "message": "Observer: Good hit. Head west for the gate."
+        }
+      ]
+    },
+    {
+      "id": "clear",
+      "when": {
+        "completed": "gate"
+      },
+      "then": [
+        {
+          "message": "Observer: Clear of the shipping. Strike complete."
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "j2-break-the-landing",
+    "name": "Break the Landing"
+  },
+  "briefing": {
+    "situation": "20 October 1944, 1515. You are a Kaigun Shoi leading three B5N2 Kates toward the Leyte invasion shipping, with no friendly fighter escort. Broken cloud hangs over the gulf. Penetrate the combat air patrol, then sink one transport or reduce a Fletcher destroyer or the Cleveland cruiser below half hull strength. Your Kate carries one Type 91 torpedo: attack by eye. Bombsight and torpedosight use are unavailable at your rank under the game rules. After the hit, turn west and cross the marked egress gate to complete the mission. The mission ends at that gate; landing at any airfield, including Dulag, is not a success in this chapter. Destroying two landing craft is secondary.",
+    "loadout": "torpedoes"
+  },
+  "history": {
+    "text": "This historical composite is inspired by Japanese air attacks on the Leyte invasion shipping of 20 October 1944; it is not a reconstruction of a particular sortie. The source ledger supports the landing date, beach sectors, and cloudy or partly cloudy A-day conditions. It does not establish this exact engagement. The three Kates, three Hellcats, roster of four transports represented by Type B Marus, two Fletchers, one Cleveland, one Pennsylvania, and four LCVPs are a gameplay composite. The 1515 start, all positions, headings, speeds, aircraft spacing and altitudes, cloud layer values, wind, craft shuttle routes, damage threshold, objectives, western gate, radio dialogue, and opening camera sequence are authored gameplay choices. Dulag is treated as Japanese-held solely to exercise the rule that an airfield landing cannot complete this chapter; this is not a claim about its historical control at 1515. The attack by eye and rank restrictions on sights are game rules.",
+    "sources": [
+      "U.S. Army, M. Hamlin Cannon, Leyte: The Return to the Philippines, Chapter V, The Landings (1954), source ledger row 1: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-5.html",
+      "U.S. Navy aerology report, The Assault Landings on Leyte Island, source ledger row 1 (A-day weather): https://www.ibiblio.org/hyperwar/USN/rep/NAVAER/Leyte/index.html"
+    ]
+  }
+}
