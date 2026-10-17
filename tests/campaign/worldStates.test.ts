@@ -4,6 +4,7 @@ import siteWindows from '../../content/campaign/site-windows.json'
 import { CHAPTER_IDS } from '../../src/campaign/schema.js'
 import { applyChapterSuccess, F8A_SITES, F8B_SITES, F8C_SITES, WINDOW_IDS, windowsForChapter } from '../../src/campaign/worldStates.js'
 import { createCampaign } from '../../src/campaign/roster.js'
+import { loadSite } from '../../tools/content/load.js'
 
 /**
  * F8A Task 2. The expected windows below are transcribed by hand from F3 (docs/superpowers/specs/2026-10-14-leyte-campaign-
@@ -70,6 +71,18 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B and F8C)', () =>
     expect(after).toEqual({ tacloban: 'assault', dulag: 'assault', 'landing-beaches': 'buildup' })
   })
 
+  it('F10A (Mark, 2026-10-17, Decision 10): after A2 succeeds Tacloban and Dulag are in buildup, serviceable, which A3\'s Tacloban landing needs; A1 leaves them in assault', () => {
+    expect(applyChapterSuccess({}, 'A2')).toEqual({ tacloban: 'buildup', dulag: 'buildup' })
+    // the chain the campaign really walks: A1 then A2 (F3 section 5: captured 20-21 Oct and unserviceable, then the late Oct-Nov build-up)
+    const afterA1 = applyChapterSuccess({}, 'A1')
+    expect([afterA1.tacloban, afterA1.dulag]).toEqual(['assault', 'assault'])
+    expect(applyChapterSuccess(afterA1, 'A2')).toEqual({ tacloban: 'buildup', dulag: 'buildup', 'landing-beaches': 'buildup' })
+    // F3's "no transition on A2" line is amended: Tacloban is unserviceable in `assault` and serviceable in `buildup` (content/sites/tacloban.json)
+    const tacloban = loadSite('tacloban').windows
+    expect([tacloban.assault!.serviceable, tacloban.buildup!.serviceable]).toEqual([false, true])
+    expect(loadSite('dulag').windows.assault!.serviceable).toBe(false)
+  })
+
   it('A6 victory keeps every site running into the endgame; J5 changes no site; J6 turns all nine sites to the alternate', () => {
     const all = (w: string): Record<string, string> => Object.fromEntries(SITES.map((s) => [s, w]))
     expect(applyChapterSuccess({ tacloban: 'assault' }, 'A6')).toEqual(all('endgame'))
@@ -87,7 +100,8 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B and F8C)', () =>
   })
 
   it('F8C: Ormoc and the Jinamoc anchorage change on A6 and J6 only; the beaches on A1, A6 and J6', () => {
-    for (const chapter of ['A2', 'A3', 'A4', 'A5', 'J1', 'J2', 'J3', 'J4', 'J5']) expect(applyChapterSuccess({}, chapter), chapter).toEqual({})
+    for (const chapter of ['A3', 'A4', 'A5', 'J1', 'J2', 'J3', 'J4', 'J5']) expect(applyChapterSuccess({}, chapter), chapter).toEqual({})
+    for (const s of ['ormoc', 'jinamoc', 'landing-beaches'] as const) expect(applyChapterSuccess({}, 'A2')[s], `A2 must not write ${s}`).toBeUndefined()
     for (const s of ['ormoc', 'jinamoc']) expect(applyChapterSuccess({}, 'A1')[s], `A1 must not write ${s}`).toBeUndefined()
     expect(applyChapterSuccess({}, 'A6')).toMatchObject({ ormoc: 'endgame', 'landing-beaches': 'endgame', jinamoc: 'endgame' })
     expect(applyChapterSuccess({}, 'J6')).toMatchObject({ ormoc: 'j6-alternate', 'landing-beaches': 'j6-alternate', jinamoc: 'j6-alternate' })
