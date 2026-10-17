@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { loadScenario, loadScenarioBundle } from '../../../tools/content/load.js'
+import { CHAPTER_MISSIONS } from '../../../src/campaign/index.js'
 
 const IDS = readdirSync(new URL('../../../content/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
@@ -38,7 +39,9 @@ describe('every shipped scenario', () => {
  *  fixtures are excluded by their `dev-` prefix; they are not shipped content. */
 describe('every mission is honest content', () => {
   it('found the shipped missions', () => {
-    expect(MISSION_IDS).toEqual(['airfield-strike', 'combat-air-patrol', 'convoy-strike', 'deck-quals-mission', 'escort', 'field-patrol', 'flattop-hunt', 'scramble', 'single-combat', 'surigao-strait', 'tank-buster', 'torpedo-qualification', 'tutorial', 'water-quals'])
+    // The pooled missions, plus whichever chapters the registry has authored (so a chapter batch never edits this list).
+    const chapters = Object.values(CHAPTER_MISSIONS).flatMap((m) => (m.scenario === null ? [] : [m.scenario]))
+    expect([...MISSION_IDS].sort()).toEqual([...chapters, 'airfield-strike', 'combat-air-patrol', 'convoy-strike', 'deck-quals-mission', 'escort', 'field-patrol', 'flattop-hunt', 'scramble', 'single-combat', 'surigao-strait', 'tank-buster', 'torpedo-qualification', 'tutorial', 'water-quals'].sort())
   })
 
   it.each(MISSION_IDS)('%s cites lookupable, non-empty sources', (id) => {

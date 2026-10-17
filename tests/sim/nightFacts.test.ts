@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { CHAPTER_MISSIONS } from '../../src/campaign/index.js'
 import { worldChecksum } from '../../src/flightRecorder/checksum.js'
 import { advance, createWorldOf, withControls, withNightFacts, withPlayerLights } from '../../src/sim/loop.js'
 import { DT } from '../../src/sim/flight/model.js'
@@ -40,7 +41,9 @@ describe('night facts and the lights flag are state', () => {
   })
   it('enrolled: exactly these shipped scenarios get night facts (pinned 2026-10-15); every other is a day world', () => {
     const got: string[] = []
-    for (const f of readdirSync(DIR).filter((x) => x.endsWith('.json')).sort()) {
+    // A chapter's night facts are its own batch's concern (its hour is authored in the scenario); the pinned list is the pooled and test-bed files.
+    const chapterFiles = new Set(Object.values(CHAPTER_MISSIONS).flatMap((m) => (m.scenario === null ? [] : [`${m.scenario}.json`])))
+    for (const f of readdirSync(DIR).filter((x) => x.endsWith('.json') && !chapterFiles.has(x)).sort()) {
       const j = JSON.parse(readFileSync(new URL(f, DIR), 'utf8')) as { lights?: unknown[]; weather?: { timeOfDay?: number } }
       if (nightFactsFor({ lights: j.lights as never, hour0: j.weather?.timeOfDay ?? 12, cloudCover: 0 }) !== undefined) got.push(f)
     }

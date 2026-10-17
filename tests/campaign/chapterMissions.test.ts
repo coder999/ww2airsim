@@ -22,7 +22,7 @@ const A4: ChapterMission = { ...A3, scenario: 'a4-dumbo-in-the-gulf', badge: { i
 const J6: ChapterMission = { ...A3, scenario: 'j6-operation-te-go', badge: { id: 'te-go', name: 'Te-Go' }, aircraft: ['ki-43-oscar', 'a6m2-zero'] }
 const scenarioAt = (hours: Record<string, number>) => async (id: string) => {
   if (hours[id] === undefined) throw new Error(`Failed to fetch content ${id}`)
-  return { player: 'p', aircraft: [{ id: 'p', spec: 'p-38-lightning', side: 'allied' }], weather: { timeOfDay: hours[id] } }
+  return { player: 'p', aircraft: [{ id: 'p', spec: 'p-38-lightning', side: 'allied' as const }], weather: { timeOfDay: hours[id] } }
 }
 
 describe('the real registry', () => {

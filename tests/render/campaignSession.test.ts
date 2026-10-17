@@ -67,11 +67,13 @@ describe('the shell catalog (Task 3a)', () => {
 
   it('built from the scenario files equals the fixture catalog for every pooled row (pinned list)', async () => {
     const shell = await buildShellCatalog(SCENARIO_OPTIONS, loader, nationOf)
-    expect(shell.map((m) => m.id)).toEqual([
+    // The pooled missions; authored chapters (kind `campaign`) follow them and are pinned by tests/campaign/chapterMissions.test.ts.
+    const pooled = shell.filter((m) => m.kind === 'noncampaign')
+    expect(pooled.map((m) => m.id)).toEqual([
       'water-quals', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
       'flattop-hunt', 'escort', 'surigao-strait', 'field-patrol',
     ])
-    expect(shell).toEqual(shippedCatalog())
+    expect(pooled).toEqual(shippedCatalog())
     expect(scenarioFacts('field-patrol').nation).toBe('japanese')
   })
 

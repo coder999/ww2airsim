@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { CHAPTER_MISSIONS } from '../../../src/campaign/index.js'
 import { worldChecksum } from '../../../src/flightRecorder/checksum.js'
 import { ticksFor } from '../../../src/sim/mission/state.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
@@ -12,8 +13,18 @@ const files = readdirSync(directory).filter((file) => file.endsWith('.json')).so
 
 describe('campaign scene content', () => {
   // Mark ruled 2026-10-17: the chapter missions do not exist yet (F10), so F9 ships two demo scenes on existing scenarios.
-  it('enrolls the two demo scenes', () => {
-    expect(files).toEqual(['demo-opening.json', 'demo-victory.json'])
+  it('enrolls the demo scenes and the chapters\' own scenes, and nothing else', () => {
+    // A chapter scene is `<chapter>-opening` or `<chapter>-victory`.
+    const chapterScenes = new Set(Object.keys(CHAPTER_MISSIONS).flatMap((c) => [`${c.toLowerCase()}-opening.json`, `${c.toLowerCase()}-victory.json`]))
+    for (const f of files) expect(['demo-opening.json', 'demo-victory.json'].includes(f) || chapterScenes.has(f), `${f} is not a demo or a chapter scene`).toBe(true)
+  })
+  it('a chapter scene names its chapter and that chapter\'s own scenario', () => {
+    for (const f of files.filter((x) => !x.startsWith('demo-'))) {
+      const scene = parseScene(JSON.parse(readFileSync(new URL(f, directory), 'utf8')) as unknown)
+      expect(scene.id).toBe(f.slice(0, -5))
+      expect(scene.chapter).toBe(scene.id.slice(0, 2).toUpperCase())
+      expect(scene.world.scenario, `${f}: not its chapter's scenario`).toBe(CHAPTER_MISSIONS[scene.chapter as keyof typeof CHAPTER_MISSIONS].scenario)
+    }
   })
 
   it.each(files)('%s loads its scenario and reaches a deterministic handoff', (file) => {

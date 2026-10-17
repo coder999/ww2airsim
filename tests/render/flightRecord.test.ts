@@ -58,17 +58,19 @@ describe('main.ts records every flight segment (dossier spec §B.2)', () => {
   it('steps the segment every frame and resets it wherever the kill baseline resets', () => {
     expect(main).toContain('segment = stepSegment(segment,')
     // Indented ASSIGNMENTS only -- the two `let` declarations do not match
-    // the whitespace-then-name anchor. 6 today: New game, Restart, and the
-    // four bank sites (bailout, impact, destruction, and landing).
+    // the whitespace-then-name anchor. 7 today: New game, Restart, and the
+    // five bank sites (bailout, impact, destruction, landing, and F10-0's egress).
     const killResets = main.match(/^\s+scoredThroughKillsByType = /gm)?.length ?? 0
     const segResets = main.match(/^\s+segment = EMPTY_SEGMENT/gm)?.length ?? 0
-    expect(killResets).toBe(6)
+    expect(killResets).toBe(7)
     expect(segResets).toBe(killResets)
   })
   it('banks through the campaign session at all four end sites, each with the landing it knows (F5B Task 10)', () => {
     // bailout, impact (ditched or killed), destruction, landing: one bankCampaign call each; the flight segment is read inside it.
     // F5C adds a fifth: End Sortie on a stop card closes the sortie its landings left open (legs bank through `bankLeg`, a sixth name).
-    expect(main.match(/bankCampaign\(/g)?.length).toBe(5)
+    // F10-0 adds a sixth: a mission that ends at its egress gate banks as a landing with no touchdown (`landing: null`).
+    expect(main.match(/bankCampaign\(/g)?.length).toBe(6)
+    expect(main).toContain("bankCampaign('landed', current.world, success, badgeId, null)")
     expect(main).toContain("bankCampaign('landed', landedWorld, success, badgeId, null)")
     expect(main).toContain("bankCampaign('killed', current.world, success, badgeId, null)")
     expect(main).toContain("bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))")

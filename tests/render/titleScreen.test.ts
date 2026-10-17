@@ -116,7 +116,8 @@ describe('the title screen scenario picker', () => {
   // Same split as the loadout picker above: `createTitleScreen`'s radio row
   // is untested DOM, built straight off this array.
   it('offers every scenario this build ships, and the production default is one of them', () => {
-    expect(SCENARIO_OPTIONS.map((o) => o.value)).toEqual([
+    // The pooled, training and test-bed rows. Chapter rows (pool `campaign`) come from the chapter registry, so a chapter batch never edits this list.
+    expect(SCENARIO_OPTIONS.filter((o) => o.pool !== 'campaign').map((o) => o.value)).toEqual([
       'free-flight', 'deck-quals', 'water-quals', 'gunnery-range', 'pursuit-range', 'pursuit-range-veteran', 'strike-range', 'furball-range',
       'recovery-range', 'takeoff-range', 'friendly-fire-range', 'damage-range', 'bomber-range', 'friendly-fire-field', 'range-test', 'night-range', 'night-field', 'night-bay', 'night-patrol', 'aa-range', 'gunnery-duel', 'attack-range', 'tutorial', 'torpedo-qualification', 'deck-quals-mission', 'airfield-strike', 'convoy-strike', 'tank-buster', 'combat-air-patrol', 'scramble', 'single-combat',
       'flattop-hunt', 'escort', 'surigao-strait', 'field-patrol', 'dev-mission-ui', 'dev-mission-circuit',
@@ -159,7 +160,7 @@ describe('the title screen scenario picker', () => {
   })
 
   it('without Dev, exactly the B4, M3, M4, F2 and F5A (Field Patrol) missions, the tutorial first, each with its badge; every other row is a range (M2 R5, A1)', () => {
-    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev).map((o) => [o.value, o.badge]))
+    expect(SCENARIO_OPTIONS.filter((o) => o.kind === 'mission' && !o.dev && o.pool !== 'campaign').map((o) => [o.value, o.badge]))
       .toEqual([
         ['water-quals', { id: 'water-qualified', name: 'Catalina Water Qualified' }],
         ['tutorial', { id: 'basic-flying', name: 'Basic Flying' }],
