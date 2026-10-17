@@ -68,7 +68,9 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     const pilot = r.pilotId === null ? null : c.pilots[r.pilotId]!
     const cat = await catalogOnce()
     const mission = r.row.scored ? cat.find((m) => m.id === r.row.id) ?? null : null
-    const option = SCENARIO_OPTIONS.find((o) => o.value === r.row.id)!
+    const option = SCENARIO_OPTIONS.find((o) => o.value === r.row.id)
+    // A picker row with no scenario option cannot be launched: say so rather than crash on the next line (a chapter whose row outran its content).
+    if (option === undefined) { console.warn(`headquarters: no scenario option for "${r.row.id}"`); hq.reopen(); return }
     const authored = await deps.loadScenario(r.row.id).catch(() => null)
     const gate = r.pilotId === null ? aircraftGate(c, null, '', false) : aircraftGate(c, mission, r.pilotId, r.row.scored)
     const offered = missionAircraft(r.row.id)

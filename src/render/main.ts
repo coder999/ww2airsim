@@ -561,7 +561,7 @@ async function boot(): Promise<void> {
     const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows ?? launchWindowsOf(hqSession?.current() ?? null), siteState?.omit)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
-    validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev, authored: spec.id === option?.aircraft })
+    validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev, authored: option !== undefined && (option.aircraftList ?? [option.aircraft]).includes(spec.id) })
     if (needsDevStores(spec, choice.loadout) && devStores === undefined) {
       const res = await fetch(aircraftUrl(DEV_STORES_SPEC_ID))
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(DEV_STORES_SPEC_ID)}: ${res.status} ${res.statusText}`)

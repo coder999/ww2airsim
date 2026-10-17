@@ -9,7 +9,7 @@ import type { Faction, Tier } from './schema.js'
 
 export type ScenarioRow = {
   readonly value: string
-  readonly pool: 'noncampaign' | 'training' | 'single'
+  readonly pool: 'noncampaign' | 'training' | 'single' | 'campaign'
   readonly dev: boolean
   readonly aircraft: string
   readonly badge?: { readonly id: string } | undefined

@@ -44,9 +44,11 @@ export function startKindOf(scenario: Scenario): StartKind {
   return isShipParked(player.parkedAt) ? 'carrier' : 'airfield'
 }
 
-export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKind, dev: boolean, authoredSpecId?: string): AircraftSpec[] {
+/** `authored` is the airplane the scenario puts the player in, or (F10-0) a chapter's own list: every airplane in it is flown as written, so none is an "enemy airplane". */
+export function eligibleAircraft(specs: readonly AircraftSpec[], start: StartKind, dev: boolean, authored?: string | readonly string[]): AircraftSpec[] {
   if (dev) return [...specs]
-  return specs.filter((s) => (s.side === 'allied' || s.id === authoredSpecId)
+  const own = typeof authored === 'string' ? [authored] : authored ?? []
+  return specs.filter((s) => (s.side === 'allied' || own.includes(s.id))
     && (start !== 'carrier' || s.carrierCapable)
     && (start !== 'water' || s.waterOperations !== undefined))
 }
@@ -139,7 +141,7 @@ export type SightsOverride = 'on' | 'off'
  * inside the production headquarters/picker) and every Training Ground row, the Basic Flying tutorial included, always;
  * the campaign and single missions by the pilot's rank (`sights`). Weapons can always be released; this only gates the aid.
  */
-export function sightsAllowed(f: { readonly dev: boolean; readonly pool: 'noncampaign' | 'training' | 'single'; readonly sights?: boolean | undefined }, override?: SightsOverride): boolean {
+export function sightsAllowed(f: { readonly dev: boolean; readonly pool: 'noncampaign' | 'training' | 'single' | 'campaign'; readonly sights?: boolean | undefined }, override?: SightsOverride): boolean {
   if (override === 'on') return true
   if (override === 'off') return false
   return f.dev || f.pool === 'training' || f.sights === true

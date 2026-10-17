@@ -12,9 +12,9 @@
  * Decisions this file carries out are recorded in docs/superpowers/plans/2026-10-15-f5b-headquarters.md.
  */
 import {
-  LEGACY_ROSTER_KEY, SCORE_CLASSES, bankLeg, bankSortie, markSceneSeen, buildCatalog, campaignKey, createCampaign, deleteCampaign, exportCampaign, importCampaign, launchSortie,
+  CHAPTER_IDS, CHAPTER_MISSIONS, LEGACY_ROSTER_KEY, SCORE_CLASSES, bankLeg, bankSortie, markSceneSeen, buildCatalog, campaignKey, createCampaign, describeChapter, isAuthored, deleteCampaign, exportCampaign, importCampaign, launchSortie,
   listCampaigns, loadCampaign, loadProfile, saveCampaign, saveProfile, zeroCounts,
-  type Campaign, type Counts, type LaunchArgs, type Faction, type ImportResult, type IndexEntry, type LegReport, type LoadResult, type MissionDescriptor,
+  type Campaign, type ChapterRegistry, type Counts, type LaunchArgs, type Faction, type ImportResult, type IndexEntry, type LegReport, type LoadResult, type MissionDescriptor,
   type Result, type ScenarioFacts, type ScenarioRow, type SortieEndKind, type SortieFacts, type SortieReport, type StoragePort,
 } from '../campaign/index.js'
 import type { RecoveryOutcome } from './debrief.js'
@@ -108,11 +108,23 @@ export async function buildShellCatalog(
   rows: readonly ScenarioRow[],
   loadScenario: (id: string) => Promise<ScenarioLike>,
   nationOf: (specId: string) => 'allied' | 'japanese',
+  chapters: ChapterRegistry = CHAPTER_MISSIONS,
 ): Promise<MissionDescriptor[]> {
   const pooled = rows.filter((r) => r.pool === 'noncampaign' && !r.dev)
   const facts = new Map<string, ScenarioFacts>()
   await Promise.all(pooled.map(async (r) => { facts.set(r.value, factsFromScenario(await loadScenario(r.value), nationOf)) }))
-  return withMissionAircraft(buildCatalog(rows, (id) => facts.get(id)!))
+  // F10-0: an authored chapter whose scenario loads becomes a campaign descriptor; one whose file is missing or unreadable is not offered at all.
+  const chapterMissions = (await Promise.all(CHAPTER_IDS.map(async (chapter) => {
+    const entry = chapters[chapter]
+    if (!isAuthored(entry)) return []
+    try {
+      const d = describeChapter(chapter, entry, factsFromScenario(await loadScenario(entry.scenario), nationOf))
+      return d === null ? [] : [d]
+    } catch {
+      return []
+    }
+  }))).flat()
+  return [...withMissionAircraft(buildCatalog(rows, (id) => facts.get(id)!)), ...chapterMissions]
 }
 
 // ---------------------------------------------------------------- the report (Task 3b)

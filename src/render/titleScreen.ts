@@ -11,6 +11,8 @@ import { DEFAULT_TIME_OF_DAY, DEV_TAKEOFF_HOURS, TACLOBAN_LAT_DEG, nearestTakeof
 import type { Scenario } from '../sim/scenario.js'
 import type { Badge } from '../sim/mission/schema.js'
 import { DEV_STORES_SPEC_ID, needsDevStores, type Cloudiness, type SortieChoice, type StartKind } from '../sim/sortie.js'
+import { CHAPTER_IDS, CHAPTER_MISSIONS, isAuthored, type ChapterRegistry } from '../campaign/index.js'
+import { chapterInfo } from './hq/chapters.js'
 import { formAircraft } from './hq/missionAircraft.js'
 import { DEFAULT_LOADOUT, aircraftFor, devLayoutNote, initialDraft, loadoutsFor, reconcile, withAircraft, type FlowContext, type SortieDraft } from './sortieFlow.js'
 import { aircraftRowLabel, storesLine, type FlyableAircraft } from './sortie/flyable.js'
@@ -153,7 +155,7 @@ export { DEFAULT_LOADOUT }
  *  agree with `content/scenarios/`, and that every file there is listed.
  *  `dev` marks a test bed, listed only while Dev is checked (sortie spec A1);
  *  `description` is a range's Form 2 text (a mission shows its briefing). */
-export type ScenarioPool = 'noncampaign' | 'training' | 'single'
+export type ScenarioPool = 'noncampaign' | 'training' | 'single' | 'campaign'
 
 export type ScenarioOption = {
   readonly value: string
@@ -167,6 +169,8 @@ export type ScenarioOption = {
   readonly dev: boolean
   readonly start: StartKind
   readonly aircraft: string
+  /** F10-0: a chapter's own airplanes, the authored one (`aircraft`) first. Absent for every other row, whose only airplane is `aircraft`. */
+  readonly aircraftList?: readonly string[]
   readonly recommendedLoadout?: Loadout
   /** Form 4's recommended weather for this mission: its default and tagged "(recommended)". Absent: the build's roll. */
   readonly recommendedCloudiness?: Cloudiness
@@ -194,7 +198,7 @@ export type ScenarioOption = {
  * `scenarioIdFromQuery`'s format check alone, it rejects any well-formed id
  * that is not actually one of these.
  */
-export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
+const POOLED_OPTIONS: readonly ScenarioOption[] = [
   { value: 'free-flight', label: 'Free Flight', kind: 'range', pool: 'training', dev: false, start: 'airfield', aircraft: 'f6f-hellcat', description: 'Parked at Tacloban with the Essex task group offshore. No objectives: fly anywhere.' },
   { value: 'deck-quals', label: 'Deck Quals', kind: 'range', pool: 'training', dev: false, start: 'carrier', aircraft: 'f6f-hellcat', description: "Spotted on the Essex's deck. Practice launches and traps; no objectives." },
   { value: 'water-quals', label: 'Catalina Water Qualification', kind: 'mission', pool: 'noncampaign', badge: { id: 'water-qualified', name: 'Catalina Water Qualified' }, dev: false, start: 'water', aircraft: 'pby-5a-catalina', recommendedLoadout: 'torpedoes' },
@@ -261,6 +265,24 @@ export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [
   { value: 'dev-mission-ui', label: 'UI Fixture (dev)', kind: 'mission', pool: 'single', badge: { id: 'dev-ui-wings', name: 'UI Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
   { value: 'dev-mission-circuit', label: 'Circuit Fixture (dev)', kind: 'mission', pool: 'single', badge: { id: 'dev-circuit-wings', name: 'Circuit Fixture Wings (dev)' }, dev: true, start: 'airfield', aircraft: 'f6f-hellcat', recommendedLoadout: 'clean' },
 ]
+
+/**
+ * F10-0: the authored chapters as picker rows (pool `campaign`), derived from `content/campaign/chapter-missions.json` so no chapter batch edits
+ * this file. An empty registry entry contributes nothing, so with no chapter authored `SCENARIO_OPTIONS` is exactly the pooled list.
+ */
+export function chapterOptions(reg: ChapterRegistry = CHAPTER_MISSIONS): ScenarioOption[] {
+  return CHAPTER_IDS.flatMap((chapter) => {
+    const m = reg[chapter]
+    if (!isAuthored(m)) return []
+    return [{
+      value: m.scenario, label: chapterInfo(chapter).title, kind: 'mission' as const, pool: 'campaign' as const, badge: m.badge, dev: false,
+      start: m.start, aircraft: m.aircraft[0]!, aircraftList: m.aircraft,
+      ...(m.recommendedLoadout === null ? {} : { recommendedLoadout: m.recommendedLoadout }),
+    }]
+  })
+}
+
+export const SCENARIO_OPTIONS: readonly ScenarioOption[] = [...POOLED_OPTIONS, ...chapterOptions()]
 
 /** The picker's rows: every row with Dev, the non-dev rows without (A1). */
 export function scenarioOptions(dev: boolean): readonly ScenarioOption[] {

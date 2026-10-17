@@ -4,14 +4,14 @@
  * offers exactly these): they agree by construction, not by two lists kept in step.
  */
 import data from '../../../content/campaign/mission-aircraft.json'
-import type { MissionDescriptor } from '../../campaign/index.js'
+import { chapterAircraftOf, type MissionDescriptor } from '../../campaign/index.js'
 import { aircraftFor, type FlowContext } from '../sortieFlow.js'
 import type { FlyableAircraft } from '../sortie/flyable.js'
 
 export const MISSION_AIRCRAFT: Readonly<Record<string, readonly string[]>> = data.missions
 
 /** The offered list for a mission id, or `null` for a row that has none (a range, a qualification, a dev bed). */
-export const missionAircraft = (id: string): readonly string[] | null => MISSION_AIRCRAFT[id] ?? null
+export const missionAircraft = (id: string): readonly string[] | null => MISSION_AIRCRAFT[id] ?? chapterAircraftOf(id) ?? null
 
 /** The catalog with each listed mission's `aircraftIds` replaced by its authored list. Unlisted descriptors pass through. */
 export const withMissionAircraft = (catalog: readonly MissionDescriptor[]): MissionDescriptor[] =>

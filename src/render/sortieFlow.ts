@@ -26,7 +26,7 @@ const specOf = (ctx: FlowContext, id: string) => {
 export const visibleScenarios = (ctx: FlowContext): readonly ScenarioOption[] => ctx.options.filter((o) => ctx.dev || !o.dev)
 
 export function aircraftFor(ctx: FlowContext, scenarioId: string): readonly FlyableAircraft[] {
-  const allowed = new Set(eligibleAircraft(ctx.flyable.map((f) => f.spec), option(ctx, scenarioId).start, ctx.dev, option(ctx, scenarioId).aircraft).map((s) => s.id))
+  const allowed = new Set(eligibleAircraft(ctx.flyable.map((f) => f.spec), option(ctx, scenarioId).start, ctx.dev, option(ctx, scenarioId).aircraftList ?? option(ctx, scenarioId).aircraft).map((s) => s.id))
   return ctx.flyable.filter((f) => allowed.has(f.spec.id))
 }
 

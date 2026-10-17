@@ -230,7 +230,7 @@ export type PickerRow = {
 
 /** What the picker needs of a scenario row (`ScenarioOption`'s fields, structurally, so this file stays render-free). */
 export type PickerOption = {
-  readonly value: string; readonly label: string; readonly kind: 'mission' | 'range'; readonly pool: 'noncampaign' | 'training' | 'single'
+  readonly value: string; readonly label: string; readonly kind: 'mission' | 'range'; readonly pool: 'noncampaign' | 'training' | 'single' | 'campaign'
   readonly dev: boolean; readonly badge?: { readonly id: string; readonly name: string } | undefined
   readonly aircraft: string; readonly description?: string | undefined
 }
@@ -261,6 +261,8 @@ export function pickerRows(c: Campaign, catalog: readonly MissionDescriptor[], o
   // qualifications are the Training Grounds; Dev adds the test beds and fixtures to each.
   for (const opt of options) {
     if (opt.dev && !dev) continue
+    // A chapter is its own section (above) and is never repeated under Single Missions.
+    if (opt.pool === 'campaign') continue
     const mine = opt.pool === 'noncampaign' ? (opt.dev ? null : 'single') : opt.pool === 'training' ? 'training' : 'single'
     if (mine === null) continue
     // A pooled mission belongs to the player's own faction only; a Japanese campaign flies Field Patrol, not the American rows.
