@@ -133,8 +133,8 @@ test('the engine layer starts, and the view follows the camera', async ({ page }
   // src/audio/webAudio.ts accept the writes system.ts makes, in the shipped app.
   await page.goto('/')
   await waitForTerrain(page)
-  // KeyY is unbound (KeyP now toggles the mission map, which swallows the KeyC below)
-  await page.keyboard.press('KeyY')
+  // Backquote is unbound (KeyP now toggles the mission map, which swallows the KeyC below; KeyY became the cargo drop in F10D)
+  await page.keyboard.press('Backquote')
   // Whichever family the default airframe uses: since 2026-10-08 the Hellcat is `engine_radial_big`.
   const engineLayers: readonly string[] = Object.values(ENGINE_LAYER_FOR)
   await expect
