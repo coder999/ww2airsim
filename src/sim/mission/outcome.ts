@@ -16,6 +16,8 @@ export type Recovery =
   | { readonly kind: 'rescued' }
   /** The pilot bailed out and was taken prisoner. Never a success. */
   | { readonly kind: 'captured' }
+  /** F10-0: the player crossed the mission's egress gate alive. Only a mission with `recovery: egress` can produce it. */
+  | { readonly kind: 'egressed' }
 
 /**
  * The recovery the mission sees for the player right now, read from the
@@ -32,9 +34,14 @@ export function recoveryOf<M>(world: World<M>): Recovery | null {
   if (jumper !== undefined) return jumper.state.outcome === null ? null : { kind: jumper.state.outcome }
   if (player.impact !== null) return { kind: player.impact.kind === 'ditched' ? 'ditched' : 'killed' }
   if (world.combat.aircraft[world.player]?.damage.destroyedAt != null) return { kind: 'killed' }
+  if (world.mission !== null && egressedOf(world.mission)) return { kind: 'egressed' }
   const landing = world.mission === null ? undefined : lastLanding(world.mission)
   return landing === undefined ? null : { kind: 'landed', at: landing.at, base: landing.base }
 }
+
+/** Whether the mission's egress objective is complete: the player has crossed the gate (false for a mission that ends on a landing). */
+export const egressedOf = <M>(m: MissionState<M>): boolean =>
+  m.egress !== undefined && m.progress[m.objectives.findIndex((o) => o.id === m.egress)]?.status === 'complete'
 
 export type FinalStatus = 'complete' | 'incomplete' | 'failed'
 
@@ -92,6 +99,8 @@ export function missionOutcome<M>(m: MissionState<M>, recovery: Recovery): Missi
   if (recovery.kind === 'killed') reasons.push('Killed')
   else if (recovery.kind === 'rescued' || recovery.kind === 'captured') reasons.push('Bailed out')
   else if (recovery.kind === 'ditched') reasons.push('Ditched')
+  else if (recovery.kind === 'egressed') { /* the mission's own recovery: nothing to add */ }
+  else if (m.egress !== undefined) reasons.push('Landed: this mission ends at its egress gate')
   else if (recovery.at === null) reasons.push('Landed off-field')
   else if (recovery.base === null) reasons.push(`Landed at ${recovery.at.name}, not a friendly base`)
   const primary = objectives.filter((o) => o.priority === 'primary')

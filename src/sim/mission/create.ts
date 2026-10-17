@@ -39,6 +39,8 @@ export function createMission<M>(input: {
   readonly entities: readonly Taggable[]
   readonly respot: RespotOrder | null
   readonly fieldRules?: readonly FieldRule[]
+  /** The id of the `reach` objective that is the egress, or `null`/absent for a mission that ends on a landing. */
+  readonly egress?: string | null
 }): MissionState<M> {
   const resolve = (where: string, refs: readonly string[]) => resolveRefs(input.scenarioId, where, refs, input.entities)
   const sideOfId = new Map(input.entities.map((e) => [e.id, e.side]))
@@ -139,5 +141,6 @@ export function createMission<M>(input: {
     pass: NO_PASS,
     refs,
     fieldRules,
+    ...(input.egress == null ? {} : { egress: input.egress }),
   }
 }

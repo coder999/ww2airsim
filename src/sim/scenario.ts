@@ -315,6 +315,9 @@ const ScenarioShape = z.object({
   triggers: z.array(TriggerObject).min(1).optional(),
   /** F10-0: serviceability derived from a field's own structures (`FieldRuleObject`). */
   fieldRules: z.array(FieldRuleObject).min(1).optional(),
+  /** F10-0 (Mark, 2026-10-17): the mission ends at a gate, not on a runway. `objective` names the `reach` objective whose completion is the egress; a
+   *  badge then needs every primary complete and that crossing, and a landing at a friendly base is NOT a success (J2, J4, J5). */
+  recovery: z.object({ kind: z.literal('egress'), objective: z.string().min(1) }).strict().optional(),
   heldGroups: z.array(HeldGroupObject).min(1).optional(),
   badge: BadgeObject.optional(),
   briefing: BriefingObject.optional(),
@@ -498,6 +501,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   if (s.objectives === undefined) {
     if (s.triggers !== undefined) issue('triggers need objectives: a scenario without objectives is not a mission', ['triggers'])
     if (s.heldGroups !== undefined) issue('heldGroups need objectives: a scenario without objectives is not a mission', ['heldGroups'])
+    if (s.recovery !== undefined) issue('recovery needs objectives: a scenario without objectives is not a mission', ['recovery'])
     if (s.fieldRules !== undefined) issue('fieldRules need objectives: a scenario without objectives is not a mission', ['fieldRules'])
     if (s.badge !== undefined) issue('badge needs objectives: a scenario without objectives is not a mission', ['badge'])
     if (s.briefing !== undefined) issue('briefing needs objectives: a scenario without objectives is not a mission', ['briefing'])
@@ -513,6 +517,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   dupes(objectives.map((o) => o.id), 'objective', 'objectives')
   dupes(triggers.map((t) => t.id), 'trigger', 'triggers')
   dupes(held.map((g) => g.id), 'held group', 'heldGroups')
+  if (s.recovery !== undefined && objectives.find((o) => o.id === s.recovery!.objective)?.kind !== 'reach') {
+    issue(`recovery.objective "${s.recovery.objective}" must name a reach objective (the egress gate)`, ['recovery', 'objective'])
+  }
   for (const [ri, r] of (s.fieldRules ?? []).entries()) {
     if (!s.airfields.includes(r.airfield)) issue(`fieldRules names "${r.airfield}", which is not one of airfields`, ['fieldRules', ri, 'airfield'])
   }
@@ -1064,6 +1071,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       objectives: s.objectives,
       triggers: s.triggers ?? [],
       fieldRules: s.fieldRules ?? [],
+      egress: s.recovery?.objective ?? null,
       badge: s.badge ?? null,
       held,
       respot,

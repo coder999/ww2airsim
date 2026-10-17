@@ -122,6 +122,8 @@ export type MissionState<M> = {
   readonly fields?: Readonly<Record<string, FieldOverride>>
   /** F10-0: serviceability derived from a field's own structures, resolved to ids when the world was built (empty for a mission with none). */
   readonly fieldRules: readonly ResolvedFieldRule[]
+  /** F10-0: the `reach` objective whose completion is the egress; absent for a mission that ends on a landing. */
+  readonly egress?: string
 }
 
 export type ResolvedFieldRule = { readonly airfield: string; readonly ids: readonly EntityId[]; readonly minFraction: number }

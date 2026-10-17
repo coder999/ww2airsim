@@ -37,8 +37,9 @@ import { createMissionHud, missionDiagnostics } from './mission/hud.js'
 import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
+import { recoveryOf } from '../sim/mission/outcome.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
-import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withLegCard, withNotRecorded, type DebriefModel } from './debrief.js'
+import { bailoutModel, createDebrief, debriefModel, destructionModel, egressModel, killsSince, landingModel, withLegCard, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createHeadquarters } from './hq/bootHq.js'
 import { SORTIE_END_OF, launchWindowsOf, type Session } from './campaignSession.js'
@@ -3994,6 +3995,20 @@ async function boot(): Promise<void> {
       kind: 'frame', frameMs, paused: current.paused,
       recordingAvailable: recorder.snapshot() !== null,
     })
+    // F10-0: a mission with `recovery: egress` ends when the player crosses its gate alive. No Continue: the sortie is over. It banks as a
+    // landing's outcome with no touchdown (`bankCampaign`'s `landing: null`), and shares the landing latch so nothing else raises a debrief.
+    if (!landingShown && current.world.mission !== null && recoveryOf(current.world)?.kind === 'egressed') {
+      landingShown = true
+      frame = withPaused(current, true)
+      const killsSinceLastBank = killsSince(current.world.combat.aircraft[current.world.player]!.tagCredits, scoredThroughKillsByType)
+      const { model, badgeId, success } = withMissionDebrief(withDischarge(egressModel(killsSinceLastBank), current.world), current.world)
+      scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
+      track('mission_outcome', { mission: requestedScenarioId, outcome: 'egressed', score: model.score.total })
+      const banked = bankCampaign('landed', current.world, success, badgeId, null)
+      segment = EMPTY_SEGMENT
+      showDebrief(model, banked, undefined, watchReplay)
+      dispatch({ kind: 'landingDebrief' })
+    }
     // A landing, raised once and holding the world under the dialog through
     // the pause rather than through a second freeze (frame.ts's `paused`).
     // Continue releases both; Restart goes through the handler above.

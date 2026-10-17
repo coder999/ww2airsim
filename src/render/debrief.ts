@@ -272,6 +272,20 @@ export function landingModel(
 }
 
 /**
+ * F10-0: a mission that ends at an egress gate (J2, J4, J5). The player left the area alive, so it banks as a landing's outcome ('landed')
+ * with no touchdown figures, and there is no Continue: the sortie is over. Pure.
+ */
+export function egressModel(killsSinceLastBank: Readonly<Record<TargetType, number>>): DebriefModel {
+  return {
+    headline: 'CLEARED THE AREA',
+    detail: 'You crossed the egress boundary and left the area.',
+    figures: [{ label: 'Left the area', value: 'egress boundary' }],
+    score: missionScore(killsSinceLastBank, 'landed'),
+    outcome: 'landed',
+  }
+}
+
+/**
  * The landing model as a stop card (F5C D2): Continue Sortie when the aircraft can relaunch from where it stopped,
  * always End Sortie, no Restart (the pause screen still has it). Pure.
  */
