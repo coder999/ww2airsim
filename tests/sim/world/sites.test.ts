@@ -4,6 +4,8 @@ import siteWindows from '../../../content/campaign/site-windows.json'
 import { loadAirfield, loadSite } from '../../../tools/content/load.js'
 import { localToWorld, type Airfield } from '../../../src/sim/world/airfields.js'
 import { airfieldFor, parseSite, PARKED_CAP, VEHICLE_CAP, WINDOW_IDS, windowOf, type Site } from '../../../src/sim/world/sites.js'
+import { getBounds } from '@gltf-transform/functions'
+import { modelIO, onlyScene } from '../../../tools/models/document.js'
 import { heightAt } from '../../../src/sim/world/terrain.js'
 import { groundTruthTerrain } from '../../../tools/sites/terrain.js'
 
@@ -139,5 +141,32 @@ describe('site files: the layout stands on the real ground', () => {
     for (let z = -750; z <= 750; z += 25) for (const x of [-22.5, 0, 22.5]) { const w = localToWorld(a, x, z); hs.push(heightAt(terrain, w.x, w.z)) }
     expect(Math.min(...hs), 'lowest strip sample').toBeGreaterThan(1.5)
     expect(Math.max(...hs) - Math.min(...hs), 'relief along the strip').toBeLessThan(5)
+  })
+})
+
+describe('site files: a placement is its glb at natural size', () => {
+  // The renderer fits no model to a footprint (it only centers and rotates it), so a placement whose box disagrees with
+  // its glb would draw a model that the hit box does not describe. Measured from the committed glbs, 2026-10-16.
+  it('every placement footprint and height is within 15% of the glb of its kind', async () => {
+    const bounds = new Map<string, { x: number; y: number; z: number }>()
+    const natural = async (kind: string): Promise<{ x: number; y: number; z: number }> => {
+      if (!bounds.has(kind)) {
+        const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/buildings/${kind}.glb`)))
+        const b = getBounds(onlyScene(doc))
+        bounds.set(kind, { x: b.max[0] - b.min[0], y: b.max[1], z: b.max[2] - b.min[2] })
+      }
+      return bounds.get(kind)!
+    }
+    const off: string[] = []
+    for (const s of Object.values(sites)) {
+      for (const p of [...s.base.buildings, ...Object.values(s.windows).flatMap((w) => w.added)]) {
+        const n = await natural(p.kind)
+        const err = (got: number, want: number): number => Math.abs(got - want) / want
+        const rotated = Math.abs(((p.headingDeg ?? 0) % 180)) === 90
+        const [w, l] = rotated ? [p.lengthM, p.widthM] : [p.widthM, p.lengthM]
+        if (err(w, n.x) > 0.15 || err(l, n.z) > 0.15 || (p.heightM !== undefined && err(p.heightM, n.y) > 0.15)) off.push(`${s.id}/${p.id} ${p.kind}: placed ${w}x${l}x${p.heightM}, glb ${n.x.toFixed(1)}x${n.z.toFixed(1)}x${n.y.toFixed(1)}`)
+      }
+    }
+    expect(off).toEqual([])
   })
 })

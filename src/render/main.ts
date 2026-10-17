@@ -126,7 +126,7 @@ import { OCEAN_TIERS, oceanTierFromQuery } from './ocean/tiers.js'
 import { cascadeOptions } from './ocean/bands.js'
 import { OCEAN_EXTENT_M } from './horizon.js'
 import { createRunway } from './scene/runway.js'
-import { createAirfield } from './scene/airfield.js'
+import { createAirfield, siteExclusions } from './scene/airfield.js'
 import { createTowns, type Town } from './scene/towns.js'
 import { createVillages, type Village } from './scene/villages.js'
 import { createVegetation, coverLookup, type CoverLookup } from './scene/vegetation.js'
@@ -1747,9 +1747,11 @@ async function boot(): Promise<void> {
   let builtSceneryKey = ''
   let sceneryObjects: readonly Object3D[] = []
   const buildScenery = (world: World<undefined>, field: TerrainField, eye: { readonly x: number; readonly y: number; readonly z: number }): void => {
-    const key = [...world.airfields.map((a) => a.id), '|', ...world.vehicles.map((v) => `${v.id}@${Math.round(v.state.position.x)},${Math.round(v.state.position.z)}`)].join(',')
+    // F8: a site's window changes an airfield without changing its id, so the key carries what a window changes.
+    const key = [...world.airfields.map((a) => `${a.id}:${a.side ?? ''}:${a.clutter?.seed ?? ''}:${a.buildings.map((b) => `${b.id}${b.state ?? ''}`).join('+')}`), '|', ...world.vehicles.map((v) => `${v.id}@${Math.round(v.state.position.x)},${Math.round(v.state.position.z)}`)].join(',')
     if (key === builtSceneryKey) return
     builtSceneryKey = key
+    for (const h of airfieldHandles) h.dispose() // release shared glbs before their geometry could be disposed with the tree
     for (const o of sceneryObjects) {
       scene.remove(o)
       o.traverse((c) => (c as { geometry?: { dispose(): void } }).geometry?.dispose())
@@ -1759,6 +1761,10 @@ async function boot(): Promise<void> {
     const airfields = world.airfields.map((a) => ({ runway: createRunway(field, a), airfield: createAirfield(field, a, sceneryTextures) }))
     const added: Object3D[] = airfields.flatMap((f) => [f.runway, f.airfield.object])
     airfieldHandles = airfields.map((f) => f.airfield)
+    // F8A: a site's buildings are glbs; the procedural placeholders draw until each arrives.
+    for (const h of airfieldHandles) {
+      void h.loadModels().then(({ failed }) => { if (failed.length > 0) console.warn(`building models failed to load, placeholders kept: ${failed.join(', ')}`) })
+    }
     sceneryAirfieldIds = world.airfields.map((a) => a.id)
     // Towns and villages (Plan 13d Task 3), built before `vegetation` so its
     // `hutFootprints` can be handed straight in: a hut is never inside an
@@ -1788,6 +1794,7 @@ async function boot(): Promise<void> {
       ...towns.hutFootprints,
       ...(villages?.footprints ?? []),
       ...vehicleFootprints,
+      ...world.airfields.flatMap((a) => siteExclusions(a)),
     ])
     // Anchor at the real eye position BEFORE `setTier`/`setCover`, each of
     // which forces its own full recompose at `lastX/lastZ`: left at their

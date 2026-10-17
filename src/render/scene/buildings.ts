@@ -198,3 +198,31 @@ export function drawBuilding(
   }
   return y
 }
+
+/** The ground height a footprint is built at: the highest of its four corners, as `drawBuilding` measures it. */
+export function footprintTop(field: TerrainField, x: number, z: number, width: number, length: number): number {
+  return Math.max(...[-1, 1].flatMap((sx) => [-1, 1].map((sz) => heightAt(field, x + sx * width / 2, z + sz * length / 2))))
+}
+
+/**
+ * A building under construction (F8A Task 3, F3 section 9: construction states are procedural): a concrete pad, corner
+ * posts, a ring beam and a few rafters, open to the sky. Same footprint and return value as `drawBuilding`.
+ */
+export function drawConstruction(
+  collector: ReturnType<typeof makeCollector>,
+  b: { x: number; z: number; width: number; length: number },
+  field: TerrainField,
+  materials: BuildingMaterials,
+): number {
+  const { timber, concrete } = materials
+  const { box } = collector
+  const { x, z } = b
+  const y = footprintTop(field, x, z, b.width, b.length)
+  box(x, y - 0.5, z, b.width + 1, 0.8, b.length + 1, concrete)
+  const post = Math.min(5, Math.max(2.5, b.width * 0.18))
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(x + sx * b.width / 2, y, z + sz * b.length / 2, 0.4, post, 0.4, timber)
+  box(x, y + post, z - b.length / 2, b.width, 0.3, 0.3, timber)
+  box(x, y + post, z + b.length / 2, b.width, 0.3, 0.3, timber)
+  for (let i = 1; i < 4; i++) box(x, y + post, z - b.length / 2 + (i * b.length) / 4, b.width, 0.2, 0.2, timber)
+  return y
+}

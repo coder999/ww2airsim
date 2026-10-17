@@ -1,9 +1,12 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CylinderGeometry, Group, Mesh, type Object3D } from 'three'
+import { BoxGeometry, BufferAttribute, BufferGeometry, Box3, CylinderGeometry, Group, Mesh, type Object3D } from 'three'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
-import { insideRect, localToWorld, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
+import { insideRect, localToWorld, runwayHeadingRad, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
 import type { StructureDamage } from '../../sim/weapons/structures.js'
-import { batched, createBuildingMaterials, drawBuilding, makeCollector, weathered } from './buildings.js'
+import { acquireModel } from '../models/modelCache.js'
+import { batched, createBuildingMaterials, drawBuilding, drawConstruction, footprintTop, makeCollector, weathered } from './buildings.js'
+import { createClutter } from './clutter.js'
+import { staticModelUrlFor } from './staticModels.js'
 import type { SceneryTextures } from './sceneryTextures.js'
 
 /** What `createAirfield` hands back (Plan 6b Task 8, fixed post-Task-8): the
@@ -38,7 +41,22 @@ export type AirfieldHandle = {
   /** World metres, per content building id: where its collapse smoke rises
    *  from, 2.5 m above the rendered building's ground (E1 Ruling R13). */
   readonly smokeAnchors: ReadonlyMap<string, Vec3>
+  /**
+   * F8A Task 3: swaps every `model: true` building's procedural placeholder for its glb (the one that shares its kind's
+   * id), fitted and rotated to the building's own box. Resolves with the number attached. A load that fails leaves that
+   * building's placeholder drawn and is reported through the returned `failed` list rather than thrown: a missing glb
+   * must not blank a whole airfield.
+   */
+  loadModels(load?: LoadBuildingModel): Promise<{ readonly attached: number; readonly failed: readonly string[] }>
+  /** Releases every model `loadModels` took from the shared cache and detaches it. Call before disposing `object`'s geometry. */
+  dispose(): void
+  /** Instanced clutter, by kind (F8A Task 7); all zero for a base with none. */
+  readonly clutterCounts: Readonly<Record<string, number>>
 }
+
+/** What `loadModels` needs from the model cache; injectable so a Node test never runs GLTFLoader. */
+export type LoadBuildingModel = (kind: string) => Promise<{ readonly root: Object3D; release(): void }>
+const loadRegisteredBuildingModel: LoadBuildingModel = (kind) => acquireModel(staticModelUrlFor('building', kind))
 
 /** Scenery layout, runway-local metres (`x` across the strip, `z` along it).
  * A period-inspired scene, not a claim to reconstruct the exact 1944 building
@@ -159,16 +177,34 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     readonly collapsed: Object3D
   }>()
   const anchors = new Map<string, Vec3>()
+  // F8A: buildings whose glb replaces the placeholder once `loadModels` runs.
+  const modelSlots: { id: string; kind: string; x: number; y: number; z: number; rotY: number; intact: Group; placeholder: Object3D[] }[] = []
   for (const b of airfield.buildings) {
     const collector = makeCollector()
     const { x, z } = at(b.x, b.z)
-    const y = drawBuilding(collector, { kind: b.kind, x, z, width: b.widthM, length: b.lengthM }, field, materials)
+    const state = b.state ?? 'intact'
+    // `destroyed` is rubble only (no hit box exists, `buildStructures`), `construction` is a procedural frame, and the
+    // rest are the building itself, procedural until its glb arrives.
+    const y = state === 'destroyed' ? footprintTop(field, x, z, b.widthM, b.lengthM)
+      : state === 'construction' ? drawConstruction(collector, { x, z, width: b.widthM, length: b.lengthM }, field, materials)
+        : drawBuilding(collector, { kind: b.kind, x, z, width: b.widthM, length: b.lengthM }, field, materials)
     const intact = batched(new Group(), collector.batches)
     intact.name = 'intact'
+    if (state === 'destroyed') intact.visible = false
+    if (state === 'damaged') {
+      // A scorch patch: dark, flat, a little larger than the footprint.
+      const scorch = new Mesh(new BoxGeometry(b.widthM + 4, 0.06, b.lengthM + 4), materials.dark)
+      scorch.position.set(x, y + 0.04, z)
+      scorch.receiveShadow = true
+      intact.add(scorch)
+    }
+    if (b.model === true && state !== 'destroyed' && state !== 'construction') {
+      modelSlots.push({ id: b.id, kind: b.kind, x, y, z, rotY: -(runwayHeadingRad(airfield) + ((b.headingDeg ?? 0) * Math.PI) / 180), intact, placeholder: [...intact.children] })
+    }
 
     const collapsed = new Group()
     collapsed.name = 'collapsed'
-    collapsed.visible = false
+    collapsed.visible = state === 'destroyed'
     // A low slab across the whole footprint, plus one smaller tilted chunk --
     // "a low, broken box", not a claim to model real debris distribution.
     const slab = new Mesh(new BoxGeometry(b.widthM + 1, 1.3, b.lengthM + 1), concrete)
@@ -181,18 +217,26 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     chunk.receiveShadow = true
     collapsed.add(chunk)
 
-    anchors.set(b.id, { x, y: y + 2.5, z })
-
     const group = new Group()
     group.name = `structure:${b.id}`
     group.add(intact, collapsed)
     root.add(group)
+    // Rubble that was there from the start is not a strike target and never smokes or heals.
+    if (state === 'destroyed') continue
+    anchors.set(b.id, { x, y: y + 2.5, z })
     structures.set(b.id, { intact, collapsed })
   }
-  for (const h of AIRFIELD_HUTS) {
-    const { x, z } = at(h.x, h.z)
-    drawBuilding(shared, { kind: 'hut', x, z, width: h.width, length: h.length }, field, materials)
+  // A site's procedural clutter (F8A) replaces the legacy hand-placed huts, canvas stores, drums and crates below.
+  const clutter = airfield.clutter === undefined ? null : createClutter(field, airfield)
+  if (clutter !== null) root.add(clutter.object)
+  if (clutter === null) {
+    for (const h of AIRFIELD_HUTS) {
+      const { x, z } = at(h.x, h.z)
+      drawBuilding(shared, { kind: 'hut', x, z, width: h.width, length: h.length }, field, materials)
+    }
   }
+  const attached: { holder: Object3D; release(): void }[] = []
+  let disposed = false
 
   const finish = (): AirfieldHandle => {
     const object = batched(root, shared.batches)
@@ -204,6 +248,38 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     return {
       object,
       smokeAnchors: anchors,
+      clutterCounts: clutter === null ? {} : clutter.counts,
+      async loadModels(load: LoadBuildingModel = loadRegisteredBuildingModel) {
+        const failed: string[] = []
+        let n = 0
+        await Promise.all(modelSlots.map(async (slot) => {
+          try {
+            const instance = await load(slot.kind)
+            // The scenery was rebuilt while this model loaded: give it straight back rather than hold it forever.
+            if (disposed) { instance.release(); return }
+            // Centered on its own footprint, so a model whose origin is off-center (a pier) still sits on its box.
+            const box = new Box3().setFromObject(instance.root)
+            instance.root.position.set(-(box.min.x + box.max.x) / 2, 0, -(box.min.z + box.max.z) / 2)
+            const holder = new Group()
+            holder.name = `model:${slot.id}`
+            holder.position.set(slot.x, slot.y, slot.z)
+            holder.rotation.y = slot.rotY
+            holder.add(instance.root)
+            holder.traverse((o) => { o.receiveShadow = true; o.castShadow = true })
+            slot.intact.add(holder)
+            for (const p of slot.placeholder) p.visible = false
+            attached.push({ holder, release: () => instance.release() })
+            n++
+          } catch {
+            failed.push(slot.id)
+          }
+        }))
+        return { attached: n, failed }
+      },
+      dispose() {
+        disposed = true
+        for (const a of attached.splice(0)) { a.holder.removeFromParent(); a.release() }
+      },
       sync(structureDamage: Readonly<Record<string, StructureDamage>>): void {
         for (const [id, s] of structures) {
           const destroyed = (structureDamage[id]?.destroyedTick ?? null) !== null
@@ -251,4 +327,23 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
   const sock = new CylinderGeometry(0.4, 0.15, 2.4, 10, 1, true).rotateZ(Math.PI / 2).translate(wx + 1.1, wy + 6, wz)
   shared.add(sock, weathered(0xb66335, 0xd98c57, textures, 'timber'))
   return finish()
+}
+
+/**
+ * Ground rectangles trees must stay off (F8A): each building of a site-derived field and each of its clutter areas, as the
+ * world-space axis-aligned box around the rotated rectangle, plus a margin. Empty for a base from `content/bases`, which
+ * keeps the exclusions it always had (`inAirfieldClearing`).
+ */
+export function siteExclusions(airfield: Airfield, marginM = 8): readonly { readonly x: number; readonly z: number; readonly width: number; readonly length: number }[] {
+  if (airfield.clutter === undefined && !airfield.buildings.some((b) => b.model === true)) return []
+  const box = (lx: number, lz: number, w: number, l: number, headingDeg = 0): { x: number; z: number; width: number; length: number } => {
+    const c = localToWorld(airfield, lx, lz)
+    const r = runwayHeadingRad(airfield) + (headingDeg * Math.PI) / 180
+    const cos = Math.abs(Math.cos(r)), sin = Math.abs(Math.sin(r))
+    return { x: c.x, z: c.z, width: w * cos + l * sin + 2 * marginM, length: w * sin + l * cos + 2 * marginM }
+  }
+  return [
+    ...airfield.buildings.filter((b) => b.model === true).map((b) => box(b.x, b.z, b.widthM, b.lengthM, b.headingDeg)),
+    ...(airfield.clutter?.areas ?? []).map((a) => box(a.x, a.z, a.widthM, a.lengthM)),
+  ]
 }

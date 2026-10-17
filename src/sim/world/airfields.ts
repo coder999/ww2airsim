@@ -49,6 +49,9 @@ const BuildingObject = z
     headingDeg: finite.optional(),
     /** F8A: the window's say on this building. `destroyed` is rubble with no hit box; absent is `intact`. */
     state: z.enum(BUILDING_STATES).optional(),
+    /** F8A: draw the glb whose model id is this `kind` (StaticModels `building`), not the procedural shape. A site's buildings
+     *  say true; every base file in content/bases omits it and keeps its procedural look. */
+    model: z.boolean().optional(),
     /** F8A: hit-box height. Absent keeps the generic 10 m every building had before F8A. */
     heightM: positive.optional(),
     /** Mission group tags (spec 2026-09-25 §2.1, e.g. `dulag-hangars`), so an

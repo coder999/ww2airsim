@@ -135,6 +135,7 @@ export function airfieldFor(site: Site, window: WindowId): Airfield | null {
     const { basis: _basis, cite: _cite, ...rest } = p
     return {
       ...rest,
+      model: true,
       hp: Math.max(1, Math.round(p.hp * (state === undefined ? 1 : HP_SCALE[state] ?? 1))),
       ...(state === undefined ? {} : { state }),
     }
