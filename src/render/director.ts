@@ -15,6 +15,8 @@ export type DirectorAction =
   | { readonly kind: 'delete' }
   | { readonly kind: 'scrub'; readonly tSeconds: number }
   | { readonly kind: 'select'; readonly index: number }
+  /** Drag a key along the timeline. `minGapS` keeps it a label's width clear of both neighbors. */
+  | { readonly kind: 'move'; readonly index: number; readonly tSeconds: number; readonly minGapS: number }
   | { readonly kind: 'ease' }
   | { readonly kind: 'play' }
   | { readonly kind: 'record'; readonly eye: SceneEye }
@@ -66,6 +68,20 @@ export function reduceDirector(state: DirectorState, action: DirectorAction): Di
     case 'select': {
       const key = scene.camera[action.index]
       return key ? { ...state, selected: action.index, tSeconds: key.t, playing: false } : state
+    }
+    case 'move': {
+      const key = scene.camera[action.index]
+      if (key === undefined || !Number.isFinite(action.tSeconds)) return state
+      const prev = scene.camera[action.index - 1]
+      const next = scene.camera[action.index + 1]
+      const lo = prev === undefined ? 0 : prev.t + action.minGapS
+      const hi = next === undefined ? scene.durationS : next.t - action.minGapS
+      // A scene too short for the gap leaves no room: the key stays where it is.
+      if (lo > hi) return state
+      const t = Math.max(lo, Math.min(hi, action.tSeconds))
+      if (t === key.t) return state
+      const camera = scene.camera.map((k, i): Keyframe => i === action.index ? { ...k, t } : k)
+      return { ...state, scene: { ...scene, camera }, selected: action.index, playing: false }
     }
     case 'ease': {
       if (state.selected === null) return state
@@ -141,7 +157,7 @@ const CSS = `
 [data-director] :focus-visible { outline:2px solid #aacbff;outline-offset:2px; }
 [data-director] .director-help { margin:0 0 6px;color:#aab4c2;font-size:12px; }
 [data-director] .director-markers { position:relative;height:26px;margin:0 10px; }
-[data-director] .director-key { position:absolute;top:2px;transform:translateX(-50%);padding:0;
+[data-director] .director-key { position:absolute;top:2px;transform:translateX(-50%);padding:0;touch-action:none;
   width:20px;height:22px;border-radius:3px;font-size:10px; }
 [data-director] input[type="range"] { display:block;width:100%;margin:4px 0 10px;accent-color:#5d8fd6; }
 [data-director] output { font-variant-numeric:tabular-nums; }
@@ -237,17 +253,51 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
   function render(): void {
     const recording = state.samples !== null
     const editing = !recording && !state.playing
-    if (drawnKeys !== state.scene.camera) {
+    const labelKey = (b: HTMLElement, key: Keyframe, index: number): void => {
+      b.style.left = `${100 * key.t / state.scene.durationS}%`
+      b.setAttribute('aria-label', `Key ${index + 1} at ${key.t.toFixed(3)} seconds`)
+      b.title = `Key ${index + 1} · ${key.t.toFixed(3)} s`
+    }
+    if (drawnKeys !== null && drawnKeys !== state.scene.camera && drawnKeys.length === state.scene.camera.length) {
+      // Same keys, new times or easing (a drag): move the markers in place, since replacing them would drop the pointer a drag holds.
+      drawnKeys = state.scene.camera
+      drawnKeys.forEach((key, index) => labelKey(markers.children[index] as HTMLElement, key, index))
+    } else if (drawnKeys !== state.scene.camera) {
       drawnKeys = state.scene.camera
       markers.replaceChildren(...drawnKeys.map((key, index) => {
         const b = doc.createElement('button')
         b.type = 'button'
         b.className = 'director-key'
         b.textContent = String(index + 1)
-        b.style.left = `${100 * key.t / state.scene.durationS}%`
-        b.setAttribute('aria-label', `Key ${index + 1} at ${key.t.toFixed(3)} seconds`)
-        b.title = `Key ${index + 1} · ${key.t.toFixed(3)} s`
-        b.addEventListener('click', () => dispatch({ kind: 'select', index }, true))
+        labelKey(b, key, index)
+        // A press that travels more than a few pixels drags the key along the timeline; a press that does not is a click.
+        let drag: { startX: number; moved: boolean } | null = null
+        b.addEventListener('pointerdown', (event) => {
+          if (b.disabled) return
+          drag = { startX: event.clientX, moved: false }
+          b.setPointerCapture(event.pointerId)
+        })
+        b.addEventListener('pointermove', (event) => {
+          if (drag === null) return
+          if (!drag.moved && Math.abs(event.clientX - drag.startX) < 4) return
+          drag.moved = true
+          const track = markers.getBoundingClientRect()
+          if (track.width <= 0) return
+          const t = ((event.clientX - track.left) / track.width) * state.scene.durationS
+          // One label's width, in scene seconds, so a key stops against its neighbor's label instead of overlapping it.
+          const minGapS = (b.offsetWidth / track.width) * state.scene.durationS
+          dispatch({ kind: 'move', index, tSeconds: t, minGapS })
+        })
+        const end = (event: PointerEvent): void => {
+          if (b.hasPointerCapture(event.pointerId)) b.releasePointerCapture(event.pointerId)
+          const wasDrag = drag?.moved === true
+          drag = null
+          if (!wasDrag && event.type === 'pointerup') dispatch({ kind: 'select', index }, true)
+        }
+        b.addEventListener('pointerup', end)
+        b.addEventListener('pointercancel', end)
+        // Keyboard activation (Enter/Space) arrives as a click with no pointer; pointer clicks are handled above.
+        b.addEventListener('click', (event) => { if (event.detail === 0) dispatch({ kind: 'select', index }, true) })
         return b
       }))
     }

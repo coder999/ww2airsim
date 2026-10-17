@@ -116,3 +116,25 @@ test('in director mode a drag moves the view like a touch screen: right turns it
   expect(turn(before.yawDeg, after.yawDeg)).toBeGreaterThan(0.5) // yaw rises counter-clockwise from above: a turn to the left
   expect(after.pitchDeg).toBeLessThan(before.pitchDeg - 0.5) // looks down
 })
+
+test('a key can be dragged along the timeline and stops short of its neighbor', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  const keys = bar.locator('.director-key')
+  const times = async (): Promise<number[]> => (await keys.evaluateAll((els) => els.map((e) => Number(/at ([\d.]+) seconds/.exec(e.getAttribute('aria-label') ?? '')?.[1])))) 
+  const before = await times() // 0, 3, 6, 9, 12, 15
+  const box = (await keys.nth(1).boundingBox())!
+  const track = (await bar.locator('.director-markers').boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + track.width * 0.1, box.y + box.height / 2, { steps: 6 }) // a bit later: free
+  const mid = await times()
+  expect(mid[1]).toBeGreaterThan(before[1]! + 0.5)
+  await page.mouse.move(track.x + track.width * 0.99, box.y + box.height / 2, { steps: 8 }) // far past the next keys
+  await page.mouse.up()
+  const after = await times()
+  expect(after[1]).toBeLessThan(after[2]!) // never past or onto the next key
+  expect(after[2]).toBe(before[2]) // the neighbor did not move
+  expect(await bar.locator('.director-key').count()).toBe(before.length)
+})

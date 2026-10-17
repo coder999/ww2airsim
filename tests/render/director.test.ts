@@ -161,3 +161,43 @@ describe('director model', () => {
     expect(serializeDirector(extraChannel).ok).toBe(false)
   })
 })
+
+describe('dragging a key along the timeline', () => {
+  const three = (): DirectorState => {
+    let s = directorModel(scene())
+    s = reduceDirector(reduceDirector(s, { kind: 'scrub', tSeconds: 4 }), { kind: 'drop', eye: eye(40) })
+    return s // keys at 0, 4, 10
+  }
+  const move = (s: DirectorState, index: number, tSeconds: number, minGapS = 0.5) => reduceDirector(s, { kind: 'move', index, tSeconds, minGapS })
+
+  it('moves a key in time and keeps the others', () => {
+    const moved = move(three(), 1, 6)
+    expect(moved.scene.camera.map((k) => k.t)).toEqual([0, 6, 10])
+    expect(moved.scene.camera[1]!.position).toEqual(three().scene.camera[1]!.position)
+    expect(moved.selected).toBe(1)
+  })
+
+  it('stops a label-width short of each neighbor, never overlapping or passing one', () => {
+    expect(move(three(), 1, 99).scene.camera.map((k) => k.t)).toEqual([0, 9.5, 10])
+    expect(move(three(), 1, -99).scene.camera.map((k) => k.t)).toEqual([0, 0.5, 10])
+    for (const t of [-5, 0, 0.2, 3, 9.9, 10, 50]) {
+      const ts = move(three(), 1, t).scene.camera.map((k) => k.t)
+      expect([...ts].sort((a, b) => a - b)).toEqual(ts)
+      expect(ts[1]! - ts[0]!).toBeGreaterThanOrEqual(0.5 - 1e-9)
+      expect(ts[2]! - ts[1]!).toBeGreaterThanOrEqual(0.5 - 1e-9)
+    }
+  })
+
+  it('lets the first and last keys move within the scene, and round-trips through the schema', () => {
+    expect(move(three(), 0, 2).scene.camera.map((k) => k.t)).toEqual([2, 4, 10])
+    expect(move(three(), 2, 8).scene.camera.map((k) => k.t)).toEqual([0, 4, 8])
+    expect(roundTrip(move(three(), 1, 6)).camera.map((k) => k.t)).toEqual([0, 6, 10])
+  })
+
+  it('leaves state alone for a move that changes nothing, a bad index, or no room', () => {
+    const s = three()
+    expect(move(s, 1, 4)).toBe(s)
+    expect(move(s, 9, 4)).toBe(s)
+    expect(move(s, 1, 6, 6)).toBe(s) // neighbors 10 s apart cannot both be kept 6 s clear
+  })
+})
