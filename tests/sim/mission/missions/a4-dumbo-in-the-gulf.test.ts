@@ -110,10 +110,11 @@ describe('A4 placement (invented figures, each against its F3 limit)', () => {
       expect(near(p, survivor)).toBeGreaterThan(3000)
     }
   })
-  it('it also loads with no site windows at all (a Dev or picker launch before the campaign names one): the anchorage is just water then', () => {
+  it('it also loads with no site windows named (a Dev or picker launch): the loader plays it in its own window', () => {
     const bare = worldFromScenario(loadScenarioBundle(A4), null)
     expect(playerAircraft(bare).state.position.x).toBeCloseTo(start.x, 3)
-    expect(bare.vehicles.map((v) => v.id)).toEqual(['raft-1', 'survivor-1', 'launch-1'])
+    // the loader now builds a chapter in its own play window when none is given (F10A), so the site's vehicles are there too
+    expect(bare.vehicles.map((v) => v.id).slice(0, 3)).toEqual(['raft-1', 'survivor-1', 'launch-1'])
   })
 })
 
