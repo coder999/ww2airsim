@@ -1,0 +1,257 @@
+[
+  {
+    "view": "runway-low",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.42475820681511506,
+        "canopyCoverage": 0.008433159722222222,
+        "edgeCount": 37351,
+        "silhouetteCount": 12854
+      },
+      "b": {
+        "meanLuminance": 0.42481360153726855,
+        "canopyCoverage": 0.007139485677083333,
+        "edgeCount": 36038,
+        "silhouetteCount": 12141
+      },
+      "meanAbsDifference": 0.0005480079401552287,
+      "change": {
+        "meanLuminance": 0.00013041471892643566,
+        "canopyCoverage": -0.001293674045138889,
+        "edgeCount": -0.03515300795159434,
+        "silhouetteCount": -0.05546911467247549
+      },
+      "outside": []
+    }
+  },
+  {
+    "view": "ridge-6000ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.4423090869193772,
+        "canopyCoverage": 0.37258056640625,
+        "edgeCount": 280042,
+        "silhouetteCount": 181514
+      },
+      "b": {
+        "meanLuminance": 0.43443864743720684,
+        "canopyCoverage": 0.3166319444444444,
+        "edgeCount": 58837,
+        "silhouetteCount": 138489
+      },
+      "meanAbsDifference": 0.024901527111133807,
+      "change": {
+        "meanLuminance": -0.017793980985077448,
+        "canopyCoverage": -0.055948621961805556,
+        "edgeCount": -0.7898993722370216,
+        "silhouetteCount": -0.23703405797899887
+      },
+      "outside": [
+        "canopyCoverage",
+        "edgeCount"
+      ]
+    }
+  },
+  {
+    "view": "inland-6000ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.44487213829657773,
+        "canopyCoverage": 0.42053819444444446,
+        "edgeCount": 324356,
+        "silhouetteCount": 229245
+      },
+      "b": {
+        "meanLuminance": 0.43969121430796804,
+        "canopyCoverage": 0.4029595269097222,
+        "edgeCount": 84526,
+        "silhouetteCount": 169073
+      },
+      "meanAbsDifference": 0.02462276000533315,
+      "change": {
+        "meanLuminance": -0.011645872021672419,
+        "canopyCoverage": -0.01757866753472226,
+        "edgeCount": -0.7394036182466179,
+        "silhouetteCount": -0.26247900717572903
+      },
+      "outside": [
+        "edgeCount",
+        "silhouetteCount"
+      ]
+    }
+  },
+  {
+    "view": "ridge-side-6000ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.45861531217459034,
+        "canopyCoverage": 0.3819479709201389,
+        "edgeCount": 205673,
+        "silhouetteCount": 210922
+      },
+      "b": {
+        "meanLuminance": 0.44776013788143243,
+        "canopyCoverage": 0.3400322808159722,
+        "edgeCount": 66069,
+        "silhouetteCount": 153285
+      },
+      "meanAbsDifference": 0.018817957970225126,
+      "change": {
+        "meanLuminance": -0.023669454562444812,
+        "canopyCoverage": -0.04191569010416668,
+        "edgeCount": -0.6787667802774306,
+        "silhouetteCount": -0.2732621537819668
+      },
+      "outside": [
+        "edgeCount",
+        "silhouetteCount"
+      ]
+    }
+  },
+  {
+    "view": "forward-1500ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.41834169515459463,
+        "canopyCoverage": 0.5846910264756945,
+        "edgeCount": 348004,
+        "silhouetteCount": 119835
+      },
+      "b": {
+        "meanLuminance": 0.41845834648474745,
+        "canopyCoverage": 0.5811461046006945,
+        "edgeCount": 343814,
+        "silhouetteCount": 117363
+      },
+      "meanAbsDifference": 0.0024894961022603485,
+      "change": {
+        "meanLuminance": 0.0002788422275472915,
+        "canopyCoverage": -0.0035449218749999956,
+        "edgeCount": -0.012040091493201227,
+        "silhouetteCount": -0.02062836400050069
+      },
+      "outside": []
+    }
+  },
+  {
+    "view": "side-1000ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.4322095389055438,
+        "canopyCoverage": 0.5016517469618056,
+        "edgeCount": 291497,
+        "silhouetteCount": 165247
+      },
+      "b": {
+        "meanLuminance": 0.43085547627233,
+        "canopyCoverage": 0.4922089301215278,
+        "edgeCount": 254840,
+        "silhouetteCount": 157612
+      },
+      "meanAbsDifference": 0.005371108997707879,
+      "change": {
+        "meanLuminance": -0.0031328846573877313,
+        "canopyCoverage": -0.009442816840277812,
+        "edgeCount": -0.12575429592757387,
+        "silhouetteCount": -0.046203561940610115
+      },
+      "outside": []
+    }
+  },
+  {
+    "view": "grazing-250ft",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.3474871112724311,
+        "canopyCoverage": 0.4190809461805556,
+        "edgeCount": 137729,
+        "silhouetteCount": 55658
+      },
+      "b": {
+        "meanLuminance": 0.34751854004764904,
+        "canopyCoverage": 0.4191617838541667,
+        "edgeCount": 137371,
+        "silhouetteCount": 55390
+      },
+      "meanAbsDifference": 0.0004077673242329339,
+      "change": {
+        "meanLuminance": 0.00009044587323788575,
+        "canopyCoverage": 0.0000808376736111116,
+        "edgeCount": -0.0025993073354195558,
+        "silhouetteCount": -0.004815120917028999
+      },
+      "outside": []
+    }
+  },
+  {
+    "view": "photo",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.6889683778283284,
+        "canopyCoverage": 0.011219346788194445,
+        "edgeCount": 33527,
+        "silhouetteCount": 8667
+      },
+      "b": {
+        "meanLuminance": 0.6889154776069073,
+        "canopyCoverage": 0.010812445746527777,
+        "edgeCount": 33762,
+        "silhouetteCount": 8155
+      },
+      "meanAbsDifference": 0.00032279610339506175,
+      "change": {
+        "meanLuminance": -0.00007678178436559145,
+        "canopyCoverage": -0.0004069010416666678,
+        "edgeCount": 0.007009276105825156,
+        "silhouetteCount": -0.0590746509749625
+      },
+      "outside": []
+    }
+  },
+  {
+    "view": "under-cloud",
+    "setA": "forestCanopy=current",
+    "setB": "forestCanopy=relief",
+    "comparison": {
+      "a": {
+        "meanLuminance": 0.5598545846903789,
+        "canopyCoverage": 0.1196240234375,
+        "edgeCount": 114811,
+        "silhouetteCount": 84806
+      },
+      "b": {
+        "meanLuminance": 0.5589689318935753,
+        "canopyCoverage": 0.09150444878472222,
+        "edgeCount": 50274,
+        "silhouetteCount": 50262
+      },
+      "meanAbsDifference": 0.009393613550744372,
+      "change": {
+        "meanLuminance": -0.0015819336324508742,
+        "canopyCoverage": -0.028119574652777785,
+        "edgeCount": -0.562115128341361,
+        "silhouetteCount": -0.4073296700705139
+      },
+      "outside": [
+        "edgeCount",
+        "silhouetteCount"
+      ]
+    }
+  }
+]

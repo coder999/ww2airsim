@@ -1,5 +1,15 @@
 # Terrain
 
+## Forest cost (investigated 2026-10-16, unresolved)
+
+The long-distance forest costs about 8 ms of GPU p95 at 1440p High in the solo views (runway 4.3-4.9 ms before the merge `e6b2476f`,
+11.7-15.1 ms after, 4.5-5.3 ms with `?trees=off`). An attribution run and a canopy-relief prototype did not find the cause: the near
+trees, the individual distant crowns, the coarse-group count and the canopy ground blend each cost almost nothing alone, and removing
+five sixths of the far cards changed nothing. The cost is pixel-bound and appears with the tree layers on. Results, method, the
+untested depth-rejection hypothesis, and the unmerged relief prototype (branch `plan-forest-canopy`):
+[handoff](handoff/2026-10-16-forest-canopy.md); budget context: [re-evaluation](handoff/2026-10-16-budget-reevaluation.md).
+The nightly's budget phase runs with Trees Off until this is resolved (`docs/testing.md`, Known gaps).
+
 ## Accepted long-distance forest (2026-10-13)
 
 Mark accepted the longer forest and requested a Trees setting. Sparse crown

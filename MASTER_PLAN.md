@@ -571,7 +571,7 @@ coverage while preserving scenario cloud geometry and cirrus. Handoff:
    accepted soft dense center and slight thin-wisp breakup are not unattended
    tuning targets.
 
-**Forest canopy rework (planned 2026-10-16; plan [`docs/superpowers/plans/2026-10-16-forest-canopy-rework.md`](docs/superpowers/plans/2026-10-16-forest-canopy-rework.md)):** buys back the ~8 ms the distance-forest merge costs (evidence: [`docs/handoff/2026-10-16-budget-reevaluation.md`](docs/handoff/2026-10-16-budget-reevaluation.md)). Stand interiors become a canopy relief surface, individual trees stay at stand edges (about 3 rows) and as sparse emergents, the near trees are untouched, and nothing becomes the default without Mark's yes (two attended checkpoints). Parallel with F5C.
+**Forest canopy rework (2026-10-16; plan [`docs/superpowers/plans/2026-10-16-forest-canopy-rework.md`](docs/superpowers/plans/2026-10-16-forest-canopy-rework.md)): paused after checkpoint 1.** Attribution found the forest cost is not the near trees, the distant crowns, the coarse-group count or the canopy blend alone, and a relief-surface prototype (branch `plan-forest-canopy`, unmerged) saved no GPU time. Mark paused it (2026-10-16); the nightly budget phase runs with Trees Off meanwhile. Open: a per-pass GPU investigation (untested hypothesis: the pixel-dissolve fade defeats early depth rejection). Handoff [`docs/handoff/2026-10-16-forest-canopy.md`](docs/handoff/2026-10-16-forest-canopy.md).
 
 ### Track L: Terrain (size L)
 

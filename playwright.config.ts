@@ -166,6 +166,13 @@ export function createPlaywrightConfig(mode: 'test' | 'capture' = 'test') {
           }
         : undefined,
       baseURL: process.env.PW_BASE_URL ?? 'http://localhost:5173',
+      // E2E_TREES=off saves the player's Trees setting (`ww2airsim.trees.v1`, src/render/settings.ts) as Off, so a
+      // run measures everything but the forest. The nightly's budget phase uses it while the forest cost is
+      // unexplained (docs/handoff/2026-10-16-forest-canopy.md; Mark, 2026-10-16). The correctness phase leaves
+      // trees On, so the Trees setting and the tree layers stay tested.
+      ...(process.env.E2E_TREES === 'off'
+        ? { storageState: { cookies: [], origins: [{ origin: new URL(process.env.PW_BASE_URL ?? 'http://localhost:5173').origin, localStorage: [{ name: 'ww2airsim.trees.v1', value: 'off' }] }] } }
+        : {}),
       headless: true,
       channel: 'chromium',
       launchOptions: {
