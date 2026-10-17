@@ -1,0 +1,111 @@
+{
+  "id": "j3-opening",
+  "chapter": "J3",
+  "kind": "opening",
+  "durationS": 12,
+  "world": {
+    "source": "mission",
+    "scenario": "j3-road-to-burauen"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -46167.4,
+        600,
+        -21784.64
+      ],
+      "yawDeg": 125.54,
+      "pitchDeg": -32.12,
+      "ease": "inOut"
+    },
+    {
+      "t": 2.5,
+      "position": [
+        -45667.4,
+        400,
+        -20784.64
+      ],
+      "yawDeg": 23.57,
+      "pitchDeg": -31.76,
+      "ease": "inOut"
+    },
+    {
+      "t": 5,
+      "position": [
+        -44967.4,
+        650,
+        -20984.64
+      ],
+      "yawDeg": 303.68,
+      "pitchDeg": -46.83,
+      "ease": "inOut"
+    },
+    {
+      "t": 7.5,
+      "position": [
+        -46067.4,
+        1600,
+        -20584.64
+      ],
+      "yawDeg": 43.99,
+      "pitchDeg": 8.47,
+      "ease": "inOut"
+    },
+    {
+      "t": 10,
+      "position": [
+        -47268.65,
+        1650,
+        -20339.46
+      ],
+      "yawDeg": 32.97,
+      "pitchDeg": -11.17,
+      "ease": "inOut"
+    },
+    {
+      "t": 12,
+      "position": [
+        -46968.65,
+        1560,
+        -20689.46
+      ],
+      "yawDeg": 45.11,
+      "pitchDeg": -7.42,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Column command: Keep moving toward Buri. Tanks, hold your places in the line."
+      }
+    },
+    {
+      "t": 4,
+      "order": {
+        "kind": "message",
+        "text": "Ridge observer: P-38s reported northeast of the road. Watch the approach to Buri."
+      }
+    },
+    {
+      "t": 8,
+      "order": {
+        "kind": "message",
+        "text": "Wingman: On your right. We will cover them to the dispersal area."
+      }
+    },
+    {
+      "t": 11,
+      "order": {
+        "kind": "message",
+        "text": "Buri control: Eight vehicles and two tanks must get through. Recover at Bayug. Your aircraft."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

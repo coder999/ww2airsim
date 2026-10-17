@@ -302,6 +302,7 @@
   },
   {
    "id": "J3",
+   "scenario": "j3-road-to-burauen",
    "status": "filled",
    "aircraft": "ki-43-oscar",
    "side": "axis",

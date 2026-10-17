@@ -74,11 +74,11 @@
    "authoredBonus": 0
   },
   "J3": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j3-road-to-burauen",
+   "badge": { "id": "j3-road-to-burauen", "name": "Road to Burauen" },
+   "start": "airborne",
+   "aircraft": ["ki-43-oscar"],
+   "recommendedLoadout": "clean",
    "coordinated": false,
    "authoredBonus": 0
   },

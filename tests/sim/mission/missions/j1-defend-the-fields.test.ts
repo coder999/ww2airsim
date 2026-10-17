@@ -8,7 +8,7 @@
  * "buri-control" now, and the operations rule below names it by id.
  */
 import { describe, it, expect } from 'vitest'
-import { loadScenario, loadScenarioBundle } from '../../../../tools/content/load.js'
+import { bundleForScenario, loadScenario, loadScenarioBundle } from '../../../../tools/content/load.js'
 import { parseScenario, worldFromScenario } from '../../../../src/sim/scenario.js'
 import { sideOf } from '../../../../src/sim/sides.js'
 import { playerAircraft, withAircraftState, type World } from '../../../../src/sim/loop.js'
@@ -233,4 +233,22 @@ describe.skipIf(terrain === null)('J1 Defend the Fields, headless', () => {
     w = hold(destroyNow(w, GROUPS.flatMap((g) => g.structures), 'raid-1'), FAR, 1)
     expect(w.mission!.progress).toEqual(progress)
   })
+
+  // MEASURED GAP, 2026-10-17 (a tripwire): the six AI attackers cannot take three groups. Over eight variants (altitude 1,800 and 3,000 m, approach from
+  // east, 60 degrees either side, both waves at once, with and without the wingmen and Ki-43s, player passive and 60 km away) they destroyed
+  // 0-2 of the five groups, because the field's three AAA emplacements and the ground kill most of them before they drop (each attacker dropped 0-1
+  // bombs). So `strike` cannot fail by AI action alone, and a passive player who takes off and lands earns the badge. Re-measure if the AI changes.
+  it('MEASURED GAP: with no wingmen and a passive player the raid still loses (at most two groups fall), so the strike completes', () => {
+    const scenario = loadScenario(ID)
+    const bare = {
+      ...scenario,
+      aircraft: scenario.aircraft.filter((a) => a.id !== 'zero-2'),
+      heldGroups: scenario.heldGroups!.filter((g) => g.id !== 'ki43-pair'),
+      triggers: scenario.triggers!.map((t) => ({ ...t, then: t.then.filter((a) => !('spawn' in a && a.spawn === 'ki43-pair')) })).filter((t) => t.then.length > 0),
+    }
+    let w = deckRun(settledAll(worldFromScenario(bundleForScenario(parseScenario(bare)), terrain)), TAKEOFF)
+    w = holdTo(w, 540)
+    expect(GROUPS.filter((g) => progressOf(w, g.id).status === 'failed').length).toBeLessThanOrEqual(2)
+    expect(progressOf(w, 'strike').status).toBe('complete')
+  }, 120000)
 })
