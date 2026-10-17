@@ -1,6 +1,5 @@
 import { mkdirSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { windowsForChapter } from '../../src/campaign/worldStates.js'
 import type { DiagWindow } from './harness.js'
 
 // F10A (2026-10-17): the batch's capture sheet for Mark's checkpoint (his viewing is a checkpoint, never a gate; docs/testing.md): per
@@ -19,7 +18,9 @@ const SHOTS: readonly Shot[] = [
   // A3: over the column's south end; four kilometers south of Tacloban's strip, heading north would be ideal (the overlay heads east)
   { chapter: 'A3', scenario: 'a3-the-long-column', opening: 'a3-opening', mid: [-78400, 450, -36500], recovery: [-29666, 300, -43600] },
 ]
-const sites = (chapter: Shot['chapter']): string => Object.entries(windowsForChapter(chapter)).filter(([s]) => ['tacloban', 'dulag', 'landing-beaches'].includes(s)).map(([s, w]) => `${s}:${w}`).join(',')
+// the windows the campaign plays each chapter in (src/campaign/worldStates.ts PLAY), restated because Playwright's loader cannot read that module's JSON import
+const SITES: Record<Shot['chapter'], string> = { A1: 'landing-beaches:assault,tacloban:pre-invasion,dulag:pre-invasion', A2: 'tacloban:buildup,dulag:buildup', A3: 'tacloban:buildup,dulag:buildup' }
+const sites = (chapter: Shot['chapter']): string => SITES[chapter]
 const tick = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2?.tick() ?? 0)
 
 for (const shot of SHOTS) {

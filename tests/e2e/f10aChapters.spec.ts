@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
 import { startCampaignGame, waitForScenario, type DiagWindow } from './harness.js'
-import { windowsForChapter } from '../../src/campaign/worldStates.js'
 
 /**
  * F10A (2026-10-17): chapters A1, A2 and A3 through the running game. A1 goes from Headquarters (the campaign path: the picker row, the
@@ -12,7 +11,8 @@ test.setTimeout(240_000)
 
 const scene = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2?.scene() ?? null)
 const objective = (page: Page) => page.evaluate(() => (window as DiagWindow).__ww2?.mission()?.objective ?? null)
-const siteState = (chapter: 'A2' | 'A3'): string => Object.entries(windowsForChapter(chapter)).filter(([site]) => ['tacloban', 'dulag'].includes(site)).map(([s, w]) => `${s}:${w}`).join(',')
+// the windows the campaign draws for these chapters (src/campaign/worldStates.ts PLAY: A2 and A3 are played in buildup); not imported, because Playwright's loader cannot read that module's JSON import
+const siteState = (_chapter: 'A2' | 'A3'): string => 'tacloban:buildup,dulag:buildup'
 
 async function openingThenLive(page: Page, id: string, ticks: number): Promise<void> {
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.scene() != null, undefined, { timeout: 90_000 })

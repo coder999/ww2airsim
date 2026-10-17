@@ -94,6 +94,8 @@ engagement. The badge path is `join attack -> player causes durability damage to
 Friendly ships: one Casablanca and two Fletchers standing in for the mixed Taffy screen. Enemy
 ships: Yamato, Mogami, one Kagero and one Shiratsuyu. Peak: five aircraft and seven ships.
 
+**State transition (amendment 2026-10-17, F10A, Mark's Decision 10).** Tacloban and Dulag advance from `assault` to `buildup`. F3 gave A2 no transition, but A1 leaves both fields unserviceable, which would make A3's Tacloban landing illegal on the real campaign path. Implemented in `src/campaign/worldStates.ts`.
+
 **Declared compression.** The real Taffy 3 had six escort carriers, three destroyers and four
 destroyer escorts; the game stages one carrier and two available destroyer models. The F4F-4 art is
 a disclosed FM-2 stand-in. A2 does not assert that the player's specific TBM load or hit occurred.

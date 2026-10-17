@@ -2,7 +2,6 @@ import { mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { parseScene } from '../../src/sim/scene/schema.js'
 import type { DiagWindow } from './harness.js'
-import { windowsForChapter } from '../../src/campaign/worldStates.js'
 
 // F9 Task 8: a still at each camera keyframe of every shipped scene, for Mark's review (his viewing is a checkpoint, never a
 // gate; docs/testing.md). Opens each scene in director mode and selects the keys, so it shoots exactly what the author sees.
@@ -13,11 +12,13 @@ const OUT = process.env.E2E_CAPTURE_DIR ?? 'test-results/scenes'
 const dir = new URL('../../content/scenes/', import.meta.url)
 const scenes = readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => parseScene(JSON.parse(readFileSync(new URL(f, dir), 'utf8')) as unknown))
 
+/** The windows the campaign plays A1-A3 in (src/campaign/worldStates.ts PLAY), restated: Playwright's loader cannot read that module's JSON import. */
+const CHAPTER_WINDOWS: Record<string, Record<string, string>> = { A1: { 'landing-beaches': 'assault', tacloban: 'pre-invasion', dulag: 'pre-invasion' }, A2: { tacloban: 'buildup', dulag: 'buildup' }, A3: { tacloban: 'buildup', dulag: 'buildup' } }
 /** F10A (2026-10-17): a chapter scene is shot in the windows its chapter is played in (A3's Tacloban landing is refused in the default window), for the sites its scenario names. */
 const siteQuery = (scene: (typeof scenes)[number]): string => {
   if (scene.id.startsWith('demo-')) return ''
   const named = (JSON.parse(readFileSync(new URL(`../../content/scenarios/${scene.world.scenario}.json`, import.meta.url), 'utf8')) as { sites?: string[] }).sites ?? []
-  const windows = windowsForChapter(scene.chapter)
+  const windows = CHAPTER_WINDOWS[scene.chapter] ?? {}
   return named.length === 0 ? '' : `&siteState=${named.map((s) => `${s}:${windows[s]}`).join(',')}`
 }
 
