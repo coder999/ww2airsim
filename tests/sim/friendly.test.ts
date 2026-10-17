@@ -10,8 +10,9 @@ import { CHAPTER_MISSIONS } from '../../src/campaign/index.js'
 import { playerAircraft, type World } from '../../src/sim/loop.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { loadAircraftSpec, loadScenarioBundle } from '../../tools/content/load.js'
+import { chapterWindows } from '../../src/campaign/chapterMissions.js'
 
-const world = (id: string): World<undefined> => worldFromScenario(loadScenarioBundle(id), null)
+const world = (id: string): World<undefined> => worldFromScenario(loadScenarioBundle(id, chapterWindows(id)), null)
 const field = (w: World<undefined>, id: string) => w.airfields.find((a) => a.id === id)!.runway.center
 const SCENARIOS = readdirSync('content/scenarios').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort()
 
@@ -92,7 +93,7 @@ describe('every shipped scenario declares which sites are friendly (F5C content 
   })
 
   it.each(SCENARIOS)('%s: a mission names at least one friendly site its player can recover to, and its suggested recovery is one', (id) => {
-    const bundle = loadScenarioBundle(id)
+    const bundle = loadScenarioBundle(id, chapterWindows(id))
     const w = worldFromScenario(bundle, null)
     if (w.mission === null) return // a range or test bed: no recovery to name
     const player = playerAircraft(w)
