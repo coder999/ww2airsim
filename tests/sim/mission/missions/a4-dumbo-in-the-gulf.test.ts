@@ -9,7 +9,7 @@ import { playerAircraft, withAircraftState, type World } from '../../../../src/s
 import { skipScene } from '../../../../src/sim/scene/preroll.js'
 import { parseScene } from '../../../../src/sim/scene/schema.js'
 import { readFileSync } from 'node:fs'
-import { applyDifficulty, DIFFICULTIES, type Difficulty } from '../../../../src/sim/difficulty.js'
+import { applyDifficulty, type Difficulty } from '../../../../src/sim/difficulty.js'
 import { radioMessages, ticksFor } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
 import { progressOf } from '../fixture.js'
