@@ -82,6 +82,9 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Essex CIC: All bombers splashed. Clear the fighters off the transports.': null,
   'Essex CIC: Raid is clear of the transports. Bring it aboard.': null,
   "Essex CIC: We've lost too many transports.": null,
+  'Taffy 3 to Avengers: Japanese heavy ships northwest of us, closing. Torpedoes on the cruiser or the battleship.': null,
+  'Taffy 3: Good hit. Return to Casablanca.': null,
+  'Taffy 3: Casablanca is lost.': null,
   // F10A end
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',

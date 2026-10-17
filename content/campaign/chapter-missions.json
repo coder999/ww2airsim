@@ -16,11 +16,16 @@
    "authoredBonus": 0
   },
   "A2": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "a2-taffy-3",
+   "badge": {
+    "id": "taffy-3",
+    "name": "Taffy 3"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "tbm-3-avenger"
+   ],
+   "recommendedLoadout": "torpedoes",
    "coordinated": false,
    "authoredBonus": 0
   },

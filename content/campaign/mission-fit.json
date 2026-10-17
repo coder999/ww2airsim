@@ -51,17 +51,17 @@
    "start": {
     "kind": "airborne",
     "site": "landing-beaches",
-    "x": 92424,
-    "z": -71707,
+    "x": 89438,
+    "z": -72912,
     "basis": "invented",
-    "note": "F3 A2: the player begins airborne 8-12 mi southeast of the engagement off Samar; placed 10 mi (16.1 km) on a southeast bearing from the engagement point below, 92 km east of the beaches in the beach frame (outside every F8 site). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F10A (2026-10-17): the scenario's own start, 8 mi (12,874 m) southeast of the engagement point (F3: 8-12 mi), chosen so the join zone is entered in 2.6 min (the old 10 mi point took 189 s against F3's 2-3 min). F3 gives no geometry for this point; invented, and labeled so."
    },
    "firstAction": {
     "site": "landing-beaches",
-    "x": 77503,
-    "z": -77736,
+    "x": 77277,
+    "z": -77826,
     "basis": "invented",
-    "note": "F3 A2: the surface engagement of Taffy 3, off Samar; placed at 11.55 N 125.95 E, a point chosen only to be inside the 100 km world and east of Samar. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F10A (2026-10-17): the edge of the scenario's join zone (objective \"join\", 4,000 m around 67814,-86473, the Japanese ships' side of the engagement), on the line from the start: the first action is entering it. F3 gives no geometry for this point; invented, and labeled so."
    },
    "withinM": 19312,
    "cruiseMps": 85,
@@ -72,15 +72,16 @@
      {
       "label": "Casablanca",
       "site": "landing-beaches",
-      "x": 81185,
-      "z": -79298,
+      "x": 84058,
+      "z": -75086,
       "basis": "invented",
-      "note": "The surviving Casablanca-class carrier trap (F3 section 3), 4 km east of the engagement point. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+      "note": "F10A (2026-10-17): Casablanca's starting position in a2-taffy-3 (the carrier steams; this row does not model it), 5 km east and 5 km south of the engagement point. F3 gives no geometry for this point; invented, and labeled so."
      }
     ],
     "budgetS": 240
    },
-   "f3": "airborne start 8-12 mi southeast of the engagement; surface engagement inside 12 mi; first action 2-3 min; recovery 4-6 min to the Casablanca-class carrier trap (checked at the 4 min end)"
+   "f3": "airborne start 8-12 mi southeast of the engagement; surface engagement inside 12 mi; first action 2-3 min; recovery 4-6 min to the Casablanca-class carrier trap (checked at the 4 min end)",
+   "scenario": "a2-taffy-3"
   },
   {
    "id": "A3",

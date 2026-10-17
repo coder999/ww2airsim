@@ -52,7 +52,8 @@ describe('A2 content', () => {
   it('holds F3\'s roster: player, two TBMs and two F4F stand-ins in the air; Casablanca and two Fletchers against Yamato, Mogami, Kagero and Shiratsuyu (five aircraft, seven ships)', () => {
     const w = worldFromScenario(bundle, null)
     expect(scenario.population).toEqual({ airborne: 5, ships: 7 })
-    expect(w.aircraft.map((a) => a.spec.id).sort()).toEqual(['f4f-wildcat', 'f4f-wildcat', 'tbm-3-avenger', 'tbm-3-avenger', 'tbm-3-avenger'])
+    // the sites' parked aircraft are scenery, not population
+    expect(w.aircraft.filter((a) => !a.parked).map((a) => a.spec.id).sort()).toEqual(['f4f-wildcat', 'f4f-wildcat', 'tbm-3-avenger', 'tbm-3-avenger', 'tbm-3-avenger'])
     expect(w.ships.map((s) => s.spec.id).sort()).toEqual(['casablanca-cve', 'fletcher-dd', 'fletcher-dd', 'kagero-dd', 'mogami-ca', 'shiratsuyu-dd', 'yamato-bb'])
     for (const id of ENEMY) expect(sideOf(w, w.ships.find((s) => s.id === id)!), id).toBe('axis')
     for (const id of ['casablanca', ...SCREEN]) expect(sideOf(w, w.ships.find((s) => s.id === id)!), id).toBe('allied')

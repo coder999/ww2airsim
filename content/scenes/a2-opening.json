@@ -1,0 +1,82 @@
+{
+  "id": "a2-opening",
+  "chapter": "A2",
+  "kind": "opening",
+  "durationS": 15,
+  "world": {
+    "source": "mission",
+    "scenario": "a2-taffy-3"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        76500,
+        60,
+        -77300
+      ],
+      "yawDeg": 132.8,
+      "pitchDeg": 0,
+      "ease": "inOut"
+    },
+    {
+      "t": 5,
+      "position": [
+        74500,
+        200,
+        -80800
+      ],
+      "yawDeg": 139.7,
+      "pitchDeg": -1,
+      "ease": "inOut"
+    },
+    {
+      "t": 10,
+      "position": [
+        78500,
+        700,
+        -75500
+      ],
+      "yawDeg": 135,
+      "pitchDeg": -5,
+      "ease": "inOut"
+    },
+    {
+      "t": 15,
+      "position": [
+        79099,
+        846,
+        -75099
+      ],
+      "yawDeg": 139.1,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Taffy 3: Japanese heavy ships on the horizon, closing from the northwest."
+      }
+    },
+    {
+      "t": 6,
+      "order": {
+        "kind": "message",
+        "text": "Taffy 3: The screen is laying smoke. All Avengers, form on the leader."
+      }
+    },
+    {
+      "t": 11,
+      "order": {
+        "kind": "message",
+        "text": "Taffy 3 to Avengers: Torpedoes on the cruiser or the battleship. Attack."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}
