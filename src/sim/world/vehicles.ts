@@ -91,6 +91,11 @@ export function stepVehicle(
   spec: VehicleSpec, state: VehicleState, orders: VehicleOrders, ctx: Pick<SimContext, 'dt' | 'tick' | 'terrain'>,
   destroyed = false,
 ): VehicleState {
+  // F8A Task 5: a vehicle that is already at rest (a placed truck, a parked dozer, a destroyed hulk that has stopped)
+  // needs no new pose: the ground under it has not changed, and `vehicleOnTerrain` re-seats it whenever a new terrain
+  // field arrives. Measured 2026-10-16: re-posing 12 of them cost about 5 microseconds a tick (tools/sites/vehicleCost.ts).
+  // Same state back, only the clock moves, so every number a checksum reads is unchanged.
+  if (state.stopped && state.speedMps === 0 && state.steer === 0) return state.tick === ctx.tick ? state : { ...state, tick: ctx.tick }
   if (destroyed || state.stopped || orders.speedMps === 0) {
     const posed = terrainPose(state.position, state.headingRad, spec, ctx.terrain ?? null)
     return { ...state, ...posed, speedMps: 0, steer: 0, stopped: true, tick: ctx.tick }
