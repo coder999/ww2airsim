@@ -206,7 +206,7 @@ Single Missions. The minimum rank comes from `chapters.json` through the rank ta
 
 **The mission vocabulary** (`src/sim/mission/schema.ts`; evaluated in `step.ts`; every addition is optional, so every existing
 scenario plays as before): objective kinds `arrive` (AI entities reach a zone, remembered), `released` (AI aircraft have released a
-store, read from their combat records), `damage` (a ship below a fraction of its hull, or sunk), `atLeast` (n of earlier objectives:
+store, read from their combat records), `preventRelease` (F10E: at least n of the named aircraft were destroyed before their record shows a release; fails once n is out of reach), `damage` (a ship below a fraction of its hull, or sunk), `atLeast` (n of earlier objectives:
 any/all), and `field` (airfield state; with `keep` it is a standing order); on any objective `until` (a window: a `protect` or `deny`
 completes when it closes, anything else fails) and on `destroy` `fresh` (count only kills after the objective woke up); `state` gains
 `headingDeg`, `groundSpeedMps`, `dwellS` (a continuous match, a break zeroes it) and `failOnExit` (a corridor); `hold` gains

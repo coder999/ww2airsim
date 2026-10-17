@@ -69,6 +69,13 @@ export function isDestroyed<M>(t: Pick<MissionTick<M>, 'combat' | 'aircraft'>, i
   return structure !== undefined && structure.destroyedTick !== null
 }
 
+/** Whether aircraft `id` has released `store`, read from its own combat record (the same read the player's `release` objective makes). */
+function hasReleased<M>(t: Pick<MissionTick<M>, 'combat'>, id: EntityId, store: 'bomb' | 'rocket' | 'torpedo'): boolean {
+  const r = t.combat.aircraft[id]
+  if (r === undefined) return false
+  return store === 'rocket' ? r.rocketsFired > 0 : store === 'torpedo' ? r.torpedoesDropped > 0 : r.bombsDropped - r.torpedoesDropped > 0
+}
+
 const isPresent = <M>(t: MissionTick<M>, id: EntityId): boolean =>
   t.combat.aircraft[id] !== undefined || t.combat.ships[id] !== undefined || t.combat.vehicles[id] !== undefined || t.combat.structures[id] !== undefined
 
@@ -245,13 +252,18 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       return { ...p, seen: all, count: all.length, status: all.length >= (o.count ?? o.resolved.length) ? 'complete' : 'active' }
     }
     case 'released': {
-      const n = o.resolved.filter((id) => {
-        const r = c.t.combat.aircraft[id]
-        if (r === undefined) return false
-        return o.store === 'rocket' ? r.rocketsFired > 0 : o.store === 'torpedo' ? r.torpedoesDropped > 0 : r.bombsDropped - r.torpedoesDropped > 0
-      }).length
+      const n = o.resolved.filter((id) => hasReleased(c.t, id, o.store)).length
       const need = o.count ?? o.resolved.length
       return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'preventRelease': {
+      // F10E: destroyed with nothing released is a stop; a release (even by one that then died) is a miss that can never be undone.
+      const n = o.resolved.filter((id) => isDestroyed(c.t, id) && !hasReleased(c.t, id, o.store)).length
+      const missed = o.resolved.filter((id) => hasReleased(c.t, id, o.store)).length
+      const need = o.count ?? o.resolved.length
+      if (n >= need) return { ...p, count: n, status: 'complete' }
+      if (o.resolved.length - missed < need) return { ...p, count: n, status: 'failed' }
+      return n === p.count ? p : { ...p, count: n }
     }
     case 'damage': {
       const n = o.resolved.filter((id) => {

@@ -622,7 +622,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   const objectiveIds = new Set(objectives.map((o) => o.id))
   /** Whether an objective can ever read failed: a standing order, a corridor, a group test, or anything with a window. */
   const canFail = (o: (typeof objectives)[number]): boolean =>
-    o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast'
+    o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast' || o.kind === 'preventRelease'
     || (o.kind === 'field' && o.keep === true) || (o.kind === 'state' && o.failOnExit === true) || o.until !== undefined
   /** `when` references that name objectives (shared by triggers and `until`). */
   const checkWhen = (w: z.infer<typeof TriggerObject>['when'], path: (string | number)[]): void => {

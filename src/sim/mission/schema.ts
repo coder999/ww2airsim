@@ -133,6 +133,9 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('arrive'), targets: refs, count: z.number().int().positive().optional(), zone: StationObject }).strict(),
   /** F10-0: at least `count` (default all) of the named aircraft have released the store, read from each one's own combat record (A5, J6). */
   z.object({ ...base, kind: z.literal('released'), targets: refs, store: z.enum(['bomb', 'rocket', 'torpedo']), count: z.number().int().positive().optional() }).strict(),
+  /** F10E: at least `count` (default all) of the named aircraft were destroyed BEFORE their combat record shows a release of `store` (A6: five of the ten attackers).
+   *  An attacker that released and then died is not counted, and the objective fails once so many have released that `count` is out of reach. Reads the same record `released` reads. */
+  z.object({ ...base, kind: z.literal('preventRelease'), targets: refs, store: z.enum(['bomb', 'rocket', 'torpedo']), count: z.number().int().positive().optional() }).strict(),
   /** F10-0: at least `count` (default 1) of the named ships are below `belowHpFraction` of their hull points (a hit, not a sinking), or sunk (A2, J2, J4). */
   z.object({ ...base, kind: z.literal('damage'), targets: refs, belowHpFraction: z.number().gt(0).lte(1), count: z.number().int().positive().optional() }).strict(),
   /** F10-0: airfield state. `min` (default all) of the named fields are serviceable (and, with `heldBy`, held by the player's side or the enemy's).
