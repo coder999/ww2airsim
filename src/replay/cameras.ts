@@ -67,12 +67,12 @@ const wrapPi = (a: number): number => {
   return w === -Math.PI ? Math.PI : w
 }
 /** Attitude from a heading and a pitch: body +X forward, the chase camera's own construction. */
-const headingPitch = (yawRad: number, pitchRad: number): Quat =>
+export const headingPitch = (yawRad: number, pitchRad: number): Quat =>
   qNormalize(qMul(qFromAxisAngle(Y, yawRad), qFromAxisAngle(Z, pitchRad)))
 /** Horizontal unit vector to the right of a direction (east -> south, +X -> +Z); zero when it is vertical. */
 const rightOf = (d: Vec3): Vec3 => normalize(v3(-d.z, 0, d.x))
 /** Every replay camera but Cockpit stays `ORBIT_SURFACE_CLEARANCE_M` above the surface under it (spec §5, orbit spec OC-3). */
-const clampAbove = (p: Vec3, surfaceHeightAt: SurfaceHeightAt): Vec3 => {
+export const clampAbove = (p: Vec3, surfaceHeightAt: SurfaceHeightAt): Vec3 => {
   const floor = surfaceHeightAt(p.x, p.z) + ORBIT_SURFACE_CLEARANCE_M
   return p.y >= floor ? p : v3(p.x, floor, p.z)
 }
