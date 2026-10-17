@@ -123,17 +123,17 @@
    "start": {
     "kind": "afloat",
     "site": "jinamoc",
-    "x": 140,
+    "x": 190,
     "z": -20,
     "basis": "invented",
-    "note": "F3 A4: the PBY starts afloat at the lit San Pedro Bay anchorage; moored at the buoy 140 m off the ramp. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 A4: the PBY starts afloat at the lit San Pedro Bay anchorage; moored near the buoys off the ramp. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. F10B (2026-10-17) moved it from 140 m to 190 m off the ramp, 60 m seaward of the nearest buoy: the terrain cell at the buoy is 0.15 m high, which the sim treats as land (water is a height at or below 0), and the flying boat crashed on it at tick 31. The scenario a4-dumbo-in-the-gulf starts here."
    },
    "firstAction": {
     "site": "jinamoc",
     "x": 8500,
     "z": -8500,
     "basis": "invented",
-    "note": "F3 A4: the 10-mile search area and its survivor flare; placed 12.0 km southeast of the anchorage in Leyte Gulf, inside the 10 mi (16.1 km) F3 allows. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 A4: the 10-mile search area and its survivor flare; placed 12.0 km southeast of the anchorage in Leyte Gulf, inside the 10 mi (16.1 km) F3 allows. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. F10B: this is the centre of the scenario's 4 km search circle (the raft is 2.4 km from it)."
    },
    "withinM": 16093,
    "lineUpS": 45,
@@ -150,7 +150,8 @@
     ],
     "budgetS": 360
    },
-   "f3": "water takeoff at night; search area inside 10 mi; first action 5-6 min including takeoff; recovery 5-6 min to the San Pedro Bay anchorage, afloat and stopped (the anchorage must be allied and serviceable in the window, and lit)"
+   "f3": "water takeoff at night; search area inside 10 mi; first action 5-6 min including takeoff; recovery 5-6 min to the San Pedro Bay anchorage, afloat and stopped (the anchorage must be allied and serviceable in the window, and lit)",
+   "scenario": "a4-dumbo-in-the-gulf"
   },
   {
    "id": "A5",

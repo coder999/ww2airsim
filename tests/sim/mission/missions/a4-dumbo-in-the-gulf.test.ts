@@ -5,7 +5,13 @@
 import { describe, expect, it } from 'vitest'
 import { loadScenarioBundle } from '../../../../tools/content/load.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
-import { playerAircraft } from '../../../../src/sim/loop.js'
+import { playerAircraft, withAircraftState, type World } from '../../../../src/sim/loop.js'
+import { applyDifficulty, DIFFICULTIES, type Difficulty } from '../../../../src/sim/difficulty.js'
+import { radioMessages, ticksFor } from '../../../../src/sim/mission/state.js'
+import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
+import { progressOf } from '../fixture.js'
+import { destroyNow, hold, levelAt, stageDitch, stepsWithControls, terrainOrSkip } from '../fly.js'
+import { approachTouching, restState, waterTakeoff } from '../waterFly.js'
 
 const A4 = 'a4-dumbo-in-the-gulf'
 const BUILDUP = { jinamoc: 'buildup' } as const
@@ -51,4 +57,126 @@ describe('A4 content', () => {
     const t = scenario.triggers!.find((x) => x.then.some((a) => 'spawn' in a && a.spawn === 'recon'))!
     expect(t.when).toEqual({ completed: 'pickup' })
   })
+})
+
+const MI = 1609.344
+const near = (a: { x: number; z: number }, b: { x: number; z: number }): number => Math.hypot(a.x - b.x, a.z - b.z)
+
+/**
+ * C3, the placement pass. Every figure below is INVENTED (F3 gives A4 no geometry; the F8C mission-fit row said so) and each is held to the F3 limit it meets.
+ * The anchorage start is the site's buoy-2 (150, -20 in the site frame) moved 60 m seaward to (190, -20): the terrain cell at the buoy is 0.15 m high, which the sim calls LAND (water is a height at or below 0), and the Catalina crashed on it at tick 31 (found 2026-10-17); the search area is the mission-fit row's first-action point.
+ */
+describe('A4 placement (invented figures, each against its F3 limit)', () => {
+  const bundle = loadScenarioBundle(A4, BUILDUP)
+  const w = worldFromScenario(bundle, null)
+  const start = playerAircraft(w).state.position
+  const search = bundle.scenario.objectives!.find((o) => o.id === 'search')! as { point: { x: number; z: number }; radiusM: number }
+  const raft = w.vehicles.find((v) => v.id === 'raft-1')!.state.position
+  const survivor = w.vehicles.find((v) => v.id === 'survivor-1')!.state.position
+  const anchorage = bundle.scenario.anchorages![0]!
+
+  it('F3: the search area lies inside 10 mi of the anchorage (its far edge, not just its centre)', () => {
+    expect(near(start, search.point) + search.radiusM).toBeLessThan(10 * MI)
+  })
+  it('F3: the raft is inside the search area and inside 10 mi of the anchorage; the separated survivor is inside it too, a short taxi (under 500 m) from the raft', () => {
+    expect(near(raft, search.point)).toBeLessThan(search.radiusM)
+    expect(near(start, raft)).toBeLessThan(10 * MI)
+    expect(near(survivor, search.point)).toBeLessThan(search.radiusM)
+    expect(near(raft, survivor)).toBeLessThan(500)
+    expect(near(raft, survivor)).toBeGreaterThan(137.16 + 30.48) // not inside the first pickup's own radius
+  })
+  it('the raft is outside the flare sighting radius at the search area\'s edge, so the pilot has to look for it, and outside the anchorage circle (a landing there is not a recovery)', () => {
+    const flare = bundle.scenario.objectives!.find((o) => o.id === 'flare')! as { near: { radiusM: number } }
+    expect(near(raft, search.point) + search.radiusM).toBeGreaterThan(flare.near.radiusM)
+    expect(near({ x: anchorage.position[0], z: anchorage.position[1] }, raft)).toBeGreaterThan(anchorage.radiusM)
+    // and the PBY starts inside the circle, moored 10 m from the buoy, so a return to its mooring is a friendly stop
+    expect(near({ x: anchorage.position[0], z: anchorage.position[1] }, start)).toBeLessThan(anchorage.radiusM)
+  })
+  it('the raft flare burns at the raft, and the survivor lamp at the survivor; the anchorage lamps are the site\'s (at least four)', () => {
+    const lights = bundle.scenario.lights!
+    expect(lights.find((l) => l.id === 'raft-flare')!.at).toMatchObject({ x: raft.x, z: raft.z })
+    expect(lights.find((l) => l.id === 'survivor-lamp')!.at).toMatchObject({ x: survivor.x, z: survivor.z })
+    expect(lights.filter((l) => l.id.startsWith('jinamoc-lamp')).length).toBeGreaterThanOrEqual(4)
+    expect(lights.filter((l) => l.kind === 'flare').length).toBeLessThanOrEqual(4) // LIGHT_CAPS.flares
+  })
+  it('the Ki-43 pass keeps beyond the ingress engage range (3 km) of the raft and the survivor, so it is dressing unless the PBY goes to it', () => {
+    const route = (bundle.scenario.heldGroups![0]!.aircraft![0]!.pilot!.ingress!.route)
+    for (const p of route) {
+      expect(near(p, raft), `waypoint ${p.x},${p.z} to the raft`).toBeGreaterThan(3000)
+      expect(near(p, survivor)).toBeGreaterThan(3000)
+    }
+  })
+  it('it also loads with no site windows at all (a Dev or picker launch before the campaign names one): the anchorage is just water then', () => {
+    const bare = worldFromScenario(loadScenarioBundle(A4), null)
+    expect(playerAircraft(bare).state.position.x).toBeCloseTo(start.x, 3)
+    expect(bare.vehicles.map((v) => v.id)).toEqual(['raft-1', 'survivor-1'])
+  })
+})
+
+// ---------------------------------------------------------------- C4/C5: flown headless
+
+const terrain = terrainOrSkip()
+const a4 = (d: Difficulty = 'normal'): World<undefined> => applyDifficulty(worldFromScenario(loadScenarioBundle(A4, BUILDUP), terrain), d)
+const T = loadScenarioBundle(A4, BUILDUP).scenario
+const V = Object.fromEntries(T.vehicles.map((v) => [v.id, { x: v.waypoints[0]![0], z: v.waypoints[0]![1] }]))
+const RAFT = V['raft-1']!
+const SURVIVOR = V['survivor-1']!
+const SEARCH = (T.objectives!.find((o) => o.id === 'search') as { point: { x: number; z: number } }).point
+const ANCHORAGE = { x: T.anchorages![0]!.position[0], z: T.anchorages![0]!.position[1] }
+const heading = (deg: number) => ({ x: Math.sin((deg * Math.PI) / 180), z: -Math.cos((deg * Math.PI) / 180) })
+const msgs = (w: World<undefined>): string[] => radioMessages(w.mission!).map((e) => e.text)
+const idle = { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: false, flapDown: true } as const
+
+/** The takeoff, flown for real from the mooring (the Catalina's own water run), and the legs to the raft, staged (taxiing and cruise are not under test). */
+function airborneAtRaft(w0: World<undefined>): World<undefined> {
+  let w = waterTakeoff(w0)
+  expect(progressOf(w, 'takeoff').status).toBe('complete')
+  w = hold(w, levelAt(SEARCH, 150, 55, 135), 3)
+  expect(progressOf(w, 'search').status).toBe('complete')
+  // 2.8 km north-west of the raft, out of the 3 km sighting radius until one more tick brings it in
+  w = hold(w, levelAt({ x: RAFT.x - 2800 * heading(135).x, z: RAFT.z - 2800 * heading(135).z }, 150, 55, 135), 3)
+  expect(progressOf(w, 'flare').status).toBe('complete')
+  return w
+}
+
+/** A real water landing into the wind (from 315, so heading 315), the touchdown within 40 m of `offsetM` short of the raft. */
+function landNearRaft(w: World<undefined>, offsetM: number): World<undefined> {
+  const d = heading(315)
+  return approachTouching(w, RAFT.x - d.x * offsetM, RAFT.z - d.z * offsetM, 315).world
+}
+
+/** Taxi staged (the pilot rolled out past the raft and came back): at rest 20 m east of the raft, heading into the wind, then 25 s of real idling on the water. */
+function takeThemAboard(w: World<undefined>, at: { x: number; z: number } = RAFT): World<undefined> {
+  let world = withAircraftState(w, w.player, restState(w, at.x + 20, at.z, 315))
+  world = stepsWithControls(world, ticksFor(25), idle)
+  return world
+}
+
+describe.skipIf(terrain === null)('A4, flown headless', () => {
+  it('nothing completes by itself: five minutes at the mooring with the engines idle changes no objective', () => {
+    const w = stepsWithControls(a4(), ticksFor(300), idle)
+    expect(w.mission!.progress.map((p) => p.status)).toEqual(['active', 'inactive', 'inactive', 'inactive', 'inactive', 'inactive', 'inactive'])
+    expect(w.mission!.spawned).toEqual([])
+  })
+
+  it('success: takeoff, the area, the flare, a flown landing 100 yd from the raft, three aboard in 20 s, a flown return: badge', () => {
+    let w = airborneAtRaft(a4())
+    expect(w.mission!.spawned).toEqual([])
+    w = landNearRaft(w, 100 * 0.9144)
+    expect(progressOf(w, 'touchdown').status).toBe('complete')
+    expect(w.mission!.log.filter((e) => e.kind === 'landing')).toHaveLength(1)
+    expect(w.mission!.log.find((e) => e.kind === 'landing')).toMatchObject({ advanced: 'touchdown', intermediate: true, base: null })
+    w = takeThemAboard(w)
+    expect(progressOf(w, 'pickup')).toMatchObject({ status: 'complete', count: 3 })
+    expect(w.mission!.spawned).toEqual(['recon'])
+    expect(msgs(w).some((m) => m.startsWith('Dumbo: Three aboard'))).toBe(true)
+    expect(w.aircraft.filter((a) => a.id.startsWith('oscar-'))).toHaveLength(2)
+    // the way home: a real takeoff from the raft's water and a real landing into the anchorage
+    w = waterTakeoff(w)
+    const d = heading(315)
+    w = approachTouching(w, ANCHORAGE.x - d.x * 700, ANCHORAGE.z - d.z * 700, 315).world
+    expect(progressOf(w, 'home').status).toBe('complete')
+    expect(w.mission!.latched).toBe(true)
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success', badge: { id: 'dumbo-in-the-gulf' }, reasons: [] })
+  }, 120_000)
 })
