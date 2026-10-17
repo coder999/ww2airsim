@@ -1,0 +1,22 @@
+{
+  "id": "a6-opening",
+  "chapter": "A6",
+  "kind": "opening",
+  "durationS": 20,
+  "world": { "source": "mission", "scenario": "a6-battle-for-the-airfields" },
+  "camera": [
+    { "t": 0, "position": [-29470, 16, -47730], "yawDeg": 288.5, "pitchDeg": -2, "ease": "inOut" },
+    { "t": 4, "position": [-29500, 16, -47640], "yawDeg": 274.7, "pitchDeg": 4, "ease": "inOut" },
+    { "t": 8, "position": [-29600, 20, -47450], "yawDeg": 237.7, "pitchDeg": 2, "ease": "inOut" },
+    { "t": 12, "position": [-29900, 40, -47560], "yawDeg": 258, "pitchDeg": 6, "ease": "inOut" },
+    { "t": 16, "position": [-29585, 7, -47855], "yawDeg": 0, "pitchDeg": -4, "ease": "inOut" },
+    { "t": 20, "position": [-29600, 6, -47835], "yawDeg": 2, "pitchDeg": -2, "ease": "inOut" }
+  ],
+  "cues": [
+    { "t": 0, "order": { "kind": "message", "text": "Tacloban tower: Dawn patrol is up. Radar has a big raid forming west of the mountains." } },
+    { "t": 6, "order": { "kind": "message", "text": "Radar: contacts crossing the western hills. Fighters first, bombers behind them." } },
+    { "t": 12, "order": { "kind": "message", "text": "Spotter: Zeros and Oscars inbound, high, about fifteen miles out." } },
+    { "t": 17, "order": { "kind": "message", "text": "Tacloban tower: Lightning flight, you are cleared to roll. Break up that raid." } }
+  ],
+  "handoff": { "player": "held" }
+}

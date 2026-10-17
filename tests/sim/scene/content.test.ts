@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CHAPTER_MISSIONS } from '../../../src/campaign/index.js'
+import { CHAPTER_MISSIONS, chapterWindows } from '../../../src/campaign/index.js'
 import { worldChecksum } from '../../../src/flightRecorder/checksum.js'
 import { ticksFor } from '../../../src/sim/mission/state.js'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
@@ -41,7 +41,7 @@ describe('campaign scene content', () => {
       expect(cue.t).toBeLessThan(scene.durationS)
     }
 
-    const bundle = loadScenarioBundle(scene.world.scenario)
+    const bundle = loadScenarioBundle(scene.world.scenario, chapterWindows(scene.world.scenario))
     // Content/engine smoke coverage, deliberately independent of optional terrain files.
     // This cannot certify terrain clearance, the F3 mission-fit start, or visual approval.
     const build = () => worldFromScenario(bundle, null)
