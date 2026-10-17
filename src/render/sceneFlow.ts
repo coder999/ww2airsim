@@ -2,7 +2,7 @@ import { clampAbove, headingPitch } from '../replay/cameras.js'
 import { DT } from '../sim/flight/model.js'
 import type { World } from '../sim/loop.js'
 import { v3 } from '../sim/math/vec3.js'
-import { sceneAt } from '../sim/scene/camera.js'
+import { sceneAt, type SceneEye } from '../sim/scene/camera.js'
 import { beginPreroll, handoffPreroll, stepPreroll, type Preroll } from '../sim/scene/preroll.js'
 import { parseScene, type Scene } from '../sim/scene/schema.js'
 import type { EyeTransform, SurfaceHeightAt } from './camera.js'
@@ -56,9 +56,10 @@ export function skipPlayback(sp: ScenePlayback): ScenePlayback {
 export const handoffWorld = (sp: ScenePlayback): World<undefined> => handoffPreroll(sp.p)
 
 /** What the frame draws while the scene plays. */
-export function sceneView(sp: ScenePlayback, surfaceHeightAt: SurfaceHeightAt) {
+/** `eyeOverride` is the director's free camera; playback uses the scene's own path. */
+export function sceneView(sp: ScenePlayback, surfaceHeightAt: SurfaceHeightAt, eyeOverride?: SceneEye) {
   const world = sp.p.world
-  const eye = sceneAt(sp.scene, sp.tS)
+  const eye = eyeOverride ?? sceneAt(sp.scene, sp.tS)
   const transform: EyeTransform = {
     position: clampAbove(v3(...eye.position), surfaceHeightAt),
     attitude: headingPitch(eye.yawDeg * Math.PI / 180, eye.pitchDeg * Math.PI / 180),

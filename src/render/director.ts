@@ -124,6 +124,9 @@ export type DirectorHandle = {
   dispose(): void
   currentScene(): Scene
   advance(dtS: number): void
+  /** Scene time now, and what the bar is doing: the shell keeps the world in step with it. */
+  time(): number
+  mode(): 'edit' | 'preview' | 'record'
 }
 
 const CSS = `
@@ -309,6 +312,8 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
       if (state.playing) deps.onPlayingChange?.(false)
     },
     currentScene: () => structuredClone(state.scene),
+    time: () => state.tSeconds,
+    mode: () => state.samples !== null ? 'record' : state.playing ? 'preview' : 'edit',
     advance(dtS) {
       if (disposed || (!state.playing && state.samples === null)) return
       const preview = state.playing

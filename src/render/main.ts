@@ -111,8 +111,8 @@ import {
   type ReplayCommand, type ReplayPlayer,
 } from '../replay/player.js'
 import {
-  cycleCamera, effectiveCamera, initialCameraState, replayEye, selectCamera, stepCameraState, toggleLock, toggleSpin,
-  type ReplayCameraId, type ReplayCameraState,
+  cycleCamera, effectiveCamera, initialCameraState, replayEye, selectCamera, stepCameraState, toggleLock, toggleSpin, stepManual,
+  type ManualCamera, type ReplayCameraId, type ReplayCameraState,
 } from '../replay/cameras.js'
 import { replayKeyAction } from '../replay/keys.js'
 import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
@@ -120,6 +120,8 @@ import { stepFlow, type ReplayFlow, type ReplayFlowEffect, type ReplayFlowEvent 
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
 import { beginPlayback, handoffWorld, loadScene, playbackDone, sceneView, skipPlayback, stepPlayback, type ScenePlayback } from './sceneFlow.js'
 import type { Scene as SceneFile } from '../sim/scene/schema.js'
+import type { SceneEye } from '../sim/scene/camera.js'
+import { createDirector, type DirectorHandle } from './director.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
@@ -393,6 +395,8 @@ async function boot(): Promise<void> {
   let hqSession: Session | null = null
   let hqHandle: { show(): void; hide(): void } | null = null
   /** F9: the campaign scene playing now; declared this early because the DEV diagnostics read it from the first frame. */
+  /** F9 DEV director mode (`?director=<sceneId>`): the scene's world held and re-stepped to the bar's time, drawn from a free camera or the keyed path. */
+  let director: { handle: DirectorHandle; initial: World<undefined>; scene: SceneFile; wp: ScenePlayback; free: ManualCamera; displayed: SceneEye; keyed: boolean } | null = null
   let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
@@ -2830,6 +2834,22 @@ async function boot(): Promise<void> {
     freshHeldFrame()
     playScene(scene, { markSeen: false, holdAfter: true, onDone: () => { title.show(requestedScenarioId); hqHandle?.show() } })
   }
+  const startDirector = (scene: SceneFile): void => {
+    frame = withPaused(frame!, true)
+    const first = scene.camera[0]!
+    const initial = frame.world
+    const session = {
+      initial, scene, wp: beginPlayback(initial, scene), keyed: true,
+      free: { position: v3(...first.position), yawRad: first.yawDeg * Math.PI / 180, pitchRad: first.pitchDeg * Math.PI / 180, lock: false, speedMps: 60 },
+      displayed: { position: first.position, yawDeg: first.yawDeg, pitchDeg: first.pitchDeg } as SceneEye,
+    }
+    // getFlownEye reads what is on screen, so Drop key and Record capture exactly the view the author is looking at.
+    const handle = createDirector(root, { scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
+    director = { ...session, handle }
+    clearMapInput()
+    root.classList.add(REPLAYING_CLASS)
+    replayHistoryCut = true
+  }
   const startOpening = async (id: string): Promise<void> => {
     const scene = await loadScene(id)
     // A missing, invalid or mismatched scene is not an error: the flight starts as it always did.
@@ -2967,6 +2987,8 @@ async function boot(): Promise<void> {
     if ((e.ctrlKey || e.metaKey) && (window.getSelection()?.toString() ?? '') !== '') return
     // Nothing reaches the game while the title is up; the title owns Enter.
     if (title.up()) return
+    // F9 DEV: the director's free camera reads WASD/Q/E from the replay's held set; nothing else reaches the game.
+    if (director !== null) { replayHeld.add(e.code); e.preventDefault(); return }
     // F9: Esc, Enter or Space skips a playing scene; nothing else reaches the game under it.
     if (scenePlay !== null) {
       e.preventDefault()
@@ -3283,7 +3305,7 @@ async function boot(): Promise<void> {
       current = { ...current, eye: cameraTransformFor(current.cameraMode, spec, current.render, forcedLook) }
     }
     if (title.up()) current = withPaused(current, true)
-    if (replay !== null || scenePlay !== null) current = withPaused(current, true)
+    if (replay !== null || scenePlay !== null || director !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
     }
@@ -3355,7 +3377,7 @@ async function boot(): Promise<void> {
     }
     // Instant replay: record LIVE worlds only; a held frame (paused, impact
     // hold) hands back the same tick, which the recorder ignores itself.
-    if (replay === null && scenePlay === null) recorder.push(current.world)
+    if (replay === null && scenePlay === null && director === null) recorder.push(current.world)
     // What this frame DRAWS: the live frame, or while a replay is up the
     // recorded moment at the player's `tS` through the replay camera. Every
     // mesh, the panel, effects, sky and the render read `view`; the HUD, the
@@ -3392,6 +3414,29 @@ async function boot(): Promise<void> {
         session.drawnCamera = drawn
         replayBar.show(replayBarModel(session.player, session.camera))
       }
+    }
+    if (director !== null && replay === null && scenePlay === null) {
+      const d = director
+      const dt = frameMs / 1000
+      const mode = d.handle.mode()
+      const steered = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].some((k) => replayHeld.has(k))
+        || replayMouse.dxPx !== 0 || replayMouse.dyPx !== 0 || replayMouse.wheelNotches !== 0
+      if (d.keyed && (mode === 'record' || (mode === 'edit' && steered))) {
+        // Leaving a keyed pose for the free camera: start from what is on screen.
+        d.free = { ...d.free, position: v3(...d.displayed.position), yawRad: d.displayed.yawDeg * Math.PI / 180, pitchRad: d.displayed.pitchDeg * Math.PI / 180 }
+        d.keyed = false
+      }
+      if (!d.keyed) {
+        d.free = stepManual(d.free, { mouse: replayMouse, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
+        d.displayed = { position: [d.free.position.x, d.free.position.y, d.free.position.z], yawDeg: d.free.yawRad * 180 / Math.PI, pitchDeg: d.free.pitchRad * 180 / Math.PI }
+      }
+      d.handle.advance(dt)
+      // The world follows the bar: forward by up to 120 ticks a frame, restarted from the top when the bar goes back.
+      const target = d.handle.time()
+      if (target < d.wp.tS - 1e-6) d.wp = beginPlayback(d.initial, d.scene)
+      for (let n = 0; n < 120 && d.wp.tS + DT / 2 < target && !playbackDone(d.wp); n++) d.wp = stepPlayback(d.wp, DT)
+      const sv = sceneView(d.wp, surfaceHeightFor(d.wp.p.world), d.displayed)
+      view = { ...sv, controls: playerAircraft(sv.world).controls, cameraMode: 'chase', paused: true, timeScale: 1 }
     }
     if (scenePlay !== null && replay === null) {
       scenePlay.sp = stepPlayback(scenePlay.sp, frameMs / 1000)
@@ -4179,6 +4224,14 @@ async function boot(): Promise<void> {
   loop.start()
   // F9 (DEV): `?scenario=<id>&launch&scene=<sceneId>` plays that scene on the loaded scenario, without writing `scenesSeen`.
   // Waits for a ground start's terrain, as the frame itself does, so the scene starts from the settled world.
+  const devDirectorId = import.meta.env.DEV ? new URLSearchParams(location.search).get('director') : null
+  if (devDirectorId !== null && quick !== null) {
+    void loadScene(devDirectorId).then(async (scene) => {
+      if (scene === null) { console.warn(`director ${devDirectorId}: scene not found or invalid`); return }
+      while (frame === null || (frame.groundSpawn && frame.world.terrain === null)) await new Promise((r) => setTimeout(r, 200))
+      startDirector(scene)
+    })
+  }
   const devSceneId = import.meta.env.DEV ? new URLSearchParams(location.search).get('scene') : null
   if (devSceneId !== null && quick !== null) {
     void loadScene(devSceneId).then(async (scene) => {

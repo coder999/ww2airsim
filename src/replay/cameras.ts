@@ -230,7 +230,7 @@ export const toggleLock = (s: ReplayCameraState): ReplayCameraState => ({ ...s, 
 
 const axis = (held: ReadonlySet<string>, plus: string, minus: string): number => (held.has(plus) ? 1 : 0) - (held.has(minus) ? 1 : 0)
 
-function stepManual(m: ManualCamera, input: ReplayCameraInput, eye: EyeTransform): ManualCamera {
+export function stepManual(m: ManualCamera, input: ReplayCameraInput, eye: EyeTransform): ManualCamera {
   const { mouse, held, realDtS } = input
   const yawRad = wrapPi(m.yawRad - mouse.dxPx * ORBIT_RAD_PER_PX)
   const pitchRad = clamp(m.pitchRad - mouse.dyPx * ORBIT_RAD_PER_PX, -MANUAL_PITCH_LIMIT_RAD, MANUAL_PITCH_LIMIT_RAD)
