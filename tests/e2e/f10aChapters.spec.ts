@@ -26,23 +26,23 @@ async function openingThenLive(page: Page, id: string, ticks: number): Promise<v
 
 test('A1 from Headquarters: the chapter row, the pending sortie, its opening on its own scenario, then the mission', async ({ page }) => {
   await page.goto('/')
-  await startCampaignGame(page, { scenario: 'Over the Beaches' })
+  await startCampaignGame(page, { scenario: 'A1 · Over the Beaches' })
   await waitForScenario(page, 'a1-over-the-beaches')
   const c = await page.evaluate(() => (window as DiagWindow).__ww2?.campaign() ?? null)
   expect(c?.pending).toMatchObject({ missionId: 'a1-over-the-beaches', chapterId: 'A1', aircraft: 'f6f-hellcat' })
   await openingThenLive(page, 'a1-opening', 18 * 60)
-  await expect.poll(() => objective(page)).toMatch(/Launch/) // the first objective on the HUD: the chapter's own mission, not a stand-in
+  await expect.poll(() => objective(page)).toMatch(/launch/i) // the first objective on the HUD: the chapter's own mission, not a stand-in
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
 })
 
 test('A2 plays its opening on the Samar scenario and goes live (the windows A2 is played in)', async ({ page }) => {
   await page.goto(`/?scenario=a2-taffy-3&launch&scene=a2-opening&siteState=${siteState('A2')}`)
   await openingThenLive(page, 'a2-opening', 15 * 60)
-  await expect.poll(() => objective(page)).toMatch(/Join the attack/)
+  await expect.poll(() => objective(page)).toMatch(/join the attack/i)
 })
 
 test('A3 loads in the world A2 leaves, plays its opening and goes live; the column is on the road', async ({ page }) => {
   await page.goto(`/?scenario=a3-the-long-column&launch&scene=a3-opening&siteState=${siteState('A3')}`)
   await openingThenLive(page, 'a3-opening', 12 * 60)
-  await expect.poll(() => objective(page)).toMatch(/Find the column/)
+  await expect.poll(() => objective(page)).toMatch(/find the column/i)
 })

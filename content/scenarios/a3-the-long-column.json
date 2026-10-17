@@ -650,7 +650,8 @@
    "priority": "primary",
    "kind": "land",
    "at": "tacloban",
-   "after": "powered"
+   "after": "powered",
+   "suggestedRecovery": true
   }
  ],
  "triggers": [

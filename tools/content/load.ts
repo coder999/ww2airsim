@@ -6,6 +6,9 @@ import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 import { parseVehicleSpec, type VehicleSpec } from '../../src/sim/world/vehicles.js'
 import { expandScenario, parseSite, type Site } from '../../src/sim/world/sites.js'
+import { CHAPTER_MISSIONS } from '../../src/campaign/chapterMissions.js'
+import { CHAPTER_IDS } from '../../src/campaign/schema.js'
+import { windowsForChapter } from '../../src/campaign/worldStates.js'
 
 /**
  * Node-only content loader, used by tests and tools. The browser build loads
@@ -65,8 +68,12 @@ export function loadScenario(id: string): Scenario {
 
 /** Every content file a scenario names, loaded and validated. Node only;
  *  `src/render/scenarioLoad.ts` is the browser twin. */
-export function loadScenarioBundle(id: string, siteWindows: Readonly<Record<string, string>> = {}): ScenarioBundle {
-  return bundleForScenario(loadScenario(id), siteWindows)
+export function loadScenarioBundle(id: string, siteWindows?: Readonly<Record<string, string>>): ScenarioBundle {
+  // F10A (2026-10-17): with no windows given, a CHAPTER scenario is built in the windows its chapter is played in, not the loader's
+  // default (`pre-invasion`): A3 lands at Tacloban, which only the campaign's buildup window leaves serviceable, and a landing objective at
+  // a field that is down or on the other side is refused at load. Every other scenario keeps the default.
+  const chapter = CHAPTER_IDS.find((c) => CHAPTER_MISSIONS[c].scenario === id)
+  return bundleForScenario(loadScenario(id), siteWindows ?? (chapter === undefined ? {} : windowsForChapter(chapter)))
 }
 
 /** Every content file an already-parsed scenario names, loaded and

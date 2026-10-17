@@ -76,8 +76,9 @@ describe('A3 content', () => {
     expect(o('powered')).toMatchObject({ kind: 'destroy', priority: 'primary', targets: ['powered'], count: 10, fresh: true, after: 'contact' })
     expect(o('tanks')).toMatchObject({ kind: 'destroy', priority: 'primary', targets: ['tank'], count: 2, fresh: true, after: 'contact' })
     expect(o('staff')).toMatchObject({ kind: 'destroy', priority: 'secondary', targets: ['command-car', 'field-gun'], fresh: true })
-    expect(o('home')).toMatchObject({ kind: 'land', priority: 'primary', at: 'tacloban', after: 'powered' })
-    expect(o('home')).not.toHaveProperty('suggestedRecovery') // Tacloban only: F3's authored recovery
+    // Tacloban is F3's authored recovery and the SUGGESTED one; F10-0's chapter contract (friendly.test.ts) wants a suggested recovery on every
+    // chapter and F5C D3 lets any friendly base count, so a serviceable Dulag also earns the badge (recorded in the handoff).
+    expect(o('home')).toMatchObject({ kind: 'land', priority: 'primary', at: 'tacloban', after: 'powered', suggestedRecovery: true })
   })
 
   it('starts the player and one wingman 12 miles from the column (F3: inside 12 mi), the contact zone entered 2-3 minutes later at cruise', () => {
@@ -246,14 +247,12 @@ describe.skipIf(terrain === null)('A3 headless sortie (F10A C5)', () => {
     expect(out.reasons).toEqual(['Ten of the fifteen vehicles: incomplete', 'Land at Tacloban: incomplete'])
   }, 180_000)
 
-  it('edge: the work done, a landing at Dulag (a friendly field, serviceable) is not Tacloban and earns no badge', () => {
+  it('edge: the work done, a landing at Dulag (a friendly field, serviceable in buildup) counts too: any friendly base (F5C D3)', () => {
     let w = advance(pinned(a3(), 5), DT).world
     w = advance(destroyNow(w, [...TANKS.slice(0, 2), ...TRUCKS, 'kurogane']), DT).world
     expect(progressOf(w, 'home').status).toBe('active')
     w = fieldApproach(w, 'dulag')
-    const out = missionOutcome(w.mission!, recoveryOf(w)!)
-    expect(out.result).toBe('no-badge')
-    expect(out.reasons).toEqual(['Land at Tacloban: incomplete'])
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success', reasons: [] })
   }, 180_000)
 })
 
