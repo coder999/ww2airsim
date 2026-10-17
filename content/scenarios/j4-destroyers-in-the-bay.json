@@ -179,6 +179,214 @@
    },
    "source": "gameplay",
    "sourceNote": "The Allied TBM flare-layer's delayed parachute flare (ASW/convoy-escort manual, illumination-flare attack; M24 per TM 9-981). It ignites 3 s before the mission clock starts (the opening scene shows the ignition; a flight with no opening finds it already burning) and the 150 s burn (the M24 candle burns 3 min) is authored: it IS the attack window (release.window, scheduled lights follow the mission clock: NightFacts.clockOriginTick); a test holds the two equal."
+  },
+  {
+   "id": "flash-f1-a",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-1",
+    "offset": [
+     26,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -13.2,
+    "offAtS": -12.8
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-f2-a",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-2",
+    "offset": [
+     26,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -11.4,
+    "offAtS": -11.0
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-k-a",
+   "kind": "fixture",
+   "at": {
+    "ship": "kagero",
+    "offset": [
+     24,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -12.2,
+    "offAtS": -11.8
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-f1-b",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-1",
+    "offset": [
+     -24,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -9.6,
+    "offAtS": -9.2
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-s-a",
+   "kind": "fixture",
+   "at": {
+    "ship": "shiratsuyu",
+    "offset": [
+     22,
+     8,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -8.4,
+    "offAtS": -8.0
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-f2-b",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-2",
+    "offset": [
+     -24,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -7.6,
+    "offAtS": -7.2
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-f1-c",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-1",
+    "offset": [
+     26,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -5.4,
+    "offAtS": -5.0
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "flash-f2-c",
+   "kind": "fixture",
+   "at": {
+    "ship": "fletcher-2",
+    "offset": [
+     26,
+     9,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "schedule": {
+    "onAtS": -3.9,
+    "offAtS": -3.5
+   },
+   "source": "gameplay",
+   "sourceNote": "J4 opening-scene lighting (F10D, 2026-10-17): authored scenery for the surface engagement the Navy Chronology records; no layout is claimed. A gun flash is a half-second fixture on a negative mission time, so it shows in the opening and never in the flight."
+  },
+  {
+   "id": "burn-shiratsuyu-0",
+   "kind": "pot",
+   "at": {
+    "ship": "shiratsuyu",
+    "offset": [
+     -5,
+     5,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "J4: the burning ship of the opening, three fires along the Shiratsuyu. Authored scenery, burning for the whole flight; the ship itself is undamaged (no ship fires on another, see the mission test's header)."
+  },
+  {
+   "id": "burn-shiratsuyu-1",
+   "kind": "pot",
+   "at": {
+    "ship": "shiratsuyu",
+    "offset": [
+     8,
+     7,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "J4: the burning ship of the opening, three fires along the Shiratsuyu. Authored scenery, burning for the whole flight; the ship itself is undamaged (no ship fires on another, see the mission test's header)."
+  },
+  {
+   "id": "burn-shiratsuyu-2",
+   "kind": "pot",
+   "at": {
+    "ship": "shiratsuyu",
+    "offset": [
+     18,
+     4,
+     0
+    ]
+   },
+   "color": "warm",
+   "state": "lit",
+   "source": "gameplay",
+   "sourceNote": "J4: the burning ship of the opening, three fires along the Shiratsuyu. Authored scenery, burning for the whole flight; the ship itself is undamaged (no ship fires on another, see the mission test's header)."
   }
  ],
  "objectives": [
