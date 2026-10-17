@@ -20,8 +20,8 @@ export const DIRECTOR_CONTROLS: readonly (readonly [string, string])[] = [
   ['Move a key in time', 'Drag its number on the timeline; it stops at the next key'],
   ['Select a key / play from a key', 'Click its number'],
   ['Record a flown path', 'Record path, fly, Stop recording'],
-  ['Save the scene', 'Save scene JSON (downloads and copies the keys and cues, not the view)'],
-  ['Share what is on screen for debugging', 'Save view JSON (a link that reopens this time and camera, plus a snapshot)'],
+  ['Save the scene', 'Save timeline JSON (downloads and copies the keys and cues, not the frame)'],
+  ['Share what is on screen for debugging', 'Save frame JSON (a link that reopens this time and camera, plus a snapshot)'],
 ]
 
 export type DirectorSheetTab = 'map' | 'controls'
