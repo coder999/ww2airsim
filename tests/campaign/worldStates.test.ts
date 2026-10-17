@@ -44,12 +44,17 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
   })
 
   // F3 section 3 dates every chapter and section 5 gives each field one state per window, so every F8A and F8B site is drawn
-  // in the same window for a chapter. (J3 is the one place this puts a Japanese pilot's recovery field, Bayug, in American hands:
-  // 3 Nov is in the "late Oct-Nov" column. That is an F3 inconsistency the mission-fit table reports, not something to hide here.)
+  // in the same window for a chapter, with one exception ruled by Mark (2026-10-17): J3 (3 Nov) recovers a Japanese pilot at
+  // Bayug, which F3 section 5 makes American that day, so J3 draws the three Burauen fields in `pre-invasion`.
+  const BURAUEN = ['buri', 'bayug', 'san-pablo']
   it.each(Object.entries(EXPECT))('%s plays every F8A and F8B site in %s', (chapter, window) => {
     const got = windowsForChapter(chapter)
     expect(Object.keys(got).sort()).toEqual([...SITES].sort())
-    expect(Object.values(got)).toEqual(SITES.map(() => window))
+    expect(Object.values(got)).toEqual(SITES.map((site) => (chapter === 'J3' && BURAUEN.includes(site) ? 'pre-invasion' : window)))
+  })
+
+  it('J3 draws Bayug Japanese-held, so its authored recovery field is legal', () => {
+    expect(windowsForChapter('J3')).toMatchObject({ buri: 'pre-invasion', bayug: 'pre-invasion', 'san-pablo': 'pre-invasion', tacloban: 'buildup' })
   })
 
   it('an unknown chapter throws, in both calls', () => {

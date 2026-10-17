@@ -19,6 +19,7 @@ export const F8B_SITES = ['buri', 'bayug', 'san-pablo'] as const
 const SITES: readonly string[] = [...F8A_SITES, ...F8B_SITES]
 
 type World = Readonly<Record<string, string>>
+const BURAUEN = (window: string): Readonly<Record<string, string>> => ({ buri: window, bayug: window, 'san-pablo': window })
 const all = (window: string): Readonly<Record<string, string>> => Object.fromEntries(SITES.map((s) => [s, window]))
 
 /**
@@ -26,10 +27,13 @@ const all = (window: string): Readonly<Record<string, string>> => Object.fromEnt
  * A1 launches at 0800, before H-hour, so the fields are still Japanese in it; its success is what captures them.
  * J4 (3 Dec) falls between the November column and the 6-7 Dec one and is placed in the earlier, as Tanauan's work began
  * after 28 Nov and nothing else changes by 6 Dec. These two placements are readings, recorded in the F8A handoff.
+ * J3 (3 Nov) plays the Burauen fields in `pre-invasion` (Mark, 2026-10-17): F3 section 4 recovers its Japanese pilot at Bayug, which
+ * F3 section 5 makes American on that date, so the three Burauen fields are drawn Japanese for J3 and the Tacloban-side sites stay
+ * in `buildup`.
  */
 const PLAY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   A1: all('pre-invasion'), A2: all('buildup'), A3: all('buildup'), A4: all('buildup'), A5: all('buildup'), A6: all('endgame'),
-  J1: all('pre-invasion'), J2: all('assault'), J3: all('buildup'), J4: all('buildup'), J5: all('endgame'), J6: all('j6-alternate'),
+  J1: all('pre-invasion'), J2: all('assault'), J3: { ...all('buildup'), ...BURAUEN('pre-invasion') }, J4: all('buildup'), J5: all('endgame'), J6: all('j6-alternate'),
 }
 
 /**

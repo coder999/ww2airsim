@@ -141,8 +141,8 @@ Things nothing automated covers, recorded here rather than as skipped tests:
 - **F8B: San Pablo's "overgrown" pre-invasion field is shown by absence.** There is no weeds clutter kind (F3 section 9 lists none), so it is a bare
   strip in a cleared meadow with one grown-over revetment (the airfield schema needs one strike target). Bayug's views are weak: its camp is 170 to
   300 m beyond a strip with forest on the near side, and the states are hard to tell apart at 450 m.
-- **F8B: J3's authored recovery is not a legal field in the window F8 plays it in.** F3 recovers a Japanese pilot at Bayug on 3 Nov, when F3 section 5 makes
-  Bayug American. The row is a reported finding (`expectFail` in `content/campaign/mission-fit.json`); Mark or F3 must settle it.
+- **F8B: J3's authored recovery was not a legal field in the window F8 plays it in. RESOLVED 2026-10-17 (Mark):** F3 recovers a Japanese pilot at Bayug on 3 Nov, when F3
+  section 5 makes Bayug American. J3 now draws the three Burauen fields in `pre-invasion` (`src/campaign/worldStates.ts`), the row's `expectFail` is gone and it passes.
 
 - **F8A (2026-10-16): the site-state budget spec is red with trees on.** `tests/e2e/siteBudget.spec.ts` (Tacloban in the build-up, at the
   12-vehicle cap, against the sites-free free-flight base; six interleaved loads per arm, fresh vite each, median, 1440p High, ryzen RDP

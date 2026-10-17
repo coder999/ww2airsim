@@ -136,11 +136,7 @@
     ],
     "budgetS": 300
    },
-   "expectFail": {
-    "check": "legality",
-    "why": "F3 section 3 says J3 is 3 Nov and recovers at Bayug; F3 section 5 puts 3 Nov in the 'late Oct-Nov' column, where Bayug is American ('limited American dry-weather use continues'). A Japanese pilot cannot land at an American field, so J3's authored recovery is not a legal field in the window the F8 table plays it in. Geometry is fine (Bayug is about 4 km from the first action). Only Mark or F3 can settle it: play J3 in pre-invasion for the Burauen fields, or change F3."
-   },
-   "f3": "airborne start orbiting the column; first action 2-3 min; recovery Bayug in 3-5 min"
+   "f3": "airborne start orbiting the column; first action 2-3 min; recovery Bayug in 3-5 min; played against the Burauen fields' pre-invasion window (Mark, 2026-10-17), so Bayug is Japanese-held and legal"
   },
   {
    "id": "J4",
