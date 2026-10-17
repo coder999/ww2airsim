@@ -318,6 +318,10 @@ const ScenarioShape = z.object({
   /** F10-0 (Mark, 2026-10-17): the mission ends at a gate, not on a runway. `objective` names the `reach` objective whose completion is the egress; a
    *  badge then needs every primary complete and that crossing, and a landing at a friendly base is NOT a success (J2, J4, J5). */
   recovery: z.object({ kind: z.literal('egress'), objective: z.string().min(1) }).strict().optional(),
+  /** F10-0: simultaneous maxima the scenario promises (F3 section 2: the finales are 24 airborne, 10 ships, 16 in the close set). Checked at load against
+   *  the start entities plus the worst case of the held groups: a group admitted by another's `when.gone` never overlaps it. `close` counts aircraft
+   *  tagged `close`. */
+  population: z.object({ airborne: z.number().int().positive(), ships: z.number().int().nonnegative(), close: z.number().int().nonnegative().optional() }).strict().optional(),
   heldGroups: z.array(HeldGroupObject).min(1).optional(),
   badge: BadgeObject.optional(),
   briefing: BriefingObject.optional(),
@@ -489,6 +493,55 @@ export type ScenarioVehicle = z.infer<typeof ScenarioVehicleObject>
 export type ScenarioHeldGroup = z.infer<typeof HeldGroupObject>
 
 /**
+ * F10-0: the worst-case simultaneous population of a scenario against the maxima it declares. Start entities are always present. A held group is
+ * present whenever it has spawned and not yet gone, so two groups can coexist unless one waits (a `when.gone` trigger) on the other, directly or
+ * through a chain. The peak is the heaviest set of held groups with no such waiting between any pair, found by trying every subset (a scenario has
+ * a handful of groups, and more than 16 is refused as unreviewable).
+ */
+function checkPopulation(
+  s: z.infer<typeof ScenarioShape>,
+  cap: NonNullable<z.infer<typeof ScenarioShape>['population']>,
+  issue: (message: string, path: (string | number)[]) => void,
+): void {
+  const held = s.heldGroups ?? []
+  if (held.length > 16) { issue('population: more than 16 held groups cannot be checked; split the mission', ['population']); return }
+  const isAirborne = (a: ScenarioAircraft): boolean => !isParkedAircraft(a) || a.id === s.player || a.pilot?.takeoff === true
+  const closeOf = (a: ScenarioAircraft): boolean => (a.tags ?? []).includes('close')
+  const startAircraft = s.aircraft.filter(isAirborne)
+  const names = held.map((g) => new Set([g.id, ...[...(g.aircraft ?? []), ...(g.ships ?? []), ...(g.vehicles ?? [])].flatMap((e) => [e.id, ...(e.tags ?? [])])]))
+  // waits[i] = the groups group i waits on (its spawning trigger's `gone` targets name one of their members or tags).
+  const waits = held.map((g) => {
+    const trigger = (s.triggers ?? []).find((t) => t.then.some((a) => 'spawn' in a && a.spawn === g.id))
+    const gone = trigger !== undefined && 'gone' in trigger.when ? trigger.when.gone.targets : []
+    return held.flatMap((other, j) => (other.id !== g.id && gone.some((ref) => names[j]!.has(ref)) ? [j] : []))
+  })
+  const before = held.map((): boolean[] => held.map(() => false)) // before[i][j]: j must be gone before i spawns
+  const mark = (i: number, j: number): void => { if (!before[i]![j]) { before[i]![j] = true; for (const k of waits[j]!) mark(i, k) } }
+  waits.forEach((ws, i) => ws.forEach((j) => mark(i, j)))
+  const comparable = (i: number, j: number): boolean => before[i]![j]! || before[j]![i]!
+  const weigh = (pick: (g: (typeof held)[number]) => number) => held.map(pick)
+  const airborneW = weigh((g) => (g.aircraft ?? []).length)
+  const shipW = weigh((g) => (g.ships ?? []).length)
+  const closeW = weigh((g) => (g.aircraft ?? []).filter(closeOf).length)
+  const peak = { airborne: 0, ships: 0, close: 0 }
+  for (let mask = 0; mask < 1 << held.length; mask++) {
+    const idx = held.flatMap((_, i) => (mask & (1 << i) ? [i] : []))
+    if (idx.some((i) => idx.some((j) => i < j && comparable(i, j)))) continue
+    peak.airborne = Math.max(peak.airborne, idx.reduce((n, i) => n + airborneW[i]!, 0))
+    peak.ships = Math.max(peak.ships, idx.reduce((n, i) => n + shipW[i]!, 0))
+    peak.close = Math.max(peak.close, idx.reduce((n, i) => n + closeW[i]!, 0))
+  }
+  const airborne = startAircraft.length + peak.airborne
+  const ships = s.ships.length + peak.ships
+  if (airborne > cap.airborne) issue(`population: ${airborne} aircraft can be airborne at once, over the declared ${cap.airborne}`, ['population', 'airborne'])
+  if (ships > cap.ships) issue(`population: ${ships} ships can be present at once, over the declared ${cap.ships}`, ['population', 'ships'])
+  if (cap.close !== undefined) {
+    const close = startAircraft.filter(closeOf).length + peak.close
+    if (close > cap.close) issue(`population: ${close} aircraft can be in the close set at once, over the declared ${cap.close}`, ['population', 'close'])
+  }
+}
+
+/**
  * Every mission reference checkable from the file alone (spec 2026-09-25
  * §2; plan rulings R3, R8, R11). Ids and tags that name ENTITIES are
  * resolved later, by src/sim/mission/create.ts, when the airfields'
@@ -501,6 +554,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   if (s.objectives === undefined) {
     if (s.triggers !== undefined) issue('triggers need objectives: a scenario without objectives is not a mission', ['triggers'])
     if (s.heldGroups !== undefined) issue('heldGroups need objectives: a scenario without objectives is not a mission', ['heldGroups'])
+    if (s.population !== undefined) issue('population needs objectives: a scenario without objectives is not a mission', ['population'])
     if (s.recovery !== undefined) issue('recovery needs objectives: a scenario without objectives is not a mission', ['recovery'])
     if (s.fieldRules !== undefined) issue('fieldRules need objectives: a scenario without objectives is not a mission', ['fieldRules'])
     if (s.badge !== undefined) issue('badge needs objectives: a scenario without objectives is not a mission', ['badge'])
@@ -517,6 +571,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   dupes(objectives.map((o) => o.id), 'objective', 'objectives')
   dupes(triggers.map((t) => t.id), 'trigger', 'triggers')
   dupes(held.map((g) => g.id), 'held group', 'heldGroups')
+  if (s.population !== undefined) checkPopulation(s, s.population, issue)
   if (s.recovery !== undefined && objectives.find((o) => o.id === s.recovery!.objective)?.kind !== 'reach') {
     issue(`recovery.objective "${s.recovery.objective}" must name a reach objective (the egress gate)`, ['recovery', 'objective'])
   }
