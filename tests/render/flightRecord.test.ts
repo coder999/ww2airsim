@@ -66,8 +66,10 @@ describe('main.ts records every flight segment (dossier spec §B.2)', () => {
     expect(segResets).toBe(killResets)
   })
   it('banks through the campaign session at all four end sites, each with the landing it knows (F5B Task 10)', () => {
-    // bailout, impact (ditched or killed), destruction, landing: one bankCampaign call each; the flight segment is read inside it
-    expect(main.match(/bankCampaign\(/g)?.length).toBe(4)
+    // bailout, impact (ditched or killed), destruction, landing: one bankCampaign call each; the flight segment is read inside it.
+    // F5C adds a fifth: End Sortie on a stop card closes the sortie its landings left open (legs bank through `bankLeg`, a sixth name).
+    expect(main.match(/bankCampaign\(/g)?.length).toBe(5)
+    expect(main).toContain("bankCampaign('landed', landedWorld, success, badgeId, null)")
     expect(main).toContain("bankCampaign('killed', current.world, success, badgeId, null)")
     expect(main).toContain("bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))")
     expect(main).toContain('bankCampaign(SORTIE_END_OF[bailoutResult.state.outcome], current.world, success, badgeId, null)')

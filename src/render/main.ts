@@ -3763,7 +3763,6 @@ async function boot(): Promise<void> {
             onEnd: () => {
               // End Sortie: close what the landings did not bank (nothing, unless the flight went on), then leave.
               bankCampaign('landed', landedWorld, success, badgeId, null)
-              segment = EMPTY_SEGMENT
               returnToTitle()
             },
           })
