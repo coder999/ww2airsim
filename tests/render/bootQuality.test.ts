@@ -389,7 +389,7 @@ describe('main.ts boot wiring (what no Deterministic test can execute)', () => {
   it('records the live flight, clears it on a new life, and hands the keyboard to a replay first (instant replay Task 7)', () => {
     // The recorder only ever sees LIVE worlds: a replay draws recorded ones,
     // and recording those would feed the replay back into itself.
-    expect(source).toContain('if (replay === null) recorder.push(current.world)')
+    expect(source).toContain('if (replay === null && scenePlay === null && director === null) recorder.push(current.world)')
     // Restart / New game / Return to title: a replay must never show a previous flight (spec §4).
     expect(source).toContain('recorder.clear()')
     // Review Focus 1: the replay's key routing returns before any flight latch.

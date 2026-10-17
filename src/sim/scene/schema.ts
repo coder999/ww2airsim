@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { CHAPTER_IDS } from '../../campaign/schema.js'
 
 /**
  * The scene file (F9 plan 2026-10-17, decisions 1-5): camera keyframes, scene-only orders and the
@@ -55,7 +54,8 @@ const sorted = (xs: readonly { t: number }[]): boolean => xs.every((x, i) => i =
 
 export const SceneObject = z.object({
   id,
-  chapter: z.enum(CHAPTER_IDS),
+  // sim/ cannot import campaign/, so the shape rather than the enum: A1-A6 or J1-J6.
+  chapter: z.string().regex(/^[AJ][1-6]$/),
   kind: z.enum(['opening', 'victory']),
   durationS: finite.refine((n) => n > 0, { message: 'durationS must be > 0' }),
   world: z.discriminatedUnion('source', [z.object({ source: z.literal('mission'), scenario: id }).strict()]),
