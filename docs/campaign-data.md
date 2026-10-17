@@ -80,19 +80,19 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
 - **`resolveInterrupted`** is `bankSortie` with an abandon report: banked legs stay, the pilot is not killed (D11).
 - **Where the shell calls them.** `session.bankLeg` at each friendly stop, `session.bank` (the close) at the end; see "The shell".
 
-## World keys (F8A, 2026-10-16)
+## World keys (F8A, 2026-10-16; F8B, 2026-10-17)
 
 `Campaign.world` stays an opaque `Record<string, string>` to F5A; F8 owns the keys and values. **Key = a site id**
 (`content/sites/<id>.json`), **value = a window id** from the one list in `content/campaign/site-windows.json`:
 `pre-invasion`, `assault`, `buildup`, `endgame`, `j6-alternate` (the F3 section 5 columns). An absent key reads as
-`pre-invasion` (`windowOf`, `src/sim/world/sites.ts`). Keys F8A writes: `tacloban`, `dulag`, `tanauan`; F8B (Buri, Bayug, San
-Pablo) and F8C (Ormoc, beaches, San Pedro Bay) add theirs, and a key a table does not own is passed through untouched.
+`pre-invasion` (`windowOf`, `src/sim/world/sites.ts`). Keys F8A writes: `tacloban`, `dulag`, `tanauan`; F8B writes `buri`, `bayug`,
+`san-pablo`; F8C (Ormoc, beaches, San Pedro Bay) adds its own, and a key a table does not own is passed through untouched.
 
 - **The table is `src/campaign/worldStates.ts`** (pure, in `src/campaign/`): `windowsForChapter(chapter)` is the window each F8A
   site is drawn in while that chapter is played (F3 sections 3 and 5, by date and hour; A1 launches before H-hour, so its
   fields are still Japanese), and `applyChapterSuccess(world, chapter)` is the `world` after the chapter succeeds, from F3
-  section 4's "State transition" lines: A1 puts Tacloban and Dulag in `assault`; A6 puts all three in `endgame`; J6 puts all
-  three in `j6-alternate`; every other chapter changes nothing. `bankSortie` does not call it (F8C wires the save/load round
+  section 4's "State transition" lines: A1 puts Tacloban and Dulag in `assault` (and no Burauen field); A6 puts all six sites in
+  `endgame`; J6 puts all six in `j6-alternate`; every other chapter changes nothing (J5 "captures no field by itself"). `bankSortie` does not call it (F8C wires the save/load round
   trip). Two readings are recorded, not hidden: A1 plays in `pre-invasion`, and J4 (3 Dec) plays in `buildup`.
 - **A scenario draws a site by naming it:** `Scenario.sites: string[]`, expanded at bundle time by
   `expandScenario(scenario, sites, windows)` (`src/sim/world/sites.ts`; node loader `bundleForScenario`, browser loader
@@ -102,6 +102,18 @@ Pablo) and F8C (Ormoc, beaches, San Pedro Bay) add theirs, and a key a table doe
 - **`serviceable` is read, not just stored:** `isFriendlyAirfield` (`src/sim/friendly.ts`) needs the field to be held by the
   player's side AND serviceable, so a stop on an unserviceable field is no leg and no steering target; a `land` objective at
   one, or an AI `pilot.home` on one, fails at scenario load.
+- **The Burauen fields (F8B):** `buri`, `bayug`, `san-pablo`. Their strips are the Army history's (*Leyte*, ch. VIII; San Pablo
+  4,920 x 164 ft, Buri 5,000 ft east-west) fitted to the terrain, except **Bayug, whose runway is `content/bases/bayug.json`
+  verbatim** (Convoy Strike lands there) and so sits 2.7 km west of its true position; each file's `reference.source` says which.
+  Two readings are recorded, not hidden: San Pablo is `serviceable` in the `endgame` and not in the `j6-alternate` (F8 plan, F8B
+  detail, ruling 3), and the chapter table plays J3 (3 Nov) in `buildup`, where Bayug is American although J3 recovers a Japanese
+  pilot there; `content/campaign/mission-fit.json` reports that row as a finding (`expectFail`).
+- **The mission-fit table** (`content/campaign/mission-fit.json`, checked by `tests/sim/missionFit.test.ts`, arithmetic in
+  `tools/sites/missionFit.ts`; run `npx tsx tools/sites/fitReport.ts`) fills A6, J1, J3, J5 and J6; A1-A5, J2 and J4 stay `pending`
+  for F8C. A row checks the 420 s ceiling to the first action, F3's range where it gives one, the flight home to the nearest
+  *legal* named recovery field (held by the player's side and serviceable in the window `windowsForChapter` plays that chapter in)
+  against F3's recovery budget, and that every named field is legal. Every start or first-action point F3 does not locate is
+  `invented` in its row.
 - **What a site file holds and how to read it** is the schema in `src/sim/world/sites.ts`; every placement carries a
   `basis` (`sourced`, `inferred` or `invented`) and a `cite`, and `tests/sim/world/sites.test.ts` fails a `sourced` placement
   that cites nothing in its file's own `sources`. Do not restate a layout here; the files are the layout.

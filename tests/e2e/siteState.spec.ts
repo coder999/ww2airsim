@@ -39,3 +39,41 @@ test('Tanauan has no field before the build-up, and a construction site in the e
   await waitForTerrain(page)
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.sceneryAirfields())).toContain('tanauan')
 })
+
+// F8B (2026-10-17): the Burauen fields reach the running game. Buri's twelve buildings are all standing in the pre-invasion window
+// and every glb attaches; San Pablo's pre-invasion field is one grown-over revetment; San Pablo's endgame carries the ten drop-zone
+// lights. Spawned 700 m west of each strip at 150 m, facing east.
+test('Buri before the invasion: twelve glb buildings, five Japanese aircraft parked, clutter instanced', async ({ page }) => {
+  test.setTimeout(120_000)
+  const errors: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 400)) })
+  await page.goto('/?siteState=buri:pre-invasion&spawnX=-41800&spawnY=150&spawnZ=-22000')
+  await waitForTerrain(page)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.siteScenery().some((s) => s.airfield === 'buri' && s.modelsAttached > 0), undefined, { timeout: 30_000 })
+  const out = await page.evaluate(() => {
+    const d = (window as DiagWindow).__ww2!
+    return { scenery: d.siteScenery(), structures: d.structures().map((s) => s.id), vehicles: d.vehicles().map((v) => v.id), validation: d.validationErrors }
+  })
+  const buri = out.scenery.find((s) => s.airfield === 'buri')!
+  expect(buri.modelsFailed).toEqual([])
+  expect(buri.modelsAttached).toBe(12)
+  expect(Object.values(buri.clutter).reduce((n, v) => n + v, 0)).toBeGreaterThan(20)
+  expect(out.structures.filter((s) => s.startsWith('buri-'))).toHaveLength(12)
+  expect(out.vehicles.filter((v) => v.startsWith('buri-pre-'))).toHaveLength(4)
+  expect(out.validation).toEqual([])
+  expect(errors).toEqual([])
+})
+
+test('San Pablo: one grown-over revetment before the invasion, the camp and abandoned frames in the endgame', async ({ page }) => {
+  test.setTimeout(120_000)
+  await page.goto('/?siteState=san-pablo:pre-invasion&spawnX=-40700&spawnY=150&spawnZ=-20500')
+  await waitForTerrain(page)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.siteScenery().some((s) => s.airfield === 'san-pablo'), undefined, { timeout: 30_000 })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.structures().filter((s) => s.id.startsWith('san-pablo-')).map((s) => s.id))).toEqual(['san-pablo-revetment-1'])
+  await page.goto('/?siteState=san-pablo:endgame&spawnX=-40700&spawnY=150&spawnZ=-20500')
+  await waitForTerrain(page)
+  await page.waitForFunction(() => (window as DiagWindow).__ww2!.siteScenery().some((s) => s.airfield === 'san-pablo' && s.modelsAttached > 0), undefined, { timeout: 30_000 })
+  const out = await page.evaluate(() => ({ structures: (window as DiagWindow).__ww2!.structures().filter((s) => s.id.startsWith('san-pablo-')).map((s) => s.id), validation: (window as DiagWindow).__ww2!.validationErrors }))
+  expect(out.structures.sort()).toEqual(['san-pablo-camp-1', 'san-pablo-camp-2', 'san-pablo-fuel-farm', 'san-pablo-revetment-1', 'san-pablo-tower'])
+  expect(out.validation).toEqual([])
+})
