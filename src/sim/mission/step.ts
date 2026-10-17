@@ -70,9 +70,10 @@ export function isDestroyed<M>(t: Pick<MissionTick<M>, 'combat' | 'aircraft'>, i
 }
 
 /** Whether aircraft `id` has released `store`, read from its own combat record (the same read the player's `release` objective makes). */
-function hasReleased<M>(t: Pick<MissionTick<M>, 'combat'>, id: EntityId, store: 'bomb' | 'rocket' | 'torpedo'): boolean {
+function hasReleased<M>(t: Pick<MissionTick<M>, 'combat'>, id: EntityId, store: 'bomb' | 'rocket' | 'torpedo' | 'any'): boolean {
   const r = t.combat.aircraft[id]
   if (r === undefined) return false
+  if (store === 'any') return r.bombsDropped > 0 || r.rocketsFired > 0 // bombsDropped includes torpedoes
   return store === 'rocket' ? r.rocketsFired > 0 : store === 'torpedo' ? r.torpedoesDropped > 0 : r.bombsDropped - r.torpedoesDropped > 0
 }
 

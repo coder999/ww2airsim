@@ -44,6 +44,14 @@ describe('preventRelease', () => {
     const withTorp = { ...w, combat: { ...w.combat, aircraft: { ...w.combat.aircraft, r1: { ...w.combat.aircraft.r1!, torpedoesDropped: 1 } } } }
     expect(progressOf(steps(destroyAircraft(withTorp, 'r1'), 2), 'stop').count).toBe(1) // that drop was a torpedo, so no bomb was released
   })
+  it('any (the default) is a bomb, a torpedo or a rocket', () => {
+    const anyRaid = (extra: Record<string, unknown> = {}) => world([{ ...o(extra), store: undefined }])
+    expect(progressOf(steps(destroyAircraft(dropped(anyRaid(), 'r1'), 'r1'), 2), 'stop').count).toBe(0)
+    const torp = (w: World<undefined>) => ({ ...w, combat: { ...w.combat, aircraft: { ...w.combat.aircraft, r2: { ...w.combat.aircraft.r2!, bombsDropped: 1, torpedoesDropped: 1 } } } })
+    expect(progressOf(steps(destroyAircraft(torp(anyRaid()), 'r2'), 2), 'stop').count).toBe(0)
+    const rocket = { ...anyRaid(), combat: { ...anyRaid().combat } }
+    expect(progressOf(steps(destroyAircraft(rocket, 'r3'), 2), 'stop').count).toBe(1)
+  })
   it('rejects a count above its set, a non-aircraft target and an unknown store', () => {
     expect(() => world([o({ count: 4 })])).toThrow(/asks for 4 of 3/)
     expect(() => world([o({ targets: ['convoy'] })])).toThrow(/which is a ship/)
