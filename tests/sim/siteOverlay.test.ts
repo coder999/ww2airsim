@@ -90,9 +90,9 @@ describe('a field its window leaves unserviceable is not a recovery field', () =
 
   it('a land objective at an unserviceable field does not load; at a serviceable one it does', () => {
     const land = { id: 'home', label: 'Land', priority: 'primary', kind: 'land', at: 'dulag' }
-    const raw = (dulag: string) => withSites(['dulag'], { airfields: ['dulag'], aircraft: [{ id: 'f6f-1', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [0, 3000, 0], headingDeg: 90, speedMps: 120 } }], objectives: [land] })
-    expect(() => worldOf(raw('assault'), { dulag: 'assault' })).toThrow(/not serviceable/)
-    expect(() => worldOf(raw('buildup'), { dulag: 'buildup' })).not.toThrow()
+    const raw = () => withSites(['dulag'], { airfields: ['dulag'], aircraft: [{ id: 'f6f-1', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [0, 3000, 0], headingDeg: 90, speedMps: 120 } }], objectives: [land] })
+    expect(() => worldOf(raw(), { dulag: 'assault' })).toThrow(/not serviceable/)
+    expect(() => worldOf(raw(), { dulag: 'buildup' })).not.toThrow()
   })
 
   it('an AI whose home is an unserviceable field does not load', () => {

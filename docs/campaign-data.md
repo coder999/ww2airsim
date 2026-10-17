@@ -81,6 +81,32 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
 - **`resolveInterrupted`** is `bankSortie` with an abandon report: banked legs stay, the pilot is not killed (D11).
 - **Where the shell calls them.** `session.bankLeg` at each friendly stop, `session.bank` (the close) at the end; see "The shell".
 
+## World keys (F8A, 2026-10-16)
+
+`Campaign.world` stays an opaque `Record<string, string>` to F5A; F8 owns the keys and values. **Key = a site id**
+(`content/sites/<id>.json`), **value = a window id** from the one list in `content/campaign/site-windows.json`:
+`pre-invasion`, `assault`, `buildup`, `endgame`, `j6-alternate` (the F3 section 5 columns). An absent key reads as
+`pre-invasion` (`windowOf`, `src/sim/world/sites.ts`). Keys F8A writes: `tacloban`, `dulag`, `tanauan`; F8B (Buri, Bayug, San
+Pablo) and F8C (Ormoc, beaches, San Pedro Bay) add theirs, and a key a table does not own is passed through untouched.
+
+- **The table is `src/campaign/worldStates.ts`** (pure, in `src/campaign/`): `windowsForChapter(chapter)` is the window each F8A
+  site is drawn in while that chapter is played (F3 sections 3 and 5, by date and hour; A1 launches before H-hour, so its
+  fields are still Japanese), and `applyChapterSuccess(world, chapter)` is the `world` after the chapter succeeds, from F3
+  section 4's "State transition" lines: A1 puts Tacloban and Dulag in `assault`; A6 puts all three in `endgame`; J6 puts all
+  three in `j6-alternate`; every other chapter changes nothing. `bankSortie` does not call it (F8C wires the save/load round
+  trip). Two readings are recorded, not hidden: A1 plays in `pre-invasion`, and J4 (3 Dec) plays in `buildup`.
+- **A scenario draws a site by naming it:** `Scenario.sites: string[]`, expanded at bundle time by
+  `expandScenario(scenario, sites, windows)` (`src/sim/world/sites.ts`; node loader `bundleForScenario`, browser loader
+  `loadScenarioBundle`'s `siteWindows` argument). The window's side, `serviceable`, buildings with their states, stationary
+  vehicles, parked aircraft and lights become ordinary scenario content before the world is built, so a scenario with no
+  `sites` is byte-identical to before F8. DEV `?siteState=tacloban:buildup,dulag:assault` merges sites into any scenario.
+- **`serviceable` is read, not just stored:** `isFriendlyAirfield` (`src/sim/friendly.ts`) needs the field to be held by the
+  player's side AND serviceable, so a stop on an unserviceable field is no leg and no steering target; a `land` objective at
+  one, or an AI `pilot.home` on one, fails at scenario load.
+- **What a site file holds and how to read it** is the schema in `src/sim/world/sites.ts`; every placement carries a
+  `basis` (`sourced`, `inferred` or `invented`) and a `cite`, and `tests/sim/world/sites.test.ts` fails a `sourced` placement
+  that cites nothing in its file's own `sources`. Do not restate a layout here; the files are the layout.
+
 ## Modules
 
 | File | Owns |
@@ -94,6 +120,7 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
 | `catalog.ts` | `describeScenario` / `buildCatalog`: descriptors for the shipped non-campaign pool, from picker rows plus scenario facts |
 | `bank.ts` | `launchSortie`, `bankSortie`, `resolveInterrupted` |
 | `exchange.ts` | `exportCampaign`, `importCampaign`, `campaignFromJson` |
+| `worldStates.ts` | F8: the site window ids and the chapter-to-windows table (`windowsForChapter`, `applyChapterSuccess`); see "World keys" |
 | `storage.ts` | `saveCampaign`, `loadCampaign`, `listCampaigns`, `deleteCampaign`, the profile, over an injected `StoragePort` |
 
 ## The shell (F5B, 2026-10-15)

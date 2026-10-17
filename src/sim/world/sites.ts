@@ -25,7 +25,6 @@ export const PARKED_CAP = 8
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
 const positive = finite.refine((n) => n > 0, { message: 'must be greater than zero' })
 const id = z.string().min(1)
-const windowId = z.enum(WINDOW_IDS as [string, ...string[]])
 
 /**
  * How a placement is known. `sourced` cites a ledger entry in the site's own `sources` (F3 section 10); `inferred`
@@ -132,7 +131,8 @@ export function airfieldFor(site: Site, window: WindowId): Airfield | null {
   }
   const buildings = placements.map((p) => {
     const state = w.states[p.id]
-    const { basis: _basis, cite: _cite, ...rest } = p
+    const { basis, cite, ...rest } = p
+    void basis; void cite // provenance stays in the site file; the airfield record does not carry it
     return {
       ...rest,
       model: true,

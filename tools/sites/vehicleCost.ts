@@ -9,7 +9,7 @@ const spec = parseVehicleSpec(JSON.parse(readFileSync('content/vehicles/gmc-cckw
 const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, loop: false }
 const N = 12, TICKS = 60 * 120
 let states: VehicleState[] = Array.from({ length: N }, (_, i) => createVehicleState(spec, { ...orders, waypoints: [{ x: -29900 + i * 8, z: -47700 }] }, terrain))
-const t0 = performance.now()
+const t0 = process.hrtime.bigint()
 for (let t = 1; t <= TICKS; t++) states = states.map((s) => stepVehicle(spec, s, orders, { dt: 1 / 120, tick: t, terrain }))
-const ms = performance.now() - t0
+const ms = Number(process.hrtime.bigint() - t0) / 1e6
 console.log(JSON.stringify({ vehicles: N, ticks: TICKS, totalMs: +ms.toFixed(1), usPerVehicleTick: +((ms * 1000) / (N * TICKS)).toFixed(3), usPerTickAll12: +((ms * 1000) / TICKS).toFixed(2) }))
