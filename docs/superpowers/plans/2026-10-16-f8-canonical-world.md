@@ -153,3 +153,61 @@ Each names its failing test first. All run after F5C is on `main`; re-read its w
 - **Layout versus mission.** The fit table may fail rows; that is reported, not tuned (F3 and Mark's budget-rule precedent).
 - **Source gaps.** Tanauan's exact layout, Ormoc's port arrangement, and 1944 building counts are not in the F3 ledger beyond
   what section 10 says; where a layout is invented it is labeled so in the site file.
+
+## F8B detail: Buri, Bayug, San Pablo (2026-10-17, unattended run)
+
+**Branch:** worktree `~/projects/ww2airsim-worktrees/f8b-sites`, branch `f8b-sites`, cut from `main` `164229a3` (F8A and F5C are both merged).
+Pushed, **not merged, not deployed**; the coordinator merges. F8B adds **content, tests and one DEV flag**; it changes no schema, loader,
+collision, serviceable rule, clutter or vehicle-cap code. Every F8A piece below is reused unchanged unless a task says "extends".
+
+**Reused unchanged:** the site schema and `parseSite`/`airfieldFor`/`expandScenario` (`src/sim/world/sites.ts`), `BUILDING_KINDS` and the
+glb path, `structureCollision`, `serviceable` in `friendly.ts`, clutter (`clutter.ts`, 1,200 ceiling), `VEHICLE_CAP` 12 and `PARKED_CAP` 8,
+the five vehicle specs, DEV `?siteState=`, `siteStateCapture.spec.ts` (extended), the glb-footprint, persistence, label, land and
+clearance tests in `tests/sim/world/sites.test.ts` (they enroll by reading `content/sites`, so they cover the new files with no edit).
+No new Blender model (F3 amendment section 13 rejected a Japanese shelter model): the ten approved buildings plus the four F8A kinds only.
+
+**Source facts the layouts rest on** (U.S. Army, *Leyte*, ch. VIII, read 2026-10-17): San Pablo is about 5 mi west of Dulag and 2 mi east of
+Burauen, runs east-west, **164 x 4,920 ft**, overgrown with weeds and unoccupied by the Japanese; Bayug is just north of the highway,
+a half mile east of Burauen, about **5,000 ft**; Buri is about 1 mi northeast of Burauen, east-west, **5,000 ft**, the most important of the
+three. Everything else (building poses, counts, vehicles, parked aircraft, clutter, lights) is invented gameplay layout and labeled so.
+
+**Two geometry rulings, made here and recorded again in the handoff.** (1) **Bayug's runway is `content/bases/bayug.json` verbatim**
+(center (-45100,-20700), heading 0, 1,500 x 45 m = 4,921 ft, which already is "about 5,000 ft"), as F8A did for Tacloban and Dulag, because
+Convoy Strike lands there; a test pins the agreement. That base was fitted to the flattest 1.5 km line the terrain offers and sits
+**2.7 km west of Bayug's true position**, so Bayug is not at its Army-history offset from Burauen; this is carried, not hidden.
+(2) **Buri and San Pablo are fitted to the shipped terrain** near their Army-history offsets from Burauen, with the sourced length and
+width, and a heading near east-west: `tools/sites/surveyStrip.ts` (this plan's B1) ranks candidate strips by relief.
+
+| Task | Failing test first | Acceptance | Risks | F8A pieces reused |
+| --- | --- | --- | --- | --- |
+| **B1 Strip survey** (`tools/sites/surveyStrip.ts`, `grid.ts` gains a heading) | in `sites.test.ts`, "F8B strips are fitted to terrain": all land (min sample above 1.5 m), relief along the full length under 7 m, over every sample on a 3-sigma-wide strip; red before the files exist | Buri about (-41025,-22005) heading 80, 1,524 x 45 m; San Pablo about (-39930,-20590) heading 80, 1,500 x 50 m; both within about 1.7 km of their Army offset from Burauen; Bayug measured and its relief recorded | the shipped terrain is coarse: relief 4-6 m over 1.5 km is the best it offers near both; a flatter strip would be placed far from the sourced offset, which the sources rule out | `groundTruthTerrain`, `heightAt`, Tanauan's fit test |
+| **B2 Buri** `content/sites/buri.json` | enrollment list gains `buri`; F3 section 5 table row (below); "J1's five critical groups exist in `pre-invasion`, each tagged"; the building-persistence, label, land, clearance and glb-footprint tests (existing) red until the file exists | five windows; hangars north and south, fuel farm, radio station and a dispersal of revetments, each carrying a `buri-*` tag F10 can name; AAA; parked aircraft for J1's start spot (an A6M2) and J6's | invented layout is most of it, labeled; hit boxes of the ten glbs at natural size only | schema, glb-footprint test, persistence test, vehicle and parked caps |
+| **B3 Bayug** `content/sites/bayug.json` | `bayug` enrolled; runway/apron/clearing equal `content/bases/bayug.json` (extends the F8A `['tacloban','dulag']` pin list); F3 row | the base file's tower and AAA are carried as placements with their ids (`bayug-tower`, `bayug-aaa-1`), so a scenario that adds the site keeps the same targets; limited American use in `buildup` | the existing base has no `model` flag, the site always draws glbs: a base-only scenario still renders procedurally, unchanged (a F8A test) | the F8A Dulag precedent (base carried verbatim, hangar-to-Quonset stand-in is not needed here) |
+| **B4 San Pablo** `content/sites/san-pablo.json` | `san-pablo` enrolled; F3 row; **"drop-zone space": no building hit box inside the clearing rectangle's open zone in `endgame` and `j6-alternate`, the clearing at least 400 m wide, and the terrain under it all land**; the Army length and width (4,920 x 164 ft = 1,500 x 50 m) pinned | overgrown and unused before the invasion, poor when captured, a construction attempt abandoned, then the J5/J6 lodgment with open ground around the strip; clutter only, no new model | a clearing is static per base and also reads as firm ground (`cover.ts`); no "overgrown weeds" clutter kind exists, so "overgrown" is shown by absence (nothing built, almost no clutter), recorded as a gap | clearing field, `cover.ts` firm rule, clutter |
+| **B5 Chapter table** (`src/campaign/worldStates.ts`) | `worldStates.test.ts`: every chapter plays the three F8B sites in the F8A window; **after A6 the three Burauen fields are `endgame`, after J6 `j6-alternate`, after A1 and J5 they are untouched** (F3 section 4: A1 names Tacloban and Dulag only; J5 "captures no field by itself"; A6 and J6 name the inland fields) | `F8B_SITES` added to `SITES`; `PLAY` unchanged (it is `all(window)`); `SUCCESS` for A6 and J6 only gains the new keys through `all()`; existing F8A tests updated to the wider site list | **J3 conflict (an F3 contradiction, not mine to settle):** 3 Nov falls in the "Late Oct-Nov" column, so Bayug is American in J3's window, yet J3 recovers a Japanese pilot there. The table keeps the literal date reading and B6 reports the row as a finding. A window override for J3 is one line if Mark rules for it | `windowsForChapter`, `applyChapterSuccess` |
+| **B6 Mission fit** (`tools/sites/missionFit.ts`, `content/campaign/mission-fit.json`, `tests/sim/missionFit.test.ts`) | extends the F8A harness with three things, each test-first: an airborne start; a **recovery leg** (nearest of the named fields, plus landing time, under F3's recovery budget); a **legality check** (each named recovery field is held by the player's side and serviceable in the window `windowsForChapter` plays that chapter in). Also `withinM` where F3 gives a range (J1 "inside 6 mi"). The "fails" cases are written first | fills **J1, J3, J5, J6** and adds A6's recovery leg (A6 recovers at Tacloban, Bayug or Buri); A1-A5, J2, J4 stay pending for F8C (they start at the beaches, Ormoc, the anchorage or the fleet). A failing row is **reported, not tuned**: a row may carry `expectFail` (a finding) and the test then asserts it still fails, so fixing the content flips the test | first-action points for J1, J3, J5 and J6 are invented (F3 gives no geometry), labeled so, as F8A did for A6; J5's start (west of the ridge) is F8C territory and is an invented point whose only claim is the F3 timing | `fitOf`, `groundTruthTerrain`, `windowsForChapter` |
+| **B7 F8A Known gaps, where cheap** | a render test that a `damaged` and a `destroyed` building each differ from `intact` by a stated margin (scorch coverage, rubble tone) | what changed is listed in the handoff; nothing about hit boxes, collision or the sim | a visual fix is subjective: judged from the captures, not asserted by eye | `drawBuilding`, F8A's scene-graph signature test |
+| **B8 DEV `?siteOmit=`** | a unit test that `siteOmit=aircraft` removes parked aircraft only, and so on for vehicles, buildings, clutter; with no flag the bundle is identical | enables the differential budget arms below | DEV only; absent from a production bundle (`dist.test.ts` already scans) | `siteStateFromQuery`, `expandScenario` |
+| **B9 Captures** | the F8A capture spec extended to the three sites (it enumerates by table) | 30 JPEGs, three sites x five windows x two views, in `docs/handoff/2026-10-17-f8b-sites-shots/`; I look at each before claiming a state reads | nexus GPU is correctness quality, not the reference | `siteStateCapture.spec.ts`, `harness.ts` |
+| **B10 Budget** `tests/e2e/siteBudget.spec.ts` | a second test for the busiest F8B state (chosen by count after authoring) against the sites-free base, same 1.0 ms tripwire; **trees off and trees on, a fresh vite per mode, at least six interleaved loads per arm, median**; if cheap, differential arms (`siteOmit=` buildings, aircraft, vehicles, clutter) to split the delta | numbers recorded both modes; a red stays red and is documented | ryzen shared with other sessions: take `hwlock -w 3600 ryzen-budget`; port 5175 only if free | `percentile`, `withParams`, `siteScenery()` |
+| **B11 Docs** | `campaign-data.md` World keys, `MASTER_PLAN.md` F8 status, `docs/testing.md` Known gaps, README only if it names the sites | the F8B handoff has changes, estimates, Tests updated / still valid / Known gaps, both budget modes, mission-fit results and deviations | docs about another system rot: point at the files, date the claims | - |
+| **B12 Verify and close** | `REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` on ryzen to a log, gated on its exit status | green; branch pushed; handoff emailed once | a concurrent session on ryzen; check `origin/main..` before reporting | - |
+
+**F3 section 5, as the F8B site files must say it** (`[side, serviceable]`; every window is `built`):
+
+| Site | pre-invasion | assault | buildup | endgame | j6-alternate |
+| --- | --- | --- | --- | --- | --- |
+| Buri | axis, yes (principal inland field) | allied, no (captured after inland fighting) | allied, yes (dry-weather use; construction abandoned 25 Nov) | allied, yes (American-held, attacked, temporarily penetrated) | axis, yes (serviceable enough for recovery) |
+| Bayug | axis, yes (dry-weather strip) | allied, no (captured) | allied, yes (limited American use continues) | allied, yes (finale objective) | axis, yes (serviceable recovery field) |
+| San Pablo | axis, no (overgrown, unused) | allied, no (still poor) | allied, no (construction attempted, abandoned 25 Nov) | allied, yes (see ruling 3) | axis, no (lodgment, see ruling 3) |
+
+Ruling 3 (San Pablo's `serviceable`): F3 says "abandoned" for the build-up and "principal airborne drop/lodgment area" for the endgame, and A6's
+graph keeps "at least two of Buri, Bayug and San Pablo above their serviceability threshold" with a secondary "all three inland fields remain serviceable at
+debrief", which a field that was never serviceable cannot satisfy. The endgame therefore reads `serviceable: true` (the strip graded for the
+7 Dec defense; A6 does not list it as a recovery field, so nothing lands there), and the alternate reads `false` (J6's secondary asks only that San
+Pablo "remains Japanese-controlled"). It is one boolean and one test row each; Mark may overrule. Likewise the pre-invasion side of an
+unoccupied field is `axis` (the ground the Japanese held), not "neutral": the schema has two sides.
+
+**Mission-fit rows F8B fills (all F3 section 4 chapters that touch Buri, Bayug or San Pablo):** J1 (surface start at Buri; Buri recovery),
+J3 (column bound for the Buri dispersal zone; Bayug recovery), J5 (the San Pablo drop), J6 (launch from Buri or Bayug; recover at either), and
+A6's recovery leg (Tacloban, Bayug or Buri). A1-A5, J2 and J4 do not touch these fields.
