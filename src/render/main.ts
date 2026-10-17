@@ -392,6 +392,8 @@ async function boot(): Promise<void> {
   // Declared here (not beside the headquarters, further down) for the same TDZ reason as `frame`: `onNewGame` reads them.
   let hqSession: Session | null = null
   let hqHandle: { show(): void; hide(): void } | null = null
+  /** F9: the campaign scene playing now; declared this early because the DEV diagnostics read it from the first frame. */
+  let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
    * The player's `killsByType` as of the last bank -- a landing/ditching/
@@ -1389,6 +1391,7 @@ async function boot(): Promise<void> {
       // `await buildScenarioEntities` (now a vehicle GLB fetch too) and the `.then(rebuildFrame)`, so
       // reading `bundle` alone reported the new id while `frame` still held the old roster.
       scenarioId: () => (swapPending ? null : bundle?.scenario.id ?? null),
+      scene: () => scenePlay === null ? null : { id: scenePlay.sceneId, tS: scenePlay.sp.tS, ticksLeft: scenePlay.sp.p.left },
       campaign: () => {
         const c = hqSession?.current() ?? null
         if (c === null) return null
@@ -1399,6 +1402,7 @@ async function boot(): Promise<void> {
           archived: Object.keys(c.pilots).length - c.roster.live.length,
           human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned, logLegs: c.human.log.at(-1)?.legs ?? [] },
           completed: c.progress.completed,
+          scenesSeen: c.scenesSeen,
         }
       },
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
@@ -2746,7 +2750,6 @@ async function boot(): Promise<void> {
   })
   // F9 (plan 2026-10-17): in-engine campaign scenes. The scene plays on its own copy of the world (`sceneFlow.ts`), drawn through
   // the replay's hide-the-HUD class; the live `frame` stays paused until handoff.
-  let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   const sceneSubtitle = document.createElement('div')
   sceneSubtitle.setAttribute('data-replay-ui', '')
   sceneSubtitle.style.cssText = 'position:fixed;left:0;right:0;bottom:8%;text-align:center;color:#fff;font:600 20px/1.3 system-ui,sans-serif;text-shadow:0 1px 3px #000,0 0 8px #000;padding:0 10%;pointer-events:none;display:none'

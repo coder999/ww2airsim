@@ -91,6 +91,8 @@ export type CampaignDiagnostics = {
   readonly human: { readonly points: number; readonly sorties: number; readonly banked: number; readonly abandoned: number; readonly logLegs: readonly { readonly place: string; readonly points: number }[] }
   /** F5C: the chapters completed so far, in order. */
   readonly completed: readonly string[]
+  /** F9: scenes played or skipped. */
+  readonly scenesSeen: readonly string[]
 }
 
 export type Ww2Diagnostics = {
@@ -476,6 +478,8 @@ export type Ww2Diagnostics = {
   readonly scenarioId: () => string | null
   /** The open campaign, read-only, for E2E (plan F5B): its id, faction, revision, the pending sortie, the live five and the Commander's ledger. `null` when none is open. */
   readonly campaign: () => CampaignDiagnostics | null
+  /** F9: the campaign scene playing right now (`null` when none): its id, scene seconds played, and fixed ticks left. */
+  readonly scene: () => { readonly id: string; readonly tS: number; readonly ticksLeft: number } | null
   /** The model id of the loaded GLB actually drawn for the player (falling back to the
    *  hand-built root's name), or null before one is built: sortie forms E2E proves the
    *  chosen aircraft is the one drawn. */
