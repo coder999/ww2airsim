@@ -130,9 +130,9 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
-- **F9 (2026-10-17): the chapter flow is proven on demo scenes, not on a chapter.** No shipped chapter mission or chapter scene exists until F10, so the two things that need one are unit- or
-  logic-proven but never run end to end: the opening trigger from a real campaign launch (`pendingOpeningId` in `main.ts`) and HQ's Watch opening / Watch epilogue buttons
-  (`watchScene`). `tests/e2e/scenes.spec.ts` drives the DEV entries (`?scene=`, `?director=`) on `escort`; `tests/render/sceneFlow.test.ts` proves live, mid-way skip and straight skip end at the same
+- **F9 (2026-10-17): the chapter flow was proven on demo scenes, not on a chapter.** Two things needed a chapter and were only unit- or logic-proven: the opening trigger from a real campaign
+  launch (`pendingOpeningId` in `main.ts`) and HQ's Watch opening / Watch epilogue buttons (`watchScene`). **F10C (2026-10-17) closed the first:** `tests/e2e/chaptersJ1J3.spec.ts` launches J1 from
+  Headquarters in a new Japanese campaign, plays `j1-opening` on its own scenario, skips it to the handoff and reads `scenesSeen` (session-0 route, passed 2026-10-17). The Watch buttons are still not run. `tests/e2e/scenes.spec.ts` drives the DEV entries (`?scene=`, `?director=`) on `escort`; `tests/render/sceneFlow.test.ts` proves live, mid-way skip and straight skip end at the same
   `worldChecksum`, and that a missing or invalid scene loads as `null`. F10's first chapter should add the launch-through-Headquarters e2e.
 - **F9: a flight opened by a scene is not reproducible by the Dev flight-record verifier.** The recorder starts at handoff, so its initial world is the handoff world, but `verifyFlightRecord`'s
   caller (`main.ts`, the reproduction surface) rebuilds the scenario's start without the pre-roll and reports "initial world mismatch". Fix when it matters: carry the scene id in the record's launch header
