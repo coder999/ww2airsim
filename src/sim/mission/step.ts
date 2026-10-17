@@ -171,7 +171,7 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
 }
 
 function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly ObjectiveState[], c: Context<M>): boolean {
-  if ('at' in w) return c.t.tick >= ticksFor(w.at)
+  if ('at' in w) return c.t.tick - (m.clockOriginTick ?? 0) >= ticksFor(w.at)
   if ('completed' in w) {
     const id = w.completed
     return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'complete'

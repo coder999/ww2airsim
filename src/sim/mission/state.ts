@@ -106,6 +106,9 @@ export type MissionState<M> = {
    *  (M3-R4); `NO_PASS` when none is open or pending, and always for a
    *  mission without that objective. */
   readonly pass: PassTracking
+  /** F9: the tick the mission clock starts counting from (a scene's handoff). Absent means tick 0, so every
+   *  world that never plays a scene carries no new field. Only `when.at` reads it; everything else is already relative. */
+  readonly clockOriginTick?: number
 }
 
 type Message = Extract<MissionLogEntry, { kind: 'message' }>
