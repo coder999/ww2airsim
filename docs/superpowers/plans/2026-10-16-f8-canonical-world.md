@@ -9,8 +9,9 @@ Grilled with Mark 2026-10-16 (decisions below). F8A is task-level; F8B and F8C a
 ## Header
 
 - **Branch:** worktree `~/projects/ww2airsim-worktrees/f8a`, cut from `main` after F5C lands.
-- **Run mode: fully unattended, final result only** (Mark, 2026-10-16). One attended exception: any **new** building model
-  (see Finding 1; may be none) goes through the Hangar for his approval first, as F4 did. He will review once rendered.
+- **Run mode: fully unattended, final result only** (Mark, 2026-10-16). One attended exception: the four new models (below) go
+  through the Hangar for his approval first, as F4 did (Task 0). He will review them once rendered. Task 0 does not depend on
+  F5C and may start before it lands.
 - **Heavy jobs:** `remote-run` on ryzen is allowed again; budget specs under `hwlock ryzen-budget`, on `BUDGET_PARAMS=trees=off`
   and trees on, a fresh vite, at least 6 interleaved loads (budget-analysis session, 2026-10-16).
 - **Budget rule (Mark, 2026-10-16):** gates stay as written; a red spec is documented with measured numbers, never tuned.
@@ -23,9 +24,8 @@ Grilled with Mark 2026-10-16 (decisions below). F8A is task-level; F8B and F8C a
    `radio-radar-station`, `revetment`. All ten glbs are in `content/buildings/` with Library entries, but a base's
    `buildings[].kind` is a three-value enum (`src/sim/world/airfields.ts:25`) and the renderer draws only procedural
    shapes (`drawBuilding`); the game never loads those glbs. So "author glbs for the new building kinds" (grilling Q10) is
-   mostly **make the existing ten placeable**, not new Blender work. Proposed **new** models: none (F3 section 9 classes
-   tents, sandbags, mats, drums, crates, mud, ruts, craters and construction states as procedural). If you want any, name
-   them in review; each is an F3 amendment plus a Hangar gate and pauses F8A until approved.
+   mostly **make the existing ten placeable**, not new Blender work. Four **new** models are proposed in "New models (F3 amendment)" below;
+   tents, sandbags, mats, drums, crates, mud, ruts, craters and construction states stay procedural (F3 section 9).
 2. Only three bases exist (`content/bases/{tacloban,dulag,bayug}.json`); no Buri, San Pablo, Tanauan or Ormoc. Nothing is dated.
 3. `Campaign.world` is already an opaque `Record<string,string>` that F8 owns (`src/campaign/schema.ts:104`).
 4. Five F4 vehicles (`gmc-cckw-353`, `caterpillar-d7-3t`, `type94-cargo-truck`, `type38-75mm-field-gun`, `lcvp`) have glbs and
@@ -51,6 +51,22 @@ Grilled with Mark 2026-10-16 (decisions below). F8A is task-level; F8B and F8C a
 | 9 | The overlay lists lights per window, merged into the scenario's lights at world build (existing light kinds, F6A contract unchanged). |
 | 10 | Final-result viewing only; fully unattended; plan proposes, Mark approves any new building list by email review. |
 
+## New models (F3 amendment, approved by Mark 2026-10-16)
+
+Mark approved all four. Sources were read 2026-10-16 by a research pass; the Navy 20x48 manual page failed to load and is
+unverified, so dimensions the sources do not give are `ESTIMATE`. Each model gets provenance, limits, a Library entry, budget
+enrollment and a Hangar card, as F4 did (`docs/models.md`, `ASSETS.md`).
+
+| Model id | What it is | Used at | Source and limits |
+| --- | --- | --- | --- |
+| `quonset-hut-20x48` | Navy steel-arch-rib hut, 20 x 48 ft half-cylinder of corrugated steel | Tacloban (offices, quarters, from 24 Oct 1944), Jinamoc anchorage; Dulag and Tanauan are **inferred** and labeled so | Navy, *Building the Navy's Bases* ch. XXIX (<https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm>): Quonsets for offices and quarters at Tacloban and Tolosa, 75 at the Jinamoc seaplane base. Seabee Museum Quonset manuals page (<https://history.navy.mil/content/history/museums/seabee/explore/online-reading-room/Publications/quonset-hut-manuals0.html>) **unverified**. Generic 20 x 48 form; no Wikipedia imagery. Nissen rejected (British, no Leyte evidence). |
+| `pontoon-pier-segment` | Steel pontoon-cell pier/causeway section (about 5 x 7 x 5 ft cells, **ESTIMATE**, bolted into a pier run) | Landing beaches (from 20 Oct), San Pedro Bay anchorage | Same Navy chapter: Seabee detachment handled pontoon barges and causeways at the landing and later reassembled cells as barges and pontoon piers. Army, *Leyte* ch. XI (<https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html>): an additional Tacloban dock and lighterage wharves by 1 Dec. A sand LST causeway stays procedural. |
+| `jinamoc-seaplane-ramp` | Beaching ramp, steel and pre-cast concrete, 220 ft long, width **ESTIMATE** | San Pedro Bay anchorage (Jinamoc, 5 mi east of Tacloban) | Navy ch. XXIX above: first ramp a submerged pontoon barge, permanent ramp 220 ft. |
+| `ormoc-customs-building` | A plain port customs building, **no light** | Ormoc | Existence only: JACAR Notice to Mariners (<https://www.jacar.archives.go.jp/acv/contents/pub/pdf/B11/B11092933500.b3_0098.3-2198.00000139.pdf>) records a customs building with a fixed red light; appearance and 1944 survival are **not sourced**. Whole appearance is an `ESTIMATE`; the light stays excluded (F3 section 8). Mark chose to include it. |
+
+Rejected after research: a Japanese maintenance shelter or nipa utility building at Buri, Bayug or San Pablo (the Army history
+describes no buildings there; San Pablo was unoccupied), and a control building, water tower or radar van (no evidence).
+
 ## Design
 
 **Files.** `content/sites/<site>.json` (zod, strict): `{ id, airfield, base, windows }`. `base` holds what never changes between
@@ -73,12 +89,17 @@ choice treat a field as legal only if `side` matches and `serviceable` is true.
 
 ## F8A tasks (Tacloban, Dulag, Tanauan)
 
+0. **The four new models** (above), built serially in Blender on nexus under the compute lock, F4-style: scripts, glb, Library
+   entries, provenance rows, bounds/origin/budget/deterministic-rebuild tests, `ASSETS.md`, day and dark-background captures, a
+   Hangar review board. **Mark approves in the Hangar before any site file uses them.** Independent of F5C. Requires the F3
+   amendment (section 13 of the F3 lock) to be on `main` first.
+
 Each names its failing test first. All run after F5C is on `main`; re-read its world, leg and recovery changes before Task 6.
 
 1. **Schema and loader.** Test: a malformed site file fails; every site has all five windows; window ids come from one list.
 2. **Chapter-to-windows table.** Test: for each of the twelve chapters, the produced windows equal F3 sections 4 and 5; an unknown
    chapter throws; `world` after A1 has Tacloban and Dulag in `assault`.
-3. **Ten building kinds placeable.** Extend the enum, load the existing glbs through `staticModels` (kind `building`), keep the
+3. **Existing ten plus the new four placeable.** Extend the enum, load the existing glbs through `staticModels` (kind `building`), keep the
    procedural `drawBuilding` as fallback and for collapsed rubble, size hit boxes from footprints. Test: each kind draws and has a
    hit box; the three current bases render unchanged.
 4. **Structure collision.** Test first: an aircraft driven through a hangar box impacts; one beside it does not; existing landing
