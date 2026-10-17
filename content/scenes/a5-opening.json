@@ -1,0 +1,82 @@
+{
+  "id": "a5-opening",
+  "chapter": "A5",
+  "kind": "opening",
+  "durationS": 12,
+  "world": {
+    "source": "mission",
+    "scenario": "a5-close-the-ormoc-lifeline"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -65676,
+        1500,
+        -26687
+      ],
+      "yawDeg": 52.8,
+      "pitchDeg": 15.5,
+      "ease": "inOut"
+    },
+    {
+      "t": 4,
+      "position": [
+        -65040,
+        1780,
+        -26668
+      ],
+      "yawDeg": 162.9,
+      "pitchDeg": -16.1,
+      "ease": "inOut"
+    },
+    {
+      "t": 8,
+      "position": [
+        -67500,
+        2400,
+        -22500
+      ],
+      "yawDeg": -109.3,
+      "pitchDeg": -12.2,
+      "ease": "inOut"
+    },
+    {
+      "t": 12,
+      "position": [
+        -65557,
+        1790,
+        -26577
+      ],
+      "yawDeg": -111.0,
+      "pitchDeg": -14.0,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Avengers form up over the ridge. Hellcats, you are with us."
+      }
+    },
+    {
+      "t": 6,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Ormoc Bay ahead, a convoy in the bay. Expect fighters."
+      }
+    },
+    {
+      "t": 9,
+      "order": {
+        "kind": "message",
+        "text": "Fighter director: Hellcats, your station is on the Avengers. Keep the Zeros off them."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "ai"
+  }
+}

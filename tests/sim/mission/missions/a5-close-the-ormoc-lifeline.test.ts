@@ -3,6 +3,9 @@
  * is whether they live to do it and to rally. The scenario plays in the `buildup` window on the campaign path (F3 section 5, 11 November).
  */
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { skipScene } from '../../../../src/sim/scene/preroll.js'
+import { parseScene } from '../../../../src/sim/scene/schema.js'
 import { loadScenarioBundle, loadSite } from '../../../../tools/content/load.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
 import { advance, playerAircraft, withAircraftState, type World } from '../../../../src/sim/loop.js'
@@ -228,4 +231,22 @@ describe.skipIf(terrain === null)('A5, flown headless', () => {
     for (let i = 0; i < 50 * 60; i++) w = flyOn(w, born, 'escorted')
     expect(progressOf(w, 'station').status).toBe('complete')
   }, 120_000)
+})
+
+describe('A5 opening (a5-opening, 12 s)', () => {
+  const scene = parseScene(JSON.parse(readFileSync('content/scenes/a5-opening.json', 'utf8')) as unknown)
+  it('plays on A5\'s own scenario: the Avengers form up over the ridge, the convoy is called, the player is told his station; the mission clock starts at the handoff', () => {
+    expect(scene).toMatchObject({ id: 'a5-opening', chapter: 'A5', kind: 'opening', durationS: 12, handoff: { player: 'ai' } })
+    expect(scene.world.scenario).toBe(A5)
+    const before = worldFromScenario(loadScenarioBundle(A5, BUILDUP), null)
+    const after = skipScene(before, scene)
+    expect(after.mission!.clockOriginTick).toBe(after.tick)
+    expect(after.mission!.spawned).toEqual([]) // the scene spawns no enemy: they come at 50 s of the flight
+    for (const id of TBMS) expect(isDestroyed(after, id)).toBe(false)
+  })
+  it('the first camera key is within 1 km of the formation and the last is behind the player\'s Hellcat', () => {
+    const p = worldFromScenario(loadScenarioBundle(A5, BUILDUP), null).aircraft.find((a) => a.id === 'f6f-1')!.state.position
+    expect(Math.hypot(scene.camera[0]!.position[0] - p.x, scene.camera[0]!.position[2] - p.z)).toBeLessThan(1500)
+    expect(Math.hypot(scene.camera.at(-1)!.position[0] - p.x, scene.camera.at(-1)!.position[2] - p.z)).toBeLessThan(2000)
+  })
 })
