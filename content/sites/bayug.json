@@ -13,7 +13,12 @@
       "widthM": 45
     },
     "apron": null,
-    "clearing": null,
+    "clearing": {
+      "x": 100,
+      "z": 0,
+      "widthM": 500,
+      "lengthM": 900
+    },
     "buildings": [
       {
         "id": "bayug-tower",
@@ -158,7 +163,7 @@
     }
   },
   "reference": {
-    "source": "Runway, apron and clearing are content/bases/bayug.json verbatim (a test pins the agreement; Convoy Strike lands there). Its 1,500 x 45 m (4,921 ft) already is the Army history's \"about 5,000 ft\" (ch. VIII); heading 0 and the 45 m width are that file's ASSUMPTION and ESTIMATE. That base was fitted to the flattest 1.5 km line the terrain offers and lies 2.7 km west of Bayug's true position (the true field is a half mile EAST of Burauen), so Bayug is not at its Army offset from Burauen; this is carried, not corrected, because moving it would move Convoy Strike's recovery field. Terrain: flat (48 to 57 m) on the east side where the camp stands, hills to the west. Windows follow the F3 section 5 Bayug row."
+    "source": "Runway and apron are content/bases/bayug.json verbatim (a test pins the agreement; Convoy Strike lands there); the clearing is NEW (the base has none): 500 x 900 m of open ground over the camp, because airfield buildings are not kept clear of trees (only the strip and a clearing are) and the first captures showed the camp inside the forest. Its 1,500 x 45 m (4,921 ft) already is the Army history's \"about 5,000 ft\" (ch. VIII); heading 0 and the 45 m width are that file's ASSUMPTION and ESTIMATE. That base was fitted to the flattest 1.5 km line the terrain offers and lies 2.7 km west of Bayug's true position (the true field is a half mile EAST of Burauen), so Bayug is not at its Army offset from Burauen; this is carried, not corrected, because moving it would move Convoy Strike's recovery field. Terrain: flat (48 to 57 m) on the east side where the camp stands, hills to the west. Windows follow the F3 section 5 Bayug row."
   },
   "windows": {
     "pre-invasion": {

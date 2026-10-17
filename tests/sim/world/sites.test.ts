@@ -64,13 +64,29 @@ describe('site files: schema and loader', () => {
 })
 
 describe('site files: runway agrees with the base content it replaces', () => {
-  // F8B: Bayug joins (its base is the runway Convoy Strike lands on). Buri and San Pablo have no base file; their strips are fitted.
-  it.each(['tacloban', 'dulag', 'bayug'])('%s runway, apron and clearing equal content/bases', (id) => {
+  it.each(['tacloban', 'dulag'])('%s runway, apron and clearing equal content/bases', (id) => {
     const base = loadAirfield(id)
     const s = sites[id]!
     expect(s.base.runway).toEqual(base.runway)
     expect(s.base.apron).toEqual(base.apron)
     expect(s.base.clearing).toEqual(base.clearing)
+  })
+
+  // F8B: Bayug joins (its base is the runway Convoy Strike lands on). Its site keeps the base's runway and apron verbatim but ADDS a
+  // clearing: the shipped base has none, and airfield buildings are not kept clear of trees (only the strip and `clearing` are,
+  // `inAirfieldClearing`), so with none the 2026-10-17 captures showed the camp standing inside the forest.
+  it('bayug runway and apron equal content/bases; its clearing is new, and every F8B building stands inside its field\'s clearing', () => {
+    const base = loadAirfield('bayug')
+    expect(sites.bayug!.base.runway).toEqual(base.runway)
+    expect(sites.bayug!.base.apron).toEqual(base.apron)
+    expect(base.clearing).toBeNull()
+    for (const id of ['buri', 'bayug', 'san-pablo']) {
+      const s = sites[id]!, c = s.base.clearing
+      expect(c, `${id} has a clearing`).not.toBeNull()
+      const out = [...s.base.buildings, ...Object.values(s.windows).flatMap((w) => w.added)]
+        .filter((b) => Math.abs(b.x - c!.x) > c!.widthM / 2 - b.widthM / 2 || Math.abs(b.z - c!.z) > c!.lengthM / 2 - b.lengthM / 2).map((b) => b.id)
+      expect(out, `${id}: buildings outside the clearing, where trees grow through them`).toEqual([])
+    }
   })
 })
 

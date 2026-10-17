@@ -23,10 +23,10 @@ const RUNWAY: Record<string, { x: number; z: number }> = {
   'san-pablo': { x: -39930, z: -20590 },
 }
 /** F8B: `tiltDeg` is how far the strip's axis lies off due east (Buri and San Pablo 10, Bayug's north-south strip is crossed instead); `dz` shifts the pass north (-) or south (+). */
-const F8B_VIEWS: Record<string, { tiltDeg: number; dz: number }> = {
-  buri: { tiltDeg: 10, dz: -30 },
-  'san-pablo': { tiltDeg: 10, dz: -30 },
-  bayug: { tiltDeg: 0, dz: -150 },
+const F8B_VIEWS: Record<string, { tiltDeg: number; dz: number; low: number; high: number }> = {
+  buri: { tiltDeg: 10, dz: -30, low: 350, high: 700 },
+  'san-pablo': { tiltDeg: 10, dz: -30, low: 350, high: 700 },
+  bayug: { tiltDeg: 0, dz: -150, low: 200, high: 450 }, // its camp is 170 to 300 m beyond the strip: closer than the others
 }
 const WINDOWS = ['pre-invasion', 'assault', 'buildup', 'endgame', 'j6-alternate'] as const
 // local (x across, z along) of the spawn, per view, then the altitude in meters (the ground at these sites is 2 to 22 m)
@@ -45,11 +45,11 @@ for (const site of Object.keys(RUNWAY).filter((k) => ONLY.length === 0 || ONLY.i
     await page.setViewportSize({ width: 1920, height: 1080 })
     const v = VIEWS[view], r = RUNWAY[site]!
     // F8A sites: the fixed offsets above. F8B sites (2026-10-17): the first F8B run framed the strips badly (the airplane covered the strip and
-    // the buildings sat 600 m off), so those views are placed by distance before the runway center, on the strip axis for the
+    // the buildings sat 600 m off), so those views are placed by distance before the runway center (350 and 700 m; Bayug 200 and 450), on the strip axis for the
     // east-west strips, with the head pitched down so the airplane leaves the middle of the frame. The airplane flies 376 m in the
     // 3 s before `sceneryView` freezes the frame (measured in the first run: requested -42025, frozen at -41648).
     const f8b = F8B_VIEWS[site]
-    const ahead = view === 'low' ? 350 : 700
+        const ahead = f8b === undefined ? 0 : f8b[view]
     const at = f8b === undefined
       ? `spawnX=${r.x + v.dx}&spawnY=${v.y}&spawnZ=${r.z + v.dz}`
       : `spawnX=${Math.round(r.x - ahead - 376)}&spawnY=${v.y}&spawnZ=${Math.round(r.z + ahead * Math.tan((f8b.tiltDeg * Math.PI) / 180) + f8b.dz)}&look=0,${view === 'low' ? -14 : -20}`
