@@ -130,6 +130,17 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
+- **F9 (2026-10-17): the chapter flow is proven on demo scenes, not on a chapter.** No shipped chapter mission or chapter scene exists until F10, so the two things that need one are unit- or
+  logic-proven but never run end to end: the opening trigger from a real campaign launch (`pendingOpeningId` in `main.ts`) and HQ's Watch opening / Watch epilogue buttons
+  (`watchScene`). `tests/e2e/scenes.spec.ts` drives the DEV entries (`?scene=`, `?director=`) on `escort`; `tests/render/sceneFlow.test.ts` proves live, mid-way skip and straight skip end at the same
+  `worldChecksum`, and that a missing or invalid scene loads as `null`. F10's first chapter should add the launch-through-Headquarters e2e.
+- **F9: a flight opened by a scene is not reproducible by the Dev flight-record verifier.** The recorder starts at handoff, so its initial world is the handoff world, but `verifyFlightRecord`'s
+  caller (`main.ts`, the reproduction surface) rebuilds the scenario's start without the pre-roll and reports "initial world mismatch". Fix when it matters: carry the scene id in the record's launch header
+  and `skipScene` the rebuilt world.
+- **F9: no budget spec.** The plan's budget spec was for the A6/J6 finale populations (24 airborne, 10 ships), which are F10 content; the two demos are light. Whoever authors the finales measures them
+  (`hwlock ryzen-budget`, trees off and on, per the F8 specs). The unresolved two-tier budget proposal (`docs/handoff/2026-10-16-budget-reevaluation.md`) was not applied (Mark, 2026-10-17: it stays unresolved).
+- **F9: director mode re-simulates on scrub.** The world follows the bar by stepping up to 120 ticks a frame and restarts from t=0 when the bar goes back, so a long scrub in a heavy scene lags behind
+  the bar rather than freezing. The `fx` cue is collected (`Preroll.emitted`) but no renderer consumes it yet.
 - **F8C (2026-10-17): the beaches' budget spec is red in both modes.** `tests/e2e/siteBudget.spec.ts` (landing beaches in the build-up, 12 vehicles of which 4 LCVPs afloat,
   11 glb buildings, 197 clutter pieces; 6 interleaved loads per arm, fresh vite per mode, median, 1440p High, ryzen RDP route under `hwlock ryzen-budget`): **trees off** site 7.916 ms vs
   base 4.269 ms, delta **+3.646 ms, red**; **trees on** 15.162 vs 13.828, delta **+1.334 ms, red** (limit 1.0 ms, a tripwire). Left red (Mark's budget rule). The interleaved split
