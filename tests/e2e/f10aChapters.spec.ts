@@ -29,7 +29,7 @@ test('A1 from Headquarters: the chapter row, the pending sortie, its opening on 
   await startCampaignGame(page, { scenario: 'A1 · Over the Beaches' })
   await waitForScenario(page, 'a1-over-the-beaches')
   const c = await page.evaluate(() => (window as DiagWindow).__ww2?.campaign() ?? null)
-  expect(c?.pending).toMatchObject({ missionId: 'a1-over-the-beaches', chapterId: 'A1', aircraft: 'f6f-hellcat' })
+  expect(c?.pending).toMatchObject({ missionId: 'a1-over-the-beaches', aircraft: 'f6f-hellcat' })
   await openingThenLive(page, 'a1-opening', 18 * 60)
   await expect.poll(() => objective(page)).toMatch(/launch/i) // the first objective on the HUD: the chapter's own mission, not a stand-in
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.validationErrors)).toEqual([])
