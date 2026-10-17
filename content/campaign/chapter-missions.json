@@ -83,11 +83,16 @@
    "authoredBonus": 0
   },
   "J4": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j4-destroyers-in-the-bay",
+   "badge": {
+    "id": "destroyers-in-the-bay",
+    "name": "Destroyers in the Bay"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "b5n2-kate"
+   ],
+   "recommendedLoadout": "torpedoes",
    "coordinated": false,
    "authoredBonus": 0
   },

@@ -28,6 +28,8 @@ export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'escort': [[OLIVE, 4], [SKY, 2], [OLIVE, 12], [GOLD, 2], [BLUE, 4]],
   'surigao-strait': [[NAVY, 4], [WHITE, 2], [SCARLET, 3], [GOLD, 2], [SKY, 10], [GOLD, 2]],
   'field-patrol': [[SCARLET, 4], [WHITE, 3], [NAVY, 3], [WHITE, 8], [SCARLET, 8]],
+  'destroyers-in-the-bay': [[NAVY, 5], [SCARLET, 3], [NAVY, 9], [GOLD, 2], [WHITE, 6]],
+  'night-drop-on-burauen': [[OLIVE, 4], [WHITE, 2], [NAVY, 8], [GOLD, 3], [SCARLET, 10]],
   'water-qualified': [[SKY, 7], [WHITE, 2], [NAVY, 6], [GOLD, 2], [SCARLET, 10]],
 }
 /** A badge with no design of its own (dev fixtures, a retired mission). */

@@ -48,6 +48,10 @@ export type NightFacts = {
   /** The scenario's authored lights (content). */
   readonly lights: readonly LightSpec[]
   readonly tuning?: Partial<PerceptionTuning>
+  /** F10D: the world tick the mission clock starts from (a scene's handoff tick, set when the pre-roll BEGINS so a light can ignite during the opening
+   *  with a negative `onAtS`). Scheduled lights read `tick - clockOriginTick`, so they stay in step with the mission's own windows whether or not an
+   *  opening played; the sun does not (it follows the real hour). Absent means 0, so every world that never plays a scene is unchanged. */
+  readonly clockOriginTick?: number
 }
 
 /** The sortie window over which a day sortie still gets night facts (a dusk takeoff that crosses sunset), hours. */
@@ -132,7 +136,9 @@ const externalOf = (specs: readonly LightSpec[]): readonly LightSpec[] => {
 export function perceptionAt(world: PerceptionWorld, dtS: number): Perception | null {
   const night = world.night
   if (night === undefined) return null
-  const tS = world.tick * dtS
+  // Scheduled lights run on the mission clock (see `NightFacts.clockOriginTick`); the sun runs on the world's.
+  const lightTick = world.tick - (night.clockOriginTick ?? 0)
+  const tS = lightTick * dtS
   const sun = sunElevationAt(night, world.tick, dtS)
   const tuning = night.tuning ?? {}
   const rangeM: Record<string, number> = {}
@@ -145,7 +151,7 @@ export function perceptionAt(world: PerceptionWorld, dtS: number): Perception | 
   const field = world.terrain
   const ext = externalOf(night.lights)
   const lights = ext.length === 0 ? [] : lightsAt(ext, {
-    tick: world.tick, dtS, ...(world.wind ? { windMps: world.wind } : {}),
+    tick: lightTick, dtS, ...(world.wind ? { windMps: world.wind } : {}),
     groundHeightM: (x, z) => (field === null ? SEA_LEVEL_M : Math.max(SEA_LEVEL_M, heightAt(field, x, z))),
     shipPoint(id, o) {
       const s = world.ships.find((e) => e.id === id)

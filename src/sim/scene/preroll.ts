@@ -33,8 +33,10 @@ export type Preroll<M> = {
 export const beginPreroll = <M>(world: World<M>, scene: Scene): Preroll<M> => {
   checkScene(world, world.mission, scene)
   const me = world.aircraft.find((a) => a.id === world.player)!
+  // The mission clock will start at the handoff tick, which is known now: scheduled lights are on that clock (`NightFacts.clockOriginTick`).
+  const night = world.night === undefined ? {} : { night: { ...world.night, clockOriginTick: world.tick + ticksFor(scene.durationS) } }
   return {
-    world: { ...world, mission: null }, mission: world.mission, left: ticksFor(scene.durationS), scene, nextCue: 0, emitted: [], player: scene.handoff.player,
+    world: { ...world, ...night, mission: null }, mission: world.mission, left: ticksFor(scene.durationS), scene, nextCue: 0, emitted: [], player: scene.handoff.player,
     altitudeM: me.state.position.y, throttle: me.controls.throttle,
   }
 }
