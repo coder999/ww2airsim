@@ -38,7 +38,7 @@ import { briefingModel } from './mission/briefing.js'
 import { landingDisposition } from './mission/landingFlow.js'
 import { withMissionDebrief } from './mission/debriefMission.js'
 import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollision.js'
-import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withNotRecorded, type DebriefModel } from './debrief.js'
+import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withLegCard, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createHeadquarters } from './hq/bootHq.js'
 import { SORTIE_END_OF, type Session } from './campaignSession.js'
@@ -47,7 +47,10 @@ import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js
 import { bootLoadout } from './sortieFlow.js'
 import { createBootProgress } from './bootProgress.js'
 import { track } from './analytics.js'
-import { bankScored, type BankedView } from './campaignBank.js'
+import { bankLegScored, bankScored, type BankedView } from './campaignBank.js'
+import { buildLegCard, createStopFade } from './legCard.js'
+import { checkGroundStop } from '../sim/groundStop.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 import { formatName, type MissionDescriptor, type SortieEndKind } from '../campaign/index.js'
 import { recordDevSortiesFromQuery, sortieIsDev } from './devRecord.js'
 import { friendlyFireOf, friendlyFireRadio, withDischarge } from './discharge.js'
@@ -99,7 +102,7 @@ import {
   settleOnTerrain,
   toThreeOrientation,
   worldOffsetFor,
-  type FrameState, withPaused, withTerrain, acknowledgeLanding, surfaceHeightFor,
+  type FrameState, withPaused, withTerrain, withGroundStop, acknowledgeLanding, surfaceHeightFor,
 } from './frame.js'
 import { createRecorder } from '../replay/recorder.js'
 import { replayPosesAt, type ReplayPoses } from '../replay/view.js'
@@ -1379,10 +1382,11 @@ async function boot(): Promise<void> {
         if (c === null) return null
         return {
           id: c.id, faction: c.faction, revision: c.revision,
-          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? '') },
+          pending: c.pending === null ? null : { sortieId: c.pending.sortieId, pilotId: c.pending.pilotId, missionId: c.pending.missionId, difficulty: c.pending.difficulty, aircraft: String(c.pending.facts.aircraft ?? ''), legs: c.pending.legs.map((l) => ({ place: l.place, points: l.pilotPoints })), bankedPoints: c.pending.banked.pilotPoints },
           live: c.roster.live.map((id) => ({ id, points: c.pilots[id]!.points, sorties: c.pilots[id]!.sorties })),
           archived: Object.keys(c.pilots).length - c.roster.live.length,
-          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned },
+          human: { points: c.human.ledger.points, sorties: c.human.ledger.sorties, banked: c.human.ledger.banked, abandoned: c.human.stats.abandoned, logLegs: c.human.log.at(-1)?.legs ?? [] },
+          completed: c.progress.completed,
         }
       },
       // The mesh actually DRAWN for the player, not the sim spec's view.model: read the GLB URL
@@ -1514,6 +1518,11 @@ async function boot(): Promise<void> {
           aircraftDown: combat === undefined ? 0 : Object.values(combat.aircraft).filter((r) => r.damage.destroyedAt !== null).length,
           projectiles: combat?.projectiles.length ?? 0,
         }
+      },
+      groundStop: (loadout: string) => {
+        if (frame === null || !checkGroundStop(frame.world).ok) return false
+        pendingGroundStop = loadout as Loadout
+        return true
       },
       resetFrameTimes: () => {
         cascades.forEach(c => c.resetTimings())
@@ -2317,6 +2326,11 @@ async function boot(): Promise<void> {
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
    *  Restart. */
   let landingShown = false
+  /** F5C D7: the loadout the player picked at the last stop card, applied by the next frame (recorded as a `ground-stop` action). */
+  let pendingGroundStop: Loadout | null = null
+  /** The loadout the sortie's last leg carried: the stop card preselects it. Reset by `resetFlightUi`. */
+  let lastLegLoadout: Loadout | null = null
+  const stopFade = createStopFade(root)
   /** The mission landing tick already handled (M2 R2); -1 before any. */
   let handledLandingTick = -1
   /** The tick of the impact the debrief is currently showing, so the modal is
@@ -2378,6 +2392,19 @@ async function boot(): Promise<void> {
     if (out === null || 'refused' in out) return null
     return out
   }
+  /** F5C: bank the landing just made (a stop at a friendly base) and keep the sortie open. `null` for an unscored sortie. */
+  const bankLeg = (world: FrameState['world'], success: boolean, badgeId: string | null, landing: 'trap' | 'field' | 'ditched' | 'water' | null, place: string): BankedView | null => {
+    if (scoredSortie === null || hqSession === null) return null
+    const player = world.combat.aircraft[world.player]!
+    const out = bankLegScored({
+      session: hqSession, success, badgeId, place,
+      player: { tagCredits: player.tagCredits, friendlyKills: player.friendlyKills, friendlyFire: player.friendlyFire !== null },
+      flight: { flightSeconds: segment.flightSeconds, maxAltitudeM: segment.maxAltitudeM, maxTrueAirspeedMps: segment.maxTrueAirspeedMps, landing },
+      authoredBonusOf: (id) => hqCatalogNow()?.find((m) => m.id === id)?.authoredBonus ?? 0,
+    })
+    if (out === null || 'refused' in out) return null
+    return out
+  }
   /**
    * The one place all three debrief call sites below merge the banked result into the model actually shown, so the
    * merge shape cannot drift between the impact/destruction/landing sites. `banked === null` (an unscored sortie, a
@@ -2387,18 +2414,20 @@ async function boot(): Promise<void> {
   const showDebrief = (
     model: DebriefModel,
     banked: BankedView | null,
-    onContinue: (() => void) | undefined,
+    onContinue: ((loadout?: string) => void) | undefined,
     onWatchReplay: (() => void) | undefined,
+    /** F5C: a stop card. Continue Sortie stays (the sortie is not over) and End Sortie replaces the way out. */
+    stop?: { readonly onEnd: () => void },
   ): void => {
     const shown = withNotRecorded(model, devSortie && !recordDevSorties)
     const fromHq = hqSession?.current() != null
     const { continueLabel, ...withoutContinue } = shown
     void continueLabel // a banked sortie ends here: the destructure is how Continue is dropped
-    const base: DebriefModel = banked === null ? shown : { ...withoutContinue, noRestart: true }
+    const base: DebriefModel = banked === null || stop !== undefined ? shown : { ...withoutContinue, noRestart: true }
     const finalModel: DebriefModel = {
       ...base,
       missionName: SCENARIO_OPTIONS.find((o) => o.value === chosen.scenarioId)?.label ?? chosen.scenarioId,
-      ...(fromHq ? { returnLabel: 'Return to Headquarters' } : {}),
+      ...(fromHq && stop === undefined ? { returnLabel: 'Return to Headquarters' } : {}),
       ...(banked === null ? {} : {
         bankedTotal: banked.bankedTotal, campaign: banked.campaign,
         ...(banked.promotedTo !== undefined && banked.promotedTier !== undefined ? { promotedTo: banked.promotedTo, promotedTier: banked.promotedTier } : {}),
@@ -2408,8 +2437,8 @@ async function boot(): Promise<void> {
     if (activeFlightRecorder !== null) completedFlightRecord = activeFlightRecorder.finish(frame!.world, finalModel)
     debrief.show(
       finalModel,
-      banked === null ? onContinue : undefined,
-      returnToTitle,
+      banked === null || stop !== undefined ? onContinue : undefined,
+      stop === undefined ? returnToTitle : stop.onEnd,
       onWatchReplay,
       completedFlightRecord === null ? undefined : () => { void exportDevFlightRecord() },
     )
@@ -2476,6 +2505,8 @@ async function boot(): Promise<void> {
     shownBailoutTick = null
     pendingDebrief = null
     landingShown = false
+    pendingGroundStop = null
+    lastLegLoadout = null
     handledLandingTick = -1
     postImpactOceanSeconds = 0
     // Photoreal Task 4: a new life is a new view; the cloud history of the
@@ -3057,9 +3088,24 @@ async function boot(): Promise<void> {
     // tick (`verify.ts` applies the recorded action the same way). Held back like the other levers while a chart or the
     // title is up, or paused, so what is recorded is exactly what was applied.
     const lightsToggle = pendingLights && !chartOpen && !inputFrame.paused
-    const stepFrame = lightsToggle
+    const lightsFrame = lightsToggle
       ? { ...inputFrame, world: withPlayerLights(inputFrame.world, playerAircraft(inputFrame.world).lightsOff === true) }
       : inputFrame
+    // F5C D7/D9: Continue Sortie from a stop card. Applied here, before this frame's fixed steps, and recorded at the
+    // same tick (`verify.ts` applies the recorded action the same way). The pause the card held is released with it.
+    let stepFrame = lightsFrame
+    if (pendingGroundStop !== null) {
+      const stopped = withGroundStop(lightsFrame, pendingGroundStop)
+      if (stopped.ok) {
+        stepFrame = stopped.frame
+        activeFlightRecorder?.note({ tick: lightsFrame.world.tick + 1, kind: 'ground-stop', loadout: pendingGroundStop })
+        landingShown = false
+        // The sortie goes on: the record is live again (the stop card froze a copy), one file per sortie (D9).
+        completedFlightRecord = null
+        dispatch({ kind: 'debriefClosed' })
+      }
+      pendingGroundStop = null
+    }
     const simStart = import.meta.env.DEV ? performance.now() : 0
     let bailoutInputFrame = stepFrame
     if (pendingBailout) {
@@ -3687,14 +3733,40 @@ async function boot(): Promise<void> {
         )
         scoredThroughKillsByType = current.world.combat.aircraft[current.world.player]!.tagCredits
         track('mission_outcome', { mission: requestedScenarioId, outcome: 'landed', score: model.score.total })
-        const banked = bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))
-        segment = EMPTY_SEGMENT
-        showDebrief(model, banked, () => {
-          frame = acknowledgeLanding(frame!)
-          landingShown = false
-          debrief.hide()
-          dispatch({ kind: 'debriefClosed' })
-        }, watchReplay)
+        // F5C D2: a full stop on a friendly airfield, deck or anchorage ends a LEG, not the sortie. A destroyed friendly
+        // (the discharge) and a landing anywhere else end it as before.
+        const landedWorld = current.world
+        const card = model.forfeit === undefined
+          ? buildLegCard(landedWorld, current.landing.report.at, lastLegLoadout ?? chosen.loadout, chosen.dev || devSortie)
+          : null
+        if (card === null) {
+          const banked = bankCampaign('landed', current.world, success, badgeId, landingKind(current.landing.report))
+          segment = EMPTY_SEGMENT
+          showDebrief(model, banked, () => {
+            frame = acknowledgeLanding(frame!)
+            landingShown = false
+            debrief.hide()
+            dispatch({ kind: 'debriefClosed' })
+          }, watchReplay)
+        } else {
+          // Banked for good at this landing (D4); the sortie stays open. `segment` keeps running: reports are cumulative.
+          const banked = bankLeg(landedWorld, success, badgeId, landingKind(current.landing.report), card.base)
+          let continuing = false
+          showDebrief(withLegCard(model, card), banked, (picked) => {
+            if (continuing) return
+            continuing = true
+            const loadout = (picked ?? card.loadout) as Loadout
+            lastLegLoadout = loadout
+            debrief.hide()
+            stopFade.run(() => { pendingGroundStop = loadout })
+          }, watchReplay, {
+            onEnd: () => {
+              // End Sortie: close what the landings did not bank (nothing, unless the flight went on), then leave.
+              bankCampaign('landed', landedWorld, success, badgeId, null)
+              returnToTitle()
+            },
+          })
+        }
         dispatch({ kind: 'landingDebrief' })
       }
     }

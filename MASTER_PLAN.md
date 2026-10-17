@@ -341,10 +341,10 @@ progression screens, `roster.ts` deletion, Abandon Sortie, Japanese insignia) is
 (2026-10-15), not deployed; handoff
 [`docs/handoff/2026-10-15-f5b-headquarters.md`](docs/handoff/2026-10-15-f5b-headquarters.md).**
 
-#### F5C. Multi-leg sorties, any-friendly-base recovery, unscored pilot skip (M; planned 2026-10-16, runs before F8)
+#### F5C. Multi-leg sorties, any-friendly-base recovery, unscored pilot skip (M; **done 2026-10-16**, unattended; not deployed)
 
-Mark's grilling (2026-10-16) settled it; the plan is [`docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md`](docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md).
-Landing and stopping on any friendly airfield, carrier or anchorage ends a leg, not the sortie: a full debrief offers Continue or End, each landing banks its points permanently (checkpoint banking), the chapter completes at the first qualifying landing, and Continue gives an instant refuel, repair and loadout choice with the aircraft repositioned for takeoff and no clock jump. Training and Single skip the pilot step. Schema bump, old campaigns discarded. Starts after F7B merges; viewing: final product only, unattended.
+Mark's grilling (2026-10-16) settled it; the plan is [`docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md`](docs/superpowers/plans/2026-10-16-f5c-multi-leg-sorties.md), the handoff [`docs/handoff/2026-10-16-f5c-multi-leg-sorties.md`](docs/handoff/2026-10-16-f5c-multi-leg-sorties.md) (decisions I made, tests updated, captures).
+Landing and stopping on any friendly airfield, carrier or anchorage ends a leg, not the sortie: a stop card offers Continue Sortie or End Sortie, each landing banks its points permanently (campaign schema 2: `bankLeg`, the closing `bankSortie`, legs in the log), the chapter completes at the first qualifying landing, and Continue refuels, repairs and rearms to a chosen loadout and repositions the aircraft (runway threshold into the wind, moving carrier launch spot, the water) with no clock jump, as a recorded `ground-stop` action. Home objectives became `suggestedRecovery` (any friendly base counts). Training and Single skip the pilot step. Old campaigns are refused, not migrated. **Decision to confirm:** a death or capture now forfeits the points not banked at a landing (the plan's example), reversing the 2026-09-27 "points bank however the flight ends"; `FORFEITING_ENDS` in `src/campaign/scoring.ts` flips it.
 
 #### F6. Night operations (L)
 

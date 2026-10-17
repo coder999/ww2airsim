@@ -116,7 +116,8 @@ describe('banking a finished campaign sortie (plan F5B Task 10)', () => {
       const entry = c.pilots[pilotId]!.log.at(-1)!
       expect(entry.success).toBe(false)
       expect(entry.bonuses).toEqual({ difficulty: 0, completion: 0, roster: 0 })
-      expect(entry.destruction).toBe(1000) // two fighters are kept
+      // Two fighters: kept by a rescue (the pilot is alive), forfeited by a death or a capture (F5C D5, unbanked only).
+      expect(entry.destruction).toBe(end === 'rescued' ? 1000 : 0)
       expect(c.pilots[pilotId]!.badges).toEqual([])
       expect(c.human.log.at(-1)!.bonuses.roster).toBe(0)
     })
@@ -135,7 +136,7 @@ describe('banking a finished campaign sortie (plan F5B Task 10)', () => {
       const v = view(bankScored(c.input({ end: 'captured', success: true, flight })))
       const captured = c.session.current()!
       expect(captured.pilots[c.pilotId]!.status).toBe('pow')
-      expect(captured.pilots[c.pilotId]!.points).toBe(1000) // destruction kept on the closed file
+      expect(captured.pilots[c.pilotId]!.points).toBe(0) // F5C D5: a captured pilot keeps only what a landing banked
       expect(captured.roster.live).toHaveLength(5)
       expect(captured.roster.live).not.toContain(c.pilotId)
       expect(captured.human.stats.losses.pow).toBe(1)

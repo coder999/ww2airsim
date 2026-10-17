@@ -69,7 +69,8 @@ test('a campaign, a scored-table debrief, Return to Headquarters and a dynamic s
   await expect(debriefDialog(page).getByText('Campaign Ledger')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/meta-game-landed.png' })
 
-  await debriefDialog(page).getByRole('button', { name: 'Return to Headquarters' }).click()
+  // F5C: a landing at a friendly base is a stop card; End Sortie is the way out of an unscored sortie (nothing banks).
+  await debriefDialog(page).getByRole('button', { name: 'End Sortie' }).click()
   await expect(page.getByRole('dialog', { name: 'Headquarters' }).getByText('Air Group Headquarters')).toBeVisible()
   // The campaign is unchanged: an unscored sortie is not in the ledger.
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.campaign())).toMatchObject({ pending: null, human: { sorties: 0, banked: 0 } })

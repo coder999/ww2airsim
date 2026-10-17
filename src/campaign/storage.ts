@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { canonicalStringify } from '../flightRecorder/canonical.js'
 import { campaignFromJson } from './exchange.js'
 import { resolveInterrupted } from './bank.js'
-import { SCHEMA_VERSION, type Campaign, type Faction } from './schema.js'
+import { type Campaign, type Faction } from './schema.js'
 
 export type StoragePort = {
   getItem(key: string): string | null
@@ -17,6 +17,9 @@ export type StoragePort = {
 }
 
 export const INDEX_KEY = 'ww2airsim.campaigns.v1'
+/** The index file's own format version. It did not change with the campaign schema (F5C, 2026-10-16), so a v1 index
+ *  still lists an old campaign and the campaign itself reports why it cannot be read. */
+export const INDEX_VERSION = 1
 export const PROFILE_KEY = 'ww2airsim.profile.v1'
 /** The discarded pre-campaign roster (ruling D1). Nothing here reads or writes it. */
 export const LEGACY_ROSTER_KEY = 'ww2airsim.roster.v1'
@@ -27,7 +30,7 @@ const entryZ = z.object({
   id: z.string().min(1), faction: z.enum(['us', 'ja']), playerName: z.string(),
   revision: z.number().int().nonnegative(), points: z.number().int().nonnegative(),
 }).strict()
-const indexZ = z.object({ schemaVersion: z.literal(SCHEMA_VERSION), campaigns: z.array(entryZ) }).strict()
+const indexZ = z.object({ schemaVersion: z.literal(INDEX_VERSION), campaigns: z.array(entryZ) }).strict()
 
 export type SaveResult = { ok: true } | { ok: false; error: string }
 export type ListResult = { ok: true; entries: IndexEntry[] } | { ok: false; issues: string[] }
@@ -45,7 +48,7 @@ export function listCampaigns(port: StoragePort): ListResult {
   const parsed = indexZ.safeParse(raw)
   if (!parsed.success) {
     const version = (raw as { schemaVersion?: unknown } | null)?.schemaVersion
-    if (typeof version === 'number' && version > SCHEMA_VERSION) return { ok: false, issues: [`the campaign index was saved by a newer version of the game (schema ${version})`] }
+    if (typeof version === 'number' && version > INDEX_VERSION) return { ok: false, issues: [`the campaign index was saved by a newer version of the game (schema ${version})`] }
     return { ok: false, issues: parsed.error.issues.map((i) => `index ${i.path.join('.') || '(root)'}: ${i.message}`) }
   }
   return { ok: true, entries: parsed.data.campaigns }
@@ -66,7 +69,7 @@ export function saveCampaign(port: StoragePort, c: Campaign): SaveResult {
   }
   const entries = [...listed.entries.filter((x) => x.id !== c.id), entryOf(c)]
   try {
-    port.setItem(INDEX_KEY, canonicalStringify({ schemaVersion: SCHEMA_VERSION, campaigns: entries }))
+    port.setItem(INDEX_KEY, canonicalStringify({ schemaVersion: INDEX_VERSION, campaigns: entries }))
   } catch (e) {
     return { ok: false, error: `The campaign was saved but the list could not be updated: ${message(e)}` }
   }
@@ -91,7 +94,7 @@ export function deleteCampaign(port: StoragePort, id: string): SaveResult {
   if (!listed.ok) return { ok: false, error: listed.issues.join('; ') }
   try {
     port.removeItem(campaignKey(id))
-    port.setItem(INDEX_KEY, canonicalStringify({ schemaVersion: SCHEMA_VERSION, campaigns: listed.entries.filter((x) => x.id !== id) }))
+    port.setItem(INDEX_KEY, canonicalStringify({ schemaVersion: INDEX_VERSION, campaigns: listed.entries.filter((x) => x.id !== id) }))
     return { ok: true }
   } catch (e) {
     return { ok: false, error: message(e) }

@@ -171,7 +171,7 @@ describe('takeoff and land (the recovery signal, ruling R1)', () => {
     w = landOnce(w, p.x, d.center.y, p.z)
     expect(progressOf(w, 'trap')).toEqual({ status: 'active', count: 1, heldTicks: 0 })
     const first = entries(w).find((e) => e.kind === 'landing')
-    expect(first).toEqual({ tick: expect.any(Number), kind: 'landing', at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' }, advanced: 'trap', intermediate: true })
+    expect(first).toEqual({ tick: expect.any(Number), kind: 'landing', at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' }, base: expect.objectContaining({ kind: 'carrier', id: 'cv-1' }), advanced: 'trap', intermediate: true })
     w = landOnce(w, p.x, d.center.y, p.z)
     expect(progressOf(w, 'trap')).toEqual({ status: 'complete', count: 2, heldTicks: 0 })
     const landings = entries(w).filter((e) => e.kind === 'landing')
@@ -186,7 +186,7 @@ describe('takeoff and land (the recovery signal, ruling R1)', () => {
     w = landOnce(w, p.x, d.center.y, p.z)
     expect(progressOf(w, 'trap')).toEqual({ status: 'inactive', count: 0, heldTicks: 0 })
     expect(entries(w).filter((e) => e.kind === 'landing')).toEqual([
-      { tick: expect.any(Number), kind: 'landing', at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' }, advanced: null, intermediate: false },
+      { tick: expect.any(Number), kind: 'landing', at: { kind: 'carrier', id: 'cv-1', name: 'cv-1' }, base: expect.objectContaining({ kind: 'carrier', id: 'cv-1' }), advanced: null, intermediate: false },
     ])
   })
 

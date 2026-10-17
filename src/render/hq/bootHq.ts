@@ -8,7 +8,7 @@ import { sortieIsDev } from '../devRecord.js'
 import type { SettingsModel } from '../settings.js'
 import { aircraftGate, isDevTakeoffHour, pilotSights, takeoffLockHour } from './launchRules.js'
 import { missionAircraft } from './missionAircraft.js'
-import { rankShort } from './model.js'
+import { PRACTICE_TIER, rankShort } from './model.js'
 import { formatName, tierOf } from '../../campaign/index.js'
 import type { FlyableAircraft } from '../sortie/flyable.js'
 import type { Scenario } from '../../sim/scenario.js'
@@ -62,12 +62,13 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
   const assign = async (r: AssignRequest): Promise<void> => {
     const c = session.current()
     if (c === null) return
-    const pilot = c.pilots[r.pilotId]!
+    // F5C D1: a null pilot is the practice pilot of an unscored mission, flown at the fixed entry rank.
+    const pilot = r.pilotId === null ? null : c.pilots[r.pilotId]!
     const cat = await catalogOnce()
     const mission = r.row.scored ? cat.find((m) => m.id === r.row.id) ?? null : null
     const option = SCENARIO_OPTIONS.find((o) => o.value === r.row.id)!
     const authored = await deps.loadScenario(r.row.id).catch(() => null)
-    const gate = aircraftGate(c, mission, r.pilotId, r.row.scored)
+    const gate = r.pilotId === null ? aircraftGate(c, null, '', false) : aircraftGate(c, mission, r.pilotId, r.row.scored)
     const offered = missionAircraft(r.row.id)
     const reasonFor = (choice: { aircraftSpec: string; loadout: Parameters<typeof sortieIsDev>[2]; timeOfDay?: number | undefined; god?: boolean | undefined }) => {
       const spec = deps.flyable.find((f) => f.spec.id === choice.aircraftSpec)?.spec
@@ -80,13 +81,15 @@ export function createHeadquarters(root: HTMLElement, deps: HeadquartersDeps): {
     hq.hide()
     deps.title.beginSortie({
       scenarioId: r.row.id,
-      pilotLabel: `${rankShort(c.faction, tierOf(pilot.points))} ${formatName(pilot.name, c.faction)}`,
-      dev, god, sights: pilotSights(c, r.pilotId), lockedHour: takeoffLockHour(mission, authored?.weather?.timeOfDay ?? null), aircraftGate: gate,
+      pilotLabel: pilot === null ? `${rankShort(c.faction, PRACTICE_TIER)} (practice)` : `${rankShort(c.faction, tierOf(pilot.points))} ${formatName(pilot.name, c.faction)}`,
+      skipsPilot: pilot === null,
+      dev, god, sights: r.pilotId === null ? false : pilotSights(c, r.pilotId), lockedHour: takeoffLockHour(mission, authored?.weather?.timeOfDay ?? null), aircraftGate: gate,
       notRecorded: (choice) => { const u = reasonFor(choice); return u === null ? null : UNSCORED_LABEL[u] },
       onLaunch: (choice) => {
         if (reasonFor(choice) !== null) return null // unscored: nothing is launched in the campaign
         if (mission === null) return 'This mission has no orders in the catalog.'
-        const out = session.launch({ pilotId: r.pilotId, mission, aircraft: describeAircraft(choice.aircraftSpec), difficulty: deps.settings.snapshot().difficulty, loadout: choice.loadout, facts: { sights: pilotSights(c, r.pilotId) }, unscored: null })
+        if (r.pilotId === null) return null // unreachable: a null pilot only comes from an unscored row, which returned above
+        const out = session.launch({ pilotId: r.pilotId, mission, aircraft: describeAircraft(choice.aircraftSpec), difficulty: deps.settings.snapshot().difficulty, loadout: choice.loadout, facts: { sights: r.pilotId === null ? false : pilotSights(c, r.pilotId) }, unscored: null })
         return out.ok ? null : out.error.message
       },
       // Back from Form 4 returns to the headquarters on the pilot step; the old title goes back up beneath it so the world stays held.

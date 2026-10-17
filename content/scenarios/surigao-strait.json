@@ -79,7 +79,7 @@
       "targets": ["rear-guard"], "count": 2
     },
     {
-      "id": "home", "label": "Recover", "priority": "primary", "kind": "land", "at": "cv-1", "after": "mogami"
+      "id": "home", "label": "Land at any friendly base", "priority": "primary", "kind": "land", "suggestedRecovery": true, "at": "cv-1", "after": "mogami"
     }
   ],
   "triggers": [

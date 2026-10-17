@@ -55,16 +55,16 @@ test('the launch memos: Back keeps every pick, Enter walks them and launches, th
   const back = title.getByRole('button', { name: 'Back' }).locator('visible=true')
   const radio = (group: string, name: string) => title.getByRole('radiogroup', { name: group }).getByRole('radio', { name: wholeLabel(name) })
 
-  await expect(title.getByText('Step 3 of 5')).toBeVisible()
+  await expect(title.getByText('Step 2 of 4')).toBeVisible()
   await expect(title.getByRole('radiogroup', { name: 'Takeoff time' })).toBeVisible()
   await expect(title.getByRole('radiogroup', { name: 'Cloudiness' })).toBeVisible()
   // The weather reads Clear (Mark, 2026-10-15), not Sunny.
   await expect(radio('Cloudiness', 'Clear')).toBeVisible()
   await next.click()
-  await expect(title.getByText('Step 4 of 5')).toBeVisible()
+  await expect(title.getByText('Step 3 of 4')).toBeVisible()
   await expect(radio('Aircraft', 'Grumman F6F Hellcat')).toBeChecked()
   await next.click()
-  await expect(title.getByText('Step 5 of 5')).toBeVisible()
+  await expect(title.getByText('Step 4 of 4')).toBeVisible()
   await expect(radio('Loadout', 'Bombs')).toBeChecked()
   await page.waitForTimeout(500)
   expect(await tick(page), 'walking the memos must not release the world').toBe(held)
@@ -75,17 +75,17 @@ test('the launch memos: Back keeps every pick, Enter walks them and launches, th
 
   // Back lands on the memo before with its pick intact.
   await back.click()
-  await expect(title.getByText('Step 4 of 5')).toBeVisible()
+  await expect(title.getByText('Step 3 of 4')).toBeVisible()
   await radio('Aircraft', 'Grumman F4F Wildcat').click()
   await back.click()
-  await expect(title.getByText('Step 3 of 5')).toBeVisible()
+  await expect(title.getByText('Step 2 of 4')).toBeVisible()
 
   // Enter advances the memos and launches from the last; the picks survived Back.
   await page.keyboard.press('Enter')
-  await expect(title.getByText('Step 4 of 5')).toBeVisible()
+  await expect(title.getByText('Step 3 of 4')).toBeVisible()
   await expect(radio('Aircraft', 'Grumman F4F Wildcat')).toBeChecked()
   await page.keyboard.press('Enter')
-  await expect(title.getByText('Step 5 of 5')).toBeVisible()
+  await expect(title.getByText('Step 4 of 4')).toBeVisible()
   await page.keyboard.press('Enter')
   await expect(title).toBeHidden()
   await expect.poll(() => tick(page), { timeout: 10_000 }).toBeGreaterThan(held)

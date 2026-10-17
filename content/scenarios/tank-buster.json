@@ -49,9 +49,10 @@
     },
     {
       "id": "home",
-      "label": "Recover at Tacloban",
+      "label": "Land at any friendly base",
       "priority": "primary",
       "kind": "land",
+      "suggestedRecovery": true,
       "at": "tacloban",
       "after": "armor"
     }

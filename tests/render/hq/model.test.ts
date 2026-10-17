@@ -5,7 +5,7 @@ import { CHAPTER_INFO } from '../../../src/render/hq/chapters.js'
 import { formatAdjusted, formatFeet, formatKnots } from '../../../src/render/hq/format.js'
 import {
   HQ_DEPARTMENTS, archiveModel, chaptersModel, clearedFor, commanderDossierModel, commanderModel, hqModel, importConflictModel,
-  pilotChoices, pilotDossierModel, pickerRows, pointsToNextTier, type PickerOption,
+  PRACTICE_TIER, pilotChoices, pilotDossierModel, pickerRows, pointsToNextTier, skipsPilotStep, type PickerOption,
 } from '../../../src/render/hq/model.js'
 import { SCENARIO_OPTIONS } from '../../../src/render/titleScreen.js'
 import { makeCampaign, tierMultisets, flyThrough } from '../../fixtures/campaign.js'
@@ -135,6 +135,20 @@ describe('the mission-first picker', () => {
     const dev = pickerRows(c, shippedCatalog(), options, true)
     expect(dev.some((r) => r.dev && r.id === 'night-range')).toBe(true)
     expect(dev.some((r) => r.dev && r.section === 'single')).toBe(true)
+  })
+
+  it('F5C D1: Training and Single skip the pilot step, a scored row and Dev keep it', () => {
+    const c = makeCampaign({ faction: 'us' })
+    const rows = pickerRows(c, shippedCatalog(), options, true)
+    const scored = rows.filter((r) => r.scored)
+    const unscored = rows.filter((r) => !r.scored)
+    expect(scored.length).toBeGreaterThan(0)
+    expect(unscored.some((r) => r.section === 'training')).toBe(true)
+    expect(unscored.some((r) => r.section === 'single')).toBe(true)
+    for (const r of unscored) expect(skipsPilotStep(r, false), `${r.section}:${r.id}`).toBe(true)
+    for (const r of unscored) expect(skipsPilotStep(r, true), `dev ${r.section}:${r.id}`).toBe(false)
+    for (const r of scored) { expect(skipsPilotStep(r, false)).toBe(false); expect(skipsPilotStep(r, true)).toBe(false) }
+    expect(PRACTICE_TIER).toBe(1)
   })
 
   it('a campaign chapter appears first once a descriptor exists, and a completed chapter is gone', () => {

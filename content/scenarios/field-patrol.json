@@ -77,9 +77,10 @@
     },
     {
       "id": "home",
-      "label": "Recover",
+      "label": "Land at any friendly base",
       "priority": "primary",
       "kind": "land",
+      "suggestedRecovery": true,
       "at": "dulag",
       "after": "raid"
     }

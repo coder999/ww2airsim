@@ -172,10 +172,10 @@ describe.skipIf(terrain === null)('Airfield Strike, headless (spec §5)', () => 
     w = fieldApproach(w, 'tacloban')
     expect(w.mission!.log.some((e) => e.kind === 'spawn')).toBe(false) // never near Dulag
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
-    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Hangars: incomplete', 'Recover: incomplete'] })
+    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Hangars: incomplete', 'Land at any friendly base: incomplete'] })
   })
 
-  it('failure (Review Focus 5): landing at Dulag with the hangars down is not a recovery (M3-R6)', () => {
+  it('failure (Review Focus 5): landing at Dulag, an enemy field, is not a recovery (M3-R6; F5C D3: friendly bases only)', () => {
     let w = worldFromScenario(loadScenarioBundle('airfield-strike'), terrain)
     w = deckRun(w, TAKEOFF)
     // Staged as the success run is: into the ring, so the defenders spawn,
@@ -190,7 +190,7 @@ describe.skipIf(terrain === null)('Airfield Strike, headless (spec §5)', () => 
     w = fieldApproach(w, 'dulag')
     expect(recoveryOf(w)).toMatchObject({ kind: 'landed', at: { id: 'dulag' } })
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
-    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Recover: incomplete'] })
+    expect(out).toMatchObject({ result: 'no-badge', badge: null, reasons: ['Landed at Dulag, not a friendly base', 'Land at any friendly base: incomplete'] })
   })
 
   it('the scrambled defenders take off, engage the striker and fire (regression, 2026-09-28)', () => {

@@ -211,3 +211,45 @@ test('the picker: mission first, a mission nobody can fly is dimmed with its ran
   await expect(hq.getByText('NEEDS LTJG (2,500 MORE POINTS)')).toHaveCount(5)
   await expect(hq.getByRole('button', { name: /^Assign / }).first()).toBeDisabled()
 })
+
+test('F5C D1: Training and Single skip the pilot step (Step 2 of 4, fixed practice rank); Dev, Non-campaign and Campaign keep it', async ({ page }) => {
+  await openHq(page)
+  const hq = hqOf(page)
+  await newCampaign(page, 'Skipper', 'U.S. Navy')
+  const title = page.getByRole('dialog', { name: 'Title' })
+
+  // Training: no pilot step. The strip is four steps long and the button says where it goes.
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  await hq.getByRole('radio', { name: /Free Flight/ }).first().click()
+  await expect(hq.getByRole('button', { name: /Next: assign a pilot/ })).toHaveCount(0)
+  await expect(hq.getByText('4 Ordnance')).toBeVisible()
+  await expect(hq.getByText('5 Ordnance')).toHaveCount(0)
+  await hq.getByRole('button', { name: /Next: flight conditions/ }).click()
+  await expect(hq.getByText('Squadron Roster')).toHaveCount(0)
+  await expect(title.getByText('Flight Conditions')).toBeVisible()
+  await expect(title.getByText('Step 2 of 4')).toBeVisible()
+  await expect(title.locator('dd:visible', { hasText: /^ENS \(practice\)/ })).toBeVisible()
+  await title.getByRole('button', { name: 'Next' }).first().click()
+  await expect(title.getByText('Step 3 of 4')).toBeVisible()
+  await title.getByRole('button', { name: 'Next' }).first().click()
+  await expect(title.getByText('Step 4 of 4')).toBeVisible()
+  await expect(title.getByText(/Not recorded: Training: not scored/)).toBeVisible()
+  // Back from the first memo returns to the picker with the row still chosen.
+  await title.getByRole('button', { name: 'Back' }).first().click()
+  await title.getByRole('button', { name: 'Back' }).first().click()
+  await title.getByRole('button', { name: 'Back' }).first().click()
+  await expect(hq.getByRole('radio', { name: /Free Flight/ }).first()).toHaveAttribute('aria-checked', 'true')
+
+  // A scored Non-campaign row keeps the pilot step.
+  await hq.getByRole('radio', { name: /Airfield Strike/ }).first().click()
+  await expect(hq.getByRole('button', { name: /Next: assign a pilot/ })).toBeVisible()
+  await expect(hq.getByText('5 Ordnance')).toBeVisible()
+
+  // Dev keeps it on every row, Training included. (The Dev box lives on the Headquarters page, not the picker.)
+  await hq.getByRole('button', { name: 'Back' }).click()
+  await hq.getByRole('checkbox', { name: /Dev: unlocks/ }).check()
+  await hq.getByRole('button', { name: /Training grounds & single missions/ }).click()
+  await hq.getByRole('radio', { name: /Free Flight/ }).first().click()
+  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
+  await expect(hq.getByText('Squadron Roster')).toBeVisible()
+})

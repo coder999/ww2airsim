@@ -2,6 +2,7 @@ import { playerAircraft, type World } from '../../sim/loop.js'
 import { v3, type Vec3 } from '../../sim/math/vec3.js'
 import { APPROACH_SPEED_STALL_MULTIPLE } from '../../sim/paddles.js'
 import { effectiveStallSpeedMps } from '../../sim/ground.js'
+import { nearestFriendlySite, siteUsableBy } from '../../sim/friendly.js'
 import { deckAxes, deckLocal, deckOf, deckWorld } from '../../sim/world/deck.js'
 import { heightAt } from '../../sim/world/terrain.js'
 import { mapPoints, selectedPoint, type MapPoint } from '../missionMap.js'
@@ -144,6 +145,20 @@ function objectiveTarget<M>(world: World<M>, points: readonly MapPoint[]): Steer
 
   let point: MapPoint | null = null
   if (active.kind === 'takeoff') point = pointForBase(points, active.from)
+  else if (active.kind === 'land' && active.suggestedRecovery === true) {
+    // F5C D3: the authored base is only a suggestion; steer to the nearest friendly site this airplane can use.
+    const player = playerAircraft(world)
+    const site = nearestFriendlySite(world, player.state.position, siteUsableBy(player.spec))
+    if (site === null) return null
+    point = (site.kind === 'anchorage' ? null : pointForBase(points, site.id))
+      ?? { id: `anchorage:${site.id}`, kind: 'station', label: site.name, x: site.x, z: site.z, targetable: false }
+    const label = `${active.label}: ${site.name}`
+    if (site.kind === 'carrier') {
+      const recovery = carrierRecoveryTarget(world, site.id, point)
+      if (recovery !== null) return recovery
+    }
+    return { point, label, source: 'objective' }
+  }
   else if (active.kind === 'land') {
     point = pointForBase(points, active.at)
     if (point !== null) {

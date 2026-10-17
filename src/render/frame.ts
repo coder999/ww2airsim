@@ -39,6 +39,8 @@ import { nextLandingTracking, NO_LANDING, type LandingTracking } from '../sim/la
 import { bayDoorsShut } from '../sim/bayDoors.js'
 import { waterSurfaceContext } from '../sim/waterSurface.js'
 import { DT } from '../sim/flight/model.js'
+import { groundStop, type StopPlacement } from '../sim/groundStop.js'
+import type { Loadout } from '../sim/weapons/stores.js'
 
 export type FrameState = {
   /** `World<undefined>` since altitude hold was deleted on 2026-09-17: it was
@@ -428,6 +430,31 @@ export function initialFrameState(
  *  held. Restart does not need this -- `initialFrameState` starts clean. */
 export function acknowledgeLanding(frame: FrameState): FrameState {
   return { ...frame, landing: NO_LANDING, paused: false }
+}
+
+/**
+ * F5C: Continue Sortie. The player is refueled, repaired, rearmed to `loadout` and repositioned for takeoff
+ * (`groundStop`, src/sim/groundStop.ts); the frame forgets the landing, releases the pause and puts the levers where
+ * the start state has them (gear down on a runway or deck, floats down afloat; flaps and hook up). Nothing else moves:
+ * the clock, weather, AI and ships resume where they were (D7). The caller records the action at the fixed tick.
+ */
+export function withGroundStop(frame: FrameState, loadout: Loadout): { readonly ok: true; readonly frame: FrameState; readonly placement: StopPlacement } | { readonly ok: false; readonly reason: string } {
+  const stopped = groundStop(frame.world, loadout)
+  if (!stopped.ok) return stopped
+  const world = stopped.world
+  const player = playerAircraft(world)
+  const { poses, shipPoses, vehiclePoses, render } = posesFor(world, 0)
+  const gearDown = player.controls.gearDown === true
+  const flapDown = player.controls.flapDown === true
+  return {
+    ok: true,
+    placement: stopped.placement,
+    frame: {
+      ...frame, world, poses, shipPoses, vehiclePoses, render, controls: player.controls,
+      landing: NO_LANDING, paused: false, gearDown, flapDown, hookDown: false, bayDoorsOpen: false,
+      eye: cameraTransformFor(frame.cameraMode, player.spec, render, frame.look, 20, frame.orbit, surfaceHeightFor(world)),
+    },
+  }
 }
 
 /** The same `FrameState`, paused or not. For the landing debrief, which holds

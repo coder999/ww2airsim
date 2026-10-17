@@ -270,6 +270,14 @@ export function pickerRows(c: Campaign, catalog: readonly MissionDescriptor[], o
   return rows
 }
 
+/**
+ * F5C D1 (Mark, 2026-10-16): an unscored mission (Training, Single) has no pilot to assign, so the picker goes straight
+ * to Flight Conditions at a fixed entry rank (`PRACTICE_TIER`, the Ensign the tutorial is flown at). Dev keeps the pilot
+ * step on every row. A scored row always has it.
+ */
+export const skipsPilotStep = (row: Pick<PickerRow, 'scored'>, dev: boolean): boolean => !row.scored && !dev
+export const PRACTICE_TIER: Tier = 1
+
 export type PilotChoice = {
   readonly id: string; readonly name: string; readonly rankShort: string; readonly tier: Tier; readonly points: number; readonly pointsText: string
   readonly sorties: number; readonly eligible: boolean; readonly reason: IneligibleReason | null; readonly needText: string | null
@@ -317,11 +325,13 @@ export function chaptersModel(c: Campaign): readonly ChapterRow[] {
 
 // ---------------------------------------------------------------- dossiers
 
-export type LogRow = { readonly date: string; readonly mission: string; readonly aircraft: string; readonly outcome: string; readonly points: number; readonly kills: number; readonly time: string; readonly flags: string }
+/** `legs` (F5C D10): the landings the sortie banked at, "Tacloban +500 · Essex +300"; empty for a sortie that banked only at its end. */
+export type LogRow = { readonly date: string; readonly mission: string; readonly aircraft: string; readonly outcome: string; readonly points: number; readonly kills: number; readonly time: string; readonly flags: string; readonly legs: string }
 const logRow = (e: LogEntry, missionLabel: (id: string) => string, aircraftName: (id: string) => string): LogRow => ({
   date: e.at.slice(0, 10), mission: missionLabel(e.missionId), aircraft: aircraftName(e.aircraft), outcome: END_LABEL[e.end] + (e.success ? ' · success' : ''),
   points: e.points, kills: killsOf(e.counts), time: formatHours(e.flightSeconds),
   flags: e.flags.map((f) => (f === 'forfeit-abandoned' ? 'forfeit' : f === 'forfeit-friendly-destroyed' ? 'discharged' : 'warned')).join(', '),
+  legs: e.legs.map((l) => `${l.place} +${formatPoints(l.points)}`).join(' · '),
 })
 
 const killRows = (counts: Readonly<Record<string, number>>): readonly (readonly [string, number])[] =>

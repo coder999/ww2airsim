@@ -156,7 +156,7 @@ export function exactBallotLabel(label: string): RegExp {
 }
 
 /**
- * Through Headquarters to the first launch memo (Flight Conditions, "Step 3 of 5") for a picker row, and returns the
+ * Through Headquarters to the first launch memo (Flight Conditions, "Step 3 of 5"; "Step 2 of 4" when the pilot step is skipped, F5C D1) for a picker row, and returns the
  * Title dialog. The row is chosen from the UNSCORED Training Grounds / Single Missions sections, which carry no rank
  * gates, so a spec gets the mission it names whoever the pilot is; `scored` picks the scored row instead. A campaign is
  * opened (or created) on the way. This is the one copy of the path every harness helper and spec shares.
@@ -198,8 +198,13 @@ export async function toConditions(
     ? rows.and(hq.locator(`[data-id="${bootId}"]`)).first()
     : rows.filter({ hasText: new RegExp(`^${options.scenario.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?!:)`) }).first()
   await row.click()
-  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
-  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  // F5C D1 (2026-10-16): an unscored row (Training, Single) has no pilot step unless Dev is on; a scored row always has
+  // one. Read which button the picker shows rather than guessing from the checkbox.
+  const next = hq.getByRole('button', { name: /Next: (assign a pilot|flight conditions)/ })
+  await next.waitFor()
+  const pilotStep = /assign a pilot/.test((await next.textContent()) ?? '')
+  await next.click()
+  if (pilotStep) await hq.getByRole('button', { name: /^Assign / }).first().click()
   return title
 }
 
@@ -437,6 +442,20 @@ export async function hopClear(page: Page): Promise<void> {
     { timeout: 30_000 },
   )
   console.log(`hopClear: cleared the latch at ${(await heightAboveGroundM(page))?.toFixed(1)} m`)
+}
+
+/**
+ * F5C: moves a parked aircraft from the runway's centre to the takeoff threshold through the real ground stop (the DEV
+ * hook `__ww2.groundStop`, same recorded path as Continue Sortie), so `hopClear` and `landAndStop` -- tuned for the
+ * z = +700 spot of the Dev fixtures -- work in a mission that spawns at `runwayCenter`. Ends at rest on the threshold.
+ */
+export async function stopAtThreshold(page: Page, loadout = 'both'): Promise<void> {
+  const before = await page.evaluate(() => (window as DiagWindow).__ww2!.aircraftPositionM())
+  expect(await page.evaluate((l) => (window as DiagWindow).__ww2!.groundStop(l), loadout), 'not at rest on a friendly base').toBe(true)
+  await page.waitForFunction(([x, z]) => {
+    const p = (window as DiagWindow).__ww2!.aircraftPositionM()
+    return Math.hypot(p.x - x!, p.z - z!) > 100 && (window as DiagWindow).__ww2!.supportedContact()
+  }, [before.x, before.z] as const, { timeout: 15_000 })
 }
 
 /**

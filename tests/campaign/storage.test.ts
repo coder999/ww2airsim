@@ -94,6 +94,18 @@ describe('save and load', () => {
     expect(JSON.parse(port.map.get(campaignKey('x'))!).schemaVersion).toBe(SCHEMA_VERSION + 1)
   })
 
+  it('F5C D12: a version-1 campaign is refused with a message, left in storage, and listed (the index format did not change)', () => {
+    const port = new MapPort()
+    const c = fresh('us', 'old')
+    saveCampaign(port, c)
+    const v1 = JSON.stringify({ ...c, schemaVersion: 1 })
+    port.map.set(campaignKey('old'), v1)
+    const r = loadCampaign(port, 'old', NOW)
+    expect(!r.ok && r.issues[0]).toMatch(/older version/)
+    expect(port.map.get(campaignKey('old'))).toBe(v1)
+    expect(listCampaigns(port)).toMatchObject({ ok: true, entries: [{ id: 'old' }] })
+  })
+
   it('a record stored under the wrong key is refused (it would otherwise be loaded as someone else)', () => {
     const port = new MapPort()
     port.map.set(campaignKey('other'), canonicalStringify(fresh('us', 'x')))
@@ -190,6 +202,7 @@ describe('export / import', () => {
     ['another format', '{"format":"other"}', /not a ww2airsim campaign export/],
     ['no version', '{"format":"ww2airsim-campaign"}', /no schemaVersion/],
     ['a newer schema', '{"format":"ww2airsim-campaign","schemaVersion":9}', /newer version/],
+    ['an older schema (F5C: no migration)', '{"format":"ww2airsim-campaign","schemaVersion":1}', /older version/],
   ])('rejects %s with an actionable message', (_n, text, pattern) => {
     const r = importCampaign(text)
     expect(r.ok).toBe(false)

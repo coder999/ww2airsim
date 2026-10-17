@@ -11,7 +11,8 @@ export type Tier = 1 | 2 | 3 | 4 | 5 | 6
 export const PILOT_TIER_POINTS = [0, 2500, 7500, 15000, 25000, 40000] as const
 export const COMMAND_TITLE_POINTS = [0, 20000, 50000, 90000, 140000] as const
 export const LIVE_ROSTER_SIZE = 5
-export const SCHEMA_VERSION = 1
+/** 2 = F5C (2026-10-16): multi-leg sorties. Version-1 saves are not read (no migration, D12). */
+export const SCHEMA_VERSION = 2
 export const SCORING_RULES_VERSION = 1
 export const CAMPAIGN_FORMAT = 'ww2airsim-campaign'
 
@@ -58,7 +59,11 @@ export type LogEntry = {
   counts: Counts; destruction: number; bonuses: { difficulty: number; completion: number; roster: number } // roster is human-only
   points: number // total this ledger received
   flightSeconds: number; flags: LogFlag[]
+  /** F5C: the landings the sortie banked at, oldest first (empty when it banked only at its end). */
+  legs: LogLeg[]
 }
+/** One banked landing of a sortie (F5C D10): where, and the points that landing banked for this ledger. */
+export type LogLeg = { place: string; points: number }
 
 export type Ledger = { points: number; sorties: number; banked: number; counts: Counts; badges: string[] }
 
@@ -87,13 +92,27 @@ export type Progress = {
 }
 
 export type SortieFacts = Readonly<Record<string, string | number | boolean>>
+/** One banked landing, kept on the open sortie (F5C D4): cumulative counts at the landing, and the points it banked. */
+export type PendingLeg = { place: string; at: string; counts: Counts; pilotPoints: number; humanPoints: number }
+/**
+ * What the open sortie has already banked (F5C D4/D5): the running totals every later bank is measured against.
+ * `counts` and `flightSeconds` are the report's cumulative figures at the last bank; the five point fields are
+ * the pieces of the log entry; `qualified` latches when the primary objective plus a friendly recovery was banked
+ * (the badge, the bonuses, the roster bonus and the chapter are applied once, at that leg).
+ */
+export type PendingBanked = {
+  counts: Counts; flightSeconds: number
+  destruction: number; difficulty: number; completion: number; roster: number
+  pilotPoints: number; humanPoints: number; qualified: boolean
+}
 export type PendingSortie = {
   sortieId: string; pilotId: string; missionId: string; chapterId: ChapterId | null
   difficulty: Difficulty; scoreEligible: boolean; launchedAt: string; facts: SortieFacts
+  legs: PendingLeg[]; banked: PendingBanked
 }
 
 export type Campaign = {
-  format: 'ww2airsim-campaign'; schemaVersion: 1; scoringRulesVersion: 1
+  format: 'ww2airsim-campaign'; schemaVersion: 2; scoringRulesVersion: 1
   id: string; revision: number; faction: Faction
   human: Human
   roster: { live: [string, string, string, string, string] }
@@ -129,6 +148,7 @@ const logEntryZ = z.object({
   bonuses: z.object({ difficulty: int, completion: int, roster: int }).strict(),
   points: int, flightSeconds: int,
   flags: z.array(z.enum(['forfeit-abandoned', 'forfeit-friendly-destroyed', 'warned'])),
+  legs: z.array(z.object({ place: str, points: int }).strict()),
 }).strict()
 const pilotZ = z.object({
   id: str.min(1), serial: int, name: nameZ, status: z.enum(['active', 'kia', 'pow', 'discharged']),
@@ -151,9 +171,14 @@ const progressZ = z.object({
   attempts: z.object(Object.fromEntries(CHAPTER_IDS.map((c) => [c, attemptZ.optional()])) as Record<ChapterId, z.ZodOptional<typeof attemptZ>>).strict(),
 }).strict()
 const factsZ = z.record(z.union([str, z.number().finite(), z.boolean()]))
+const pendingLegZ = z.object({ place: str, at: str, counts: countsZ, pilotPoints: int, humanPoints: int }).strict()
+const pendingBankedZ = z.object({
+  counts: countsZ, flightSeconds: int, destruction: int, difficulty: int, completion: int, roster: int,
+  pilotPoints: int, humanPoints: int, qualified: z.boolean(),
+}).strict()
 const pendingZ = z.object({
   sortieId: str, pilotId: str, missionId: str, chapterId: chapterZ.nullable(), difficulty: difficultyZ,
-  scoreEligible: z.boolean(), launchedAt: str, facts: factsZ,
+  scoreEligible: z.boolean(), launchedAt: str, facts: factsZ, legs: z.array(pendingLegZ), banked: pendingBankedZ,
 }).strict()
 
 export const campaignZ = z.object({
@@ -230,6 +255,19 @@ export const INVARIANTS: readonly Invariant[] = [
     },
   },
   {
+    name: 'pending-legs',
+    check: (c) => {
+      const p = c.pending
+      if (!p) return []
+      const b = p.banked
+      const out: string[] = []
+      if (b.pilotPoints !== b.destruction + b.difficulty + b.completion) out.push('pending banked points are not the sum of their parts')
+      if (p.legs.reduce((s, l) => s + l.pilotPoints, 0) !== b.pilotPoints) out.push('pending legs do not add up to the points banked so far')
+      if (p.legs.reduce((s, l) => s + l.humanPoints, 0) !== b.humanPoints) out.push('pending legs do not add up to the commander points banked so far')
+      return out
+    },
+  },
+  {
     name: 'progress-sequence',
     check: (c) => {
       const chapters = chaptersOf(c.faction)
@@ -267,8 +305,8 @@ export function validateCampaign(raw: unknown): ValidateResult {
 export type SortieReport = {
   sortieId: string // must equal c.pending.sortieId
   end: SortieEndKind
-  success: boolean // sim verdict: primary objective AND authored recovery (never computed here)
-  counts: Counts // enemy objects tagged by the assigned pilot AND destroyed by sortie end
+  success: boolean // sim verdict: primary objective AND a landing at a friendly base (never computed here)
+  counts: Counts // CUMULATIVE for the sortie (F5C): enemy objects tagged by the assigned pilot AND destroyed so far
   friendlyDestroyed: boolean // player-caused friendly destruction (combat.friendlyKills > 0)
   warnings: number // nonfatal friendly damage events
   authoredBonus: number // mission-declared completion bonus (A4 = 2500), applies only if success
@@ -278,3 +316,6 @@ export type SortieReport = {
   }
   badgeId: string | null // mission badge id if the mission awards one
 }
+
+/** A landing the sortie banks at (F5C): the cumulative report, which landing it is (1-based), and where. */
+export type LegReport = SortieReport & { leg: number; place: string }

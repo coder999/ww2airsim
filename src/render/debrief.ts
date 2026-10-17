@@ -1,4 +1,4 @@
-import { ensureStampFilter } from './ui/navalComms.js'
+import { ballotOption, ensureStampFilter, radioGroup } from './ui/navalComms.js'
 import type { Impact } from '../sim/loop.js'
 import type { AircraftState } from '../sim/flight/state.js'
 import { attitudeAngles } from '../sim/flight/attitude.js'
@@ -137,7 +137,25 @@ export type CampaignDebrief = {
 
 export type DebriefFigure = { readonly label: string; readonly value: string }
 
+/**
+ * F5C D2 (2026-10-16): the stop card. A full stop on a friendly airfield, carrier deck or anchorage ends a leg, not the
+ * sortie: the debrief offers Continue Sortie (same aircraft and pilot, refueled, repaired and rearmed to the loadout
+ * chosen here, repositioned for takeoff) and End Sortie. `blocked` is the reason Continue is unavailable (a flying boat
+ * stopped where it cannot relaunch); then only End Sortie shows.
+ */
+export type LegCard = {
+  readonly base: string
+  /** Where Continue will put the aircraft ("Tacloban, runway 36"), or null when blocked. */
+  readonly placement: string | null
+  readonly blocked: string | null
+  readonly loadouts: readonly { readonly value: string; readonly label: string }[]
+  /** The preselected loadout (the one just flown, if the aircraft still allows it). */
+  readonly loadout: string
+}
+
 export type DebriefModel = {
+  /** F5C: present on a stop card (a landing at a friendly base); see `LegCard`. */
+  readonly leg?: LegCard
   /** The mission just flown, as the picker names it (Mark, 2026-10-15: the debrief did not say). */
   readonly missionName?: string
   readonly headline: string
@@ -253,6 +271,25 @@ export function landingModel(
   }
 }
 
+/**
+ * The landing model as a stop card (F5C D2): Continue Sortie when the aircraft can relaunch from where it stopped,
+ * always End Sortie, no Restart (the pause screen still has it). Pure.
+ */
+export function withLegCard(model: DebriefModel, card: LegCard): DebriefModel {
+  const { continueLabel, ...rest } = model
+  void continueLabel
+  return {
+    ...rest,
+    leg: card,
+    detail: card.blocked === null
+      ? `Down and stopped at ${card.base}. The sortie is not over: refit and fly again, or end it here.`
+      : `Down and stopped at ${card.base}. ${card.blocked} End the sortie here.`,
+    ...(card.blocked === null ? { continueLabel: 'Continue Sortie' } : {}),
+    returnLabel: 'End Sortie',
+    noRestart: true,
+  }
+}
+
 /** What the debrief says about how a flight ended. Pure, so the node-environment
  *  suite can assert on all of it; the DOM in `createDebrief` renders it. */
 export function debriefModel(
@@ -341,7 +378,7 @@ export function bailoutModel(
   const detail = outcome === 'rescued'
     ? `You came down ${contact?.surface === 'water' ? 'at sea' : contact?.surface === 'deck' ? 'on a carrier deck' : 'on land'} and friendly forces recovered you. Mission not credited; the points you earned are kept.`
     : outcome === 'captured'
-      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; the points you earned stay on your file.'
+      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; only points banked at an earlier landing stay on your file.'
       : parachutist.state.lowAltitude
         ? 'The bailout did not leave enough height for the canopy to fill.'
         : 'The canopy came down too fast to survive the landing.'
@@ -379,7 +416,7 @@ export type DebriefHandle = {
    * landing included, since spec §1 says the debrief gains this "rather than
    * only offering Restart," not as a landing-only substitute for Continue.
    */
-  show(model: DebriefModel, onContinue?: () => void, onReturnToTitle?: () => void, onWatchReplay?: () => void, onExportFlightRecord?: () => void): void
+  show(model: DebriefModel, onContinue?: (loadout?: string) => void, onReturnToTitle?: () => void, onWatchReplay?: () => void, onExportFlightRecord?: () => void): void
   hide(): void
 }
 
@@ -519,10 +556,12 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
 
   const cont = document.createElement('button')
   cont.className = 'ink-button ink-button--primary'
-  let onContinue: (() => void) | undefined
+  let onContinue: ((loadout?: string) => void) | undefined
+  /** The loadout picked on a stop card (F5C D7); reset by every `show`. */
+  let pickedLoadout: string | undefined
   cont.addEventListener('click', () => {
     cont.blur()
-    onContinue?.()
+    onContinue?.(pickedLoadout)
   })
 
   // Design §1: "the debrief gains a second button, 'Return to title', which
@@ -559,7 +598,7 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
   return {
     show(
       model: DebriefModel,
-      continueHandler?: () => void,
+      continueHandler?: (loadout?: string) => void,
       returnToTitleHandler?: () => void,
       watchReplayHandler?: () => void,
       exportFlightRecordHandler?: () => void,
@@ -744,6 +783,31 @@ export function createDebrief(root: HTMLElement, onRestart: () => void): Debrief
         } else {
           sheet.appendChild(figureRow('Badge', mission.verdict))
           for (const reason of mission.more) sheet.appendChild(plainRow(reason))
+        }
+      }
+
+      // ---- The stop card (F5C D2, D7): where Continue will put the aircraft, and the Ordnance choice. ----
+      pickedLoadout = undefined
+      if (model.leg !== undefined) {
+        const leg = model.leg
+        sheet.appendChild(sectionTitle(`Stopped at ${leg.base}`))
+        if (leg.placement !== null) sheet.appendChild(plainRow(`Continue: refueled, repaired and rearmed at ${leg.placement}; the clock does not stop.`))
+        if (leg.blocked !== null) {
+          const why = plainRow(leg.blocked)
+          why.setAttribute('role', 'alert')
+          sheet.appendChild(why)
+        } else if (leg.loadouts.length > 0) {
+          pickedLoadout = leg.loadout
+          const group = radioGroup('Loadout for the next leg')
+          const rows = new Map<string, HTMLDivElement>()
+          const mark = (): void => { for (const [v, el] of rows) el.setAttribute('aria-checked', String(v === pickedLoadout)) }
+          for (const option of leg.loadouts) {
+            const el = ballotOption(option.label, '', () => { pickedLoadout = option.value; mark() })
+            rows.set(option.value, el)
+            group.appendChild(el)
+          }
+          mark()
+          sheet.append(sectionTitle('Ordnance for the next leg'), group)
         }
       }
 

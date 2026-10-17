@@ -1,3 +1,4 @@
+import type { FriendlyBase } from '../friendly.js'
 import { isPilotJump } from '../bailout.js'
 import type { LandingAt } from '../landing.js'
 import type { World } from '../loop.js'
@@ -8,7 +9,7 @@ import { lastLanding, type MissionState, type ObjectiveState, type ResolvedObjec
  *  src/render/debrief.ts, so the debrief and the badge rule cannot drift
  *  apart silently (tests/sim/mission/recoveryAgreement.test.ts). */
 export type Recovery =
-  | { readonly kind: 'landed'; readonly at: LandingAt | null }
+  | { readonly kind: 'landed'; readonly at: LandingAt | null; readonly base: FriendlyBase | null }
   | { readonly kind: 'ditched' }
   | { readonly kind: 'killed' }
   /** The pilot bailed out and was picked up. NEVER a mission success (Mark, 2026-10-15): the sim is the only lock. */
@@ -32,7 +33,7 @@ export function recoveryOf<M>(world: World<M>): Recovery | null {
   if (player.impact !== null) return { kind: player.impact.kind === 'ditched' ? 'ditched' : 'killed' }
   if (world.combat.aircraft[world.player]?.damage.destroyedAt != null) return { kind: 'killed' }
   const landing = world.mission === null ? undefined : lastLanding(world.mission)
-  return landing === undefined ? null : { kind: 'landed', at: landing.at }
+  return landing === undefined ? null : { kind: 'landed', at: landing.at, base: landing.base }
 }
 
 export type FinalStatus = 'complete' | 'incomplete' | 'failed'
@@ -65,10 +66,12 @@ export type MissionOutcome = {
 }
 
 /**
- * Spec §2.4. Success, and the badge, need BOTH every primary objective
- * complete AND a landing with a non-null `at`. Ditching, an off-field
- * landing, a failed or incomplete primary and death each earn no badge;
- * secondary objectives never gate it.
+ * Spec §2.4, as amended by F5C D3 (2026-10-16). Success, and the badge, need
+ * BOTH every primary objective complete AND a landing at a FRIENDLY base
+ * (`friendlyBaseAt`): any airfield, carrier or anchorage the player's side
+ * holds, not only the one the mission suggests. Ditching, an off-field or
+ * enemy-held landing, a failed or incomplete primary and death each earn no
+ * badge; secondary objectives never gate it.
  */
 export function missionOutcome<M>(m: MissionState<M>, recovery: Recovery): MissionOutcome {
   const objectives: ObjectiveResult[] = m.objectives.map((o, i) => ({
@@ -79,6 +82,7 @@ export function missionOutcome<M>(m: MissionState<M>, recovery: Recovery): Missi
   else if (recovery.kind === 'rescued' || recovery.kind === 'captured') reasons.push('Bailed out')
   else if (recovery.kind === 'ditched') reasons.push('Ditched')
   else if (recovery.at === null) reasons.push('Landed off-field')
+  else if (recovery.base === null) reasons.push(`Landed at ${recovery.at.name}, not a friendly base`)
   const primary = objectives.filter((o) => o.priority === 'primary')
   for (const o of primary) if (o.final === 'failed') reasons.push(`${o.label}: failed`)
   for (const o of primary) if (o.final === 'incomplete') reasons.push(`${o.label}: incomplete`)

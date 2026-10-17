@@ -22,7 +22,7 @@ export type PauseScreenOptions<M> = {
   readonly onResume: () => void
   readonly onRestart: () => void
   readonly onAbort: () => void
-  /** F5B: a campaign sortie that will be banked. Restart is not offered (a sortie banks exactly once) and Abort becomes Abandon, which forfeits the whole sortie. */
+  /** F5B: a campaign sortie that will be banked. Restart is not offered (a sortie closes exactly once) and Abort becomes Abandon, which forfeits the points not yet banked at a landing (F5C). */
   readonly scoredSortie?: () => boolean
   readonly onSelectNavigation: (id: string) => void
   /** N2: both callbacks are supplied only in a Dev build; the predicate keeps
@@ -418,7 +418,7 @@ export function createPauseScreen<M>(
     confirmationDetail.textContent = kind === 'restart'
       ? 'Current mission progress and kills will be lost. The mission will restart from the beginning.'
       : scored
-        ? 'You score nothing for this sortie, it still counts against your adjusted score, and the pilot returns unharmed.'
+        ? 'You score nothing for the flying since your last landing (points banked at an earlier landing stay), the sortie still counts against your adjusted score, and the pilot returns unharmed.'
         : 'Current mission progress and kills will be lost. The sortie will end without a debrief or score.'
     confirmAction.textContent = kind === 'restart' ? 'Restart Mission' : scored ? 'Abandon Sortie' : 'Abort Mission'
     folder.style.display = 'none'

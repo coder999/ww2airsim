@@ -2,6 +2,7 @@
   "id": "water-quals",
   "player": "catalina-1",
   "airfields": ["tacloban"],
+  "anchorages": [{ "id": "san-pedro-bay", "name": "San Pedro Bay", "position": [-13000, -38000], "radiusM": 9000 }],
   "aircraft": [
     {
       "id": "catalina-1",

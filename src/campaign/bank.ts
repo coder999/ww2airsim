@@ -5,17 +5,17 @@
  */
 import { tierOf } from './ranks.js'
 import { addEntryPilot } from './roster.js'
-import { rosterBonusOf, scoreSortie } from './scoring.js'
+import { forfeitsUnbanked, rosterBonusOf, scoreSortie } from './scoring.js'
 import {
   CLOSED_LOG_CAP, HUMAN_LOG_CAP, LIVE_LOG_CAP, SCORE_CLASSES, chaptersOf, zeroCounts,
   type Campaign, type Counts, type Difficulty, type LogEntry, type LogFlag, type Pilot, type PilotStatus,
-  type SortieFacts, type SortieReport,
+  type LegReport, type PendingBanked, type PendingLeg, type PendingSortie, type SortieFacts, type SortieReport,
 } from './schema.js'
 import { describeAircraft, eligibility, missionLock, type AircraftDescriptor, type MissionDescriptor } from './eligibility.js'
 
 export type ErrorCode =
   | 'sortie-pending' | 'no-pending' | 'sortie-mismatch' | 'pilot-closed' | 'faction' | 'aircraft-not-offered'
-  | 'ineligible' | 'locked' | 'bad-report'
+  | 'ineligible' | 'locked' | 'bad-report' | 'leg-mismatch'
 export type ReducerError = { code: ErrorCode; message: string; detail?: string }
 export type Result<T> = { ok: true; value: T } | { ok: false; error: ReducerError; campaign: Campaign }
 
@@ -26,6 +26,11 @@ const reject = (campaign: Campaign, code: ErrorCode, message: string, detail?: s
 const addCounts = (a: Counts, b: Counts): Counts => Object.fromEntries(SCORE_CLASSES.map((k) => [k, a[k] + b[k]])) as Counts
 const pushCapped = <T,>(list: readonly T[], item: T, cap: number): T[] => [...list, item].slice(-cap)
 const withBadge = (badges: readonly string[], id: string | null): string[] => (id === null || badges.includes(id) ? [...badges] : [...badges, id])
+/** Nothing banked yet: what a freshly launched sortie carries. */
+export const noBanked = (): PendingBanked => ({
+  counts: zeroCounts(), flightSeconds: 0, destruction: 0, difficulty: 0, completion: 0, roster: 0, pilotPoints: 0, humanPoints: 0, qualified: false,
+})
+
 const whole = (n: number): number => (Number.isFinite(n) && n > 0 ? Math.round(n) : 0)
 
 export type LaunchArgs = {
@@ -65,6 +70,7 @@ export function launchSortie(c: Campaign, a: LaunchArgs): Result<Campaign> {
         sortieId: `${c.id}:s${serial}`, pilotId: pilot.id, missionId: a.mission.id, chapterId: chapter,
         difficulty: a.difficulty, scoreEligible: a.mission.scoreEligible, launchedAt: a.now,
         facts: { ...(a.facts ?? {}), aircraft: a.aircraft.id, loadout: a.loadout },
+        legs: [], banked: noBanked(),
       },
     },
   }
@@ -78,9 +84,109 @@ function badReport(r: SortieReport): string | null {
   return null
 }
 
+/** What this report adds to the last bank, or null when a count went DOWN (a cumulative report cannot). */
+function deltaOf(now: Counts, banked: Counts): Counts | null {
+  const out = {} as Record<(typeof SCORE_CLASSES)[number], number>
+  for (const k of SCORE_CLASSES) {
+    if (now[k] < banked[k]) return null
+    out[k] = now[k] - banked[k]
+  }
+  return out
+}
+
 /**
- * One deterministic transaction, in this order (C3): validate, forfeit test, score, ledgers,
- * closure, replacement, progress, attempts/stats/revision, clear pending.
+ * The money half shared by a landing bank and the closing bank (F5C D4). Credits the part of `r` that is not yet
+ * banked to the pilot and the commander ledgers, applies the badge, the difficulty and completion bonuses, the roster
+ * bonus and the chapter ONCE (at the first qualifying bank), and returns the new campaign (pending still open, with
+ * its `banked` totals moved on) plus what this bank was worth. A forfeiting end credits nothing.
+ */
+type Credited = { draft: Campaign; banked: PendingBanked; pilotPoints: number; humanPoints: number }
+function credit(c: Campaign, pending: PendingSortie, r: SortieReport): { ok: true; value: Credited } | { ok: false; error: string } {
+  const was = pending.banked
+  const forfeited = forfeitsUnbanked(r)
+  const delta = forfeited ? zeroCounts() : deltaOf(r.counts, was.counts)
+  if (delta === null) return { ok: false, error: 'cumulative counts went down since the last bank' }
+  const qualifies = !forfeited && r.success && !was.qualified
+  const score = scoreSortie({ ...r, counts: delta, success: qualifies }, pending)
+  const pilotPoints = score.destruction + score.difficulty + score.completion
+  const badgeId = qualifies ? r.badgeId : null
+  const pilot = c.pilots[pending.pilotId]!
+  const career = pilot.career
+  const seconds = Math.max(0, whole(r.flight.flightSeconds) - was.flightSeconds)
+  const updated: Pilot = {
+    ...pilot,
+    points: pilot.points + pilotPoints,
+    counts: addCounts(pilot.counts, delta),
+    badges: withBadge(pilot.badges, badgeId),
+    career: {
+      flightSeconds: career.flightSeconds + seconds,
+      landings: r.flight.landing ? { ...career.landings, [r.flight.landing]: career.landings[r.flight.landing] + 1 } : career.landings,
+      rescues: career.rescues,
+      maxAltitudeM: Math.max(career.maxAltitudeM, whole(r.flight.maxAltitudeM)),
+      maxTrueAirspeedMps: Math.max(career.maxTrueAirspeedMps, whole(r.flight.maxTrueAirspeedMps)),
+    },
+  }
+  const draft: Campaign = { ...c, pilots: { ...c.pilots, [pilot.id]: updated } }
+
+  // Roster bonus (human only) from the post-promotion roster (D8); only the qualifying bank earns it.
+  const roster = qualifies ? rosterBonusOf(draft.roster.live.map((id) => tierOf(draft.pilots[id]!.points))) : 0
+  const humanPoints = pilotPoints + roster
+  const h = c.human
+  const chapter = pending.chapterId
+  let progress = c.progress
+  if (qualifies && chapter) {
+    const chapters = chaptersOf(c.faction)
+    if (chapters[c.progress.completed.length] === chapter) {
+      const completed = [...c.progress.completed, chapter]
+      progress = { ...progress, completed, victory: completed.length === chapters.length }
+    }
+  }
+  const out: Campaign = {
+    ...draft,
+    human: {
+      ...h,
+      ledger: { ...h.ledger, points: h.ledger.points + humanPoints, counts: addCounts(h.ledger.counts, delta), badges: withBadge(h.ledger.badges, badgeId) },
+    },
+    progress,
+  }
+  const banked: PendingBanked = {
+    counts: addCounts(was.counts, delta), flightSeconds: Math.max(was.flightSeconds, whole(r.flight.flightSeconds)),
+    destruction: was.destruction + score.destruction, difficulty: was.difficulty + score.difficulty, completion: was.completion + score.completion,
+    roster: was.roster + roster, pilotPoints: was.pilotPoints + pilotPoints, humanPoints: was.humanPoints + humanPoints,
+    qualified: was.qualified || qualifies,
+  }
+  return { ok: true, value: { draft: out, banked, pilotPoints, humanPoints } }
+}
+
+/**
+ * A landing at a friendly base banks the points earned since the last bank, for good (F5C D4), and keeps the sortie
+ * open. The report is CUMULATIVE for the sortie; `leg` is which landing this is (1-based), so a repeated call is
+ * refused rather than banked twice. Denominator, `pilot.sorties`, the log and the roster are untouched: those belong
+ * to the launch and to `bankSortie`, the closing call.
+ */
+export function bankLeg(c: Campaign, r: LegReport, now: string): Result<Campaign> {
+  const pending = c.pending
+  if (!pending) return reject(c, 'no-pending', 'No sortie is pending.')
+  if (pending.sortieId !== r.sortieId) return reject(c, 'sortie-mismatch', 'Report does not belong to the pending sortie.')
+  if (r.leg !== pending.legs.length + 1) return reject(c, 'leg-mismatch', `This is landing ${r.leg}, but ${pending.legs.length} ${pending.legs.length === 1 ? 'is' : 'are'} already banked.`)
+  const problem = badReport(r) ?? (r.end !== 'landed' ? "only a landing banks a leg" : r.friendlyDestroyed ? 'a sortie with a destroyed friendly ends at once; it has no legs' : null)
+  if (problem) return reject(c, 'bad-report', problem)
+  const done = credit(c, pending, r)
+  if (!done.ok) return reject(c, 'bad-report', done.error)
+  const { draft, banked, pilotPoints, humanPoints } = done.value
+  return {
+    ok: true,
+    value: {
+      ...draft, revision: c.revision + 1,
+      pending: { ...pending, banked, legs: [...pending.legs, { place: r.place, at: now, counts: r.counts, pilotPoints, humanPoints }] },
+    },
+  }
+}
+
+/**
+ * The closing transaction of a sortie, in this order (C3): validate, forfeit test, score the unbanked part, ledgers,
+ * closure, replacement, progress, attempts/stats/revision, the log entry (one per sortie, legs inside), clear pending.
+ * With no leg banked it is the whole sortie in one call, as before F5C.
  */
 export function bankSortie(c: Campaign, r: SortieReport, now: string): Result<Campaign> {
   const pending = c.pending
@@ -88,14 +194,12 @@ export function bankSortie(c: Campaign, r: SortieReport, now: string): Result<Ca
   if (pending.sortieId !== r.sortieId) return reject(c, 'sortie-mismatch', 'Report does not belong to the pending sortie.')
   const problem = badReport(r)
   if (problem) return reject(c, 'bad-report', problem)
-  const pilot = c.pilots[pending.pilotId]!
-
-  const score = scoreSortie(r, pending)
-  const forfeited = score.forfeited
-  const success = r.success && !forfeited
-  const counts: Counts = forfeited ? zeroCounts() : r.counts
-  const pilotPoints = score.destruction + score.difficulty + score.completion
-  const badgeId = success ? r.badgeId : null
+  const done = credit(c, pending, r)
+  if (!done.ok) return reject(c, 'bad-report', done.error)
+  const { banked } = done.value
+  let draft = done.value.draft
+  const pilot = draft.pilots[pending.pilotId]!
+  const success = banked.qualified
 
   const flags: LogFlag[] = []
   if (r.end === 'abandoned') flags.push('forfeit-abandoned')
@@ -105,31 +209,20 @@ export function bankSortie(c: Campaign, r: SortieReport, now: string): Result<Ca
   const closeReason: Exclude<PilotStatus, 'active'> | null =
     r.end === 'killed' ? 'kia' : r.end === 'captured' ? 'pow' : r.friendlyDestroyed ? 'discharged' : null
 
-  const flight = r.flight
-  const entry = (points: number, roster: number): LogEntry => ({
+  const entry = (points: number, roster: number, legPoints: (l: PendingLeg) => number): LogEntry => ({
     sortieId: pending.sortieId, at: now, missionId: pending.missionId, chapterId: pending.chapterId,
     aircraft: String(pending.facts.aircraft ?? ''), loadout: String(pending.facts.loadout ?? ''),
-    difficulty: pending.difficulty, end: r.end, success, counts, destruction: score.destruction,
-    bonuses: { difficulty: score.difficulty, completion: score.completion, roster },
-    points, flightSeconds: whole(flight.flightSeconds), flags,
+    difficulty: pending.difficulty, end: r.end, success, counts: banked.counts, destruction: banked.destruction,
+    bonuses: { difficulty: banked.difficulty, completion: banked.completion, roster },
+    points, flightSeconds: banked.flightSeconds, flags,
+    legs: pending.legs.map((l) => ({ place: l.place, points: legPoints(l) })),
   })
 
-  // Pilot ledger and career.
-  const career = pilot.career
   const updated: Pilot = {
     ...pilot,
-    points: pilot.points + pilotPoints,
     banked: pilot.banked + 1,
-    counts: addCounts(pilot.counts, counts),
-    badges: withBadge(pilot.badges, badgeId),
-    career: {
-      flightSeconds: career.flightSeconds + whole(flight.flightSeconds),
-      landings: flight.landing ? { ...career.landings, [flight.landing]: career.landings[flight.landing] + 1 } : career.landings,
-      rescues: career.rescues + (r.end === 'rescued' ? 1 : 0),
-      maxAltitudeM: Math.max(career.maxAltitudeM, whole(flight.maxAltitudeM)),
-      maxTrueAirspeedMps: Math.max(career.maxTrueAirspeedMps, whole(flight.maxTrueAirspeedMps)),
-    },
-    log: pushCapped(pilot.log, entry(pilotPoints, 0), closeReason ? CLOSED_LOG_CAP : LIVE_LOG_CAP),
+    career: { ...pilot.career, rescues: pilot.career.rescues + (r.end === 'rescued' ? 1 : 0) },
+    log: pushCapped(pilot.log, entry(banked.pilotPoints, 0, (l) => l.pilotPoints), closeReason ? CLOSED_LOG_CAP : LIVE_LOG_CAP),
   }
   if (closeReason) {
     updated.status = closeReason
@@ -137,22 +230,16 @@ export function bankSortie(c: Campaign, r: SortieReport, now: string): Result<Ca
   }
 
   // Closure + same-call replacement (a draft owned by this call).
-  const draft: Campaign = { ...c, pilots: { ...c.pilots, [pilot.id]: updated }, roster: { live: [...c.roster.live] as Campaign['roster']['live'] } }
+  draft = { ...draft, pilots: { ...draft.pilots, [pilot.id]: updated }, roster: { live: [...draft.roster.live] as Campaign['roster']['live'] } }
   if (closeReason) {
     const slot = draft.roster.live.indexOf(pilot.id)
     draft.roster.live[slot] = addEntryPilot(draft)
   }
 
-  // Human ledger: same points, then the roster bonus from the post-promotion, post-replacement roster (D8).
-  const roster = success ? rosterBonusOf(draft.roster.live.map((id) => tierOf(draft.pilots[id]!.points))) : 0
-  const humanPoints = pilotPoints + roster
-  const h = c.human
+  const h = draft.human
   const human = {
     ...h,
-    ledger: {
-      ...h.ledger, points: h.ledger.points + humanPoints, banked: h.ledger.banked + 1,
-      counts: addCounts(h.ledger.counts, counts), badges: withBadge(h.ledger.badges, badgeId),
-    },
+    ledger: { ...h.ledger, banked: h.ledger.banked + 1 },
     stats: {
       losses: {
         kia: h.stats.losses.kia + (closeReason === 'kia' ? 1 : 0),
@@ -163,29 +250,27 @@ export function bankSortie(c: Campaign, r: SortieReport, now: string): Result<Ca
       abandoned: h.stats.abandoned + (r.end === 'abandoned' ? 1 : 0),
       warnings: h.stats.warnings + r.warnings,
     },
-    log: pushCapped(h.log, entry(humanPoints, roster), HUMAN_LOG_CAP),
+    log: pushCapped(h.log, entry(banked.humanPoints, banked.roster, (l) => l.humanPoints), HUMAN_LOG_CAP),
   }
 
-  // Progress: only success on the current campaign chapter advances it (steps 7-8).
-  let progress = c.progress
+  // Attempts: only a sortie that never qualified counts as a failure or an abandonment of its chapter.
+  let progress = draft.progress
   const chapter = pending.chapterId
-  if (chapter) {
-    const chapters = chaptersOf(c.faction)
-    const attempt = c.progress.attempts[chapter] ?? { launched: 0, failed: 0, abandoned: 0 }
+  if (chapter && !success) {
+    const attempt = progress.attempts[chapter] ?? { launched: 0, failed: 0, abandoned: 0 }
     const next = { ...attempt }
     if (r.end === 'abandoned') next.abandoned++
-    else if (!success) next.failed++
+    else next.failed++
     progress = { ...progress, attempts: { ...progress.attempts, [chapter]: next } }
-    if (success && chapters[c.progress.completed.length] === chapter) {
-      const completed = [...c.progress.completed, chapter]
-      progress = { ...progress, completed, victory: completed.length === chapters.length }
-    }
   }
 
   return { ok: true, value: { ...draft, revision: c.revision + 1, human, progress, pending: null } }
 }
 
-/** A sortie left over at load is an abandoned one (D7): zero points, the pilot survives, the denominator already ticked. */
+/**
+ * A sortie left over at load is an abandoned one (D7): the unbanked part is lost, anything an earlier landing banked
+ * stays (F5C D11), the pilot survives, the denominator already ticked.
+ */
 export function resolveInterrupted(c: Campaign, now: string): Campaign {
   if (!c.pending) return c
   const result = bankSortie(c, {
@@ -194,4 +279,3 @@ export function resolveInterrupted(c: Campaign, now: string): Campaign {
   }, now)
   return result.ok ? result.value : c
 }
-

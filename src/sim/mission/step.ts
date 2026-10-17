@@ -14,6 +14,8 @@ import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
 import type { PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
 import { waterSurfaceContext } from '../waterSurface.js'
+import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
+import type { StructureEntity } from '../weapons/structures.js'
 
 /**
  * What one tick of a mission reads: `advance`'s loop locals after combat has
@@ -32,6 +34,9 @@ export type MissionTick<M> = {
   readonly wind: Vec3 | null
   readonly airfields: readonly Airfield[]
   readonly decks: readonly Deck[]
+  /** F5C: who holds each airfield (its structures' side) and the declared anchorages, for the recovery rule. */
+  readonly structures: readonly StructureEntity[]
+  readonly anchorages?: readonly Anchorage[] | undefined
 }
 
 /** The next mission state, and the held groups `advance` must spawn now,
@@ -99,6 +104,8 @@ type Context<M> = {
   readonly alive: boolean
   readonly recovery: LandingTracking
   readonly landing: LandingReport | null
+  /** F5C D3: the friendly base the landing came to rest on, or `null` (also `null` when there is no landing). */
+  readonly base: FriendlyBase | null
   /** How the player's pass at the `approaches` ship resolved this tick. */
   readonly passEvent: PassEvent
 }
@@ -130,7 +137,8 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
     case 'takeoff':
       return c.alive && (c.recovery.airborne || c.landing !== null) ? { ...p, status: 'complete' } : p
     case 'land': {
-      if (c.landing === null || c.landing.at?.id !== o.at) return p
+      // F5C D3: a suggested recovery is met by ANY friendly base; any other land objective names its place.
+      if (c.landing === null || (o.suggestedRecovery === true ? c.base === null : c.landing.at?.id !== o.at)) return p
       const n = p.count + 1
       return { ...p, count: n, status: n >= (o.count ?? 1) ? 'complete' : 'active' }
     }
@@ -236,7 +244,11 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     pass = r.pass
     passEvent = r.event
   }
-  const c: Context<M> = { t, player, alive, recovery, landing, passEvent }
+  const base = landing === null ? null : friendlyBaseAt(
+    { player: t.player, aircraft: t.aircraft, airfields: t.airfields, structures: t.structures, ships: t.ships, anchorages: t.anchorages },
+    landing.at, player.state.position,
+  )
+  const c: Context<M> = { t, player, alive, recovery, landing, base, passEvent }
 
   // 2. Objectives.
   let progress: ObjectiveState[] | null = null
@@ -270,7 +282,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
 
   // 3. The landing's own entry, then "Trap n of count" (spec §4.1).
   if (landing !== null) {
-    added.push({ tick: t.tick, kind: 'landing', at: landing.at, advanced: advanced?.id ?? null, intermediate: advanced !== null && !advanced.done })
+    added.push({ tick: t.tick, kind: 'landing', at: landing.at, base, advanced: advanced?.id ?? null, intermediate: advanced !== null && !advanced.done })
     if (advanced !== null && advanced.count > 1) added.push({ tick: t.tick, kind: 'message', text: `${advanced.label} ${advanced.n} of ${advanced.count}` })
   }
   if (passEvent !== null) {

@@ -102,8 +102,12 @@ function shot(id: Id, what: 'briefing' | 'chart' | 'debrief'): string {
 /** After Launch: the scenario is live and the entities exist. `atOrdnance`
  *  runs on Form 6, before Launch (the loadout lives there since the sortie forms). */
 async function launched(page: Page, hq: Locator, id: Id, atOrdnance?: (title: Locator) => Promise<void>) {
-  await hq.getByRole('button', { name: /Next: assign a pilot/ }).click()
-  await hq.getByRole('button', { name: /^Assign / }).first().click()
+  // F5C D1: an unscored row (these are Training and Single) has no pilot step unless Dev is on.
+  const next = hq.getByRole('button', { name: /Next: (assign a pilot|flight conditions)/ })
+  await next.waitFor()
+  const pilotStep = /assign a pilot/.test((await next.textContent()) ?? '')
+  await next.click()
+  if (pilotStep) await hq.getByRole('button', { name: /^Assign / }).first().click()
   const title = page.getByRole('dialog', { name: 'Title' })
   await title.getByRole('button', { name: 'Next' }).click() // Flight Conditions -> Aircraft
   await title.getByRole('button', { name: 'Next' }).click() // Aircraft -> Ordnance
@@ -197,10 +201,10 @@ test('Airfield Strike: briefing, TAKE OFF · HANGARS 0/2, tower call, chart; tak
     ['Take off', 'COMPLETE'],
     ['Hangars', 'INCOMPLETE'],
     ['AAA (secondary)', 'INCOMPLETE'],
-    ['Recover', 'INCOMPLETE'],
+    ['Land at any friendly base', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
-  expect(await reasonRows(debriefDialog(page))).toEqual(['Hangars: incomplete', 'Recover: incomplete'])
+  expect(await reasonRows(debriefDialog(page))).toEqual(['Hangars: incomplete', 'Land at any friendly base: incomplete'])
 })
 
 test('Convoy Strike: briefing, CONVOY 0/2, the vector call, chart; into the sea earns no badge', async ({ page }) => {
@@ -217,7 +221,7 @@ test('Convoy Strike: briefing, CONVOY 0/2, the vector call, chart; into the sea 
   await debriefShows(page, id, [
     ['Convoy', 'INCOMPLETE'],
     ['Whole convoy (secondary)', 'INCOMPLETE'],
-    ['Recover', 'INCOMPLETE'],
+    ['Land at any friendly base', 'INCOMPLETE'],
     // A steep dive is a crash, not a ditching (harness.ts, diveToSea).
     ['Badge', 'Killed — no badge'],
   ])
@@ -239,7 +243,7 @@ test('Flattop Hunt: briefing, FLATTOP 0/1, strike call, chart; into the sea earn
   await debriefShows(page, id, [
     ['Flattop', 'INCOMPLETE'],
     ['Screen (secondary)', 'INCOMPLETE'],
-    ['Recover', 'INCOMPLETE'],
+    ['Land at any friendly base', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
 })
@@ -267,7 +271,7 @@ test('Escort: briefing, HANGARS 0/1, bomber lead call, chart; into the sea earns
     ['Bombers', 'COMPLETE'],
     ['Zeros (secondary)', 'INCOMPLETE'],
     ['Hangars', 'INCOMPLETE'],
-    ['Recover', 'INCOMPLETE'],
+    ['Land at any friendly base', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
 })
@@ -288,10 +292,10 @@ test('Surigao Strait: briefing, MOGAMI 0/1, pursuit call, chart; into the sea ea
   await debriefShows(page, id, [
     ['Mogami', 'INCOMPLETE'],
     ['Rear guard (secondary)', 'INCOMPLETE'],
-    ['Recover', 'INCOMPLETE'],
+    ['Land at any friendly base', 'INCOMPLETE'],
     ['Badge', 'Killed — no badge'],
   ])
-  expect(await reasonRows(debriefDialog(page))).toEqual(['Mogami: incomplete', 'Recover: incomplete'])
+  expect(await reasonRows(debriefDialog(page))).toEqual(['Mogami: incomplete', 'Land at any friendly base: incomplete'])
 })
 
 test('Carrier Qualification: briefing, LAUNCH, Paddles call, chart; a deck run to DOWNWIND, then into the sea', async ({ page }) => {

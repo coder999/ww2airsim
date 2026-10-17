@@ -147,6 +147,69 @@ describe('the session (Task 3c)', () => {
     expect(after.pilots[c.roster.live[0]!]!.points).toBe(1000) // 500 destruction + 500 Veteran bonus
   })
 
+  // F5C D4/D5/D8/D11: one bank per landing, one close per sortie.
+  describe('legs: two latches (a bank per landing, a close per sortie)', () => {
+    const credits = (n: number) => Object.fromEntries(TARGET_TYPES.map((t) => [t, t === 'fighter' ? n : 0])) as Record<TargetType, number>
+    const leg = (id: string, n: number, fighters: number) => ({
+      ...buildReport({ sortieId: id, end: 'landed', success: false, tagCredits: credits(fighters), friendlyKills: 0, friendlyFire: false, authoredBonus: 0, flight: { flightSeconds: 100 * n, maxAltitudeM: 0, maxTrueAirspeedMps: 0, landing: 'field' }, badgeId: null }),
+      leg: n, place: `Base ${n}`,
+    })
+    const open = (port: StoragePort = new MapPort()) => {
+      const s = make(port)
+      s.create({ faction: 'us', playerName: 'Mark' })
+      s.launch(launchArgs(s.current()!))
+      return { s, port, id: s.current()!.pending!.sortieId, pilotId: s.current()!.roster.live[0]! }
+    }
+
+    it('a double click on one landing banks it once; the next landing banks the next', () => {
+      const { s, id, pilotId } = open()
+      expect(s.bankLeg(leg(id, 1, 1)).ok).toBe(true)
+      const after = s.current()!
+      const second = s.bankLeg(leg(id, 1, 1))
+      expect(second.ok).toBe(false)
+      expect(s.current()).toBe(after) // not even a revision bump
+      expect(after.pilots[pilotId]!.points).toBe(500)
+      expect(s.bankLeg(leg(id, 2, 3)).ok).toBe(true)
+      expect(s.current()!.pilots[pilotId]!.points).toBe(1500)
+      expect(s.current()!.pending!.legs).toHaveLength(2)
+    })
+
+    it('a late render after the close banks nothing: the sortie is closed, the landing latch holds', () => {
+      const { s, id, pilotId } = open()
+      s.bankLeg(leg(id, 1, 1))
+      expect(s.bank(buildReport({ sortieId: id, end: 'landed', success: false, tagCredits: credits(1), friendlyKills: 0, friendlyFire: false, authoredBonus: 0, flight: { flightSeconds: 100, maxAltitudeM: 0, maxTrueAirspeedMps: 0, landing: null }, badgeId: null })).ok).toBe(true)
+      const closed = s.current()!
+      expect(closed.pending).toBeNull()
+      expect(s.bankLeg(leg(id, 2, 2)).ok).toBe(false)
+      expect(s.bank(landed(id)).ok).toBe(false)
+      expect(s.current()).toBe(closed)
+      expect(closed.pilots[pilotId]).toMatchObject({ points: 500, sorties: 1, banked: 1 })
+    })
+
+    it('Abandon after a bank keeps the bank (D5)', () => {
+      const { s, id, pilotId } = open()
+      s.bankLeg(leg(id, 1, 2))
+      expect(s.abandon().ok).toBe(true)
+      expect(s.current()!.pilots[pilotId]).toMatchObject({ status: 'active', points: 1000 })
+    })
+
+    it('a tab closed after a bank is an abandonment on the next load: the bank stays, the pilot is not killed (D11)', () => {
+      const { s, port, id, pilotId } = open()
+      s.bankLeg(leg(id, 1, 2))
+      const saved = make(port)
+      expect(saved.open('camp1').ok).toBe(true)
+      const c = saved.current()!
+      expect(c.pending).toBeNull()
+      expect(c.pilots[pilotId]).toMatchObject({ status: 'active', points: 1000, sorties: 1, banked: 1 })
+      expect(c.human.log[0]!.legs).toEqual([{ place: 'Base 1', points: 1000 }])
+      expect(c.human.stats.abandoned).toBe(1)
+      // and not applied twice
+      const again = make(port)
+      again.open('camp1')
+      expect(again.current()!.human.ledger.banked).toBe(1)
+    })
+  })
+
   it('abandon banks zero, the denominator ticked once at launch, the pilot lives', () => {
     const s = make()
     s.create({ faction: 'us', playerName: 'Mark' })

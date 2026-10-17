@@ -25,6 +25,7 @@ export const CAPTURE_TEST_FILES = [
   'gunLayingCapture.spec.ts',
   'impactMarkerCapture.spec.ts',
   'l1l2Capture.spec.ts',
+  'legCapture.spec.ts',
   'landGapCapture.spec.ts',
   'landVillageCapture.spec.ts',
   'mainBatteryCapture.spec.ts',

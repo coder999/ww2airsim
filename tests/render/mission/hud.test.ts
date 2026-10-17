@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { MissionState, ObjectiveState, ResolvedObjective } from '../../../src/sim/mission/state.js'
+import { worldFromScenario } from '../../../src/sim/scenario.js'
+import { loadScenarioBundle } from '../../../tools/content/load.js'
 import { NO_RADIO, RADIO_SHOW_MS, missionDiagnostics, nextRadioLine, objectiveLineLabel, radioFeed } from '../../../src/render/mission/hud.js'
 
 /** Builds a `MissionState` from a list of (objective, progress) pairs, so
@@ -84,6 +86,17 @@ describe('objectiveLineLabel (M2 R7)', () => {
     ])
     expect(objectiveLineLabel(alone)).toBeNull()
   })
+
+  // F5C D3: once the work is done the line says to land ANYWHERE friendly, whatever base the mission suggested.
+  it.each(['airfield-strike', 'combat-air-patrol', 'convoy-strike', 'escort', 'field-patrol', 'flattop-hunt', 'scramble', 'single-combat', 'surigao-strait', 'tank-buster'])(
+    '%s: the suggested recovery reads "Land at any friendly base" on the line when it is the active primary', (id) => {
+      const m = worldFromScenario(loadScenarioBundle(id), null).mission!
+      const at = m.objectives.findIndex((o) => o.kind === 'land' && o.suggestedRecovery === true)
+      expect(at).toBeGreaterThanOrEqual(0)
+      // Every other primary done (a standing order stays live), so the recovery is what is left to do.
+      const progress = m.progress.map((p, i) => ({ ...p, status: i === at ? 'active' as const : m.objectives[i]!.priority === 'primary' ? 'complete' as const : p.status }))
+      expect(objectiveLineLabel({ ...m, progress })).toBe('LAND AT ANY FRIENDLY BASE')
+    })
 
   it('prefixes NO BADGE once a primary has failed', () => {
     const m = missionOf([

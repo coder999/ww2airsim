@@ -68,7 +68,7 @@ test('Abandon from the pause screen forfeits the whole sortie: no points, the pi
   expect(after?.live.every((p) => p.points === 0)).toBe(true)
 })
 
-test('an unscored sortie (Gunnery Range) lands with Continue still offered, returns to Headquarters, and banks nothing', async ({ page }) => {
+test('an unscored sortie (Gunnery Range) lands at Tacloban with Continue Sortie offered, ends to Headquarters, and banks nothing', async ({ page }) => {
   await page.goto('/')
   await startGame(page, { scenario: 'Gunnery Range' })
   await waitForScenario(page, 'gunnery-range')
@@ -79,9 +79,10 @@ test('an unscored sortie (Gunnery Range) lands with Continue still offered, retu
   const debrief = debriefDialog(page)
   await expect(debrief).toContainText('LANDED')
   await expect(debrief.locator('[data-ww2-debrief-heading]')).toHaveText('Gunnery Range')
-  await expect(debrief.getByRole('button', { name: 'Continue' })).toBeVisible()
+  // F5C D2: Tacloban is a friendly field, so this is a leg: Continue Sortie and End Sortie, nothing banked either way.
+  await expect(debrief.getByRole('button', { name: 'Continue Sortie' })).toBeVisible()
   await expect(debrief.getByText('Campaign Ledger')).toHaveCount(0)
-  await debrief.getByRole('button', { name: 'Return to Headquarters' }).click()
+  await debrief.getByRole('button', { name: 'End Sortie' }).click()
   await expect(hqOf(page).getByText('Air Group Headquarters')).toBeVisible()
   expect(await campaign(page)).toEqual(before)
 })
