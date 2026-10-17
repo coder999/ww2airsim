@@ -79,7 +79,7 @@ describe('noStrip: the renderer draws no strip and no huts', () => {
     expect(inAirfieldClearing([{ ...p, noStrip: undefined, runway: { ...p.runway, lengthM: 1500 } } as Airfield], p.runway.center.x + 30, p.runway.center.z + 100)).toBe(true)
   })
   it('the cover field keeps no firm rectangle for its frame, only for its apron', () => {
-    const header = { centreLatDeg: 11, centreLonDeg: 125, halfExtentM: 100000, samples: 1025, channels: ['tree', 'crop', 'mangrove', 'open'] as ['tree', 'crop', 'mangrove', 'open'], encoding: 'rgba8-sixteenths' as const }
+    const header = { centreLatDeg: 11, centreLonDeg: 125, halfExtentM: 100000, samples: 1025 as const, channels: ['tree', 'crop', 'mangrove', 'open'] as ['tree', 'crop', 'mangrove', 'open'], encoding: 'rgba8-sixteenths' as const }
     const data = new Uint8Array(1025 * 1025 * 4)
     const apron = { x: 0, z: 100, widthM: 50, lengthM: 50 }
     expect(createCoverField(header, data, [port({ apron })]).firm).toHaveLength(1)
