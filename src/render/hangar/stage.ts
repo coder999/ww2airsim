@@ -8,7 +8,7 @@ import { exposureFor } from '../exposure.js'
 import { createFramePipeline } from '../pipeline.js'
 import { disposeMeshTree } from '../models/dispose.js'
 import type { LibraryKind } from './library.js'
-import { framingDistance, presetDirection, type CameraPreset } from './framing.js'
+import { framingDistance, framingRadius, presetDirection, type CameraPreset } from './framing.js'
 
 /** The fixed midday sun the hangar lights every model with (Hangar spec §6):
  *  the game's default SUN_DIRECTION, and the elevation that direction implies. */
@@ -309,7 +309,7 @@ export function createStage(renderer: WebGPURenderer, canvas: HTMLCanvasElement,
       applyDebugViews(model, views())
       const box = new Box3().setFromObject(model)
       const sphere = box.getBoundingSphere(new Sphere())
-      radius = Math.max(1, sphere.radius)
+      radius = Math.max(1, framingRadius(sphere.radius, box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z))
       controls.target.copy(sphere.center)
       rebuildGround(kind, Math.max(box.max.x - box.min.x, box.max.z - box.min.z))
       frame()

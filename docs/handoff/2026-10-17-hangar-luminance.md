@@ -30,21 +30,29 @@ Taken twice, bit-identical to nine digits.
 The pontoon is the darkest (grey steel cells on a dark stage); it is inside the range of the other rows' ratios, but its absolute value is low,
 so the guard band (0.032 to 0.079) is the narrowest in absolute terms.
 
+## Hangar case 1 and the framing fix (Mark's ruling)
+
+The first whole-file run on ryzen was 26 of 27: case 1 ("mask covers 2% to 80% of the frame") failed for `jinamoc-seaplane-ramp` at **1.65%**
+(floor 2%, unchanged; next lowest `hvar` 2.02%). The cause is framing: the Hangar frames by bounding sphere, which for a long low strip is mostly air.
+Fix: `framingRadius()` in `src/render/hangar/framing.ts`, used by `stage.ts`, frames an object whose length is at least 4x its width and 10x its height
+20% closer. First try used 5x width and changed nothing (the ramp is 67.1 x 16.2 m, 4.1x); the unit test now pins the ramp's real size, a hut and a
+pontoon pier stay unchanged. The model is untouched.
+
+Result on ryzen, same route and slot: ramp mask share **2.45%** (was 1.65%); no other entry's share changed (`hvar` 2.02%, `b-29` 2.26%).
+The ramp's row was re-measured because the view changed: **0.128746112** (was 0.136521824). Case 15 for the other 26 ids was
+unchanged to the digit (ships jitter in the 6th digit as before), so the quonset, pontoon and ormoc rows stand.
+
 ## hangar.spec.ts on ryzen (whole file, 27 tests)
 
-26 passed, 1 failed. Case 15 passed (all 27 ids, the four new at 1.000x), 15b passed, 10 (budgets as drawn) and 12, 14, 16 passed.
-**Failed: case 1** ("mask covers 2% to 80% of the frame"): `jinamoc-seaplane-ramp` reads **1.65%** (floor 2%). A probe run of case 1 with soft
-assertions over every entry shows it is the only entry under 2% (next lowest `hvar` 2.02%); quonset 8.96%, pontoon 6.50%, ormoc 8.95%.
-This is a framing issue, not luminance: a 220 x 40 ft ramp 17.6 ft high is a thin low shape in the Hangar's three-quarter view. The gate is
-unchanged. Options for Mark or the coordinator: reframe the Hangar camera for long low objects, or a per-entry exception with a reason; neither
-was done here. The F8A handoff never ran this file on the reference GPU, so this is the first run to see it.
+After the fix: **27 passed** (13.1 min), including case 1, case 15 (all 27 ids), 15b and 16; exit 0, under `hwlock -w 3600 ryzen-budget`.
 
 ## Tests
 
 **Tests updated:** `tests/e2e/fixtures/flat-luminance.json` (four rows and the note).
 **Tests still valid:** every other test; no unit test reads the fixture (`rg flat-luminance tests` finds only `hangar.spec.ts`).
-**Known gaps:** Hangar case 1 fails for the Jinamoc ramp (above). The four rows are guards, not flat comparisons.
+**Tests updated:** also `tests/render/hangar/framing.test.ts` (`framingRadius`).
+**Known gaps:** The four rows are guards, not flat comparisons.
 
 ## Verify
 
-`REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` on ryzen, 2026-10-17, exit 0 (read from the command, not a pipe): 499 test files passed, 1 skipped; 7,671 tests passed, 14 skipped.
+`REMOTE_RUN_OVERFLOW=0 remote-run npm run verify` on ryzen, 2026-10-17, exit 0 (read from the command, not a pipe): 499 test files passed, 1 skipped; 7,672 tests passed (after the framing fix), 14 skipped.

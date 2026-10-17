@@ -160,7 +160,7 @@ Things nothing automated covers, recorded here rather than as skipped tests:
 - **F8A: the capture set and the correctness twin ran on nexus's 680M, not the reference GPU.** `siteStateCapture.spec.ts` (26 views) and
   `siteState.spec.ts` passed there with an empty WebGPU validation list; the budget numbers above are from ryzen. Hangar flat-luminance
   rows for the four F8A models were missing; **closed 2026-10-17** (rows added, case 15 and the full `hangar.spec.ts` run on ryzen; see
-  [the handoff](handoff/2026-10-17-hangar-luminance.md)). The rows are the skinned builds' own luminance (no flat build exists), a regression guard.
+  [the handoff](handoff/2026-10-17-hangar-luminance.md)). The rows are the skinned builds' own luminance (no flat build exists), a regression guard. The same run found Hangar case 1 failing for the Jinamoc ramp (1.65% mask); fixed by framing long low objects closer (`framingRadius`), 2.45%.
 - **F8A: `?siteState=` is DEV-only and a recording made with it replays only with it.** The flight record's content hash covers the expanded
   bundle, so a replay without the query is refused as a content mismatch; the campaign path (windows from `Campaign.world`) is F8C's.
 - **F5C (2026-10-16): a flying boat's stop card is headless-only.** The Catalina's landing on San Pedro Bay, the

@@ -26,3 +26,12 @@ export function presetDirection(p: CameraPreset): [number, number, number] {
     case 'three-quarter': return n(1, 0.5, 1)
   }
 }
+
+/** The bounding sphere of a long, low object (a ramp or runway strip) is mostly empty air, so framing
+ *  by it leaves the object a sliver of the frame (the 67.1 x 16.2 x 5.35 m Jinamoc ramp filled 1.65%,
+ *  under check 1's 2% floor, 2026-10-17). Such an object (length at least 4x its width and 10x its
+ *  height) is framed 20% closer; every other shape keeps its sphere radius. */
+export function framingRadius(sphereRadius: number, sizeX: number, sizeY: number, sizeZ: number): number {
+  const length = Math.max(sizeX, sizeZ), width = Math.min(sizeX, sizeZ)
+  return length >= 4 * width && length >= 10 * sizeY ? sphereRadius * 0.8 : sphereRadius
+}
