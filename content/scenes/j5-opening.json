@@ -1,0 +1,93 @@
+{
+  "id": "j5-opening",
+  "chapter": "J5",
+  "kind": "opening",
+  "durationS": 18,
+  "world": {
+    "source": "mission",
+    "scenario": "j5-night-drop-on-burauen"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -63519,
+        1100,
+        -16735
+      ],
+      "yawDeg": -8.4,
+      "pitchDeg": -11.9,
+      "ease": "inOut"
+    },
+    {
+      "t": 5,
+      "position": [
+        -62216,
+        900,
+        -16254
+      ],
+      "yawDeg": 86,
+      "pitchDeg": 0,
+      "ease": "inOut"
+    },
+    {
+      "t": 10,
+      "position": [
+        -61892,
+        1500,
+        -16718
+      ],
+      "yawDeg": 10,
+      "pitchDeg": -3.7,
+      "ease": "inOut"
+    },
+    {
+      "t": 14,
+      "position": [
+        -61700,
+        1100,
+        -16600
+      ],
+      "yawDeg": 60,
+      "pitchDeg": 4,
+      "ease": "inOut"
+    },
+    {
+      "t": 18,
+      "position": [
+        -61206,
+        925,
+        -16841
+      ],
+      "yawDeg": 10.2,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Formation lead: three Topsies over the ridge, the fires are lit at San Pablo."
+      }
+    },
+    {
+      "t": 10,
+      "order": {
+        "kind": "message",
+        "text": "Escort lead: dark below until the basin. Hold the corridor."
+      }
+    },
+    {
+      "t": 14,
+      "order": {
+        "kind": "message",
+        "text": "Escort lead: contact report, Lightnings over Burauen. Eyes up."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "ai"
+  }
+}

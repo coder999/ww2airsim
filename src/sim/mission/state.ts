@@ -42,6 +42,8 @@ export type ObjectiveState = {
   readonly seen?: readonly EntityId[]
   /** `destroy` with `fresh`: targets already destroyed when the objective became active, not counted. Absent otherwise. */
   readonly base?: number
+  /** `release` with a range or a window: the player's cumulative releases of the store already judged, so each new release is judged once, where it left. Absent otherwise. */
+  readonly rel?: number
 }
 
 /** An objective with its `targets`/`hostiles` resolved to entity ids when

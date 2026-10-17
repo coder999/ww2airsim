@@ -25,6 +25,12 @@ surface contact, and the seeded rescue/capture result then remain ordinary
 fixed-tick world state, so verification reproduces the complete lifecycle rather
 than injecting an outcome after the simulation step.
 
+A cargo drop (F10D, the `Y` key of a transport) is a V1 tick-boundary action too: `{ tick, kind: 'drop', aircraft }`. Replay applies it with
+`requestDrop` at the same fixed tick; a recorded drop the live sim would have refused is a named failure, not a skip. It is **additive**: the format
+version stays 1, every earlier record parses and verifies unchanged, and a build older than F10D refuses a record that has a drop at parse (a clear
+refusal, by the strict action union). An AI transport's drop needs no action: it is derived from the world each tick. Proof:
+`tests/flightRecorder/dropReplay.test.ts` (bit-identical, a drop a tick early or late fails, no drop at all fails, an old record still verifies).
+
 Starting a new Dev sortie warns before discarding a current record that has
 changed since its last export. Ordinary and production sorties allocate no
 recording session and expose no export/import controls.

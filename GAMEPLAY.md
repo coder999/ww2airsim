@@ -385,6 +385,13 @@ when you press **J** and recorded with the flight. Before you jump, the HUD give
 a qualitative **Rescue likely**, **Contested**, or **Capture likely** indication,
 judged where the canopy would come down; the debrief records the actual evidence.
 
+**Dropping troops (J5).** A transport (the Ki-57) drops its cargo with **Y**, through fully open cargo doors (**O**, 6 s of travel): one press
+releases the whole stick at once, six squad rigs and two supply bundles, each rig a squad rather than a man, strung out behind the track. A second
+press, or a press with the doors shut, is refused with an on-screen message. The drop is recorded with the flight (a `drop` action at the tick of the
+press, replayed at the same tick). It **counts** for the mission only if you were inside the chapter's corridor (speed, altitude and heading) when it
+left and at least half the men came down alive on the ground inside the marked area; a stick dropped under about 246 ft is lost like a low jump.
+An AI Ki-57 on a drop order does the same on its own, at about 1,300 ft above the ground (the AI never flies lower).
+
 **A bailout is never a mission success.** A rescued pilot returns and the sortie keeps
 the points already earned, but there is no badge, no completion or difficulty bonus and
 no campaign progress. A captured pilot is closed as a prisoner of war and replaced by

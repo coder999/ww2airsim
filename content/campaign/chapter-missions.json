@@ -88,20 +88,30 @@
    "authoredBonus": 0
   },
   "J4": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j4-destroyers-in-the-bay",
+   "badge": {
+    "id": "destroyers-in-the-bay",
+    "name": "Destroyers in the Bay"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "b5n2-kate"
+   ],
+   "recommendedLoadout": "torpedoes",
    "coordinated": false,
    "authoredBonus": 0
   },
   "J5": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j5-night-drop-on-burauen",
+   "badge": {
+    "id": "night-drop-on-burauen",
+    "name": "Night Drop on Burauen"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "ki-57-ii-topsy"
+   ],
+   "recommendedLoadout": "clean",
    "coordinated": false,
    "authoredBonus": 0
   },

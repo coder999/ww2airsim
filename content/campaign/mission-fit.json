@@ -335,6 +335,7 @@
   {
    "id": "J4",
    "status": "filled",
+   "scenario": "j4-destroyers-in-the-bay",
    "aircraft": "b5n2-kate",
    "side": "axis",
    "start": {
@@ -343,7 +344,7 @@
     "x": 11000,
     "z": 3000,
     "basis": "invented",
-    "note": "F3 J4: the B5N begins west of Ormoc Bay at night; placed 6.2 km from the destroyers, which at 75 m/s is inside the <2 min F3 gives (chosen to match F3's timing). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 J4: the B5N begins west of Ormoc Bay at night; placed 6.2 km from the destroyers, which at 75 m/s is inside the <2 min F3 gives (chosen to match F3's timing). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action. F10D (2026-10-17): kept as the authored start; the scenario j4-destroyers-in-the-bay starts here and the row is linked to it."
    },
    "firstAction": {
     "site": "ormoc",
@@ -362,6 +363,7 @@
   {
    "id": "J5",
    "status": "filled",
+   "scenario": "j5-night-drop-on-burauen",
    "aircraft": "ki-57-ii-topsy",
    "side": "axis",
    "start": {
@@ -370,7 +372,7 @@
     "x": 0,
     "z": 23000,
     "basis": "invented",
-    "note": "F3 J5: the formation starts west of the ridge but gives no position; invented as 23 km west of the San Pablo runway center, which at 80 m/s puts the drop inside F3's 5-6 min. The row therefore proves the drop zone is reachable and open ground, not the travel time."
+    "note": "F3 J5: the formation starts west of the ridge but gives no position; invented as 23 km west of the San Pablo runway center, which at 80 m/s puts the drop inside F3's 5-6 min. The row therefore proves the drop zone is reachable and open ground, not the travel time. F10D (2026-10-17): kept as the authored start; the scenario j5-night-drop-on-burauen starts here and the row is linked to it. The drop zone is a 900 m circle on the strip's centre, the row's first action."
    },
    "firstAction": {
     "site": "san-pablo",
