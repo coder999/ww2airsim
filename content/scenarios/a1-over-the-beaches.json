@@ -1,0 +1,839 @@
+{
+ "id": "a1-over-the-beaches",
+ "player": "f6f-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "sites": [
+  "landing-beaches",
+  "tacloban",
+  "dulag"
+ ],
+ "aircraft": [
+  {
+   "id": "f6f-1",
+   "spec": "f6f-hellcat",
+   "parkedAt": {
+    "ship": "cv-1",
+    "spot": {
+     "x": 0,
+     "z": -110
+    }
+   },
+   "chocked": false
+  },
+  {
+   "id": "f6f-2",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "tags": [
+    "wingmen"
+   ],
+   "airborneAt": {
+    "position": [
+     -11225,
+     700,
+     -34021
+    ],
+    "headingDeg": 342,
+    "speedMps": 100
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "f6f-1",
+    "slot": 1
+   }
+  },
+  {
+   "id": "f6f-3",
+   "spec": "f6f-hellcat",
+   "side": "allied",
+   "tags": [
+    "wingmen"
+   ],
+   "airborneAt": {
+    "position": [
+     -10625,
+     700,
+     -34021
+    ],
+    "headingDeg": 342,
+    "speedMps": 100
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "f6f-1",
+    "slot": 2
+   }
+  }
+ ],
+ "ships": [
+  {
+   "id": "cv-1",
+   "spec": "essex-cv",
+   "side": "allied",
+   "waypoints": [
+    [
+     -10925,
+     -33721
+    ],
+    [
+     -12779,
+     -39427
+    ],
+    [
+     -13920,
+     -39056
+    ],
+    [
+     -12066,
+     -33350
+    ]
+   ],
+   "speedMps": 7.717
+  },
+  {
+   "id": "dd-1",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -14566,
+     -46130
+    ],
+    [
+     -16324,
+     -41988
+    ],
+    [
+     -16140,
+     -41910
+    ],
+    [
+     -14382,
+     -46052
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "cl-1",
+   "spec": "cleveland-cl",
+   "side": "allied",
+   "waypoints": [
+    [
+     -15460,
+     -38905
+    ],
+    [
+     -17804,
+     -33382
+    ],
+    [
+     -17620,
+     -33304
+    ],
+    [
+     -15276,
+     -38827
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "maru-1",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "tags": [
+    "marus"
+   ],
+   "waypoints": [
+    [
+     -20158,
+     -49590
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-2",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "tags": [
+    "marus"
+   ],
+   "waypoints": [
+    [
+     -19364,
+     -47624
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-3",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "tags": [
+    "marus"
+   ],
+   "waypoints": [
+    [
+     -21331,
+     -46829
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-4",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "tags": [
+    "marus"
+   ],
+   "waypoints": [
+    [
+     -20536,
+     -44862
+    ]
+   ],
+   "speedMps": 0
+  }
+ ],
+ "vehicles": [
+  {
+   "id": "lcvp-1",
+   "spec": "lcvp",
+   "side": "allied",
+   "tags": [
+    "lcvps"
+   ],
+   "waypoints": [
+    [
+     -21449,
+     -49812
+    ],
+    [
+     -27199,
+     -50406
+    ],
+    [
+     -20435,
+     -49708
+    ]
+   ],
+   "speedMps": 5,
+   "loop": true
+  },
+  {
+   "id": "lcvp-2",
+   "spec": "lcvp",
+   "side": "allied",
+   "tags": [
+    "lcvps"
+   ],
+   "waypoints": [
+    [
+     -23133,
+     -47702
+    ],
+    [
+     -28372,
+     -47645
+    ],
+    [
+     -19640,
+     -47741
+    ]
+   ],
+   "speedMps": 5,
+   "loop": true
+  },
+  {
+   "id": "lcvp-3",
+   "spec": "lcvp",
+   "side": "allied",
+   "tags": [
+    "lcvps"
+   ],
+   "waypoints": [
+    [
+     -26766,
+     -45605
+    ],
+    [
+     -29544,
+     -44883
+    ],
+    [
+     -21607,
+     -46946
+    ]
+   ],
+   "speedMps": 5,
+   "loop": true
+  },
+  {
+   "id": "lcvp-4",
+   "spec": "lcvp",
+   "side": "allied",
+   "tags": [
+    "lcvps"
+   ],
+   "waypoints": [
+    [
+     -28965,
+     -43176
+    ],
+    [
+     -30403,
+     -42858
+    ],
+    [
+     -20812,
+     -44979
+    ]
+   ],
+   "speedMps": 5,
+   "loop": true
+  }
+ ],
+ "heldGroups": [
+  {
+   "id": "wave-1",
+   "aircraft": [
+    {
+     "id": "betty-1",
+     "spec": "g4m-betty",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -46150,
+       1200,
+       -32372
+      ],
+      "headingDeg": 59,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -27015,
+         "z": -45470,
+         "altitudeM": 1200,
+         "speedMps": 85
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       },
+       "attack": "torpedo"
+      }
+     }
+    },
+    {
+     "id": "betty-2",
+     "spec": "g4m-betty",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -46124,
+       1200,
+       -32037
+      ],
+      "headingDeg": 59,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -27015,
+         "z": -45470,
+         "altitudeM": 1200,
+         "speedMps": 85
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       },
+       "attack": "torpedo"
+      }
+     }
+    },
+    {
+     "id": "betty-3",
+     "spec": "g4m-betty",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -46098,
+       1200,
+       -31703
+      ],
+      "headingDeg": 59,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -26221,
+         "z": -43504,
+         "altitudeM": 1200,
+         "speedMps": 85
+        }
+       ],
+       "destination": {
+        "ship": "maru-2"
+       },
+       "attack": "torpedo"
+      }
+     }
+    },
+    {
+     "id": "betty-4",
+     "spec": "g4m-betty",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -46072,
+       1200,
+       -31368
+      ],
+      "headingDeg": 59,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -26221,
+         "z": -43504,
+         "altitudeM": 1200,
+         "speedMps": 85
+        }
+       ],
+       "destination": {
+        "ship": "maru-2"
+       },
+       "attack": "torpedo"
+      }
+     }
+    },
+    {
+     "id": "zero-1",
+     "spec": "a6m2-zero",
+     "tags": [
+      "raid",
+      "escort"
+     ],
+     "airborneAt": {
+      "position": [
+       -48644,
+       3500,
+       -30698
+      ],
+      "headingDeg": 59,
+      "speedMps": 110
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -20203,
+         "z": -47437,
+         "altitudeM": 3500,
+         "speedMps": 110
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       }
+      }
+     }
+    },
+    {
+     "id": "zero-2",
+     "spec": "a6m2-zero",
+     "tags": [
+      "raid",
+      "escort"
+     ],
+     "airborneAt": {
+      "position": [
+       -48335,
+       3500,
+       -30184
+      ],
+      "headingDeg": 59,
+      "speedMps": 110
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -20203,
+         "z": -47437,
+         "altitudeM": 3500,
+         "speedMps": 110
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "wave-2",
+   "aircraft": [
+    {
+     "id": "val-1",
+     "spec": "d3a-val",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -49450,
+       3000,
+       -30097
+      ],
+      "headingDeg": 59,
+      "speedMps": 120
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -27015,
+         "z": -45470,
+         "altitudeM": 3000,
+         "speedMps": 120
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       },
+       "attack": "dive-bomb"
+      }
+     }
+    },
+    {
+     "id": "val-2",
+     "spec": "d3a-val",
+     "tags": [
+      "raid",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -49372,
+       3000,
+       -29677
+      ],
+      "headingDeg": 59,
+      "speedMps": 120
+     },
+     "pilot": {
+      "skill": "veteran",
+      "ingress": {
+       "route": [
+        {
+         "x": -27015,
+         "z": -45470,
+         "altitudeM": 3000,
+         "speedMps": 120
+        }
+       ],
+       "destination": {
+        "ship": "maru-1"
+       },
+       "attack": "dive-bomb"
+      }
+     }
+    },
+    {
+     "id": "zero-3",
+     "spec": "a6m2-zero",
+     "tags": [
+      "raid",
+      "escort"
+     ],
+     "airborneAt": {
+      "position": [
+       -48644,
+       3500,
+       -30698
+      ],
+      "headingDeg": 59,
+      "speedMps": 110
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -20203,
+         "z": -47437,
+         "altitudeM": 3500,
+         "speedMps": 110
+        }
+       ],
+       "destination": {
+        "ship": "maru-3"
+       }
+      }
+     }
+    },
+    {
+     "id": "zero-4",
+     "spec": "a6m2-zero",
+     "tags": [
+      "raid",
+      "escort"
+     ],
+     "airborneAt": {
+      "position": [
+       -48335,
+       3500,
+       -30184
+      ],
+      "headingDeg": 59,
+      "speedMps": 110
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -20203,
+         "z": -47437,
+         "altitudeM": 3500,
+         "speedMps": 110
+        }
+       ],
+       "destination": {
+        "ship": "maru-3"
+       }
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "weather": {
+  "windFromDeg": 342,
+  "windMps": 7.717,
+  "timeOfDay": 8,
+  "clouds": [
+   {
+    "kind": "cumulus",
+    "baseM": 1100,
+    "thicknessM": 700,
+    "coverage": 0.4
+   },
+   {
+    "kind": "cirrus",
+    "baseM": 7000,
+    "thicknessM": 300,
+    "coverage": 0.2
+   }
+  ]
+ },
+ "objectives": [
+  {
+   "id": "up",
+   "label": "Launch",
+   "priority": "primary",
+   "kind": "takeoff",
+   "from": "cv-1"
+  },
+  {
+   "id": "contact",
+   "label": "Reach the transports",
+   "priority": "primary",
+   "kind": "reach",
+   "after": "up",
+   "point": {
+    "x": -20203,
+    "z": -47437
+   },
+   "radiusM": 6000,
+   "altitudeM": [
+    100,
+    6000
+   ]
+  },
+  {
+   "id": "release-range",
+   "label": "Bombers reach release range",
+   "priority": "secondary",
+   "kind": "arrive",
+   "targets": [
+    "bombers"
+   ],
+   "count": 1,
+   "zone": {
+    "point": {
+     "x": -20203,
+     "z": -47437
+    },
+    "radiusM": 3000
+   }
+  },
+  {
+   "id": "bombers",
+   "label": "Two bombers before release",
+   "priority": "secondary",
+   "kind": "destroy",
+   "targets": [
+    "bombers"
+   ],
+   "count": 2,
+   "until": {
+    "completed": "release-range"
+   }
+  },
+  {
+   "id": "transports",
+   "label": "Keep the transports afloat",
+   "priority": "primary",
+   "kind": "protect",
+   "targets": [
+    "marus"
+   ],
+   "maxLost": 1,
+   "after": "contact",
+   "until": {
+    "gone": {
+     "targets": [
+      "raid"
+     ],
+     "awayFrom": {
+      "x": -20203,
+      "z": -47437
+     },
+     "beyondM": 12000
+    }
+   }
+  },
+  {
+   "id": "home",
+   "label": "Land at any friendly base",
+   "priority": "primary",
+   "kind": "land",
+   "suggestedRecovery": true,
+   "at": "cv-1",
+   "after": "transports"
+  }
+ ],
+ "triggers": [
+  {
+   "id": "orders",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "spawn": "wave-1"
+    },
+    {
+     "message": "Essex CIC: Launch the CAP. Raid inbound from the southwest, bearing two-three-zero, twenty-five miles, angels ten."
+    }
+   ]
+  },
+  {
+   "id": "second-wave",
+   "when": {
+    "at": 90
+   },
+   "then": [
+    {
+     "spawn": "wave-2"
+    },
+    {
+     "message": "Essex CIC: Second raid behind the first. Dive-bombers, same bearing."
+    }
+   ]
+  },
+  {
+   "id": "timeout",
+   "when": {
+    "at": 780
+   },
+   "then": [
+    {
+     "complete": "transports"
+    }
+   ]
+  },
+  {
+   "id": "raid-broken",
+   "when": {
+    "completed": "transports"
+   },
+   "then": [
+    {
+     "message": "Essex CIC: Raid is clear of the transports. Bring it aboard."
+    }
+   ]
+  },
+  {
+   "id": "lost-transports",
+   "when": {
+    "failed": "transports"
+   },
+   "then": [
+    {
+     "message": "Essex CIC: We've lost too many transports."
+    }
+   ]
+  }
+ ],
+ "freezeOnSuccess": true,
+ "population": {
+  "airborne": 13,
+  "ships": 7
+ },
+ "badge": {
+  "id": "over-the-beaches",
+  "name": "Over the Beaches"
+ },
+ "briefing": {
+  "situation": "A-day, 20 October 1944. The Leyte landings are under way and the transports lie off the beaches. You launch from Essex with two wingmen, thirteen and a half miles seaward of the landing area. A Japanese raid of bombers and fighters is inbound. Keep the transports afloat until the raid is gone, then land aboard Essex.",
+  "loadout": "clean"
+ },
+ "history": {
+  "text": "On 20 October 1944 U.S. Sixth Army landed on the east coast of Leyte, north at Palo and Tacloban and south at Dulag, under a partly cloudy to cloudy sky, with carrier aircraft overhead. This mission is a historical composite: the raid, its strength and the sortie are authored for the game, not a reconstruction of one recorded attack. The beach, the transports and the landing craft are representative of the assault, not a count of it.",
+  "sources": [
+   "U.S. Army, Leyte: The Return to the Philippines, ch. V (landing date and beach sectors): https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-5.html",
+   "U.S. Navy aerology report, The Assault Landings on Leyte Island (A-day weather): https://www.ibiblio.org/hyperwar/USN/rep/NAVAER/Leyte/index.html"
+  ]
+ }
+}

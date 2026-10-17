@@ -2,11 +2,16 @@
  "note": "The chapter missions (F10-0, 2026-10-17). One entry per chapter, all empty until the batch that builds the chapter fills it. A chapter is ENROLLED (a campaign descriptor, a picker row, a Headquarters mission) only when `scenario` names a scenario file that loads: an empty entry or a missing file is simply not offered. `aircraft` is the chapter's own list, the authored airplane FIRST (Mark, 2026-10-17: a chapter carries its own list, and J6 offers two); `coordinated` is authored here, not derived (F5A's `isCoordinated` only serves the pool); `authoredBonus` is the one authored award (A4: 2500). The minimum rank and the title, date and label live in chapters.json, which GAMEPLAY.md's table pins.",
  "chapters": {
   "A1": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "a1-over-the-beaches",
+   "badge": {
+    "id": "over-the-beaches",
+    "name": "Over the Beaches"
+   },
+   "start": "carrier",
+   "aircraft": [
+    "f6f-hellcat"
+   ],
+   "recommendedLoadout": "clean",
    "coordinated": false,
    "authoredBonus": 0
   },

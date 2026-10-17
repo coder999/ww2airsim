@@ -55,7 +55,7 @@ describe('A1 content', () => {
     expect(w.aircraft.filter((a) => sideOf(w, a) === 'allied')).toHaveLength(3)
     expect(scenario.population).toEqual({ airborne: 13, ships: 7 }) // validated at load: 3 + 10 can be airborne at once
     expect(w.ships.map((s) => s.spec.id).sort()).toEqual(['cleveland-cl', 'essex-cv', 'fletcher-dd', 'type-b-maru', 'type-b-maru', 'type-b-maru', 'type-b-maru'])
-    const lcvps = scenario.vehicles.filter((v) => v.spec === 'lcvp')
+    const lcvps = scenario.vehicles.filter((v) => v.id.startsWith('lcvp-')) // the assault window adds six beached ones of its own (stationary)
     expect(lcvps).toHaveLength(4)
     expect(loadVehicleSpec('lcvp').floats).toBe(true)
     for (const v of lcvps) {
