@@ -729,7 +729,7 @@
     "marus"
    ],
    "maxLost": 1,
-   "after": "contact",
+   "after": "release-range",
    "until": {
     "gone": {
      "targets": [
@@ -779,6 +779,24 @@
     },
     {
      "message": "Essex CIC: Second raid behind the first. Dive-bombers, same bearing."
+    }
+   ]
+  },
+  {
+   "id": "bombers-down",
+   "when": {
+    "gone": {
+     "targets": [
+      "bombers"
+     ]
+    }
+   },
+   "then": [
+    {
+     "complete": "release-range"
+    },
+    {
+     "message": "Essex CIC: All bombers splashed. Clear the fighters off the transports."
     }
    ]
   },

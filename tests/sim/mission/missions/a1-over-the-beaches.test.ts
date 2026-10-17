@@ -128,3 +128,123 @@ describe.skipIf(terrain === null)('A1 over the real terrain', () => {
     expect(Math.hypot(at.x - start.x, at.z - start.z)).toBeGreaterThan(800)
   }, 60_000)
 })
+
+const logTick = (w: World<undefined>, pred: (e: NonNullable<World<undefined>['mission']>['log'][number]) => boolean): number | undefined => w.mission!.log.find(pred)?.tick
+const completedTick = (w: World<undefined>, id: string): number | undefined => logTick(w, (e) => e.kind === 'objective' && e.id === id && e.status === 'complete')
+/** Over the anchorage's north edge (away from the screen's AA, which would otherwise kill escorts the pinned player draws seaward), high enough (5,000 m) to be outside the escort's 3 km engagement range: present, never firing. */
+const STATION = levelAt({ x: ANCHORAGE.x, z: ANCHORAGE.z - 5500 }, 5000, 110, 90)
+const a1 = (): World<undefined> => worldOf(ID, 'A1', terrain)
+const pinTo = (w: World<undefined>, s: number): World<undefined> => hold(w, STATION, Math.max(0, ticksFor(s) - w.tick))
+
+describe.skipIf(terrain === null)('A1 tuning (F10A C4), measured 2026-10-17', () => {
+  it('no auto-complete: with the player on station and not firing, the raid sinks a transport, the escort never leaves, and the window closes only on the 780 s timer', () => {
+    let w = hold(a1(), STATION, ticksFor(60))
+    expect(completedTick(w, 'up')).toBeDefined() // the pinned player left the deck: the launch objective is the airborne-from-Essex test
+    w = pinTo(w, 700)
+    expect(progressOf(w, 'contact').status).toBe('complete')
+    expect(progressOf(w, 'transports').status).toBe('active') // 700 s in, the AI alone has not closed it
+    const lost = MARUS.filter((m) => w.combat.ships[m]!.destroyedTick !== null)
+    expect(lost.length).toBeGreaterThanOrEqual(1) // the raid is real: Bettys torpedo the anchorage
+    expect(lost.length).toBeLessThanOrEqual(2) // and four Bettys and two Vals cannot do more (header)
+    const escorts = ['zero-1', 'zero-2', 'zero-3', 'zero-4'].filter((z) => w.combat.aircraft[z]!.damage.destroyedAt == null)
+    expect(escorts.length).toBeGreaterThanOrEqual(3) // the screen stands seaward, out of AA reach of the anchorage
+    w = pinTo(w, 790)
+    expect(completedTick(w, 'transports') ?? progressOf(w, 'transports').status).toBe(lost.length <= 1 ? ticksFor(780) : 'failed')
+  }, 120_000)
+
+  it('the bombers reach release range between 5:00 and 6:00 (arrive), well after the player can be there', () => {
+    let w = pinTo(a1(), 400)
+    const t = completedTick(w, 'release-range')!
+    expect(t / 60).toBeGreaterThan(300)
+    expect(t / 60).toBeLessThan(360)
+    expect(completedTick(w, 'contact')! / 60).toBeLessThan(5) // the player is on station before the first bomber is in range
+    w = advance(w, DT).world
+    expect(radioMessages(w.mission!).some((e) => /Essex CIC/.test(e.text))).toBe(true)
+  }, 120_000)
+})
+
+describe.skipIf(terrain === null)('A1 headless sortie (F10A C5)', () => {
+  /** A real launch from the Essex, then the pinned station until the raid has been dealt with. */
+  const launched = (): World<undefined> => {
+    const w = deckRun(a1(), { flaps: true })
+    expect(progressOf(w, 'up').status).toBe('complete')
+    return w
+  }
+
+  it('success: launch, reach the transports, two bombers down before release, the raid gone, a trap aboard the Essex earns the badge and latches the script', () => {
+    let w = pinTo(launched(), 100)
+    expect(progressOf(w, 'contact').status).toBe('complete')
+    w = destroyNow(w, ['betty-1', 'betty-2'])
+    w = advance(w, DT).world
+    expect(progressOf(w, 'bombers').status).toBe('complete')
+    expect(progressOf(w, 'transports').status).toBe('inactive') // the window opens when the first bomber is in release range
+    w = pinTo(w, 340)
+    expect(progressOf(w, 'transports').status).toBe('active')
+    w = advance(destroyNow(w, RAID), DT).world
+    expect(progressOf(w, 'transports').status).toBe('complete')
+    expect(progressOf(w, 'home').status).toBe('active')
+    w = carrierApproach(w, 'cv-1')
+    expect(playerAircraft(w).impact).toBeNull()
+    const out = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(out).toMatchObject({ result: 'success', badge: { id: 'over-the-beaches', name: 'Over the Beaches' }, reasons: [] })
+    expect(out.objectives.find((o) => o.id === 'bombers')!.final).toBe('complete')
+    expect(w.mission!.latched).toBe(true) // Decision 13
+  }, 180_000)
+
+  it('success without the secondary: the bombers get through to release range, the badge still stands', () => {
+    let w = pinTo(launched(), 340)
+    expect(progressOf(w, 'bombers').status).toBe('failed')
+    w = advance(destroyNow(w, RAID), DT).world
+    w = carrierApproach(w, 'cv-1')
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success', reasons: [] })
+  }, 180_000)
+
+  it('failure: two transports lost fails the objective by name and a trap earns no badge', () => {
+    let w = pinTo(launched(), 340)
+    w = advance(destroyNow(w, ['maru-1', 'maru-2']), DT).world
+    expect(progressOf(w, 'transports').status).toBe('failed')
+    expect(progressOf(w, 'home').status).toBe('inactive') // the landing never counts
+    w = carrierApproach(destroyNow(w, RAID), 'cv-1')
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({
+      result: 'no-badge', badge: null, reasons: ['Keep the transports afloat: failed', 'Land at any friendly base: incomplete'],
+    })
+    expect(w.mission!.latched).toBeUndefined() // a landing that does not qualify leaves the script running
+  }, 180_000)
+
+  it('edge: a trap while the raid is still over the transports leaves the window open and earns no badge', () => {
+    let w = pinTo(launched(), 340)
+    w = carrierApproach(w, 'cv-1')
+    const out = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(out.result).toBe('no-badge')
+    // a standing `protect` that has not failed reads complete; what blocks the badge is the landing, which only counts once the window has closed
+    expect(out.reasons).toEqual(['Land at any friendly base: incomplete'])
+    expect(progressOf(w, 'transports').status).toBe('active')
+  }, 180_000)
+
+  it('edge: three transports lost reads the same as two (the objective already failed)', () => {
+    let w = pinTo(launched(), 340)
+    w = advance(destroyNow(w, ['maru-1', 'maru-2', 'maru-3']), DT).world
+    expect(progressOf(w, 'transports').status).toBe('failed')
+  }, 180_000)
+
+  it('edge: every bomber shot down before release range still opens the window (no deadlock: the bombers-down trigger completes the range gate)', () => {
+    let w = pinTo(launched(), 100)
+    w = advance(destroyNow(w, BOMBERS), DT).world
+    expect(progressOf(w, 'bombers').status).toBe('complete')
+    expect(progressOf(w, 'release-range').status).toBe('complete')
+    w = advance(advance(w, DT).world, DT).world
+    // the escort is still 20 km out at 100 s, so with every bomber down the raid is gone from the anchorage at once: nothing left to defend against
+    expect(progressOf(w, 'transports').status).toBe('complete')
+    expect(progressOf(w, 'home').status).toBe('active')
+    w = carrierApproach(w, 'cv-1')
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success', reasons: [] })
+  }, 180_000)
+
+  it('edge: the 780 s timer closes the window with the escort still alive, and the transports then count as defended', () => {
+    let w = pinTo(hold(launched(), STATION, 1), 790)
+    const alive = ['zero-1', 'zero-2', 'zero-3', 'zero-4'].some((z) => w.combat.aircraft[z]!.damage.destroyedAt == null)
+    expect(alive).toBe(true)
+    const lost = MARUS.filter((m) => w.combat.ships[m]!.destroyedTick !== null).length
+    expect(progressOf(w, 'transports').status).toBe(lost <= 1 ? 'complete' : 'failed')
+  }, 180_000)
+})
