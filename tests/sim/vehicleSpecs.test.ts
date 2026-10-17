@@ -44,7 +44,7 @@ describe('vehicle specs (every one enrolled)', () => {
 describe('a placed (speed 0) vehicle', () => {
   const terrain = groundTruthTerrain()
   const spec = loadVehicleSpec('gmc-cckw-353')
-  const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, headingRad: 1 }
+  const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, loop: false, headingRad: 1 }
 
   it('stays put for a minute of ticks, level with the ground it was posed on', () => {
     const first = createVehicleState(spec, orders, terrain)
@@ -73,7 +73,7 @@ describe('a placed (speed 0) vehicle', () => {
   })
 
   it('a destroyed moving vehicle still comes to rest (the skip does not swallow the stop)', () => {
-    const moving = { waypoints: [{ x: -29900, z: -47700 }, { x: -29900, z: -47500 }], speedMps: 10 }
+    const moving = { waypoints: [{ x: -29900, z: -47700 }, { x: -29900, z: -47500 }], speedMps: 10, loop: false }
     let s = createVehicleState(spec, moving, terrain)
     for (let t = 1; t <= 120; t++) s = stepVehicle(spec, s, moving, { dt: 1 / 120, tick: t, terrain })
     expect(s.speedMps).toBeGreaterThan(0)

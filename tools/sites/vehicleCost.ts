@@ -6,7 +6,7 @@ import { groundTruthTerrain } from './terrain.js'
 
 const terrain = groundTruthTerrain()
 const spec = parseVehicleSpec(JSON.parse(readFileSync('content/vehicles/gmc-cckw-353.json', 'utf8')))
-const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0 }
+const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, loop: false }
 const N = 12, TICKS = 60 * 120
 let states: VehicleState[] = Array.from({ length: N }, (_, i) => createVehicleState(spec, { ...orders, waypoints: [{ x: -29900 + i * 8, z: -47700 }] }, terrain))
 const t0 = performance.now()

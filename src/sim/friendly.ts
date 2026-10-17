@@ -51,7 +51,12 @@ export function airfieldHeldBy(w: Pick<FriendlyContext, 'structures'>, a: Airfie
   return s?.side ?? a.side ?? 'axis'
 }
 
-export const isFriendlyAirfield = (w: FriendlyContext, a: Airfield): boolean => airfieldHeldBy(w, a) === playerSideOf(w)
+/**
+ * A friendly base is held by the player's side AND serviceable (F8A Task 6, plan decision 7): a site window can hold a field
+ * for the player yet leave it unusable (Dulag in the assault, Tacloban after the J6 alternate), and a stop there is not a
+ * recovery. `serviceable` absent means serviceable, as every base before F8.
+ */
+export const isFriendlyAirfield = (w: FriendlyContext, a: Airfield): boolean => airfieldHeldBy(w, a) === playerSideOf(w) && a.serviceable !== false
 export const isFriendlyShip = (w: FriendlyContext, s: ShipEntity): boolean => sideOf(w, s) === playerSideOf(w)
 
 /**

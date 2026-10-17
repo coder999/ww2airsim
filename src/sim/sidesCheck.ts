@@ -27,7 +27,7 @@ export type SideCheckInput = {
   })[]
   /** Start and held ships, as content. */
   readonly ships: readonly Sided[]
-  readonly airfields: readonly { readonly id: string; readonly side?: Side | undefined }[]
+  readonly airfields: readonly { readonly id: string; readonly side?: Side | undefined; readonly serviceable?: boolean | undefined }[]
   readonly airfieldSides?: Readonly<Record<string, Side>> | undefined
   readonly landAt: readonly { readonly objective: string; readonly at: string }[]
 }
@@ -49,6 +49,8 @@ export function checkScenarioSides(input: SideCheckInput): void {
     }
   }
   for (const { objective, at } of input.landAt) {
+    // F8A: a field a site window leaves unserviceable is no landing objective, whoever holds it.
+    if (input.airfields.find((a) => a.id === at)?.serviceable === false) fail(`objective "${objective}" lands at "${at}", which is not serviceable in this world`)
     const side = shipSide.get(at) ?? fieldSide.get(at)
     if (side !== undefined && side !== playerSide) {
       fail(`objective "${objective}" lands at "${at}", which is on the other side (${side})`)
