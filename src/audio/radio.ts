@@ -135,6 +135,12 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   // The dev scenarios (dev-mission-ui.json) have no recorded lines.
   'Tower: cleared for takeoff.': null,
   'Tower: a friendly is passing overhead.': null,
+  // F10D (2026-10-17): J4 and J5, text only through F10 (Decision 7).
+  "Strike lead: the flare is lit over the bay. Torpedo a Fletcher inside its light, keep clear of the transport, then clear the bay to the west.": null,
+  "The flare is dying. Clear the bay to the west.": null,
+  "Formation lead: three Topsies on the fires at San Pablo. Hold the corridor, open the doors, drop on the fires.": null,
+  "Escort lead: Lightnings, five miles, high. Stay on course.": null,
+  "Open the doors (O) and drop (Y) over the fires.": null,
   // F10C (2026-10-17): the Japanese chapters J1-J3, text only through F10 (Decision 7).
   "Buri tower: Scramble! Defend the fuel, radio, hangars, and dispersal. Get airborne now.": null,
   "Buri tower: Two Army fighters are joining from the west, five thousand feet.": null,
