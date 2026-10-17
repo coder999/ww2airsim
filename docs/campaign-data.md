@@ -74,10 +74,9 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
 - **`bankSortie(c, SortieReport, now)`** is the closing call. It banks any remaining delta, applies the end kind, closure,
   replacement, the attempts (a failure or abandonment counts only if the sortie never qualified), the stats and the log
   entry, and clears `pending`. With no leg banked it is the whole sortie in one call.
-- **What a close forfeits (D5).** `FORFEITING_ENDS` in `scoring.ts`: `abandoned`, `killed`, `captured`, and any destroyed
-  friendly forfeit the **unbanked** part only; banked stays banked. `ditched` and `rescued` survive and bank their delta. This
-  replaces the 2026-09-27 rule that a death still banked its destruction (Mark's D5 and the plan's Task 2 example,
-  2026-10-16); the single constant flips it back.
+- **What a close forfeits (D5).** `FORFEITING_ENDS` in `scoring.ts`: `abandoned` and any destroyed friendly forfeit
+  the **unbanked** part only; banked stays banked. `killed`, `captured`, `ditched` and `rescued` bank their delta as before
+  F5C (Mark ruled 2026-10-16, after the first F5C build had made a death forfeit it too); the single constant is the switch.
 - **`resolveInterrupted`** is `bankSortie` with an abandon report: banked legs stay, the pilot is not killed (D11).
 - **Where the shell calls them.** `session.bankLeg` at each friendly stop, `session.bank` (the close) at the end; see "The shell".
 

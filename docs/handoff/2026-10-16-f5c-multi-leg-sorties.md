@@ -14,9 +14,9 @@ Branch `plan-f5c-multi-leg`, run unattended 2026-10-16 (plan: [`docs/superpowers
 | HQ | Training and Single skip the pilot step (steps 2 to 4 of 4, `ENS (practice)`); Dev keeps it; the mission log shows landings inside an entry |
 | Content | Eleven `home` objectives renamed and flagged; `water-quals` declares the San Pedro Bay anchorage |
 
-## Decisions I made (please confirm the first two)
+## Decisions I made
 
-1. **A death or capture forfeits the unbanked points.** D5 and Task 2's example ("leg 1 +500 landed, leg 2 +200 then killed banks 500 only") say so, and it reverses the 2026-09-27 rule that a death still banked its kills (and F7A's "the points you earned stay on your file" for a capture). One constant, `FORFEITING_ENDS` in `src/campaign/scoring.ts`, flips it back. Ditching and rescue still bank their delta. GAMEPLAY, the capture text and the abandon copy were updated.
+1. **Death and capture bank the unbanked points (Mark's ruling, 2026-10-16, applied after merge).** The first build followed Task 2's example literally and made killed and captured forfeit them; Mark reversed it. Only `abandoned` (and a destroyed friendly, as in D5) forfeits what no landing banked; killed, captured, ditched and rescued bank their delta; banked always stays. `FORFEITING_ENDS` is `['abandoned']`; F7A's capture text is back to "the points you earned stay on your file". The Task 2 example now reads leg 1 +500, leg 2 +200 then killed banks 700.
 2. **Refuel means the sortie's launch load, not a full tank.** Every scenario aircraft launches with `createState`'s default 400 kg, so a full tank made leg 2 heavier than leg 1 (a Dev hop never rotated). `groundStop` tops up to `max(fuel left, launch fuel)`, never past the tank. Say so if you want full tanks.
 3. **Anchorage** = a circle the scenario declares (`Scenario.anchorages`; the smallest per-scenario data, F8 replaces it) or a friendly ship within 2,000 m (about 1.2 mi). Only `water-quals` declares one. The relaunch is unsafe (End Sortie only) within 300 m of a ship.
 4. **`suggestedRecovery`** is a flag on the `land` objective, not a scenario field, so the `after` chains, the debrief rows and the HUD line kept working. The training `land` objectives (tutorial, deck quals, torpedo qualification, water quals, the circuit fixture) still name their place.

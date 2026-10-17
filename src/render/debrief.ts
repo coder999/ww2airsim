@@ -378,7 +378,7 @@ export function bailoutModel(
   const detail = outcome === 'rescued'
     ? `You came down ${contact?.surface === 'water' ? 'at sea' : contact?.surface === 'deck' ? 'on a carrier deck' : 'on land'} and friendly forces recovered you. Mission not credited; the points you earned are kept.`
     : outcome === 'captured'
-      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; only points banked at an earlier landing stay on your file.'
+      ? 'You survived the descent but were taken prisoner. A new pilot takes your place; the points you earned stay on your file.'
       : parachutist.state.lowAltitude
         ? 'The bailout did not leave enough height for the canopy to fill.'
         : 'The canopy came down too fast to survive the landing.'

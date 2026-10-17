@@ -79,8 +79,6 @@ function describe(before: Campaign, after: Campaign, pilotId: string, chapterId:
   if (entry?.flags.includes('forfeit-friendly-destroyed') === true) notices.push(entry.legs.length > 0 ? 'Friendly destroyed: nothing more scores; the landings already banked stay.' : 'Friendly destroyed: this sortie scores nothing.')
   if (entry?.flags.includes('forfeit-abandoned') === true) notices.push(entry.legs.length > 0 ? 'Sortie abandoned: nothing more scored; the landings already banked stay.' : 'Sortie abandoned: nothing scored.')
   else if (entry?.flags.includes('warned') === true) notices.push('Friendly fire warning: damaging your own side is a warning; destroying it is a dishonorable discharge.')
-  // F5C D5: a pilot who does not come back keeps only what a landing already banked.
-  if (entry?.end === 'killed' || entry?.end === 'captured') notices.push('Points earned since the last landing are lost with the pilot; anything banked at an earlier landing stays.')
   if (pilot.status !== 'active') {
     const fate = FATE_LABEL[pilot.status]
     const replacement = after.roster.live.find((id) => !before.roster.live.includes(id))
