@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import siteWindows from '../../../content/campaign/site-windows.json'
-import { loadAirfield, loadSite } from '../../../tools/content/load.js'
+import { loadAircraftSpec, loadAirfield, loadSite, loadVehicleSpec } from '../../../tools/content/load.js'
+import { buildStructures } from '../../../src/sim/weapons/structures.js'
 import { localToWorld, type Airfield } from '../../../src/sim/world/airfields.js'
 import { airfieldFor, parseSite, PARKED_CAP, VEHICLE_CAP, WINDOW_IDS, windowOf, type Site } from '../../../src/sim/world/sites.js'
 import { getBounds } from '@gltf-transform/functions'
@@ -168,5 +169,85 @@ describe('site files: a placement is its glb at natural size', () => {
       }
     }
     expect(off).toEqual([])
+  })
+})
+
+describe('site files: F3 section 5 (hand-transcribed) and a layout that works', () => {
+  // [side, serviceable, built] per window, from the F3 section 5 table: Tacloban "Japanese operational", "captured 20 Oct;
+  // emergency reconstruction", "principal American operational field", "American operational", "bomb-damaged and unusable";
+  // Dulag "rough/unserviceable", "still unserviceable", "muddy construction/support field; limited later use", "American
+  // support site", "bomb-damaged and unusable"; Tanauan "no field", "no field", work after 28 Nov, "visibly under
+  // construction, not yet operational", "interrupted construction site".
+  const TABLE: Record<string, Record<string, [string, boolean, boolean]>> = {
+    tacloban: { 'pre-invasion': ['axis', true, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
+    dulag: { 'pre-invasion': ['axis', false, true], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
+    tanauan: { 'pre-invasion': ['allied', false, false], assault: ['allied', false, false], buildup: ['allied', false, true], endgame: ['allied', false, true], 'j6-alternate': ['allied', false, true] },
+  }
+  it.each(Object.keys(TABLE))('%s: every window says what F3 section 5 says', (id) => {
+    for (const w of WINDOW_IDS) {
+      const win = sites[id]!.windows[w]!
+      expect([win.side, win.serviceable, win.built], `${id} ${w}`).toEqual(TABLE[id]![w])
+    }
+  })
+
+  it('Tanauan is never serviceable in any window: it does not become operational before 7 Dec (the Army history dates it to 16 Dec)', () => {
+    expect(Object.values(sites.tanauan!.windows).every((w) => !w.serviceable)).toBe(true)
+  })
+
+  const boxes = (a: Airfield) => buildStructures([a], null)
+  const insideBox = (s: ReturnType<typeof buildStructures>[number], x: number, z: number, margin: number): boolean => {
+    const c = Math.cos(s.headingRad), sn = Math.sin(s.headingRad)
+    const dx = x - s.position.x, dz = z - s.position.z
+    return Math.abs(dx * c + dz * sn) <= s.halfSize.x + margin && Math.abs(-dx * sn + dz * c) <= s.halfSize.z + margin
+  }
+
+  it.each(ids)('%s: vehicles stand clear of every building, parked aircraft clear of buildings, the strip and each other', (id) => {
+    const bad: string[] = []
+    for (const w of WINDOW_IDS) {
+      const a = airfieldFor(sites[id]!, w)
+      if (a === null) continue
+      const win = sites[id]!.windows[w]!
+      const solid = boxes(a)
+      for (const v of win.vehicles) {
+        const p = localToWorld(a, v.x, v.z)
+        const hit = solid.find((s) => insideBox(s, p.x, p.z, 2))
+        if (hit) bad.push(`${w} vehicle ${v.id} inside ${hit.id}`)
+        // Equipment grading a strip under construction belongs on it; a serviceable strip is kept clear.
+        if (win.serviceable && Math.abs(v.x) < a.runway.widthM / 2 + 3 && Math.abs(v.z) < a.runway.lengthM / 2) bad.push(`${w} vehicle ${v.id} on the strip`)
+      }
+      for (const p of win.parked) {
+        const q = localToWorld(a, p.x, p.z)
+        const hit = solid.find((s) => insideBox(s, q.x, q.z, 9))
+        if (hit) bad.push(`${w} aircraft ${p.id} within a wingspan of ${hit.id}`)
+        if (Math.abs(p.x) < a.runway.widthM / 2 + 9) bad.push(`${w} aircraft ${p.id} within a wingspan of the strip`)
+        for (const o of win.parked) if (o.id < p.id && Math.hypot(o.x - p.x, o.z - p.z) < 16) bad.push(`${w} aircraft ${p.id} and ${o.id} overlap`)
+      }
+      for (const v of win.vehicles) for (const o of win.vehicles) if (o.id < v.id && Math.hypot(o.x - v.x, o.z - v.z) < 4) bad.push(`${w} vehicles ${v.id} and ${o.id} overlap`)
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('every vehicle and parked-aircraft spec a window names exists, and a parked aircraft is on its field side', () => {
+    for (const s of Object.values(sites)) for (const [w, win] of Object.entries(s.windows)) {
+      for (const v of win.vehicles) expect(() => loadVehicleSpec(v.spec), `${s.id} ${w} ${v.id}`).not.toThrow()
+      for (const p of win.parked) {
+        const spec = loadAircraftSpec(p.spec)
+        expect(spec.id).toBe(p.spec)
+        expect(p.side ?? win.side).toBe(win.side)
+      }
+    }
+  })
+
+  it('every window with parked aircraft or vehicles is built', () => {
+    for (const s of Object.values(sites)) for (const [w, win] of Object.entries(s.windows)) {
+      if (!win.built) expect(win.vehicles.length + win.parked.length + win.added.length + win.lights.length, `${s.id} ${w}`).toBe(0)
+    }
+  })
+
+  it('every site names a source for each claim it cites and each source is used', () => {
+    for (const s of Object.values(sites)) {
+      const cited = new Set([...s.base.buildings, ...Object.values(s.windows).flatMap((w) => [...w.added, ...w.vehicles, ...w.parked])].filter((p) => p.basis === 'sourced').map((p) => p.cite))
+      for (const k of cited) expect(Object.keys(s.sources), `${s.id} cites ${k}`).toContain(k)
+    }
   })
 })

@@ -931,8 +931,8 @@
     {
      "id": "tacloban-en-4",
      "spec": "gmc-cckw-353",
-     "x": 160,
-     "z": -300,
+     "x": 150,
+     "z": -290,
      "headingDeg": 0,
      "basis": "invented",
      "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
@@ -940,8 +940,8 @@
     {
      "id": "tacloban-en-5",
      "spec": "gmc-cckw-353",
-     "x": 160,
-     "z": -330,
+     "x": 175,
+     "z": -290,
      "headingDeg": 0,
      "basis": "invented",
      "cite": "Layout invented for gameplay: F3 section 10 gives no building survey for this site, only that it existed and what state it was in."
