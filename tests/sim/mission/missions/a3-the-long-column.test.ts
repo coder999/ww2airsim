@@ -28,7 +28,7 @@ import { skipScene } from '../../../../src/sim/scene/preroll.js'
 import { eligibleAircraft } from '../../../../src/sim/sortie.js'
 import { progressOf } from '../fixture.js'
 import { destroyNow, fieldApproach, hold, levelAt, terrainOrSkip } from '../fly.js'
-import { MILE_M, bundleOf, sceneOf, windowsAfterA1A2, worldOf } from './f10aKit.js'
+import { MILE_M, bundleOf, sceneOf, windowsAfterA1A2 } from './f10aKit.js'
 
 const ID = 'a3-the-long-column'
 const CONTACT = { x: -77800, z: -38500, r: 1500 }
@@ -155,7 +155,7 @@ describe.skipIf(terrain === null)('A3 over the real terrain (F10A C4), measured 
   }, 60_000)
 
   it('no auto-complete: with nobody firing, ten minutes of the AI (the wingman included) destroy no vehicle and no AAA', () => {
-    let w = hold(a3(), levelAt({ x: -60000, z: 60000 }, 3000, 120, 90), ticksFor(600))
+    const w = hold(a3(), levelAt({ x: -60000, z: 60000 }, 3000, 120, 90), ticksFor(600))
     for (const v of w.vehicles.filter((x) => POWERED.includes(x.id) || x.id.startsWith('gun-'))) expect(w.combat.vehicles[v.id]!.destroyedTick, v.id).toBeNull()
     expect(progressOf(w, 'contact').status).toBe('active')
     expect(progressOf(w, 'powered').status).toBe('inactive')

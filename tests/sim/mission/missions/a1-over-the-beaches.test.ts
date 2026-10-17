@@ -11,7 +11,7 @@
  *   player the objective (the "no auto-complete" rule), so the screen stands seaward of the anchorage.
  */
 import { describe, expect, it } from 'vitest'
-import { loadAircraftSpec, loadScenarioBundle, loadShipSpec, loadVehicleSpec } from '../../../../tools/content/load.js'
+import { loadAircraftSpec, loadShipSpec, loadVehicleSpec } from '../../../../tools/content/load.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
 import { advance, playerAircraft, type World } from '../../../../src/sim/loop.js'
 import { DT } from '../../../../src/sim/flight/model.js'
@@ -23,7 +23,7 @@ import { CHAPTER_MISSIONS } from '../../../../src/campaign/chapterMissions.js'
 import { windowsForChapter } from '../../../../src/campaign/worldStates.js'
 import { progressOf } from '../fixture.js'
 import { carrierApproach, deckRun, destroyNow, hold, levelAt, terrainOrSkip } from '../fly.js'
-import { sceneOf, MILE_M, bearingDeg, bundleOf, worldOf } from './f10aKit.js'
+import { sceneOf, MILE_M, bundleOf, worldOf } from './f10aKit.js'
 import { skipScene } from '../../../../src/sim/scene/preroll.js'
 
 const ID = 'a1-over-the-beaches'
@@ -213,8 +213,7 @@ describe.skipIf(terrain === null)('A1 headless sortie (F10A C5)', () => {
   }, 180_000)
 
   it('edge: a trap while the raid is still over the transports leaves the window open and earns no badge', () => {
-    let w = pinTo(launched(), 340)
-    w = carrierApproach(w, 'cv-1')
+    const w = carrierApproach(pinTo(launched(), 340), 'cv-1')
     const out = missionOutcome(w.mission!, recoveryOf(w)!)
     expect(out.result).toBe('no-badge')
     // a standing `protect` that has not failed reads complete; what blocks the badge is the landing, which only counts once the window has closed
@@ -242,7 +241,7 @@ describe.skipIf(terrain === null)('A1 headless sortie (F10A C5)', () => {
   }, 180_000)
 
   it('edge: the 780 s timer closes the window with the escort still alive, and the transports then count as defended', () => {
-    let w = pinTo(hold(launched(), STATION, 1), 790)
+    const w = pinTo(hold(launched(), STATION, 1), 790)
     const alive = ['zero-1', 'zero-2', 'zero-3', 'zero-4'].some((z) => w.combat.aircraft[z]!.damage.destroyedAt == null)
     expect(alive).toBe(true)
     const lost = MARUS.filter((m) => w.combat.ships[m]!.destroyedTick !== null).length
