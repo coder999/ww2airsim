@@ -160,6 +160,10 @@ export function airfieldFor(site: Site, window: WindowId): Airfield | null {
   return airfield
 }
 
+/** The four sources of a site-state's cost, for the DEV differential arms (`?siteOmit=`, F8B). */
+export const SITE_OMIT_GROUPS = ['buildings', 'aircraft', 'vehicles', 'clutter'] as const
+export type SiteOmit = typeof SITE_OMIT_GROUPS[number]
+
 type Expanded = { readonly scenario: Scenario; readonly airfields: Readonly<Record<string, Airfield>> }
 
 /**
@@ -168,7 +172,7 @@ type Expanded = { readonly scenario: Scenario; readonly airfields: Readonly<Reco
  * Returns the scenario untouched, with no airfields, when it names no sites. The result is re-parsed, so every scenario
  * rule (unique ids, light caps, known airfields) holds for the merged content too.
  */
-export function expandScenario(scenario: Scenario, sites: Readonly<Record<string, Site>>, windows: Readonly<Record<string, string>>): Expanded {
+export function expandScenario(scenario: Scenario, sites: Readonly<Record<string, Site>>, windows: Readonly<Record<string, string>>, omit: readonly SiteOmit[] = []): Expanded {
   if (scenario.sites === undefined) return { scenario, airfields: {} }
   const airfields: Record<string, Airfield> = {}
   const vehicles: ScenarioVehicle[] = []
@@ -179,17 +183,20 @@ export function expandScenario(scenario: Scenario, sites: Readonly<Record<string
     const site = sites[siteId]
     if (site === undefined) throw new Error(`scenario "${scenario.id}" names site "${siteId}", which was not loaded`)
     const window = windowOf(windows, siteId)
-    const field = airfieldFor(site, window)
-    if (field === null) { dropped.add(site.airfield); continue }
-    airfields[field.id] = field
+    const built = airfieldFor(site, window)
+    if (built === null) { dropped.add(site.airfield); continue }
+    // DEV `?siteOmit=`: the airfield needs one strike target, so omitting buildings keeps the first AAA battery (or the first building).
+    const field: Airfield = !omit.includes('buildings') ? built
+      : { ...built, buildings: [built.buildings.find((b) => b.kind === 'aaa') ?? built.buildings[0]!] }
+    airfields[field.id] = omit.includes('clutter') ? withoutClutter(field) : field
     const w = site.windows[window]!
     const heading = (runwayHeadingRad(field) * 180) / Math.PI
     if (w.vehicles.length > VEHICLE_CAP) throw new Error(`site "${siteId}" window "${window}": ${w.vehicles.length} vehicles exceed the cap ${VEHICLE_CAP}`)
-    for (const v of w.vehicles) {
+    for (const v of omit.includes('vehicles') ? [] : w.vehicles) {
       const at = localToWorld(field, v.x, v.z)
       vehicles.push({ id: v.id, spec: v.spec, waypoints: [[at.x, at.z]], speedMps: 0, loop: false, headingDeg: heading + v.headingDeg, side: v.side ?? w.side })
     }
-    for (const p of w.parked) {
+    for (const p of omit.includes('aircraft') ? [] : w.parked) {
       aircraft.push({ id: p.id, spec: p.spec, parkedAt: { airfield: field.id, spot: { x: p.x, z: p.z } }, chocked: true, side: p.side ?? w.side })
     }
     for (const l of w.lights) {
@@ -211,13 +218,16 @@ export function expandScenario(scenario: Scenario, sites: Readonly<Record<string
   return { scenario: next, airfields }
 }
 
+const withoutClutter = (field: Airfield): Airfield => { const { clutter, ...rest } = field; void clutter; return rest }
+
 /**
  * DEV `?siteState=tacloban:buildup,dulag:assault` (F8A Task 9): which sites to merge into whatever scenario loads, and in
  * which window. `null` when the query has none. A malformed pair or an unknown window throws, loudly, because this is a
  * developer asking for a state and a silent fallback would show the wrong one.
  */
-export function siteStateFromQuery(search: string): { readonly sites: readonly string[]; readonly windows: Readonly<Record<string, string>> } | null {
-  const raw = new URLSearchParams(search).get('siteState')
+export function siteStateFromQuery(search: string): { readonly sites: readonly string[]; readonly windows: Readonly<Record<string, string>>; readonly omit: readonly SiteOmit[] } | null {
+  const params = new URLSearchParams(search)
+  const raw = params.get('siteState')
   if (raw === null || raw === '') return null
   const windows: Record<string, string> = {}
   for (const pair of raw.split(',')) {
@@ -226,7 +236,12 @@ export function siteStateFromQuery(search: string): { readonly sites: readonly s
     if (!WINDOW_IDS.includes(window)) throw new Error(`siteState: "${window}" is not a window (${WINDOW_IDS.join(', ')})`)
     windows[site] = window
   }
-  return { sites: Object.keys(windows), windows }
+  // F8B `?siteOmit=aircraft,clutter`: leave those sources out (the differential budget arms).
+  const omit = (params.get('siteOmit') ?? '').split(',').filter((g) => g !== '').map((g): SiteOmit => {
+    if (!(SITE_OMIT_GROUPS as readonly string[]).includes(g)) throw new Error(`siteOmit: "${g}" is not a group (${SITE_OMIT_GROUPS.join(', ')})`)
+    return g as SiteOmit
+  })
+  return { sites: Object.keys(windows), windows, omit }
 }
 
 /** The scenario with `sites` named (kept in order, no repeats), for the loader to expand. */

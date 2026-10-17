@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, Box3, CylinderGeometry, Group, Mesh, type Object3D } from 'three'
+import { BoxGeometry, BufferAttribute, BufferGeometry, Box3, CylinderGeometry, Group, Mesh, type Material, type Object3D } from 'three'
 import type { Vec3 } from '../../sim/math/vec3.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { insideRect, localToWorld, runwayHeadingRad, worldToLocal, type Airfield } from '../../sim/world/airfields.js'
@@ -129,6 +129,15 @@ function groundPatch(field: TerrainField, x: number, z: number, width: number, l
  * base with scenery on it is Plan 13d's problem along with the building table
  * itself. Stated here rather than left silently true.
  */
+/** The F8A scorch patch, kept byte-for-byte for a building that is not a site model (none ships one today). */
+const legacyScorch = (b: { widthM: number; lengthM: number }, x: number, y: number, z: number, material: Material): Mesh => {
+  const scorch = new Mesh(new BoxGeometry(b.widthM + 4, 0.06, b.lengthM + 4), material)
+  scorch.name = 'scorch'
+  scorch.position.set(x, y + 0.04, z)
+  scorch.receiveShadow = true
+  return scorch
+}
+
 export function createAirfield(field: TerrainField, airfield: Airfield, textures?: SceneryTextures | null): AirfieldHandle {
   const root = new Group()
   root.name = `${airfield.name} airfield scenery`
@@ -191,13 +200,16 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     const intact = batched(new Group(), collector.batches)
     intact.name = 'intact'
     if (state === 'destroyed') intact.visible = false
-    if (state === 'damaged') {
-      // A scorch patch: dark, flat, a little larger than the footprint.
-      const scorch = new Mesh(new BoxGeometry(b.widthM + 4, 0.06, b.lengthM + 4), materials.dark)
-      scorch.position.set(x, y + 0.04, z)
-      scorch.receiveShadow = true
-      intact.add(scorch)
+    // F8B: a char patch the size of the footprint plus an 8 m ring. F8A drew it only 2 m past the footprint, under the glb, where it
+    // was all but invisible in the captures. Site buildings only (`model`), so the shipped bases keep their scene graph exactly.
+    const charPatch = (): Mesh => {
+      const patch = new Mesh(new BoxGeometry(b.widthM + 16, 0.06, b.lengthM + 16), materials.dark)
+      patch.name = 'scorch'
+      patch.position.set(x, y + 0.04, z)
+      patch.receiveShadow = true
+      return patch
     }
+    if (state === 'damaged') intact.add(b.model === true ? charPatch() : legacyScorch(b, x, y, z, materials.dark))
     if (b.model === true && state !== 'destroyed' && state !== 'construction') {
       modelSlots.push({ id: b.id, kind: b.kind, x, y, z, rotY: -(runwayHeadingRad(airfield) + ((b.headingDeg ?? 0) * Math.PI) / 180), intact, placeholder: [...intact.children] })
     }
@@ -207,15 +219,35 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     collapsed.visible = state === 'destroyed'
     // A low slab across the whole footprint, plus one smaller tilted chunk --
     // "a low, broken box", not a claim to model real debris distribution.
-    const slab = new Mesh(new BoxGeometry(b.widthM + 1, 1.3, b.lengthM + 1), concrete)
-    slab.position.set(x, y + 0.65, z)
-    slab.receiveShadow = true // Plan 16b, see hellcat.ts -- `batched` misses these, unlike `intact`.
-    collapsed.add(slab)
-    const chunk = new Mesh(new BoxGeometry(b.widthM * 0.4, 2.6, b.lengthM * 0.35), concrete)
-    chunk.position.set(x + b.widthM * 0.18, y + 1.3, z - b.lengthM * 0.22)
-    chunk.rotation.y = 0.35
-    chunk.receiveShadow = true
-    collapsed.add(chunk)
+    // F8B, site buildings only: a char patch under a dark burnt slab and four pale tilted chunks of different sizes, so a ruin
+    // reads as a ruin from 1,000 ft and not as one pale slab (the F8A capture finding).
+    if (b.model === true) {
+      collapsed.add(charPatch())
+      const burnt = new Mesh(new BoxGeometry(b.widthM + 1, 0.9, b.lengthM + 1), materials.dark)
+      burnt.position.set(x, y + 0.45, z)
+      burnt.receiveShadow = true
+      collapsed.add(burnt)
+      const chunks: readonly (readonly [number, number, number, number, number, number])[] = [
+        [0.18, -0.22, 0.4, 2.8, 0.35, 0.35], [-0.2, 0.18, 0.3, 2.2, 0.3, -0.5], [0.05, 0.28, 0.25, 1.8, 0.25, 0.9], [-0.25, -0.3, 0.22, 1.5, 0.28, 1.4],
+      ]
+      for (const [fx, fz, fw, h, fl, yaw] of chunks) {
+        const chunk = new Mesh(new BoxGeometry(b.widthM * fw, h, b.lengthM * fl), concrete)
+        chunk.position.set(x + b.widthM * fx, y + 0.9 + h / 2, z + b.lengthM * fz)
+        chunk.rotation.y = yaw
+        chunk.receiveShadow = true
+        collapsed.add(chunk)
+      }
+    } else {
+      const slab = new Mesh(new BoxGeometry(b.widthM + 1, 1.3, b.lengthM + 1), concrete)
+      slab.position.set(x, y + 0.65, z)
+      slab.receiveShadow = true // Plan 16b, see hellcat.ts -- `batched` misses these, unlike `intact`.
+      collapsed.add(slab)
+      const chunk = new Mesh(new BoxGeometry(b.widthM * 0.4, 2.6, b.lengthM * 0.35), concrete)
+      chunk.position.set(x + b.widthM * 0.18, y + 1.3, z - b.lengthM * 0.22)
+      chunk.rotation.y = 0.35
+      chunk.receiveShadow = true
+      collapsed.add(chunk)
+    }
 
     const group = new Group()
     group.name = `structure:${b.id}`

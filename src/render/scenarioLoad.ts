@@ -3,7 +3,7 @@ import { isParkedAircraft, isShipParked, parseScenario, scenarioAircraftSpecIds,
 import { parseAirfield } from '../sim/world/airfields.js'
 import { parseShipSpec } from '../sim/world/ships.js'
 import { parseVehicleSpec } from '../sim/world/vehicles.js'
-import { expandScenario, parseSite } from '../sim/world/sites.js'
+import { expandScenario, parseSite, type SiteOmit } from '../sim/world/sites.js'
 import { aircraftUrl, airfieldUrl, scenarioUrl, shipUrl, siteUrl, vehicleUrl } from './content.js'
 import { withPlayerSpec } from '../sim/sortie.js'
 
@@ -37,7 +37,7 @@ export async function loadScenarioFile(id: string, fetchImpl: typeof fetch = fet
  *  fetched and parsed like any other the scenario names. `extend` (DEV only,
  *  the entity-scaling swarm) rewrites the scenario at the same point, for the
  *  same reason. */
-export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string, extend?: (s: Scenario) => Scenario, siteWindows: Readonly<Record<string, string>> = {}): Promise<ScenarioBundle> {
+export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = fetch, playerSpec?: string, extend?: (s: Scenario) => Scenario, siteWindows: Readonly<Record<string, string>> = {}, siteOmit: readonly SiteOmit[] = []): Promise<ScenarioBundle> {
   const json = async (url: string): Promise<unknown> => {
     const res = await fetchImpl(url)
     if (!res.ok) throw new Error(`Failed to fetch content ${url}: ${res.status} ${res.statusText}`)
@@ -62,7 +62,7 @@ export async function loadScenarioBundle(id: string, fetchImpl: typeof fetch = f
   // F8: sites are merged in before the spec tables are built, so what a window adds has its specs fetched (the node
   // twin is `bundleForScenario`). A scenario with no `sites` comes back as it went in.
   const siteTable = await table(extended.sites ?? [], siteUrl, parseSite)
-  const { scenario, airfields: siteFields } = expandScenario(extended, siteTable, siteWindows)
+  const { scenario, airfields: siteFields } = expandScenario(extended, siteTable, siteWindows, siteOmit)
   const [aircraftSpecs, shipSpecs, vehicleSpecs, baseFields] = await Promise.all([
     table(scenarioAircraftSpecIds(scenario), aircraftUrl, parseAircraftSpec),
     table(scenarioShipSpecIds(scenario), shipUrl, parseShipSpec),

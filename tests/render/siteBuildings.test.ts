@@ -84,6 +84,34 @@ describe('building states (Task 3)', () => {
   })
 })
 
+describe('damage reads from the air (F8B, answering the F8A known gap that damage states read subtle in captures)', () => {
+  const size = (o: Object3D): { x: number; z: number } => { o.updateMatrixWorld(true); const b = new Box3().setFromObject(o); return { x: b.max.x - b.min.x, z: b.max.z - b.min.z } }
+  const group = (extra: Record<string, unknown>): Object3D => createAirfield(field, oneBuilding('hangar', { model: true, ...extra })).object.getObjectByName('structure:b1')!
+
+  it('an intact building has no scorch; a damaged one has a char patch that reaches at least 6 m past its footprint on every side', () => {
+    expect(group({}).getObjectByName('intact')!.getObjectByName('scorch')).toBeUndefined()
+    const scorch = group({ state: 'damaged' }).getObjectByName('intact')!.getObjectByName('scorch')!
+    expect(scorch).toBeDefined()
+    const s = size(scorch)
+    expect(s.x).toBeGreaterThanOrEqual(20 + 12)
+    expect(s.z).toBeGreaterThanOrEqual(30 + 12)
+  })
+
+  it('rubble carries the same char patch under a broken heap of at least five pieces, not one pale slab', () => {
+    const collapsed = group({ state: 'destroyed' }).getObjectByName('collapsed')!
+    expect(collapsed.getObjectByName('scorch')).toBeDefined()
+    let meshes = 0
+    collapsed.traverse((o) => { if (o instanceof Mesh) meshes++ })
+    expect(meshes).toBeGreaterThanOrEqual(6) // scorch + slab + at least four chunks
+  })
+
+  it('a building that is hit in play (sync) swaps to the same rubble: the collapsed heap is built for every live building too', () => {
+    const live = group({}).getObjectByName('collapsed')!
+    expect(live.getObjectByName('scorch')).toBeDefined()
+    expect(live.visible).toBe(false)
+  })
+})
+
 describe('loadModels (Task 3)', () => {
   const stub = (): { load: (k: string) => Promise<{ root: Object3D; release(): void }>; released: string[]; asked: string[] } => {
     const released: string[] = [], asked: string[] = []

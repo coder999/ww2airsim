@@ -96,8 +96,9 @@ describe('mission-fit table', () => {
 
   it('a start spot that does not exist, or a window with no field, is an error rather than a pass', () => {
     const a6 = filled.find((r) => r.id === 'A6')!
-    if (a6.start.kind !== 'parked') throw new Error('A6 starts parked')
-    expect(() => fitOf({ ...a6, start: { ...a6.start, parked: 'nobody' } }, sites)).toThrow(/nobody/)
-    expect(() => fitOf({ ...a6, start: { ...a6.start, site: 'tanauan', window: 'assault' } }, sites)).toThrow(/no field/)
+    const start = a6.start
+    if (start.kind !== 'parked') throw new Error('A6 starts parked')
+    expect(() => fitOf({ ...a6, start: { ...start, parked: 'nobody' } }, sites)).toThrow(/nobody/)
+    expect(() => fitOf({ ...a6, start: { ...start, site: 'tanauan', window: 'assault' } }, sites)).toThrow(/no field/)
   })
 })

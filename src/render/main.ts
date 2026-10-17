@@ -546,7 +546,7 @@ async function boot(): Promise<void> {
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
       scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
     }
-    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows)
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows, siteState?.omit)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev, authored: spec.id === option?.aircraft })
