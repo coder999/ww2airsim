@@ -1,0 +1,24 @@
+{
+  "id": "a6-victory",
+  "chapter": "A6",
+  "kind": "victory",
+  "durationS": 50,
+  "world": { "source": "mission", "scenario": "a6-battle-for-the-airfields" },
+  "camera": [
+    { "t": 0, "position": [-29300, 150, -47000], "yawDeg": 329, "pitchDeg": -12, "ease": "inOut" },
+    { "t": 10, "position": [-29560, 15, -47760], "yawDeg": 0, "pitchDeg": 2, "ease": "inOut" },
+    { "t": 20, "position": [-30000, 300, -46500], "yawDeg": 240, "pitchDeg": 8, "ease": "inOut" },
+    { "t": 30, "position": [-28500, 80, -18500], "yawDeg": 99.5, "pitchDeg": -1, "ease": "inOut" },
+    { "t": 40, "position": [-41500, 400, -21000], "yawDeg": 80, "pitchDeg": -10, "ease": "inOut" },
+    { "t": 50, "position": [-29666, 700, -45500], "yawDeg": 0, "pitchDeg": -25, "ease": "inOut" }
+  ],
+  "cues": [
+    { "t": 0, "order": { "kind": "message", "text": "7 December 1944. The Japanese attack on the Burauen airfields has failed." } },
+    { "t": 10, "order": { "kind": "message", "text": "Fifth Air Force fighters are credited with 56 enemy aircraft destroyed in the last big air battle over Leyte." } },
+    { "t": 20, "order": { "kind": "message", "text": "Buri, Bayug and San Pablo stay in American hands. Tacloban and Dulag keep flying." } },
+    { "t": 30, "order": { "kind": "message", "text": "The ships go on unloading in Leyte Gulf." } },
+    { "t": 40, "order": { "kind": "message", "text": "At Tanauan the new airfield is still being built. It opens on 16 December." } },
+    { "t": 47, "order": { "kind": "message", "text": "This sortie compressed two days of air and ground fighting into one dawn." } }
+  ],
+  "handoff": { "player": "held" }
+}

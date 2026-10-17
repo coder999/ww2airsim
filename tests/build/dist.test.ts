@@ -134,8 +134,7 @@ describe('the built artifact', () => {
         'content/scenarios/furball-range.json',
         'content/scenarios/friendly-fire-range.json',
         'content/scenarios/friendly-fire-field.json',
-        'content/scenes/demo-opening.json',
-        'content/scenes/demo-victory.json',
+        ...readdirSync('content/scenes').filter((f) => f.endsWith('.json')).map((f) => `content/scenes/${f}`), // every shipped scene reaches dist/
         'content/bases/tacloban.json',
         'content/bases/dulag.json',
         'content/bases/bayug.json',

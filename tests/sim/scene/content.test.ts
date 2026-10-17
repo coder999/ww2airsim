@@ -12,14 +12,13 @@ const directory = new URL('../../../content/scenes/', import.meta.url)
 const files = readdirSync(directory).filter((file) => file.endsWith('.json')).sort()
 
 describe('campaign scene content', () => {
-  // Mark ruled 2026-10-17: the chapter missions do not exist yet (F10), so F9 ships two demo scenes on existing scenarios.
-  it('enrolls the demo scenes and the chapters\' own scenes, and nothing else', () => {
+  it('enrolls the chapters\' own scenes, and nothing else (the F9 demo scenes were deleted by F10E, 2026-10-17)', () => {
     // A chapter scene is `<chapter>-opening` or `<chapter>-victory`.
     const chapterScenes = new Set(Object.keys(CHAPTER_MISSIONS).flatMap((c) => [`${c.toLowerCase()}-opening.json`, `${c.toLowerCase()}-victory.json`]))
-    for (const f of files) expect(['demo-opening.json', 'demo-victory.json'].includes(f) || chapterScenes.has(f), `${f} is not a demo or a chapter scene`).toBe(true)
+    for (const f of files) expect(chapterScenes.has(f), `${f} is not a chapter scene`).toBe(true)
   })
   it('a chapter scene names its chapter and that chapter\'s own scenario', () => {
-    for (const f of files.filter((x) => !x.startsWith('demo-'))) {
+    for (const f of files) {
       const scene = parseScene(JSON.parse(readFileSync(new URL(f, directory), 'utf8')) as unknown)
       expect(scene.id).toBe(f.slice(0, -5))
       expect(scene.chapter).toBe(scene.id.slice(0, 2).toUpperCase())

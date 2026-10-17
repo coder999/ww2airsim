@@ -1,0 +1,22 @@
+{
+  "id": "j6-opening",
+  "chapter": "J6",
+  "kind": "opening",
+  "durationS": 20,
+  "world": { "source": "mission", "scenario": "j6-operation-te-go" },
+  "camera": [
+    { "t": 0, "position": [-41500, 120, -19400], "yawDeg": 217.5, "pitchDeg": -4, "ease": "inOut" },
+    { "t": 4, "position": [-41500, 1800, -21000], "yawDeg": 207, "pitchDeg": 4, "ease": "inOut" },
+    { "t": 8, "position": [-41100, 200, -21400], "yawDeg": 120.5, "pitchDeg": 2, "ease": "inOut" },
+    { "t": 12, "position": [-40800, 60, -21700], "yawDeg": 70, "pitchDeg": 5, "ease": "inOut" },
+    { "t": 16, "position": [-40755, 7, -21994], "yawDeg": 80, "pitchDeg": -4, "ease": "inOut" },
+    { "t": 20, "position": [-40745, 6, -21996], "yawDeg": 80, "pitchDeg": -2, "ease": "inOut" }
+  ],
+  "cues": [
+    { "t": 0, "order": { "kind": "message", "text": "Buri tower: The transports dropped before dawn and the lodgment is holding. Sallys are forming over the field." } },
+    { "t": 6, "order": { "kind": "message", "text": "Operations: American fighters are warming up at Dulag. Their field is bomb-damaged but they will get off." } },
+    { "t": 12, "order": { "kind": "message", "text": "Sally leader: Who is my escort this morning? Oscar or Zero, stay on my wing." } },
+    { "t": 17, "order": { "kind": "message", "text": "Buri tower: You are cleared to roll. Stay with the bombers." } }
+  ],
+  "handoff": { "player": "held" }
+}

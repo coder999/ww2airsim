@@ -1,0 +1,298 @@
+{
+  "id": "j6-victory",
+  "chapter": "J6",
+  "kind": "victory",
+  "durationS": 50,
+  "world": {
+    "source": "mission",
+    "scenario": "j6-operation-te-go"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -41500,
+        120,
+        -19400
+      ],
+      "yawDeg": 217.5,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    },
+    {
+      "t": 10,
+      "position": [
+        -40755,
+        7,
+        -21994
+      ],
+      "yawDeg": 80,
+      "pitchDeg": -3,
+      "ease": "inOut"
+    },
+    {
+      "t": 20,
+      "position": [
+        -39800,
+        150,
+        -21200
+      ],
+      "yawDeg": 200,
+      "pitchDeg": -5,
+      "ease": "inOut"
+    },
+    {
+      "t": 30,
+      "position": [
+        -28500,
+        80,
+        -18500
+      ],
+      "yawDeg": 99.5,
+      "pitchDeg": -1,
+      "ease": "inOut"
+    },
+    {
+      "t": 40,
+      "position": [
+        -29666,
+        200,
+        -46000
+      ],
+      "yawDeg": 0,
+      "pitchDeg": -6,
+      "ease": "inOut"
+    },
+    {
+      "t": 50,
+      "position": [
+        -41000,
+        500,
+        -23500
+      ],
+      "yawDeg": 60,
+      "pitchDeg": -12,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "ALTERNATE HISTORY: what follows never happened."
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "essex-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 18000,
+                "z": -26000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "penn-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 21000,
+                "z": -20000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "cleveland-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 10000,
+                "z": -30000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "fletcher-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 8000,
+                "z": -16000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "fletcher-2",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 8000,
+                "z": -24000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "maru-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 5500,
+                "z": -8000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "maru-2",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 5500,
+                "z": -11000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "maru-3",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 4500,
+                "z": -14000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "maru-4",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 4500,
+                "z": -19000
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 2,
+      "order": {
+        "kind": "order",
+        "entity": "maru-5",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": 5000,
+                "z": -22500
+              }
+            ],
+            "speedMps": 7
+          }
+        }
+      }
+    },
+    {
+      "t": 8,
+      "order": {
+        "kind": "message",
+        "text": "In this telling the Te-Go drop and its air support worked: the paratroops took San Pablo, and Buri and Bayug fell to the Japanese."
+      }
+    },
+    {
+      "t": 20,
+      "order": {
+        "kind": "message",
+        "text": "The Sallys that bombed Tacloban and Dulag left them unusable, and the American fleet pulled back from the gulf."
+      }
+    },
+    {
+      "t": 32,
+      "order": {
+        "kind": "message",
+        "text": "Japanese troops hold the Burauen fields and the road to Ormoc stays open."
+      }
+    },
+    {
+      "t": 41,
+      "order": {
+        "kind": "message",
+        "text": "In fact the transports were shot down or scattered and the American garrison held. This outcome never happened."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

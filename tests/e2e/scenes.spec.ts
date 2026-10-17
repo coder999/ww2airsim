@@ -4,20 +4,23 @@ import { parseScene } from '../../src/sim/scene/schema.js'
 import { worldRayAt } from '../../src/render/grabLook.js'
 
 /**
- * F9 campaign scenes (plan 2026-10-17). The chapter scenes do not exist yet (F10), so this drives the demo opening on the
- * `escort` scenario through the DEV entry `?scene=` (a quick launch). Correctness only: the scene plays on its own world,
+ * F9 campaign scenes (plan 2026-10-17). This drives A6's opening (F10E) through the DEV entry `?scene=` (a quick launch). Correctness only: the scene plays on its own world,
  * Esc skips it, and the flight is then live. Skip-equals-completion is proven headless (tests/render/sceneFlow.test.ts).
  */
 test.setTimeout(180_000)
 
+// F10E (2026-10-17): the F9 demo scenes are gone; these drive A6's opening. A chapter scenario is drawn in the site windows it plays in, which a Dev URL
+// names with `siteState` (a campaign launch reads them from the stored world instead).
+const A6 = 'a6-battle-for-the-airfields&siteState=tacloban:endgame,dulag:endgame,buri:endgame,bayug:endgame,san-pablo:endgame,tanauan:endgame'
+
 const scene = (page: import('@playwright/test').Page) => page.evaluate(() => (window as DiagWindow).__ww2?.scene() ?? null)
 const tick = (page: import('@playwright/test').Page) => page.evaluate(() => (window as DiagWindow).__ww2?.tick() ?? 0)
 
-test('the demo opening plays, Esc skips it to the handoff, and the flight resumes', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&scene=demo-opening')
+test('the A6 opening plays, Esc skips it to the handoff, and the flight resumes', async ({ page }) => {
+  await page.goto(`/?scenario=${A6}&launch&scene=a6-opening`)
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.scene() != null, undefined, { timeout: 90_000 })
   const playing = await scene(page)
-  expect(playing?.id).toBe('demo-opening')
+  expect(playing?.id).toBe('a6-opening')
   const total = playing!.ticksLeft
   expect(total).toBeGreaterThan(0)
   // the scene is stepping its own world, and the HUD is hidden
@@ -26,19 +29,19 @@ test('the demo opening plays, Esc skips it to the handoff, and the flight resume
 
   await page.keyboard.press('Escape')
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.scene() == null, undefined, { timeout: 10_000 })
-  // skip landed at the handoff: the whole pre-roll (15 s = 900 ticks) is behind us, and the flight is live
+  // skip landed at the handoff: the whole pre-roll (20 s = 1200 ticks) is behind us, and the flight is live
   const atHandoff = await tick(page)
-  expect(atHandoff).toBeGreaterThanOrEqual(900)
+  expect(atHandoff).toBeGreaterThanOrEqual(1200)
   await page.waitForFunction((t) => ((window as DiagWindow).__ww2?.tick() ?? 0) > t + 30, atHandoff, { timeout: 30_000 })
 })
 
 test('director mode opens on a scene, drops a key at the scrubbed time, and saves a valid scene', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const before = await bar.locator('.director-key').count()
   // selecting a key draws from that key's pose (a regression guard: the director's callbacks must reach the frame loop)
-  const second = parseScene(JSON.parse(await (await page.request.get('/content/scenes/demo-opening.json')).text()) as unknown).camera[1]!
+  const second = parseScene(JSON.parse(await (await page.request.get('/content/scenes/a6-opening.json')).text()) as unknown).camera[1]!
   await bar.locator('.director-key').nth(1).click()
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.directorEye() != null, undefined, { timeout: 5_000 })
   const eye = await page.evaluate(() => (window as DiagWindow).__ww2!.directorEye())
@@ -51,7 +54,7 @@ test('director mode opens on a scene, drops a key at the scrubbed time, and save
   const download = page.waitForEvent('download')
   await bar.getByRole('button', { name: 'Save timeline JSON' }).click()
   const file = await download
-  expect(file.suggestedFilename()).toBe('demo-opening.json')
+  expect(file.suggestedFilename()).toBe('a6-opening.json')
   const chunks: Buffer[] = []
   for await (const chunk of await file.createReadStream()) chunks.push(chunk as Buffer)
   const saved = parseScene(JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown)
@@ -60,7 +63,7 @@ test('director mode opens on a scene, drops a key at the scrubbed time, and save
 })
 
 test('director mode flies the camera in space even with a bar control focused', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   // focus a bar control: its key handlers stop propagation, which used to starve the free camera of W/A/S/D/Q/E
@@ -81,7 +84,7 @@ test('director mode flies the camera in space even with a bar control focused', 
 })
 
 test('in director mode the wheel dollies the camera along its view, 500 ft a notch', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   await expect(bar).toContainText('Wheel')
@@ -102,7 +105,7 @@ test('in director mode the wheel dollies the camera along its view, 500 ft a not
 })
 
 test('in director mode a drag moves the view like a touch screen: right turns it left, up turns it down', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
@@ -119,7 +122,7 @@ test('in director mode a drag moves the view like a touch screen: right turns it
 })
 
 test('a key can be dragged along the timeline and stops short of its neighbor', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const keys = bar.locator('.director-key')
@@ -141,7 +144,7 @@ test('a key can be dragged along the timeline and stops short of its neighbor', 
 })
 
 test('the director sheet opens on Esc and M, and a right click on the map puts the camera over that point at the same height', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const sheet = page.locator('[data-director-sheet]')
@@ -174,7 +177,7 @@ test('the director sheet opens on Esc and M, and a right click on the map puts t
 })
 
 test('a drag holds the world 1:1 under the pointer: the point grabbed is the point under the cursor afterwards', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
@@ -199,7 +202,7 @@ test('a drag holds the world 1:1 under the pointer: the point grabbed is the poi
 })
 
 test('the map shows the camera, and Save frame JSON gives a link that reopens the same time and camera', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   await page.keyboard.press('KeyM')
@@ -220,7 +223,7 @@ test('the map shows the camera, and Save frame JSON gives a link that reopens th
   for await (const chunk of await file.createReadStream()) chunks.push(chunk as Buffer)
   const view = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { kind: string; scene: string; tSeconds: number; url: string; camera: { positionM: number[] } }
   expect(view.kind).toBe('ww2airsim-director-frame')
-  expect(view.scene).toBe('demo-opening')
+  expect(view.scene).toBe('a6-opening')
   expect(view.tSeconds).toBeCloseTo(4.5, 1)
   expect(view.camera.positionM[0]).toBeCloseTo(eye.position[0], 1)
   // the link reopens it
@@ -235,12 +238,12 @@ test('the map shows the camera, and Save frame JSON gives a link that reopens th
 })
 
 test('a DEV scene or director entry starts from the scenario at tick 0, not a few seconds into a live flight', async ({ page }) => {
-  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&director=a6-opening`)
   await expect(page.locator('[data-director]')).toBeVisible({ timeout: 90_000 })
   expect(await page.evaluate(() => (window as DiagWindow).__ww2!.tick())).toBe(0)
-  await page.goto('/?scenario=escort&launch&scene=demo-opening')
+  await page.goto(`/?scenario=${A6}&launch&scene=a6-opening`)
   await page.waitForFunction(() => (window as DiagWindow).__ww2?.scene() != null, undefined, { timeout: 90_000 })
-  // the scene's own world starts at 0 too: its ticks left are the whole 15 s, less what real time has played since
+  // the scene's own world starts at 0 too: its ticks left are the whole 20 s, less what real time has played since
   const left = (await page.evaluate(() => (window as DiagWindow).__ww2!.scene()!.ticksLeft))
-  expect(left).toBeGreaterThan(900 - 90)
+  expect(left).toBeGreaterThan(1200 - 90)
 })
