@@ -123,11 +123,12 @@ describe('every shipped scenario declares which sites are friendly (F5C content 
     ])
   })
 
-  it('every authored chapter ends deliberately: a suggested recovery, or an egress gate (Mark, 2026-10-17)', () => {
+  it('every authored chapter ends deliberately: a land objective (suggested or named), or an egress gate (Mark, 2026-10-17)', () => {
     for (const m of Object.values(CHAPTER_MISSIONS)) {
       if (m.scenario === null) continue
       const w = world(m.scenario)
-      const suggests = (w.mission?.objectives ?? []).some((x) => x.kind === 'land' && x.suggestedRecovery === true)
+      // F10C: a chapter may name its recovery field instead (J1: Buri, or Bayug only if Buri is unserviceable; J3: Bayug), which is just as deliberate.
+      const suggests = (w.mission?.objectives ?? []).some((x) => x.kind === 'land')
       const egress = w.mission?.egress !== undefined
       expect(suggests || egress, `${m.scenario} neither suggests a recovery nor ends at an egress gate`).toBe(true)
       // Decision 13: a chapter's script freezes at the landing that completes it (an egress chapter ends at its gate instead).

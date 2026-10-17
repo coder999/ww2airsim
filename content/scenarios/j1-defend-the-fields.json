@@ -37,10 +37,7 @@
       "chocked": false,
       "pilot": {
         "takeoff": true,
-        "skill": "green",
-        "home": {
-          "airfield": "buri"
-        }
+        "skill": "green"
       }
     }
   ],
@@ -396,10 +393,7 @@
             "speedMps": 100
           },
           "pilot": {
-            "skill": "green",
-            "home": {
-              "airfield": "buri"
-            }
+            "skill": "green"
           }
         },
         {
@@ -418,10 +412,7 @@
           "pilot": {
             "skill": "green",
             "leader": "ki43-1",
-            "slot": 1,
-            "home": {
-              "airfield": "buri"
-            }
+            "slot": 1
           }
         }
       ]
@@ -678,9 +669,6 @@
               "destination": {
                 "airfield": "buri"
               }
-            },
-            "home": {
-              "airfield": "buri"
             }
           },
           "tags": [
