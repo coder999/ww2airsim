@@ -78,3 +78,24 @@ test('director mode flies the camera in space even with a bar control focused', 
   await page.keyboard.up('KeyE')
   expect((await eyeOf())[1]).toBeGreaterThan(after[1] + 3)
 })
+
+test('in director mode the wheel dollies the camera along its view, 500 ft a notch', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  await expect(bar).toContainText('Wheel')
+  const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  const before = await eyeOf()
+  await page.mouse.move(600, 300)
+  await page.mouse.wheel(0, -100) // one notch up: forward
+  await page.waitForTimeout(500)
+  const after = await eyeOf()
+  const moved = Math.hypot(after.position[0] - before.position[0], after.position[1] - before.position[1], after.position[2] - before.position[2])
+  expect(moved).toBeCloseTo(152.4, 0)
+  // forward means the way it points: the move lines up with the yaw and pitch
+  const dx = after.position[0] - before.position[0]
+  const dz = after.position[2] - before.position[2]
+  const yaw = before.yawDeg * Math.PI / 180
+  expect(dx / moved).toBeCloseTo(Math.cos(before.pitchDeg * Math.PI / 180) * Math.cos(yaw), 1)
+  expect(dz / moved).toBeCloseTo(-Math.cos(before.pitchDeg * Math.PI / 180) * Math.sin(yaw), 1)
+})

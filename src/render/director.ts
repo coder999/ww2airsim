@@ -139,6 +139,7 @@ const CSS = `
 [data-director] button[aria-pressed="true"] { background:#5d8fd6;color:#0c0e12; }
 [data-director] button:disabled { opacity:.45;cursor:default; }
 [data-director] :focus-visible { outline:2px solid #aacbff;outline-offset:2px; }
+[data-director] .director-help { margin:0 0 6px;color:#aab4c2;font-size:12px; }
 [data-director] .director-markers { position:relative;height:26px;margin:0 10px; }
 [data-director] .director-key { position:absolute;top:2px;transform:translateX(-50%);padding:0;
   width:20px;height:22px;border-radius:3px;font-size:10px; }
@@ -162,6 +163,10 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
   const style = doc.createElement('style')
   style.textContent = CSS
   ui.appendChild(style)
+  const help = doc.createElement('div')
+  help.className = 'director-help'
+  help.textContent = 'Fly: W/S forward and back, A/D strafe, Q/E down and up, drag to look. Wheel: 500 ft per notch along the view (scroll up is forward). Drop key stores the view you see.'
+  ui.appendChild(help)
   const markers = doc.createElement('div')
   markers.className = 'director-markers'
   ui.appendChild(markers)

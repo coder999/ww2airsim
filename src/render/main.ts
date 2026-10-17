@@ -3100,6 +3100,8 @@ async function boot(): Promise<void> {
   })
   // F9 DEV: the director bar stops key events at its own edge (so a focused button or slider does not also fly the
   // game), which would starve the free camera of W/A/S/D/Q/E after any click on the bar. Capture phase sees them first.
+  /** One wheel notch in director mode: 500 ft. */
+  const DIRECTOR_WHEEL_M = 152.4
   const DIRECTOR_FLY_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE']
   window.addEventListener('keydown', (e) => { if (director !== null && DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.add(e.code) }, true)
   window.addEventListener('keyup', (e) => { if (DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.delete(e.code) }, true)
@@ -3434,7 +3436,17 @@ async function boot(): Promise<void> {
         d.keyed = false
       }
       if (!d.keyed) {
-        d.free = stepManual(d.free, { mouse: replayMouse, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
+        // Keys fine-tune; the wheel is the fast move: each notch dollies DIRECTOR_WHEEL_M along where the camera points (scroll up is forward).
+        // The wheel is withheld from `stepManual`, which would spend it on flying speed.
+        d.free = stepManual(d.free, { mouse: { ...replayMouse, wheelNotches: 0 }, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
+        if (replayMouse.wheelNotches !== 0) {
+          const run = -replayMouse.wheelNotches * DIRECTOR_WHEEL_M
+          const { yawRad, pitchRad } = d.free
+          d.free = { ...d.free, position: v3(
+            d.free.position.x + run * Math.cos(pitchRad) * Math.cos(yawRad),
+            d.free.position.y + run * Math.sin(pitchRad),
+            d.free.position.z - run * Math.cos(pitchRad) * Math.sin(yawRad)) }
+        }
         d.displayed = { position: [d.free.position.x, d.free.position.y, d.free.position.z], yawDeg: d.free.yawRad * 180 / Math.PI, pitchDeg: d.free.pitchRad * 180 / Math.PI }
       }
       d.handle.advance(dt)
