@@ -15,7 +15,7 @@ The chapters' content is **F3 section 4** (start, badge graph, secondary, popula
   Headless tests prove the contract and the AI population, not feel: **a hand-flown pass is owed on every chapter and every handoff says so** (the standing practice in the escort, Surigao and Tank Buster handoffs).
 - **Heavy jobs:** `remote-run` on ryzen (AGENTS.md); budget specs under `hwlock ryzen-budget`. Parallel batches count against the three ryzen slots: stagger full `verify` runs, and never run two full suites on nexus.
 - **Delegation:** each batch runs as its own background agent in its own worktree, driven by the coordinating session. Codex drafts F10C's content (scenarios, scenes, test files); every test, `tsc` and lint
-  run is done by Claude through `remote-run`, because a Codex sandbox has no network (learned 2026-10-17, F9). Codex is not used for F10-0, A, B, D or E (engine work, new entities, shared files).
+  run is done by Claude through `remote-run`, because a Codex sandbox cannot run `remote-run` (no network in F9; network was enabled 2026-10-17 and plain `ssh` then works only through the opt-in shim `~/.local/share/codex-shims`, but `remote-run` still needs write access to the hwlock directory and the repo's `.git`). Codex is not used for F10-0, A, B, D or E (engine work, new entities, shared files).
 
 ## Decisions (Mark, 2026-10-17)
 
