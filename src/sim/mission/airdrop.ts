@@ -1,10 +1,16 @@
 import type { DropRelease, ParachutistEntity } from '../bailout.js'
 import type { EntityId } from '../loop.js'
 import type { DropCorridor, Station } from './schema.js'
-import { insideStation } from './step.js'
 
 /** F10D: a man's share of a stick that must come down alive in the zone for the drop to count, when the scenario does not say (half of six). */
 export const DEFAULT_MIN_LANDED = 3
+
+/** The station test (a copy of step.ts's `insideStation`, which imports this module: importing it back was a dependency cycle, found by F10E's depcruise). */
+function insideStation(s: Pick<Station, 'point' | 'radiusM' | 'altitudeM' | 'innerRadiusM'>, p: { readonly x: number; readonly y: number; readonly z: number }): boolean {
+  const d = Math.hypot(p.x - s.point.x, p.z - s.point.z)
+  if (d > s.radiusM || (s.innerRadiusM !== undefined && d < s.innerRadiusM)) return false
+  return s.altitudeM === undefined || (p.y >= s.altitudeM[0] && p.y <= s.altitudeM[1])
+}
 
 const within = (r: readonly [number, number], x: number): boolean => x >= r[0] && x <= r[1]
 const headingWithin = (r: readonly [number, number], h: number): boolean => (r[0] <= r[1] ? h >= r[0] && h <= r[1] : h >= r[0] || h <= r[1])
