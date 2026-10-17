@@ -139,7 +139,8 @@ export function createNightLights(scene: Scene): NightLights {
     update(world, timeS, pixelAngle, eye, cloudBaseM = null, playerLightsOn = true, poses) {
       const field = world.terrain
       const lw: LightWorld = {
-        tick: world.tick, dtS: DT, flareFallScale: nightTuning.flareFall, ...(world.wind ? { windMps: world.wind } : {}),
+        // Scheduled lights are on the mission clock (`NightFacts.clockOriginTick`), as the sim's perception reads them.
+        tick: world.tick - (world.night?.clockOriginTick ?? 0), dtS: DT, flareFallScale: nightTuning.flareFall, ...(world.wind ? { windMps: world.wind } : {}),
         groundHeightM: (x, z) => (field === null ? SEA_LEVEL_M : Math.max(SEA_LEVEL_M, heightAt(field, x, z))),
         shipPoint(shipId, o) {
           const i = world.ships.findIndex((e) => e.id === shipId)

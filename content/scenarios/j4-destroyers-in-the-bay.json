@@ -1,0 +1,311 @@
+{
+ "id": "j4-destroyers-in-the-bay",
+ "player": "kate-1",
+ "airfields": [
+  "ormoc"
+ ],
+ "sites": [
+  "ormoc"
+ ],
+ "aircraft": [
+  {
+   "id": "kate-1",
+   "spec": "b5n2-kate",
+   "side": "axis",
+   "airborneAt": {
+    "position": [
+     -82308,
+     300,
+     -13437
+    ],
+    "headingDeg": 34,
+    "speedMps": 75,
+    "throttle": 0.6
+   }
+  },
+  {
+   "id": "zero-cover",
+   "spec": "a6m2-zero",
+   "side": "axis",
+   "tags": [
+    "cover"
+   ],
+   "airborneAt": {
+    "position": [
+     -83500,
+     3200,
+     -12000
+    ],
+    "headingDeg": 34,
+    "speedMps": 90,
+    "throttle": 0.6
+   },
+   "pilot": {
+    "passive": {
+     "orbitRadiusM": 4000
+    }
+   }
+  },
+  {
+   "id": "tbm-flare",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "tags": [
+    "flare-layer"
+   ],
+   "airborneAt": {
+    "position": [
+     -77200,
+     900,
+     -19800
+    ],
+    "headingDeg": 250,
+    "speedMps": 80,
+    "throttle": 0.6
+   },
+   "pilot": {
+    "passive": {
+     "orbitRadiusM": 2500
+    }
+   }
+  }
+ ],
+ "ships": [
+  {
+   "id": "fletcher-1",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "tags": [
+    "fletchers"
+   ],
+   "waypoints": [
+    [
+     -78400,
+     -18300
+    ],
+    [
+     -77400,
+     -17300
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "fletcher-2",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "tags": [
+    "fletchers"
+   ],
+   "waypoints": [
+    [
+     -79300,
+     -17600
+    ],
+    [
+     -78300,
+     -16600
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "kagero",
+   "spec": "kagero-dd",
+   "side": "axis",
+   "waypoints": [
+    [
+     -76800,
+     -20800
+    ],
+    [
+     -76000,
+     -21800
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "shiratsuyu",
+   "spec": "shiratsuyu-dd",
+   "side": "axis",
+   "waypoints": [
+    [
+     -78200,
+     -21500
+    ],
+    [
+     -77400,
+     -22200
+    ]
+   ],
+   "speedMps": 5
+  },
+  {
+   "id": "maru-1",
+   "spec": "type-b-maru",
+   "side": "axis",
+   "tags": [
+    "transport"
+   ],
+   "waypoints": [
+    [
+     -76900,
+     -22200
+    ]
+   ],
+   "speedMps": 0
+  }
+ ],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 0,
+  "timeOfDay": 21.5
+ },
+ "lights": [
+  {
+   "id": "flare-1",
+   "kind": "flare",
+   "at": {
+    "x": -78847,
+    "z": -18563,
+    "altitudeM": 650
+   },
+   "color": "white",
+   "state": "on",
+   "schedule": {
+    "onAtS": -3,
+    "burnS": 150
+   },
+   "source": "gameplay",
+   "sourceNote": "The Allied TBM flare-layer's delayed parachute flare (ASW/convoy-escort manual, illumination-flare attack; M24 per TM 9-981). It ignites 3 s before the mission clock starts (the opening scene shows the ignition; a flight with no opening finds it already burning) and the 150 s burn (the M24 candle burns 3 min) is authored: it IS the attack window (release.window, scheduled lights follow the mission clock: NightFacts.clockOriginTick); a test holds the two equal."
+  }
+ ],
+ "objectives": [
+  {
+   "id": "staging",
+   "label": "Set up outside the flare",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": -78847,
+    "z": -18563
+   },
+   "radiusM": 6000,
+   "innerRadiusM": 3500
+  },
+  {
+   "id": "torpedo",
+   "label": "Torpedo a destroyer under the flare",
+   "priority": "primary",
+   "kind": "release",
+   "store": "torpedo",
+   "targets": [
+    "fletchers"
+   ],
+   "withinM": 1800,
+   "window": [
+    0,
+    147
+   ],
+   "after": "staging"
+  },
+  {
+   "id": "hit",
+   "label": "Hit a Fletcher",
+   "priority": "primary",
+   "kind": "damage",
+   "targets": [
+    "fletchers"
+   ],
+   "belowHpFraction": 0.9,
+   "after": "torpedo",
+   "until": {
+    "at": 247
+   }
+  },
+  {
+   "id": "maru",
+   "label": "Keep the transport afloat",
+   "priority": "primary",
+   "kind": "protect",
+   "targets": [
+    "maru-1"
+   ],
+   "until": {
+    "at": 147
+   }
+  },
+  {
+   "id": "egress",
+   "label": "Clear the bay to the west",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": -85800,
+    "z": -12900
+   },
+   "radiusM": 2500,
+   "after": "maru"
+  },
+  {
+   "id": "sink",
+   "label": "Sink the damaged Fletcher",
+   "priority": "secondary",
+   "kind": "destroy",
+   "targets": [
+    "fletchers"
+   ],
+   "count": 1,
+   "after": "hit"
+  }
+ ],
+ "triggers": [
+  {
+   "id": "brief",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "message": "Strike lead: the flare is lit over the bay. Torpedo a Fletcher inside its light, keep clear of the transport, then clear the bay to the west."
+    }
+   ]
+  },
+  {
+   "id": "flare-dying",
+   "when": {
+    "at": 147
+   },
+   "then": [
+    {
+     "message": "The flare is dying. Clear the bay to the west."
+    }
+   ]
+  }
+ ],
+ "recovery": {
+  "kind": "egress",
+  "objective": "egress"
+ },
+ "population": {
+  "airborne": 3,
+  "ships": 5
+ },
+ "badge": {
+  "id": "destroyers-in-the-bay",
+  "name": "Destroyers in the Bay"
+ },
+ "briefing": {
+  "situation": "Ormoc Bay, 3 December 1944, 2130, no moon worth the name. American destroyers are shelling the port and a Japanese transport is still afloat off the pier. A flare-laying TBM has lit the bay for one short window. You are a Navy B5N2 with one torpedo, west of the bay: come in from the west, drop on a Fletcher while the flare burns, keep the transport alive and clear the bay to the west. There is no field to land at: crossing the western gate is the recovery.",
+  "loadout": "torpedoes"
+ },
+ "history": {
+  "text": "On the night of 3 December 1944 American and Japanese destroyers fought in Ormoc Bay and USS Cooper was lost to torpedoes. This mission is inspired by that action, not a reconstruction of it: the lone Kate, its attack window and the American flare-laying TBM are invented for the game, and the ship layout is a gameplay compression. A ditching near friendly ships ends the sortie in a normal debrief but earns no badge.",
+  "sources": [
+   "Official U.S. Navy Chronology, 1944 (3 Dec), https://www.ibiblio.org/hyperwar/USN/USN-Chron/USN-Chron-1944.html",
+   "CNO, The U.S. Navy at War 1941-1945, second report (1946), https://www.ibiblio.org/hyperwar/USN/USNatWar/USN-King-2.html",
+   "U.S. Fleet Anti-Submarine and Convoy Escort manual, illumination-flare attack (1943), https://www.ibiblio.org/hyperwar/USN/ref/ASW-Convoy/ASW-Convoy-2.html"
+  ]
+ }
+}

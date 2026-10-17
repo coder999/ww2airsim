@@ -337,6 +337,7 @@
   {
    "id": "J4",
    "status": "filled",
+   "scenario": "j4-destroyers-in-the-bay",
    "aircraft": "b5n2-kate",
    "side": "axis",
    "start": {
@@ -345,7 +346,7 @@
     "x": 11000,
     "z": 3000,
     "basis": "invented",
-    "note": "F3 J4: the B5N begins west of Ormoc Bay at night; placed 6.2 km from the destroyers, which at 75 m/s is inside the <2 min F3 gives (chosen to match F3's timing). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 J4: the B5N begins west of Ormoc Bay at night; placed 6.2 km from the destroyers, which at 75 m/s is inside the <2 min F3 gives (chosen to match F3's timing). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action. F10D (2026-10-17): kept as the authored start; the scenario j4-destroyers-in-the-bay starts here and the row is linked to it."
    },
    "firstAction": {
     "site": "ormoc",
