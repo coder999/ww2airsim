@@ -118,6 +118,8 @@ import { replayKeyAction } from '../replay/keys.js'
 import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
 import { stepFlow, type ReplayFlow, type ReplayFlowEffect, type ReplayFlowEvent } from '../replay/flow.js'
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
+import { beginPlayback, handoffWorld, loadScene, openingSceneId, playbackDone, sceneUnseen, sceneView, skipPlayback, stepPlayback, type ScenePlayback } from './sceneFlow.js'
+import type { Scene as SceneFile } from '../sim/scene/schema.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
@@ -913,7 +915,9 @@ async function boot(): Promise<void> {
           ? settleOnTerrain(rebuilt, rebuilt.world.terrain)
           : rebuilt
         syncPlayerAircraftVisuals?.(playerAircraft(frame.world).spec)
-        frame = withPaused(frame, false)
+        // F9: a chapter's opening plays before the flight, so the frame stays held until the scene has loaded (or failed to).
+        const opening = pendingOpeningId()
+        frame = withPaused(frame, opening !== null)
         startDevFlightRecorder(frame.world)
         // Whole-branch review C-1: `resetFlightUi` (declared below, alongside
         // the state it clears -- see its own doc comment) is a forward
@@ -929,6 +933,7 @@ async function boot(): Promise<void> {
         // through `onNewGame`: called directly here for a same-scenario
         // rebuild, and via `.then(rebuildFrame)` for a scenario switch.
         resetFlightUi()
+        if (opening !== null) void startOpening(opening)
       }
     }
     // Sortie forms: an aircraft change swaps the player's airframe mesh
@@ -2734,6 +2739,57 @@ async function boot(): Promise<void> {
     onSpin: () => replayCamera(toggleSpin),
     onLock: () => replayCamera(toggleLock),
   })
+  // F9 (plan 2026-10-17): in-engine campaign scenes. The scene plays on its own copy of the world (`sceneFlow.ts`), drawn through
+  // the replay's hide-the-HUD class; the live `frame` stays paused until handoff.
+  let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; onDone: () => void } | null = null
+  const sceneSubtitle = document.createElement('div')
+  sceneSubtitle.setAttribute('data-replay-ui', '')
+  sceneSubtitle.style.cssText = 'position:fixed;left:0;right:0;bottom:8%;text-align:center;color:#fff;font:600 20px/1.3 system-ui,sans-serif;text-shadow:0 1px 3px #000,0 0 8px #000;padding:0 10%;pointer-events:none;display:none'
+  root.append(sceneSubtitle)
+  /** The newest `message` cue shown for 6 s, as the HUD radio line is. */
+  const subtitleOf = (sp: ScenePlayback): string | null => {
+    const m = sp.p.emitted.filter((e) => e.kind === 'message' && e.t <= sp.tS).at(-1)
+    return m !== undefined && m.kind === 'message' && sp.tS - m.t < 6 ? m.text : null
+  }
+  /** The chapter opening due for the sortie just launched, if any: a scored chapter sortie whose opening this campaign has not seen. */
+  const pendingOpeningId = (): string | null => {
+    const c = hqSession?.current() ?? null
+    const chapter = c?.pending?.chapterId ?? null
+    if (c === null || chapter === null) return null
+    const id = openingSceneId(chapter)
+    return sceneUnseen(c, id) ? id : null
+  }
+  const playScene = (scene: SceneFile, opts: { markSeen: boolean; onDone: () => void }): void => {
+    frame = withPaused(frame!, true)
+    scenePlay = { sp: beginPlayback(frame.world, scene), sceneId: scene.id, markSeen: opts.markSeen, onDone: opts.onDone }
+    clearMapInput()
+    fxSystem?.clear()
+    waterWake.clear()
+    root.classList.add(REPLAYING_CLASS)
+    replayHistoryCut = true
+  }
+  /** Completion and skip share this: skip runs the remaining ticks headless, so both end in the same world and write the same `scenesSeen`. */
+  const finishScene = (skip: boolean): void => {
+    const play = scenePlay
+    if (play === null) return
+    const done = skip ? skipPlayback(play.sp) : play.sp
+    scenePlay = null
+    root.classList.remove(REPLAYING_CLASS)
+    sceneSubtitle.style.display = 'none'
+    fxSystem?.clear()
+    waterWake.clear()
+    replayHistoryCut = true
+    if (play.markSeen) hqSession?.markSceneSeen(play.sceneId)
+    frame = withPaused(initialFrameStateFor(handoffWorld(done), frame!.assists, frame!.impactMarker), false)
+    startDevFlightRecorder(frame.world)
+    play.onDone()
+  }
+  const startOpening = async (id: string): Promise<void> => {
+    const scene = await loadScene(id)
+    // A missing, invalid or mismatched scene is not an error: the flight starts as it always did.
+    if (scene === null || scene.world.scenario !== chosen.scenarioId || frame === null) { frame = withPaused(frame!, false); return }
+    playScene(scene, { markSeen: true, onDone: () => undefined })
+  }
   /**
    * Opens a replay of the current recording. 'manual' (K while paused): the
    * whole recording, Orbit, holding on the last frame. 'auto' (Task 9's crash
@@ -2865,6 +2921,12 @@ async function boot(): Promise<void> {
     if ((e.ctrlKey || e.metaKey) && (window.getSelection()?.toString() ?? '') !== '') return
     // Nothing reaches the game while the title is up; the title owns Enter.
     if (title.up()) return
+    // F9: Esc, Enter or Space skips a playing scene; nothing else reaches the game under it.
+    if (scenePlay !== null) {
+      e.preventDefault()
+      if (!e.repeat && (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space')) finishScene(true)
+      return
+    }
     // A replay owns the keyboard: nothing below -- no flight latch, no page
     // toggle (L, R, Q, P, Tab, I, /, T) -- sees a key while one is up.
     if (replay !== null) { e.preventDefault(); onReplayKey(e); return }
@@ -3175,7 +3237,7 @@ async function boot(): Promise<void> {
       current = { ...current, eye: cameraTransformFor(current.cameraMode, spec, current.render, forcedLook) }
     }
     if (title.up()) current = withPaused(current, true)
-    if (replay !== null) current = withPaused(current, true)
+    if (replay !== null || scenePlay !== null) current = withPaused(current, true)
     if (navigationMapState.open) {
       current = withPaused(current, true)
     }
@@ -3247,7 +3309,7 @@ async function boot(): Promise<void> {
     }
     // Instant replay: record LIVE worlds only; a held frame (paused, impact
     // hold) hands back the same tick, which the recorder ignores itself.
-    if (replay === null) recorder.push(current.world)
+    if (replay === null && scenePlay === null) recorder.push(current.world)
     // What this frame DRAWS: the live frame, or while a replay is up the
     // recorded moment at the player's `tS` through the replay camera. Every
     // mesh, the panel, effects, sky and the render read `view`; the HUD, the
@@ -3283,6 +3345,14 @@ async function boot(): Promise<void> {
         session.pose = pose
         session.drawnCamera = drawn
         replayBar.show(replayBarModel(session.player, session.camera))
+      }
+    }
+    if (scenePlay !== null && replay === null) {
+      scenePlay.sp = stepPlayback(scenePlay.sp, frameMs / 1000)
+      if (playbackDone(scenePlay.sp)) finishScene(false)
+      else {
+        const sv = sceneView(scenePlay.sp, surfaceHeightFor(scenePlay.sp.p.world))
+        view = { ...sv, controls: playerAircraft(sv.world).controls, cameraMode: 'chase', paused: true, timeScale: 1 }
       }
     }
     // Plan 9 Task 7: read fresh every frame, since `loadScenario` can
@@ -3478,6 +3548,13 @@ async function boot(): Promise<void> {
     // only, so a replay, the title or a debrief never speaks.
     if (replay === null && !sortieIdle && !current.paused && !debriefUp) {
       audio.updateRadio({ message: missionHud.text().radio, paddles, language: radioLanguageFor(current) })
+    }
+    if (scenePlay !== null) {
+      // F9: a scene's `message` cue is its subtitle; the voice plays only if RADIO_LINES has a recorded stem for the text.
+      const line = subtitleOf(scenePlay.sp)
+      sceneSubtitle.textContent = line ?? ''
+      sceneSubtitle.style.display = line === null ? 'none' : 'block'
+      audio.updateRadio({ message: line, paddles: null, language: radioLanguageFor(current) })
     }
     const steered = steeringArrow.update(steering?.target ?? null, playerAirframe.root, camera, worldOffset, replay === null && !sortieIdle && !debriefUp)
     missionHud.placeSteering(steered.anchor, steered.mode)

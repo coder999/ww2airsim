@@ -12,7 +12,7 @@
  * Decisions this file carries out are recorded in docs/superpowers/plans/2026-10-15-f5b-headquarters.md.
  */
 import {
-  LEGACY_ROSTER_KEY, SCORE_CLASSES, bankLeg, bankSortie, buildCatalog, campaignKey, createCampaign, deleteCampaign, exportCampaign, importCampaign, launchSortie,
+  LEGACY_ROSTER_KEY, SCORE_CLASSES, bankLeg, bankSortie, markSceneSeen, buildCatalog, campaignKey, createCampaign, deleteCampaign, exportCampaign, importCampaign, launchSortie,
   listCampaigns, loadCampaign, loadProfile, saveCampaign, saveProfile, zeroCounts,
   type Campaign, type Counts, type LaunchArgs, type Faction, type ImportResult, type IndexEntry, type LegReport, type LoadResult, type MissionDescriptor,
   type Result, type ScenarioFacts, type ScenarioRow, type SortieEndKind, type SortieFacts, type SortieReport, type StoragePort,
@@ -201,6 +201,8 @@ export type Session = {
   bankLeg(report: LegBankInput): Result<BankOutcome>
   /** Abandon the pending sortie (Quit/Abandon): zero points, pilot survives. */
   abandon(): Result<BankOutcome>
+  /** F9: record that a scene was played or skipped. Idempotent; the only thing a scene writes. No-op with no campaign open. */
+  markSceneSeen(sceneId: string): void
   importText(text: string): ImportResult
   /** Store an imported campaign (a new one, or Replace after the shell asked). */
   commitImport(c: Campaign): SaveStatus
@@ -283,6 +285,14 @@ export function createSession(deps: SessionDeps): Session {
   }
 
   return {
+    markSceneSeen(sceneId) {
+      const c = campaign
+      if (c === null) return
+      const next = markSceneSeen(c, sceneId)
+      if (next === c) return
+      campaign = next
+      persist(next)
+    },
     list: () => listCampaigns(port),
     current: () => campaign,
     open(id) {

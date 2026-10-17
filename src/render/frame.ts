@@ -299,7 +299,7 @@ const NO_TOGGLES_DOWN: AssistTogglesDown = {
  * is exactly one computation of where the player is this frame, not two that
  * could disagree.
  */
-function posesFor(
+export function posesFor(
   world: World<undefined>,
   alpha: number,
 ): { poses: RenderState[]; shipPoses: ShipPose[]; vehiclePoses: VehiclePose[]; render: RenderState } {
