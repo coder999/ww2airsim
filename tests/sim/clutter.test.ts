@@ -14,8 +14,8 @@ const fields: { label: string; field: Airfield }[] = sites.flatMap((s) =>
 
 describe('procedural clutter', () => {
   it('there is clutter to test: every built window of every site carries some', () => {
-    expect(fields.length).toBe(13) // Tacloban 5, Dulag 5, Tanauan 3
-    expect(fields.filter((f) => f.field.clutter !== undefined).length).toBe(13)
+    expect(fields.length).toBe(28) // Tacloban 5, Dulag 5, Tanauan 3 (F8A); Buri 5, Bayug 5, San Pablo 5 (F8B)
+    expect(fields.filter((f) => f.field.clutter !== undefined).length).toBe(28)
   })
 
   it.each(fields.map((f) => [f.label, f.field] as const))('%s: deterministic, in its areas, within the ceiling', (_label, field) => {
@@ -41,7 +41,8 @@ describe('procedural clutter', () => {
 
   it('busiest state: Tacloban buildup has the most mats and tents of any F8A state', () => {
     const count = (f: Airfield, k: (typeof CLUTTER_KINDS)[number]): number => f.clutter!.areas.reduce((n, a) => n + clutterCounts(a)[k], 0)
-    const busiest = [...fields].sort((x, y) => clutterTotal(y.field.clutter!) - clutterTotal(x.field.clutter!))[0]!
+    const f8a = fields.filter((f) => /^(tacloban|dulag|tanauan)\//.test(f.label))
+    const busiest = [...f8a].sort((x, y) => clutterTotal(y.field.clutter!) - clutterTotal(x.field.clutter!))[0]!
     expect(busiest.label).toBe('tacloban/buildup')
     expect(count(busiest.field, 'tent')).toBeGreaterThan(10)
   })

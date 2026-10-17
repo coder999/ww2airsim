@@ -96,7 +96,11 @@
       "vehicles": [],
       "parked": [],
       "lights": [],
-      "clutter": {}
+      "clutter": {
+        "strip": {
+          "rut": 0.03
+        }
+      }
     },
     "assault": {
       "built": true,
