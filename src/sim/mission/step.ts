@@ -20,6 +20,8 @@ import { finalStatus } from './outcome.js'
 import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
 import { effectiveFields, fieldMeets, fieldState } from './fields.js'
 import type { StructureEntity } from '../weapons/structures.js'
+import type { ParachutistEntity } from '../bailout.js'
+import { bundlesLanded, effectiveDrops } from './airdrop.js'
 
 /**
  * What one tick of a mission reads: `advance`'s loop locals after combat has
@@ -41,6 +43,8 @@ export type MissionTick<M> = {
   /** F5C: who holds each airfield (its structures' side) and the declared anchorages, for the recovery rule. */
   readonly structures: readonly StructureEntity[]
   readonly anchorages?: readonly Anchorage[] | undefined
+  /** F10D: dropped men and bundles (and bailed pilots), for the `drop` and `bundles` objectives. Absent in a world with none. */
+  readonly parachutists?: readonly ParachutistEntity[] | undefined
 }
 
 /** The next mission state, and the held groups `advance` must spawn now,
@@ -281,6 +285,15 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       const need = o.min ?? o.airfields.length
       if (o.keep === true) return n < need ? { ...p, count: n, status: 'failed' } : n === p.count ? p : { ...p, count: n }
       return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'drop': {
+      const n = effectiveDrops(c.t.parachutists, o.resolved, o.zone, o.corridor, o.minLanded)
+      const need = o.count ?? o.resolved.length
+      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'bundles': {
+      const n = bundlesLanded(c.t.parachutists, o.resolved, o.zone)
+      return n === p.count && n < o.min ? p : { ...p, count: n, status: n >= o.min ? 'complete' : 'active' }
     }
     case 'atLeast': {
       const done = o.of.filter((id) => c.status(id) === 'complete').length

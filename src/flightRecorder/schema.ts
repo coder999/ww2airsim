@@ -41,6 +41,9 @@ const action = z.discriminatedUnion('kind', [
   // F5C (additive: old records still parse): the ground stop between two legs of one sortie. The loadout id is the
   // pilot's Ordnance choice; replay refuels, repairs, rearms and repositions the player exactly as the live frame did.
   z.object({ tick: z.number().int().nonnegative(), kind: z.literal('ground-stop'), loadout: z.string().min(1) }).strict(),
+  // F10D (additive, FLIGHT_RECORD_VERSION stays 1: every earlier record parses and verifies unchanged; an older build reading a record
+  // WITH a drop refuses it at parse, which is the clear refusal): the player's cargo drop, applied at the same fixed tick on replay.
+  z.object({ tick: z.number().int().nonnegative(), kind: z.literal('drop'), aircraft: z.string().min(1) }).strict(),
   z.object({
     tick: z.number().int().nonnegative(), kind: z.literal('control'),
     // 'lights' (F6A, additive: old records still parse): the player's position lights, true = on, false = blacked out. No sim effect until F6B.

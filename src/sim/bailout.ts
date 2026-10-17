@@ -60,7 +60,22 @@ export type ParachutistEntity = {
   /** F7B: a dropped man or supply bundle. Absent for a bailing pilot, so pre-F7B worlds and recordings stay
    * byte-identical. Only a pilot's jump gets the rescue roll and marks its airframe abandoned (`isPilotJump`). */
   readonly kind?: 'trooper' | 'bundle'
+  /** F10D: the envelope the transport was in when this man or bundle left it, read by the `drop` objective (a drop counts only if the
+   *  aircraft was inside the corridor). Present on every cargo drop, absent for a pilot's jump and for any pre-F10D world. */
+  readonly release?: DropRelease
 }
+
+/** F10D: what the transport was doing at the instant of a cargo drop. Air-relative speed, ground speed, altitude above sea level, nose heading. */
+export type DropRelease = {
+  readonly airspeedMps: number
+  readonly groundSpeedMps: number
+  readonly altitudeM: number
+  readonly headingDeg: number
+}
+
+/** F10D: one transport's cargo is six squad rigs and two supply bundles (F3 section 4, J5): 18 rigs and 6 bundles from three transports,
+ *  inside the pooled view's 24 and 8. */
+export const CARGO_DROP = Object.freeze({ men: 6, bundles: 2 })
 
 /** The player's (or an AI pilot's) own bailout, as opposed to a dropped trooper or bundle. */
 export const isPilotJump = (entry: ParachutistEntity): boolean => entry.kind === undefined
@@ -138,6 +153,7 @@ export function dropStick(
   count: number,
   kind: NonNullable<ParachutistEntity['kind']>,
   lowAltitude: boolean,
+  release?: DropRelease,
   tuning: BailoutTuning = BAILOUT_TUNING,
 ): readonly ParachutistEntity[] {
   const { tick, position, velocity, attitude } = aircraft.state
@@ -158,6 +174,7 @@ export function dropStick(
     men.push({
       id, sourceAircraft: aircraft.id, side, recoverySeed: bailoutSeed(tick, id, start),
       recoveryEnvironment: DEFAULT_RECOVERY_ENVIRONMENT, recovery: null, state, previous: state, kind,
+      ...(release === undefined ? {} : { release }),
     })
   }
   return men

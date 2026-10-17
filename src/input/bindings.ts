@@ -125,6 +125,9 @@ export const BINDINGS = {
   // F7A. J for jump: deliberate, edge-triggered bailout. Free as of the
   // centralized-binding audit on 2026-10-14.
   bailout: ['KeyJ'],
+  // F10D (J5). `Y` for the cargo drop: one press releases the transport's whole stick through open doors, edge-triggered and recorded
+  // (flightRecorder/schema.ts, action 'drop'). The last free letter as of 2026-10-17 (the audio e2e's "unbound" key moved to Backquote).
+  dropCargo: ['KeyY'],
   // E4 (Mark, 2026-10-10): the three calls to the player's wingmen, one press each. The digit row,
   // because no flight binding uses it: the replay's own speed and camera digits (src/replay/keys.ts)
   // are read only while a replay owns the keyboard, when this table is not.
