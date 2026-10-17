@@ -68,12 +68,14 @@ describe('mission-fit table', () => {
     expect(rowOf('A3').recovery!.sites).toEqual(['tacloban'])
     expect(rowOf('A5').start.kind).toBe('airborne')
     for (const id of ['A1', 'A2', 'A5']) expect(rowOf(id).recovery!.points!.length, id).toBeGreaterThan(0)
-    // A5 recovers at any legal friendly field (F5C D3), the Essex only the suggested carrier: the nearest legal one is Bayug and it is still over budget
+    // A5 recovers at any legal friendly field (F5C D3), the Essex only the suggested carrier: the nearest legal one is Bayug. F8C reported 447 s against F3's 420
+    // (the convoy was placed on the wrong side of Ormoc Bay); F10B moved the convoy to the bay's south-east, 380 s (2026-10-17), and removed the `expectFail`.
     const a5 = fitOf(rowOf('A5'), sites)
     expect(rowOf('A5').recovery!.sites).toEqual(['tacloban', 'dulag', 'buri', 'bayug'])
     expect(a5.illegal).toEqual([])
     expect(a5.recovery!.site).toBe('bayug')
-    expect(a5.recovery!.totalS).toBeGreaterThan(420)
+    expect(a5.recovery!.totalS).toBeLessThan(420)
+    expect(a5.recovery!.totalS).toBeGreaterThan(300) // not a vacuous pass: it is a real flight of about 27 km at 85 m/s
   })
 
   it('A4 and J4 are night missions: the anchorage has its lamps in the window A4 is played in, and Ormoc has no light at all (F3 section 8)', () => {

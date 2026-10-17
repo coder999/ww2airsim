@@ -58,12 +58,17 @@
    "authoredBonus": 2500
   },
   "A5": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
-   "coordinated": false,
+   "scenario": "a5-close-the-ormoc-lifeline",
+   "badge": {
+    "id": "close-the-ormoc-lifeline",
+    "name": "Close the Ormoc Lifeline"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "f6f-hellcat"
+   ],
+   "recommendedLoadout": "both",
+   "coordinated": true,
    "authoredBonus": 0
   },
   "A6": {

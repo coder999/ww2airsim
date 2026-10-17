@@ -168,10 +168,10 @@
    },
    "firstAction": {
     "site": "ormoc",
-    "x": 6000,
-    "z": 0,
+    "x": 8013,
+    "z": -7947,
     "basis": "invented",
-    "note": "F3 A5: the convoy (first contact with escorts comes earlier); placed 6 km off the Ormoc pier, on the axis of the port frame. The row measures the convoy, the farther of the two, so it covers the intercept too. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 A5: the convoy (first contact with escorts comes earlier). F8C placed it 6 km off the Ormoc pier on the port frame's axis; F10B (2026-10-17) moved it into the south-east of Ormoc Bay, 11.3 km from the pier and 16.1 km from the ridge start, because the bay lies mostly SOUTH-east of the pier (the shipped terrain's water map, 2 km grid) and the F8C point was on the far side of it from every legal field. The convoy steams NNW toward the pier at 10 kt. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6."
    },
    "cruiseMps": 85,
    "landingS": 60,
@@ -195,10 +195,7 @@
     "budgetS": 420
    },
    "f3": "airborne start over the ridge; intercept 2-3 min; convoy 5-6 min; recovery 5-7 min; the Essex trap is the suggested carrier, but any legal friendly field counts (F5C D3), so the nearest legal field is checked beside the Essex point",
-   "expectFail": {
-    "check": "recovery",
-    "why": "Checked against the nearest legal friendly field (F5C D3: any friendly base counts): Bayug, 32.9 km from the convoy off Ormoc, is 447 s at the formation's 85 m/s (the TBMs set the pace; 387 s flying plus the 60 s landing allowance) against F3's 5-7 min (420 s upper bound), 27 s over. Tacloban, Dulag and Buri are farther and the Essex (69 km) much farther. A narrow miss on invented geometry (the start is read off the terrain's ridge crest, the convoy placed 6 km off the pier), reported, not tuned: a convoy placed 2 km nearer the ridge, or 90 m/s, passes. F10's real points decide."
-   }
+   "scenario": "a5-close-the-ormoc-lifeline"
   },
   {
    "id": "A6",
