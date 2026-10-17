@@ -155,6 +155,38 @@ own is passed through untouched.
 | `worldStates.ts` | F8: the site window ids and the chapter-to-windows table (`windowsForChapter`, `applyChapterSuccess`); see "World keys" |
 | `storage.ts` | `saveCampaign`, `loadCampaign`, `listCampaigns`, `deleteCampaign`, the profile, over an injected `StoragePort` |
 
+## Scenes (F9, 2026-10-17)
+
+An opening or victory scene is **the first N seconds of a mission's own scenario**, played before the flight (openings, 10-20 s) or before Headquarters shows the campaign won
+(victory, 45-60 s). Plan: `superpowers/plans/2026-10-17-f9-campaign-scenes.md`; what is built and what is not: `handoff/2026-10-17-f9-scenes.md`.
+
+| File | Owns |
+| --- | --- |
+| `content/scenes/<id>.json` | the scene: `id`, `chapter` (`A1`-`A6`, `J1`-`J6`), `kind` (`opening`\|`victory`), `durationS`, `world` (`{source:'mission', scenario}`, a union so later sources need no format change), `camera` keys, `cues`, `handoff.player` (`held`\|`ai`) |
+| `src/sim/scene/schema.ts` | the zod-strict schema. Camera keys are position, yaw, pitch, `ease` (no roll, no FOV: Mark, 2026-10-17, scenes never use the cockpit or HUD view) |
+| `src/sim/scene/camera.ts` | `sceneAt(scene, t)`: position lerp, yaw the short way round, pitch lerp, clamped to the first and last key. The ease belongs to the segment that ENDS at a key |
+| `src/sim/scene/cues.ts` | `checkScene` (an `order` naming a missing entity, or a `spawn` naming a missing held group, throws at load, not in flight) and `applyDueCues`, applied at the tick boundary before the step |
+| `src/sim/scene/preroll.ts` | `beginPreroll` / `stepPreroll` / `handoffPreroll` / `skipScene`. The mission is set aside while it runs (clock, objectives and radio are inert); `held` is brakes on, `ai` is `holdLevelFlight` at the start altitude. At handoff the mission returns with `clockOriginTick` = the handoff tick, so a trigger `{at: s}` counts from there |
+| `src/sim/scene/keyframes.ts` | the pure edit model director mode uses (`dropKey`, `deleteKey`, `recordPath`) |
+| `src/render/sceneFlow.ts` | `loadScene` (a missing or invalid scene is `null`, never an error), playback by real time, `skipPlayback`, `sceneView` |
+| `src/render/director.ts` | director mode's bar and pure model |
+| `src/campaign/scenes.ts` | `markSceneSeen` (idempotent, `revision + 1`, nothing else changes, no schema bump) and the scene ids: `a1-opening`..`j6-opening`, `a6-victory`, `j6-victory` |
+
+**Cues** (`t` seconds from the start): `message` (the subtitle; the voice plays only when `RADIO_LINES` maps that exact text to a recorded stem, otherwise it is text-only),
+`order` (`{attack: id|null}` for an aircraft pilot, `{course:{waypoints,speedMps}}` for a ship or vehicle, `{fireAt:[ids]}` for a ship), `fx` (renderer only; no shipped renderer hook yet) and
+`spawn` (releases a held group). Every cue goes through existing sim primitives and is deterministic.
+
+**Skip equals completion.** Live playback and skip both finish through `stepPreroll`, so they end in the same world (`tests/render/sceneFlow.test.ts` compares `worldChecksum` for live, mid-way skip and a
+straight skip) and write the same `scenesSeen`. A scene writes nothing else.
+
+**Flow (`main.ts`).** An opening plays after Launch for a scored chapter sortie whose opening is not in `scenesSeen`, on the launched world, and only when the scene's `world.scenario` is the launched scenario.
+The flight (and the Dev recorder) starts at handoff. The victory scene plays after the final debrief, so after banking, when `progress.victory` is true and it is unseen: on the way out of the
+debrief, before Headquarters. HQ has Watch opening (current chapter) and Watch epilogue (once won); a watch writes nothing. Esc, Enter or Space skips.
+
+**Dev.** `?scenario=<scene's scenario>&launch&scene=<id>` plays a scene (nothing is written). `?scenario=<...>&launch&director=<id>` opens director mode: the scene's world held, a free camera (WASD, Q/E, drag,
+wheel for speed), a key bar to drop and delete keys, scrub, preview, record a flown path, and Save (downloads `<id>.json` and copies it to the clipboard; nothing writes into `content/`, so commit it). The world follows
+the bar: forward at up to 120 ticks a frame, restarted from the top when the bar goes back, so a long scrub re-simulates.
+
 ## The shell (F5B, 2026-10-15)
 
 `src/render/campaignSession.ts` is the only code that touches storage and the reducers. It owns the

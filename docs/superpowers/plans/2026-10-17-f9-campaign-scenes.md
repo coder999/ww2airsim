@@ -2,8 +2,9 @@
 
 MASTER_PLAN Track F9 (plan 16 of the 22 in the
 [F3 dependency table](../specs/2026-10-14-leyte-campaign-definition.md#11-dependency-checked-plan-count)).
-**Status: plan only. Nothing is implemented, and building has not started** (Mark, 2026-10-17: he will add a Codex plugin and
-restart the session so part of the build can be delegated to Codex). F5A-F5C, F7 and F8 are merged on `main`; F9 consumes
+**Status: built 2026-10-17 on branch `f9-scenes`, with one scope change (below); see `docs/handoff/2026-10-17-f9-scenes.md`.** Original status: plan only (Mark added the Codex plugin and restarted the session).
+
+> **Scope change (Mark, 2026-10-17, during the build).** The chapter missions A1-J6 do not exist until F10, so Task 7 (author fourteen scenes) became two demo scenes, and the gate "all fourteen approved" moves to F10. Mark also ruled the camera needs no FOV and no roll (scenes never use the cockpit or HUD view), so keyframes carry neither and Task 4 shrank to the camera applier. The scenario `scene:` block of the Design was dropped: the scene file already carries `durationS` and `handoff`, and the world builder is untouched, which makes "a world with no scene is byte-identical" true by construction. F5A-F5C, F7 and F8 are merged on `main`; F9 consumes
 `scenesSeen` (F5A) and the canonical sites (F8). Grilled with Mark 2026-10-17; decisions below are binding.
 
 ## Header
