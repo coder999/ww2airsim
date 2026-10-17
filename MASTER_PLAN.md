@@ -439,6 +439,10 @@ not a bespoke ending cinematic.
 missing assets or audio fail safely, save banking precedes victory playback, and
 all fourteen scenes are visually approved.
 
+**F9 status (2026-10-17):** plan written and grilled with Mark, not started: `docs/superpowers/plans/2026-10-17-f9-campaign-scenes.md`
+(scene = first N seconds of the mission's own scenario; scene orders; keyframe director mode; fourteen scenes authored then approved by Mark).
+Building waits for the Codex plugin (Mark will restart the session).
+
 #### F10. Campaign mission production (L, several plans)
 
 Consumes the F5A contract: `MissionDescriptor`, `authoredBonus`, the sim's `success` verdict; every point flows through `bankSortie` (`docs/campaign-data.md`).
