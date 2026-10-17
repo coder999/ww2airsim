@@ -1,0 +1,20 @@
+{
+  "id": "quonset-hut-20x48",
+  "output": "content/buildings/quonset-hut-20x48.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/quonset-hut-20x48.py",
+    "dimensions": "20 x 48 ft (6.096 x 14.630 m) half-cylinder is the type's cited nominal size (Navy Quonset hut series; the Seabee Museum manuals page did not load 2026-10-16, UNVERIFIED); the true half-circle rise, foundation, end walls, doors, windows, laps and stovepipe are ESTIMATES labeled in the script's header; generic form, no photo imagery",
+    "license": "AGPL-3.0-or-later"
+  },
+  "skin": true,
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 500000,
+    "maxTriangles": 5000,
+    "maxDrawCalls": 4
+  }
+}

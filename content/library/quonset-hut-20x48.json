@@ -1,0 +1,24 @@
+{
+  "id": "quonset-hut-20x48",
+  "name": "Quonset hut, 20 x 48 ft",
+  "kind": "building",
+  "side": "allied",
+  "model": {
+    "kind": "building",
+    "id": "quonset-hut-20x48"
+  },
+  "blurb": "A corrugated-steel half-cylinder hut for offices and quarters.",
+  "history": "The Navy's steel-arch-rib Quonset hut was a prefabricated half-cylinder of corrugated steel on a wood or concrete floor, shipped in knocked-down kits and raised by a small crew. The 20 by 48 foot size is the one modeled here. The Navy's base-building history records Quonsets used for offices and quarters at Tacloban and Tolosa and 75 of them at the Jinamoc seaplane base in late 1944. Dulag and Tanauan are inferred, not documented.\n\nThis is a generic form built from the type's nominal size: the half-circle rise, foundation, doors, windows and stovepipe are estimates, and the Navy's Quonset manual page could not be read, so its dimensions are unverified. No photograph or Wikipedia image was used.",
+  "sources": [
+    {
+      "title": "Building the Navy's Bases in World War II, ch. XXIX: Advance Bases in the Philippines",
+      "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm",
+      "read": "2026-10-16"
+    },
+    {
+      "title": "Quonset hut manuals, Seabee Museum online reading room (page did not load; unverified)",
+      "url": "https://history.navy.mil/content/history/museums/seabee/explore/online-reading-room/Publications/quonset-hut-manuals0.html",
+      "read": "2026-10-16"
+    }
+  ]
+}

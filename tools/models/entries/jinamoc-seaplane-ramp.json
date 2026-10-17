@@ -1,0 +1,20 @@
+{
+  "id": "jinamoc-seaplane-ramp",
+  "output": "content/buildings/jinamoc-seaplane-ramp.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/jinamoc-seaplane-ramp.py",
+    "dimensions": "220 ft (67.056 m) length is CITED (Navy Building the Navy's Bases ch. XXIX, read 2026-10-16: steel and pre-cast concrete permanent ramp); width (40 ft), 1 in 15 slope, the slab/steel split, fill, piles, curbs and rails are ESTIMATES labeled in the script's header",
+    "license": "AGPL-3.0-or-later"
+  },
+  "skin": true,
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 500000,
+    "maxTriangles": 5000,
+    "maxDrawCalls": 4
+  }
+}

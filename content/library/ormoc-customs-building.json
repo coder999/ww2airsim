@@ -1,0 +1,19 @@
+{
+  "id": "ormoc-customs-building",
+  "name": "Ormoc customs building",
+  "kind": "building",
+  "side": "japanese",
+  "model": {
+    "kind": "building",
+    "id": "ormoc-customs-building"
+  },
+  "blurb": "A plain port customs house, with no light.",
+  "history": "A Japanese Notice to Mariners records a customs building with a fixed red light at the port of Ormoc. Only its existence is sourced: its appearance and whether it survived to 1944 are not, so every part of this one-story house, with its gable roof, porch and shuttered windows, is an estimate. The light is deliberately left out; this model has no lamp.",
+  "sources": [
+    {
+      "title": "Notice to Mariners (JACAR, Japan Center for Asian Historical Records)",
+      "url": "https://www.jacar.archives.go.jp/acv/contents/pub/pdf/B11/B11092933500.b3_0098.3-2198.00000139.pdf",
+      "read": "2026-10-16"
+    }
+  ]
+}

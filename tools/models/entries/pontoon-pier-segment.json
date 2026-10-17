@@ -1,0 +1,20 @@
+{
+  "id": "pontoon-pier-segment",
+  "output": "content/buildings/pontoon-pier-segment.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/pontoon-pier-segment.py",
+    "dimensions": "cell about 5 x 7 x 5 ft, the 3 x 8 cell run, seams, plates, bolts, strakes and bollards are all ESTIMATES labeled in the script's header; Navy Building the Navy's Bases ch. XXIX documents pontoon piers but gives no cell dimensions (read 2026-10-16)",
+    "license": "AGPL-3.0-or-later"
+  },
+  "skin": true,
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 500000,
+    "maxTriangles": 5000,
+    "maxDrawCalls": 4
+  }
+}
