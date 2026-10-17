@@ -75,6 +75,15 @@ export const GoneObject = z.object({
 }).strict().refine((g) => (g.awayFrom === undefined) === (g.beyondM === undefined), { message: 'awayFrom and beyondM go together' })
 export type Gone = z.infer<typeof GoneObject>
 
+/** F10D: the envelope a transport must be in at the instant it drops, every field given at once (J5's corridor). Same units and heading convention as a plane-state test. */
+export const DropCorridorObject = z.object({
+  airspeedMps: range.optional(),
+  groundSpeedMps: range.refine(([lo]) => lo >= 0, { message: 'groundSpeedMps must not be negative' }).optional(),
+  altitudeM: range.optional(),
+  headingDeg: planeStateShape.headingDeg,
+}).strict()
+export type DropCorridor = z.infer<typeof DropCorridorObject>
+
 export const TriggerWhenObject = z.union([
   z.object({ at: finite.refine((n) => n >= 0, { message: 'must not be negative' }) }).strict(),
   z.object({ completed: id }).strict(),
@@ -142,6 +151,15 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
     ...base, kind: z.literal('field'), airfields: z.array(id).min(1), min: z.number().int().positive().optional(),
     serviceable: z.boolean().optional(), heldBy: z.enum(['player', 'enemy']).optional(), keep: z.boolean().optional(),
   }).strict(),
+  /** F10D: at least `count` (default all) of the named transports have made an EFFECTIVE drop: they released inside the `corridor` (doors open, in the
+   *  envelope) and at least `minLanded` (default half the stick, 3) of their men came down alive on the ground inside `zone`. Read from the dropped
+   *  rigs themselves (each carries its release envelope), so it works for the player and for the AI alike. */
+  z.object({
+    ...base, kind: z.literal('drop'), targets: refs, count: z.number().int().positive().optional(), zone: StationObject,
+    corridor: DropCorridorObject.optional(), minLanded: z.number().int().positive().optional(),
+  }).strict(),
+  /** F10D: at least `min` supply bundles dropped by the named transports have landed inside `zone` (J5's secondary). */
+  z.object({ ...base, kind: z.literal('bundles'), targets: refs, zone: StationObject, min: z.number().int().positive() }).strict(),
   /** F10-0: complete when at least `n` of the earlier objectives `of` are complete; fails once too many have failed for that to be possible.
    *  `any` is n = 1 and `all` is n = their number (J1: three of five groups intact; J2: a Maru or a half-hull Fletcher). */
   z.object({ ...base, kind: z.literal('atLeast'), n: z.number().int().positive(), of: z.array(id).min(1) }).strict(),

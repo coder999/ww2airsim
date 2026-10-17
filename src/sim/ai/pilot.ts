@@ -183,6 +183,8 @@ export type IngressOrders = {
   readonly destination: IngressDestination | null
   /** E2: what to do on arrival. Absent is the orbit above, which is every raider before E2. */
   readonly attack?: AttackKind
+  /** F10D: a transport's drop zone. The doors open on the way in and `advance` releases the stick inside the circle; never an E2 attack run. */
+  readonly airdrop?: { readonly x: number; readonly z: number; readonly radiusM: number }
 }
 
 /** E2: the attack runs (`attack.ts`). */

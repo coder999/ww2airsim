@@ -23,7 +23,8 @@ export function objectiveLineLabel<M>(m: MissionState<M> | null): string | null 
     .slice(0, MAX_SHOWN)
     .map(({ o, p }) => {
       const name = o.label.toUpperCase()
-      if (o.kind === 'destroy' || o.kind === 'arrive' || o.kind === 'released') return `${name} ${p.count}/${o.count ?? o.resolved.length}`
+      if (o.kind === 'destroy' || o.kind === 'arrive' || o.kind === 'released' || o.kind === 'drop') return `${name} ${p.count}/${o.count ?? o.resolved.length}`
+      if (o.kind === 'bundles') return `${name} ${p.count}/${o.min}`
       if (o.kind === 'land' && (o.count ?? 1) > 1) return `${name} ${p.count}/${o.count}`
       if (o.kind === 'hold') return `${name} ${Math.floor(p.heldTicks * DT + 1e-9)}/${o.seconds} S`
       return name

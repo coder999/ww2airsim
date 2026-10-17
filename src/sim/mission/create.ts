@@ -99,6 +99,17 @@ export function createMission<M>(input: {
         requireCount(where, o.count, resolved)
         return { ...o, resolved }
       }
+      case 'drop': {
+        const resolved = resolve(where, o.targets)
+        requireKind(where, resolved, 'aircraft')
+        requireCount(where, o.count, resolved)
+        return { ...o, resolved }
+      }
+      case 'bundles': {
+        const resolved = resolve(where, o.targets)
+        requireKind(where, resolved, 'aircraft')
+        return { ...o, resolved }
+      }
       case 'damage': {
         const resolved = resolve(where, o.targets)
         requireKind(where, resolved, 'ship')

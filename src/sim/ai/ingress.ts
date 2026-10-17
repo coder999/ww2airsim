@@ -54,7 +54,15 @@ export const BAY_DOORS_OPEN_RANGE_M = 5000
 
 /** Whether an ingress pilot's bay doors should be open (C2): inside BAY_DOORS_OPEN_RANGE_M of its
  *  destination, horizontally, with the destination ahead of its velocity. No destination: shut. */
+/** F10D: an airdrop transport's doors open this far outside its drop circle, ahead of it (the doors take 6 s to open: about 1 mile at the route's 80 m/s). */
+export const AIRDROP_DOOR_LEAD_M = 1500
+
 export function ingressBayDoorsOpen(a: Pick<AircraftEntity, 'state'>, orders: IngressOrders, ships: readonly ShipEntity[]): boolean {
+  if (orders.airdrop !== undefined) {
+    // The drop point itself is the destination here: open inside circle + lead while it is still ahead, shut once it is past.
+    const dx = orders.airdrop.x - a.state.position.x, dz = orders.airdrop.z - a.state.position.z
+    return Math.hypot(dx, dz) <= orders.airdrop.radiusM + AIRDROP_DOOR_LEAD_M && dx * a.state.velocity.x + dz * a.state.velocity.z > 0
+  }
   const d = destinationPoint(orders, ships)
   if (d === null) return false
   const dx = d.x - a.state.position.x, dz = d.z - a.state.position.z
