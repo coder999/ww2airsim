@@ -133,7 +133,13 @@ export const ObjectiveObject = z.discriminatedUnion('kind', [
   z.object({ ...base, kind: z.literal('state'), ...planeStateShape, dwellS: positive.optional(), failOnExit: z.boolean().optional() }).strict(),
   /** Complete when the player releases the named store. A target supplies
    *  guidance only: practice hits and misses both count. */
-  z.object({ ...base, kind: z.literal('release'), store: z.enum(['bomb', 'rocket', 'torpedo']), target: id.optional(), count: z.number().int().positive().optional() }).strict(),
+  /** F10D (J4): a VALID release. `withinM` (with `targets`, ids or tags, resolved when the world is built) counts a release only when the player was within that many
+   *  meters of one of them when it left, and a torpedo only inside its own drop envelope (`torpedoDropOk`, the same test the sim uses for a dud); `window` is
+   *  `[fromS, toS]` on the mission clock: a release outside it counts for nothing, and the objective fails when `toS` passes unmet. Releases before the objective woke up never count. */
+  z.object({
+    ...base, kind: z.literal('release'), store: z.enum(['bomb', 'rocket', 'torpedo']), target: id.optional(), count: z.number().int().positive().optional(),
+    targets: refs.optional(), withinM: positive.optional(), window: range.refine(([lo]) => lo >= 0, { message: 'window must not start before 0' }).optional(),
+  }).strict(),
   /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
    *  once more than `maxMissed` (default 0) do. One per mission, at a ship
    *  with Paddles (M3-R11). */

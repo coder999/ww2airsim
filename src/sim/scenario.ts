@@ -629,7 +629,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   /** Whether an objective can ever read failed: a standing order, a corridor, a group test, or anything with a window. */
   const canFail = (o: (typeof objectives)[number]): boolean =>
     o.kind === 'protect' || o.kind === 'deny' || o.kind === 'approaches' || o.kind === 'atLeast'
-    || (o.kind === 'field' && o.keep === true) || (o.kind === 'state' && o.failOnExit === true) || o.until !== undefined
+    || (o.kind === 'field' && o.keep === true) || (o.kind === 'state' && o.failOnExit === true) || (o.kind === 'release' && o.window !== undefined) || o.until !== undefined
   /** `when` references that name objectives (shared by triggers and `until`). */
   const checkWhen = (w: z.infer<typeof TriggerObject>['when'], path: (string | number)[]): void => {
     if ('completed' in w && !objectiveIds.has(w.completed)) issue(`when.completed names "${w.completed}", which is not an objective`, [...path, 'completed'])
@@ -662,6 +662,9 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     }
     if (o.kind === 'release' && o.target !== undefined && !startAircraft.has(o.target) && !startShips.has(o.target)) {
       issue(`release.target "${o.target}" is not a starting aircraft or ship`, [...path, 'target'])
+    }
+    if (o.kind === 'release' && (o.withinM === undefined) !== (o.targets === undefined)) {
+      issue('withinM and targets go together: a range needs something to be in range of', [...path, 'withinM'])
     }
     if (o.kind === 'state' && planeStateIsEmpty(o)) {
       issue(`objective "${o.id}": a state objective needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle`, path)
