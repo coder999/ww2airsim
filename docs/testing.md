@@ -130,6 +130,20 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
+- **F8C (2026-10-17): the beaches' budget spec is red in both modes.** `tests/e2e/siteBudget.spec.ts` (landing beaches in the build-up, 12 vehicles of which 4 LCVPs afloat,
+  11 glb buildings, 197 clutter pieces; 6 interleaved loads per arm, fresh vite per mode, median, 1440p High, ryzen RDP route under `hwlock ryzen-budget`): **trees off** site 7.916 ms vs
+  base 4.269 ms, delta **+3.646 ms, red**; **trees on** 15.162 vs 13.828, delta **+1.334 ms, red** (limit 1.0 ms, a tripwire). Left red (Mark's budget rule). The interleaved split
+  with the base arm printed beside it: trees on, no source is rankable; trees off, the base arm stays 4.1-5.7 ms in every round while every arm that keeps the vehicles goes to
+  11-13 ms from round 3 and the no-vehicles arm often does not, so it is a bimodal cost that follows the vehicles (afloat LCVPs or trucks; no per-spec omit exists), not drift.
+  Numbers: F8C handoff.
+- **F8C: A5's carrier recovery fails the mission-fit check, reported not tuned.** F3 gives A5 a 5-7 min recovery to the Essex trap, but a carrier 13.5 mi off
+  the beaches is 69 km (14.5 min at TBM cruise) from the convoy off Ormoc. An F3 contradiction (the budget must start at a rally gate F3 does not locate, or
+  the Essex must be much closer); `content/campaign/mission-fit.json` carries it as `expectFail`. Mark's call. The other six F8C rows pass; A1, A2, A5, J2 and
+  J4 start at sea or over the ridge, where F3 gives no geometry, so their points are invented and those rows prove arithmetic, not layout.
+- **F8C: no shipped scenario names `sites`, so a campaign launch is proven through `launchWindowsOf`, the loader and a recorded replay, not by launching a chapter.**
+  F10 authors the chapters. The window a launch draws is the stored `Campaign.world` (docs/campaign-data.md, "World keys").
+- **F8C: a flying boat's recovery at the Jinamoc anchorage still needs a `Scenario.anchorages` circle from the scenario;** the site supplies the coordinates only.
+  The ramp and the pontoon pier are hard to pick out from 700 ft, and Tacloban's F8A pier has no `seatM` (it floats a little).
 - **F8B (2026-10-17): the Burauen budget spec is green in both modes, and its split by source is not trustworthy.** `tests/e2e/siteBudget.spec.ts`
   (Buri in the build-up, the busiest F8B state: 9 glb buildings, 8 vehicles, 3 parked P-38s, 447 clutter pieces; 6 interleaved loads per arm, fresh vite
   per mode, median, 1440p High, ryzen RDP route under `hwlock ryzen-budget`): **trees off** site 5.403 ms vs base 4.762 ms, delta **+0.641 ms, green**;
@@ -161,7 +175,7 @@ Things nothing automated covers, recorded here rather than as skipped tests:
   `siteState.spec.ts` passed there with an empty WebGPU validation list; the budget numbers above are from ryzen. Hangar flat-luminance
   rows for the four F8A models are still missing (see the F8A Task 0 handoff).
 - **F8A: `?siteState=` is DEV-only and a recording made with it replays only with it.** The flight record's content hash covers the expanded
-  bundle, so a replay without the query is refused as a content mismatch; the campaign path (windows from `Campaign.world`) is F8C's.
+  bundle, so a replay without the query is refused as a content mismatch; the campaign path (windows from `Campaign.world`) is F8C's and exists now (a replay needs the same stored world).
 - **F5C (2026-10-16): a flying boat's stop card is headless-only.** The Catalina's landing on San Pedro Bay, the
   anchorage test and the relaunch placement are pinned in `tests/sim/mission/legEnd.test.ts` and
   `tests/sim/groundStop.test.ts`; no browser spec flies a water landing (a browser water placement is reached with the
