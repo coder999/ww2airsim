@@ -1,0 +1,1010 @@
+{
+ "id": "jinamoc",
+ "name": "Jinamoc seaplane base",
+ "airfield": "jinamoc",
+ "noStrip": true,
+ "base": {
+  "runway": {
+   "center": {
+    "x": -27520,
+    "z": -46230
+   },
+   "headingDeg": 90,
+   "lengthM": 2,
+   "widthM": 2
+  },
+  "apron": null,
+  "clearing": {
+   "x": -20,
+   "z": 0,
+   "widthM": 250,
+   "lengthM": 220
+  },
+  "buildings": [
+   {
+    "id": "jinamoc-ramp",
+    "kind": "jinamoc-seaplane-ramp",
+    "x": 61.5,
+    "z": -20,
+    "widthM": 67.1,
+    "lengthM": 16.2,
+    "hp": 80,
+    "heightM": 5.4,
+    "seatM": -0.3,
+    "tags": [
+     "jinamoc-ramp"
+    ],
+    "basis": "sourced",
+    "cite": "navy-bases-ch29"
+   },
+   {
+    "id": "jinamoc-ops",
+    "kind": "radio-radar-station",
+    "x": 30,
+    "z": 45,
+    "widthM": 16.0,
+    "lengthM": 12.0,
+    "hp": 60,
+    "heightM": 22.0,
+    "tags": [
+     "jinamoc-ops"
+    ],
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. The operations and radio hut."
+   },
+   {
+    "id": "jinamoc-fuel",
+    "kind": "fuel-tank-farm",
+    "x": -80,
+    "z": -30,
+    "widthM": 55.0,
+    "lengthM": 55.0,
+    "hp": 100,
+    "heightM": 9.0,
+    "tags": [
+     "jinamoc-fuel"
+    ],
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. The fuel store ashore."
+   },
+   {
+    "id": "jinamoc-warehouse",
+    "kind": "barracks-and-huts",
+    "x": 0,
+    "z": 55,
+    "widthM": 24.0,
+    "lengthM": 29.2,
+    "hp": 60,
+    "heightM": 6.0,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. A hut block stands in for the warehouse ashore."
+   },
+   {
+    "id": "jinamoc-quonset-1",
+    "kind": "quonset-hut-20x48",
+    "x": -30,
+    "z": -70,
+    "widthM": 6.5,
+    "lengthM": 15.7,
+    "hp": 50,
+    "heightM": 4.4,
+    "basis": "inferred",
+    "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+   },
+   {
+    "id": "jinamoc-quonset-2",
+    "kind": "quonset-hut-20x48",
+    "x": -30,
+    "z": -40,
+    "widthM": 6.5,
+    "lengthM": 15.7,
+    "hp": 50,
+    "heightM": 4.4,
+    "basis": "inferred",
+    "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+   }
+  ],
+  "clutterAreas": [
+   {
+    "id": "camp",
+    "x": -10,
+    "z": -50,
+    "widthM": 70,
+    "lengthM": 90
+   },
+   {
+    "id": "ramp-yard",
+    "x": 20,
+    "z": -25,
+    "widthM": 40,
+    "lengthM": 50
+   },
+   {
+    "id": "yard",
+    "x": 0,
+    "z": 55,
+    "widthM": 50,
+    "lengthM": 40
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "navy-bases-ch29": {
+   "claim": "Jinamoc seaplane base 5 mi east of Tacloban: the first ramp a submerged pontoon barge, the permanent ramp 220 ft long, 75 Quonsets; Seabee pontoon piers",
+   "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm"
+  },
+  "tf77-annex-g": {
+   "claim": "Air-sea rescue organization and PBY availability in Task Force 77 Operation Plan 13-44",
+   "url": "https://www.ibiblio.org/hyperwar/USN/rep/Leyte/OpPlan/13-44-G.html"
+  }
+ },
+ "reference": {
+  "source": "No runway: a seaplane anchorage. The shipped terrain has one small island in San Pedro Bay, about 280 x 300 m at 11.216 N 125.048 E, and the site stands on it. Navy ch. XXIX puts Jinamoc 5 mi (8 km) east of Tacloban; the terrain's island is about 2.5 km east of the Tacloban peninsula, so the position is the terrain's, not the source's. Frame: center (-27520,-46230), heading 90 so local +x points seaward (south) toward the ramp's toe and local z runs along the island's long axis; fitted by tools/sites/localMap.ts 2026-10-17. The seaplane tender and maintenance barge are excluded (F3 section 9). Every pose is invented gameplay layout unless its basis says otherwise."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": false,
+   "side": "axis",
+   "serviceable": false,
+   "note": "Japanese-controlled waters and shore (F3 section 5, 18-19 Oct): nothing is built here yet, so the site has no field.",
+   "states": {},
+   "added": [],
+   "vehicles": [],
+   "parked": [],
+   "lights": [],
+   "clutter": {}
+  },
+  "assault": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "American anchorage forming (F3 section 5, 20-24 Oct): the ramp, the first huts and the stores are still going up.",
+   "states": {
+    "jinamoc-ramp": "construction",
+    "jinamoc-ops": "construction",
+    "jinamoc-fuel": "construction",
+    "jinamoc-warehouse": "construction",
+    "jinamoc-quonset-1": "construction",
+    "jinamoc-quonset-2": "construction"
+   },
+   "added": [],
+   "vehicles": [
+    {
+     "id": "jinamoc-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": 10,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-d1",
+     "spec": "caterpillar-d7-3t",
+     "x": 15,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 130,
+     "z": -20,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "mud": 1.0,
+     "rut": 0.8,
+     "crate": 0.6
+    },
+    "yard": {
+     "crate": 0.6,
+     "mud": 0.8
+    },
+    "ramp-yard": {
+     "mud": 1.2,
+     "rut": 1.0
+    }
+   }
+  },
+  "buildup": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "PBY anchorage, rescue launch and support activity (F3 section 5, late Oct-Nov): the ramp is in use, the moorings are laid, the lamps are lit at night.",
+   "states": {},
+   "added": [
+    {
+     "id": "jinamoc-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -70,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -40,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -30,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": 80.0,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": 97.1,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-buoy-1",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": -70,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-2",
+     "kind": "pby-mooring-buoy",
+     "x": 150,
+     "z": -20,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-3",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": 30,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-4",
+     "kind": "pby-mooring-buoy",
+     "x": 170,
+     "z": -45,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "jinamoc-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": 10,
+     "z": 90,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-t2",
+     "spec": "gmc-cckw-353",
+     "x": -30,
+     "z": 90,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-j1",
+     "spec": "willys-mb-jeep",
+     "x": -20,
+     "z": 75,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-launch",
+     "spec": "usaaf-63ft-rescue-boat",
+     "x": 115,
+     "z": 10,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "The 63-ft rescue launch is the A4 asset (F3 section 4); its mooring is invented."
+    },
+    {
+     "id": "jinamoc-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 130,
+     "z": 55,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    }
+   ],
+   "parked": [
+    {
+     "id": "jinamoc-bu-pby-1",
+     "spec": "pby-5a-catalina",
+     "x": 50,
+     "z": 10,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. A PBY hauled out beside the ramp."
+    }
+   ],
+   "lights": [
+    {
+     "id": "jinamoc-lamp-0",
+     "kind": "fixture",
+     "at": {
+      "x": 45,
+      "z": -36
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-1",
+     "kind": "fixture",
+     "at": {
+      "x": 45,
+      "z": -4
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-2",
+     "kind": "fixture",
+     "at": {
+      "x": 100,
+      "z": 47
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-3",
+     "kind": "fixture",
+     "at": {
+      "x": 28,
+      "z": 20
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-4",
+     "kind": "fixture",
+     "at": {
+      "x": -30,
+      "z": -90
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-5",
+     "kind": "fixture",
+     "at": {
+      "x": 110,
+      "z": -40
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    }
+   ],
+   "clutter": {
+    "camp": {
+     "crate": 0.8,
+     "mud": 0.6,
+     "rut": 0.5
+    },
+    "yard": {
+     "crate": 1.4,
+     "drum": 1.2,
+     "mud": 0.6
+    },
+    "ramp-yard": {
+     "rut": 0.6,
+     "mud": 0.8,
+     "drum": 0.4
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "American support and transport area (F3 section 5, 6-7 Dec): the same anchorage at routine tempo.",
+   "states": {},
+   "added": [
+    {
+     "id": "jinamoc-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -70,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -40,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -30,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": 80.0,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": 97.1,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-buoy-1",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": -70,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-2",
+     "kind": "pby-mooring-buoy",
+     "x": 150,
+     "z": -20,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-3",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": 30,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-4",
+     "kind": "pby-mooring-buoy",
+     "x": 170,
+     "z": -45,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "jinamoc-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": 10,
+     "z": 90,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-j1",
+     "spec": "willys-mb-jeep",
+     "x": -20,
+     "z": 75,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-launch",
+     "spec": "usaaf-63ft-rescue-boat",
+     "x": 115,
+     "z": 10,
+     "headingDeg": 90,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "The 63-ft rescue launch is the A4 asset (F3 section 4); its mooring is invented."
+    },
+    {
+     "id": "jinamoc-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 130,
+     "z": 55,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    },
+    {
+     "id": "jinamoc-veh-lcvp-2",
+     "spec": "lcvp",
+     "x": 140,
+     "z": 85,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan."
+    }
+   ],
+   "parked": [
+    {
+     "id": "jinamoc-eg-pby-1",
+     "spec": "pby-5a-catalina",
+     "x": 50,
+     "z": 10,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. A PBY hauled out beside the ramp."
+    },
+    {
+     "id": "jinamoc-eg-pby-2",
+     "spec": "pby-5a-catalina",
+     "x": 50,
+     "z": 60,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: Navy ch. XXIX gives Jinamoc a ramp, a count of Quonsets and its distance from Tacloban, not a plan. A second PBY on the hardstand."
+    }
+   ],
+   "lights": [
+    {
+     "id": "jinamoc-lamp-0",
+     "kind": "fixture",
+     "at": {
+      "x": 45,
+      "z": -36
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-1",
+     "kind": "fixture",
+     "at": {
+      "x": 45,
+      "z": -4
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-2",
+     "kind": "fixture",
+     "at": {
+      "x": 100,
+      "z": 47
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-3",
+     "kind": "fixture",
+     "at": {
+      "x": 28,
+      "z": 20
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-4",
+     "kind": "fixture",
+     "at": {
+      "x": -30,
+      "z": -90
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    },
+    {
+     "id": "jinamoc-lamp-5",
+     "kind": "fixture",
+     "at": {
+      "x": 110,
+      "z": -40
+     },
+     "color": "warm",
+     "state": "lit",
+     "source": "gameplay",
+     "sourceNote": "Anchorage lamps for A4 (F3 section 6: night anchorage lamps and mooring buoy); the count and placement are a gameplay choice, no 1944 lamp layout is claimed."
+    }
+   ],
+   "clutter": {
+    "camp": {
+     "crate": 0.6,
+     "mud": 0.4
+    },
+    "yard": {
+     "crate": 1.2,
+     "drum": 1.0
+    },
+    "ramp-yard": {
+     "rut": 0.4,
+     "mud": 0.5
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Abandoned, contested anchorage (F3 section 5, J6 alternate): bombed, the Americans gone, nothing lit.",
+   "states": {
+    "jinamoc-ramp": "damaged",
+    "jinamoc-ops": "damaged",
+    "jinamoc-fuel": "destroyed",
+    "jinamoc-warehouse": "destroyed",
+    "jinamoc-quonset-1": "destroyed",
+    "jinamoc-quonset-2": "damaged",
+    "jinamoc-quonset-3": "destroyed",
+    "jinamoc-quonset-5": "damaged",
+    "jinamoc-pontoon-1": "damaged",
+    "jinamoc-pontoon-2": "destroyed"
+   },
+   "added": [
+    {
+     "id": "jinamoc-quonset-3",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -70,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-4",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -40,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-5",
+     "kind": "quonset-hut-20x48",
+     "x": 5,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-quonset-6",
+     "kind": "quonset-hut-20x48",
+     "x": -30,
+     "z": -10,
+     "widthM": 6.5,
+     "lengthM": 15.7,
+     "hp": 50,
+     "heightM": 4.4,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (75 Quonsets at the Jinamoc seaplane base, offices and quarters); six stand for them here, the pose is invented."
+    },
+    {
+     "id": "jinamoc-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": 80.0,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": 97.1,
+     "z": 45,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers); the count and pose are invented."
+    },
+    {
+     "id": "jinamoc-buoy-1",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": -70,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-2",
+     "kind": "pby-mooring-buoy",
+     "x": 150,
+     "z": -20,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-3",
+     "kind": "pby-mooring-buoy",
+     "x": 140,
+     "z": 30,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    },
+    {
+     "id": "jinamoc-buoy-4",
+     "kind": "pby-mooring-buoy",
+     "x": 170,
+     "z": -45,
+     "widthM": 1.1,
+     "lengthM": 1.1,
+     "hp": 10,
+     "heightM": 1.5,
+     "seatM": -0.5,
+     "tags": [
+      "jinamoc-moorings"
+     ],
+     "basis": "invented",
+     "cite": "PBY mooring buoys are approved dressing (F3 section 7 and the model's Library entry call the form an estimate); their number and positions are invented."
+    }
+   ],
+   "vehicles": [],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "camp": {
+     "crater": 1.4,
+     "mud": 0.6,
+     "crate": 0.4
+    },
+    "yard": {
+     "crater": 1.2,
+     "crate": 0.6
+    },
+    "ramp-yard": {
+     "crater": 1.0,
+     "mud": 0.8
+    }
+   }
+  }
+ }
+}

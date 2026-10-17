@@ -848,6 +848,7 @@ function checkHomes(s: Scenario, bundle: ScenarioBundle, ships: readonly ShipEnt
     } else {
       const airfieldId = key.slice('airfield:'.length)
       // F8A: an AI's home is where it lands; a field its window leaves unserviceable cannot be one.
+      if (lookup(bundle.airfields, airfieldId, 'airfield').noStrip === true) throw new Error(`home airfield "${airfieldId}" has no strip`)
       if (lookup(bundle.airfields, airfieldId, 'airfield').serviceable === false) throw new Error(`home airfield "${airfieldId}" is not serviceable in this world`)
       const n = runwayParkSpots(lookup(bundle.airfields, airfieldId, 'airfield'), maxSpan).length
       if (list.length > n) throw new Error(`home airfield "${airfieldId}" parks ${n} aircraft but ${list.length} are homed to it`)

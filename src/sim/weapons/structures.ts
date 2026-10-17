@@ -36,7 +36,7 @@ export function buildStructures(
       // F8A: rubble is a visual only; a destroyed building has no hit box to bomb, strafe or fly into.
       if (b.state === 'destroyed') continue
       const world = localToWorld(a, b.x, b.z)
-      const groundHeightM = terrain === null ? 0 : heightAt(terrain, world.x, world.z)
+      const groundHeightM = b.seatM ?? (terrain === null ? 0 : heightAt(terrain, world.x, world.z))
       const heightM = b.heightM ?? BUILDING_HEIGHT_M
       out.push({
         id: b.id,

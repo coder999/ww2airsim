@@ -1,4 +1,4 @@
-import { BufferAttribute, BufferGeometry, Mesh, type Object3D } from 'three'
+import { BufferAttribute, BufferGeometry, Group, Mesh, type Object3D } from 'three'
 import { MeshStandardNodeMaterial } from 'three/webgpu'
 import { color, fract, mix, positionLocal, smoothstep, varying } from 'three/tsl'
 import { groundNoise } from '../terrain/surface.js'
@@ -70,6 +70,7 @@ const RUNWAY_SEGMENT_M = 10
  * `createRunway` that ignored `headingDeg` would otherwise pass everything.
  */
 export function createRunway(field: TerrainField, airfield: Airfield): Object3D {
+  if (airfield.noStrip === true) return new Group() // F8C: a port, beach or anchorage draws no strip
   const { lengthM, widthM } = airfield.runway
   const cols = Math.round(widthM / RUNWAY_SEGMENT_M) + 1
   const rows = Math.round(lengthM / RUNWAY_SEGMENT_M) + 1

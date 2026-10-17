@@ -36,7 +36,7 @@ const STRUCTURE_WORDS: Readonly<Record<BuildingKind, string>> = {
   'ammunition-bunker': 'Ammunition bunker', 'barracks-and-huts': 'Barracks', 'coastal-gun-battery': 'Coastal gun battery',
   'fuel-tank-farm': 'Fuel tank farm', 'pier-and-warehouses': 'Pier and warehouses', 'radio-radar-station': 'Radio station',
   revetment: 'Revetment', 'quonset-hut-20x48': 'Quonset hut', 'pontoon-pier-segment': 'Pontoon pier',
-  'jinamoc-seaplane-ramp': 'Seaplane ramp', 'ormoc-customs-building': 'Customs building',
+  'jinamoc-seaplane-ramp': 'Seaplane ramp', 'ormoc-customs-building': 'Customs building', 'pby-mooring-buoy': 'Mooring buoy',
 }
 
 /** A name for what was hit, in the debrief's own style: class name then id

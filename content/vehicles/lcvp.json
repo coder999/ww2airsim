@@ -8,6 +8,7 @@
   "turnRateRadPerS": 0.35,
   "hp": 80,
   "targetType": "landing-craft",
+  "floats": true,
   "view": {
     "model": "lcvp"
   }

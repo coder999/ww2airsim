@@ -4,6 +4,7 @@
  * Nested objects that did not change are shared with the input, so callers must not mutate.
  */
 import { tierOf } from './ranks.js'
+import { applyChapterSuccess } from './worldStates.js'
 import { addEntryPilot } from './roster.js'
 import { forfeitsUnbanked, rosterBonusOf, scoreSortie } from './scoring.js'
 import {
@@ -134,11 +135,14 @@ function credit(c: Campaign, pending: PendingSortie, r: SortieReport): { ok: tru
   const h = c.human
   const chapter = pending.chapterId
   let progress = c.progress
+  let world = c.world
   if (qualifies && chapter) {
     const chapters = chaptersOf(c.faction)
     if (chapters[c.progress.completed.length] === chapter) {
       const completed = [...c.progress.completed, chapter]
       progress = { ...progress, completed, victory: completed.length === chapters.length }
+      // F8C: the chapter's success moves the world with it, at this same moment and not otherwise (docs/campaign-data.md, "World keys").
+      world = applyChapterSuccess(c.world, chapter)
     }
   }
   const out: Campaign = {
@@ -148,6 +152,7 @@ function credit(c: Campaign, pending: PendingSortie, r: SortieReport): { ok: tru
       ledger: { ...h.ledger, points: h.ledger.points + humanPoints, counts: addCounts(h.ledger.counts, delta), badges: withBadge(h.ledger.badges, badgeId) },
     },
     progress,
+    world,
   }
   const banked: PendingBanked = {
     counts: addCounts(was.counts, delta), flightSeconds: Math.max(was.flightSeconds, whole(r.flight.flightSeconds)),

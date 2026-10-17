@@ -110,7 +110,7 @@ export function createCoverField(header: CoverHeader, data: Uint8Array, airfield
   for (const a of airfields) {
     const h = runwayHeadingRad(a)
     const cos = Math.cos(h), sin = Math.sin(h)
-    for (const r of [runwayRect(a), a.apron, a.clearing]) {
+    for (const r of [a.noStrip === true ? null : runwayRect(a), a.apron, a.clearing]) {
       if (r === null) continue
       const c = localToWorld(a, r.x, r.z)
       firm.push({ centreX: c.x, centreZ: c.z, cos, sin, halfWidthM: r.widthM / 2, halfLengthM: r.lengthM / 2 })

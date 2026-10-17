@@ -1,0 +1,1196 @@
+{
+ "id": "landing-beaches",
+ "name": "Landing beaches",
+ "airfield": "landing-beaches",
+ "noStrip": true,
+ "base": {
+  "runway": {
+   "center": {
+    "x": -30900,
+    "z": -42200
+   },
+   "headingDeg": 23,
+   "lengthM": 2,
+   "widthM": 2
+  },
+  "apron": null,
+  "clearing": {
+   "x": -150,
+   "z": 0,
+   "widthM": 330,
+   "lengthM": 620
+  },
+  "buildings": [
+   {
+    "id": "beach-aaa-1",
+    "kind": "aaa",
+    "x": -85,
+    "z": -180,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-aaa-2",
+    "kind": "aaa",
+    "x": -85,
+    "z": -20,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-aaa-3",
+    "kind": "aaa",
+    "x": -85,
+    "z": 160,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-coastal-1",
+    "kind": "coastal-gun-battery",
+    "x": -95,
+    "z": 70,
+    "widthM": 18.0,
+    "lengthM": 34.0,
+    "hp": 120,
+    "heightM": 3.2,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-bunker-1",
+    "kind": "ammunition-bunker",
+    "x": -80,
+    "z": -100,
+    "widthM": 16.1,
+    "lengthM": 12.0,
+    "hp": 80,
+    "heightM": 3.5,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-bunker-2",
+    "kind": "ammunition-bunker",
+    "x": -80,
+    "z": 15,
+    "widthM": 16.1,
+    "lengthM": 12.0,
+    "hp": 80,
+    "heightM": 3.5,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   },
+   {
+    "id": "beach-bunker-3",
+    "kind": "ammunition-bunker",
+    "x": -80,
+    "z": 110,
+    "widthM": 16.1,
+    "lengthM": 12.0,
+    "hp": 80,
+    "heightM": 3.5,
+    "tags": [
+     "beach-defenses"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (\"Japanese shore defenses\"); the count, kind and pose are invented."
+   }
+  ],
+  "clutterAreas": [
+   {
+    "id": "beach",
+    "x": -66,
+    "z": 0,
+    "widthM": 24,
+    "lengthM": 400
+   },
+   {
+    "id": "dump-a",
+    "x": -125,
+    "z": -140,
+    "widthM": 70,
+    "lengthM": 100
+   },
+   {
+    "id": "dump-b",
+    "x": -125,
+    "z": 120,
+    "widthM": 70,
+    "lengthM": 100
+   },
+   {
+    "id": "camp",
+    "x": -215,
+    "z": 0,
+    "widthM": 90,
+    "lengthM": 220
+   },
+   {
+    "id": "road",
+    "x": -160,
+    "z": 0,
+    "widthM": 16,
+    "lengthM": 480
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "army-leyte-ch5": {
+   "claim": "The 20 Oct landings: X Corps north (Palo to Tacloban), XXIV Corps south (Dulag); A-day partly cloudy to cloudy",
+   "url": "https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-5.html"
+  },
+  "navy-bases-ch29": {
+   "claim": "Seabee detachment handled pontoon barges and causeways at the landing and reassembled cells as pontoon piers",
+   "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm"
+  }
+ },
+ "reference": {
+  "source": "No runway: a beach. One representative beachhead stands for the landing sectors, on the shipped terrain's straight east-facing coast between Palo and Tacloban (X Corps sector, 11.179 N 125.017 E, the shore at local x about -10 to -50). The frame is center (-30900,-42200), heading 23 so local +x points seaward (east-southeast) and local z runs along the shore; fitted by tools/sites/localMap.ts 2026-10-17. The Dulag sectors are not drawn. Every pose, count and kind is invented gameplay layout unless its basis says otherwise."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": true,
+   "side": "axis",
+   "serviceable": false,
+   "note": "Japanese shore defenses (F3 section 5, 18-19 Oct): wire, pillboxes and AAA behind the sand, no American presence.",
+   "states": {},
+   "added": [],
+   "vehicles": [
+    {
+     "id": "beach-veh-gun-1",
+     "spec": "type38-75mm-field-gun",
+     "x": -75,
+     "z": -60,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-gun-2",
+     "spec": "type38-75mm-field-gun",
+     "x": -75,
+     "z": 60,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "beach": {
+     "sandbag": 0.8,
+     "mud": 0.2
+    },
+    "dump-a": {},
+    "dump-b": {},
+    "camp": {},
+    "road": {}
+   }
+  },
+  "assault": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "Active assault and unloading (F3 section 5, 20-24 Oct): LCVPs on the sand, the first pontoon pier, the Japanese works wrecked.",
+   "states": {
+    "beach-aaa-1": "destroyed",
+    "beach-aaa-2": "destroyed",
+    "beach-coastal-1": "destroyed",
+    "beach-bunker-1": "destroyed",
+    "beach-bunker-2": "damaged",
+    "beach-bunker-3": "destroyed"
+   },
+   "added": [
+    {
+     "id": "beach-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": -20.0,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-camp-1",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": 40,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-1",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": -140,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "beach-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -200,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-2",
+     "spec": "lcvp",
+     "x": 22,
+     "z": -140,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-3",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -80,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-4",
+     "spec": "lcvp",
+     "x": 22,
+     "z": -10,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-5",
+     "spec": "lcvp",
+     "x": 8,
+     "z": 100,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-6",
+     "spec": "lcvp",
+     "x": 22,
+     "z": 160,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": -60,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t2",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 30,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-d1",
+     "spec": "caterpillar-d7-3t",
+     "x": -45,
+     "z": 120,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-j1",
+     "spec": "willys-mb-jeep",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "beach": {
+     "crate": 1.2,
+     "drum": 0.8,
+     "mud": 1.0,
+     "rut": 0.8,
+     "crater": 0.4
+    },
+    "dump-a": {
+     "crate": 0.8,
+     "drum": 0.5
+    },
+    "dump-b": {
+     "crate": 0.4
+    },
+    "camp": {
+     "tent": 0.4,
+     "mud": 0.5
+    },
+    "road": {
+     "rut": 1.0,
+     "mud": 0.8
+    }
+   }
+  },
+  "buildup": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "Dense American beachhead and supply dumps (F3 section 5, late Oct-Nov): trucks and dozers working, dumps and tents, a three-segment pontoon pier.",
+   "states": {
+    "beach-aaa-1": "destroyed",
+    "beach-aaa-2": "destroyed",
+    "beach-aaa-3": "destroyed",
+    "beach-coastal-1": "destroyed",
+    "beach-bunker-1": "destroyed",
+    "beach-bunker-2": "destroyed",
+    "beach-bunker-3": "destroyed"
+   },
+   "added": [
+    {
+     "id": "beach-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": -20.0,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": -2.8999999999999986,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-3",
+     "kind": "pontoon-pier-segment",
+     "x": 14.200000000000003,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-camp-1",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": 40,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-camp-2",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": -60,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-camp-3",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": 120,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-1",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": -140,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-2",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": 120,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-3",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": -110,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-fuel",
+     "kind": "fuel-tank-farm",
+     "x": -200,
+     "z": 0,
+     "widthM": 55.0,
+     "lengthM": 55.0,
+     "hp": 100,
+     "heightM": 9.0,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-radio",
+     "kind": "radio-radar-station",
+     "x": -150,
+     "z": -30,
+     "widthM": 16.0,
+     "lengthM": 12.0,
+     "hp": 60,
+     "heightM": 22.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "beach-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -180,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-2",
+     "spec": "lcvp",
+     "x": 22,
+     "z": -60,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-3",
+     "spec": "lcvp",
+     "x": 8,
+     "z": 20,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-4",
+     "spec": "lcvp",
+     "x": 22,
+     "z": 150,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": -80,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t2",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": -40,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t3",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 0,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t4",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 40,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-d1",
+     "spec": "caterpillar-d7-3t",
+     "x": -45,
+     "z": 100,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-d2",
+     "spec": "caterpillar-d7-3t",
+     "x": -45,
+     "z": 130,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-j1",
+     "spec": "willys-mb-jeep",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-j2",
+     "spec": "willys-mb-jeep",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "beach": {
+     "crate": 2.0,
+     "drum": 1.6,
+     "mud": 1.4,
+     "rut": 1.4,
+     "sandbag": 0.4
+    },
+    "dump-a": {
+     "crate": 2.4,
+     "drum": 1.8,
+     "sandbag": 0.5
+    },
+    "dump-b": {
+     "crate": 2.2,
+     "drum": 1.6,
+     "sandbag": 0.5
+    },
+    "camp": {
+     "tent": 1.0,
+     "mud": 0.8,
+     "rut": 0.6
+    },
+    "road": {
+     "rut": 1.6,
+     "mud": 1.2
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "allied",
+   "serviceable": true,
+   "note": "Established rear and support area (F3 section 5, 6-7 Dec): the dumps remain, fewer craft, quieter roads.",
+   "states": {
+    "beach-aaa-1": "destroyed",
+    "beach-aaa-2": "destroyed",
+    "beach-aaa-3": "destroyed",
+    "beach-coastal-1": "destroyed",
+    "beach-bunker-1": "destroyed",
+    "beach-bunker-2": "destroyed",
+    "beach-bunker-3": "destroyed"
+   },
+   "added": [
+    {
+     "id": "beach-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": -20.0,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": -2.8999999999999986,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-3",
+     "kind": "pontoon-pier-segment",
+     "x": 14.200000000000003,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-camp-1",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": 40,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-camp-2",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": -60,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-1",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": -140,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-2",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": 120,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-fuel",
+     "kind": "fuel-tank-farm",
+     "x": -200,
+     "z": 0,
+     "widthM": 55.0,
+     "lengthM": 55.0,
+     "hp": 100,
+     "heightM": 9.0,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-radio",
+     "kind": "radio-radar-station",
+     "x": -150,
+     "z": -30,
+     "widthM": 16.0,
+     "lengthM": 12.0,
+     "hp": 60,
+     "heightM": 22.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "beach-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -120,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-2",
+     "spec": "lcvp",
+     "x": 22,
+     "z": 90,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": -40,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t2",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 40,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t3",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 100,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-j1",
+     "spec": "willys-mb-jeep",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 0,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "beach": {
+     "crate": 1.0,
+     "drum": 0.8,
+     "mud": 0.8,
+     "rut": 0.6
+    },
+    "dump-a": {
+     "crate": 1.6,
+     "drum": 1.0
+    },
+    "dump-b": {
+     "crate": 1.4,
+     "drum": 0.8
+    },
+    "camp": {
+     "tent": 0.6,
+     "mud": 0.4
+    },
+    "road": {
+     "rut": 0.8,
+     "mud": 0.6
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "allied",
+   "serviceable": false,
+   "note": "Damaged, evacuating American beachhead (F3 section 5, J6 alternate): craft loading out, dumps burning or abandoned, the pier wrecked.",
+   "states": {
+    "beach-aaa-1": "destroyed",
+    "beach-aaa-2": "destroyed",
+    "beach-aaa-3": "destroyed",
+    "beach-coastal-1": "destroyed",
+    "beach-bunker-1": "destroyed",
+    "beach-bunker-2": "destroyed",
+    "beach-bunker-3": "destroyed",
+    "beach-pontoon-2": "damaged",
+    "beach-pontoon-3": "destroyed",
+    "beach-dump-1": "destroyed",
+    "beach-fuel": "damaged",
+    "beach-camp-2": "damaged"
+   },
+   "added": [
+    {
+     "id": "beach-pontoon-1",
+     "kind": "pontoon-pier-segment",
+     "x": -20.0,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-2",
+     "kind": "pontoon-pier-segment",
+     "x": -2.8999999999999986,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-pontoon-3",
+     "kind": "pontoon-pier-segment",
+     "x": 14.200000000000003,
+     "z": 60,
+     "widthM": 17.1,
+     "lengthM": 4.8,
+     "hp": 40,
+     "heightM": 2.0,
+     "seatM": -0.6,
+     "basis": "inferred",
+     "cite": "Follows from Navy ch. XXIX (Seabees assembled pontoon piers and causeways at the landing); the count and pose are invented."
+    },
+    {
+     "id": "beach-camp-1",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": 40,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-camp-2",
+     "kind": "barracks-and-huts",
+     "x": -190,
+     "z": -60,
+     "widthM": 24.0,
+     "lengthM": 29.2,
+     "hp": 60,
+     "heightM": 6.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-1",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": -140,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-dump-2",
+     "kind": "ammunition-bunker",
+     "x": -125,
+     "z": 120,
+     "widthM": 16.1,
+     "lengthM": 12.0,
+     "hp": 80,
+     "heightM": 3.5,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-fuel",
+     "kind": "fuel-tank-farm",
+     "x": -200,
+     "z": 0,
+     "widthM": 55.0,
+     "lengthM": 55.0,
+     "hp": 100,
+     "heightM": 9.0,
+     "tags": [
+      "beach-supply"
+     ],
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    },
+    {
+     "id": "beach-radio",
+     "kind": "radio-radar-station",
+     "x": -150,
+     "z": -30,
+     "widthM": 16.0,
+     "lengthM": 12.0,
+     "hp": 60,
+     "heightM": 22.0,
+     "basis": "invented",
+     "cite": "Follows from F3 section 5 (dense American beachhead and supply dumps); the count, kind and pose are invented."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "beach-veh-lcvp-1",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -190,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-2",
+     "spec": "lcvp",
+     "x": 22,
+     "z": -110,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-3",
+     "spec": "lcvp",
+     "x": 8,
+     "z": -30,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-4",
+     "spec": "lcvp",
+     "x": 22,
+     "z": 60,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-lcvp-5",
+     "spec": "lcvp",
+     "x": 8,
+     "z": 150,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t1",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": -20,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    },
+    {
+     "id": "beach-veh-t2",
+     "spec": "gmc-cckw-353",
+     "x": -50,
+     "z": 50,
+     "headingDeg": 270,
+     "side": "allied",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 10 gives the landing beaches a state per window and the Army history gives the sectors, not a plan of what stood on them."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "beach": {
+     "crate": 1.0,
+     "drum": 1.4,
+     "mud": 0.8,
+     "rut": 0.8,
+     "crater": 1.4
+    },
+    "dump-a": {
+     "crate": 1.2,
+     "drum": 1.2,
+     "crater": 1.0
+    },
+    "dump-b": {
+     "crate": 1.0,
+     "crater": 1.0
+    },
+    "camp": {
+     "tent": 0.4,
+     "crater": 0.8
+    },
+    "road": {
+     "rut": 0.8,
+     "crater": 0.6
+    }
+   }
+  }
+ }
+}

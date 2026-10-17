@@ -18,6 +18,7 @@ import {
   type Result, type ScenarioFacts, type ScenarioRow, type SortieEndKind, type SortieFacts, type SortieReport, type StoragePort,
 } from '../campaign/index.js'
 import type { RecoveryOutcome } from './debrief.js'
+import { launchWindows } from '../campaign/worldStates.js'
 import { withMissionAircraft } from './hq/missionAircraft.js'
 import type { TargetType } from '../sim/weapons/targetType.js'
 
@@ -155,6 +156,17 @@ export const abandonReport = (sortieId: string): SortieReport => ({
 })
 
 // ---------------------------------------------------------------- the launch seam (F6B / F7)
+
+/**
+ * F8C (Mark's ruling, 2026-10-16): the window each site is drawn in for the sortie that just launched. A scored chapter launch reads the stored
+ * `Campaign.world` (the chapter's own window only for a key the world does not hold yet). `undefined` for everything else -- no campaign open,
+ * no pending sortie, or a sortie with no chapter (Dev flights, Single Missions and Training never call `launchSortie` for a chapter) -- so
+ * those keep today's behavior: sites draw `pre-invasion`, or the DEV `?siteState=`.
+ */
+export function launchWindowsOf(c: Campaign | null): Readonly<Record<string, string>> | undefined {
+  const chapter = c?.pending?.chapterId ?? null
+  return c === null || chapter === null ? undefined : launchWindows(c.world, chapter)
+}
 
 /** What `onNewGame` receives for a scored sortie instead of a bare pilot id. F6B adds `sights` to `facts`; F7 its seed. */
 export type CampaignLaunch = { readonly pilotId: string; readonly tier: number; readonly facts: SortieFacts }

@@ -41,7 +41,7 @@ import { COLLISION_ATTACKER_PREFIX, collisionShipName } from '../sim/shipCollisi
 import { bailoutModel, createDebrief, debriefModel, destructionModel, killsSince, landingModel, withLegCard, withNotRecorded, type DebriefModel } from './debrief.js'
 import { CLOSED_NAVIGATION_MAP, closeNavigationMap, openNavigationMap, selectNavigationDestination } from './missionMap.js'
 import { createHeadquarters } from './hq/bootHq.js'
-import { SORTIE_END_OF, type Session } from './campaignSession.js'
+import { SORTIE_END_OF, launchWindowsOf, type Session } from './campaignSession.js'
 import { createTitleScreen, DEFAULT_LOADOUT, isKnownScenarioId, SCENARIO_OPTIONS } from './titleScreen.js'
 import { loadFlyableAircraft, loadOrdnanceNames } from './sortie/flyableIndex.js'
 import { bootLoadout } from './sortieFlow.js'
@@ -546,7 +546,8 @@ async function boot(): Promise<void> {
       if (!res.ok) throw new Error(`Failed to fetch content ${aircraftUrl(choice.aircraftSpec)}: ${res.status} ${res.statusText}`)
       scenarioFile = scenarioFileFor(scenarioFile, parseAircraftSpec(await res.json()).side)
     }
-    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows, siteState?.omit)
+    // F8C: a campaign launch draws each site in the window the stored `Campaign.world` holds (campaignSession.ts); DEV `?siteState=` overrides.
+    const nextBundle = await loadScenarioBundle(scenarioFile, fetch, choice.aircraftSpec, extendScenario, siteState?.windows ?? launchWindowsOf(hqSession?.current() ?? null), siteState?.omit)
     const spec = nextBundle.aircraftSpecs[choice.aircraftSpec]!
     const option = SCENARIO_OPTIONS.find((o) => o.value === choice.scenarioId)
     validateSortie({ devScenario: option?.dev === true, start: startKindOf(nextBundle.scenario), spec, loadout: choice.loadout, dev: choice.dev, authored: spec.id === option?.aircraft })

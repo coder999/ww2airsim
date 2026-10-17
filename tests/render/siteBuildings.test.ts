@@ -5,7 +5,7 @@ import { BUILDING_KINDS, parseAirfield, type Airfield } from '../../src/sim/worl
 import { loadAirfield } from '../../tools/content/load.js'
 import { buildStructures } from '../../src/sim/weapons/structures.js'
 import { groundTruthTerrain } from '../../tools/sites/terrain.js'
-import { STATIC_MODELS } from '../../src/render/scene/staticModels.js'
+import { STATIC_MODELS, siteKindModelUrl } from '../../src/render/scene/staticModels.js'
 
 const field = groundTruthTerrain()
 
@@ -45,7 +45,10 @@ describe('the three shipped bases render exactly as before F8A (Task 3)', () => 
 
 describe('every placeable kind draws and has a hit box (Task 3)', () => {
   it('the building kinds are exactly the registered building models', () => {
-    expect([...BUILDING_KINDS].sort()).toEqual(Object.keys(STATIC_MODELS.building).sort())
+    // F8C: plus the one equipment model a site may place (the mooring buoy).
+    expect([...BUILDING_KINDS].sort()).toEqual([...Object.keys(STATIC_MODELS.building), 'pby-mooring-buoy'].sort())
+    expect(siteKindModelUrl('pby-mooring-buoy')).toBe(STATIC_MODELS.equipment['pby-mooring-buoy']!.url)
+    expect(siteKindModelUrl('hangar')).toBe(STATIC_MODELS.building.hangar!.url)
   })
 
   it.each([...BUILDING_KINDS])('%s: a placeholder draws now, and a hit box exists and matches its footprint', (kind) => {

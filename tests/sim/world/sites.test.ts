@@ -4,6 +4,7 @@ import siteWindows from '../../../content/campaign/site-windows.json'
 import { loadAircraftSpec, loadAirfield, loadSite, loadVehicleSpec } from '../../../tools/content/load.js'
 import { buildStructures } from '../../../src/sim/weapons/structures.js'
 import { localToWorld, type Airfield } from '../../../src/sim/world/airfields.js'
+import { clutterTotal } from '../../../src/sim/world/clutter.js'
 import { airfieldFor, parseSite, PARKED_CAP, VEHICLE_CAP, WINDOW_IDS, windowOf, type Site } from '../../../src/sim/world/sites.js'
 import { getBounds } from '@gltf-transform/functions'
 import { modelIO, onlyScene } from '../../../tools/models/document.js'
@@ -22,8 +23,13 @@ const UNOCCUPIED: readonly (readonly [string, string])[] = [['san-pablo', 'pre-i
 const raw = (id: string): Record<string, unknown> => JSON.parse(readFileSync(`content/sites/${id}.json`, 'utf8')) as Record<string, unknown>
 
 describe('site files: schema and loader', () => {
-  it('enrolls exactly the F8A and F8B sites (F8C adds its own)', () => {
-    expect(ids).toEqual(['bayug', 'buri', 'dulag', 'san-pablo', 'tacloban', 'tanauan'])
+  it('enrolls exactly the nine sites: F8A, F8B and F8C (Ormoc, the landing beaches, the Jinamoc anchorage)', () => {
+    expect(ids).toEqual(['bayug', 'buri', 'dulag', 'jinamoc', 'landing-beaches', 'ormoc', 'san-pablo', 'tacloban', 'tanauan'])
+  })
+
+  it('exactly the three F8C sites have no strip; the six flying fields do', () => {
+    expect(ids.filter((i) => sites[i]!.noStrip === true)).toEqual(['jinamoc', 'landing-beaches', 'ormoc'])
+    for (const i of ['bayug', 'buri', 'dulag', 'san-pablo', 'tacloban', 'tanauan']) expect(airfieldFor(sites[i]!, 'endgame')!.noStrip).toBeUndefined()
   })
 
   it('window ids come from the one list in content/campaign/site-windows.json, in campaign order', () => {
@@ -145,7 +151,9 @@ describe('site files: the layout stands on the real ground', () => {
   const corners = (a: Airfield, p: { x: number; z: number; widthM: number; lengthM: number }): { x: number; z: number }[] =>
     [-1, 1].flatMap((sx) => [-1, 1].map((sz) => localToWorld(a, p.x + sx * p.widthM / 2, p.z + sz * p.lengthM / 2)))
 
-  it.each(ids)('%s: every building, vehicle and parked aircraft of every window is on land', (id) => {
+  /** F8C: kinds built at the water's edge, seated at the sea surface (`seatM`): only their landward half has to stand on land. */
+  const WATERFRONT = ['pier-and-warehouses', 'pontoon-pier-segment', 'jinamoc-seaplane-ramp', 'pby-mooring-buoy']
+  it.each(ids)('%s: every building, vehicle and parked aircraft of every window is on land (a floating craft on water)', (id) => {
     const bad: string[] = []
     for (const w of WINDOW_IDS) {
       const a = airfieldFor(sites[id]!, w)
@@ -153,12 +161,27 @@ describe('site files: the layout stands on the real ground', () => {
       const win = sites[id]!.windows[w]!
       for (const b of a.buildings) {
         // The pier is built into the water by design: only its landward half has to stand on land.
-        if (b.kind === 'pier-and-warehouses') continue
+        if (WATERFRONT.includes(b.kind)) {
+          // F8C sites seat these at the sea surface; Tacloban's F8A pier predates `seatM` and keeps the old rule.
+          if (sites[id]!.noStrip === true) expect(b.seatM, `${id} ${b.id}: a waterfront building is seated at the sea surface`).toBeDefined()
+          continue
+        }
         for (const c of corners(a, b)) if (heightAt(terrain, c.x, c.z) < 1) bad.push(`${w} ${b.id} corner at ${heightAt(terrain, c.x, c.z).toFixed(1)} m`)
       }
-      for (const v of win.vehicles) { const c = localToWorld(a, v.x, v.z); if (heightAt(terrain, c.x, c.z) < 1) bad.push(`${w} ${v.id}`) }
+      for (const v of win.vehicles) {
+        const c = localToWorld(a, v.x, v.z), h = heightAt(terrain, c.x, c.z)
+        if (loadVehicleSpec(v.spec).floats === true ? h >= 0.5 : h < 1) bad.push(`${w} ${v.id}`)
+      }
       for (const p of win.parked) { const c = localToWorld(a, p.x, p.z); if (heightAt(terrain, c.x, c.z) < 1) bad.push(`${w} ${p.id}`) }
     }
+    expect(bad).toEqual([])
+  })
+
+  // F8C: clutter is instanced on the ground at the terrain height, so an area whose corner lies in the sea would float pieces on the water.
+  it.each(ids.filter((i) => sites[i]!.noStrip === true))('%s: every clutter area stands on land at its four corners', (id) => {
+    const a = airfieldFor(sites[id]!, 'endgame')!
+    const bad: string[] = []
+    for (const area of sites[id]!.base.clutterAreas) for (const c of corners(a, area)) if (heightAt(terrain, c.x, c.z) < 0.5) bad.push(`${area.id} corner at ${heightAt(terrain, c.x, c.z).toFixed(1)} m`)
     expect(bad).toEqual([])
   })
 
@@ -181,7 +204,7 @@ describe('site files: a placement is its glb at natural size', () => {
     const bounds = new Map<string, { x: number; y: number; z: number }>()
     const natural = async (kind: string): Promise<{ x: number; y: number; z: number }> => {
       if (!bounds.has(kind)) {
-        const doc = await modelIO().readBinary(new Uint8Array(readFileSync(`content/buildings/${kind}.glb`)))
+        const doc = await modelIO().readBinary(new Uint8Array(readFileSync(kind === 'pby-mooring-buoy' ? `content/equipment/${kind}.glb` : `content/buildings/${kind}.glb`)))
         const b = getBounds(onlyScene(doc))
         bounds.set(kind, { x: b.max[0] - b.min[0], y: b.max[1], z: b.max[2] - b.min[2] })
       }
@@ -221,7 +244,22 @@ describe('site files: F3 section 5 (hand-transcribed) and a layout that works', 
     // drop/lodgment area", "Japanese-controlled lodgment/field". `serviceable` for the last two is the F8 plan's ruling 3 (the F8B detail):
     // endgame true (A6 keeps three fields above their threshold), alternate false (J6 asks only that San Pablo stay Japanese-controlled).
     'san-pablo': { 'pre-invasion': ['axis', false, true], assault: ['allied', false, true], buildup: ['allied', false, true], endgame: ['allied', true, true], 'j6-alternate': ['axis', false, true] },
+    // F8C, F3 section 5. `serviceable` for a site without a strip means usable for its job. Ormoc "Japanese port/logistics hub", "Japanese
+    // reinforcement destination", "repeated convoy destination; accumulated port damage", "Japanese route under severe interdiction",
+    // "Japanese-held, lifeline remains open": always Japanese and working.
+    ormoc: { 'pre-invasion': ['axis', true, true], assault: ['axis', true, true], buildup: ['axis', true, true], endgame: ['axis', true, true], 'j6-alternate': ['axis', true, true] },
+    // Landing beaches "Japanese shore defenses", "active assault and unloading", "dense American beachhead and supply dumps",
+    // "established rear/support area", "damaged, evacuating American beachhead".
+    'landing-beaches': { 'pre-invasion': ['axis', false, true], assault: ['allied', true, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
+    // San Pedro Bay "Japanese-controlled waters/shore" (nothing built: no site yet), "American anchorage forming", "PBY anchorage, rescue
+    // launch and support activity", "American support/transport area", "abandoned/contested anchorage" (read as the Americans gone: allied, unusable).
+    jinamoc: { 'pre-invasion': ['axis', false, false], assault: ['allied', false, true], buildup: ['allied', true, true], endgame: ['allied', true, true], 'j6-alternate': ['allied', false, true] },
   }
+  it('the hand-transcribed table covers every site, and every site has a j6-alternate result row (F3 section 5, last column)', () => {
+    expect(Object.keys(TABLE).sort()).toEqual(ids)
+    for (const id of ids) expect(Object.keys(TABLE[id]!).sort(), id).toEqual([...WINDOW_IDS].sort())
+    expect(ids.map((id) => [id, sites[id]!.windows['j6-alternate'] !== undefined])).toEqual(ids.map((id) => [id, true]))
+  })
   it.each(Object.keys(TABLE))('%s: every window says what F3 section 5 says', (id) => {
     for (const w of WINDOW_IDS) {
       const win = sites[id]!.windows[w]!
@@ -316,6 +354,83 @@ describe('site files: F3 section 5 (hand-transcribed) and a layout that works', 
     for (const s of Object.values(sites)) {
       const cited = new Set([...s.base.buildings, ...Object.values(s.windows).flatMap((w) => [...w.added, ...w.vehicles, ...w.parked])].filter((p) => p.basis === 'sourced').map((p) => p.cite))
       for (const k of cited) expect(Object.keys(s.sources), `${s.id} cites ${k}`).toContain(k)
+    }
+  })
+})
+
+describe('F8C sites: Ormoc, the landing beaches, the Jinamoc anchorage', () => {
+  const kindsOf = (id: string, w: string): string[] => airfieldFor(sites[id]!, w)!.buildings.map((b) => b.kind)
+  const ORDER = { intact: 0, damaged: 1, destroyed: 2, construction: 0 } as const
+
+  it('Ormoc: damage carries between windows (a destroyed building stays destroyed, a damaged one never heals), and early windows are intact', () => {
+    const s = sites.ormoc!
+    let prev: Record<string, number> = {}
+    for (const w of WINDOW_IDS) {
+      const f = airfieldFor(s, w)!
+      const now: Record<string, number> = {}
+      for (const b of f.buildings) now[b.id] = ORDER[b.state ?? 'intact']
+      for (const [bid, level] of Object.entries(prev)) if (now[bid] !== undefined) expect(now[bid], `${bid} in ${w}`).toBeGreaterThanOrEqual(level)
+      prev = { ...prev, ...now }
+    }
+    expect(f(s, 'pre-invasion').every((b) => b.state === undefined)).toBe(true)
+    expect(f(s, 'assault').every((b) => b.state === undefined)).toBe(true)
+    expect(f(s, 'buildup').filter((b) => b.state === 'damaged' || b.state === 'destroyed').length).toBeGreaterThan(2)
+    expect(f(s, 'endgame').filter((b) => b.state === 'destroyed').length).toBeGreaterThan(f(s, 'buildup').filter((b) => b.state === 'destroyed').length)
+    function f(site: Site, w: string) { return airfieldFor(site, w)!.buildings }
+  })
+
+  it('Ormoc: the customs building has no light in any window and the port has no light at all (F3 section 8: no Ormoc beacon state is claimed)', () => {
+    for (const w of WINDOW_IDS) expect(sites.ormoc!.windows[w]!.lights, w).toEqual([])
+    for (const s of Object.values(sites)) for (const w of Object.values(s.windows)) for (const l of w.lights) {
+      for (const b of s.base.buildings.filter((x) => x.kind === 'ormoc-customs-building')) expect(Math.hypot((l.at as { x: number }).x - b.x, (l.at as { z: number }).z - b.z)).toBeGreaterThan(30)
+    }
+  })
+
+  it('Ormoc carries what the plan lists: pier and warehouses, the customs building, fuel and ammunition stores, a marshalling area, shore AAA, a coastal battery', () => {
+    const k = kindsOf('ormoc', 'pre-invasion')
+    for (const want of ['pier-and-warehouses', 'ormoc-customs-building', 'fuel-tank-farm', 'ammunition-bunker', 'aaa', 'coastal-gun-battery']) expect(k, want).toContain(want)
+    expect(sites.ormoc!.base.clutterAreas.some((a) => a.id === 'marshal')).toBe(true)
+    expect(sites.ormoc!.windows.buildup!.vehicles.length).toBeGreaterThanOrEqual(8)
+    expect(sites.ormoc!.windows.buildup!.vehicles.every((v) => (v.side ?? 'axis') === 'axis')).toBe(true)
+  })
+
+  it('the landing beaches: American density rises after 20 Oct (assault < build-up), and is nil before; the pontoon pier appears at the assault', () => {
+    const density = (w: string): number => {
+      const win = sites['landing-beaches']!.windows[w]!
+      if (win.side !== 'allied') return 0
+      const f = airfieldFor(sites['landing-beaches']!, w)!
+      return f.buildings.filter((b) => b.state !== 'destroyed').length + win.vehicles.length + clutterTotal(f.clutter!)
+    }
+    expect(density('pre-invasion')).toBe(0)
+    expect(density('assault')).toBeGreaterThan(0)
+    expect(density('buildup')).toBeGreaterThan(density('assault'))
+    expect(density('endgame')).toBeLessThanOrEqual(density('buildup'))
+    expect(kindsOf('landing-beaches', 'pre-invasion')).not.toContain('pontoon-pier-segment')
+    expect(kindsOf('landing-beaches', 'assault')).toContain('pontoon-pier-segment')
+    const lcvps = (w: string): number => sites['landing-beaches']!.windows[w]!.vehicles.filter((v) => v.spec === 'lcvp').length
+    expect(lcvps('assault')).toBeGreaterThanOrEqual(4)
+    expect(sites['landing-beaches']!.windows['pre-invasion']!.vehicles.every((v) => v.side === 'axis')).toBe(true)
+  })
+
+  it('the Jinamoc anchorage: no field before the invasion; then ramp, Quonsets, moorings, launch, pier, ops hut, fuel and a warehouse ashore; no tender and no maintenance barge (F3 section 9)', () => {
+    const s = sites.jinamoc!
+    expect(s.windows['pre-invasion']!.built).toBe(false)
+    const k = kindsOf('jinamoc', 'buildup')
+    for (const want of ['jinamoc-seaplane-ramp', 'quonset-hut-20x48', 'pby-mooring-buoy', 'pontoon-pier-segment', 'radio-radar-station', 'fuel-tank-farm', 'barracks-and-huts']) expect(k, want).toContain(want)
+    expect(s.windows.buildup!.vehicles.some((v) => v.spec === 'usaaf-63ft-rescue-boat')).toBe(true)
+    expect(s.windows.buildup!.lights.length, 'anchorage lamps for A4').toBeGreaterThanOrEqual(4)
+    expect(s.windows['j6-alternate']!.lights).toEqual([])
+    const named = [...s.base.buildings, ...Object.values(s.windows).flatMap((w) => [...w.added, ...w.vehicles, ...w.parked])].flatMap((p) => [p.id, 'kind' in p ? p.kind : p.spec]).join(' ').toLowerCase()
+    expect(named).not.toMatch(/tender|barge|pt-boat|coastal-patrol/)
+  })
+
+  it('every F8C placement states its basis; the F8C sites carry no `sourced` claim the ledger does not hold', () => {
+    for (const id of ['ormoc', 'landing-beaches', 'jinamoc']) {
+      const st = sites[id]!
+      for (const p of [...st.base.buildings, ...Object.values(st.windows).flatMap((w) => [...w.added, ...w.vehicles, ...w.parked])]) {
+        expect(['sourced', 'inferred', 'invented']).toContain(p.basis)
+        if (p.basis === 'sourced') expect(Object.keys(st.sources)).toContain(p.cite)
+      }
     }
   })
 })

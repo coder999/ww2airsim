@@ -51,6 +51,11 @@ export const STATIC_MODELS: Readonly<Record<StaticModelKind, Readonly<Record<str
   },
 }
 
+/** F8C: a placeable site kind's glb. Every kind is a `building` model except the mooring buoy, which is `equipment`. */
+export function siteKindModelUrl(kind: string): string {
+  return staticModelUrlFor(Object.hasOwn(STATIC_MODELS.building, kind) ? 'building' : 'equipment', kind)
+}
+
 export function staticModelUrlFor(kind: StaticModelKind, id: string): string {
   const table = STATIC_MODELS[kind]
   if (!Object.hasOwn(table, id)) {

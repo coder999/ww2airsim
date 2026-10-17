@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { SimContext } from '../loop.js'
 import { type Vec3, v3 } from '../math/vec3.js'
 import type { Side } from '../sides.js'
-import { heightAt, type TerrainField } from './terrain.js'
+import { heightAt, SEA_LEVEL_M, type TerrainField } from './terrain.js'
 import { bearingTo, wrapPi } from './ships.js'
 
 const finite = z.number().refine(Number.isFinite, { message: 'must be finite' })
@@ -18,6 +18,8 @@ const VehicleSpecObject = z.object({
   turnRateRadPerS: positive,
   hp: positive,
   targetType: z.enum(['building', 'tank', 'light-vehicle', 'landing-craft']).default('building'),
+  /** F8C: a craft that rests on the sea surface (y = sea level, no pitch or roll from the ground under it). Absent for every land vehicle. */
+  floats: z.boolean().optional(),
   view: z.object({ model: z.string().regex(/^[a-z0-9][a-z0-9-]*$/) }).strict(),
 }).strict()
 
@@ -58,6 +60,7 @@ export type VehicleEntity = {
 
 function terrainPose(position: Vec3, headingRad: number, spec: VehicleSpec, terrain: TerrainField | null): Pick<VehicleState, 'position' | 'pitchRad' | 'rollRad'> {
   if (terrain === null) return { position, pitchRad: 0, rollRad: 0 }
+  if (spec.floats === true) return { position: v3(position.x, SEA_LEVEL_M, position.z), pitchRad: 0, rollRad: 0 }
   const f = { x: Math.sin(headingRad), z: -Math.cos(headingRad) }
   const r = { x: Math.cos(headingRad), z: Math.sin(headingRad) }
   const halfL = spec.lengthM * 0.4

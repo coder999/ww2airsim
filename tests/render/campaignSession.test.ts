@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { INDEX_KEY, LEGACY_ROSTER_KEY, campaignKey, lifeline, validateCampaign, zeroCounts, type Campaign, type StoragePort } from '../../src/campaign/index.js'
 import {
-  SORTIE_END_OF, UNSCORED_LABEL, abandonReport, buildReport, buildShellCatalog, createDevCampaign, createSession, purgeLegacyRoster,
+  SORTIE_END_OF, UNSCORED_LABEL, abandonReport, buildReport, buildShellCatalog, createDevCampaign, createSession, launchWindowsOf, purgeLegacyRoster,
   unscoredReason, type PickerSection, type UnscoredInput,
 } from '../../src/render/campaignSession.js'
 import { SCENARIO_OPTIONS } from '../../src/render/titleScreen.js'
 import { loadAircraftSpec, loadScenario } from '../../tools/content/load.js'
 import { scenarioFacts, shippedCatalog } from '../fixtures/catalog.js'
-import { NOW, fresh, mission } from '../campaign/helpers.js'
+import { NOW, fly, fresh, mission, withPoints } from '../campaign/helpers.js'
 import { TARGET_TYPES, type TargetType } from '../../src/sim/weapons/targetType.js'
 
 class MapPort implements StoragePort {
@@ -291,5 +291,43 @@ describe('the session (Task 3c)', () => {
     port.map.set(LEGACY_ROSTER_KEY, '[]')
     purgeLegacyRoster(port)
     expect(port.map.has(LEGACY_ROSTER_KEY)).toBe(false)
+  })
+})
+
+describe('the launch seam reads the stored world (F8C, Mark 2026-10-16)', () => {
+  const make = () => { let n = 0; return createSession({ port: new MapPort(), now: () => NOW, newId: () => `camp${++n}`, newSeed: () => 7 }) }
+  const args = (c: Campaign, m: ReturnType<typeof mission>) => ({ pilotId: c.roster.live[0]!, mission: m, aircraft: { id: 'f6f-hellcat', advanced: false }, difficulty: 'normal' as const, loadout: 'clean', unscored: null })
+  const a1 = mission({ id: 'a1', kind: 'campaign', chapterId: 'A1', faction: 'us' })
+
+  it('no campaign, no pending sortie, and a sortie with no chapter read nothing: those flights keep today\'s behavior', () => {
+    expect(launchWindowsOf(null)).toBeUndefined()
+    const s = make()
+    s.create({ faction: 'us', playerName: 'Mark' })
+    expect(launchWindowsOf(s.current())).toBeUndefined() // nothing pending
+    s.launch(args(s.current()!, mission({ faction: 'us' }))) // a non-campaign mission
+    expect(launchWindowsOf(s.current())).toBeUndefined()
+  })
+
+  it('a chapter launch on a new campaign draws the chapter\'s own windows', () => {
+    const s = make()
+    s.create({ faction: 'us', playerName: 'Mark' })
+    expect(s.launch(args(s.current()!, a1)).ok).toBe(true)
+    // A1's own: the fields not yet taken at 0800, the beaches in the assault
+    expect(launchWindowsOf(s.current())).toMatchObject({ tacloban: 'pre-invasion', 'landing-beaches': 'assault', ormoc: 'pre-invasion' })
+  })
+
+  it('after A1 is won, A2 launches into the STORED world (Tacloban in the assault), not into A2\'s own buildup', () => {
+    const s = make()
+    // a campaign that has won A1 through the real reducers, with a pilot who may fly A2, stored and opened like any other
+    const won = withPoints(fly(fresh('us', 'camp-a1'), 1, a1, { success: true }), 0, 40000)
+    expect(won.world).toEqual({ tacloban: 'assault', dulag: 'assault', 'landing-beaches': 'buildup' })
+    expect(s.commitImport(won)).toEqual({ ok: true })
+    expect(s.open('camp-a1').ok).toBe(true)
+    const a2 = mission({ id: 'a2', kind: 'campaign', chapterId: 'A2', faction: 'us' })
+    expect(s.launch(args(s.current()!, a2)).ok).toBe(true)
+    const w = launchWindowsOf(s.current())!
+    expect(w.tacloban).toBe('assault') // stored; A2's own window would be buildup
+    expect(w['landing-beaches']).toBe('buildup')
+    expect(w.ormoc).toBe('buildup') // not in the stored world: the chapter's own
   })
 })

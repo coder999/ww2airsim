@@ -29,6 +29,8 @@ export const BUILDING_KINDS = [
   'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'pier-and-warehouses',
   'radio-radar-station', 'revetment',
   'quonset-hut-20x48', 'pontoon-pier-segment', 'jinamoc-seaplane-ramp', 'ormoc-customs-building',
+  // F8C: the one placeable kind whose glb is an `equipment` model (a flying-boat mooring buoy), not a `building` one.
+  'pby-mooring-buoy',
 ] as const
 export type BuildingKind = typeof BUILDING_KINDS[number]
 
@@ -54,6 +56,9 @@ const BuildingObject = z
     model: z.boolean().optional(),
     /** F8A: hit-box height. Absent keeps the generic 10 m every building had before F8A. */
     heightM: positive.optional(),
+    /** F8C: the height of the model's origin above sea level, absolute. A waterfront building (pier, ramp, pontoon, buoy) is seated at the
+     *  sea surface; absent keeps the rule every other building follows (the highest corner of its footprint). */
+    seatM: finite.optional(),
     /** Mission group tags (spec 2026-09-25 §2.1, e.g. `dulag-hangars`), so an
      *  objective can name a set of buildings. Optional; no shipped base
      *  carried any before M3. */
@@ -88,6 +93,10 @@ const AirfieldObject = z
     side: z.enum(['allied', 'axis']).optional(),
     /** F8A: whether the field may be recovered to. Absent means serviceable, as every base before F8A. */
     serviceable: z.boolean().optional(),
+    /** F8C: a port, beach or anchorage, not a flying field. `runway` is then only the site's local frame (center and heading
+     *  anchor every placement; length and width are nominal). Nothing lands on it, it draws no strip or huts, and it is never a
+     *  recovery field, steering target, landing objective or AI home. `serviceable` still says whether the site is usable. */
+    noStrip: z.boolean().optional(),
     /** F8A: procedural ground clutter (mats, tents, drums, ...), render only; see `src/sim/world/clutter.ts`. */
     clutter: z.object({
       seed: z.number().int().nonnegative(),
@@ -139,7 +148,7 @@ export function insideRect(a: Airfield, rect: Rect, x: number, z: number): boole
 
 export const runwayRect = (a: Airfield): Rect => ({ x: 0, z: 0, widthM: a.runway.widthM, lengthM: a.runway.lengthM })
 
-export const insideRunway = (a: Airfield, x: number, z: number): boolean => insideRect(a, runwayRect(a), x, z)
+export const insideRunway = (a: Airfield, x: number, z: number): boolean => a.noStrip !== true && insideRect(a, runwayRect(a), x, z)
 
 /** The strip's four corners in world meters, north-west first, clockwise
  *  seen from above at heading 0. */

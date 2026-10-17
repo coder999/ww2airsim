@@ -105,6 +105,40 @@ describe('a field its window leaves unserviceable is not a recovery field', () =
   })
 })
 
+describe('a site without a strip (F8C): Ormoc, the beaches, Jinamoc', () => {
+  const player = { id: 'f6f-1', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [0, 3000, 0], headingDeg: 90, speedMps: 120 } }
+  const land = { id: 'home', label: 'Land', priority: 'primary', kind: 'land', at: 'jinamoc' }
+
+  it('expands to an airfield record with noStrip, its buildings as hit boxes, vehicles and lights; no strip and no recovery', () => {
+    const w = { ...worldOf(withSites(['jinamoc'], { airfields: ['tacloban'], aircraft: [player] }), { jinamoc: 'buildup' }), player: 'f6f-1' }
+    const field = w.airfields.find((a) => a.id === 'jinamoc')!
+    expect(field.noStrip).toBe(true)
+    expect(field.side).toBe('allied')
+    expect(field.serviceable).toBe(true)
+    expect(w.structures.filter((x) => x.airfield === 'jinamoc').length).toBeGreaterThan(10)
+    expect(w.vehicles.some((v) => v.spec.id === 'usaaf-63ft-rescue-boat')).toBe(true)
+    expect(w.aircraft.some((a) => a.spec.id === 'pby-5a-catalina' && a.parked)).toBe(true)
+    // allied, serviceable and held by the player's side, yet not a friendly base, steering target or landing
+    expect(friendlyBaseAt(w, { kind: 'airfield', id: 'jinamoc' } as never, field.runway.center)).toBeNull()
+    expect(friendlySites(w).map((s) => s.id)).not.toContain('jinamoc')
+  })
+
+  it('a land objective at it and an AI whose home it is do not load, in any window', () => {
+    const raw = () => withSites(['jinamoc'], { airfields: ['jinamoc'], aircraft: [player], objectives: [land] })
+    expect(() => worldOf(raw(), { jinamoc: 'buildup' })).toThrow(/no strip/)
+    const homed = withSites(['jinamoc'], { airfields: ['jinamoc'], aircraft: [player, { id: 'wing', spec: 'f6f-hellcat', side: 'allied', airborneAt: { position: [100, 3000, 0], headingDeg: 90, speedMps: 120 }, pilot: { home: { airfield: 'jinamoc' } } }] })
+    expect(() => worldOf(homed, { jinamoc: 'buildup' })).toThrow(/no strip/)
+  })
+
+  it('the three F8C sites each expand in all five windows (Jinamoc has no field before the invasion)', () => {
+    for (const site of ['ormoc', 'landing-beaches', 'jinamoc']) for (const win of ['pre-invasion', 'assault', 'buildup', 'endgame', 'j6-alternate']) {
+      const expect_built = !(site === 'jinamoc' && win === 'pre-invasion')
+      const b = bundleForScenario(parseScenario(withSites([site], { airfields: ['tacloban'] })), { [site]: win })
+      expect(b.airfields[site] !== undefined, `${site} ${win}`).toBe(expect_built)
+    }
+  })
+})
+
 describe('a world with no `sites` is untouched (the golden recordings guard the byte level)', () => {
   it('expandScenario returns the very scenario it was given, with no airfields', () => {
     const s = loadScenario('free-flight')

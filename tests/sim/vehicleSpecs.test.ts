@@ -18,8 +18,8 @@ import { flatField } from './mission/fixture.js'
 const ids = readdirSync('content/vehicles').filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, '')).sort()
 
 describe('vehicle specs (every one enrolled)', () => {
-  it('enrolls the four original specs and the five F8A ones', () => {
-    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'])
+  it('enrolls the four original specs, the five F8A ones and the F8C rescue launch', () => {
+    expect(ids).toEqual(['caterpillar-d7-3t', 'gmc-cckw-353', 'lcvp', 'm4-sherman', 'type38-75mm-field-gun', 'type94-cargo-truck', 'type95-kurogane', 'type97-chi-ha', 'usaaf-63ft-rescue-boat', 'willys-mb-jeep'])
   })
 
   it.each(ids)('%s loads, names a registered model and rig, and is the size of its glb (10%)', async (id) => {
@@ -38,6 +38,26 @@ describe('vehicle specs (every one enrolled)', () => {
   it('the landing craft is the only landing-craft target; the trucks and dozer are light vehicles', () => {
     expect(ids.filter((i) => loadVehicleSpec(i).targetType === 'landing-craft')).toEqual(['lcvp'])
     for (const i of ['gmc-cckw-353', 'type94-cargo-truck', 'caterpillar-d7-3t']) expect(loadVehicleSpec(i).targetType).toBe('light-vehicle')
+  })
+})
+
+describe('craft that float (F8C)', () => {
+  const orders = { waypoints: [{ x: -29900, z: -47700 }], speedMps: 0, loop: false, headingRad: 1 }
+
+  it('the landing craft and the rescue launch say so, and no other spec does', () => {
+    expect(ids.filter((i) => loadVehicleSpec(i).floats === true)).toEqual(['lcvp', 'usaaf-63ft-rescue-boat'])
+  })
+
+  it('a floating craft rests on the sea surface, level, whatever the ground under it; a truck on the same ground sits on it', () => {
+    const raised = flatField(5)
+    const boat = createVehicleState(loadVehicleSpec('usaaf-63ft-rescue-boat'), orders, raised)
+    expect(boat.position.y).toBe(0)
+    expect([boat.pitchRad, boat.rollRad]).toEqual([0, 0])
+    expect(createVehicleState(loadVehicleSpec('gmc-cckw-353'), orders, raised).position.y).toBeCloseTo(5, 1)
+    // reseated when terrain arrives, too
+    const spec = loadVehicleSpec('lcvp')
+    const s = createVehicleState(spec, orders, null)
+    expect(vehicleOnTerrain({ id: 'v', spec, state: s, previous: s, orders }, raised).state.position.y).toBe(0)
   })
 })
 

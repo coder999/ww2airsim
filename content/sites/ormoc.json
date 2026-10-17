@@ -1,0 +1,948 @@
+{
+ "id": "ormoc",
+ "name": "Ormoc",
+ "airfield": "ormoc",
+ "noStrip": true,
+ "base": {
+  "runway": {
+   "center": {
+    "x": -75727,
+    "z": -22748
+   },
+   "headingDeg": 110,
+   "lengthM": 2,
+   "widthM": 2
+  },
+  "apron": null,
+  "clearing": {
+   "x": -80,
+   "z": 0,
+   "widthM": 280,
+   "lengthM": 400
+  },
+  "buildings": [
+   {
+    "id": "ormoc-pier",
+    "kind": "pier-and-warehouses",
+    "x": 60,
+    "z": 0,
+    "widthM": 100.0,
+    "lengthM": 40.0,
+    "hp": 200,
+    "heightM": 11.0,
+    "seatM": 0,
+    "tags": [
+     "ormoc-pier"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5, which calls Ormoc a port and logistics hub; its pose and size are invented."
+   },
+   {
+    "id": "ormoc-customs",
+    "kind": "ormoc-customs-building",
+    "x": -25,
+    "z": 45,
+    "widthM": 10.2,
+    "lengthM": 21.6,
+    "hp": 60,
+    "heightM": 9.3,
+    "tags": [
+     "ormoc-customs"
+    ],
+    "basis": "sourced",
+    "cite": "jacar-ormoc-customs"
+   },
+   {
+    "id": "ormoc-fuel-1",
+    "kind": "fuel-tank-farm",
+    "x": -120,
+    "z": 100,
+    "widthM": 55.0,
+    "lengthM": 55.0,
+    "hp": 100,
+    "heightM": 9.0,
+    "tags": [
+     "ormoc-fuel"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 4 A5 and F3 section 5 (a convoy destination needs fuel and stores ashore); its pose is invented."
+   },
+   {
+    "id": "ormoc-ammo-1",
+    "kind": "ammunition-bunker",
+    "x": -150,
+    "z": -50,
+    "widthM": 16.1,
+    "lengthM": 12.0,
+    "hp": 80,
+    "heightM": 3.5,
+    "tags": [
+     "ormoc-ammo"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (a reinforcement destination stores ammunition); its pose is invented."
+   },
+   {
+    "id": "ormoc-ammo-2",
+    "kind": "ammunition-bunker",
+    "x": -150,
+    "z": -80,
+    "widthM": 16.1,
+    "lengthM": 12.0,
+    "hp": 80,
+    "heightM": 3.5,
+    "tags": [
+     "ormoc-ammo"
+    ],
+    "basis": "inferred",
+    "cite": "Follows from F3 section 5 (a reinforcement destination stores ammunition); its pose is invented."
+   },
+   {
+    "id": "ormoc-barracks-1",
+    "kind": "barracks-and-huts",
+    "x": -95,
+    "z": -120,
+    "widthM": 24.0,
+    "lengthM": 29.2,
+    "hp": 60,
+    "heightM": 6.0,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   },
+   {
+    "id": "ormoc-radio",
+    "kind": "radio-radar-station",
+    "x": -130,
+    "z": -20,
+    "widthM": 16.0,
+    "lengthM": 12.0,
+    "hp": 60,
+    "heightM": 22.0,
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   },
+   {
+    "id": "ormoc-aaa-1",
+    "kind": "aaa",
+    "x": 28,
+    "z": 62,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "ormoc-shore-aaa"
+    ],
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   },
+   {
+    "id": "ormoc-aaa-2",
+    "kind": "aaa",
+    "x": 28,
+    "z": -70,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "ormoc-shore-aaa"
+    ],
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   },
+   {
+    "id": "ormoc-aaa-3",
+    "kind": "aaa",
+    "x": -60,
+    "z": 25,
+    "widthM": 6.0,
+    "lengthM": 6.0,
+    "hp": 30,
+    "heightM": 2.1,
+    "tags": [
+     "ormoc-shore-aaa"
+    ],
+    "basis": "invented",
+    "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   },
+   {
+    "id": "ormoc-coastal",
+    "kind": "coastal-gun-battery",
+    "x": -45,
+    "z": -105,
+    "widthM": 18.0,
+    "lengthM": 34.0,
+    "hp": 120,
+    "heightM": 3.2,
+    "tags": [
+     "ormoc-coastal"
+    ],
+    "basis": "invented",
+    "cite": "Optional coastal gun battery on the northern headland; F3 and the Army history give none. Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+   }
+  ],
+  "clutterAreas": [
+   {
+    "id": "marshal",
+    "x": -75,
+    "z": -5,
+    "widthM": 90,
+    "lengthM": 120
+   },
+   {
+    "id": "quay",
+    "x": 20,
+    "z": 75,
+    "widthM": 30,
+    "lengthM": 70
+   },
+   {
+    "id": "dump",
+    "x": -130,
+    "z": -65,
+    "widthM": 40,
+    "lengthM": 60
+   }
+  ]
+ },
+ "sources": {
+  "f3-site-lock": {
+   "claim": "Canonical site-state lock: ownership, readiness, construction, damage and clutter per window",
+   "url": "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md#5-canonical-site-state-lock"
+  },
+  "jacar-ormoc-customs": {
+   "claim": "A customs building with a fixed red light stood at Ormoc port (Notice to Mariners); its appearance and 1944 survival are not sourced, and the light is excluded (F3 section 8)",
+   "url": "https://www.jacar.archives.go.jp/acv/contents/pub/pdf/B11/B11092933500.b3_0098.3-2198.00000139.pdf"
+  },
+  "f3-ormoc-actions": {
+   "claim": "Ormoc was the destination of Japanese reinforcement convoys (the 11 Nov strike on the Ormoc convoy and the 3 Dec destroyer action in Ormoc Bay)",
+   "url": "https://www.ibiblio.org/hyperwar/USN/USN-Chron/USN-Chron-1944.html"
+  }
+ },
+ "reference": {
+  "source": "No runway: a port. The frame is the shipped terrain's Ormoc shore, fitted by tools/sites/localMap.ts 2026-10-17: center (-75727,-22748), heading 110 so local +x points seaward (south-southwest) and local z runs along the shore; the shore lies at local x about +45. The DEM places the port about 0.8 km east of where Ormoc City stands, so the position is the terrain's coast, not a survey. Every building pose is invented gameplay layout unless its basis says otherwise."
+ },
+ "windows": {
+  "pre-invasion": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Japanese port and logistics hub, intact (F3 section 5, 18-19 Oct).",
+   "states": {},
+   "added": [],
+   "vehicles": [
+    {
+     "id": "ormoc-veh-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-3",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-4",
+     "spec": "type38-75mm-field-gun",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-5",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-6",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "marshal": {
+     "mud": 0.5,
+     "rut": 0.5,
+     "crate": 0.3
+    },
+    "quay": {
+     "crate": 0.6,
+     "drum": 0.5,
+     "sandbag": 0.3
+    },
+    "dump": {
+     "crate": 0.6,
+     "drum": 0.5,
+     "crater": 0.0
+    }
+   }
+  },
+  "assault": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Japanese reinforcement destination, intact; the garrison thickens (F3 section 5, 20-24 Oct).",
+   "states": {},
+   "added": [
+    {
+     "id": "ormoc-aaa-4",
+     "kind": "aaa",
+     "x": 30,
+     "z": 20,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "ormoc-veh-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-3",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-4",
+     "spec": "type38-75mm-field-gun",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-5",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-6",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-7",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-8",
+     "spec": "type38-75mm-field-gun",
+     "x": -85,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-9",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-10",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "marshal": {
+     "mud": 0.7,
+     "rut": 0.7,
+     "crate": 0.45
+    },
+    "quay": {
+     "crate": 0.9,
+     "drum": 0.8,
+     "sandbag": 0.4
+    },
+    "dump": {
+     "crate": 0.9,
+     "drum": 0.8,
+     "crater": 0.0
+    }
+   }
+  },
+  "buildup": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Repeated convoy destination; accumulated port damage (F3 section 5, late Oct-Nov).",
+   "states": {
+    "ormoc-pier": "damaged",
+    "ormoc-customs": "damaged",
+    "ormoc-ammo-1": "destroyed",
+    "ormoc-barracks-1": "destroyed",
+    "ormoc-fuel-1": "damaged"
+   },
+   "added": [
+    {
+     "id": "ormoc-aaa-4",
+     "kind": "aaa",
+     "x": 30,
+     "z": 20,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    },
+    {
+     "id": "ormoc-aaa-5",
+     "kind": "aaa",
+     "x": -10,
+     "z": -40,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "ormoc-veh-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-3",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-4",
+     "spec": "type38-75mm-field-gun",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-5",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-6",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-7",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-8",
+     "spec": "type38-75mm-field-gun",
+     "x": -85,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-9",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-10",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-11",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-12",
+     "spec": "type38-75mm-field-gun",
+     "x": -70,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "marshal": {
+     "mud": 1.0,
+     "rut": 1.0,
+     "crate": 0.6
+    },
+    "quay": {
+     "crate": 1.2,
+     "drum": 1.0,
+     "sandbag": 0.5
+    },
+    "dump": {
+     "crate": 1.2,
+     "drum": 1.0,
+     "crater": 0.5
+    }
+   }
+  },
+  "endgame": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Japanese route under severe interdiction: the port still works, much of it ruined (F3 section 5, 6-7 Dec).",
+   "states": {
+    "ormoc-pier": "damaged",
+    "ormoc-customs": "destroyed",
+    "ormoc-ammo-1": "destroyed",
+    "ormoc-ammo-2": "damaged",
+    "ormoc-barracks-1": "destroyed",
+    "ormoc-fuel-1": "destroyed",
+    "ormoc-radio": "damaged",
+    "ormoc-coastal": "damaged",
+    "ormoc-aaa-3": "destroyed"
+   },
+   "added": [
+    {
+     "id": "ormoc-aaa-4",
+     "kind": "aaa",
+     "x": 30,
+     "z": 20,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    },
+    {
+     "id": "ormoc-aaa-5",
+     "kind": "aaa",
+     "x": -10,
+     "z": -40,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "ormoc-veh-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-3",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-4",
+     "spec": "type38-75mm-field-gun",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-5",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-6",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-7",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "marshal": {
+     "mud": 1.2,
+     "rut": 1.2,
+     "crate": 0.4
+    },
+    "quay": {
+     "crate": 0.8,
+     "drum": 0.6,
+     "sandbag": 0.5
+    },
+    "dump": {
+     "crate": 0.8,
+     "drum": 0.6,
+     "crater": 1.2
+    }
+   }
+  },
+  "j6-alternate": {
+   "built": true,
+   "side": "axis",
+   "serviceable": true,
+   "note": "Japanese-held, the lifeline remains open: the same ruin as the 6-7 Dec window, the pier standing (F3 section 5, J6 alternate).",
+   "states": {
+    "ormoc-pier": "damaged",
+    "ormoc-customs": "destroyed",
+    "ormoc-ammo-1": "destroyed",
+    "ormoc-ammo-2": "damaged",
+    "ormoc-barracks-1": "destroyed",
+    "ormoc-fuel-1": "destroyed",
+    "ormoc-radio": "damaged",
+    "ormoc-coastal": "damaged",
+    "ormoc-aaa-3": "destroyed"
+   },
+   "added": [
+    {
+     "id": "ormoc-aaa-4",
+     "kind": "aaa",
+     "x": 30,
+     "z": 20,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    },
+    {
+     "id": "ormoc-aaa-5",
+     "kind": "aaa",
+     "x": -10,
+     "z": -40,
+     "widthM": 6.0,
+     "lengthM": 6.0,
+     "hp": 30,
+     "heightM": 2.1,
+     "tags": [
+      "ormoc-shore-aaa"
+     ],
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan. Added when the Japanese reinforced the port defenses."
+    }
+   ],
+   "vehicles": [
+    {
+     "id": "ormoc-veh-1",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-2",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-3",
+     "spec": "type94-cargo-truck",
+     "x": -100,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-4",
+     "spec": "type38-75mm-field-gun",
+     "x": -100,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-5",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-6",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": -20,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-7",
+     "spec": "type94-cargo-truck",
+     "x": -85,
+     "z": 0,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-8",
+     "spec": "type38-75mm-field-gun",
+     "x": -85,
+     "z": 20,
+     "headingDeg": 0,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    },
+    {
+     "id": "ormoc-veh-9",
+     "spec": "type94-cargo-truck",
+     "x": -70,
+     "z": -40,
+     "headingDeg": 90,
+     "side": "axis",
+     "basis": "invented",
+     "cite": "Layout invented for gameplay: F3 section 5 gives Ormoc only a state per window (\"Japanese port/logistics hub\", \"repeated convoy destination; accumulated port damage\"), and no source gives the 1944 port plan."
+    }
+   ],
+   "parked": [],
+   "lights": [],
+   "clutter": {
+    "marshal": {
+     "mud": 1.2,
+     "rut": 1.2,
+     "crate": 0.4
+    },
+    "quay": {
+     "crate": 0.8,
+     "drum": 0.6,
+     "sandbag": 0.5
+    },
+    "dump": {
+     "crate": 0.8,
+     "drum": 0.6,
+     "crater": 1.2
+    }
+   }
+  }
+ }
+}

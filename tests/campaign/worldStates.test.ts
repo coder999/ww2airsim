@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import chapters from '../../content/campaign/chapters.json'
 import siteWindows from '../../content/campaign/site-windows.json'
 import { CHAPTER_IDS } from '../../src/campaign/schema.js'
-import { applyChapterSuccess, F8A_SITES, F8B_SITES, WINDOW_IDS, windowsForChapter } from '../../src/campaign/worldStates.js'
+import { applyChapterSuccess, F8A_SITES, F8B_SITES, F8C_SITES, WINDOW_IDS, windowsForChapter } from '../../src/campaign/worldStates.js'
 import { createCampaign } from '../../src/campaign/roster.js'
 
 /**
@@ -26,9 +26,9 @@ const EXPECT: Readonly<Record<string, string>> = {
   J6: 'j6-alternate',
 }
 
-const SITES = [...F8A_SITES, ...F8B_SITES]
+const SITES = [...F8A_SITES, ...F8B_SITES, ...F8C_SITES]
 
-describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
+describe('chapter-to-windows table (F8A Task 2, extended by F8B and F8C)', () => {
   it('knows every chapter the campaign has, exactly', () => {
     expect([...CHAPTER_IDS].sort()).toEqual(Object.keys(EXPECT).sort())
     expect(chapters.chapters.map((c) => c.id).sort()).toEqual(Object.keys(EXPECT).sort())
@@ -39,18 +39,21 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
     expect(WINDOW_IDS).toEqual(siteWindows.windows.map((w) => w.id))
   })
 
-  it('names the F8B sites: Buri, Bayug and San Pablo', () => {
+  it('names the F8B sites: Buri, Bayug and San Pablo; and the F8C ones: Ormoc, the landing beaches, the Jinamoc anchorage', () => {
     expect([...F8B_SITES]).toEqual(['buri', 'bayug', 'san-pablo'])
+    expect([...F8C_SITES]).toEqual(['ormoc', 'landing-beaches', 'jinamoc'])
   })
 
   // F3 section 3 dates every chapter and section 5 gives each field one state per window, so every F8A and F8B site is drawn
   // in the same window for a chapter, with one exception ruled by Mark (2026-10-17): J3 (3 Nov) recovers a Japanese pilot at
   // Bayug, which F3 section 5 makes American that day, so J3 draws the three Burauen fields in `pre-invasion`.
   const BURAUEN = ['buri', 'bayug', 'san-pablo']
-  it.each(Object.entries(EXPECT))('%s plays every F8A and F8B site in %s', (chapter, window) => {
+  // F8C reading (F3 section 4, A1): "the landing-beach state advances from assault to established beachhead", so A1 is PLAYED with the
+  // beaches in `assault` (20 Oct is the assault column) while the fields stay `pre-invasion` at 0800, and A1's success writes `buildup`.
+  it.each(Object.entries(EXPECT))('%s plays every site in %s', (chapter, window) => {
     const got = windowsForChapter(chapter)
     expect(Object.keys(got).sort()).toEqual([...SITES].sort())
-    expect(Object.values(got)).toEqual(SITES.map((site) => (chapter === 'J3' && BURAUEN.includes(site) ? 'pre-invasion' : window)))
+    expect(Object.values(got)).toEqual(SITES.map((site) => (chapter === 'J3' && BURAUEN.includes(site) ? 'pre-invasion' : chapter === 'A1' && site === 'landing-beaches' ? 'assault' : window)))
   })
 
   it('J3 draws Bayug Japanese-held, so its authored recovery field is legal', () => {
@@ -62,12 +65,12 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
     expect(() => applyChapterSuccess({}, 'Z9')).toThrow(/Z9/)
   })
 
-  it('after A1 succeeds, Tacloban and Dulag are in assault and Tanauan has no field yet', () => {
+  it('after A1 succeeds, Tacloban and Dulag are in assault, the beaches are an established beachhead (buildup) and Tanauan has no field yet', () => {
     const after = applyChapterSuccess({}, 'A1')
-    expect(after).toEqual({ tacloban: 'assault', dulag: 'assault' })
+    expect(after).toEqual({ tacloban: 'assault', dulag: 'assault', 'landing-beaches': 'buildup' })
   })
 
-  it('A6 victory keeps every field running into the endgame; J5 changes no field; J6 turns every site to the alternate', () => {
+  it('A6 victory keeps every site running into the endgame; J5 changes no site; J6 turns all nine sites to the alternate', () => {
     const all = (w: string): Record<string, string> => Object.fromEntries(SITES.map((s) => [s, w]))
     expect(applyChapterSuccess({ tacloban: 'assault' }, 'A6')).toEqual(all('endgame'))
     expect(applyChapterSuccess({ tacloban: 'endgame' }, 'J5')).toEqual({ tacloban: 'endgame' })
@@ -83,11 +86,18 @@ describe('chapter-to-windows table (F8A Task 2, extended by F8B)', () => {
     expect(Object.fromEntries(F8B_SITES.map((s) => [s, applyChapterSuccess({}, 'J6')[s]]))).toEqual({ buri: 'j6-alternate', bayug: 'j6-alternate', 'san-pablo': 'j6-alternate' })
   })
 
-  it('keeps keys it does not own (F8B and F8C sites) and never mutates its input', () => {
-    const before = { ormoc: 'assault', tacloban: 'pre-invasion' } // F8C's Ormoc is not in this table yet
+  it('F8C: Ormoc and the Jinamoc anchorage change on A6 and J6 only; the beaches on A1, A6 and J6', () => {
+    for (const chapter of ['A2', 'A3', 'A4', 'A5', 'J1', 'J2', 'J3', 'J4', 'J5']) expect(applyChapterSuccess({}, chapter), chapter).toEqual({})
+    for (const s of ['ormoc', 'jinamoc']) expect(applyChapterSuccess({}, 'A1')[s], `A1 must not write ${s}`).toBeUndefined()
+    expect(applyChapterSuccess({}, 'A6')).toMatchObject({ ormoc: 'endgame', 'landing-beaches': 'endgame', jinamoc: 'endgame' })
+    expect(applyChapterSuccess({}, 'J6')).toMatchObject({ ormoc: 'j6-alternate', 'landing-beaches': 'j6-alternate', jinamoc: 'j6-alternate' })
+  })
+
+  it('keeps keys it does not own and never mutates its input', () => {
+    const before = { 'made-up-site': 'assault', tacloban: 'pre-invasion' }
     const frozen = Object.freeze({ ...before })
     const after = applyChapterSuccess(frozen, 'A1')
-    expect(after.ormoc).toBe('assault')
+    expect(after['made-up-site']).toBe('assault')
     expect(frozen).toEqual(before)
   })
 

@@ -6,7 +6,7 @@ import type { StructureDamage } from '../../sim/weapons/structures.js'
 import { acquireModel } from '../models/modelCache.js'
 import { batched, createBuildingMaterials, drawBuilding, drawConstruction, footprintTop, makeCollector, weathered } from './buildings.js'
 import { createClutter } from './clutter.js'
-import { staticModelUrlFor } from './staticModels.js'
+import { siteKindModelUrl } from './staticModels.js'
 import type { SceneryTextures } from './sceneryTextures.js'
 
 /** What `createAirfield` hands back (Plan 6b Task 8, fixed post-Task-8): the
@@ -56,7 +56,7 @@ export type AirfieldHandle = {
 
 /** What `loadModels` needs from the model cache; injectable so a Node test never runs GLTFLoader. */
 export type LoadBuildingModel = (kind: string) => Promise<{ readonly root: Object3D; release(): void }>
-const loadRegisteredBuildingModel: LoadBuildingModel = (kind) => acquireModel(staticModelUrlFor('building', kind))
+const loadRegisteredBuildingModel: LoadBuildingModel = (kind) => acquireModel(siteKindModelUrl(kind))
 
 /** Scenery layout, runway-local metres (`x` across the strip, `z` along it).
  * A period-inspired scene, not a claim to reconstruct the exact 1944 building
@@ -90,7 +90,7 @@ export const AIRFIELD_HUTS = [
 export function inAirfieldClearing(airfields: readonly Airfield[], x: number, z: number): boolean {
   for (const a of airfields) {
     const l = worldToLocal(a, x, z)
-    if (Math.abs(l.x) < 65 && Math.abs(l.z) < a.runway.lengthM / 2 + 220) return true
+    if (a.noStrip !== true && Math.abs(l.x) < 65 && Math.abs(l.z) < a.runway.lengthM / 2 + 220) return true
     if (a.clearing !== null && insideRect(a, a.clearing, x, z)) return true
   }
   return false
@@ -194,9 +194,11 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
     const state = b.state ?? 'intact'
     // `destroyed` is rubble only (no hit box exists, `buildStructures`), `construction` is a procedural frame, and the
     // rest are the building itself, procedural until its glb arrives.
-    const y = state === 'destroyed' ? footprintTop(field, x, z, b.widthM, b.lengthM)
+    const seated = state === 'destroyed' ? footprintTop(field, x, z, b.widthM, b.lengthM)
       : state === 'construction' ? drawConstruction(collector, { x, z, width: b.widthM, length: b.lengthM }, field, materials)
         : drawBuilding(collector, { kind: b.kind, x, z, width: b.widthM, length: b.lengthM }, field, materials)
+    // F8C: a waterfront building is seated at the sea surface (`seatM`), whatever the coarse ground under its landward corner says.
+    const y = b.seatM ?? seated
     const intact = batched(new Group(), collector.batches)
     intact.name = 'intact'
     if (state === 'destroyed') intact.visible = false
@@ -261,7 +263,7 @@ export function createAirfield(field: TerrainField, airfield: Airfield, textures
   // A site's procedural clutter (F8A) replaces the legacy hand-placed huts, canvas stores, drums and crates below.
   const clutter = airfield.clutter === undefined ? null : createClutter(field, airfield)
   if (clutter !== null) root.add(clutter.object)
-  if (clutter === null) {
+  if (clutter === null && airfield.noStrip !== true) {
     for (const h of AIRFIELD_HUTS) {
       const { x, z } = at(h.x, h.z)
       drawBuilding(shared, { kind: 'hut', x, z, width: h.width, length: h.length }, field, materials)

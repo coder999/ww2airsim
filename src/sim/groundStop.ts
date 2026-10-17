@@ -67,7 +67,7 @@ function restingOn(world: World<unknown>, a: AircraftEntity<unknown>): { at: Lan
   // The landing is credited to the field the TOUCHDOWN was on; the roll-out may end past the strip's end or beside it.
   // Replay has only the world, so the stop must recognise the field from where the aircraft rests (OVERRUN_M).
   const field = airfieldAt(world.airfields, a.state.position.x, a.state.position.z)
-    ?? world.airfields.find((f) => { const l = worldToLocal(f, a.state.position.x, a.state.position.z); return Math.abs(l.z) <= f.runway.lengthM / 2 + OVERRUN_M && Math.abs(l.x) <= OVERRUN_M }) ?? null
+    ?? world.airfields.find((f) => { if (f.noStrip === true) return false; const l = worldToLocal(f, a.state.position.x, a.state.position.z); return Math.abs(l.z) <= f.runway.lengthM / 2 + OVERRUN_M && Math.abs(l.x) <= OVERRUN_M }) ?? null
   return { at: field === null ? null : { kind: 'airfield', id: field.id, name: field.name }, deck: null, field }
 }
 

@@ -45,6 +45,7 @@ const Placement = z.object({
   hp: positive,
   headingDeg: finite.optional(),
   heightM: positive.optional(),
+  seatM: finite.optional(),
   tags: z.array(id).min(1).optional(),
   ...Provenance,
 }).strict()
@@ -82,6 +83,8 @@ const SiteObject = z.object({
   name: id,
   /** The airfield id this site becomes in a world (what `Scenario.airfields` and `parkedAt.airfield` name). */
   airfield: id,
+  /** F8C: a port, beach or anchorage: the airfield record it becomes has `noStrip` (see `Airfield.noStrip`). */
+  noStrip: z.boolean().optional(),
   base: z.object({
     runway: Runway,
     apron: Rect.nullable(),
@@ -151,6 +154,7 @@ export function airfieldFor(site: Site, window: WindowId): Airfield | null {
     id: site.airfield, name: site.name,
     runway: site.base.runway, apron: site.base.apron, clearing: site.base.clearing,
     buildings, side: w.side, serviceable: w.serviceable,
+    ...(site.noStrip === true ? { noStrip: true } : {}),
     ...(clutter === undefined ? {} : { clutter }),
     reference: { source: site.reference.source },
   })

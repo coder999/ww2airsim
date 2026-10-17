@@ -1,0 +1,15 @@
+{
+  "id": "usaaf-63ft-rescue-boat",
+  "name": "USAAF 63-ft Rescue Launch",
+  "lengthM": 19.2,
+  "widthM": 4.6,
+  "heightM": 3.6,
+  "maxSpeedMps": 12.9,
+  "turnRateRadPerS": 0.3,
+  "hp": 120,
+  "targetType": "light-vehicle",
+  "floats": true,
+  "view": {
+    "model": "usaaf-63ft-rescue-boat"
+  }
+}

@@ -56,7 +56,7 @@ export function airfieldHeldBy(w: Pick<FriendlyContext, 'structures'>, a: Airfie
  * for the player yet leave it unusable (Dulag in the assault, Tacloban after the J6 alternate), and a stop there is not a
  * recovery. `serviceable` absent means serviceable, as every base before F8.
  */
-export const isFriendlyAirfield = (w: FriendlyContext, a: Airfield): boolean => airfieldHeldBy(w, a) === playerSideOf(w) && a.serviceable !== false
+export const isFriendlyAirfield = (w: FriendlyContext, a: Airfield): boolean => airfieldHeldBy(w, a) === playerSideOf(w) && a.serviceable !== false && a.noStrip !== true
 export const isFriendlyShip = (w: FriendlyContext, s: ShipEntity): boolean => sideOf(w, s) === playerSideOf(w)
 
 /**
