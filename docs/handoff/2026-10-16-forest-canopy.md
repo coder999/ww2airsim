@@ -74,4 +74,85 @@ the first loads of that file were affected by a low sample count (3 to 16 Hz win
 - The plan's "distance-forest merge costs about 8 ms of GPU p95" holds for the live views' p95 as measured on main, but the steady
   per-frame cost is 0.2 to 0.5 ms; see the slow-mode finding above.
 
+## Tasks 2 to 6: what was built (phase 1, 2026-10-16)
+
+`?forestCanopy=current|relief` (DEV only, `src/render/scene/forestCanopy.ts`); `current` is the default and production always runs it.
+`__ww2.forestCanopy()` reports `{ mode, reliefReady, reliefError }`; `__ww2.vegetation().canopyMode` repeats the mode. `forestDistance=off`
+turns relief off (it needs the canopy blend). `clumps` is not parsed yet (Task 7, only if Mark rejects relief).
+
+- **Task 2, stand model** (`src/render/scene/standModel.ts`, pure; `treeSites(..., stand)` and `standEdgeSites` in `vegetation.ts`). A tree is an
+  EDGE tree when any of 8 probes 30 m (about 100 ft, 3 rows) away is not stand (land cover tree plus mangrove below 0.5, below the shore line, in an
+  airfield clearing, near a hut or a river); otherwise it is INTERIOR, and 1 in 20 interior trees (hash of cell and candidate index, so the same
+  tree every load) is an EMERGENT, drawn 1.35 times taller and 1.15 times broader. Tests: `tests/render/standModel.test.ts` (band width exact on a
+  straight boundary, clearing on every side, emergent fraction 4 to 6 percent and repeatable, same trees and places with and without roles, interior at
+  least a band from open land on the real Leyte field, near layer instance count identical in both modes, far layers thinned below 60 percent).
+  Shown to fail: with one probe and no emergents three of the eight tests fail.
+- **Task 3, height channel** (`tools/terrain/canopy.ts` `bakeCanopyHeight`, `content/canopy/height.bin.gz`, R8 1024 square, 4 to 28 m, 0.64 MB
+  download). `material.bin.gz` is byte-identical after the refactor (asserted against the committed file). Provenance rows: `ASSETS.md`,
+  `content/canopy/NOTICE.md`. Tests in `tests/tools/canopy.test.ts` (height agrees with the packed slope channels; committed files equal a fresh bake;
+  shown to fail by inverting the height byte).
+- **Task 4, relief material** (`src/render/terrain/canopy.ts`, `surface.ts`, `mesh.ts`). Chosen: one-step parallax (the crown the eye sees is shifted
+  toward the eye by its height over the pivot, clamped at 4 times at grazing angles) and ONE sun-direction crown-shadow tap 7 m toward the sun, which
+  scales only the direct sun term; three extra mipmapped R8 reads, no `If` or `Loop` (D3D12 rule). Both fade out over 3,000 to 9,000 m. The surface
+  takes over from the near trees over 1,400 to 2,400 m (the flat canopy starts at 2,400 m). Relief-only palette (darker, tone stretched 1.5 times about
+  0.42) because the first captures read as a pale meadow. Falls back to the flat material until the height texture loads or if it is invalid
+  (`tests/render/canopyRelief.test.ts`; shown to fail by forcing the flat path). A displaced mesh was NOT built or measured.
+- **Task 5, interiors retired**: under `relief` the individual crown layer and the coarse groups draw only edge trees and emergents.
+  **The GPU still submits the full slot capacity of both layers** (111,328 and 96,140 instances); only the populated count fell (coarse 43,491 to 8,451,
+  crowns 7,355 to 5,143 at the runway view). See the cost finding below: that did not help.
+- **Task 8, look tool** (pulled forward because Task 6 needs its table): `tools/terrain/forestLook.ts` (mean luminance, canopy coverage, edge count,
+  canopy outline length, mean absolute difference, tolerances reported not asserted), `tests/tools/forestLook.test.ts` on synthetic pictures (shown to
+  fail with the canopy classifier disabled), `tests/e2e/forestCanopyCapture.spec.ts` (capture tool: any two query strings, frozen views, overlays
+  hidden, writes the PNGs, `look.json` and `look.md`).
+
+## Checkpoint 1: matched captures (2026-10-16)
+
+Captures: `2026-10-16-forest-canopy-shots/<view>-current.jpg` and `-relief.jpg` (1600 by 900 from 2560 by 1440 PNGs), same frozen camera, noon,
+chase camera so the Corsair is in frame, overlays hidden. Statistics (`look.md`; tolerances are mine, set before looking, report only):
+
+| View | Luminance A \| B | Canopy A \| B | Edges A \| B | Outline A \| B | Mean abs diff | Outside tolerance |
+| --- | --- | --- | --- | --- | --- | --- |
+| runway-low | 0.425 \| 0.425 (0.0%) | 0.8% \| 0.7% | 37351 \| 36038 (-3.5%) | 12854 \| 12141 (-5.5%) | 0.1% | none |
+| ridge-6000ft | 0.442 \| 0.434 (-1.8%) | 37.3% \| 31.7% | 280042 \| 58837 (-79.0%) | 181514 \| 138489 (-23.7%) | 2.5% | canopyCoverage, edgeCount |
+| inland-6000ft | 0.445 \| 0.440 (-1.2%) | 42.1% \| 40.3% | 324356 \| 84526 (-73.9%) | 229245 \| 169073 (-26.2%) | 2.5% | edgeCount, silhouetteCount |
+| ridge-side-6000ft | 0.459 \| 0.448 (-2.4%) | 38.2% \| 34.0% | 205673 \| 66069 (-67.9%) | 210922 \| 153285 (-27.3%) | 1.9% | edgeCount, silhouetteCount |
+| forward-1500ft | 0.418 \| 0.418 (0.0%) | 58.5% \| 58.1% | 348004 \| 343814 (-1.2%) | 119835 \| 117363 (-2.1%) | 0.2% | none |
+| side-1000ft | 0.432 \| 0.431 (-0.3%) | 50.2% \| 49.2% | 291497 \| 254840 (-12.6%) | 165247 \| 157612 (-4.6%) | 0.5% | none |
+| grazing-250ft | 0.347 \| 0.348 (0.0%) | 41.9% \| 41.9% | 137729 \| 137371 (-0.3%) | 55658 \| 55390 (-0.5%) | 0.0% | none |
+| photo | 0.689 \| 0.689 (-0.0%) | 1.1% \| 1.1% | 33527 \| 33762 (0.7%) | 8667 \| 8155 (-5.9%) | 0.0% | none |
+| under-cloud | 0.560 \| 0.559 (-0.2%) | 12.0% \| 9.2% | 114811 \| 50274 (-56.2%) | 84806 \| 50262 (-40.7%) | 0.9% | edgeCount, silhouetteCount |
+
+Reading it: inside the near-tree range (runway, forward, side, grazing, photo) nothing moves, which is the D5 promise. Past about 1.2 miles the
+canopy looks darker-matched (luminance within 3 percent) but loses most crown-edge contrast (edge counts down 56 to 79 percent): the stand is a
+continuous mottled surface with sparse emergents instead of thousands of crown silhouettes. That is the look trade, for Mark's eye.
+
+## Cost finding at checkpoint 1: removing interior cards did NOT move GPU time (read this before the look)
+
+Same tool as Task 1, fresh vite, 6 interleaved loads per arm (`probes/rel2/`), `current` (`full`) vs `relief`, GPU p50 \| p95 ms:
+
+| View | base (trees off) | current | relief |
+| --- | --- | --- | --- |
+| runway | 4.56 \| 5.34 | 9.47 \| 14.44 | 10.69 \| 14.85 |
+| photo | 4.65 \| 5.86 | 12.41 \| 14.50 | 12.26 \| 14.45 |
+| ridge-6000ft (frozen) | 7.49 \| 7.92 | 9.45 \| 17.89 | 9.67 \| 18.14 |
+
+Relief populates 5 times fewer far cards (coarse 43,491 to 8,451) and costs the same. Probes (`probes/cap1`, `cap2`, `cap3`, 3 to 4 loads per arm, a
+temporary `groveCap` query that set the coarse layer's instance count, since removed): drawing ZERO coarse instances (`cap0`) left the cost
+unchanged (runway p50 7.2 vs 7.2, photo 12.6 vs 12.5); near trees plus the canopy terrain without any far layer (`near-canopy`) was already slow (photo
+6.6 p50 \| 12.9 p95); rendering at 0.5 scale roughly halved it (so it is pixel-bound, not vertex- or CPU-bound).
+The cost is therefore not the far-card population, and not the coarse draw. Hours apart the same arms read very differently on this machine: the
+first sweep this afternoon had `full` within about 1 ms of base at the ridge and mostly fast loads at the runway, the sweeps from 19:00 had `full` slow in
+12 of 12 loads, and in the last probe even `near-whole` with no canopy had a p95 of 11 ms (photo; first sweep 8.5). `base` never moved. So the slow mode
+is workload-dependent and drifts, and the data here do NOT locate it. The next step is a per-pass GPU capture (or toggling the near trees and the canopy
+terrain independently inside one load), not more card removal. Task 9 should not assume relief recovers the 8 ms.
+
 ## Decisions I made
+
+- Near range = `TREE_FADE_END_M` (1,850 m, 1.15 mi), not the plan's "0.75 mi" (that is the `treeFade=pixel` comparison). D4 and D5 read "right where the near trees end".
+- Probes use land cover, shore, clearing, hut and river but not slope (a slope test is five height reads per probe). The stand threshold is 0.5 tree plus mangrove.
+- Parallax plus one shadow tap instead of a displaced mesh (cheapest of the two the plan allows; not measured against the mesh).
+- A separate R8 height texture rather than repacking the RGBA material, so `material.bin.gz` and the current look stay byte-identical.
+- Relief-only palette and tone gain after the first captures looked like a meadow; the flat canopy is untouched.
+- Task 8 (look tool) built in phase 1 because the Task 6 table needs it; Tasks 7, 9, 10 and 11 not started.
+- Frozen views use the chase camera (`sceneryView`), so the Corsair is in frame; the budget `runway` and `photo` views were frozen for the captures (parked, paused, `launch=1`) so clouds do not differ between the two settings.
+- Preliminary relief A/B above was taken on a dev server that had been through HMR edits once (the `rel2` set was on a fresh server; the probes after it were not).

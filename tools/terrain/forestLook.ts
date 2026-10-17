@@ -71,7 +71,7 @@ export function compareLooks(imgA: Image, imgB: Image): LookComparison {
   const change = { meanLuminance: rel(a.meanLuminance, b.meanLuminance), canopyCoverage: b.canopyCoverage - a.canopyCoverage,
     edgeCount: rel(a.edgeCount, b.edgeCount), silhouetteCount: rel(a.silhouetteCount, b.silhouetteCount) }
   const diff = meanAbsDifference(imgA, imgB)
-  const outside = (Object.keys(change) as (keyof typeof change)[]).filter(k => Math.abs(change[k]) > LOOK_TOLERANCE[k])
+  const outside: string[] = (Object.keys(change) as (keyof typeof change)[]).filter(k => Math.abs(change[k]) > LOOK_TOLERANCE[k])
   if (diff > LOOK_TOLERANCE.meanAbsDifference) outside.push('meanAbsDifference')
   return { a, b, meanAbsDifference: diff, change, outside }
 }
