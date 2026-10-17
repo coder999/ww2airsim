@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  bankSortie, chaptersOf, launchSortie, resolveInterrupted, rosterBonusOf, tierOf, validateCampaign, zeroCounts,
+  bankSortie, chaptersOf, launchSortie, missionLock, PILOT_TIER_POINTS, resolveInterrupted, rosterBonusOf, tierOf, validateCampaign, zeroCounts,
   type Campaign, type ChapterId,
 } from '../../src/campaign/index.js'
 import { canonicalStringify } from '../../src/flightRecorder/canonical.js'
+import { CHAPTER_MISSIONS, describeChapter } from '../../src/campaign/chapterMissions.js'
 import { NOW, accept, counts, fly, fresh, launch, mission, report, withPoints } from './helpers.js'
 
 const snapshot = (c: Campaign): string => canonicalStringify(c)
@@ -79,6 +80,27 @@ describe('bankSortie acceptance matrix (GAMEPLAY.md, MASTER_PLAN F5 gate)', () =
     const p = Object.values(after.pilots).find((x) => x.status === 'pow')!
     expect(p.points).toBe(300)
     expect(after.human.stats.losses.pow).toBe(1)
+  })
+
+  it('F10B: A4 Dumbo in the Gulf pays its one authored award, exactly 2,500, to the pilot and to the human ledger, at the qualifying bank only', () => {
+    const a4 = describeChapter('A4', CHAPTER_MISSIONS.A4, { timeOfDay: 21 })!
+    expect(a4.authoredBonus).toBe(2500)
+    const base = withPoints(fresh(), 0, PILOT_TIER_POINTS[2]) // a Lieutenant (junior grade): tier 2 opens A4
+    const standing = { ...base, progress: { ...base.progress, completed: chaptersOf('us').slice(0, 3) } }
+    const id = standing.roster.live[0]!
+    const win = fly(standing, 0, a4, { success: true, authoredBonus: a4.authoredBonus, badgeId: a4.badgeId }, 'easy')
+    const loss = fly(standing, 0, a4, { success: false, authoredBonus: a4.authoredBonus }, 'easy')
+    const entry = win.human.log.at(-1)!
+    expect(entry.bonuses.completion).toBe(2500)
+    expect(loss.human.log.at(-1)!.bonuses.completion).toBe(0)
+    // both ledgers got it: the pilot's points and the human ledger each moved by the same 2,500 over the failed sortie, plus the roster bonus on the human side only
+    const earned = (c: Campaign, pilot: string) => [c.pilots[pilot]!.points - standing.pilots[pilot]!.points, c.human.ledger.points - standing.human.ledger.points]
+    const [pw, hw] = earned(win, id)
+    const [pl, hl] = earned(loss, id)
+    expect(pw! - pl!).toBe(2500)
+    expect(hw! - hl!).toBe(2500 + entry.bonuses.roster)
+    // and it is paid once: the chapter is then done and locked, so a second A4 sortie cannot launch to be paid again
+    expect(missionLock(win, a4)).toMatchObject({ open: false })
   })
 
   it('discharge: friendly destroyed scores zero everywhere, no badge, no bonuses, pilot discharged', () => {

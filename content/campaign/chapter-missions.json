@@ -44,13 +44,18 @@
    "authoredBonus": 0
   },
   "A4": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "a4-dumbo-in-the-gulf",
+   "badge": {
+    "id": "dumbo-in-the-gulf",
+    "name": "Dumbo in the Gulf"
+   },
+   "start": "water",
+   "aircraft": [
+    "pby-5a-catalina"
+   ],
+   "recommendedLoadout": "clean",
    "coordinated": false,
-   "authoredBonus": 0
+   "authoredBonus": 2500
   },
   "A5": {
    "scenario": null,
