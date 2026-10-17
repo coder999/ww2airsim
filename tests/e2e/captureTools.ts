@@ -13,6 +13,7 @@ export const CAPTURE_TEST_FILES = [
   'bayDoorsCapture.spec.ts',
   'bailoutCapture.spec.ts',
   'beachesCapture.spec.ts',
+  'scenesCapture.spec.ts',
   'blenderDuplicatesCapture.spec.ts',
   'bomberRangeCapture.spec.ts',
   'capture.spec.ts',

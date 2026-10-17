@@ -1395,6 +1395,7 @@ async function boot(): Promise<void> {
       // `await buildScenarioEntities` (now a vehicle GLB fetch too) and the `.then(rebuildFrame)`, so
       // reading `bundle` alone reported the new id while `frame` still held the old roster.
       scenarioId: () => (swapPending ? null : bundle?.scenario.id ?? null),
+      directorEye: () => director === null ? null : director.displayed,
       scene: () => scenePlay === null ? null : { id: scenePlay.sceneId, tS: scenePlay.sp.tS, ticksLeft: scenePlay.sp.p.left },
       campaign: () => {
         const c = hqSession?.current() ?? null
@@ -2838,14 +2839,15 @@ async function boot(): Promise<void> {
     frame = withPaused(frame!, true)
     const first = scene.camera[0]!
     const initial = frame.world
+    // One object, shared with the director's callbacks: the frame loop reads `director`, so `onEye` must write to the same one.
     const session = {
-      initial, scene, wp: beginPlayback(initial, scene), keyed: true,
+      handle: undefined as unknown as DirectorHandle, initial, scene, wp: beginPlayback(initial, scene), keyed: true,
       free: { position: v3(...first.position), yawRad: first.yawDeg * Math.PI / 180, pitchRad: first.pitchDeg * Math.PI / 180, lock: false, speedMps: 60 },
       displayed: { position: first.position, yawDeg: first.yawDeg, pitchDeg: first.pitchDeg } as SceneEye,
     }
     // getFlownEye reads what is on screen, so Drop key and Record capture exactly the view the author is looking at.
-    const handle = createDirector(root, { scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
-    director = { ...session, handle }
+    session.handle = createDirector(root, { scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
+    director = session
     clearMapInput()
     root.classList.add(REPLAYING_CLASS)
     replayHistoryCut = true

@@ -479,6 +479,8 @@ export type Ww2Diagnostics = {
   /** The open campaign, read-only, for E2E (plan F5B): its id, faction, revision, the pending sortie, the live five and the Commander's ledger. `null` when none is open. */
   readonly campaign: () => CampaignDiagnostics | null
   /** F9: the campaign scene playing right now (`null` when none): its id, scene seconds played, and fixed ticks left. */
+  /** F9 DEV: the eye the director mode is drawing from right now (`null` outside director mode). */
+  readonly directorEye: () => { readonly position: readonly [number, number, number]; readonly yawDeg: number; readonly pitchDeg: number } | null
   readonly scene: () => { readonly id: string; readonly tS: number; readonly ticksLeft: number } | null
   /** The model id of the loaded GLB actually drawn for the player (falling back to the
    *  hand-built root's name), or null before one is built: sortie forms E2E proves the

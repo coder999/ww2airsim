@@ -36,6 +36,13 @@ test('director mode opens on a scene, drops a key at the scrubbed time, and save
   const bar = page.locator('[data-director]')
   await expect(bar).toBeVisible({ timeout: 90_000 })
   const before = await bar.locator('.director-key').count()
+  // selecting a key draws from that key's pose (a regression guard: the director's callbacks must reach the frame loop)
+  const second = parseScene(JSON.parse(await (await page.request.get('/content/scenes/demo-opening.json')).text()) as unknown).camera[1]!
+  await bar.locator('.director-key').nth(1).click()
+  await page.waitForFunction(() => (window as DiagWindow).__ww2?.directorEye() != null, undefined, { timeout: 5_000 })
+  const eye = await page.evaluate(() => (window as DiagWindow).__ww2!.directorEye())
+  expect(eye!.position).toEqual(second.position)
+  expect(eye!.yawDeg).toBeCloseTo(second.yawDeg)
   // move the bar to 7.3 s, where the demo has no key, and drop the free camera's view there
   await bar.getByLabel('Scene time in seconds').fill('7.3')
   await bar.getByRole('button', { name: 'Drop key' }).click()
