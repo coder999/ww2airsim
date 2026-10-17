@@ -76,6 +76,20 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Dulag tower: Bogeys bearing zero-eight-two, fifteen miles, angels eleven, closing.': null,
   'Dulag tower: Second raid bearing zero-seven-nine, fifteen miles.': null,
   'Dulag tower: All raiders splashed. Come home.': null,
+  // F10A begin (chapters A1-A3, 2026-10-17): text-only like every chapter radio line (Decision 7); one voice run per language later.
+  'Essex CIC: Launch the CAP. Raid inbound on the transports from the southwest, bearing two-four-zero, twenty miles, angels ten.': null,
+  'Essex CIC: Second raid behind the first. Dive-bombers, same bearing.': null,
+  'Essex CIC: All bombers splashed. Clear the fighters off the transports.': null,
+  'Essex CIC: Raid is clear of the transports. Bring it aboard.': null,
+  "Essex CIC: We've lost too many transports.": null,
+  'Taffy 3 to Avengers: Japanese heavy ships northwest of us, closing. Torpedoes on the cruiser or the battleship.': null,
+  'Taffy 3: Good hit. Return to Casablanca.': null,
+  'Taffy 3: Casablanca is lost.': null,
+  'Strike lead: Ormoc search is a bust. A road column north of the valley, tanks and trucks. Go find it.': null,
+  'Strike lead: Column in sight, nose to tail. Light flak by the road.': null,
+  'Strike lead: tanks are burning.': null,
+  'Strike lead: that is ten. Home to Tacloban.': null,
+  // F10A end
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',
   'Trap 2 of 3': 'radio_paddles_trap_2_of_3',

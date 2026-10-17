@@ -42,12 +42,14 @@ const PLAY: Readonly<Record<string, Readonly<Record<string, string>>>> = {
 
 /**
  * What a chapter's success writes into `world` (F3 section 4, "State transition"). A chapter with no line changes no
- * site: J5 "captures no field by itself"; A2-A5 and J1-J4 name none. A1 names Tacloban and Dulag (captured) and the landing beaches
+ * site: J5 "captures no field by itself"; A3-A5 and J1-J4 name none. A2 is the one line F3 does not give (F10A, Mark's Decision 10, 2026-10-17):
+ * A1 leaves Tacloban and Dulag in `assault`, where they are unserviceable (content/sites), which would make A3's Tacloban landing and A5's field
+ * options illegal on the real campaign path; A2 advances them to the late Oct-Nov `buildup`, in which they are serviceable. A1 names Tacloban and Dulag (captured) and the landing beaches
  * (established beachhead), so the Burauen fields, Ormoc and the anchorage stay where they were after it.
  */
 const SUCCESS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   A1: { tacloban: 'assault', dulag: 'assault', 'landing-beaches': 'buildup' },
-  A2: {}, A3: {}, A4: {}, A5: {},
+  A2: { tacloban: 'buildup', dulag: 'buildup' }, A3: {}, A4: {}, A5: {},
   A6: all('endgame'),
   J1: {}, J2: {}, J3: {}, J4: {}, J5: {},
   J6: all('j6-alternate'),

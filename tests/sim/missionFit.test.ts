@@ -7,7 +7,7 @@ import { fitOf, linkProblem, problemsOf, startWorldOf, type FilledRow } from '..
 import { loadScenarioBundle } from '../../tools/content/load.js'
 import { worldFromScenario } from '../../src/sim/scenario.js'
 import { playerAircraft } from '../../src/sim/loop.js'
-import { chapterWindows } from '../../src/campaign/chapterMissions.js'
+import { windowsForChapter } from '../../src/campaign/worldStates.js'
 
 /**
  * The mission-fit gate (F8A Task 10, plan decision 4; extended by F8B, 2026-10-17, and closed by F8C, 2026-10-17). Every F3
@@ -146,9 +146,10 @@ describe('mission-fit table', () => {
 })
 
 describe('a row linked to a scenario (F10-0)', () => {
-  const realStart = (scenario: string) => { const p = playerAircraft(worldFromScenario(loadScenarioBundle(scenario, chapterWindows(scenario)), null)).state.position; return { x: p.x, z: p.z } }
+  // F10A (2026-10-17): a chapter is built in the windows it is played in (A3's Tacloban landing is refused in the default window).
+  const realStart = (scenario: string, chapter?: string) => { const p = playerAircraft(worldFromScenario(loadScenarioBundle(scenario, chapter === undefined ? {} : windowsForChapter(chapter)), null)).state.position; return { x: p.x, z: p.z } }
   it('every row that names a scenario starts where that scenario starts', () => {
-    for (const r of filled.filter((x) => x.scenario !== undefined)) expect(linkProblem(r, sites, realStart(r.scenario!)), r.id).toBeNull()
+    for (const r of filled.filter((x) => x.scenario !== undefined)) expect(linkProblem(r, sites, realStart(r.scenario!, r.id)), r.id).toBeNull()
   })
   it('the check can fail: a start that moved, or a row with no link, is told apart', () => {
     const row = { ...rowOf('A6'), scenario: 'escort' } // a real scenario, nowhere near Tacloban's parked start

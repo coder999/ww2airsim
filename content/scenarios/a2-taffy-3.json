@@ -1,0 +1,465 @@
+{
+ "id": "a2-taffy-3",
+ "player": "tbm-1",
+ "airfields": [
+  "tacloban"
+ ],
+ "sites": [
+  "tacloban",
+  "dulag"
+ ],
+ "mainBatteries": true,
+ "aircraft": [
+  {
+   "id": "tbm-1",
+   "spec": "tbm-3-avenger",
+   "airborneAt": {
+    "position": [
+     79917,
+     900,
+     -74370
+    ],
+    "headingDeg": 315,
+    "speedMps": 85
+   }
+  },
+  {
+   "id": "tbm-2",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     79667,
+     900,
+     -74490
+    ],
+    "headingDeg": 315,
+    "speedMps": 85
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "tbm-1",
+    "slot": 1
+   }
+  },
+  {
+   "id": "tbm-3",
+   "spec": "tbm-3-avenger",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     80167,
+     900,
+     -74250
+    ],
+    "headingDeg": 315,
+    "speedMps": 85
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "tbm-1",
+    "slot": 2
+   }
+  },
+  {
+   "id": "cap-1",
+   "spec": "f4f-wildcat",
+   "side": "allied",
+   "tags": [
+    "cap"
+   ],
+   "airborneAt": {
+    "position": [
+     75014,
+     1500,
+     -78973
+    ],
+    "headingDeg": 70,
+    "speedMps": 80
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 3000
+    }
+   }
+  },
+  {
+   "id": "cap-2",
+   "spec": "f4f-wildcat",
+   "side": "allied",
+   "tags": [
+    "cap"
+   ],
+   "airborneAt": {
+    "position": [
+     75214,
+     1500,
+     -79373
+    ],
+    "headingDeg": 70,
+    "speedMps": 80
+   },
+   "pilot": {
+    "skill": "green",
+    "passive": {
+     "orbitRadiusM": 3000
+    }
+   }
+  }
+ ],
+ "ships": [
+  {
+   "id": "casablanca",
+   "spec": "casablanca-cve",
+   "side": "allied",
+   "tags": [
+    "carrier"
+   ],
+   "waypoints": [
+    [
+     75814,
+     -78473
+    ],
+    [
+     80512,
+     -80183
+    ],
+    [
+     80102,
+     -81311
+    ],
+    [
+     75404,
+     -79601
+    ]
+   ],
+   "speedMps": 9
+  },
+  {
+   "id": "dd-1",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "tags": [
+    "screen"
+   ],
+   "waypoints": [
+    [
+     70314,
+     -83973
+    ],
+    [
+     73133,
+     -84999
+    ],
+    [
+     72928,
+     -85563
+    ],
+    [
+     70109,
+     -84537
+    ]
+   ],
+   "speedMps": 9,
+   "fireAt": [
+    "yamato"
+   ]
+  },
+  {
+   "id": "dd-2",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "tags": [
+    "screen"
+   ],
+   "waypoints": [
+    [
+     71814,
+     -85473
+    ],
+    [
+     74633,
+     -86499
+    ],
+    [
+     74428,
+     -87063
+    ],
+    [
+     71609,
+     -86037
+    ]
+   ],
+   "speedMps": 9,
+   "fireAt": [
+    "yamato"
+   ]
+  },
+  {
+   "id": "yamato",
+   "spec": "yamato-bb",
+   "side": "axis",
+   "tags": [
+    "heavy"
+   ],
+   "waypoints": [
+    [
+     56314,
+     -95973
+    ],
+    [
+     63686,
+     -90811
+    ],
+    [
+     64145,
+     -91466
+    ],
+    [
+     56773,
+     -96628
+    ]
+   ],
+   "speedMps": 10,
+   "fireAt": [
+    "dd-1",
+    "dd-2",
+    "casablanca"
+   ]
+  },
+  {
+   "id": "mogami",
+   "spec": "mogami-ca",
+   "side": "axis",
+   "tags": [
+    "heavy"
+   ],
+   "waypoints": [
+    [
+     58314,
+     -94473
+    ],
+    [
+     65686,
+     -89311
+    ],
+    [
+     66145,
+     -89966
+    ],
+    [
+     58773,
+     -95128
+    ]
+   ],
+   "speedMps": 10,
+   "fireAt": [
+    "dd-1",
+    "dd-2",
+    "casablanca"
+   ]
+  },
+  {
+   "id": "kagero",
+   "spec": "kagero-dd",
+   "side": "axis",
+   "tags": [
+    "destroyers"
+   ],
+   "waypoints": [
+    [
+     59814,
+     -95973
+    ],
+    [
+     67186,
+     -90811
+    ],
+    [
+     67645,
+     -91466
+    ],
+    [
+     60273,
+     -96628
+    ]
+   ],
+   "speedMps": 10,
+   "fireAt": [
+    "dd-1",
+    "dd-2",
+    "casablanca"
+   ]
+  },
+  {
+   "id": "shiratsuyu",
+   "spec": "shiratsuyu-dd",
+   "side": "axis",
+   "tags": [
+    "destroyers"
+   ],
+   "waypoints": [
+    [
+     55314,
+     -93973
+    ],
+    [
+     62686,
+     -88811
+    ],
+    [
+     63145,
+     -89466
+    ],
+    [
+     55773,
+     -94628
+    ]
+   ],
+   "speedMps": 10,
+   "fireAt": [
+    "dd-1",
+    "dd-2",
+    "casablanca"
+   ]
+  }
+ ],
+ "weather": {
+  "windFromDeg": 70,
+  "windMps": 8,
+  "timeOfDay": 7.5,
+  "clouds": [
+   {
+    "kind": "cumulus",
+    "baseM": 700,
+    "thicknessM": 900,
+    "coverage": 0.7
+   },
+   {
+    "kind": "cumulus",
+    "baseM": 2200,
+    "thicknessM": 600,
+    "coverage": 0.5
+   }
+  ]
+ },
+ "objectives": [
+  {
+   "id": "join",
+   "label": "Join the attack",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": 67814,
+    "z": -86473
+   },
+   "radiusM": 4000,
+   "altitudeM": [
+    0,
+    4000
+   ]
+  },
+  {
+   "id": "hit",
+   "label": "Damage Yamato or Mogami",
+   "priority": "primary",
+   "kind": "damage",
+   "targets": [
+    "yamato",
+    "mogami"
+   ],
+   "belowHpFraction": 0.55,
+   "after": "join"
+  },
+  {
+   "id": "shield",
+   "label": "Keep Casablanca afloat",
+   "priority": "primary",
+   "kind": "protect",
+   "targets": [
+    "casablanca"
+   ],
+   "maxLost": 0,
+   "until": {
+    "at": 540
+   }
+  },
+  {
+   "id": "destroyer",
+   "label": "Disable a Japanese destroyer",
+   "priority": "secondary",
+   "kind": "damage",
+   "targets": [
+    "kagero",
+    "shiratsuyu"
+   ],
+   "belowHpFraction": 0.5,
+   "after": "join"
+  },
+  {
+   "id": "home",
+   "label": "Land at any friendly base",
+   "priority": "primary",
+   "kind": "land",
+   "suggestedRecovery": true,
+   "at": "casablanca",
+   "after": "hit"
+  }
+ ],
+ "triggers": [
+  {
+   "id": "orders",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "message": "Taffy 3 to Avengers: Japanese heavy ships northwest of us, closing. Torpedoes on the cruiser or the battleship."
+    }
+   ]
+  },
+  {
+   "id": "hit-scored",
+   "when": {
+    "completed": "hit"
+   },
+   "then": [
+    {
+     "message": "Taffy 3: Good hit. Return to Casablanca."
+    }
+   ]
+  },
+  {
+   "id": "lost-carrier",
+   "when": {
+    "failed": "shield"
+   },
+   "then": [
+    {
+     "message": "Taffy 3: Casablanca is lost."
+    }
+   ]
+  }
+ ],
+ "freezeOnSuccess": true,
+ "population": {
+  "airborne": 5,
+  "ships": 7
+ },
+ "badge": {
+  "id": "taffy-3",
+  "name": "Taffy 3"
+ },
+ "briefing": {
+  "situation": "Morning of 25 October 1944, off Samar. A Japanese surface force has found the escort carriers. You are airborne in a torpedo Avenger with two wingmen, about eight miles southeast of the fight. Close the Japanese cruiser or battleship, put a torpedo into one, and land back aboard Casablanca. Keep the carrier afloat.",
+  "loadout": "torpedoes"
+ },
+ "history": {
+  "text": "On 25 October 1944 the Japanese Center Force surprised Taffy 3, six escort carriers with three destroyers and four destroyer escorts, off Samar, and its battleships and cruisers closed in. Aircraft from the escort carriers attacked with bombs and torpedoes, were rearmed with whatever came to hand, and some diverted to Tacloban to land. This mission is inspired by that action rather than a reconstruction of it, geographically and numerically compressed: the game stages one escort carrier, two Fletcher destroyers and four Japanese ships, with F4F-4 art standing in for the FM-2 Wildcats. It does not claim that your torpedo, or your hit, occurred.",
+  "sources": [
+   "Naval History and Heritage Command, Battle off Samar material and DANFS, USS Kalinin Bay and USS Hoel: https://www.ibiblio.org/hyperwar/USN/ships/dafs/CVE/cve68.html",
+   "DANFS, USS Hoel (DD-533): https://www.ibiblio.org/hyperwar/USN/ships/dafs/DD/dd533.html"
+  ]
+ }
+}

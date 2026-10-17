@@ -1,0 +1,39 @@
+/**
+ * Shared by the F10A chapter tests (A1-A3): a chapter's world as the campaign draws it. A launch reads the stored `Campaign.world`
+ * (`launchWindows`), so a chapter test builds the scenario in the windows the chapter is PLAYED in (`windowsForChapter`), not the
+ * loader's default (`pre-invasion`), which would hand A2 and A3 a Japanese Tacloban.
+ */
+import { loadScenarioBundle } from '../../../../tools/content/load.js'
+import { worldFromScenario } from '../../../../src/sim/scenario.js'
+import { applyChapterSuccess, launchWindows, windowsForChapter } from '../../../../src/campaign/worldStates.js'
+import type { TerrainField } from '../../../../src/sim/world/terrain.js'
+import type { World } from '../../../../src/sim/loop.js'
+import type { ChapterId } from '../../../../src/campaign/schema.js'
+import { readFileSync } from 'node:fs'
+import { parseScene, type Scene } from '../../../../src/sim/scene/schema.js'
+
+export const bundleOf = (scenarioId: string, chapter: ChapterId, windows: Readonly<Record<string, string>> = windowsForChapter(chapter)) =>
+  loadScenarioBundle(scenarioId, windows)
+
+export const worldOf = (scenarioId: string, chapter: ChapterId, terrain: TerrainField | null, windows?: Readonly<Record<string, string>>): World<undefined> =>
+  worldFromScenario(bundleOf(scenarioId, chapter, windows), terrain)
+
+/** Compass bearing, degrees in [0, 360): 0 north (-z), 90 east (+x). */
+export const bearingDeg = (from: { readonly x: number; readonly z: number }, to: { readonly x: number; readonly z: number }): number =>
+  ((Math.atan2(to.x - from.x, -(to.z - from.z)) * 180) / Math.PI + 360) % 360
+
+export const MILE_M = 1609.344
+
+/** A chapter scene, parsed from content/scenes/. */
+export const sceneOf = (id: string): Scene => parseScene(JSON.parse(readFileSync(new URL(`../../../../content/scenes/${id}.json`, import.meta.url), 'utf8')) as unknown)
+
+/** A ship's hull points set to `hp` (a partial hit, which `destroyNow` cannot say): the combat record as a torpedo's flooding would leave it. */
+export const hullAt = (w: World<undefined>, id: string, hp: number): World<undefined> => {
+  const rec = w.combat.ships[id]
+  if (rec === undefined) throw new Error(`hullAt: no combat record for "${id}"`)
+  return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [id]: { ...rec, hp } } } }
+}
+
+/** The stored `Campaign.world` after A1 and A2 have both succeeded (the real campaign path that makes A3's Tacloban landing legal), as the windows A3 launches in. */
+export const windowsAfterA1A2 = (): Readonly<Record<string, string>> =>
+  launchWindows(applyChapterSuccess(applyChapterSuccess({}, 'A1'), 'A2'), 'A3')

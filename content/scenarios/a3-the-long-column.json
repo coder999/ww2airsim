@@ -1,0 +1,723 @@
+{
+ "id": "a3-the-long-column",
+ "player": "p38-1",
+ "airfields": [
+  "tacloban",
+  "a3-road-aaa"
+ ],
+ "sites": [
+  "tacloban",
+  "dulag"
+ ],
+ "aircraft": [
+  {
+   "id": "p38-1",
+   "spec": "p-38-lightning",
+   "airborneAt": {
+    "position": [
+     -90206,
+     2500,
+     -53285
+    ],
+    "headingDeg": 140,
+    "speedMps": 130
+   }
+  },
+  {
+   "id": "p38-2",
+   "spec": "p-38-lightning",
+   "side": "allied",
+   "airborneAt": {
+    "position": [
+     -90026,
+     2500,
+     -53405
+    ],
+    "headingDeg": 140,
+    "speedMps": 130
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "p38-1",
+    "slot": 1
+   }
+  }
+ ],
+ "ships": [],
+ "vehicles": [
+  {
+   "id": "kurogane",
+   "spec": "type95-kurogane",
+   "tags": [
+    "powered",
+    "command-car"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78227,
+     -35863
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-1",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78241,
+     -35794
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-2",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78255,
+     -35726
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-3",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78269,
+     -35657
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-1",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78282,
+     -35589
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-2",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78296,
+     -35520
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-3",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78310,
+     -35451
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-4",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78323,
+     -35383
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-4",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78337,
+     -35314
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-5",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78351,
+     -35245
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "chi-6",
+   "spec": "type97-chi-ha",
+   "tags": [
+    "powered",
+    "tank"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78365,
+     -35177
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-5",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78378,
+     -35108
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-6",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78392,
+     -35039
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-7",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78406,
+     -34971
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "truck-8",
+   "spec": "type94-cargo-truck",
+   "tags": [
+    "powered",
+    "truck"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78420,
+     -34902
+    ],
+    [
+     -78100,
+     -36500
+    ],
+    [
+     -77800,
+     -39000
+    ],
+    [
+     -77900,
+     -41500
+    ],
+    [
+     -78000,
+     -44000
+    ]
+   ],
+   "speedMps": 6,
+   "loop": false
+  },
+  {
+   "id": "gun-1",
+   "spec": "type38-75mm-field-gun",
+   "tags": [
+    "field-gun"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78320,
+     -35275
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 11
+  },
+  {
+   "id": "gun-2",
+   "spec": "type38-75mm-field-gun",
+   "tags": [
+    "field-gun"
+   ],
+   "side": "axis",
+   "waypoints": [
+    [
+     -78438,
+     -34686
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 11
+  }
+ ],
+ "weather": {
+  "windFromDeg": 0,
+  "windMps": 3,
+  "timeOfDay": 9.5,
+  "clouds": [
+   {
+    "kind": "cumulus",
+    "baseM": 1300,
+    "thicknessM": 600,
+    "coverage": 0.35
+   },
+   {
+    "kind": "cirrus",
+    "baseM": 7000,
+    "thicknessM": 300,
+    "coverage": 0.2
+   }
+  ]
+ },
+ "objectives": [
+  {
+   "id": "contact",
+   "label": "Find the column",
+   "priority": "primary",
+   "kind": "reach",
+   "point": {
+    "x": -77800,
+    "z": -38500
+   },
+   "radiusM": 1500,
+   "altitudeM": [
+    0,
+    4000
+   ]
+  },
+  {
+   "id": "powered",
+   "label": "Ten of the fifteen vehicles",
+   "priority": "primary",
+   "kind": "destroy",
+   "targets": [
+    "powered"
+   ],
+   "count": 10,
+   "fresh": true,
+   "after": "contact"
+  },
+  {
+   "id": "tanks",
+   "label": "Two tanks among them",
+   "priority": "primary",
+   "kind": "destroy",
+   "targets": [
+    "tank"
+   ],
+   "count": 2,
+   "fresh": true,
+   "after": "contact"
+  },
+  {
+   "id": "staff",
+   "label": "Command car and both field guns",
+   "priority": "secondary",
+   "kind": "destroy",
+   "targets": [
+    "command-car",
+    "field-gun"
+   ],
+   "fresh": true,
+   "after": "contact"
+  },
+  {
+   "id": "home",
+   "label": "Land at Tacloban",
+   "priority": "primary",
+   "kind": "land",
+   "at": "tacloban",
+   "after": "powered",
+   "suggestedRecovery": true
+  }
+ ],
+ "triggers": [
+  {
+   "id": "orders",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "message": "Strike lead: Ormoc search is a bust. A road column north of the valley, tanks and trucks. Go find it."
+    }
+   ]
+  },
+  {
+   "id": "sighted",
+   "when": {
+    "completed": "contact"
+   },
+   "then": [
+    {
+     "message": "Strike lead: Column in sight, nose to tail. Light flak by the road."
+    }
+   ]
+  },
+  {
+   "id": "tanks-down",
+   "when": {
+    "completed": "tanks"
+   },
+   "then": [
+    {
+     "message": "Strike lead: tanks are burning."
+    }
+   ]
+  },
+  {
+   "id": "enough",
+   "when": {
+    "completed": "powered"
+   },
+   "then": [
+    {
+     "message": "Strike lead: that is ten. Home to Tacloban."
+    }
+   ]
+  }
+ ],
+ "freezeOnSuccess": true,
+ "population": {
+  "airborne": 2,
+  "ships": 0
+ },
+ "badge": {
+  "id": "long-column",
+  "name": "The Long Column"
+ },
+ "briefing": {
+  "situation": "3 November 1944. You and a wingman are airborne west of the central ridge after a fruitless search for shipping off Ormoc. A Japanese column is moving up the valley road: tanks, trucks and a staff car with two guns and light flak along the way. Stop or destroy at least ten of its fifteen powered vehicles, two of them tanks, then land at Tacloban.",
+  "loadout": "both"
+ },
+ "history": {
+  "text": "On 3 November 1944 fifteen P-38s, after a shipping search off Ormoc, found a column about ten miles long of trucks, artillery and tanks on the Ormoc-Valencia road and attacked it. This mission is inspired by that action rather than a reconstruction of it, with the force compressed: the game shows a representative column of nineteen gameplay entities, not a literal ten-mile traffic file, and its vehicle types and the field-gun mix are representative.",
+  "sources": [
+   "U.S. Army, Leyte: The Return to the Philippines, ch. VI: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.html",
+   "Army Air Forces, The Pacific: Guadalcanal to Saipan, ch. XII: https://www.ibiblio.org/hyperwar/AAF/V/AAF-V-12.html"
+  ]
+ }
+}

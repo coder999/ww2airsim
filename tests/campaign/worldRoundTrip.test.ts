@@ -76,6 +76,18 @@ describe('the world moves with the chapter and only then', () => {
     expect(again.world).toBe(c.world)
   })
 
+  it('F10A (Decision 10): A1 then A2 moves Tacloban and Dulag from assault to buildup, and a failed A2 leaves them in assault', () => {
+    const afterA1 = fly(fresh(), 0, ch('A1'), { success: true })
+    expect(afterA1.world).toEqual(A1_WORLD)
+    const failed = fly(withPoints(afterA1, 0, 40000), 0, ch('A2'), { success: false })
+    expect(failed.world).toEqual(A1_WORLD)
+    const afterA2 = fly(withPoints(afterA1, 0, 40000), 0, ch('A2'), { success: true })
+    expect(afterA2.world).toEqual({ tacloban: 'buildup', dulag: 'buildup', 'landing-beaches': 'buildup' })
+    // the next launch draws what is stored: A3 flies a serviceable Tacloban
+    expect(launchWindows(afterA2.world, 'A3')).toMatchObject({ tacloban: 'buildup', dulag: 'buildup' })
+    expect(launchWindows(afterA1.world, 'A3')).toMatchObject({ tacloban: 'assault' }) // without A2 the field would still be down
+  })
+
   it('abandon after a failed attempt, and an interrupted sortie resolved at load, leave world as it was', () => {
     const c = fly(fresh(), 0, ch('A1'), { success: true }) // world = A1 world
     const pending = launch(withPoints(c, 0, 40000), 0, ch('A2'))

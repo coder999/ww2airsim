@@ -1,0 +1,47 @@
+{
+ "id": "a3-road-aaa",
+ "name": "Roadside AAA (A3)",
+ "side": "axis",
+ "serviceable": false,
+ "noStrip": true,
+ "runway": {
+  "center": {
+   "x": -78110,
+   "z": -36451
+  },
+  "headingDeg": 0,
+  "lengthM": 2,
+  "widthM": 2
+ },
+ "apron": null,
+ "clearing": null,
+ "buildings": [
+  {
+   "id": "road-aaa-1",
+   "kind": "aaa",
+   "x": -46,
+   "z": 981,
+   "widthM": 6,
+   "lengthM": 6,
+   "hp": 30,
+   "tags": [
+    "road-aaa"
+   ]
+  },
+  {
+   "id": "road-aaa-2",
+   "kind": "aaa",
+   "x": 273,
+   "z": -992,
+   "widthM": 6,
+   "lengthM": 6,
+   "hp": 30,
+   "tags": [
+    "road-aaa"
+   ]
+  }
+ ],
+ "reference": {
+  "source": "F10A (2026-10-17): two roadside AA emplacements for A3's column (F3 section 4: 'two roadside AAA'). Not a field: no strip, never a recovery, home or landing target (noStrip). Positions invented: 150 m east of the road at 1.5 km and 3.5 km along it; local frame x east, z south (heading 0) about the point 2.5 km along the road. Scenery targets with no objective weight."
+ }
+}
