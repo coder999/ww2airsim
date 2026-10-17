@@ -75,9 +75,14 @@ const IngressObject = z.object({
   destination: z.union([z.object({ ship: id }).strict(), z.object({ airfield: id, aim: id.optional() }).strict()]).optional(),
   /** E2: what the raider does on arrival at its destination: a dive-bombing, torpedo or level-bombing
    *  run on it (the airplane is armed with its full racks). Absent: orbit it, as every raider before E2. */
-  attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb']).optional(),
-}).strict().refine((i) => i.attack === undefined || i.destination !== undefined, {
+  attack: z.enum(['dive-bomb', 'torpedo', 'level-bomb', 'airdrop']).optional(),
+  /** F10D: an `airdrop` transport opens its cargo doors on the way in and drops its whole stick the first time it is inside this circle with the
+   *  doors fully open (then the doors close once it is past the point). It flies the route as written, so the route's last leg is the egress. */
+  dropAt: z.object({ x: finite, z: finite, radiusM: positive }).strict().optional(),
+}).strict().refine((i) => i.attack === undefined || i.attack === 'airdrop' || i.destination !== undefined, {
   message: 'attack needs a destination: a ship or an airfield to attack', path: ['attack'],
+}).refine((i) => (i.attack === 'airdrop') === (i.dropAt !== undefined), {
+  message: 'airdrop and dropAt go together: the transport needs the zone it drops in, and only an airdrop has one', path: ['dropAt'],
 })
 
 const PilotObject = z.object({
@@ -155,7 +160,8 @@ function ingressOrdersFrom(i: z.infer<typeof IngressObject>, airfields: Readonly
           // E2: an attacker must know whose strip it is, so it never bombs its own. Present only on an attacker's orders.
           ...(i.attack === undefined ? {} : { side: airfieldSideOf(lookup(airfields, d.airfield, 'airfield'), airfieldSides) }),
         }
-  return { route: i.route, destination, ...(i.attack === undefined ? {} : { attack: i.attack }) }
+  // An airdrop is not one of E2's attack runs (`attack.ts` never sees it): the orders carry the drop zone instead.
+  return { route: i.route, destination, ...(i.attack === undefined || i.attack === 'airdrop' ? {} : { attack: i.attack }), ...(i.dropAt === undefined ? {} : { airdrop: i.dropAt }) }
 }
 
 const ParkedAtObject = z.union([

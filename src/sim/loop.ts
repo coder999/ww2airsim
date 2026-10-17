@@ -1202,6 +1202,14 @@ export function advance<M>(
         if (order.tick === tick) parachutists = [...parachutists, ...dropFor(world, aircraft, decks, water, order)]
       }
     }
+    // F10D: an AI transport with an airdrop order drops its whole stick the first time it is inside its circle with the doors fully open.
+    // Derived from the state at the end of the last tick, so it replays with no recorded action.
+    for (const a of aircraft) {
+      const zone = a.pilot?.ingress?.airdrop
+      if (zone === undefined || Math.hypot(a.state.position.x - zone.x, a.state.position.z - zone.z) > zone.radiusM) continue
+      if (dropRefusal({ combat, parachutists }, a) !== null) continue
+      parachutists = [...parachutists, ...cargoStick(world, a, sideOf(world, a))]
+    }
     // Taken before `ageDamage`, which is where a fire burns an airframe out:
     // that explosion is a loss with no killing hit, and `creditDownedAircraft`
     // must see it go down this tick (damage stages, Mark 2026-10-09).
@@ -1287,7 +1295,7 @@ export function advance<M>(
       const stepped = stepMission(mission, {
         tick, player: world.player, aircraft, ships, vehicles, combat,
         terrain: world.terrain, wind: world.wind, airfields: world.airfields, decks,
-        structures: world.structures, anchorages: world.anchorages,
+        structures: world.structures, anchorages: world.anchorages, parachutists,
       })
       // A non-null local: `mission` is reassigned in this loop, so TS cannot
       // carry the `!== null` narrowing into the spawn loop below.
