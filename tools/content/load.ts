@@ -6,8 +6,6 @@ import { parseAirfield, type Airfield } from '../../src/sim/world/airfields.js'
 import { parseShipSpec, type ShipSpec } from '../../src/sim/world/ships.js'
 import { parseVehicleSpec, type VehicleSpec } from '../../src/sim/world/vehicles.js'
 import { expandScenario, parseSite, type Site } from '../../src/sim/world/sites.js'
-import { CHAPTER_MISSIONS } from '../../src/campaign/chapterMissions.js'
-import { CHAPTER_IDS } from '../../src/campaign/schema.js'
 import { windowsForChapter } from '../../src/campaign/worldStates.js'
 
 /**
@@ -72,7 +70,9 @@ export function loadScenarioBundle(id: string, siteWindows?: Readonly<Record<str
   // F10A (2026-10-17): with no windows given, a CHAPTER scenario is built in the windows its chapter is played in, not the loader's
   // default (`pre-invasion`): A3 lands at Tacloban, which only the campaign's buildup window leaves serviceable, and a landing objective at
   // a field that is down or on the other side is refused at load. Every other scenario keeps the default.
-  const chapter = CHAPTER_IDS.find((c) => CHAPTER_MISSIONS[c].scenario === id)
+  // (the registry is read from disk, not imported: src/campaign/chapterMissions.ts has a JSON import Playwright's Node loader cannot read)
+  const registry = readContentJson('chapter registry', 'campaign', 'chapter-missions') as { chapters: Record<string, { scenario: string | null }> }
+  const chapter = Object.keys(registry.chapters).find((c) => registry.chapters[c]!.scenario === id)
   return bundleForScenario(loadScenario(id), siteWindows ?? (chapter === undefined ? {} : windowsForChapter(chapter)))
 }
 
