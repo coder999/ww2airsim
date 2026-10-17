@@ -16,6 +16,15 @@ export const TARGET_TYPES: readonly TargetType[] = [
   'light-vehicle', 'landing-craft',
 ]
 
+/**
+ * The score row a downed AIRCRAFT of this role lands in. A transport aircraft (the Ki-57) is the "bomber or transport aircraft" row, 750, as
+ * GAMEPLAY.md's scoring table says; it is NOT the `transport` row, which is the merchant ships' (500). Before F10-0 combat credited
+ * `spec.role` directly, so a Ki-57 paid 500 (found 2026-10-17 while planning A6, J5 and J6, which all shoot Ki-57s).
+ */
+export function aircraftTargetType(role: 'fighter' | 'bomber' | 'transport'): TargetType {
+  return role === 'transport' ? 'bomber' : role
+}
+
 /** The score row a sunk hull of this role lands in: every role scores. */
 export function shipTargetType(
   role: 'carrier' | 'cruiser' | 'battleship' | 'escort' | 'merchant',

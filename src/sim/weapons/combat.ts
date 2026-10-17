@@ -19,7 +19,7 @@ import type { CombatSpec, DamageSystem } from './schema.js'
 import { gunBallistics } from './gunTypes.js'
 import { emptyStores, type StoresState } from './stores.js'
 import { healthyStructureDamage, type StructureDamage, type StructureEntity } from './structures.js'
-import { shipTargetType, zeroKillsByType, type TargetType } from './targetType.js'
+import { aircraftTargetType, shipTargetType, zeroKillsByType, type TargetType } from './targetType.js'
 import { appendImpacts, type CombatImpact, type ImpactSurface } from './impacts.js'
 import { sameSide, type Side } from '../sides.js'
 import { ownSideTarget, withFriendlyFire, type FriendlyFire, type FriendlyFireKind, type TargetSides } from './friendlyFire.js'
@@ -816,7 +816,7 @@ export function stepCombat(
     records[target.id] = point === null ? { ...rec, damage, lastHitBy } : { ...rec, damage, lastHitBy, lastHit: { tick, position: point } }
     if (ownSide && owner !== target.id && damage !== rec.damage) noteFriendlyFire(owner, 'aircraft', target.id)
     if (!ownSide && damage !== rec.damage) tag(owner, target.id)
-    creditAircraftDamage(rec.damage, damage, owner, system !== null, target.spec.role, target.id)
+    creditAircraftDamage(rec.damage, damage, owner, system !== null, aircraftTargetType(target.spec.role), target.id)
   }
 
   const damageStructureAt = (s: StructureEntity, amount: number, owner: string): void => {
@@ -1275,7 +1275,7 @@ export function creditDownedAircraft(
       if (!rec.tagged.includes(a.id)) continue
       records ??= { ...after.aircraft }
       const cur = records[id]!
-      records[id] = { ...cur, tagCredits: { ...cur.tagCredits, [a.spec.role]: cur.tagCredits[a.spec.role] + 1 } }
+      records[id] = { ...cur, tagCredits: { ...cur.tagCredits, [aircraftTargetType(a.spec.role)]: cur.tagCredits[aircraftTargetType(a.spec.role)] + 1 } }
     }
   }
   for (const a of afterAircraft) {
@@ -1295,7 +1295,7 @@ export function creditDownedAircraft(
       records[credited] = { ...shooter, friendlyKills: shooter.friendlyKills + 1 }
       continue
     }
-    const type = a.spec.role
+    const type = aircraftTargetType(a.spec.role)
     records[credited] = {
       ...shooter,
       kills: shooter.kills + 1,
