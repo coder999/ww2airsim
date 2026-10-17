@@ -322,14 +322,14 @@
    "lights": [],
    "clutter": {
     "north-apron": {
-     "tent": 0.15,
-     "drum": 0.15,
-     "crate": 0.1
+     "tent": 0.3,
+     "drum": 0.3,
+     "crate": 0.2
     },
     "dump": {
-     "drum": 0.4,
-     "crate": 0.3,
-     "tent": 0.1
+     "drum": 0.8,
+     "crate": 0.6,
+     "tent": 0.2
     }
    }
   },
@@ -405,22 +405,22 @@
    "lights": [],
    "clutter": {
     "north-apron": {
-     "tent": 0.5,
-     "drum": 0.35,
-     "crate": 0.3,
-     "sandbag": 0.4,
-     "mud": 0.5,
-     "rut": 0.4
+     "tent": 1.0,
+     "drum": 0.7,
+     "crate": 0.6,
+     "sandbag": 0.8,
+     "mud": 1.0,
+     "rut": 0.8
     },
     "strip": {
-     "crater": 0.05,
-     "mat": 0.02,
-     "rut": 0.03
+     "crater": 0.075,
+     "mat": 0.04,
+     "rut": 0.06
     },
     "dump": {
-     "drum": 0.6,
-     "crate": 0.5,
-     "tent": 0.15
+     "drum": 1.2,
+     "crate": 1.0,
+     "tent": 0.3
     }
    }
   },
@@ -778,31 +778,31 @@
    ],
    "clutter": {
     "north-apron": {
-     "tent": 0.7,
-     "drum": 0.7,
-     "crate": 0.6,
-     "sandbag": 0.5,
-     "mud": 0.6,
-     "rut": 0.7,
-     "mat": 0.3
+     "tent": 1.4,
+     "drum": 1.4,
+     "crate": 1.2,
+     "sandbag": 1.0,
+     "mud": 1.2,
+     "rut": 1.4,
+     "mat": 0.6
     },
     "south-camp": {
-     "tent": 0.5,
-     "drum": 0.4,
-     "crate": 0.4,
-     "mud": 0.5,
-     "rut": 0.4
+     "tent": 1.0,
+     "drum": 0.8,
+     "crate": 0.8,
+     "mud": 1.0,
+     "rut": 0.8
     },
     "strip": {
-     "mat": 0.04,
-     "rut": 0.03,
-     "crater": 0.01
+     "mat": 0.08,
+     "rut": 0.06,
+     "crater": 0.015
     },
     "dump": {
-     "drum": 0.9,
-     "crate": 0.8,
-     "sandbag": 0.4,
-     "mud": 0.4
+     "drum": 1.8,
+     "crate": 1.6,
+     "sandbag": 0.8,
+     "mud": 0.8
     }
    }
   },
@@ -1118,30 +1118,30 @@
    ],
    "clutter": {
     "north-apron": {
-     "tent": 0.6,
-     "drum": 0.6,
-     "crate": 0.5,
-     "sandbag": 0.5,
-     "mud": 0.4,
-     "rut": 0.5,
-     "mat": 0.3
+     "tent": 1.2,
+     "drum": 1.2,
+     "crate": 1.0,
+     "sandbag": 1.0,
+     "mud": 0.8,
+     "rut": 1.0,
+     "mat": 0.6
     },
     "south-camp": {
-     "tent": 0.5,
-     "drum": 0.4,
-     "crate": 0.4,
-     "mud": 0.3,
-     "rut": 0.3
+     "tent": 1.0,
+     "drum": 0.8,
+     "crate": 0.8,
+     "mud": 0.6,
+     "rut": 0.6
     },
     "strip": {
-     "mat": 0.04,
-     "rut": 0.02
+     "mat": 0.08,
+     "rut": 0.04
     },
     "dump": {
-     "drum": 0.9,
-     "crate": 0.8,
-     "sandbag": 0.4,
-     "mud": 0.3
+     "drum": 1.8,
+     "crate": 1.6,
+     "sandbag": 0.8,
+     "mud": 0.6
     }
    }
   },
@@ -1281,24 +1281,24 @@
    "lights": [],
    "clutter": {
     "north-apron": {
-     "tent": 0.2,
-     "drum": 0.4,
-     "crate": 0.2,
-     "mud": 0.4,
-     "rut": 0.4,
-     "crater": 0.15
+     "tent": 0.4,
+     "drum": 0.8,
+     "crate": 0.4,
+     "mud": 0.8,
+     "rut": 0.8,
+     "crater": 0.225
     },
     "strip": {
-     "crater": 0.12,
-     "rut": 0.02
+     "crater": 0.18,
+     "rut": 0.04
     },
     "south-camp": {
-     "crater": 0.1,
-     "tent": 0.1
+     "crater": 0.15,
+     "tent": 0.2
     },
     "dump": {
-     "drum": 0.3,
-     "crater": 0.2
+     "drum": 0.6,
+     "crater": 0.3
     }
    }
   }

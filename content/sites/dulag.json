@@ -187,12 +187,12 @@
    "lights": [],
    "clutter": {
     "camp": {
-     "tent": 0.1,
-     "drum": 0.1
+     "tent": 0.2,
+     "drum": 0.2
     },
     "strip": {
-     "rut": 0.04,
-     "mud": 0.04
+     "rut": 0.08,
+     "mud": 0.08
     }
    }
   },
@@ -240,21 +240,21 @@
    "lights": [],
    "clutter": {
     "camp": {
-     "tent": 0.4,
-     "drum": 0.3,
-     "crate": 0.2,
-     "mud": 0.6,
-     "rut": 0.5,
-     "sandbag": 0.3
+     "tent": 0.8,
+     "drum": 0.6,
+     "crate": 0.4,
+     "mud": 1.2,
+     "rut": 1.0,
+     "sandbag": 0.6
     },
     "strip": {
-     "mud": 0.1,
-     "rut": 0.08,
-     "crater": 0.03
+     "mud": 0.2,
+     "rut": 0.16,
+     "crater": 0.045
     },
     "dump": {
-     "drum": 0.4,
-     "crate": 0.3
+     "drum": 0.8,
+     "crate": 0.6
     }
    }
   },
@@ -383,23 +383,23 @@
    "lights": [],
    "clutter": {
     "camp": {
-     "tent": 0.6,
-     "drum": 0.5,
-     "crate": 0.4,
-     "mud": 0.8,
-     "rut": 0.8,
-     "sandbag": 0.4,
-     "mat": 0.15
+     "tent": 1.2,
+     "drum": 1.0,
+     "crate": 0.8,
+     "mud": 1.6,
+     "rut": 1.6,
+     "sandbag": 0.8,
+     "mat": 0.3
     },
     "strip": {
-     "mud": 0.12,
-     "rut": 0.1,
-     "mat": 0.03
+     "mud": 0.24,
+     "rut": 0.2,
+     "mat": 0.06
     },
     "dump": {
-     "drum": 0.7,
-     "crate": 0.5,
-     "mud": 0.5
+     "drum": 1.4,
+     "crate": 1.0,
+     "mud": 1.0
     }
    }
   },
@@ -510,23 +510,23 @@
    "lights": [],
    "clutter": {
     "camp": {
-     "tent": 0.5,
-     "drum": 0.4,
-     "crate": 0.3,
-     "mud": 0.6,
-     "rut": 0.6,
-     "sandbag": 0.3,
-     "mat": 0.15
+     "tent": 1.0,
+     "drum": 0.8,
+     "crate": 0.6,
+     "mud": 1.2,
+     "rut": 1.2,
+     "sandbag": 0.6,
+     "mat": 0.3
     },
     "strip": {
-     "mud": 0.1,
-     "rut": 0.08,
-     "mat": 0.03
+     "mud": 0.2,
+     "rut": 0.16,
+     "mat": 0.06
     },
     "dump": {
-     "drum": 0.6,
-     "crate": 0.4,
-     "mud": 0.4
+     "drum": 1.2,
+     "crate": 0.8,
+     "mud": 0.8
     }
    }
   },
@@ -595,18 +595,18 @@
    "lights": [],
    "clutter": {
     "camp": {
-     "crater": 0.15,
-     "mud": 0.5,
-     "rut": 0.4,
-     "tent": 0.1
+     "crater": 0.225,
+     "mud": 1.0,
+     "rut": 0.8,
+     "tent": 0.2
     },
     "strip": {
-     "crater": 0.12,
-     "mud": 0.1
+     "crater": 0.18,
+     "mud": 0.2
     },
     "dump": {
-     "crater": 0.2,
-     "drum": 0.2
+     "crater": 0.3,
+     "drum": 0.4
     }
    }
   }
