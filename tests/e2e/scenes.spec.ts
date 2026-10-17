@@ -233,3 +233,14 @@ test('the map shows the camera, and Save frame JSON gives a link that reopens th
   expect(reopened.yawDeg).toBeCloseTo(eye.yawDeg, 1)
   await expect(page.locator('[data-director] output')).toContainText('4.50')
 })
+
+test('a DEV scene or director entry starts from the scenario at tick 0, not a few seconds into a live flight', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  await expect(page.locator('[data-director]')).toBeVisible({ timeout: 90_000 })
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.tick())).toBe(0)
+  await page.goto('/?scenario=escort&launch&scene=demo-opening')
+  await page.waitForFunction(() => (window as DiagWindow).__ww2?.scene() != null, undefined, { timeout: 90_000 })
+  // the scene's own world starts at 0 too: its ticks left are the whole 15 s, less what real time has played since
+  const left = (await page.evaluate(() => (window as DiagWindow).__ww2!.scene()!.ticksLeft))
+  expect(left).toBeGreaterThan(900 - 90)
+})

@@ -2779,6 +2779,7 @@ async function boot(): Promise<void> {
   }
   const playScene = (scene: SceneFile, opts: { markSeen: boolean; holdAfter?: boolean; onDone: () => void }): void => {
     frame = withPaused(frame!, true)
+    canvas.style.visibility = ''
     scenePlay = { sp: beginPlayback(frame.world, scene), sceneId: scene.id, markSeen: opts.markSeen, holdAfter: opts.holdAfter === true, onDone: opts.onDone }
     clearMapInput()
     fxSystem?.clear()
@@ -2868,6 +2869,7 @@ async function boot(): Promise<void> {
   }
   const startDirector = (scene: SceneFile): void => {
     frame = withPaused(frame!, true)
+    canvas.style.visibility = ''
     const first = scene.camera[0]!
     const initial = frame.world
     // One object, shared with the director's callbacks: the frame loop reads `director`, so `onEye` must write to the same one.
@@ -4321,9 +4323,16 @@ async function boot(): Promise<void> {
   // F9 (DEV): `?scenario=<id>&launch&scene=<sceneId>` plays that scene on the loaded scenario, without writing `scenesSeen`.
   // Waits for a ground start's terrain, as the frame itself does, so the scene starts from the settled world.
   const devDirectorId = import.meta.env.DEV ? new URLSearchParams(location.search).get('director') : null
+  // A DEV scene or director entry is a quick launch, which would otherwise fly the scenario live (and show its chase camera) while the scene
+  // file and the terrain load. Hold the world at tick 0 now, so the scene's pre-roll starts from the scenario's real start, and keep the
+  // canvas dark until the scene or director takes over.
+  if (quick !== null && (devDirectorId !== null || (import.meta.env.DEV && new URLSearchParams(location.search).has('scene')))) {
+    frame = withPaused(frame!, true)
+    canvas.style.visibility = 'hidden'
+  }
   if (devDirectorId !== null && quick !== null) {
     void loadScene(devDirectorId).then(async (scene) => {
-      if (scene === null) { console.warn(`director ${devDirectorId}: scene not found or invalid`); return }
+      if (scene === null) { console.warn(`director ${devDirectorId}: scene not found or invalid`); canvas.style.visibility = ''; return }
       while (frame === null || frame.world.terrain === null) await new Promise((r) => setTimeout(r, 200))
       startDirector(scene)
     })
@@ -4331,7 +4340,7 @@ async function boot(): Promise<void> {
   const devSceneId = import.meta.env.DEV ? new URLSearchParams(location.search).get('scene') : null
   if (devSceneId !== null && quick !== null) {
     void loadScene(devSceneId).then(async (scene) => {
-      if (scene === null) { console.warn(`scene ${devSceneId}: not found or invalid`); return }
+      if (scene === null) { console.warn(`scene ${devSceneId}: not found or invalid`); canvas.style.visibility = ''; return }
       while (frame === null || frame.world.terrain === null) await new Promise((r) => setTimeout(r, 200))
       playScene(scene, { markSeen: false, onDone: () => undefined })
     })
