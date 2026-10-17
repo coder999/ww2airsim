@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { readdirSync } from 'node:fs'
 import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { loadScenario, loadScenarioBundle } from '../../../tools/content/load.js'
-import { CHAPTER_MISSIONS } from '../../../src/campaign/index.js'
+import { CHAPTER_MISSIONS, CHAPTER_IDS } from '../../../src/campaign/index.js'
+import { windowsForChapter } from '../../../src/campaign/worldStates.js'
 
 const IDS = readdirSync(new URL('../../../content/scenarios/', import.meta.url))
   .filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort()
@@ -26,7 +27,10 @@ describe('every shipped scenario', () => {
   })
 
   it.each(IDS)('%s builds, and has a mission exactly when it declares objectives', (id) => {
-    const bundle = loadScenarioBundle(id)
+    // F10A (2026-10-17): a chapter is built in the windows it is PLAYED in. A3 lands at Tacloban, which the loader's default window
+    // (pre-invasion) leaves Japanese, and a landing objective at a field that is down or on the other side is refused at load.
+    const chapter = CHAPTER_IDS.find((c) => CHAPTER_MISSIONS[c].scenario === id)
+    const bundle = loadScenarioBundle(id, chapter === undefined ? {} : windowsForChapter(chapter))
     const world = worldFromScenario(bundle, null)
     expect(world.mission === null).toBe(bundle.scenario.objectives === undefined)
   })

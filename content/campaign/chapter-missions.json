@@ -30,11 +30,16 @@
    "authoredBonus": 0
   },
   "A3": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "a3-the-long-column",
+   "badge": {
+    "id": "long-column",
+    "name": "The Long Column"
+   },
+   "start": "airborne",
+   "aircraft": [
+    "p-38-lightning"
+   ],
+   "recommendedLoadout": "both",
    "coordinated": false,
    "authoredBonus": 0
   },

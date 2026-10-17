@@ -1,0 +1,82 @@
+{
+  "id": "a3-opening",
+  "chapter": "A3",
+  "kind": "opening",
+  "durationS": 12,
+  "world": {
+    "source": "mission",
+    "scenario": "a3-the-long-column"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -90450,
+        2560,
+        -53450
+      ],
+      "yawDeg": -50,
+      "pitchDeg": -3,
+      "ease": "inOut"
+    },
+    {
+      "t": 3.5,
+      "position": [
+        -78700,
+        180,
+        -33400
+      ],
+      "yawDeg": 79,
+      "pitchDeg": -6,
+      "ease": "inOut"
+    },
+    {
+      "t": 7,
+      "position": [
+        -78400,
+        350,
+        -36000
+      ],
+      "yawDeg": 79,
+      "pitchDeg": -20,
+      "ease": "inOut"
+    },
+    {
+      "t": 12,
+      "position": [
+        -89346,
+        2450,
+        -52242
+      ],
+      "yawDeg": 309.4,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Ormoc search is a bust. Staying west of the ridge, then north up the valley."
+      }
+    },
+    {
+      "t": 4,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Dust on the valley road. That is a column."
+      }
+    },
+    {
+      "t": 9,
+      "order": {
+        "kind": "message",
+        "text": "Strike lead: Your airplane. Take the column from the south end."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

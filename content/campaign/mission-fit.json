@@ -91,17 +91,17 @@
    "start": {
     "kind": "airborne",
     "site": "ormoc",
-    "x": 1741,
-    "z": 3574,
+    "x": -23743,
+    "z": 24050,
     "basis": "invented",
-    "note": "F3 A3: the P-38s begin west of the ridge after an unsuccessful Ormoc shipping search; placed over Ormoc Bay at 11.00 N 124.57 E, about 4 km west-southwest of the port. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F10A (2026-10-17): the scenario's own start, 19.3 km (12.0 mi) northwest of the column's contact point, \"west of the ridge\" (F3: column inside 12 mi; first action 2-3 min). F3 gives no geometry for this point; invented, and labeled so."
    },
    "firstAction": {
     "site": "ormoc",
-    "x": -9357,
-    "z": -7501,
+    "x": -14843,
+    "z": 8634,
     "basis": "invented",
-    "note": "F3 A3: the column of the Ormoc-Valencia road; placed at 11.06 N 124.70 E, in the Ormoc valley north-east of the port and east of the start. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F10A (2026-10-17): the edge of the scenario's contact zone (objective \"contact\", 1,500 m around -77800,-38500, on the low plain road north of Ormoc), on the line from the start. The old point (-65478,-28976) is a 644 m ridge crest, where no column can drive. F3 gives no geometry for this point; invented, and labeled so."
    },
    "withinM": 19312,
    "cruiseMps": 140,
@@ -112,7 +112,8 @@
     ],
     "budgetS": 420
    },
-   "f3": "airborne start west of the ridge; column inside 12 mi; first action 2-3 min; recovery to Tacloban in 6-7 min (the F8A handoff predicted this would be tight: Ormoc to Tacloban is 52 km)"
+   "f3": "airborne start west of the ridge; column inside 12 mi; first action 2-3 min; recovery to Tacloban in 6-7 min (the F8A handoff predicted this would be tight: Ormoc to Tacloban is 52 km)",
+   "scenario": "a3-the-long-column"
   },
   {
    "id": "A4",

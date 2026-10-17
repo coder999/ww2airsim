@@ -85,6 +85,10 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   'Taffy 3 to Avengers: Japanese heavy ships northwest of us, closing. Torpedoes on the cruiser or the battleship.': null,
   'Taffy 3: Good hit. Return to Casablanca.': null,
   'Taffy 3: Casablanca is lost.': null,
+  'Strike lead: Ormoc search is a bust. A road column north of the valley, tanks and trucks. Go find it.': null,
+  'Strike lead: Column in sight, nose to tail. Light flak by the road.': null,
+  'Strike lead: tanks are burning.': null,
+  'Strike lead: that is ten. Home to Tacloban.': null,
   // F10A end
   // Runtime messages (src/sim/mission/step.ts, passes.ts, respot.ts; render/discharge.ts).
   'Trap 1 of 3': 'radio_paddles_trap_1_of_3',

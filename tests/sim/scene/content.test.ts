@@ -7,6 +7,8 @@ import { worldFromScenario } from '../../../src/sim/scenario.js'
 import { skipScene } from '../../../src/sim/scene/preroll.js'
 import { parseScene } from '../../../src/sim/scene/schema.js'
 import { loadScenarioBundle } from '../../../tools/content/load.js'
+import { windowsForChapter } from '../../../src/campaign/worldStates.js'
+import type { ChapterId } from '../../../src/campaign/index.js'
 
 const directory = new URL('../../../content/scenes/', import.meta.url)
 const files = readdirSync(directory).filter((file) => file.endsWith('.json')).sort()
@@ -41,7 +43,8 @@ describe('campaign scene content', () => {
       expect(cue.t).toBeLessThan(scene.durationS)
     }
 
-    const bundle = loadScenarioBundle(scene.world.scenario)
+    // F10A (2026-10-17): the chapter's own windows (A3 lands at Tacloban, which only the campaign's buildup window leaves serviceable).
+    const bundle = loadScenarioBundle(scene.world.scenario, windowsForChapter(scene.chapter as ChapterId))
     // Content/engine smoke coverage, deliberately independent of optional terrain files.
     // This cannot certify terrain clearance, the F3 mission-fit start, or visual approval.
     const build = () => worldFromScenario(bundle, null)
