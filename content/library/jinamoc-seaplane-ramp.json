@@ -1,0 +1,19 @@
+{
+  "id": "jinamoc-seaplane-ramp",
+  "name": "Jinamoc seaplane ramp",
+  "kind": "building",
+  "side": "allied",
+  "model": {
+    "kind": "building",
+    "id": "jinamoc-seaplane-ramp"
+  },
+  "blurb": "A 220 foot beaching ramp of pre-cast concrete and steel.",
+  "history": "At the Jinamoc seaplane base, about five miles east of Tacloban, the Navy's first ramp was a submerged pontoon barge; the permanent ramp that replaced it was 220 feet long, of steel and pre-cast concrete. That length is the one cited figure. The 40 foot width, the 1 in 15 slope, the split between concrete slabs and steel decking, the fill, piles, curbs and rails are estimates.\n\nThe origin is the underside of the toe, not the waterline; where the water meets the ramp is for the placer to set.",
+  "sources": [
+    {
+      "title": "Building the Navy's Bases in World War II, ch. XXIX: Advance Bases in the Philippines",
+      "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm",
+      "read": "2026-10-16"
+    }
+  ]
+}

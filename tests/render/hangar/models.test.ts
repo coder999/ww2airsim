@@ -185,7 +185,7 @@ describe("an entry's own model (R1)", () => {
 
   it('every Library building draws its own model through the display loader, and one with a spec keeps its figures (R4)', async () => {
     const buildings = buildCatalog(nodeHangarContent()).filter((e) => e.library.kind === 'building')
-    expect(buildings).toHaveLength(10)
+    expect(buildings).toHaveLength(14)
     for (const entry of buildings) {
       const seen: unknown[] = []
       await loadHangarModel(entry, undefined, undefined, undefined, async (ref) => { seen.push(ref); return instance().inst })

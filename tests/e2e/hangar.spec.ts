@@ -385,7 +385,7 @@ test.describe('the Hangar', () => {
       expect((await page.evaluate(() => (window as HangarWindow).__hangar!.counts()))?.budget, id).not.toBeNull()
     }
     // R1-R5: every Library building and vehicle is drawn from its own model, with its manifest budget.
-    for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'pier-and-warehouses', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ...['m4-sherman', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'].map((v) => [v, 'vehicles'] as const)]) {
+    for (const [id, folder] of [...['aaa', 'ammunition-bunker', 'barracks-and-huts', 'coastal-gun-battery', 'fuel-tank-farm', 'hangar', 'jinamoc-seaplane-ramp', 'ormoc-customs-building', 'pier-and-warehouses', 'pontoon-pier-segment', 'quonset-hut-20x48', 'radio-radar-station', 'revetment', 'tower'].map((b) => [b, 'buildings'] as const), ...['m4-sherman', 'type95-kurogane', 'type97-chi-ha', 'willys-mb-jeep'].map((v) => [v, 'vehicles'] as const)]) {
       await select(page, id)
       const r = await page.evaluate(() => (window as HangarWindow).__hangar!.counts())
       expect(r?.budget, id).not.toBeNull()

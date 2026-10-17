@@ -1,0 +1,24 @@
+{
+  "id": "pontoon-pier-segment",
+  "name": "Pontoon pier segment",
+  "kind": "building",
+  "side": "allied",
+  "model": {
+    "kind": "building",
+    "id": "pontoon-pier-segment"
+  },
+  "blurb": "A short pier run of bolted steel pontoon cells.",
+  "history": "Navy Seabees built floating piers, causeways and barges from standard steel pontoon cells bolted together, and reassembled cells into barges and pontoon piers after the Leyte landings. The cells are modeled at about 5 by 7 by 5 feet, three across and eight long; that size, the bolting and the fittings are estimates, since the sources describe the work but give no cell dimensions.\n\nAn Army history also records an additional Tacloban dock and lighterage wharves by 1 December 1944. A causeway of sand and an LST ramp are not part of this model.",
+  "sources": [
+    {
+      "title": "Building the Navy's Bases in World War II, ch. XXIX: Advance Bases in the Philippines",
+      "url": "https://www.ibiblio.org/hyperwar/NHC/bases/bases-29.htm",
+      "read": "2026-10-16"
+    },
+    {
+      "title": "Leyte: The Return to the Philippines, ch. XI",
+      "url": "https://ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-11.html",
+      "read": "2026-10-16"
+    }
+  ]
+}

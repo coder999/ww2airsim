@@ -23,6 +23,8 @@ const RAISED: Readonly<Record<string, string>> = {}
 
 /** Every building R4 authored. Each task appends its own. */
 const R4_BUILDINGS: readonly string[] = ['tower', 'aaa', 'coastal-gun-battery', 'fuel-tank-farm', 'ammunition-bunker', 'revetment', 'barracks-and-huts', 'pier-and-warehouses', 'radio-radar-station']
+/** F8A Task 0 (2026-10-16): four new buildings, each with its own script and literal figures. */
+const F8A_BUILDINGS: readonly string[] = ['quonset-hut-20x48', 'pontoon-pier-segment', 'jinamoc-seaplane-ramp', 'ormoc-customs-building']
 
 /** H3's turret names (Hangar spec §9). A building's are numbered +x to -x, then -z to +z (R4 ruling). */
 const TURRETS: Readonly<Record<string, readonly string[]>> = {
@@ -50,7 +52,7 @@ const scriptOf = (id: string): string => {
 const read = async (id: string): Promise<Document> => modelIO().readBinary(new Uint8Array(readFileSync(entryOf(id).output)))
 const tacloban = JSON.parse(readFileSync('content/bases/tacloban.json', 'utf8')) as { buildings: { id: string; widthM: number; lengthM: number }[] }
 
-describe.each(R4_BUILDINGS.map((id) => [id]))('building %s (R4)', (id) => {
+describe.each([...R4_BUILDINGS, ...F8A_BUILDINGS].map((id) => [id]))('building %s (R4, F8A)', (id) => {
   it("its committed output measures its script's footprint (1%), base, and height (2%)", async () => {
     const src = scriptOf(id)
     const bb = getBounds(onlyScene(await read(id)))
@@ -125,7 +127,7 @@ describe('the building roster is complete (R4)', () => {
     for (const e of library) expect(e.model, e.id).toEqual({ kind: 'building', id: e.id })
     expect(Object.keys(STATIC_MODELS.building).sort()).toEqual(library.map((e) => e.id).sort())
   })
-  it('R4 measured all of them but the hangar, which R1 measures', () => {
-    expect([...R4_BUILDINGS].sort()).toEqual(library.map((e) => e.id).filter((id) => id !== 'hangar').sort())
+  it('R4 and F8A measured all of them but the hangar, which R1 measures', () => {
+    expect([...R4_BUILDINGS, ...F8A_BUILDINGS].sort()).toEqual(library.map((e) => e.id).filter((id) => id !== 'hangar').sort())
   })
 })

@@ -1,0 +1,20 @@
+{
+  "id": "ormoc-customs-building",
+  "output": "content/buildings/ormoc-customs-building.glb",
+  "source": {
+    "kind": "blender",
+    "script": "tools/models/blender/ormoc-customs-building.py",
+    "dimensions": "the whole appearance is an ESTIMATE labeled in the script's header: only the building's existence at Ormoc is sourced (JACAR Notice to Mariners, read 2026-10-16); no light is modeled",
+    "license": "AGPL-3.0-or-later"
+  },
+  "skin": true,
+  "textures": {
+    "maxSize": 512,
+    "format": "webp"
+  },
+  "budget": {
+    "maxBytes": 500000,
+    "maxTriangles": 5000,
+    "maxDrawCalls": 4
+  }
+}

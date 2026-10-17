@@ -414,6 +414,11 @@ construction, destruction, damage, and control changes.
 navigation and collision use the visible layout, campaign transitions reproduce
 after save/load, and historical/site-source claims pass final reconciliation.
 
+**F8 status (2026-10-16):** program plan `docs/superpowers/plans/2026-10-16-f8-canonical-world.md` (grilled with Mark; F8A =
+Tacloban, Dulag, Tanauan; data-driven site files; F3 amendment section 13). **F8A Task 0 done and merged:** four new models
+(`quonset-hut-20x48`, `pontoon-pier-segment`, `jinamoc-seaplane-ramp`, `ormoc-customs-building`), approved by Mark in the
+Hangar 2026-10-16; handoff `docs/handoff/2026-10-16-f8a-new-models.md`. Remaining F8A tasks 1-12 not started.
+
 #### F9. In-engine campaign scenes (M)
 
 Consumes the F5A contract: `scenesSeen`, and `bankSortie` returning before any scene (`docs/campaign-data.md`).
