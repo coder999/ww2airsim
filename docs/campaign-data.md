@@ -233,6 +233,17 @@ groups that can coexist; a group spawned by another's `when.gone` never overlaps
 **Scoring fix:** a downed transport AIRCRAFT (the Ki-57) credits the bomber row, 750, not the merchant `transport` row, 500
 (`aircraftTargetType`). The Ki-57 also has an unarmed `combat` block now; before it, a hit did nothing.
 
+**The airdrop pipeline (F10D, 2026-10-17; J5, and J6 builds on it).** A transport drops a stick of `CARGO_DROP` = six squad rigs and two supply bundles (`dropStick`, `cargoStick`), each carrying the
+envelope it left in (`ParachutistEntity.release`: air and ground speed, altitude, heading). The player's drop is the `Y` key: `requestDrop` (fully open doors, a transport, not already dropped), recorded as a
+`drop` flight-record action (additive, version 1; see `docs/flight-recorder.md`). An AI transport drops with `ingress: { attack: 'airdrop', dropAt: {x, z, radiusM} }`: the doors open
+`AIRDROP_DOOR_LEAD_M` before the circle and the whole stick leaves the first tick it is inside with the doors fully open (derived in `advance`, so it replays with no action). It is not one of E2's
+attack runs (`attack.ts` never sees it); the route's last legs are its egress. Objectives: `drop { targets, count?, zone, corridor?, minLanded? }` counts a transport whose men released inside the
+`corridor` (speed, altitude, heading) and at least `minLanded` (default 3) came down ALIVE on land inside `zone` (`src/sim/mission/airdrop.ts`); `bundles { targets, zone, min }` counts landed bundles.
+Limits: the AI's safety floor (300 m above the ground plus a buffer) puts an AI drop about 400 m up, a stick released under 75 m above the ground is lost (`lowAltitude`), rigs persist for the sortie
+and the pooled view draws at most 24 men and 8 bundles. **A valid release** (J4): `release { store, targets, withinM, window }` judges each new release once, where and when it left (range to any
+named ship, the mission clock window, a torpedo's own drop envelope `torpedoDropOk`), and only releases after the objective woke up count; the window closing unmet fails it.
+**Scheduled lights are on the mission clock** (`docs/night.md`).
+
 **Proof:** `tests/campaign/chapterMatrix.test.ts` runs the nine generic paths (success, normal failure, abandon, KIA, POW, bailout,
 discharge, restart, retry) for every chapter, against a fixture descriptor now and the real one once authored. A fit row in
 `mission-fit.json` may name a `scenario`; it must then start where that scenario starts (`linkProblem`).
