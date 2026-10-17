@@ -6,6 +6,9 @@ import { describe, expect, it } from 'vitest'
 import { loadScenarioBundle } from '../../../../tools/content/load.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
 import { playerAircraft, withAircraftState, type World } from '../../../../src/sim/loop.js'
+import { skipScene } from '../../../../src/sim/scene/preroll.js'
+import { parseScene } from '../../../../src/sim/scene/schema.js'
+import { readFileSync } from 'node:fs'
 import { applyDifficulty, DIFFICULTIES, type Difficulty } from '../../../../src/sim/difficulty.js'
 import { radioMessages, ticksFor } from '../../../../src/sim/mission/state.js'
 import { missionOutcome, recoveryOf } from '../../../../src/sim/mission/outcome.js'
@@ -30,9 +33,10 @@ describe('A4 content', () => {
     expect(scenario.sites).toEqual(['jinamoc'])
   })
 
-  it('one three-person raft group and one separated survivor; the 63-ft launch is the site\'s own, moored at the pier', () => {
+  it('one three-person raft group and one separated survivor; the scripted 63-ft launch belongs to the scenario (the site adds a second, stationary one at the ramp)', () => {
     const rafts = w.vehicles.filter((v) => v.survivors !== undefined)
     expect(rafts.map((v) => [v.id, v.survivors])).toEqual([['raft-1', 3], ['survivor-1', 1]])
+    expect(w.vehicles.find((v) => v.id === 'launch-1')?.spec.id).toBe('usaaf-63ft-rescue-boat')
     expect(w.vehicles.find((v) => v.id === 'jinamoc-veh-launch')?.spec.id).toBe('usaaf-63ft-rescue-boat')
   })
 
@@ -109,7 +113,7 @@ describe('A4 placement (invented figures, each against its F3 limit)', () => {
   it('it also loads with no site windows at all (a Dev or picker launch before the campaign names one): the anchorage is just water then', () => {
     const bare = worldFromScenario(loadScenarioBundle(A4), null)
     expect(playerAircraft(bare).state.position.x).toBeCloseTo(start.x, 3)
-    expect(bare.vehicles.map((v) => v.id)).toEqual(['raft-1', 'survivor-1'])
+    expect(bare.vehicles.map((v) => v.id)).toEqual(['raft-1', 'survivor-1', 'launch-1'])
   })
 })
 
@@ -259,5 +263,40 @@ describe.skipIf(terrain === null)('A4, flown headless', () => {
     // he has landed, as the graph wants; now he flies over the raft at speed instead of staying: no dwell builds in ten seconds of it
     const pass = hold(w, levelAt({ x: RAFT.x, z: RAFT.z }, 10, 60, 315), 600)
     expect(progressOf(pass, 'pickup')).toMatchObject({ status: 'active', heldTicks: 0 })
+  })
+})
+
+describe('A4 opening (a4-opening, 18 s)', () => {
+  const scene = parseScene(JSON.parse(readFileSync('content/scenes/a4-opening.json', 'utf8')) as unknown)
+  it('plays on A4\'s own scenario: lamps and the moored Catalina, the survivor report, the launch casts off, the player is handed a held, afloat Catalina', () => {
+    expect(scene).toMatchObject({ id: 'a4-opening', chapter: 'A4', kind: 'opening', durationS: 18, handoff: { player: 'held' } })
+    expect(scene.world.scenario).toBe(A4)
+    expect(scene.cues.filter((c) => c.order.kind === 'message').length).toBeGreaterThanOrEqual(2)
+    expect(scene.cues.find((c) => c.order.kind === 'order')).toMatchObject({ t: 7, order: { entity: 'launch-1' } })
+    // A vehicle placed at speed 0 is never restarted by a scene's `course` order (stepVehicle's at-rest shortcut: found 2026-10-17), so launch-1 is placed
+    // creeping at 0.01 m/s, and the cue's first waypoint is the one it is already past.
+    expect(loadScenarioBundle(A4).scenario.vehicles.find((v) => v.id === 'launch-1')).toMatchObject({ speedMps: 0.01 })
+    // headless, in the buildup window (the generic scene test runs it in pre-invasion, with no lamps): the launch has left its mooring, the Catalina has not
+    const before = worldFromScenario(loadScenarioBundle(A4, BUILDUP), null)
+    const after = skipScene(before, scene)
+    const launch = (w: World<undefined>) => w.vehicles.find((v) => v.id === 'launch-1')!.state.position
+    expect(Math.hypot(launch(after).x - launch(before).x, launch(after).z - launch(before).z)).toBeGreaterThan(40)
+    expect(after.mission!.clockOriginTick).toBe(after.tick) // the mission clock starts at the handoff, so the radio tasking is heard after the scene
+    // the lamps the camera looks at are there in this window: at least four
+    expect(loadScenarioBundle(A4, BUILDUP).scenario.lights!.filter((l) => l.id.startsWith('jinamoc-lamp')).length).toBeGreaterThanOrEqual(4)
+  })
+  it.skipIf(terrain === null)('with the real sea under it the held Catalina rides at its mooring through the 18 s (a world with no terrain has no water: it would fall)', () => {
+    const before = worldFromScenario(loadScenarioBundle(A4, BUILDUP), terrain)
+    const after = skipScene(before, scene)
+    const at = (w: World<undefined>) => playerAircraft(w).state.position
+    expect(Math.hypot(at(after).x - at(before).x, at(after).z - at(before).z)).toBeLessThan(15)
+    expect(playerAircraft(after).impact).toBeNull()
+  })
+  it('every camera key is over the water or the anchorage (within 400 m of the mooring) and above the waterline', () => {
+    const mooring = { x: -27500, z: -46040 }
+    for (const k of scene.camera) {
+      expect(Math.hypot(k.position[0] - mooring.x, k.position[2] - mooring.z), `t=${k.t}`).toBeLessThan(400)
+      expect(k.position[1], `t=${k.t}`).toBeGreaterThan(2)
+    }
   })
 })

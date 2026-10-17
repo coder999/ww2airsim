@@ -66,6 +66,26 @@
       "tags": [
         "rescue"
       ]
+    },
+    {
+      "id": "launch-1",
+      "spec": "usaaf-63ft-rescue-boat",
+      "waypoints": [
+        [
+          -27560,
+          -46050
+        ],
+        [
+          -27560,
+          -46049
+        ]
+      ],
+      "speedMps": 0.01,
+      "headingDeg": 135,
+      "side": "allied",
+      "tags": [
+        "launch"
+      ]
     }
   ],
   "weather": {
@@ -196,7 +216,7 @@
       },
       "then": [
         {
-          "message": "Dumbo control: Catalina, a fighter pilot is down in the gulf, seven miles southeast of the anchorage. Raft group of three, and one man separated. Search area marked. Launch when ready."
+          "message": "Dumbo control: The search area is marked on your chart, seven miles southeast. The survivors will fire a flare when they hear you."
         }
       ]
     },

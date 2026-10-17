@@ -1,0 +1,119 @@
+{
+  "id": "a4-opening",
+  "chapter": "A4",
+  "kind": "opening",
+  "durationS": 18,
+  "world": {
+    "source": "mission",
+    "scenario": "a4-dumbo-in-the-gulf"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -27380,
+        45,
+        -45930
+      ],
+      "yawDeg": 119.6,
+      "pitchDeg": -7.9,
+      "ease": "inOut"
+    },
+    {
+      "t": 5,
+      "position": [
+        -27440,
+        14,
+        -45985
+      ],
+      "yawDeg": 137.5,
+      "pitchDeg": -7.4,
+      "ease": "inOut"
+    },
+    {
+      "t": 9,
+      "position": [
+        -27610,
+        12,
+        -46010
+      ],
+      "yawDeg": 38.7,
+      "pitchDeg": -8.9,
+      "ease": "inOut"
+    },
+    {
+      "t": 14,
+      "position": [
+        -27590,
+        10,
+        -45930
+      ],
+      "yawDeg": -18.4,
+      "pitchDeg": -4.8,
+      "ease": "inOut"
+    },
+    {
+      "t": 18,
+      "position": [
+        -27528,
+        9,
+        -46068
+      ],
+      "yawDeg": -50.4,
+      "pitchDeg": -4.6,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Anchorage control: Fighter pilot down in the gulf, southeast of the anchorage. A raft of three and one man adrift."
+      }
+    },
+    {
+      "t": 7,
+      "order": {
+        "kind": "order",
+        "entity": "launch-1",
+        "order": {
+          "course": {
+            "waypoints": [
+              {
+                "x": -27560,
+                "z": -46050
+              },
+              {
+                "x": -27560,
+                "z": -45950
+              },
+              {
+                "x": -27400,
+                "z": -45800
+              }
+            ],
+            "speedMps": 5
+          }
+        }
+      }
+    },
+    {
+      "t": 7,
+      "order": {
+        "kind": "message",
+        "text": "Launch crew: Casting off. We will follow you out as far as the channel."
+      }
+    },
+    {
+      "t": 13,
+      "order": {
+        "kind": "message",
+        "text": "Anchorage control: Dumbo, you are cleared to launch. Take her up when ready."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}
