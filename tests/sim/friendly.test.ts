@@ -130,6 +130,8 @@ describe('every shipped scenario declares which sites are friendly (F5C content 
       const suggests = (w.mission?.objectives ?? []).some((x) => x.kind === 'land' && x.suggestedRecovery === true)
       const egress = w.mission?.egress !== undefined
       expect(suggests || egress, `${m.scenario} neither suggests a recovery nor ends at an egress gate`).toBe(true)
+      // Decision 13: a chapter's script freezes at the landing that completes it (an egress chapter ends at its gate instead).
+      expect(egress || w.mission?.freezeOnSuccess === true, `${m.scenario} does not set freezeOnSuccess`).toBe(true)
     }
   })
 })

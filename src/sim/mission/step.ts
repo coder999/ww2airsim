@@ -16,6 +16,7 @@ import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
 import type { Gone, PlaneState, Station, TriggerWhen } from './schema.js'
 import { ticksFor, type FieldOverride, type MissionLogEntry, type MissionState, type ObjectiveState, type ObjectiveStatus, type ResolvedObjective } from './state.js'
 import { waterSurfaceContext } from '../waterSurface.js'
+import { finalStatus } from './outcome.js'
 import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
 import { effectiveFields, fieldMeets, fieldState } from './fields.js'
 import type { StructureEntity } from '../weapons/structures.js'
@@ -361,6 +362,19 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   )
   // 2. Objectives.
   let progress: ObjectiveState[] | null = null
+  // F10-0 (Decision 13): once the mission has latched, only landings are tracked. A later stop still needs its log entry so the debrief and the
+  // stop card read the right landing; nothing else changes, so Continue Sortie is a free sortie.
+  if (m.latched === true) {
+    if (recovery === m.recovery && landing === null) return { mission: m, spawns: [], respot: null }
+    return {
+      mission: {
+        ...m, recovery,
+        log: landing === null ? m.log : [...m.log, { tick: t.tick, kind: 'landing', at: landing.at, base, advanced: null, intermediate: false }],
+      },
+      spawns: [],
+      respot: null,
+    }
+  }
   const c: Context<M> = {
     m, t, player, alive, recovery, landing, base, passEvent,
     status: (id) => (progress ?? m.progress)[m.objectives.findIndex((x) => x.id === id)]!.status,
@@ -468,7 +482,10 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     }
   }
 
-  if (recovery === m.recovery && progress === null && fired === null && added.length === 0
+  // The landing that completes the mission (every primary done, at a friendly base) freezes it, when the scenario asked.
+  const latch = m.freezeOnSuccess === true && m.egress === undefined && landing !== null && base !== null
+    && m.objectives.every((o, i) => o.priority !== 'primary' || finalStatus(o, (progress ?? m.progress)[i]!) === 'complete')
+  if (recovery === m.recovery && progress === null && fired === null && added.length === 0 && !latch
       && pendingRespotTick === m.pendingRespotTick && pass === m.pass && fields === m.fields) return { mission: m, spawns, respot: null }
   return {
     mission: {
@@ -480,6 +497,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       pendingRespotTick,
       pass,
       ...(fields === m.fields ? {} : { fields }),
+      ...(latch ? { latched: true as const } : {}),
     },
     spawns,
     respot,

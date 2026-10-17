@@ -124,6 +124,10 @@ export type MissionState<M> = {
   readonly fieldRules: readonly ResolvedFieldRule[]
   /** F10-0: the `reach` objective whose completion is the egress; absent for a mission that ends on a landing. */
   readonly egress?: string
+  /** F10-0 (Decision 13): the scenario asked for the script to freeze at the landing that completes the mission. */
+  readonly freezeOnSuccess?: true
+  /** Set at that landing. From then on `stepMission` only tracks and logs landings: no objective, trigger, spawn, respot or pass changes. */
+  readonly latched?: true
 }
 
 export type ResolvedFieldRule = { readonly airfield: string; readonly ids: readonly EntityId[]; readonly minFraction: number }

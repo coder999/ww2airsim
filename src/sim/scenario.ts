@@ -317,6 +317,9 @@ const ScenarioShape = z.object({
   fieldRules: z.array(FieldRuleObject).min(1).optional(),
   /** F10-0 (Mark, 2026-10-17): the mission ends at a gate, not on a runway. `objective` names the `reach` objective whose completion is the egress; a
    *  badge then needs every primary complete and that crossing, and a landing at a friendly base is NOT a success (J2, J4, J5). */
+  /** F10-0 (Mark, 2026-10-17, Decision 13): after the landing that completes the mission, the script freezes (no new waves, objective changes or
+   *  triggers); a Continue Sortie is then a free sortie. A landing that does not qualify leaves the script running. Chapters set it; a pooled mission without it keeps today's behavior. */
+  freezeOnSuccess: z.boolean().optional(),
   recovery: z.object({ kind: z.literal('egress'), objective: z.string().min(1) }).strict().optional(),
   /** F10-0: simultaneous maxima the scenario promises (F3 section 2: the finales are 24 airborne, 10 ships, 16 in the close set). Checked at load against
    *  the start entities plus the worst case of the held groups: a group admitted by another's `when.gone` never overlaps it. `close` counts aircraft
@@ -554,6 +557,7 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
   if (s.objectives === undefined) {
     if (s.triggers !== undefined) issue('triggers need objectives: a scenario without objectives is not a mission', ['triggers'])
     if (s.heldGroups !== undefined) issue('heldGroups need objectives: a scenario without objectives is not a mission', ['heldGroups'])
+    if (s.freezeOnSuccess !== undefined) issue('freezeOnSuccess needs objectives: a scenario without objectives is not a mission', ['freezeOnSuccess'])
     if (s.population !== undefined) issue('population needs objectives: a scenario without objectives is not a mission', ['population'])
     if (s.recovery !== undefined) issue('recovery needs objectives: a scenario without objectives is not a mission', ['recovery'])
     if (s.fieldRules !== undefined) issue('fieldRules need objectives: a scenario without objectives is not a mission', ['fieldRules'])
@@ -1127,6 +1131,7 @@ export function worldFromScenario(bundle: ScenarioBundle, terrain: TerrainField 
       triggers: s.triggers ?? [],
       fieldRules: s.fieldRules ?? [],
       egress: s.recovery?.objective ?? null,
+      freezeOnSuccess: s.freezeOnSuccess === true,
       badge: s.badge ?? null,
       held,
       respot,
