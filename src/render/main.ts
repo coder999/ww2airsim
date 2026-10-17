@@ -118,7 +118,7 @@ import { replayKeyAction } from '../replay/keys.js'
 import { rebuildReplayFx, stepReplayFx } from '../replay/fxReplay.js'
 import { stepFlow, type ReplayFlow, type ReplayFlowEffect, type ReplayFlowEvent } from '../replay/flow.js'
 import { REPLAYING_CLASS, createReplayBar, replayBarModel } from './replayBar.js'
-import { beginPlayback, handoffWorld, loadScene, openingSceneId, playbackDone, sceneUnseen, sceneView, skipPlayback, stepPlayback, type ScenePlayback } from './sceneFlow.js'
+import { beginPlayback, handoffWorld, loadScene, openingSceneId, playbackDone, sceneUnseen, sceneView, skipPlayback, stepPlayback, victorySceneId, type ScenePlayback } from './sceneFlow.js'
 import type { Scene as SceneFile } from '../sim/scene/schema.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
@@ -2342,9 +2342,14 @@ async function boot(): Promise<void> {
     // the title's own `onNewGame` the instant a switch is requested, not
     // just once at boot -- so a return-to-title after an in-session switch
     // preselects what is really loaded, not whatever this boot started with.
-    title.show(requestedScenarioId)
-    // F5B: a flight that came from Headquarters returns there (the title stays up beneath it, holding the world).
-    if (hqSession?.current() != null) hqHandle?.show()
+    const toTitle = (): void => {
+      title.show(requestedScenarioId)
+      // F5B: a flight that came from Headquarters returns there (the title stays up beneath it, holding the world).
+      if (hqSession?.current() != null) hqHandle?.show()
+    }
+    // F9: the campaign-won epilogue plays after the final debrief (already banked) and before Headquarters shows the win.
+    if (hqSession?.current() != null && pendingVictoryId() !== null) void playVictoryThen(toTitle)
+    else toTitle()
   }
   /** Whether the landing debrief is up for the landing `frame.landing.report`
    *  holds -- raised once, like `shownImpactTick`, and cleared by Continue or
@@ -2741,7 +2746,7 @@ async function boot(): Promise<void> {
   })
   // F9 (plan 2026-10-17): in-engine campaign scenes. The scene plays on its own copy of the world (`sceneFlow.ts`), drawn through
   // the replay's hide-the-HUD class; the live `frame` stays paused until handoff.
-  let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; onDone: () => void } | null = null
+  let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   const sceneSubtitle = document.createElement('div')
   sceneSubtitle.setAttribute('data-replay-ui', '')
   sceneSubtitle.style.cssText = 'position:fixed;left:0;right:0;bottom:8%;text-align:center;color:#fff;font:600 20px/1.3 system-ui,sans-serif;text-shadow:0 1px 3px #000,0 0 8px #000;padding:0 10%;pointer-events:none;display:none'
@@ -2759,9 +2764,9 @@ async function boot(): Promise<void> {
     const id = openingSceneId(chapter)
     return sceneUnseen(c, id) ? id : null
   }
-  const playScene = (scene: SceneFile, opts: { markSeen: boolean; onDone: () => void }): void => {
+  const playScene = (scene: SceneFile, opts: { markSeen: boolean; holdAfter?: boolean; onDone: () => void }): void => {
     frame = withPaused(frame!, true)
-    scenePlay = { sp: beginPlayback(frame.world, scene), sceneId: scene.id, markSeen: opts.markSeen, onDone: opts.onDone }
+    scenePlay = { sp: beginPlayback(frame.world, scene), sceneId: scene.id, markSeen: opts.markSeen, holdAfter: opts.holdAfter === true, onDone: opts.onDone }
     clearMapInput()
     fxSystem?.clear()
     waterWake.clear()
@@ -2780,9 +2785,31 @@ async function boot(): Promise<void> {
     waterWake.clear()
     replayHistoryCut = true
     if (play.markSeen) hqSession?.markSceneSeen(play.sceneId)
-    frame = withPaused(initialFrameStateFor(handoffWorld(done), frame!.assists, frame!.impactMarker), false)
-    startDevFlightRecorder(frame.world)
+    // An epilogue is not flown: the world stays held under Headquarters, as the title holds it.
+    frame = withPaused(initialFrameStateFor(handoffWorld(done), frame!.assists, frame!.impactMarker), play.holdAfter)
+    if (!play.holdAfter) startDevFlightRecorder(frame.world)
     play.onDone()
+  }
+  /** The campaign's victory scene, once, when the final chapter has been won (banking has already happened by then). */
+  const pendingVictoryId = (): string | null => {
+    const c = hqSession?.current() ?? null
+    if (c === null || !c.progress.victory) return null
+    const id = victorySceneId(c.faction === 'us' ? 'A6' : 'J6')
+    return sceneUnseen(c, id) ? id : null
+  }
+  /** The scenario's own fresh world, held: what the title shows beneath Headquarters. */
+  const freshHeldFrame = (): void => {
+    const rebuilt = initialFrameStateFor(buildWorld(frame!.world.terrain), frame!.assists, frame!.impactMarker)
+    frame = withPaused(rebuilt.groundSpawn && rebuilt.world.terrain !== null ? settleOnTerrain(rebuilt, rebuilt.world.terrain) : rebuilt, true)
+    resetFlightUi()
+  }
+  /** Plays the owed victory scene (if any), then `done`. A missing or mismatched scene calls `done` at once. */
+  const playVictoryThen = async (done: () => void): Promise<void> => {
+    const id = pendingVictoryId()
+    const scene = id === null ? null : await loadScene(id)
+    if (scene === null || scene.world.scenario !== requestedScenarioId) { done(); return }
+    freshHeldFrame()
+    playScene(scene, { markSeen: true, holdAfter: true, onDone: done })
   }
   const startOpening = async (id: string): Promise<void> => {
     const scene = await loadScene(id)
@@ -4131,6 +4158,16 @@ async function boot(): Promise<void> {
   if (deviceLost) return
   loop = createRafLoop(frameFn)
   loop.start()
+  // F9 (DEV): `?scenario=<id>&launch&scene=<sceneId>` plays that scene on the loaded scenario, without writing `scenesSeen`.
+  // Waits for a ground start's terrain, as the frame itself does, so the scene starts from the settled world.
+  const devSceneId = import.meta.env.DEV ? new URLSearchParams(location.search).get('scene') : null
+  if (devSceneId !== null && quick !== null) {
+    void loadScene(devSceneId).then(async (scene) => {
+      if (scene === null) { console.warn(`scene ${devSceneId}: not found or invalid`); return }
+      while (frame === null || (frame.groundSpawn && frame.world.terrain === null)) await new Promise((r) => setTimeout(r, 200))
+      playScene(scene, { markSeen: false, onDone: () => undefined })
+    })
+  }
 
   // Deliberately NOT awaited: the pyramid is 702 KB over FIVE requests --
   // L8 down to L4, the only levels any ring can sample (`coarsestFetchedLevel`
