@@ -5,7 +5,7 @@
  */
 import { loadScenarioBundle } from '../../../../tools/content/load.js'
 import { worldFromScenario } from '../../../../src/sim/scenario.js'
-import { windowsForChapter } from '../../../../src/campaign/worldStates.js'
+import { applyChapterSuccess, launchWindows, windowsForChapter } from '../../../../src/campaign/worldStates.js'
 import type { TerrainField } from '../../../../src/sim/world/terrain.js'
 import type { World } from '../../../../src/sim/loop.js'
 import type { ChapterId } from '../../../../src/campaign/schema.js'
@@ -33,3 +33,7 @@ export const hullAt = (w: World<undefined>, id: string, hp: number): World<undef
   if (rec === undefined) throw new Error(`hullAt: no combat record for "${id}"`)
   return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [id]: { ...rec, hp } } } }
 }
+
+/** The stored `Campaign.world` after A1 and A2 have both succeeded (the real campaign path that makes A3's Tacloban landing legal), as the windows A3 launches in. */
+export const windowsAfterA1A2 = (): Readonly<Record<string, string>> =>
+  launchWindows(applyChapterSuccess(applyChapterSuccess({}, 'A1'), 'A2'), 'A3')
