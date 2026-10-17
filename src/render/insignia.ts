@@ -31,6 +31,9 @@ export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'battle-for-the-airfields': [[SCARLET, 3], [GOLD, 2], [NAVY, 5], [SKY, 4], [WHITE, 5], [OLIVE, 6]],
   'operation-te-go': [[SCARLET, 4], [WHITE, 4], [SCARLET, 3], [NAVY, 3], [GOLD, 5], [BROWN, 6]],
   'water-qualified': [[SKY, 7], [WHITE, 2], [NAVY, 6], [GOLD, 2], [SCARLET, 10]],
+  'j1-defend-the-fields': [[SCARLET, 4], [GOLD, 2], [GREEN, 6], [WHITE, 2], [GREEN, 6], [NAVY, 4]],
+  'j2-break-the-landing': [[NAVY, 2], [SKY, 8], [WHITE, 2], [SCARLET, 8], [GOLD, 4]],
+  'j3-road-to-burauen': [[BROWN, 6], [GOLD, 2], [OLIVE, 10], [WHITE, 2], [SCARLET, 4]],
 }
 /** A badge with no design of its own (dev fixtures, a retired mission). */
 const PLAIN_RIBBON: readonly Stripe[] = [[NAVY, 20], [GOLD, 4]]

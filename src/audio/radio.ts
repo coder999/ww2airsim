@@ -121,6 +121,22 @@ export const RADIO_LINES: Readonly<Record<string, string | null>> = {
   // The dev scenarios (dev-mission-ui.json) have no recorded lines.
   'Tower: cleared for takeoff.': null,
   'Tower: a friendly is passing overhead.': null,
+  // F10C (2026-10-17): the Japanese chapters J1-J3, text only through F10 (Decision 7).
+  "Buri tower: Scramble! Defend the fuel, radio, hangars, and dispersal. Get airborne now.": null,
+  "Buri tower: Two Army fighters are joining from the west, five thousand feet.": null,
+  "Buri tower: Hellcats, bearing zero-nine-zero, five and a half miles from the field, six thousand feet.": null,
+  "Buri tower: Damaged Ki-21 inbound from the west, five miles, three thousand feet. Cover it to the threshold.": null,
+  "Buri tower: Second strike, bearing zero-nine-zero, five and a half miles. Hellcats and Avengers, five to six thousand feet.": null,
+  "Buri tower: The field holds. Recover at Buri; divert to Bayug only if Buri is unserviceable.": null,
+  "Buri tower: Too many groups lost. The defense has failed. Bring your aircraft home.": null,
+  "Observer: Strike the shipping. No fighter escort. Attack by eye.": null,
+  "Observer: Through the fighters. Pick a transport or an escort.": null,
+  "Observer: Good hit. Head west for the gate.": null,
+  "Observer: Clear of the shipping. Strike complete.": null,
+  "Buri control: Cover the road column. Bring at least eight vehicles, including two tanks, into the dispersal area, then land at Bayug. Save the command car and all four tanks if you can.": null,
+  "Road observer: Two P-38s, bearing zero-four-five from the head of the column, about three miles, eight thousand two hundred feet. They are heading toward Buri.": null,
+  "Road observer: Second pair of P-38s, bearing zero-four-five from the head of the column, about three miles, eight thousand two hundred feet. Cover the dispersal area.": null,
+  "Buri control: The column is in the dispersal area. Recover at Bayug.": null,
 }
 
 /** The LSO's lines for each cue, rotated so a repeated call does not sound canned. */

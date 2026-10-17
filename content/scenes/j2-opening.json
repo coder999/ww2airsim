@@ -1,0 +1,111 @@
+{
+  "id": "j2-opening",
+  "chapter": "J2",
+  "kind": "opening",
+  "durationS": 12,
+  "world": {
+    "source": "mission",
+    "scenario": "j2-break-the-landing"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -16400,
+        1900,
+        -16900
+      ],
+      "yawDeg": 319.82,
+      "pitchDeg": -16.15,
+      "ease": "inOut"
+    },
+    {
+      "t": 2,
+      "position": [
+        -18400,
+        2100,
+        -23000
+      ],
+      "yawDeg": 330.8,
+      "pitchDeg": -2.87,
+      "ease": "inOut"
+    },
+    {
+      "t": 4,
+      "position": [
+        -20500,
+        2200,
+        -26500
+      ],
+      "yawDeg": 339.62,
+      "pitchDeg": -12.09,
+      "ease": "inOut"
+    },
+    {
+      "t": 7,
+      "position": [
+        -23900,
+        900,
+        -37200
+      ],
+      "yawDeg": 315.86,
+      "pitchDeg": -10.76,
+      "ease": "inOut"
+    },
+    {
+      "t": 9.5,
+      "position": [
+        -26000,
+        350,
+        -40500
+      ],
+      "yawDeg": 315.0,
+      "pitchDeg": -12.68,
+      "ease": "inOut"
+    },
+    {
+      "t": 12,
+      "position": [
+        -26700,
+        140,
+        -41800
+      ],
+      "yawDeg": 304.47,
+      "pitchDeg": -11.07,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Observer: Leyte Gulf ahead. Keep together."
+      }
+    },
+    {
+      "t": 4,
+      "order": {
+        "kind": "message",
+        "text": "Observer: Fighters ahead. No escort coming."
+      }
+    },
+    {
+      "t": 7,
+      "order": {
+        "kind": "message",
+        "text": "Observer: Transports and landing craft off the beaches."
+      }
+    },
+    {
+      "t": 11,
+      "order": {
+        "kind": "message",
+        "text": "Observer: Make your attack, then head west."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

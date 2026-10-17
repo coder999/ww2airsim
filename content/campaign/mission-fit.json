@@ -231,6 +231,7 @@
   },
   {
    "id": "J1",
+   "scenario": "j1-defend-the-fields",
    "status": "filled",
    "aircraft": "a6m2-zero",
    "side": "axis",
@@ -263,6 +264,7 @@
   },
   {
    "id": "J2",
+   "scenario": "j2-break-the-landing",
    "status": "filled",
    "aircraft": "b5n2-kate",
    "side": "axis",
@@ -282,10 +284,26 @@
     "note": "F3 J2: the invasion shipping off the beaches; placed 5 km offshore of the beach center. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
    },
    "cruiseMps": 75,
+   "landingS": 0,
+   "recovery": {
+    "sites": [],
+    "points": [
+     {
+      "label": "West egress gate",
+      "site": "landing-beaches",
+      "x": -13891,
+      "z": 7200,
+      "basis": "invented",
+      "note": "F3 J2: the badge path ends at the western or southern egress gate, not a field. The gate is placed 20 km west of the shipping (world -46500, -41000, a 3,000 m ring over the coastal hills), so the flight home from the first action fits F3's 3-5 min at the Kate's 75 m/s; this row carries no landing allowance because nothing lands. Invented; labeled so."
+     }
+    ],
+    "budgetS": 300
+   },
    "f3": "airborne start southeast of the gulf; CAP 2-3 min; ships 5-6 min; egress by the western/southern gate (no field recovery; the gates are F10's)"
   },
   {
    "id": "J3",
+   "scenario": "j3-road-to-burauen",
    "status": "filled",
    "aircraft": "ki-43-oscar",
    "side": "axis",

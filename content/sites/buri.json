@@ -29,9 +29,7 @@
         "lengthM": 10,
         "hp": 40,
         "heightM": 16.1,
-        "tags": [
-          "buri-tower"
-        ],
+        "tags": ["buri-control"],
         "basis": "invented",
         "cite": "Layout invented for gameplay: F3 section 10 and the Army history give no building survey for this field, only that it existed, where it lay, and its strip."
       },

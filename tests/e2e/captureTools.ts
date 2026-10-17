@@ -17,6 +17,7 @@ export const CAPTURE_TEST_FILES = [
   'blenderDuplicatesCapture.spec.ts',
   'bomberRangeCapture.spec.ts',
   'capture.spec.ts',
+  'chaptersJ1J3Capture.spec.ts',
   'cockpitFamiliesCapture.spec.ts',
   'drapeSpike.spec.ts',
   'f4rGroundCaptures.spec.ts',

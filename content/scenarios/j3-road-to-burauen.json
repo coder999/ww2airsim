@@ -1,0 +1,641 @@
+{
+  "id": "j3-road-to-burauen",
+  "player": "oscar-1",
+  "sites": [
+    "buri",
+    "bayug"
+  ],
+  "airfields": [
+    "buri",
+    "bayug"
+  ],
+  "aircraft": [
+    {
+      "id": "oscar-1",
+      "spec": "ki-43-oscar",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -47918.65,
+          1500,
+          -20789.46
+        ],
+        "headingDeg": 80,
+        "speedMps": 108
+      }
+    },
+    {
+      "id": "oscar-2",
+      "spec": "ki-43-oscar",
+      "side": "axis",
+      "airborneAt": {
+        "position": [
+          -47951.1,
+          1500,
+          -20743.12
+        ],
+        "headingDeg": 80,
+        "speedMps": 108
+      },
+      "pilot": {
+        "leader": "oscar-1",
+        "slot": 1,
+        "skill": "green"
+      }
+    }
+  ],
+  "ships": [],
+  "vehicles": [
+    {
+      "id": "tank-1",
+      "spec": "type97-chi-ha",
+      "side": "axis",
+      "tags": [
+        "tank",
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45467.4,
+          -21284.64
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "command",
+      "spec": "type95-kurogane",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45496.95,
+          -21279.43
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-1",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45526.49,
+          -21274.22
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-2",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45556.03,
+          -21269.01
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "tank-2",
+      "spec": "type97-chi-ha",
+      "side": "axis",
+      "tags": [
+        "tank",
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45585.58,
+          -21263.8
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-3",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45615.12,
+          -21258.59
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-4",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45644.67,
+          -21253.38
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "tank-3",
+      "spec": "type97-chi-ha",
+      "side": "axis",
+      "tags": [
+        "tank",
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45674.21,
+          -21248.18
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-5",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45703.75,
+          -21242.97
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-6",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45733.3,
+          -21237.76
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "tank-4",
+      "spec": "type97-chi-ha",
+      "side": "axis",
+      "tags": [
+        "tank",
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45762.84,
+          -21232.55
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-7",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45792.39,
+          -21227.34
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    },
+    {
+      "id": "truck-8",
+      "spec": "type94-cargo-truck",
+      "side": "axis",
+      "tags": [
+        "column"
+      ],
+      "waypoints": [
+        [
+          -45821.93,
+          -21222.13
+        ],
+        [
+          -41385.37,
+          -22004.41
+        ]
+      ],
+      "speedMps": 8,
+      "loop": false
+    }
+  ],
+  "weather": {
+    "timeOfDay": 9.75,
+    "windFromDeg": 0,
+    "windMps": 3,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 700,
+        "coverage": 0.4
+      }
+    ]
+  },
+  "freezeOnSuccess": true,
+  "population": {
+    "airborne": 6,
+    "ships": 0
+  },
+  "objectives": [
+    {
+      "id": "arrive-column",
+      "label": "Bring eight vehicles into Buri dispersal",
+      "priority": "primary",
+      "kind": "arrive",
+      "targets": [
+        "column"
+      ],
+      "count": 8,
+      "zone": {
+        "point": {
+          "x": -41385.37,
+          "z": -22004.41
+        },
+        "radiusM": 600
+      }
+    },
+    {
+      "id": "arrive-tanks",
+      "label": "Bring two tanks into Buri dispersal",
+      "priority": "primary",
+      "kind": "arrive",
+      "targets": [
+        "tank"
+      ],
+      "count": 2,
+      "zone": {
+        "point": {
+          "x": -41385.37,
+          "z": -22004.41
+        },
+        "radiusM": 600
+      }
+    },
+    {
+      "id": "delivered",
+      "label": "Deliver the column and armor",
+      "priority": "primary",
+      "kind": "atLeast",
+      "n": 2,
+      "of": [
+        "arrive-column",
+        "arrive-tanks"
+      ]
+    },
+    {
+      "id": "home",
+      "label": "Land at Bayug",
+      "priority": "primary",
+      "kind": "land",
+      "at": "bayug",
+      "after": "delivered"
+    },
+    {
+      "id": "survivors",
+      "label": "The command car and all four tanks survive",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "command",
+        "tank"
+      ],
+      "maxLost": 0
+    }
+  ],
+  "triggers": [
+    {
+      "id": "orders",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Buri control: Cover the road column. Bring at least eight vehicles, including two tanks, into the dispersal area, then land at Bayug. Save the command car and all four tanks if you can."
+        }
+      ]
+    },
+    {
+      "id": "wave-1-release",
+      "when": {
+        "at": 130
+      },
+      "then": [
+        {
+          "spawn": "wave-1"
+        },
+        {
+          "message": "Road observer: Two P-38s, bearing zero-four-five from the head of the column, about three miles, eight thousand two hundred feet. They are heading toward Buri."
+        }
+      ]
+    },
+    {
+      "id": "wave-2-release",
+      "when": {
+        "at": 230
+      },
+      "then": [
+        {
+          "spawn": "wave-2"
+        },
+        {
+          "message": "Road observer: Second pair of P-38s, bearing zero-four-five from the head of the column, about three miles, eight thousand two hundred feet. Cover the dispersal area."
+        }
+      ]
+    },
+    {
+      "id": "column-in",
+      "when": {
+        "completed": "delivered"
+      },
+      "then": [
+        {
+          "message": "Buri control: The column is in the dispersal area. Recover at Bayug."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "wave-1",
+      "aircraft": [
+        {
+          "id": "p38-1",
+          "spec": "p-38-lightning",
+          "side": "allied",
+          "tags": [
+            "p38"
+          ],
+          "airborneAt": {
+            "position": [
+              -41243.2,
+              2500,
+              -24665.24
+            ],
+            "headingDeg": 225,
+            "speedMps": 135
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -44167.45,
+                  "z": -21513.86,
+                  "altitudeM": 2500,
+                  "speedMps": 135
+                },
+                {
+                  "x": -43005.38,
+                  "z": -21718.76,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-dispersal"
+              },
+              "attack": "dive-bomb"
+            }
+          }
+        },
+        {
+          "id": "p38-2",
+          "spec": "p-38-lightning",
+          "side": "allied",
+          "tags": [
+            "p38"
+          ],
+          "airborneAt": {
+            "position": [
+              -41163.2,
+              2500,
+              -24585.24
+            ],
+            "headingDeg": 225,
+            "speedMps": 135
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -44167.45,
+                  "z": -21513.86,
+                  "altitudeM": 2500,
+                  "speedMps": 135
+                },
+                {
+                  "x": -43005.38,
+                  "z": -21718.76,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-dispersal"
+              },
+              "attack": "dive-bomb"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "wave-2",
+      "aircraft": [
+        {
+          "id": "p38-3",
+          "spec": "p-38-lightning",
+          "side": "allied",
+          "tags": [
+            "p38"
+          ],
+          "airborneAt": {
+            "position": [
+              -40455.35,
+              2500,
+              -24804.15
+            ],
+            "headingDeg": 225,
+            "speedMps": 135
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -43379.61,
+                  "z": -21652.78,
+                  "altitudeM": 2500,
+                  "speedMps": 135
+                },
+                {
+                  "x": -42414.5,
+                  "z": -21822.95,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-dispersal"
+              },
+              "attack": "dive-bomb"
+            }
+          }
+        },
+        {
+          "id": "p38-4",
+          "spec": "p-38-lightning",
+          "side": "allied",
+          "tags": [
+            "p38"
+          ],
+          "airborneAt": {
+            "position": [
+              -40375.35,
+              2500,
+              -24724.15
+            ],
+            "headingDeg": 225,
+            "speedMps": 135
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -43379.61,
+                  "z": -21652.78,
+                  "altitudeM": 2500,
+                  "speedMps": 135
+                },
+                {
+                  "x": -42414.5,
+                  "z": -21822.95,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-dispersal"
+              },
+              "attack": "dive-bomb"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "j3-road-to-burauen",
+    "name": "Road to Burauen"
+  },
+  "briefing": {
+    "situation": "0945. Kaigun Shoi, you and your wingman are airborne in Ki-43-IIb fighters, about five thousand feet over the western approach to Buri. Below, four Type 97 tanks, eight Type 94 trucks, and a Type 95 command car are heading for the dispersal area. The command car is second in line, with the tanks spaced among the trucks. Keep the American fighters away from Buri while at least eight vehicles, including two tanks, enter the dispersal area. Then land at Bayug; Buri is the column's destination, but Bayug is your recovery field. Bringing the command car and all four tanks through earns the secondary objective. Fly clean and use your guns.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "This historical composite is inspired by the 3 November 1944 P-38 attacks on the Ormoc-Valencia road column. The source ledger records fifteen P-38s finding a roughly ten-mile column of trucks, artillery, and tanks after a shipping search. The exact gameplay vehicle types and counts are representative. This chapter flips the viewpoint to the escorting Japanese fighters, and its Ormoc road is a gameplay stand-in for the road to Burauen. The Ki-43 escort, four attacking P-38s, thirteen-vehicle roster, timings, weather, route, and recovery arrangement are authored gameplay choices. The Burauen fields use their pre-invasion Japanese state for this chapter. It is not a reconstruction of a recorded escort mission.",
+    "sources": [
+      "U.S. Army, Leyte: The Return to the Philippines, chapter VI: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-6.html",
+      "Army Air Forces, The Pacific: Guadalcanal to Saipan, chapter XII: https://www.ibiblio.org/hyperwar/AAF/V/AAF-V-12.html"
+    ]
+  }
+}

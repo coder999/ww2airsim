@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { runwayParkSpots } from '../../src/sim/ai/parkSpots.js'
 import { localToWorld } from '../../src/sim/world/airfields.js'
 import { heightAt } from '../../src/sim/world/terrain.js'
-import { loadAircraftSpec, loadAirfield, loadScenario } from '../../tools/content/load.js'
+import { loadAircraftSpec, loadScenario, loadScenarioBundle } from '../../tools/content/load.js'
 import { terrainOrSkip } from '../sim/mission/fly.js'
 
 const terrain = terrainOrSkip()
@@ -33,7 +33,8 @@ describe.skipIf(terrain === null)('a homed AI\'s park spots are on flat land (7g
 
   it.each(scenarioIds)('%s', (id) => {
     for (const [airfieldId, spans] of homedSpans(id)) {
-      const airfield = loadAirfield(airfieldId)
+      // F10C: a field may come from a site file (Buri, Bayug), which the bundle expands; `content/bases` has only the older ones.
+      const airfield = loadScenarioBundle(id).airfields[airfieldId]!
       const aim = localToWorld(airfield, 0, airfield.runway.lengthM / 4)
       const aimHeight = heightAt(terrain!, aim.x, aim.z)
       const spots = runwayParkSpots(airfield, Math.max(...spans)).slice(0, spans.length)
