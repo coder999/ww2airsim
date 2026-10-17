@@ -95,9 +95,10 @@ describe('A6 content: the chapter and its graph', () => {
 
 /**
  * The flown half. The player is held 120 km away (`FAR`) wherever a test needs the AI to play alone, as scramble.test.ts does.
- * Measured 2026-10-17 (passive player, 700 s): the three G4Ms die to the fleet's AAA at about 380 s (so three of the ten are stopped by the ships, not
- * the player: five are needed); the Ki-21s release at Buri about 400 s and put no bomb within a field structure's blast radius; the sweep and the
- * A6M2 flight are shot down by the five P-38s and Tacloban's AAA. See the handoff.
+ * Measured 2026-10-17 (passive player, 700 s): the three G4Ms die to the fleet's AAA at about 380 s (three of the ten are stopped by the ships, not
+ * the player: five are needed); the three Ki-21s release at Buri and the Ki-57s drop at San Pablo about 420 s, so the raid objective FAILS with nobody
+ * flying (the player must stop two of the seven land-bound attackers before then); the Ki-21 bombs put none within a field structure's blast radius; the
+ * sweep and the A6M2 flight are shot down by the five P-38s and Tacloban's AAA. See the handoff.
  */
 const terrain = terrainOrSkip()
 const FAR = levelAt({ x: 60000, z: 60000 }, 3000, 120, 90)
@@ -120,7 +121,7 @@ const afterRelief = (): World<undefined> => memo ??= (() => {
 const statuses = (w: World<undefined>) => Object.fromEntries(w.mission!.objectives.map((o, i) => [o.id, w.mission!.progress[i]!.status]))
 
 describe.skipIf(terrain === null)('A6, headless: the AI alone cannot win it', () => {
-  it('a passive player: the finale never exceeds 24 aircraft in the air, 10 ships or 10 moving vehicles, and no primary but the field order completes', () => {
+  it('a passive player: the finale never exceeds 24 aircraft in the air, 10 ships or 10 moving vehicles, and the raid goes through and nothing else is won', () => {
     let w = fresh()
     let peakAir = 0
     let peakMoving = 0
@@ -131,10 +132,12 @@ describe.skipIf(terrain === null)('A6, headless: the AI alone cannot win it', ()
     }
     expect(peakAir + 1).toBeLessThanOrEqual(24)
     expect(w.ships).toHaveLength(10)
+    expect((w.parachutists ?? []).filter((p) => p.kind === 'trooper').length).toBeGreaterThanOrEqual(6) // at least one Ki-57 dropped its stick over San Pablo (the lodgment's men)
+    expect((w.parachutists ?? []).length).toBeLessThanOrEqual(32) // 4 sticks of 6 men and 2 bundles at most: the pooled-view bound
     expect(peakMoving).toBeLessThanOrEqual(10)
     const s = statuses(w)
     expect(progressOf(w, 'stop').count).toBeLessThan(5) // the fleet kills the Bettys; that is 3 of the 5 and no more
-    expect(s).toMatchObject({ stop: 'active', fields: 'complete', lodgment: 'active', home: 'inactive' })
+    expect(s).toMatchObject({ stop: 'failed', fields: 'complete', lodgment: 'active', home: 'inactive' }) // the raid goes through: the Sallys release and the Topsys drop, about 420 s
   }, 600000)
 
   it('the first contact is inside the F3 limit: a sweep fighter is within 12 km of the player\'s start two minutes in', () => {

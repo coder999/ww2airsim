@@ -3,6 +3,7 @@ import type { World } from '../../../src/sim/loop.js'
 import { objectiveLineLabel } from '../../../src/render/mission/hud.js'
 import { destroyAircraft, missionWorld, moveAircraft, progressOf, steps } from './fixture.js'
 import { v3 } from '../../../src/sim/math/vec3.js'
+import type { ParachutistEntity } from '../../../src/sim/bailout.js'
 
 /**
  * F10E `preventRelease` (plan 2026-10-17-f10e-finales-a6-j6, E.1): an attacker counts when it was destroyed BEFORE its combat record shows a
@@ -14,6 +15,11 @@ const o = (extra: Record<string, unknown> = {}) => ({ id: 'stop', label: 'Stop t
 const world = (objectives: unknown[] = [o()]) => missionWorld({ aircraft: [PLAYER, ...raiders], objectives })
 const dropped = (w: World<undefined>, id: string, n = 1): World<undefined> =>
   ({ ...w, combat: { ...w.combat, aircraft: { ...w.combat.aircraft, [id]: { ...w.combat.aircraft[id]!, bombsDropped: n } } } })
+
+const rig = (id: string, source: string): ParachutistEntity => {
+  const state = { tick: 1, position: { x: 0, y: 100, z: 0 }, velocity: { x: 0, y: 0, z: 0 }, phase: 'canopy' as const, phaseStartedTick: 1, lowAltitude: false, contact: null, outcome: null }
+  return { id, sourceAircraft: source, side: 'axis', recoverySeed: 0, recoveryEnvironment: { daylight: 1, visibility: 1, weather: 0, seaState: 0 }, recovery: null, state, previous: state, kind: 'trooper' }
+}
 
 describe('preventRelease', () => {
   it('counts an attacker destroyed before it released, and completes at the count', () => {
@@ -51,6 +57,14 @@ describe('preventRelease', () => {
     expect(progressOf(steps(destroyAircraft(torp(anyRaid()), 'r2'), 2), 'stop').count).toBe(0)
     const rocket = { ...anyRaid(), combat: { ...anyRaid().combat } }
     expect(progressOf(steps(destroyAircraft(rocket, 'r3'), 2), 'stop').count).toBe(1)
+  })
+  it('a transport that has dropped its men has released (F10D): killed after the drop it is not a stop, and a bomber-only store ignores a drop', () => {
+    const dropped = (w: World<undefined>): World<undefined> => ({ ...w, parachutists: [rig('d0', 'r1')] })
+    const anyStore = () => world([o({ store: undefined })])
+    expect(progressOf(steps(destroyAircraft(dropped(anyStore()), 'r1'), 2), 'stop').count).toBe(0)
+    expect(progressOf(steps(destroyAircraft(anyStore(), 'r1'), 2), 'stop').count).toBe(1)
+    const bombOnly = world([o({ store: 'bomb' })])
+    expect(progressOf(steps(destroyAircraft({ ...bombOnly, parachutists: [rig('d0', 'r1')] }, 'r1'), 2), 'stop').count).toBe(1)
   })
   it('rejects a count above its set, a non-aircraft target and an unknown store', () => {
     expect(() => world([o({ count: 4 })])).toThrow(/asks for 4 of 3/)

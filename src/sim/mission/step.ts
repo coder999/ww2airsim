@@ -73,11 +73,12 @@ export function isDestroyed<M>(t: Pick<MissionTick<M>, 'combat' | 'aircraft'>, i
   return structure !== undefined && structure.destroyedTick !== null
 }
 
-/** Whether aircraft `id` has released `store`, read from its own combat record (the same read the player's `release` objective makes). */
-function hasReleased<M>(t: Pick<MissionTick<M>, 'combat'>, id: EntityId, store: 'bomb' | 'rocket' | 'torpedo' | 'any'): boolean {
+/** Whether aircraft `id` has released `store`, read from its own combat record (the same read the player's `release` objective makes).
+ *  `any` also counts a cargo drop (F10D): a transport with men or bundles in the air or on the ground has released its load. */
+function hasReleased<M>(t: Pick<MissionTick<M>, 'combat' | 'parachutists'>, id: EntityId, store: 'bomb' | 'rocket' | 'torpedo' | 'any'): boolean {
   const r = t.combat.aircraft[id]
   if (r === undefined) return false
-  if (store === 'any') return r.bombsDropped > 0 || r.rocketsFired > 0 // bombsDropped includes torpedoes
+  if (store === 'any') return r.bombsDropped > 0 || r.rocketsFired > 0 || (t.parachutists ?? []).some((p) => p.kind !== undefined && p.sourceAircraft === id) // bombsDropped includes torpedoes
   return store === 'rocket' ? r.rocketsFired > 0 : store === 'torpedo' ? r.torpedoesDropped > 0 : r.bombsDropped - r.torpedoesDropped > 0
 }
 

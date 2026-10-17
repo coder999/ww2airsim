@@ -724,9 +724,9 @@
      ],
      "airborneAt": {
       "position": [
-       -72000,
-       3000,
-       -28000
+       -71912,
+       1500,
+       -28380
       ],
       "headingDeg": 103.0,
       "speedMps": 85
@@ -736,14 +736,29 @@
       "ingress": {
        "route": [
         {
-         "x": -39930,
-         "z": -20590,
-         "altitudeM": 3000,
+         "x": -33996,
+         "z": -19620,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39842,
+         "z": -20970,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
          "speedMps": 85
         }
        ],
-       "destination": {
-        "airfield": "san-pablo"
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
        }
       }
      }
@@ -756,17 +771,43 @@
      ],
      "airborneAt": {
       "position": [
-       -72084,
-       3000,
-       -27929
+       -72117,
+       1500,
+       -28160
       ],
       "headingDeg": 103.0,
       "speedMps": 85
      },
      "pilot": {
       "skill": "green",
-      "leader": "ki57-1",
-      "slot": 1
+      "ingress": {
+       "route": [
+        {
+         "x": -34055,
+         "z": -19367,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39901,
+         "z": -20717,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
      }
     },
     {
@@ -777,17 +818,43 @@
      ],
      "airborneAt": {
       "position": [
-       -72089,
-       3000,
-       -28201
+       -72322,
+       1500,
+       -27941
       ],
       "headingDeg": 103.0,
       "speedMps": 85
      },
      "pilot": {
       "skill": "green",
-      "leader": "ki57-1",
-      "slot": 2
+      "ingress": {
+       "route": [
+        {
+         "x": -34113,
+         "z": -19114,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39959,
+         "z": -20463,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
      }
     },
     {
@@ -798,17 +865,43 @@
      ],
      "airborneAt": {
       "position": [
-       -72252,
-       3000,
-       -27787
+       -72526,
+       1500,
+       -27721
       ],
       "headingDeg": 103.0,
       "speedMps": 85
      },
      "pilot": {
       "skill": "green",
-      "leader": "ki57-1",
-      "slot": 3
+      "ingress": {
+       "route": [
+        {
+         "x": -34172,
+         "z": -18860,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -40018,
+         "z": -20210,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
      }
     }
    ]
