@@ -487,3 +487,20 @@ Approval of this lock confirms all of the following at once:
 Any requested change is made here before F4 branches are cut. Later discovery of a genuinely new
 reusable asset reopens F3 and pauses the dependent F4/F8/F10 work; scene dressing and procedural
 treatments already classified in section 9 do not.
+
+## 13. Amendment 2026-10-16 (F8): four additional building and site models
+
+Mark approved these four reusable models while grilling the F8 plan (2026-10-16), reopening section 8 as section 12 requires. They
+are **not** F4 assets and do not reopen the F4 gate; each still gets provenance, limits, a Library entry, budget enrollment and
+attended Hangar approval before any site file may use it. Sources, limits and `ESTIMATE` labels are in
+[`../plans/2026-10-16-f8-canonical-world.md`](../plans/2026-10-16-f8-canonical-world.md#new-models-f3-amendment-approved-by-mark-2026-10-16).
+
+| Group | Asset id / modeled identity | Consumers | Bench |
+| --- | --- | --- | --- |
+| Site | `quonset-hut-20x48` - Navy steel-arch-rib hut | Tacloban, Jinamoc anchorage; Dulag/Tanauan inferred | none (fixed shell) |
+| Maritime | `pontoon-pier-segment` - steel pontoon-cell pier/causeway section | landing beaches, San Pedro Bay anchorage | none |
+| Maritime | `jinamoc-seaplane-ramp` - 220 ft beaching ramp | San Pedro Bay anchorage | none |
+| Site | `ormoc-customs-building` - port customs building, no light | Ormoc | none |
+
+The section 8 exclusion of a lit or modeled Ormoc beacon stands: the customs building is modeled with no light. The 17-asset F4
+inventory and the 22-plan count are unchanged; Task 0 of the F8A plan is the work.
