@@ -95,7 +95,7 @@ const base = {
   /** Active only once this EARLIER objective completes (ruling R8). */
   after: id.optional(),
   /** F10-0: a window. While it is open the objective evaluates as usual; when this condition is met and the objective is still active it
-   *  closes: a `protect`, `deny` or `atLeast` that has not failed completes, anything else fails. A window that never closes is today's behavior. */
+   *  closes: a `protect`, `deny` or `keep` field that has not failed completes, anything else (an `atLeast` included) fails. (F10E corrected this comment and the code to agree.) A window that never closes is today's behavior. */
   until: TriggerWhenObject.optional(),
 }
 

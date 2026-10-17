@@ -113,6 +113,13 @@ describe('windows (until)', () => {
     expect(progressOf(steps(world([o]), 120), 'o').status).toBe('failed')
     expect(progressOf(steps(destroyShip(destroyShip(world([o]), 'maru-1'), 'maru-2'), 121), 'o').status).toBe('complete')
   })
+  it('a standing field order completes when its window closes, and fails at once when a loss breaks it (F10E: the F10-0 window code omitted it)', () => {
+    const keep = obj({ kind: 'field', airfields: ['tacloban', 'dulag'], min: 2, keep: true, until: { at: 2 } })
+    expect(progressOf(steps(world([keep]), 119), 'o').status).toBe('active')
+    expect(progressOf(steps(world([keep]), 121), 'o').status).toBe('complete')
+    const ruin = { triggers: [{ id: 'ruin', when: { at: 0 }, then: [{ setServiceable: { airfield: 'dulag', value: false } }] }] }
+    expect(progressOf(steps(world([keep], ruin), 3), 'o').status).toBe('failed')
+  })
   it('a window can close on an entity event (the raid withdraws)', () => {
     const o = obj({ kind: 'protect', targets: ['cv-1'], until: { gone: { targets: ['raid'] } } })
     expect(progressOf(steps(world([o]), 5), 'o').status).toBe('active')

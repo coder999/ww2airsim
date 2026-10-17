@@ -406,9 +406,9 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     }
     if (p.status === 'active') {
       let next = evaluate(o, p, c)
-      // F10-0 window: still active when `until` is met closes it. A standing order that never failed completes; anything else fails.
+      // F10-0 window: still active when `until` is met closes it. A standing order (`protect`, `deny`, a `keep` field) that never failed completes; anything else fails.
       if (next.status === 'active' && o.until !== undefined && conditionMet(o.until, m, progress ?? m.progress, c)) {
-        next = { ...next, status: o.kind === 'protect' || o.kind === 'deny' ? 'complete' : 'failed' }
+        next = { ...next, status: o.kind === 'protect' || o.kind === 'deny' || (o.kind === 'field' && o.keep === true) ? 'complete' : 'failed' }
       }
       if (o.kind === 'land' && next.count > p.count) {
         advanced ??= { id: o.id, label: o.label, n: next.count, count: o.count ?? 1, done: next.status === 'complete' }
