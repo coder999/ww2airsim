@@ -1,4 +1,5 @@
 import { longForestEnabled } from './forestDistance.js'
+import { forestCanopyMode, type ForestCanopyMode } from './forestCanopy.js'
 import { TREE_CELL_M, TREES_PER_CELL, residentCellOffsets } from './treeCells.js'
 import { createDistantTrees, distantTreesEnabled, type DistantTreeStats } from './distantTrees.js'
 import { Color, CylinderGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Object3D } from 'three'
@@ -7,6 +8,7 @@ import { float, hash, instanceIndex, length, positionWorld, smoothstep, uniform 
 import { treeFadeMode, treePixelThreshold, type TreeFadeMode } from './treeFade.js'
 import { SCENERY_TIERS, TREE_FADE_END_M, type SceneryTierName } from './tiers.js'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { EMERGENT_HEIGHT_SCALE, EMERGENT_RADIUS_SCALE, standRole, type StandRole } from './standModel.js'
 import { heightAt, type TerrainField } from '../../sim/world/terrain.js'
 import { inAirfieldClearing } from './airfield.js'
 import type { Airfield } from '../../sim/world/airfields.js'
@@ -29,7 +31,9 @@ export function coverLookup(data: Uint8Array, header: CoverHeader = COVER_HEADER
 export { TREE_CELL_M, TREE_CELL_RADIUS, TREES_PER_CELL, residentCellOffsets } from './treeCells.js'
 export const TREE_FADE_BAND_M = 450
 export { TREE_FADE_END_M }
-export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number }
+export type TreeSite = { x: number; y: number; z: number; height: number; radius: number; shade: number
+  /** Only when `treeSites` is asked for it (`stand`): where the tree sits in its stand, see standModel.ts. */
+  role?: StandRole }
 
 const CAPACITY = residentCellOffsets().length * TREES_PER_CELL
 
@@ -88,13 +92,14 @@ function packCell(sites: readonly TreeSite[]): PackedCell {
  *  `huts` (Plan 13d Task 3) defaults to empty so every existing caller --
  *  this file's own tests included -- is unaffected; only `createVegetation`
  *  (via `main.ts`, which also builds the town huts) passes a real list. */
-export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup, huts: readonly HutFootprint[] = [], candidates = TREES_PER_CELL): TreeSite[] {
+export function treeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover?: CoverLookup, huts: readonly HutFootprint[] = [], candidates = TREES_PER_CELL, stand = false): TreeSite[] {
   let seed = (Math.imul(cellX, 73856093) ^ Math.imul(cellZ, 19349663) ^ 1944) >>> 0
   const random = (): number => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0
     return seed / 4294967296
   }
   const sites: TreeSite[] = []
+  const forestAt = stand ? forestProbe(field, airfields, cover, huts) : () => true
   for (let i = 0; i < candidates; i++) {
     const x = (cellX + random()) * TREE_CELL_M, z = (cellZ + random()) * TREE_CELL_M
     const height = 12 + random() * 15, radius = 6 + random() * 5, shade = random()
@@ -107,12 +112,31 @@ export function treeSites(field: TerrainField, cellX: number, cellZ: number, air
     const slope = Math.hypot(heightAt(field, x + 10, z) - heightAt(field, x - 10, z),
       heightAt(field, x, z + 10) - heightAt(field, x, z - 10)) / 20
     if (slope > 0.65) continue
-    sites.push({ x, y, z, height, radius, shade })
+    sites.push(stand ? { x, y, z, height, radius, shade, role: standRole(x, z, forestAt, cellX, cellZ, i) } : { x, y, z, height, radius, shade })
   }
   return sites
 }
 
-export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode(), distant = distantTreesEnabled(), longForest = longForestEnabled()): {
+/** The part of `treeSites`'s exclusions a stand boundary is made of (cover, shore, clearing, huts, river); no slope. */
+function forestProbe(field: TerrainField, airfields: readonly Airfield[], cover: CoverLookup | undefined, huts: readonly HutFootprint[]): (x: number, z: number) => boolean {
+  return (x, z) => {
+    const f = cover?.fractionsAt(x, z)
+    if (f && f.tree + f.mangrove < STAND_COVER_MIN) return false
+    const y = heightAt(field, x, z)
+    return y >= (f && f.mangrove > 0.25 ? 0.5 : 3) && y <= 1250 && !inAirfieldClearing(airfields, x, z) && !nearTownHut(huts, x, z) && !nearRiver(x, z)
+  }
+}
+/** A point counts as stand when at least this fraction of it is tree or mangrove (a candidate survives with that probability). */
+const STAND_COVER_MIN = 0.5
+
+/** What the distant layers draw under the relief canopy (D2, D3): edge-band trees and emergents only, the emergents taller.
+ *  The interior is the terrain's job. The near trees never call this. */
+export function standEdgeSites(field: TerrainField, cellX: number, cellZ: number, airfields: readonly Airfield[], cover: CoverLookup | undefined, huts: readonly HutFootprint[], candidates = TREES_PER_CELL): TreeSite[] {
+  return treeSites(field, cellX, cellZ, airfields, cover, huts, candidates, true).filter(t => t.role !== 'interior')
+    .map(t => t.role === 'emergent' ? { ...t, height: t.height * EMERGENT_HEIGHT_SCALE, radius: t.radius * EMERGENT_RADIUS_SCALE } : t)
+}
+
+export function createVegetation(field: TerrainField, airfields: readonly Airfield[], huts: readonly HutFootprint[] = [], fadeMode: TreeFadeMode = treeFadeMode(), distant = distantTreesEnabled(), longForest = longForestEnabled(), canopyMode: ForestCanopyMode = forestCanopyMode()): {
   object: Group
   update(x: number, z: number, eyeY?: number): void
   /** Apply a quality tier (scene/tiers.ts): the forest is rebuilt at once
@@ -122,7 +146,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
    *  discarded and the forest is rebuilt at once for the eye's last position. */
   setCover(cover: CoverLookup): void
   /** Resident and submitted tree counts; generated tracks cell-cache work. */
-  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number; distant: DistantTreeStats; coarse: DistantTreeStats }
+  stats(): { generated: number; instances: number; visible: boolean; drawnInstances: number; fadeMode: TreeFadeMode; fadeStartM: number; fadeEndM: number; distant: DistantTreeStats; coarse: DistantTreeStats; canopyMode: ForestCanopyMode }
 } {
   const object = new Group()
   object.name = 'nearby jungle'
@@ -201,14 +225,18 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
     for (const mesh of meshes) mesh.visible = visible
   }
   let cover: CoverLookup | undefined
-  const far = distant ? createDistantTrees((cx, cz) => treeSites(field, cx, cz, airfields, cover, huts)) : null
+  // Relief canopy (D1, D2, D3): the interior is the terrain's job, so the distant layers keep only edge-band trees and emergents.
+  const relief = canopyMode === 'relief'
+  const farSites = (cx: number, cz: number, candidates = TREES_PER_CELL): TreeSite[] => relief
+    ? standEdgeSites(field, cx, cz, airfields, cover, huts, candidates) : treeSites(field, cx, cz, airfields, cover, huts, candidates)
+  const far = distant ? createDistantTrees((cx, cz) => farSites(cx, cz)) : null
   if (far) object.add(far.object)
   // A coarse cell contains 16 original cells. Taking only the first 14
   // candidates preserves canonical locations and all placement exclusions.
   const coarse = longForest ? createDistantTrees((cx, cz) => {
     const sites: TreeSite[] = []
     for (let dz = 0; dz < 4; dz++) for (let dx = 0; dx < 4; dx++) {
-      sites.push(...treeSites(field, cx * 4 + dx, cz * 4 + dz, airfields, cover, huts, 14))
+      sites.push(...farSites(cx * 4 + dx, cz * 4 + dz, 14))
     }
     return sites
   }, true) : null
@@ -220,7 +248,7 @@ export function createVegetation(field: TerrainField, airfields: readonly Airfie
   let cache = new Map<string, PackedCell>()
   return {
     object,
-    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value, distant: far?.stats(object.visible) ?? disabled, coarse: coarse?.stats(object.visible) ?? disabled }),
+    stats: () => ({ generated, instances: crowns.count, visible: object.visible, drawnInstances: object.visible && crowns.visible ? crowns.count : 0, fadeMode, fadeStartM: fadeStart.value, fadeEndM: fadeEnd.value, distant: far?.stats(object.visible) ?? disabled, coarse: coarse?.stats(object.visible) ?? disabled, canopyMode }),
     setTier(name): void {
       far?.setTier(name)
       coarse?.setTier(name)
