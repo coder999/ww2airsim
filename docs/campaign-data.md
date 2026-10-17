@@ -80,20 +80,33 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
 - **`resolveInterrupted`** is `bankSortie` with an abandon report: banked legs stay, the pilot is not killed (D11).
 - **Where the shell calls them.** `session.bankLeg` at each friendly stop, `session.bank` (the close) at the end; see "The shell".
 
-## World keys (F8A, 2026-10-16; F8B, 2026-10-17)
+## World keys (F8A, 2026-10-16; F8B, 2026-10-17; F8C, 2026-10-17)
 
 `Campaign.world` stays an opaque `Record<string, string>` to F5A; F8 owns the keys and values. **Key = a site id**
 (`content/sites/<id>.json`), **value = a window id** from the one list in `content/campaign/site-windows.json`:
 `pre-invasion`, `assault`, `buildup`, `endgame`, `j6-alternate` (the F3 section 5 columns). An absent key reads as
 `pre-invasion` (`windowOf`, `src/sim/world/sites.ts`). Keys F8A writes: `tacloban`, `dulag`, `tanauan`; F8B writes `buri`, `bayug`,
-`san-pablo`; F8C (Ormoc, beaches, San Pedro Bay) adds its own, and a key a table does not own is passed through untouched.
+`san-pablo`; F8C writes `ormoc`, `landing-beaches` and `jinamoc` (the San Pedro Bay anchorage), nine sites in all; a key a table does not
+own is passed through untouched.
 
 - **The table is `src/campaign/worldStates.ts`** (pure, in `src/campaign/`): `windowsForChapter(chapter)` is the window each F8A
   site is drawn in while that chapter is played (F3 sections 3 and 5, by date and hour; A1 launches before H-hour, so its
   fields are still Japanese), and `applyChapterSuccess(world, chapter)` is the `world` after the chapter succeeds, from F3
-  section 4's "State transition" lines: A1 puts Tacloban and Dulag in `assault` (and no Burauen field); A6 puts all six sites in
-  `endgame`; J6 puts all six in `j6-alternate`; every other chapter changes nothing (J5 "captures no field by itself"). `bankSortie` does not call it (F8C wires the save/load round
-  trip). Two readings are recorded, not hidden: A1 plays in `pre-invasion`, and J4 (3 Dec) plays in `buildup`.
+  section 4's "State transition" lines: A1 puts Tacloban and Dulag in `assault` and the landing beaches in `buildup` ("advances from assault to
+  established beachhead"; no Burauen field, no Ormoc, no anchorage); A6 puts all nine sites in `endgame`; J6 puts all nine in `j6-alternate`; every
+  other chapter changes nothing (J5 "captures no field by itself"). Three readings are recorded, not hidden: A1 plays the fields in `pre-invasion`
+  and the beaches in `assault`, and J4 (3 Dec) plays in `buildup`.
+- **A launch reads the stored world; a chapter's success writes it (F8C, Mark's ruling 2026-10-16).** `launchWindows(world, chapter)`
+  (`src/campaign/worldStates.ts`) is the window each site is drawn in when a chapter launches: the stored `world[site]` when the key is present,
+  the chapter's own window only for an absent key (a new campaign), unowned stored keys passed through; `null` (a flight with no chapter: Dev,
+  Single Missions, Training) is `{}`. The shell asks `launchWindowsOf(session.current())` (`src/render/campaignSession.ts`) and hands the result
+  to `loadScenarioBundle` unless DEV `?siteState=` is given. `applyChapterSuccess` is called by `credit()` in `src/campaign/bank.ts`, in the same
+  `if` that appends the chapter to `progress.completed`, so the world moves at the first qualifying bank and at no other moment: not on a failed
+  sortie, a loss, an abandon, a later leg or the close, and not for a chapter banked out of order. That is one added field in the object `credit()`
+  already returned; `bankSortie`/`bankLeg` scoring, ledgers, attempts, roster and the call order are unchanged, and `schemaVersion` stays 2
+  (`world` was already in the schema). Proof: `tests/campaign/worldRoundTrip.test.ts` (launch rule, chapter hook, save/load/export/import, pending
+  sortie resolved at load) and `tests/flightRecorder/storedWorld.test.ts` (a flight launched from a stored window replays bit for bit and cannot be
+  replayed against the chapter's own window). No shipped scenario names `sites` yet (F10 authors them), so the seam is proven with test scenarios.
 - **A scenario draws a site by naming it:** `Scenario.sites: string[]`, expanded at bundle time by
   `expandScenario(scenario, sites, windows)` (`src/sim/world/sites.ts`; node loader `bundleForScenario`, browser loader
   `loadScenarioBundle`'s `siteWindows` argument). The window's side, `serviceable`, buildings with their states, stationary
@@ -108,9 +121,17 @@ A **sortie** is launch to close; a **leg** is take-off to a full stop on a frien
   Two readings are recorded, not hidden: San Pablo is `serviceable` in the `endgame` and not in the `j6-alternate` (F8 plan, F8B
   detail, ruling 3), and the chapter table plays J3 (3 Nov) in `buildup`, where Bayug is American although J3 recovers a Japanese
   pilot there; `content/campaign/mission-fit.json` reports that row as a finding (`expectFail`).
+- **Sites without a strip (F8C):** `ormoc`, `landing-beaches`, `jinamoc`. A site file with `noStrip: true` becomes an `Airfield` record with
+  `noStrip` (`src/sim/world/airfields.ts`): its `runway` is only the site's local frame (center and heading; 2 x 2 m), nothing lands on it, it
+  draws no strip or huts and it is never a recovery field, steering target, `land` objective or AI home, whoever holds it. `serviceable` keeps
+  its meaning as "usable for its job" (a port working, a beach in use, an anchorage open). A recovery at the anchorage is a `Scenario.anchorages`
+  circle F10 declares; the site only supplies the coordinates. Waterfront buildings carry `seatM`, an absolute height above the sea, because the shipped
+  terrain is coarse and the highest-footprint-corner rule would float a pier; `lcvp` and `usaaf-63ft-rescue-boat` carry `floats` (rest on the sea
+  surface). `pby-mooring-buoy` is a placeable kind whose glb is an `equipment` model. Jinamoc has no field in `pre-invasion` (`built: false`).
+  Each file's `reference.source` says how its frame was fitted to the shipped terrain.
 - **The mission-fit table** (`content/campaign/mission-fit.json`, checked by `tests/sim/missionFit.test.ts`, arithmetic in
-  `tools/sites/missionFit.ts`; run `npx tsx tools/sites/fitReport.ts`) fills A6, J1, J3, J5 and J6; A1-A5, J2 and J4 stay `pending`
-  for F8C. A row checks the 420 s ceiling to the first action, F3's range where it gives one, the flight home to the nearest
+  `tools/sites/missionFit.ts`; run `npx tsx tools/sites/fitReport.ts`) is filled for all twelve rows (F8A A6; F8B J1, J3, J5, J6; F8C A1-A5, J2,
+  J4, which add deck and afloat starts, fixed recovery points for the carrier traps and a night lamp check). A row checks the 420 s ceiling to the first action, F3's range where it gives one, the flight home to the nearest
   *legal* named recovery field (held by the player's side and serviceable in the window `windowsForChapter` plays that chapter in)
   against F3's recovery budget, and that every named field is legal. Every start or first-action point F3 does not locate is
   `invented` in its row.

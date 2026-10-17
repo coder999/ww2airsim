@@ -14,8 +14,8 @@ const fields: { label: string; field: Airfield }[] = sites.flatMap((s) =>
 
 describe('procedural clutter', () => {
   it('there is clutter to test: every built window of every site carries some', () => {
-    expect(fields.length).toBe(28) // Tacloban 5, Dulag 5, Tanauan 3 (F8A); Buri 5, Bayug 5, San Pablo 5 (F8B)
-    expect(fields.filter((f) => f.field.clutter !== undefined).length).toBe(28)
+    expect(fields.length).toBe(42) // Tacloban 5, Dulag 5, Tanauan 3 (F8A); Buri 5, Bayug 5, San Pablo 5 (F8B); Ormoc 5, landing beaches 5, Jinamoc 4 (F8C: no field before the invasion)
+    expect(fields.filter((f) => f.field.clutter !== undefined).length).toBe(42)
   })
 
   it.each(fields.map((f) => [f.label, f.field] as const))('%s: deterministic, in its areas, within the ceiling', (_label, field) => {

@@ -77,3 +77,37 @@ test('San Pablo: one grown-over revetment before the invasion, the camp and aban
   expect(out.structures.sort()).toEqual(['san-pablo-camp-1', 'san-pablo-camp-2', 'san-pablo-fuel-farm', 'san-pablo-revetment-1', 'san-pablo-tower'])
   expect(out.validation).toEqual([])
 })
+
+// F8C (2026-10-17): the three sites without a strip reach the running game. Their buildings are glbs (the mooring buoy's comes from the
+// equipment table), nothing fails to load, the floating craft are there, and the sites draw no strip (the airfield is in the scenery list
+// but only its buildings and clutter are drawn). Spawned 300 m off each shore at 120 m, facing east, as the other twins are.
+test('Ormoc, the beaches and Jinamoc: every standing building is a glb, craft are placed, no WebGPU error', async ({ page }) => {
+  test.setTimeout(240_000)
+  const errors: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 400)) })
+  const cases = [
+    { url: '/?siteState=ormoc:buildup&spawnX=-75900&spawnY=120&spawnZ=-22500', id: 'ormoc', models: 11, structures: 11, vehicles: 12, vehiclePrefix: 'ormoc-veh-' },
+    { url: '/?siteState=landing-beaches:buildup&spawnX=-30300&spawnY=120&spawnZ=-42000', id: 'landing-beaches', models: 11, structures: 11, vehicles: 12, vehiclePrefix: 'beach-veh-' },
+    { url: '/?siteState=jinamoc:buildup&spawnX=-27800&spawnY=120&spawnZ=-45900', id: 'jinamoc', models: 16, structures: 16, vehicles: 5, vehiclePrefix: 'jinamoc-veh-' },
+  ]
+  for (const c of cases) {
+    await page.goto(c.url)
+    await waitForTerrain(page)
+    await page.waitForFunction((id) => (window as DiagWindow).__ww2!.siteScenery().some((s) => s.airfield === id && s.modelsAttached > 0), c.id, { timeout: 30_000 })
+    const out = await page.evaluate(() => {
+      const d = (window as DiagWindow).__ww2!
+      return { scenery: d.siteScenery(), structures: d.structures().map((s) => s.id), vehicles: d.vehicles().map((v) => v.id), validation: d.validationErrors }
+    })
+    const site = out.scenery.find((s) => s.airfield === c.id)!
+    expect(site.modelsFailed, c.id).toEqual([])
+    expect(site.modelsAttached, c.id).toBe(c.models)
+    expect(out.structures.filter((s) => s.startsWith(c.id === 'landing-beaches' ? 'beach-' : `${c.id}-`)), c.id).toHaveLength(c.structures)
+    expect(out.vehicles.filter((v) => v.startsWith(c.vehiclePrefix)), c.id).toHaveLength(c.vehicles)
+    expect(out.validation, c.id).toEqual([])
+  }
+  // Jinamoc has no field before the invasion
+  await page.goto('/?siteState=jinamoc:pre-invasion&spawnX=-27800&spawnY=120&spawnZ=-45900')
+  await waitForTerrain(page)
+  expect(await page.evaluate(() => (window as DiagWindow).__ww2!.sceneryAirfields())).not.toContain('jinamoc')
+  expect(errors).toEqual([])
+})
