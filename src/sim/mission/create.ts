@@ -8,7 +8,7 @@ import type { HeldGroup, MissionState, ObjectiveState, ResolvedObjective } from 
 
 /** Anything an objective may name: an aircraft or ship (start or held) or
  *  an airfield structure, with its group tags and side. */
-export type Taggable = { readonly id: EntityId; readonly tags: readonly string[]; readonly side: Side }
+export type Taggable = { readonly id: EntityId; readonly tags: readonly string[]; readonly side: Side; /** F10-0: what the entity is; `released` and `damage` need aircraft and ships. Optional so a fixture without it still builds. */ readonly kind?: 'aircraft' | 'ship' | 'vehicle' | 'structure' }
 
 /**
  * `refs` (entity ids and/or tags) to entity ids, deduplicated in first-seen
@@ -41,6 +41,13 @@ export function createMission<M>(input: {
 }): MissionState<M> {
   const resolve = (where: string, refs: readonly string[]) => resolveRefs(input.scenarioId, where, refs, input.entities)
   const sideOfId = new Map(input.entities.map((e) => [e.id, e.side]))
+  const kindOfId = new Map(input.entities.map((e) => [e.id, e.kind]))
+  function requireKind(where: string, ids: readonly EntityId[], want: 'aircraft' | 'ship'): void {
+    for (const id of ids) {
+      const kind = kindOfId.get(id)
+      if (kind !== undefined && kind !== want) throw new Error(`scenario "${input.scenarioId}": ${where} names "${id}", which is a ${kind}, not a ${want}`)
+    }
+  }
   function requireSide(where: string, ids: readonly EntityId[], want: 'same' | 'opposite'): void {
     for (const id of ids) {
       const side = sideOfId.get(id)!
@@ -72,9 +79,39 @@ export function createMission<M>(input: {
         requireSide(where, resolved, 'opposite')
         return { ...o, resolved }
       }
+      case 'arrive': return { ...o, resolved: resolve(where, o.targets) }
+      case 'released': {
+        const resolved = resolve(where, o.targets)
+        requireKind(where, resolved, 'aircraft')
+        return { ...o, resolved }
+      }
+      case 'damage': {
+        const resolved = resolve(where, o.targets)
+        requireKind(where, resolved, 'ship')
+        requireSide(where, resolved, 'opposite')
+        if (o.count !== undefined && o.count > resolved.length) {
+          throw new Error(`scenario "${input.scenarioId}": ${where} asks for ${o.count} of ${resolved.length} targets`)
+        }
+        return { ...o, resolved }
+      }
       default: return { ...o, resolved: [] }
     }
   })
+  // F10-0: the references a `gone` condition or a relative `hold` names.
+  const refs: Record<string, readonly EntityId[]> = {}
+  const addRefs = (where: string, names: readonly string[]): void => {
+    for (const name of names) if (refs[name] === undefined) refs[name] = resolve(where, [name])
+  }
+  const whenRefs = (where: string, w: Trigger['when']): void => {
+    if (!('gone' in w)) return
+    addRefs(where, w.gone.targets)
+    if (typeof w.gone.awayFrom === 'string') addRefs(where, [w.gone.awayFrom])
+  }
+  for (const o of input.objectives) {
+    if (o.until !== undefined) whenRefs(`objective "${o.id}" until`, o.until)
+    if (o.kind === 'hold' && o.relativeTo !== undefined) addRefs(`objective "${o.id}" relativeTo`, [o.relativeTo])
+  }
+  for (const t of input.triggers) whenRefs(`trigger "${t.id}"`, t.when)
   return {
     scenarioId: input.scenarioId,
     objectives,
@@ -90,5 +127,6 @@ export function createMission<M>(input: {
     respot: input.respot,
     pendingRespotTick: null,
     pass: NO_PASS,
+    refs,
   }
 }

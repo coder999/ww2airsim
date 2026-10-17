@@ -1,5 +1,7 @@
 import { airVelocity, DT } from '../flight/model.js'
-import { length } from '../math/vec3.js'
+import { length, v3 } from '../math/vec3.js'
+import { qRotate, type Quat } from '../math/quat.js'
+import { airborne } from '../ai/airborne.js'
 import { nextLandingTracking, NO_LANDING, type LandingReport, type LandingTracking } from '../landing.js'
 import type { AircraftEntity, EntityId, ShipEntity } from '../loop.js'
 import type { VehicleEntity } from '../world/vehicles.js'
@@ -11,8 +13,8 @@ import { paddlesWindow } from '../paddles.js'
 import type { Vec3 } from '../math/vec3.js'
 import { RESPOT_CLIMB_MESSAGE, RESPOT_DELAY_S, RESPOT_MESSAGE, type RespotOrder } from './respot.js'
 import { nextPass, WAVE_OFF_MESSAGE, type PassEvent } from './passes.js'
-import type { PlaneState, Station, TriggerWhen } from './schema.js'
-import { ticksFor, type MissionLogEntry, type MissionState, type ObjectiveState, type ResolvedObjective } from './state.js'
+import type { Gone, PlaneState, Station, TriggerWhen } from './schema.js'
+import { ticksFor, type FieldOverride, type MissionLogEntry, type MissionState, type ObjectiveState, type ObjectiveStatus, type ResolvedObjective } from './state.js'
 import { waterSurfaceContext } from '../waterSurface.js'
 import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
 import type { StructureEntity } from '../weapons/structures.js'
@@ -73,12 +75,22 @@ function positionOf<M>(t: MissionTick<M>, id: EntityId): Vec3 | null {
 }
 
 /** Horizontal circle, optional altitude band on world y (ruling R9). */
-export function insideStation(s: Pick<Station, 'point' | 'radiusM' | 'altitudeM'>, p: Vec3): boolean {
-  if (Math.hypot(p.x - s.point.x, p.z - s.point.z) > s.radiusM) return false
+export function insideStation(s: Pick<Station, 'point' | 'radiusM' | 'altitudeM' | 'innerRadiusM'>, p: Vec3): boolean {
+  const d = Math.hypot(p.x - s.point.x, p.z - s.point.z)
+  if (d > s.radiusM || (s.innerRadiusM !== undefined && d < s.innerRadiusM)) return false
   return s.altitudeM === undefined || (p.y >= s.altitudeM[0] && p.y <= s.altitudeM[1])
 }
 
 const within = (r: readonly [number, number], x: number): boolean => x >= r[0] && x <= r[1]
+
+/** The nose's compass heading in degrees: 0 is north (-z), 90 east (+x), the same convention `headingDeg` uses in a scenario. */
+export function noseHeadingDeg(attitude: Quat): number {
+  const f = qRotate(attitude, v3(1, 0, 0))
+  const h = (Math.atan2(f.x, -f.z) * 180) / Math.PI
+  return h < 0 ? h + 360 : h
+}
+/** `[from, to]` clockwise; `from > to` runs through north. */
+const headingWithin = (r: readonly [number, number], h: number): boolean => (r[0] <= r[1] ? h >= r[0] && h <= r[1] : h >= r[0] || h <= r[1])
 
 /**
  * B4: whether the player's airplane matches every field of `want` this tick.
@@ -94,10 +106,54 @@ export function planeStateHolds<M>(want: PlaneState, p: AircraftEntity<M>, wind:
   if (want.bayDoors !== undefined && !(want.bayDoors === 'open' ? s.bayDoorFraction >= 1 : s.bayDoorFraction <= 0)) return false
   if (want.altitudeM !== undefined && !within(want.altitudeM, s.position.y)) return false
   if (want.throttle !== undefined && !within(want.throttle, p.controls.throttle)) return false
+  if (want.headingDeg !== undefined && !headingWithin(want.headingDeg, noseHeadingDeg(s.attitude))) return false
+  if (want.groundSpeedMps !== undefined && !within(want.groundSpeedMps, Math.hypot(s.velocity.x, s.velocity.z))) return false
   return want.airspeedMps === undefined || within(want.airspeedMps, length(airVelocity(s, wind)))
 }
 
+/** The living, spawned members of `ids`, and the horizontal centroid of their positions (null when there are none). */
+function centroidOf<M>(t: MissionTick<M>, ids: readonly EntityId[]): { readonly x: number; readonly z: number } | null {
+  let n = 0
+  let x = 0
+  let z = 0
+  for (const id of ids) {
+    if (!isPresent(t, id) || isDestroyed(t, id)) continue
+    const q = positionOf(t, id)
+    if (q === null) continue
+    n++
+    x += q.x
+    z += q.z
+  }
+  return n === 0 ? null : { x: x / n, z: z / n }
+}
+
+/** F10-0: whether every named entity has left play (see `GoneObject`). An unspawned held entity has not left. */
+function isGone<M>(g: Gone, m: MissionState<M>, t: MissionTick<M>): boolean {
+  const ids = g.targets.flatMap((ref) => m.refs[ref] ?? [])
+  if (ids.length === 0) return false
+  const center = g.awayFrom === undefined ? null : typeof g.awayFrom === 'string' ? positionOf(t, g.awayFrom) : g.awayFrom
+  return ids.every((id) => {
+    if (!isPresent(t, id)) return false
+    if (isDestroyed(t, id)) return true
+    const a = t.aircraft.find((x) => x.id === id)
+    if (a !== undefined && !airborne(a, t.terrain, t.decks)) return true
+    if (center === null || g.beyondM === undefined) return false
+    const q = positionOf(t, id)
+    return q !== null && Math.hypot(q.x - center.x, q.z - center.z) > g.beyondM
+  })
+}
+
+/** Whether a field is serviceable right now: a trigger's override, else the content's value (absent means serviceable). */
+export function fieldServiceable<M>(m: MissionState<M>, airfields: readonly Airfield[], id: string): boolean {
+  const override = m.fields?.[id]?.serviceable
+  if (override !== undefined) return override
+  return airfields.find((a) => a.id === id)?.serviceable !== false
+}
+
 type Context<M> = {
+  readonly m: MissionState<M>
+  /** An objective's status as the current pass stands (file order: an earlier objective's new status is already in). */
+  readonly status: (id: string) => ObjectiveStatus
   readonly t: MissionTick<M>
   readonly player: AircraftEntity<M>
   /** Ruling R12: player-relative evaluation stops once this is false. */
@@ -114,8 +170,9 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
   const here = c.player.state.position
   switch (o.kind) {
     case 'destroy': {
-      const n = o.resolved.filter((id) => isDestroyed(c.t, id)).length
-      const need = o.count ?? o.resolved.length
+      const base = p.base ?? 0
+      const n = o.resolved.filter((id) => isDestroyed(c.t, id)).length - base
+      const need = o.count ?? o.resolved.length - base
       if (n === p.count && n < need) return p
       return { ...p, count: n, status: n >= need ? 'complete' : 'active' }
     }
@@ -139,18 +196,36 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
     case 'land': {
       // F5C D3: a suggested recovery is met by ANY friendly base; any other land objective names its place.
       if (c.landing === null || (o.suggestedRecovery === true ? c.base === null : c.landing.at?.id !== o.at)) return p
+      // F10-0: the landing counts only while the fields it names are (un)serviceable at this tick.
+      const need = o.requires
+      if (need !== undefined) {
+        if (need.serviceable?.some((id) => !fieldServiceable(c.m, c.t.airfields, id)) === true) return p
+        if (need.unserviceable?.some((id) => fieldServiceable(c.m, c.t.airfields, id)) === true) return p
+      }
       const n = p.count + 1
       return { ...p, count: n, status: n >= (o.count ?? 1) ? 'complete' : 'active' }
     }
     case 'reach':
       return c.alive && insideStation(o, here) ? { ...p, status: 'complete' } : p
     case 'hold': {
-      if (!c.alive || !insideStation(o, here)) return p
+      if (!c.alive) return p
+      const center = o.relativeTo === undefined ? null : centroidOf(c.t, c.m.refs[o.relativeTo] ?? [])
+      // A relative station with no living member has nothing to follow: nobody is inside it.
+      const inside = o.relativeTo === undefined
+        ? insideStation(o, here)
+        : center !== null && insideStation({ ...o, point: { x: center.x + o.point.x, z: center.z + o.point.z } }, here)
+      if (!inside) return o.resetOnExit === true && p.heldTicks !== 0 ? { ...p, heldTicks: 0 } : p
       const held = p.heldTicks + 1
       return { ...p, heldTicks: held, status: held >= ticksFor(o.seconds) ? 'complete' : 'active' }
     }
-    case 'state':
-      return c.alive && planeStateHolds(o, c.player, c.t.wind) ? { ...p, status: 'complete' } : p
+    case 'state': {
+      if (!c.alive) return p
+      const holds = planeStateHolds(o, c.player, c.t.wind)
+      if (o.dwellS === undefined) return holds ? { ...p, status: 'complete' } : p
+      if (!holds) return p.heldTicks === 0 ? p : { ...p, heldTicks: 0, ...(o.failOnExit === true ? { status: 'failed' as const } : {}) }
+      const held = p.heldTicks + 1
+      return { ...p, heldTicks: held, status: held >= ticksFor(o.dwellS) ? 'complete' : 'active' }
+    }
     case 'release': {
       const record = c.t.combat.aircraft[c.t.player]
       if (!c.alive || record === undefined) return p
@@ -167,6 +242,38 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
       const missed = p.count + 1
       return { ...p, count: missed, status: missed > (o.maxMissed ?? 0) ? 'failed' : 'active' }
     }
+    case 'arrive': {
+      const seen = p.seen ?? []
+      const fresh = o.resolved.filter((id) => !seen.includes(id) && isPresent(c.t, id) && !isDestroyed(c.t, id) && ((q) => q !== null && insideStation(o.zone, q))(positionOf(c.t, id)))
+      if (fresh.length === 0) return p
+      const all = [...seen, ...fresh]
+      return { ...p, seen: all, count: all.length, status: all.length >= (o.count ?? o.resolved.length) ? 'complete' : 'active' }
+    }
+    case 'released': {
+      const n = o.resolved.filter((id) => {
+        const r = c.t.combat.aircraft[id]
+        if (r === undefined) return false
+        return o.store === 'rocket' ? r.rocketsFired > 0 : o.store === 'torpedo' ? r.torpedoesDropped > 0 : r.bombsDropped - r.torpedoesDropped > 0
+      }).length
+      const need = o.count ?? o.resolved.length
+      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'damage': {
+      const n = o.resolved.filter((id) => {
+        const d = c.t.combat.ships[id]
+        const ship = c.t.ships.find((x) => x.id === id)
+        return d !== undefined && ship !== undefined && (d.destroyedTick !== null || d.hp / ship.spec.hullHp < o.belowHpFraction)
+      }).length
+      const need = o.count ?? 1
+      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+    }
+    case 'atLeast': {
+      const done = o.of.filter((id) => c.status(id) === 'complete').length
+      const failed = o.of.filter((id) => c.status(id) === 'failed').length
+      if (done >= o.n) return { ...p, count: done, status: 'complete' }
+      if (o.of.length - failed < o.n) return { ...p, count: done, status: 'failed' }
+      return done === p.count ? p : { ...p, count: done }
+    }
   }
 }
 
@@ -181,6 +288,7 @@ function conditionMet<M>(w: TriggerWhen, m: MissionState<M>, progress: readonly 
     return progress[m.objectives.findIndex((o) => o.id === id)]!.status === 'failed'
   }
   if ('state' in w) return c.alive && planeStateHolds(w.state, c.player, c.t.wind)
+  if ('gone' in w) return isGone(w.gone, m, c.t)
   return c.alive && insideStation(w.enters, c.player.state.position)
 }
 
@@ -248,10 +356,12 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
     { player: t.player, aircraft: t.aircraft, airfields: t.airfields, structures: t.structures, ships: t.ships, anchorages: t.anchorages },
     landing.at, player.state.position,
   )
-  const c: Context<M> = { t, player, alive, recovery, landing, base, passEvent }
-
   // 2. Objectives.
   let progress: ObjectiveState[] | null = null
+  const c: Context<M> = {
+    m, t, player, alive, recovery, landing, base, passEvent,
+    status: (id) => (progress ?? m.progress)[m.objectives.findIndex((x) => x.id === id)]!.status,
+  }
   let advanced: { readonly id: string; readonly label: string; readonly n: number; readonly count: number; readonly done: boolean } | null = null
   for (let i = 0; i < m.objectives.length; i++) {
     const o = m.objectives[i]!
@@ -261,9 +371,15 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       const gate = (progress ?? m.progress)[m.objectives.findIndex((x) => x.id === o.after)]!
       if (gate.status !== 'complete') continue
       p = { ...p, status: 'active' }
+      // F10-0 `fresh`: what was already destroyed when this objective woke up does not count.
+      if (o.kind === 'destroy' && o.fresh === true) p = { ...p, base: o.resolved.filter((id) => isDestroyed(t, id)).length }
     }
     if (p.status === 'active') {
-      const next = evaluate(o, p, c)
+      let next = evaluate(o, p, c)
+      // F10-0 window: still active when `until` is met closes it. A standing order that never failed completes; anything else fails.
+      if (next.status === 'active' && o.until !== undefined && conditionMet(o.until, m, progress ?? m.progress, c)) {
+        next = { ...next, status: o.kind === 'protect' || o.kind === 'deny' ? 'complete' : 'failed' }
+      }
       if (o.kind === 'land' && next.count > p.count) {
         advanced ??= { id: o.id, label: o.label, n: next.count, count: o.count ?? 1, done: next.status === 'complete' }
       }
@@ -314,6 +430,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
   //    `then` runs in list order; spawns are applied by `advance`, in the
   //    order returned, at the end of this tick.
   let fired: string[] | null = null
+  let fields = m.fields
   const spawns: string[] = []
   for (const trigger of m.triggers) {
     if ((fired ?? m.fired).includes(trigger.id)) continue
@@ -325,14 +442,31 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       if ('spawn' in action) {
         spawns.push(action.spawn)
         added.push({ tick: t.tick, kind: 'spawn', group: action.spawn })
-      } else {
+      } else if ('message' in action) {
         added.push({ tick: t.tick, kind: 'message', text: action.message })
+      } else if ('complete' in action || 'fail' in action) {
+        // F10-0: a phase closes. Forcing an objective that is already complete or failed changes nothing.
+        const id = 'complete' in action ? action.complete : action.fail
+        const at = m.objectives.findIndex((x) => x.id === id)
+        const now = (progress ?? m.progress)[at]!
+        if (now.status === 'complete' || now.status === 'failed') continue
+        const status = 'complete' in action ? 'complete' : 'failed'
+        progress ??= [...m.progress]
+        progress[at] = { ...now, status }
+        added.push({ tick: t.tick, kind: 'objective', id, status })
+        if (status === 'failed') added.push({ tick: t.tick, kind: 'message', text: `${m.objectives[at]!.label}: failed` })
+      } else {
+        // F10-0 mutable airfield state.
+        const [id, set]: [string, FieldOverride] = 'setServiceable' in action
+          ? [action.setServiceable.airfield, { serviceable: action.setServiceable.value }]
+          : [action.setSide.airfield, { side: action.setSide.side }]
+        fields = { ...(fields ?? {}), [id]: { ...(fields?.[id] ?? {}), ...set } }
       }
     }
   }
 
   if (recovery === m.recovery && progress === null && fired === null && added.length === 0
-      && pendingRespotTick === m.pendingRespotTick && pass === m.pass) return { mission: m, spawns, respot: null }
+      && pendingRespotTick === m.pendingRespotTick && pass === m.pass && fields === m.fields) return { mission: m, spawns, respot: null }
   return {
     mission: {
       ...m,
@@ -342,6 +476,7 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       log: added.length > 0 ? [...m.log, ...added] : m.log,
       pendingRespotTick,
       pass,
+      ...(fields === m.fields ? {} : { fields }),
     },
     spawns,
     respot,

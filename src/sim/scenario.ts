@@ -16,7 +16,7 @@ import { GREEN_SKILL, VETERAN_SKILL, initialDecision, type IngressDestination, t
 import { airfieldSideOf, sideOf, type Side } from './sides.js'
 import { checkScenarioSides } from './sidesCheck.js'
 import type { PilotAssignment } from './ai/pursuit.js'
-import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject, planeStateIsEmpty } from './mission/schema.js'
+import { BadgeObject, BriefingObject, HistoryObject, LoadoutObject, ObjectiveObject, TriggerObject, innerBelowOuter, innerMessage, planeStateIsEmpty } from './mission/schema.js'
 import { createMission, type Taggable } from './mission/create.js'
 import type { HeldGroup, MissionState } from './mission/state.js'
 import { stateOnDeck } from './mission/respot.js'
@@ -547,6 +547,16 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     : player !== undefined && isParkedAircraft(player)
       ? (isShipParked(player.parkedAt) ? player.parkedAt.ship : player.parkedAt.airfield)
       : null
+  const objectiveIds = new Set(objectives.map((o) => o.id))
+  /** `when` references that name objectives (shared by triggers and `until`). */
+  const checkWhen = (w: z.infer<typeof TriggerObject>['when'], path: (string | number)[]): void => {
+    if ('completed' in w && !objectiveIds.has(w.completed)) issue(`when.completed names "${w.completed}", which is not an objective`, [...path, 'completed'])
+    if ('failed' in w) {
+      const o = objectives.find((x) => x.id === w.failed)
+      if (o === undefined) issue(`when.failed names "${w.failed}", which is not an objective`, [...path, 'failed'])
+      else if (o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches') issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'failed'])
+    }
+  }
   objectives.forEach((o, i) => {
     const path = ['objectives', i]
     if (o.after !== undefined && !objectives.slice(0, i).some((x) => x.id === o.after)) {
@@ -577,21 +587,41 @@ function checkMission(s: z.infer<typeof ScenarioShape>, ctx: z.RefinementCtx): v
     if (o.kind === 'approaches' && objectives.findIndex((x) => x.kind === 'approaches') !== i) {
       issue('a mission may declare one approaches objective (M3-R11)', [...path, 'kind'])
     }
+    // F10-0 vocabulary.
+    if ((o.kind === 'reach' || o.kind === 'hold') && !innerBelowOuter(o)) issue(innerMessage.message, [...path, 'innerRadiusM'])
+    if (o.kind === 'atLeast') {
+      for (const ref of o.of) {
+        if (!objectives.slice(0, i).some((x) => x.id === ref)) issue(`atLeast.of must name earlier objectives; "${ref}" is not one`, [...path, 'of'])
+      }
+      if (o.n > o.of.length) issue(`atLeast asks for ${o.n} of ${o.of.length} objectives`, [...path, 'n'])
+    }
+    if (o.kind === 'land' && o.requires !== undefined) {
+      for (const field of [...(o.requires.serviceable ?? []), ...(o.requires.unserviceable ?? [])]) {
+        if (!s.airfields.includes(field)) issue(`land.requires names "${field}", which is not one of airfields`, [...path, 'requires'])
+      }
+    }
+    if (o.until !== undefined) checkWhen(o.until, [...path, 'until'])
+    if (o.kind === 'destroy' && o.fresh === true && o.after === undefined) {
+      issue('fresh counts from when the objective wakes up, so it needs an after', [...path, 'fresh'])
+    }
   })
 
   const byId = new Map(objectives.map((o) => [o.id, o]))
   const spawnCount = new Map(held.map((g) => [g.id, 0]))
   triggers.forEach((t, i) => {
     const path = ['triggers', i]
-    if ('completed' in t.when && !byId.has(t.when.completed)) {
-      issue(`when.completed names "${t.when.completed}", which is not an objective`, [...path, 'when', 'completed'])
-    }
-    if ('failed' in t.when) {
-      const o = byId.get(t.when.failed)
-      if (o === undefined) issue(`when.failed names "${t.when.failed}", which is not an objective`, [...path, 'when', 'failed'])
-      else if (o.kind !== 'protect' && o.kind !== 'deny' && o.kind !== 'approaches') issue(`when.failed names "${o.id}", a ${o.kind} objective, which can never fail`, [...path, 'when', 'failed'])
-    }
+    checkWhen(t.when, [...path, 'when'])
     t.then.forEach((a, ai) => {
+      if ('complete' in a || 'fail' in a) {
+        const target = 'complete' in a ? a.complete : a.fail
+        if (!byId.has(target)) issue(`then names "${target}", which is not an objective`, [...path, 'then', ai])
+        return
+      }
+      if ('setServiceable' in a || 'setSide' in a) {
+        const field = 'setServiceable' in a ? a.setServiceable.airfield : a.setSide.airfield
+        if (!s.airfields.includes(field)) issue(`then names airfield "${field}", which is not one of airfields`, [...path, 'then', ai])
+        return
+      }
       if (!('spawn' in a)) return
       const n = spawnCount.get(a.spawn)
       if (n === undefined) issue(`spawn names "${a.spawn}", which is not a held group`, [...path, 'then', ai, 'spawn'])
@@ -918,12 +948,16 @@ function missionEntities(bundle: ScenarioBundle): Taggable[] {
   const heldAircraft = (s.heldGroups ?? []).flatMap((g) => g.aircraft ?? [])
   const heldShips = (s.heldGroups ?? []).flatMap((g) => g.ships ?? [])
   const heldVehicles = (s.heldGroups ?? []).flatMap((g) => g.vehicles ?? [])
-  const mobile = [...s.aircraft, ...heldAircraft, ...s.ships, ...heldShips, ...s.vehicles, ...heldVehicles]
-    .map((e) => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e) }))
+  const tagged = (kind: NonNullable<Taggable['kind']>) => (e: { id: string; tags?: string[] | undefined } & Parameters<typeof sideOf>[1]): Taggable => ({ id: e.id, tags: e.tags ?? [], side: sideOf(s, e), kind })
+  const mobile = [
+    ...[...s.aircraft, ...heldAircraft].map(tagged('aircraft')),
+    ...[...s.ships, ...heldShips].map(tagged('ship')),
+    ...[...s.vehicles, ...heldVehicles].map(tagged('vehicle')),
+  ]
   const buildings = s.airfields.flatMap((a) => {
     const field = lookup(bundle.airfields, a, 'airfield')
     const side = airfieldSideOf(field, s.airfieldSides)
-    return field.buildings.map((b) => ({ id: b.id, tags: b.tags ?? [], side }))
+    return field.buildings.map((b): Taggable => ({ id: b.id, tags: b.tags ?? [], side, kind: 'structure' }))
   })
   return [...mobile, ...buildings]
 }

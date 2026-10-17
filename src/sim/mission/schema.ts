@@ -28,11 +28,15 @@ export type Point = z.infer<typeof PointObject>
 const stationShape = {
   point: PointObject,
   radiusM: positive,
+  /** F10-0: the station is an annulus, so "outside the flare" is a station (J4). Measured horizontally like `radiusM`. */
+  innerRadiusM: positive.optional(),
   altitudeM: z.tuple([finite, finite])
     .refine(([lo, hi]) => lo < hi, { message: 'altitudeM must be [min, max] with min < max' })
     .optional(),
 }
-export const StationObject = z.object(stationShape).strict()
+export const innerBelowOuter = (s: { radiusM: number; innerRadiusM?: number | undefined }): boolean => s.innerRadiusM === undefined || s.innerRadiusM < s.radiusM
+export const innerMessage = { message: 'innerRadiusM must be less than radiusM' }
+export const StationObject = z.object(stationShape).strict().refine(innerBelowOuter, innerMessage)
 export type Station = z.infer<typeof StationObject>
 
 /** A closed numeric range `[min, max]`, min below max. */
@@ -48,47 +52,28 @@ const planeStateShape = {
   altitudeM: range.optional(),
   /** The throttle lever, 0 to 1. */
   throttle: range.refine(([lo, hi]) => lo >= 0 && hi <= 1, { message: 'throttle must lie within [0, 1]' }).optional(),
+  /** F10-0: the nose's compass heading in degrees (0 north, 90 east), as `[from, to]` clockwise; `from > to` runs through north (J5's corridor: `[350, 10]`). */
+  headingDeg: z.tuple([finite, finite]).refine(([lo, hi]) => lo >= 0 && lo < 360 && hi >= 0 && hi < 360, { message: 'headingDeg must lie within [0, 360)' }).optional(),
+  /** F10-0: speed over the ground (the world frame, so a floating airplane's drift counts), horizontal. */
+  groundSpeedMps: range.refine(([lo]) => lo >= 0, { message: 'groundSpeedMps must not be negative' }).optional(),
 }
 /** The names `planeStateShape` declares, in a fixed order (for the empty check). */
-export const PLANE_STATE_FIELDS = ['gear', 'flaps', 'bayDoors', 'airspeedMps', 'altitudeM', 'throttle'] as const
+export const PLANE_STATE_FIELDS = ['gear', 'flaps', 'bayDoors', 'airspeedMps', 'altitudeM', 'throttle', 'headingDeg', 'groundSpeedMps'] as const
 const hasField = (o: Partial<Record<(typeof PLANE_STATE_FIELDS)[number], unknown>>): boolean => PLANE_STATE_FIELDS.some((k) => o[k] !== undefined)
-const nonEmptyPlaneState = { message: 'a plane-state test needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle' }
+const nonEmptyPlaneState = { message: 'a plane-state test needs at least one of gear, flaps, bayDoors, airspeedMps, altitudeM, throttle, headingDeg, groundSpeedMps' }
 
 export const PlaneStateObject = z.object(planeStateShape).strict().refine(hasField, nonEmptyPlaneState)
 export type PlaneState = z.infer<typeof PlaneStateObject>
 export const planeStateIsEmpty = (o: Partial<Record<(typeof PLANE_STATE_FIELDS)[number], unknown>>): boolean => !hasField(o)
 
-const base = {
-  id,
-  /** Short: the HUD objective line and the debrief print it. */
-  label: z.string().min(1),
-  priority: z.enum(['primary', 'secondary']),
-  /** Active only once this EARLIER objective completes (ruling R8). */
-  after: id.optional(),
-}
-
-export const ObjectiveObject = z.discriminatedUnion('kind', [
-  z.object({ ...base, kind: z.literal('destroy'), targets: refs, count: z.number().int().positive().optional() }).strict(),
-  z.object({ ...base, kind: z.literal('protect'), targets: refs, maxLost: z.number().int().nonnegative().optional() }).strict(),
-  z.object({ ...base, kind: z.literal('deny'), hostiles: refs, around: z.union([id, PointObject]), radiusM: positive }).strict(),
-  z.object({ ...base, kind: z.literal('takeoff'), from: id }).strict(),
-  /** `suggestedRecovery` (F5C D3, 2026-10-16): `at` is only the SUGGESTED recovery; a landing at ANY friendly base
-   *  (`src/sim/friendly.ts`) completes the objective. Without it, `at` is a named place the exercise requires. */
-  z.object({ ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional(), suggestedRecovery: z.boolean().optional() }).strict(),
-  z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
-  z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive }).strict(),
-  /** B4: complete the first tick the player's airplane matches every field
-   *  (gear, flaps, speed...). An empty one is rejected by `checkMission`. */
-  z.object({ ...base, kind: z.literal('state'), ...planeStateShape }).strict(),
-  /** Complete when the player releases the named store. A target supplies
-   *  guidance only: practice hits and misses both count. */
-  z.object({ ...base, kind: z.literal('release'), store: z.enum(['bomb', 'rocket', 'torpedo']), target: id.optional(), count: z.number().int().positive().optional() }).strict(),
-  /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
-   *  once more than `maxMissed` (default 0) do. One per mission, at a ship
-   *  with Paddles (M3-R11). */
-  z.object({ ...base, kind: z.literal('approaches'), at: id, maxMissed: z.number().int().nonnegative().optional() }).strict(),
-])
-export type Objective = z.infer<typeof ObjectiveObject>
+/** F10-0: a set of entities that has left play. Each target is destroyed, or (an aircraft) on the ground, or, when `awayFrom` and `beyondM`
+ *  are given, farther than `beyondM` from that point or entity. An unspawned held entity has not left (A1's "raid withdraws", A6/J6's route-group admission). */
+export const GoneObject = z.object({
+  targets: refs,
+  awayFrom: z.union([id, PointObject]).optional(),
+  beyondM: positive.optional(),
+}).strict().refine((g) => (g.awayFrom === undefined) === (g.beyondM === undefined), { message: 'awayFrom and beyondM go together' })
+export type Gone = z.infer<typeof GoneObject>
 
 export const TriggerWhenObject = z.union([
   z.object({ at: finite.refine((n) => n >= 0, { message: 'must not be negative' }) }).strict(),
@@ -97,12 +82,74 @@ export const TriggerWhenObject = z.union([
   z.object({ enters: StationObject }).strict(),
   /** B4: the player's airplane matches (see `PlaneStateObject`). */
   z.object({ state: PlaneStateObject }).strict(),
+  /** F10-0: the named entities have left play (see `GoneObject`). */
+  z.object({ gone: GoneObject }).strict(),
 ])
 export type TriggerWhen = z.infer<typeof TriggerWhenObject>
+
+const base = {
+  id,
+  /** Short: the HUD objective line and the debrief print it. */
+  label: z.string().min(1),
+  priority: z.enum(['primary', 'secondary']),
+  /** Active only once this EARLIER objective completes (ruling R8). */
+  after: id.optional(),
+  /** F10-0: a window. While it is open the objective evaluates as usual; when this condition is met and the objective is still active it
+   *  closes: a `protect`, `deny` or `atLeast` that has not failed completes, anything else fails. A window that never closes is today's behavior. */
+  until: TriggerWhenObject.optional(),
+}
+
+export const ObjectiveObject = z.discriminatedUnion('kind', [
+  /** `fresh` (F10-0): count only targets destroyed after this objective became active (an `after` objective), not since tick 0. */
+  z.object({ ...base, kind: z.literal('destroy'), targets: refs, count: z.number().int().positive().optional(), fresh: z.boolean().optional() }).strict(),
+  z.object({ ...base, kind: z.literal('protect'), targets: refs, maxLost: z.number().int().nonnegative().optional() }).strict(),
+  z.object({ ...base, kind: z.literal('deny'), hostiles: refs, around: z.union([id, PointObject]), radiusM: positive }).strict(),
+  z.object({ ...base, kind: z.literal('takeoff'), from: id }).strict(),
+  /** `suggestedRecovery` (F5C D3, 2026-10-16): `at` is only the SUGGESTED recovery; a landing at ANY friendly base
+   *  (`src/sim/friendly.ts`) completes the objective. Without it, `at` is a named place the exercise requires.
+   *  `requires` (F10-0): the landing counts only while the named fields are (un)serviceable at that tick (J1: Bayug only if Buri is not). */
+  z.object({
+    ...base, kind: z.literal('land'), at: id, count: z.number().int().positive().optional(), respot: z.boolean().optional(), suggestedRecovery: z.boolean().optional(),
+    requires: z.object({ serviceable: z.array(id).min(1).optional(), unserviceable: z.array(id).min(1).optional() }).strict()
+      .refine((r) => r.serviceable !== undefined || r.unserviceable !== undefined, { message: 'requires needs serviceable or unserviceable' }).optional(),
+  }).strict(),
+  z.object({ ...base, kind: z.literal('reach'), ...stationShape }).strict(),
+  /** `resetOnExit` (F10-0): leaving the station zeroes the accumulated time. `relativeTo` (F10-0): an entity id or tag; the station's `point` is then an
+   *  offset from the centroid of the living, spawned members of that set, so an escort station follows its charges (A5, J6). */
+  z.object({ ...base, kind: z.literal('hold'), ...stationShape, seconds: positive, resetOnExit: z.boolean().optional(), relativeTo: id.optional() }).strict(),
+  /** B4: complete the first tick the player's airplane matches every field
+   *  (gear, flaps, speed...). An empty one is rejected by `checkMission`.
+   *  F10-0: `dwellS` requires the match to hold continuously for that long (a break zeroes it), and `failOnExit` fails the objective if a match
+   *  that had begun breaks before the dwell is done (a corridor: J5; the slow dwells of A4). */
+  z.object({ ...base, kind: z.literal('state'), ...planeStateShape, dwellS: positive.optional(), failOnExit: z.boolean().optional() }).strict(),
+  /** Complete when the player releases the named store. A target supplies
+   *  guidance only: practice hits and misses both count. */
+  z.object({ ...base, kind: z.literal('release'), store: z.enum(['bomb', 'rocket', 'torpedo']), target: id.optional(), count: z.number().int().positive().optional() }).strict(),
+  /** Passes at a ship's deck that miss (Mark, 2026-09-26; M3-R4): fails
+   *  once more than `maxMissed` (default 0) do. One per mission, at a ship
+   *  with Paddles (M3-R11). */
+  z.object({ ...base, kind: z.literal('approaches'), at: id, maxMissed: z.number().int().nonnegative().optional() }).strict(),
+  /** F10-0: at least `count` (default all) of the named AI entities have been inside the zone at some tick while alive (A5's rally gate, J1, J3). */
+  z.object({ ...base, kind: z.literal('arrive'), targets: refs, count: z.number().int().positive().optional(), zone: StationObject }).strict(),
+  /** F10-0: at least `count` (default all) of the named aircraft have released the store, read from each one's own combat record (A5, J6). */
+  z.object({ ...base, kind: z.literal('released'), targets: refs, store: z.enum(['bomb', 'rocket', 'torpedo']), count: z.number().int().positive().optional() }).strict(),
+  /** F10-0: at least `count` (default 1) of the named ships are below `belowHpFraction` of their hull points (a hit, not a sinking), or sunk (A2, J2, J4). */
+  z.object({ ...base, kind: z.literal('damage'), targets: refs, belowHpFraction: z.number().gt(0).lte(1), count: z.number().int().positive().optional() }).strict(),
+  /** F10-0: complete when at least `n` of the earlier objectives `of` are complete; fails once too many have failed for that to be possible.
+   *  `any` is n = 1 and `all` is n = their number (J1: three of five groups intact; J2: a Maru or a half-hull Fletcher). */
+  z.object({ ...base, kind: z.literal('atLeast'), n: z.number().int().positive(), of: z.array(id).min(1) }).strict(),
+])
+export type Objective = z.infer<typeof ObjectiveObject>
 
 export const TriggerActionObject = z.union([
   z.object({ spawn: id }).strict(),
   z.object({ message: z.string().min(1) }).strict(),
+  /** F10-0: force an objective's status (a phase closes: complete or fail it). Ignored once the objective is complete or failed. */
+  z.object({ complete: id }).strict(),
+  z.object({ fail: id }).strict(),
+  /** F10-0: mutable airfield state (T0.7). */
+  z.object({ setServiceable: z.object({ airfield: id, value: z.boolean() }).strict() }).strict(),
+  z.object({ setSide: z.object({ airfield: id, side: z.enum(['allied', 'axis']) }).strict() }).strict(),
 ])
 export type TriggerAction = z.infer<typeof TriggerActionObject>
 

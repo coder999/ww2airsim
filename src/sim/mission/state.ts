@@ -37,6 +37,10 @@ export type ObjectiveState = {
   /** hold: ticks spent inside the station while active, accumulated
    *  (spec §0.9). 0 for every other kind. */
   readonly heldTicks: number
+  /** `arrive`: the ids that have been inside the zone while alive (count = their number). Absent for every other kind. */
+  readonly seen?: readonly EntityId[]
+  /** `destroy` with `fresh`: targets already destroyed when the objective became active, not counted. Absent otherwise. */
+  readonly base?: number
 }
 
 /** An objective with its `targets`/`hostiles` resolved to entity ids when
@@ -109,7 +113,16 @@ export type MissionState<M> = {
   /** F9: the tick the mission clock starts counting from (a scene's handoff). Absent means tick 0, so every
    *  world that never plays a scene carries no new field. Only `when.at` reads it; everything else is already relative. */
   readonly clockOriginTick?: number
+  /** F10-0: every entity reference the mission names outside an objective's own target list (`when.gone`, `until`, `hold.relativeTo`), resolved to
+   *  entity ids when the world was built, keyed by the reference as written. */
+  readonly refs: Readonly<Record<string, readonly EntityId[]>>
+  /** F10-0: airfield state a trigger changed mid-mission (`setServiceable`, `setSide`), keyed by airfield id. Absent until one does, so a mission
+   *  that never uses it carries no new field. */
+  readonly fields?: Readonly<Record<string, FieldOverride>>
 }
+
+/** What a trigger set on an airfield. A missing key leaves the content's value. */
+export type FieldOverride = { readonly serviceable?: boolean; readonly side?: 'allied' | 'axis' }
 
 type Message = Extract<MissionLogEntry, { kind: 'message' }>
 type Landing = Extract<MissionLogEntry, { kind: 'landing' }>

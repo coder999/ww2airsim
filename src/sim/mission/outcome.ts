@@ -74,9 +74,20 @@ export type MissionOutcome = {
  * badge; secondary objectives never gate it.
  */
 export function missionOutcome<M>(m: MissionState<M>, recovery: Recovery): MissionOutcome {
-  const objectives: ObjectiveResult[] = m.objectives.map((o, i) => ({
-    id: o.id, label: o.label, priority: o.priority, final: finalStatus(o, m.progress[i]!),
-  }))
+  // `atLeast` reads its children's FINAL statuses (a standing `protect` that never failed counts), so it is judged after them; the schema
+  // guarantees every child is an earlier objective.
+  const finals = new Map<string, FinalStatus>()
+  const objectives: ObjectiveResult[] = m.objectives.map((o, i) => {
+    const p = m.progress[i]!
+    let final = finalStatus(o, p)
+    if (o.kind === 'atLeast' && final === 'incomplete') {
+      const done = o.of.filter((id) => finals.get(id) === 'complete').length
+      const failed = o.of.filter((id) => finals.get(id) === 'failed').length
+      final = done >= o.n ? 'complete' : o.of.length - failed < o.n ? 'failed' : 'incomplete'
+    }
+    finals.set(o.id, final)
+    return { id: o.id, label: o.label, priority: o.priority, final }
+  })
   const reasons: string[] = []
   if (recovery.kind === 'killed') reasons.push('Killed')
   else if (recovery.kind === 'rescued' || recovery.kind === 'captured') reasons.push('Bailed out')
