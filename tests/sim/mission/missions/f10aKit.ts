@@ -9,6 +9,8 @@ import { windowsForChapter } from '../../../../src/campaign/worldStates.js'
 import type { TerrainField } from '../../../../src/sim/world/terrain.js'
 import type { World } from '../../../../src/sim/loop.js'
 import type { ChapterId } from '../../../../src/campaign/schema.js'
+import { readFileSync } from 'node:fs'
+import { parseScene, type Scene } from '../../../../src/sim/scene/schema.js'
 
 export const bundleOf = (scenarioId: string, chapter: ChapterId, windows: Readonly<Record<string, string>> = windowsForChapter(chapter)) =>
   loadScenarioBundle(scenarioId, windows)
@@ -21,3 +23,6 @@ export const bearingDeg = (from: { readonly x: number; readonly z: number }, to:
   ((Math.atan2(to.x - from.x, -(to.z - from.z)) * 180) / Math.PI + 360) % 360
 
 export const MILE_M = 1609.344
+
+/** A chapter scene, parsed from content/scenes/. */
+export const sceneOf = (id: string): Scene => parseScene(JSON.parse(readFileSync(new URL(`../../../../content/scenes/${id}.json`, import.meta.url), 'utf8')) as unknown)

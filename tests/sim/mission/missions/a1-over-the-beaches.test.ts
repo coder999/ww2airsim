@@ -23,7 +23,8 @@ import { CHAPTER_MISSIONS } from '../../../../src/campaign/chapterMissions.js'
 import { windowsForChapter } from '../../../../src/campaign/worldStates.js'
 import { progressOf } from '../fixture.js'
 import { carrierApproach, deckRun, destroyNow, hold, levelAt, terrainOrSkip } from '../fly.js'
-import { MILE_M, bearingDeg, bundleOf, worldOf } from './f10aKit.js'
+import { sceneOf, MILE_M, bearingDeg, bundleOf, worldOf } from './f10aKit.js'
+import { skipScene } from '../../../../src/sim/scene/preroll.js'
 
 const ID = 'a1-over-the-beaches'
 const MARUS = ['maru-1', 'maru-2', 'maru-3', 'maru-4']
@@ -247,4 +248,20 @@ describe.skipIf(terrain === null)('A1 headless sortie (F10A C5)', () => {
     const lost = MARUS.filter((m) => w.combat.ships[m]!.destroyedTick !== null).length
     expect(progressOf(w, 'transports').status).toBe(lost <= 1 ? 'complete' : 'failed')
   }, 180_000)
+})
+
+describe('A1 opening scene (F10A C7; the chapter scene contract itself is enrolled by tests/sim/scene/content.test.ts)', () => {
+  it('is 18 s (F3 section 6), lands the camera 15-40 m behind the player on the Essex deck, and hands the player over held', () => {
+    const scene = sceneOf('a1-opening')
+    expect(scene).toMatchObject({ chapter: 'A1', kind: 'opening', durationS: 18, handoff: { player: 'held' }, world: { scenario: ID } })
+    const w = skipScene(worldOf(ID, 'A1', null), scene)
+    const p = playerAircraft(w).state.position
+    const eye = scene.camera.at(-1)!
+    const behind = Math.hypot(eye.position[0] - p.x, eye.position[2] - p.z)
+    expect(behind).toBeGreaterThan(15)
+    expect(behind).toBeLessThan(40)
+    // looking along the Essex's heading (342): yaw = 90 - compass heading
+    expect(((eye.yawDeg - (90 - 342)) % 360 + 540) % 360 - 180).toBeCloseTo(0, -1)
+    expect(scene.cues.filter((c) => c.order.kind === 'message').length).toBeGreaterThanOrEqual(3)
+  })
 })

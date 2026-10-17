@@ -1,0 +1,93 @@
+{
+  "id": "a1-opening",
+  "chapter": "A1",
+  "kind": "opening",
+  "durationS": 18,
+  "world": {
+    "source": "mission",
+    "scenario": "a1-over-the-beaches"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -29004,
+        60,
+        -46284
+      ],
+      "yawDeg": 7.5,
+      "pitchDeg": -2,
+      "ease": "inOut"
+    },
+    {
+      "t": 4,
+      "position": [
+        -25599,
+        120,
+        -47011
+      ],
+      "yawDeg": 4.5,
+      "pitchDeg": -3,
+      "ease": "inOut"
+    },
+    {
+      "t": 9,
+      "position": [
+        -19000,
+        420,
+        -40500
+      ],
+      "yawDeg": -40.7,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    },
+    {
+      "t": 14,
+      "position": [
+        -12600,
+        150,
+        -35000
+      ],
+      "yawDeg": -36,
+      "pitchDeg": -4,
+      "ease": "inOut"
+    },
+    {
+      "t": 18,
+      "position": [
+        -10927,
+        28.5,
+        -33727
+      ],
+      "yawDeg": 108,
+      "pitchDeg": -5,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "A-day: transports and landing craft off the Leyte beaches."
+      }
+    },
+    {
+      "t": 8,
+      "order": {
+        "kind": "message",
+        "text": "Essex CIC: Large raid southwest of the transports, twenty miles."
+      }
+    },
+    {
+      "t": 14,
+      "order": {
+        "kind": "message",
+        "text": "Essex CIC: Launch the CAP. Your airplane is spotted for takeoff."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

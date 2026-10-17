@@ -17,10 +17,10 @@
    },
    "firstAction": {
     "site": "landing-beaches",
-    "x": 8000,
+    "x": 7800,
     "z": -9000,
     "basis": "invented",
-    "note": "F3 A1: raid contact inside 15 mi; the raid is met over the transport anchorage, 8 km offshore and 9 km north of the beach center. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+    "note": "F3 A1: raid contact inside 15 mi; the raid is met over the transport anchorage, 8 km offshore and 9 km north of the beach center. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. F10A (2026-10-17): this is now the scenario's own contact point (a1-over-the-beaches, objective \"contact\"), local (7800, -9000) = world (-20203, -47437), 6.5 mi offshore of the beach center; it was (8000, -9000)."
    },
    "withinM": 24140,
    "takeoffS": 40,
@@ -40,7 +40,8 @@
     ],
     "budgetS": 300
    },
-   "f3": "launch from Essex 12-15 mi east of the landing area; raid contact inside 15 mi; first action 3-4 min; recovery Essex trap within 5 min"
+   "f3": "launch from Essex 12-15 mi east of the landing area; raid contact inside 15 mi; first action 3-4 min; recovery Essex trap within 5 min",
+   "scenario": "a1-over-the-beaches"
   },
   {
    "id": "A2",

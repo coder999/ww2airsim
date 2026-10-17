@@ -28,6 +28,7 @@ export const RIBBONS: Readonly<Record<string, readonly Stripe[]>> = {
   'escort': [[OLIVE, 4], [SKY, 2], [OLIVE, 12], [GOLD, 2], [BLUE, 4]],
   'surigao-strait': [[NAVY, 4], [WHITE, 2], [SCARLET, 3], [GOLD, 2], [SKY, 10], [GOLD, 2]],
   'field-patrol': [[SCARLET, 4], [WHITE, 3], [NAVY, 3], [WHITE, 8], [SCARLET, 8]],
+  'over-the-beaches': [[NAVY, 3], [SKY, 5], [WHITE, 2], [GOLD, 2], [SKY, 20]],
   'water-qualified': [[SKY, 7], [WHITE, 2], [NAVY, 6], [GOLD, 2], [SCARLET, 10]],
   'j1-defend-the-fields': [[SCARLET, 4], [GOLD, 2], [GREEN, 6], [WHITE, 2], [GREEN, 6], [NAVY, 4]],
   'j2-break-the-landing': [[NAVY, 2], [SKY, 8], [WHITE, 2], [SCARLET, 8], [GOLD, 4]],
