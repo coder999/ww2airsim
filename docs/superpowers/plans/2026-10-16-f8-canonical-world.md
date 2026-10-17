@@ -49,7 +49,8 @@ Grilled with Mark 2026-10-16 (decisions below). F8A is task-level; F8B and F8C a
 | 7 | Side comes from the window's overlay and is fixed within a sortie. Overlay also carries `serviceable`; recovery and AI read both. |
 | 8 | F8 owns one chapter-to-windows table (F3 section 4 "State transition" lines) and window ids; F10 missions only declare their chapter. |
 | 9 | The overlay lists lights per window, merged into the scenario's lights at world build (existing light kinds, F6A contract unchanged). |
-| 10 | Final-result viewing only; fully unattended; plan proposes, Mark approves any new building list by email review. |
+| 10 | **A launch reads the stored `Campaign.world`** (Mark, 2026-10-16, after F8A), not the chapter's own window; the wiring and the save/load round trip are F8C. F8A only provides the chapter table and the `?siteState` override. |
+| 11 | Final-result viewing only; fully unattended; plan proposes, Mark approves any new building list by email review. |
 
 ## New models (F3 amendment, approved by Mark 2026-10-16)
 
