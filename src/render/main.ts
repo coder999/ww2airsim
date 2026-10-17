@@ -122,6 +122,7 @@ import { beginPlayback, handoffWorld, loadScene, playbackDone, sceneView, skipPl
 import type { Scene as SceneFile } from '../sim/scene/schema.js'
 import type { SceneEye } from '../sim/scene/camera.js'
 import { createDirector, type DirectorHandle } from './director.js'
+import { createDirectorSheet, type DirectorSheetHandle } from './directorSheet.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
@@ -396,7 +397,7 @@ async function boot(): Promise<void> {
   let hqHandle: { show(): void; hide(): void } | null = null
   /** F9: the campaign scene playing now; declared this early because the DEV diagnostics read it from the first frame. */
   /** F9 DEV director mode (`?director=<sceneId>`): the scene's world held and re-stepped to the bar's time, drawn from a free camera or the keyed path. */
-  let director: { handle: DirectorHandle; initial: World<undefined>; scene: SceneFile; wp: ScenePlayback; free: ManualCamera; displayed: SceneEye; keyed: boolean } | null = null
+  let director: { handle: DirectorHandle; sheet: DirectorSheetHandle; initial: World<undefined>; scene: SceneFile; wp: ScenePlayback; free: ManualCamera; displayed: SceneEye; keyed: boolean } | null = null
   let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
@@ -2841,12 +2842,23 @@ async function boot(): Promise<void> {
     const initial = frame.world
     // One object, shared with the director's callbacks: the frame loop reads `director`, so `onEye` must write to the same one.
     const session = {
-      handle: undefined as unknown as DirectorHandle, initial, scene, wp: beginPlayback(initial, scene), keyed: true,
+      handle: undefined as unknown as DirectorHandle, sheet: undefined as unknown as DirectorSheetHandle, initial, scene, wp: beginPlayback(initial, scene), keyed: true,
       free: { position: v3(...first.position), yawRad: first.yawDeg * Math.PI / 180, pitchRad: first.pitchDeg * Math.PI / 180, lock: false, speedMps: 60 },
       displayed: { position: first.position, yawDeg: first.yawDeg, pitchDeg: first.pitchDeg } as SceneEye,
     }
     // getFlownEye reads what is on screen, so Drop key and Record capture exactly the view the author is looking at.
     session.handle = createDirector(root, { scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
+    session.sheet = createDirectorSheet(root, {
+      // Right click on the Map tab: over that point, at the camera's current height, looking the same way.
+      onJump: (x, z) => {
+        const at = session.displayed
+        const from = session.keyed ? { ...session.free, position: v3(...at.position), yawRad: at.yawDeg * Math.PI / 180, pitchRad: at.pitchDeg * Math.PI / 180 } : session.free
+        session.free = { ...from, position: v3(x, from.position.y, z) }
+        session.keyed = false
+        session.displayed = { position: [x, from.position.y, z], yawDeg: at.yawDeg, pitchDeg: at.pitchDeg }
+        session.sheet.hide()
+      },
+    })
     director = session
     clearMapInput()
     root.classList.add(REPLAYING_CLASS)
@@ -3103,7 +3115,16 @@ async function boot(): Promise<void> {
   /** One wheel notch in director mode: 500 ft. */
   const DIRECTOR_WHEEL_M = 152.4
   const DIRECTOR_FLY_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE']
-  window.addEventListener('keydown', (e) => { if (director !== null && DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.add(e.code) }, true)
+  window.addEventListener('keydown', (e) => {
+    if (director === null) return
+    if (DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.add(e.code)
+    // Esc opens the sheet on Director controls, M on the Map; either closes it. Here, not on the bubble, because the bar eats keys.
+    if (!e.repeat && (e.code === 'Escape' || e.code === 'KeyM')) {
+      e.preventDefault()
+      if (director.sheet.isOpen()) director.sheet.hide()
+      else { replayHeld.clear(); director.sheet.show(e.code === 'KeyM' ? 'map' : 'controls', director.wp.p.world) }
+    }
+  }, true)
   window.addEventListener('keyup', (e) => { if (DIRECTOR_FLY_KEYS.includes(e.code)) replayHeld.delete(e.code) }, true)
   window.addEventListener('keyup', (e) => {
     pressed.delete(e.code)
@@ -3428,14 +3449,16 @@ async function boot(): Promise<void> {
       const d = director
       const dt = frameMs / 1000
       const mode = d.handle.mode()
-      const steered = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].some((k) => replayHeld.has(k))
-        || replayMouse.dxPx !== 0 || replayMouse.dyPx !== 0 || replayMouse.wheelNotches !== 0
+      const sheetOpen = d.sheet.isOpen()
+      // While the director sheet is up the camera is not steered: the keys and the mouse belong to the sheet.
+      const steered = !sheetOpen && (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].some((k) => replayHeld.has(k))
+        || replayMouse.dxPx !== 0 || replayMouse.dyPx !== 0 || replayMouse.wheelNotches !== 0)
       if (d.keyed && (mode === 'record' || (mode === 'edit' && steered))) {
         // Leaving a keyed pose for the free camera: start from what is on screen.
         d.free = { ...d.free, position: v3(...d.displayed.position), yawRad: d.displayed.yawDeg * Math.PI / 180, pitchRad: d.displayed.pitchDeg * Math.PI / 180 }
         d.keyed = false
       }
-      if (!d.keyed) {
+      if (!d.keyed && !sheetOpen) {
         // Keys fine-tune; the wheel is the fast move: each notch dollies DIRECTOR_WHEEL_M along where the camera points (scroll up is forward).
         // The wheel is withheld from `stepManual`, which would spend it on flying speed. Drag is inverted from the replay's Manual camera:
         // the view follows the finger like a touch screen (drag right turns it left, drag up turns it down).

@@ -138,3 +138,36 @@ test('a key can be dragged along the timeline and stops short of its neighbor', 
   expect(after[2]).toBe(before[2]) // the neighbor did not move
   expect(await bar.locator('.director-key').count()).toBe(before.length)
 })
+
+test('the director sheet opens on Esc and M, and a right click on the map puts the camera over that point at the same height', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  const sheet = page.locator('[data-director-sheet]')
+  const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  // Esc: the controls list; Esc again closes
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeVisible()
+  await expect(sheet).toContainText('Director controls')
+  await expect(sheet).toContainText('Mouse wheel')
+  await page.keyboard.press('Escape')
+  await expect(sheet).toBeHidden()
+  // M: the map; the camera does not move while the sheet is up
+  const start = await eyeOf()
+  await page.keyboard.press('KeyM')
+  await expect(sheet).toBeVisible()
+  const svg = sheet.locator('svg').first()
+  await expect(svg).toBeVisible()
+  const box = (await svg.boundingBox())!
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.5, { button: 'right' })
+  await expect(sheet).toBeHidden()
+  const left = await eyeOf()
+  expect(left.position[1]).toBe(start.position[1]) // height kept
+  expect([left.position[0], left.position[2]]).not.toEqual([start.position[0], start.position[2]])
+  await page.keyboard.press('KeyM')
+  await page.mouse.click(box.x + box.width * 0.7, box.y + box.height * 0.5, { button: 'right' })
+  const right = await eyeOf()
+  expect(right.position[0]).toBeGreaterThan(left.position[0]) // east is to the right on the chart
+  expect(right.position[1]).toBe(start.position[1])
+  expect(right.yawDeg).toBe(start.yawDeg)
+})

@@ -16,6 +16,7 @@ import {
   selectNavigationDestination,
   mapPoints,
   projectPoint,
+  unprojectPoint,
   selectedPoint,
   type MapPoint,
 } from '../../src/render/missionMap.js'
@@ -87,6 +88,18 @@ describe('the Plan 14 navigation chart model', () => {
     expect(bounds.maxX).toBeGreaterThan(bounds.minX)
     expect(bounds.maxZ).toBeGreaterThan(bounds.minZ)
     expect(Object.values(bounds).every(Number.isFinite)).toBe(true)
+  })
+
+  it('unprojectPoint inverts projectPoint, letterboxed or not (the director map jump)', () => {
+    for (const [width, height] of [[400, 400], [800, 520], [300, 900]] as const) {
+      const bounds = { minX: -1500, maxX: 3500, minZ: 200, maxZ: 2200 }
+      for (const p of [point(-1500, 200), point(3500, 2200), point(1234, 987)]) {
+        const px = projectPoint(p, bounds, width, height)
+        const back = unprojectPoint(px.x, px.y, bounds, width, height)
+        expect(back.x).toBeCloseTo(p.x, 6)
+        expect(back.z).toBeCloseTo(p.z, 6)
+      }
+    }
   })
 
   it('preserves the x:z scale and puts north above south', () => {

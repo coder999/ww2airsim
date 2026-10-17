@@ -159,6 +159,17 @@ export function projectPoint(
   }
 }
 
+/** The inverse of `projectPoint`: the world x and z under a chart pixel. */
+export function unprojectPoint(px: number, py: number, bounds: ChartBounds, width: number, height: number): { readonly x: number; readonly z: number } {
+  const spanX = bounds.maxX - bounds.minX
+  const spanZ = bounds.maxZ - bounds.minZ
+  const scale = Math.min(width / spanX, height / spanZ)
+  return {
+    x: bounds.minX + (px - (width - spanX * scale) / 2) / scale,
+    z: bounds.minZ + (py - (height - spanZ * scale) / 2) / scale,
+  }
+}
+
 /** The world rectangle the letterboxed viewport actually shows, which is
  * larger than `bounds` on whichever axis the viewport is longer. */
 export function visibleBounds(bounds: ChartBounds, width: number, height: number): ChartBounds {
@@ -209,6 +220,8 @@ export type MissionMapOptions = {
    *  dossier uses this so its Map tab keeps the common tab strip and action
    *  footer on screen. */
   readonly embedded?: boolean
+  /** F9 director mode: a right click on the chart names the world x and z under it (meters, +z south). Absent: no right-click behavior. */
+  readonly onJump?: (x: number, z: number) => void
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -463,6 +476,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
   let view: ChartView | null = null
   let baseBounds: ChartBounds | null = null
   let lastDraw: (() => void) | null = null
+  let drawnBounds: ChartBounds | null = null
 
   let layerCache: { terrain: TerrainField | null | undefined; key: string; layers: ChartLayers } | null = null
 
@@ -472,6 +486,7 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     const base = chartBounds(points)
     baseBounds = base
     const bounds = view === null ? base : viewBounds(base, view)
+    drawnBounds = bounds
     lastDraw = () => draw(world, selectedId)
     const player = points.find((point) => point.kind === 'player')!
     const selected = selectedPoint(points, selectedId)
@@ -687,6 +702,16 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     },
     true,
   )
+  if (options.onJump !== undefined) {
+    const onJump = options.onJump
+    svg.addEventListener('contextmenu', (event) => {
+      event.preventDefault()
+      const at = chartPoint(event)
+      if (at === null || drawnBounds === null || at.x < 0 || at.y < 0 || at.x > CHART_WIDTH || at.y > CHART_HEIGHT) return
+      const w = unprojectPoint(at.x, at.y, drawnBounds, CHART_WIDTH, CHART_HEIGHT)
+      onJump(w.x, w.z)
+    })
+  }
   svg.addEventListener('dblclick', () => {
     view = null
     redraw()

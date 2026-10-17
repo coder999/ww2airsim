@@ -184,7 +184,9 @@ The flight (and the Dev recorder) starts at handoff. The victory scene plays aft
 debrief, before Headquarters. HQ has Watch opening (current chapter) and Watch epilogue (once won); a watch writes nothing. Esc, Enter or Space skips.
 
 **Dev.** `?scenario=<scene's scenario>&launch&scene=<id>` plays a scene (nothing is written). `?scenario=<...>&launch&director=<id>` opens director mode: the scene's world held, a free camera (WASD, Q/E, drag,
-wheel for speed), a key bar to drop and delete keys, scrub, preview, record a flown path, and Save (downloads `<id>.json` and copies it to the clipboard; nothing writes into `content/`, so commit it). The world follows
+wheel dollies 500 ft a notch along the view), a key bar to drop and delete keys, drag a key along the timeline (it stops a label-width short of its neighbors), scrub, preview, record a
+flown path, and Save (downloads `<id>.json` and copies it to the clipboard; nothing writes into `content/`, so commit it). Esc opens the director sheet (a pause-style overlay) on its Director controls tab and M on its Map tab; right click on the map puts the camera over that point at its current height.
+The world follows
 the bar: forward at up to 120 ticks a frame, restarted from the top when the bar goes back, so a long scrub re-simulates.
 
 ## The shell (F5B, 2026-10-15)
