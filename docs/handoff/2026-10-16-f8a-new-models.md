@@ -52,7 +52,7 @@ partly under the info card; orbit in the Hangar for a better angle. Nexus captur
 
 **Tests updated:** `buildingModels.test.ts` (roster completeness now counts F8A), `tests/render/hangar/models.test.ts` (building count 10 to 14), `tests/e2e/hangar.spec.ts` (building budget/url list).  
 **Tests still valid:** `staticModels`, Hangar roster and provenance, `blenderEntries`, `kitBuildings`.  
-**Known gaps:** `tests/e2e/fixtures/flat-luminance.json` (Hangar check 15) has no rows for these models, because it needs flat predecessors measured on the reference GPU; the e2e `hangar.spec.ts` was not run (needs ryzen's GPU; the updated list is unrun). No gameplay use; ramp slope and widths are guesses; the Navy Quonset manual was never read.
+**Known gaps:** ~~`flat-luminance.json` rows and the unrun `hangar.spec.ts`~~ **closed 2026-10-17** by [hangar-luminance](2026-10-17-hangar-luminance.md) (rows are the skinned builds' own luminance; the e2e ran on ryzen). No gameplay use; ramp slope and widths are guesses; the Navy Quonset manual was never read.
 
 ## Verification
 
