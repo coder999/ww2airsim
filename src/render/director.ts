@@ -134,12 +134,16 @@ export type DirectorDeps = {
   getFlownEye(): SceneEye
   onEye(eye: SceneEye, tSeconds: number): void
   onPlayingChange?(playing: boolean): void
+  /** Share the view on screen (a link and a debugging snapshot). Resolves to the line to show the author. */
+  onShareView?(tSeconds: number): Promise<string>
 }
 
 export type DirectorHandle = {
   dispose(): void
   currentScene(): Scene
   advance(dtS: number): void
+  /** Put the bar at a time, as if scrubbed (used to reopen a shared view). */
+  seek(tSeconds: number): void
   /** Scene time now, and what the bar is doing: the shell keeps the world in step with it. */
   time(): number
   mode(): 'edit' | 'preview' | 'record'
@@ -181,7 +185,7 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
   ui.appendChild(style)
   const help = doc.createElement('div')
   help.className = 'director-help'
-  help.textContent = 'Fly: W/S forward and back, A/D strafe, Q/E down and up, drag to look (the view follows your finger: drag right turns left, drag up turns down). Wheel: 500 ft per notch along the view (scroll up is forward). Drop key stores the view you see.'
+  help.textContent = 'Fly: W/S forward and back, A/D strafe, Q/E down and up, drag to look (the point you grab stays under the pointer). Wheel: 500 ft per notch along the view (scroll up is forward). Drop key stores the view you see.'
   ui.appendChild(help)
   const markers = doc.createElement('div')
   markers.className = 'director-markers'
@@ -241,6 +245,10 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
     dispatch(state.samples !== null ? { kind: 'stop' } : { kind: 'record', eye: deps.getFlownEye() })
   })
   const save = button('Save', () => { void saveScene() })
+  if (deps.onShareView !== undefined) {
+    const share = button('Copy view', () => { void deps.onShareView!(state.tSeconds).then((line) => message(line), (error: unknown) => message(String(error), true)) })
+    share.title = 'Copy a link and a debugging snapshot of exactly what is on screen (time, camera, build)'
+  }
   ui.appendChild(status)
   root.appendChild(ui)
   scrub.addEventListener('input', () => dispatch({ kind: 'scrub', tSeconds: Number(scrub.value) }, true))
@@ -367,6 +375,7 @@ export function createDirector(root: HTMLElement, deps: DirectorDeps): DirectorH
       if (state.playing) deps.onPlayingChange?.(false)
     },
     currentScene: () => structuredClone(state.scene),
+    seek: (tSeconds) => dispatch({ kind: 'scrub', tSeconds }, true),
     time: () => state.tSeconds,
     mode: () => state.samples !== null ? 'record' : state.playing ? 'preview' : 'edit',
     advance(dtS) {

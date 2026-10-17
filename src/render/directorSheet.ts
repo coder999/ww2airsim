@@ -12,7 +12,7 @@ export const DIRECTOR_CONTROLS: readonly (readonly [string, string])[] = [
   ['Fly the camera forward / back', 'W / S'],
   ['Strafe left / right', 'A / D'],
   ['Move the camera down / up', 'Q / E'],
-  ['Look around', 'Drag (the view follows your finger)'],
+  ['Look around', 'Drag: the point you grab stays under the pointer, 1:1'],
   ['Move 500 ft along the view', 'Mouse wheel (scroll up is forward)'],
   ['Jump over a point on the map', 'Right click on the Map tab (height is kept)'],
   ['Open this sheet on Director controls / on the Map', 'Esc / M (either closes it)'],
@@ -20,7 +20,8 @@ export const DIRECTOR_CONTROLS: readonly (readonly [string, string])[] = [
   ['Move a key in time', 'Drag its number on the timeline; it stops at the next key'],
   ['Select a key / play from a key', 'Click its number'],
   ['Record a flown path', 'Record path, fly, Stop recording'],
-  ['Save the scene', 'Save (downloads the JSON and copies it)'],
+  ['Save the scene', 'Save (downloads the scene JSON and copies it; the keys, not the view)'],
+  ['Share what is on screen for debugging', 'Copy view (a link that reopens this time and camera, plus a snapshot)'],
 ]
 
 export type DirectorSheetTab = 'map' | 'controls'
@@ -30,7 +31,10 @@ export type DirectorSheetHandle = {
   isOpen(): boolean
 }
 
-export function createDirectorSheet(root: HTMLElement, deps: { onJump: (x: number, z: number) => void }): DirectorSheetHandle {
+export function createDirectorSheet(root: HTMLElement, deps: {
+  onJump: (x: number, z: number) => void
+  camera: () => { readonly x: number; readonly z: number; readonly yawDeg: number } | null
+}): DirectorSheetHandle {
   ensureStampFilter()
   const backdrop = document.createElement('div')
   backdrop.setAttribute('data-director-sheet', '')
@@ -89,11 +93,11 @@ export function createDirectorSheet(root: HTMLElement, deps: { onJump: (x: numbe
   mapPanel.appendChild(sectionTitle('Mission Map'))
   const hint = document.createElement('p')
   hint.style.cssText = 'margin:0 0 6px;font-size:13px'
-  hint.textContent = 'Right click a point to put the camera over it, at its current height. Wheel zooms, drag pans, double click resets.'
+  hint.textContent = 'The red arrow is the camera. Right click a point to put the camera over it, at its current height. Wheel zooms, drag pans, double click resets.'
   mapPanel.appendChild(hint)
   const mapHost = document.createElement('div')
   mapPanel.appendChild(mapHost)
-  const map = createMissionMap(mapHost, { embedded: true, onClose: () => undefined, onSelect: () => undefined, onJump: deps.onJump })
+  const map = createMissionMap(mapHost, { embedded: true, onClose: () => undefined, onSelect: () => undefined, onJump: deps.onJump, cameraMarker: deps.camera })
 
   const controlsPanel = panels.get('controls')!
   controlsPanel.appendChild(sectionTitle('Director Controls'))

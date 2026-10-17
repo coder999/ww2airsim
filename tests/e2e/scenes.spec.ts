@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import type { DiagWindow } from './harness.js'
 import { parseScene } from '../../src/sim/scene/schema.js'
+import { worldRayAt } from '../../src/render/grabLook.js'
 
 /**
  * F9 campaign scenes (plan 2026-10-17). The chapter scenes do not exist yet (F10), so this drives the demo opening on the
@@ -170,4 +171,62 @@ test('the director sheet opens on Esc and M, and a right click on the map puts t
   expect(right.position[0]).toBeGreaterThan(left.position[0]) // east is to the right on the chart
   expect(right.position[1]).toBe(start.position[1])
   expect(right.yawDeg).toBe(start.yawDeg)
+})
+
+test('a drag holds the world 1:1 under the pointer: the point grabbed is the point under the cursor afterwards', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  const eyeOf = () => page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  const size = await page.evaluate(() => { const r = document.querySelector('canvas')!.getBoundingClientRect(); return { width: r.width, height: r.height, x: r.left, y: r.top } })
+  const vfov = (60 * Math.PI) / 180
+  const rad = (d: number): number => (d * Math.PI) / 180
+  for (const [fromX, fromY, toX, toY] of [[0.5, 0.5, 0.5 + 100 / size.width, 0.5], [0.3, 0.4, 0.62, 0.7], [0.7, 0.8, 0.45, 0.2]] as const) {
+    const before = await eyeOf()
+    const start = [size.x + size.width * fromX, size.y + size.height * fromY] as const
+    const end = [size.x + size.width * toX, size.y + size.height * toY] as const
+    await page.mouse.move(...start)
+    await page.mouse.down()
+    await page.mouse.move(...end, { steps: 12 })
+    await page.mouse.up()
+    await page.waitForTimeout(250)
+    const after = await eyeOf()
+    // the world direction under the grab pixel before == the world direction under the release pixel after
+    const grabbed = worldRayAt(rad(before.yawDeg), rad(before.pitchDeg), start[0] - size.x, start[1] - size.y, size, vfov)
+    const held = worldRayAt(rad(after.yawDeg), rad(after.pitchDeg), end[0] - size.x, end[1] - size.y, size, vfov)
+    for (let i = 0; i < 3; i++) expect(held[i]).toBeCloseTo(grabbed[i]!, 2)
+  }
+})
+
+test('the map shows the camera, and Copy view gives a link that reopens the same time and camera', async ({ page }) => {
+  await page.goto('/?scenario=escort&launch&director=demo-opening')
+  const bar = page.locator('[data-director]')
+  await expect(bar).toBeVisible({ timeout: 90_000 })
+  await page.keyboard.press('KeyM')
+  await expect(page.locator('[data-director-sheet] svg').first()).toContainText('Camera')
+  await page.keyboard.press('KeyM')
+  await bar.getByLabel('Scene time in seconds').fill('4.5')
+  await page.keyboard.down('KeyW')
+  await page.waitForTimeout(500)
+  await page.keyboard.up('KeyW')
+  const eye = await page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  const download = page.waitForEvent('download')
+  await bar.getByRole('button', { name: 'Copy view' }).click()
+  const file = await download
+  const chunks: Buffer[] = []
+  for await (const chunk of await file.createReadStream()) chunks.push(chunk as Buffer)
+  const view = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { kind: string; scene: string; tSeconds: number; url: string; camera: { positionM: number[] } }
+  expect(view.kind).toBe('ww2airsim-director-view')
+  expect(view.scene).toBe('demo-opening')
+  expect(view.tSeconds).toBeCloseTo(4.5, 1)
+  expect(view.camera.positionM[0]).toBeCloseTo(eye.position[0], 1)
+  // the link reopens it
+  await page.goto(view.url)
+  await expect(page.locator('[data-director]')).toBeVisible({ timeout: 90_000 })
+  await page.waitForFunction(() => (window as DiagWindow).__ww2?.directorEye() != null)
+  const reopened = await page.evaluate(() => (window as DiagWindow).__ww2!.directorEye()!)
+  expect(reopened.position[0]).toBeCloseTo(eye.position[0], 1)
+  expect(reopened.position[2]).toBeCloseTo(eye.position[2], 1)
+  expect(reopened.yawDeg).toBeCloseTo(eye.yawDeg, 1)
+  await expect(page.locator('[data-director] output')).toContainText('4.50')
 })

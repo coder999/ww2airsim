@@ -185,7 +185,8 @@ debrief, before Headquarters. HQ has Watch opening (current chapter) and Watch e
 
 **Dev.** `?scenario=<scene's scenario>&launch&scene=<id>` plays a scene (nothing is written). `?scenario=<...>&launch&director=<id>` opens director mode: the scene's world held, a free camera (WASD, Q/E, drag,
 wheel dollies 500 ft a notch along the view), a key bar to drop and delete keys, drag a key along the timeline (it stops a label-width short of its neighbors), scrub, preview, record a
-flown path, and Save (downloads `<id>.json` and copies it to the clipboard; nothing writes into `content/`, so commit it). Esc opens the director sheet (a pause-style overlay) on its Director controls tab and M on its Map tab; right click on the map puts the camera over that point at its current height.
+flown path, and Save (downloads `<id>.json` and copies it to the clipboard; nothing writes into `content/`, so commit it). Drag is grab-and-drag: the world point under the pointer when the drag starts stays under it, 1:1 (`src/render/grabLook.ts`). Copy view downloads and copies a snapshot of the screen (scene, time, camera, build, time of day) whose `url` reopens it: director mode takes `&t=<s>&eye=x,y,z,yawDeg,pitchDeg`. Save is the scene's keys only, not the view.
+Esc opens the director sheet (a pause-style overlay) on its Director controls tab and M on its Map tab; right click on the map puts the camera over that point at its current height.
 The world follows
 the bar: forward at up to 120 ticks a frame, restarted from the top when the bar goes back, so a long scrub re-simulates.
 

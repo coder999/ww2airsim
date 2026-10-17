@@ -222,6 +222,8 @@ export type MissionMapOptions = {
   readonly embedded?: boolean
   /** F9 director mode: a right click on the chart names the world x and z under it (meters, +z south). Absent: no right-click behavior. */
   readonly onJump?: (x: number, z: number) => void
+  /** F9 director mode: where the free camera is (world x, z in meters; yaw in degrees, 0 = east, counter-clockwise from above). Read on every draw. */
+  readonly cameraMarker?: () => { readonly x: number; readonly z: number; readonly yawDeg: number } | null
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -567,6 +569,27 @@ export function createMissionMap(root: HTMLElement, options: MissionMapOptions):
     points.forEach((point, index) =>
       drawMarker(world, point, projections[index]!, captions[index]!, selected?.id ?? null, bounds, content),
     )
+
+    const camera = options.cameraMarker?.() ?? null
+    if (camera !== null) {
+      const at = project(camera.x, camera.z)
+      const mark = svgElement('g')
+      // The chart has north up and east right, so a yaw of 0 (east) points right: clockwise-from-up is 90 - yaw.
+      mark.setAttribute('transform', `translate(${at.x} ${at.y}) rotate(${90 - camera.yawDeg})`)
+      const arrow = svgElement('path')
+      arrow.setAttribute('d', 'M0,-14 L8,9 L0,4 L-8,9 Z')
+      paint(arrow, { fill: 'var(--stamp-red)', stroke: '#e9dfc2', 'stroke-width': '1.5', 'stroke-linejoin': 'round' })
+      mark.appendChild(arrow)
+      const caption = svgElement('text')
+      caption.setAttribute('x', String(at.x + 12))
+      caption.setAttribute('y', String(at.y - 10))
+      caption.setAttribute('font-size', '15')
+      caption.setAttribute('font-weight', '700')
+      caption.setAttribute('fill', 'var(--stamp-red)')
+      caption.textContent = 'Camera'
+      content.appendChild(mark)
+      content.appendChild(caption)
+    }
 
     const indexLines = layers.contours
       .filter((c) => c.index)

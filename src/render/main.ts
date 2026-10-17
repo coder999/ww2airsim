@@ -123,6 +123,7 @@ import type { Scene as SceneFile } from '../sim/scene/schema.js'
 import type { SceneEye } from '../sim/scene/camera.js'
 import { createDirector, type DirectorHandle } from './director.js'
 import { createDirectorSheet, type DirectorSheetHandle } from './directorSheet.js'
+import { lookToHold, worldRayAt } from './grabLook.js'
 import { createOcean, landWeightAt, recentreOcean } from './ocean/mesh.js'
 import { loadDepth, type DepthField } from './ocean/depth.js'
 import { beaufortFromQuery, oceanTimeFromQuery, seaStateFor } from './ocean/weather.js'
@@ -397,7 +398,7 @@ async function boot(): Promise<void> {
   let hqHandle: { show(): void; hide(): void } | null = null
   /** F9: the campaign scene playing now; declared this early because the DEV diagnostics read it from the first frame. */
   /** F9 DEV director mode (`?director=<sceneId>`): the scene's world held and re-stepped to the bar's time, drawn from a free camera or the keyed path. */
-  let director: { handle: DirectorHandle; sheet: DirectorSheetHandle; initial: World<undefined>; scene: SceneFile; wp: ScenePlayback; free: ManualCamera; displayed: SceneEye; keyed: boolean } | null = null
+  let director: { handle: DirectorHandle; sheet: DirectorSheetHandle; grab: readonly [number, number, number] | null; initial: World<undefined>; scene: SceneFile; wp: ScenePlayback; free: ManualCamera; displayed: SceneEye; keyed: boolean } | null = null
   let scenePlay: { sp: ScenePlayback; sceneId: string; markSeen: boolean; holdAfter: boolean; onDone: () => void } | null = null
   let hqCatalogNow: () => readonly MissionDescriptor[] | null = () => null
   /**
@@ -1023,10 +1024,13 @@ async function boot(): Promise<void> {
   let mouseDelta: MouseDelta = NO_MOUSE
   let dragPointer: number | null = null
   let lastPointer = { x: 0, y: 0 }
+  /** Where the current drag began, client pixels: director mode's grab-and-drag look holds the world under this pixel. */
+  let dragStart = { x: 0, y: 0 }
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return
     dragPointer = e.pointerId
     lastPointer = { x: e.clientX, y: e.clientY }
+    dragStart = lastPointer
     canvas.setPointerCapture(e.pointerId)
   })
   canvas.addEventListener('pointermove', (e) => {
@@ -2836,19 +2840,47 @@ async function boot(): Promise<void> {
     freshHeldFrame()
     playScene(scene, { markSeen: false, holdAfter: true, onDone: () => { title.show(requestedScenarioId); hqHandle?.show() } })
   }
+  /** Director "Copy view": a link that reopens exactly this scene, time and camera, plus a snapshot with the build and sky, downloaded and copied. */
+  const shareDirectorView = async (sceneId: string, tSeconds: number, eye: SceneEye): Promise<string> => {
+    const r = (n: number): number => Math.round(n * 100) / 100
+    const url = new URL(location.href)
+    url.searchParams.set('t', String(r(tSeconds)))
+    url.searchParams.set('eye', [...eye.position.map(r), r(eye.yawDeg), r(eye.pitchDeg)].join(','))
+    const snapshot = {
+      kind: 'ww2airsim-director-view', scene: sceneId, scenario: bundle?.scenario.id ?? requestedScenarioId, tSeconds: r(tSeconds),
+      camera: { positionM: eye.position.map(r), yawDeg: r(eye.yawDeg), pitchDeg: r(eye.pitchDeg) },
+      timeOfDay: scenarioTimeOfDay, build: BUILD_ID, url: url.toString(), viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+    }
+    const json = JSON.stringify(snapshot, null, 2) + '\n'
+    const failures: string[] = []
+    try {
+      const href = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = href
+      a.download = `${sceneId}-view-t${r(tSeconds)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(href), 1000)
+    } catch (error) { failures.push(`Download failed: ${String(error)}`) }
+    try { await navigator.clipboard.writeText(json) } catch (error) { failures.push(`Clipboard failed: ${String(error)}`) }
+    return failures.length === 0 ? 'View downloaded and copied: it holds a link that reopens this exact time and camera.' : failures.join('\n')
+  }
   const startDirector = (scene: SceneFile): void => {
     frame = withPaused(frame!, true)
     const first = scene.camera[0]!
     const initial = frame.world
     // One object, shared with the director's callbacks: the frame loop reads `director`, so `onEye` must write to the same one.
     const session = {
-      handle: undefined as unknown as DirectorHandle, sheet: undefined as unknown as DirectorSheetHandle, initial, scene, wp: beginPlayback(initial, scene), keyed: true,
+      handle: undefined as unknown as DirectorHandle, sheet: undefined as unknown as DirectorSheetHandle, grab: null, initial, scene, wp: beginPlayback(initial, scene), keyed: true,
       free: { position: v3(...first.position), yawRad: first.yawDeg * Math.PI / 180, pitchRad: first.pitchDeg * Math.PI / 180, lock: false, speedMps: 60 },
       displayed: { position: first.position, yawDeg: first.yawDeg, pitchDeg: first.pitchDeg } as SceneEye,
     }
     // getFlownEye reads what is on screen, so Drop key and Record capture exactly the view the author is looking at.
-    session.handle = createDirector(root, { scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
+    session.handle = createDirector(root, {
+      onShareView: (tSeconds) => shareDirectorView(session.scene.id, tSeconds, session.displayed), scene, getFlownEye: () => session.displayed, onEye: (eye) => { session.keyed = true; session.displayed = eye } })
     session.sheet = createDirectorSheet(root, {
+      camera: () => ({ x: session.displayed.position[0], z: session.displayed.position[2], yawDeg: session.displayed.yawDeg }),
       // Right click on the Map tab: over that point, at the camera's current height, looking the same way.
       onJump: (x, z) => {
         const at = session.displayed
@@ -2860,6 +2892,18 @@ async function boot(): Promise<void> {
       },
     })
     director = session
+    // A shared view reopens exactly: `&t=` puts the bar there, `&eye=x,y,z,yawDeg,pitchDeg` puts the camera there.
+    const q = new URLSearchParams(location.search)
+    const tQ = Number(q.get('t'))
+    if (q.has('t') && Number.isFinite(tQ)) session.handle.seek(tQ)
+    // After the seek: scrubbing shows the keyed path, and the shared camera must win over it.
+    const eyeQ = q.get('eye')?.split(',').map(Number)
+    if (eyeQ !== undefined && eyeQ.length === 5 && eyeQ.every(Number.isFinite)) {
+      const [x, y, z, yawDeg, pitchDeg] = eyeQ as [number, number, number, number, number]
+      session.free = { ...session.free, position: v3(x, y, z), yawRad: yawDeg * Math.PI / 180, pitchRad: pitchDeg * Math.PI / 180 }
+      session.displayed = { position: [x, y, z], yawDeg, pitchDeg }
+      session.keyed = false
+    }
     clearMapInput()
     root.classList.add(REPLAYING_CLASS)
     replayHistoryCut = true
@@ -3452,7 +3496,7 @@ async function boot(): Promise<void> {
       const sheetOpen = d.sheet.isOpen()
       // While the director sheet is up the camera is not steered: the keys and the mouse belong to the sheet.
       const steered = !sheetOpen && (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].some((k) => replayHeld.has(k))
-        || replayMouse.dxPx !== 0 || replayMouse.dyPx !== 0 || replayMouse.wheelNotches !== 0)
+        || dragPointer !== null || replayMouse.wheelNotches !== 0)
       if (d.keyed && (mode === 'record' || (mode === 'edit' && steered))) {
         // Leaving a keyed pose for the free camera: start from what is on screen.
         d.free = { ...d.free, position: v3(...d.displayed.position), yawRad: d.displayed.yawDeg * Math.PI / 180, pitchRad: d.displayed.pitchDeg * Math.PI / 180 }
@@ -3460,9 +3504,8 @@ async function boot(): Promise<void> {
       }
       if (!d.keyed && !sheetOpen) {
         // Keys fine-tune; the wheel is the fast move: each notch dollies DIRECTOR_WHEEL_M along where the camera points (scroll up is forward).
-        // The wheel is withheld from `stepManual`, which would spend it on flying speed. Drag is inverted from the replay's Manual camera:
-        // the view follows the finger like a touch screen (drag right turns it left, drag up turns it down).
-        d.free = stepManual(d.free, { mouse: { ...replayMouse, dxPx: -replayMouse.dxPx, dyPx: -replayMouse.dyPx, wheelNotches: 0 }, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
+        // The wheel and the drag are withheld from `stepManual` (it would spend the wheel on flying speed and turn the drag by a fixed rate).
+        d.free = stepManual(d.free, { mouse: { ...replayMouse, dxPx: 0, dyPx: 0, wheelNotches: 0 }, held: replayHeld, realDtS: dt }, { position: d.free.position, attitude: d.wp.p.world.aircraft[0]!.state.attitude })
         if (replayMouse.wheelNotches !== 0) {
           const run = -replayMouse.wheelNotches * DIRECTOR_WHEEL_M
           const { yawRad, pitchRad } = d.free
@@ -3473,6 +3516,16 @@ async function boot(): Promise<void> {
         }
         d.displayed = { position: [d.free.position.x, d.free.position.y, d.free.position.z], yawDeg: d.free.yawRad * 180 / Math.PI, pitchDeg: d.free.pitchRad * 180 / Math.PI }
       }
+      // Grab-and-drag look: the world point under the pointer when the drag began stays under the pointer, 1:1 (a cloud follows the mouse).
+      if (dragPointer !== null && !d.keyed && !sheetOpen) {
+        const rect = canvas.getBoundingClientRect()
+        const vp = { width: rect.width, height: rect.height }
+        const vfov = (CAMERA_VFOV_DEG * Math.PI) / 180
+        d.grab ??= worldRayAt(d.free.yawRad, d.free.pitchRad, dragStart.x - rect.left, dragStart.y - rect.top, vp, vfov)
+        const look = lookToHold(d.grab, lastPointer.x - rect.left, lastPointer.y - rect.top, vp, vfov, d.free.pitchRad)
+        d.free = { ...d.free, yawRad: look.yawRad, pitchRad: look.pitchRad }
+        d.displayed = { position: [d.free.position.x, d.free.position.y, d.free.position.z], yawDeg: look.yawRad * 180 / Math.PI, pitchDeg: look.pitchRad * 180 / Math.PI }
+      } else d.grab = null
       d.handle.advance(dt)
       // The world follows the bar: forward by up to 120 ticks a frame, restarted from the top when the bar goes back.
       const target = d.handle.time()
@@ -4271,7 +4324,7 @@ async function boot(): Promise<void> {
   if (devDirectorId !== null && quick !== null) {
     void loadScene(devDirectorId).then(async (scene) => {
       if (scene === null) { console.warn(`director ${devDirectorId}: scene not found or invalid`); return }
-      while (frame === null || (frame.groundSpawn && frame.world.terrain === null)) await new Promise((r) => setTimeout(r, 200))
+      while (frame === null || frame.world.terrain === null) await new Promise((r) => setTimeout(r, 200))
       startDirector(scene)
     })
   }
@@ -4279,7 +4332,7 @@ async function boot(): Promise<void> {
   if (devSceneId !== null && quick !== null) {
     void loadScene(devSceneId).then(async (scene) => {
       if (scene === null) { console.warn(`scene ${devSceneId}: not found or invalid`); return }
-      while (frame === null || (frame.groundSpawn && frame.world.terrain === null)) await new Promise((r) => setTimeout(r, 200))
+      while (frame === null || frame.world.terrain === null) await new Promise((r) => setTimeout(r, 200))
       playScene(scene, { markSeen: false, onDone: () => undefined })
     })
   }
