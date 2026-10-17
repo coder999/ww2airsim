@@ -1,0 +1,111 @@
+{
+  "id": "j1-opening",
+  "chapter": "J1",
+  "kind": "opening",
+  "durationS": 18,
+  "world": {
+    "source": "mission",
+    "scenario": "j1-defend-the-fields"
+  },
+  "camera": [
+    {
+      "t": 0,
+      "position": [
+        -42525,
+        650,
+        -21005
+      ],
+      "yawDeg": 56.31,
+      "pitchDeg": -18.12,
+      "ease": "inOut"
+    },
+    {
+      "t": 3.5,
+      "position": [
+        -41925,
+        450,
+        -22605
+      ],
+      "yawDeg": 123.69,
+      "pitchDeg": -19.83,
+      "ease": "inOut"
+    },
+    {
+      "t": 7,
+      "position": [
+        -40825,
+        350,
+        -22805
+      ],
+      "yawDeg": 194.04,
+      "pitchDeg": -19.38,
+      "ease": "inOut"
+    },
+    {
+      "t": 10.5,
+      "position": [
+        -40125,
+        300,
+        -22105
+      ],
+      "yawDeg": 263.66,
+      "pitchDeg": -14.84,
+      "ease": "inOut"
+    },
+    {
+      "t": 14,
+      "position": [
+        -40825,
+        250,
+        -21405
+      ],
+      "yawDeg": 341.57,
+      "pitchDeg": -16.72,
+      "ease": "inOut"
+    },
+    {
+      "t": 18,
+      "position": [
+        -41625,
+        220,
+        -21905
+      ],
+      "yawDeg": 80.54,
+      "pitchDeg": -14.74,
+      "ease": "inOut"
+    }
+  ],
+  "cues": [
+    {
+      "t": 0,
+      "order": {
+        "kind": "message",
+        "text": "Buri tower: Stand by to scramble. Keep the strip clear."
+      }
+    },
+    {
+      "t": 6,
+      "order": {
+        "kind": "message",
+        "text": "Buri tower: Protect the fuel, radio, both hangars, and dispersal."
+      }
+    },
+    {
+      "t": 12,
+      "order": {
+        "kind": "message",
+        "text": "Wingman: Engine running. Ready on your right."
+      }
+    },
+    {
+      "t": 17,
+      "order": {
+        "kind": "message",
+        "text": "Buri tower: Scramble. Your aircraft."
+      }
+    }
+  ],
+  "handoff": {
+    "player": "held"
+  }
+}

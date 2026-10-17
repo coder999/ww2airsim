@@ -56,11 +56,11 @@
    "authoredBonus": 0
   },
   "J1": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
+   "scenario": "j1-defend-the-fields",
+   "badge": { "id": "j1-defend-the-fields", "name": "Defend the Fields" },
+   "start": "airfield",
+   "aircraft": ["a6m2-zero"],
+   "recommendedLoadout": "clean",
    "coordinated": false,
    "authoredBonus": 0
   },

@@ -230,6 +230,7 @@
   },
   {
    "id": "J1",
+   "scenario": "j1-defend-the-fields",
    "status": "filled",
    "aircraft": "a6m2-zero",
    "side": "axis",

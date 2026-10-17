@@ -1,0 +1,708 @@
+{
+  "id": "j1-defend-the-fields",
+  "player": "zero-1",
+  "sites": [
+    "buri",
+    "bayug"
+  ],
+  "airfields": [
+    "buri",
+    "bayug"
+  ],
+  "aircraft": [
+    {
+      "id": "zero-1",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "parkedAt": {
+        "airfield": "buri",
+        "spot": {
+          "x": -8,
+          "z": -330
+        }
+      },
+      "chocked": false
+    },
+    {
+      "id": "zero-2",
+      "spec": "a6m2-zero",
+      "side": "axis",
+      "parkedAt": {
+        "airfield": "buri",
+        "spot": {
+          "x": 8,
+          "z": -330
+        }
+      },
+      "chocked": false,
+      "pilot": {
+        "takeoff": true,
+        "skill": "green",
+        "home": {
+          "airfield": "buri"
+        }
+      }
+    }
+  ],
+  "ships": [],
+  "weather": {
+    "timeOfDay": 8.5,
+    "windFromDeg": 80,
+    "windMps": 3,
+    "clouds": [
+      {
+        "kind": "cumulus",
+        "baseM": 1200,
+        "thicknessM": 700,
+        "coverage": 0.4
+      }
+    ]
+  },
+  "freezeOnSuccess": true,
+  "population": {
+    "airborne": 10,
+    "ships": 0
+  },
+  "objectives": [
+    {
+      "id": "up",
+      "label": "Take off",
+      "priority": "primary",
+      "kind": "takeoff",
+      "from": "buri"
+    },
+    {
+      "id": "g-fuel",
+      "label": "Fuel farm",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "buri-fuel"
+      ],
+      "after": "up",
+      "maxLost": 0,
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "g-radio",
+      "label": "Radio station",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "buri-radio"
+      ],
+      "after": "up",
+      "maxLost": 0,
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "g-north",
+      "label": "North hangar",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "buri-north-hangar"
+      ],
+      "after": "up",
+      "maxLost": 0,
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "g-south",
+      "label": "South hangar",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "buri-south-hangar"
+      ],
+      "after": "up",
+      "maxLost": 0,
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "g-dispersal",
+      "label": "Dispersal",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "buri-dispersal"
+      ],
+      "after": "up",
+      "maxLost": 0,
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "strike",
+      "label": "Hold three groups",
+      "priority": "primary",
+      "kind": "atLeast",
+      "n": 3,
+      "of": [
+        "g-fuel",
+        "g-radio",
+        "g-north",
+        "g-south",
+        "g-dispersal"
+      ],
+      "after": "up",
+      "until": {
+        "gone": {
+          "targets": [
+            "raid"
+          ]
+        }
+      }
+    },
+    {
+      "id": "ki21-arrive",
+      "label": "Ki-21 reaches Buri",
+      "priority": "secondary",
+      "kind": "arrive",
+      "targets": [
+        "ki21"
+      ],
+      "zone": {
+        "point": {
+          "x": -41775,
+          "z": -21873
+        },
+        "radiusM": 1500
+      },
+      "after": "up",
+      "until": {
+        "gone": {
+          "targets": [
+            "ki21"
+          ]
+        }
+      }
+    },
+    {
+      "id": "ki21-safe",
+      "label": "Protect the Ki-21",
+      "priority": "secondary",
+      "kind": "protect",
+      "targets": [
+        "ki21"
+      ],
+      "maxLost": 0,
+      "after": "up",
+      "until": {
+        "completed": "ki21-arrive"
+      }
+    },
+    {
+      "id": "ki21",
+      "label": "Save the damaged Ki-21",
+      "priority": "secondary",
+      "kind": "atLeast",
+      "n": 2,
+      "of": [
+        "ki21-arrive",
+        "ki21-safe"
+      ],
+      "after": "up"
+    },
+    {
+      "id": "home-buri",
+      "label": "Land at Buri",
+      "priority": "secondary",
+      "kind": "land",
+      "at": "buri",
+      "after": "strike",
+      "requires": {
+        "serviceable": [
+          "buri"
+        ]
+      }
+    },
+    {
+      "id": "home-bayug",
+      "label": "Divert to Bayug",
+      "priority": "secondary",
+      "kind": "land",
+      "at": "bayug",
+      "after": "strike",
+      "requires": {
+        "unserviceable": [
+          "buri"
+        ]
+      }
+    },
+    {
+      "id": "home",
+      "label": "Recover",
+      "priority": "primary",
+      "kind": "atLeast",
+      "n": 1,
+      "of": [
+        "home-buri",
+        "home-bayug"
+      ],
+      "after": "strike"
+    }
+  ],
+  "fieldRules": [
+    {
+      "airfield": "buri",
+      "structures": [
+        "buri-tower",
+        "buri-ammo-bunker-1",
+        "buri-barracks-1"
+      ],
+      "minFraction": 0.5
+    }
+  ],
+  "triggers": [
+    {
+      "id": "orders",
+      "when": {
+        "at": 1
+      },
+      "then": [
+        {
+          "message": "Buri tower: Scramble! Defend the fuel, radio, hangars, and dispersal. Get airborne now."
+        }
+      ]
+    },
+    {
+      "id": "ki43-release",
+      "when": {
+        "completed": "up"
+      },
+      "then": [
+        {
+          "spawn": "ki43-pair"
+        },
+        {
+          "message": "Buri tower: Two Army fighters are joining from the west, five thousand feet."
+        }
+      ]
+    },
+    {
+      "id": "strike-a-release",
+      "when": {
+        "at": 120
+      },
+      "then": [
+        {
+          "spawn": "strike-a"
+        },
+        {
+          "message": "Buri tower: Hellcats, bearing zero-nine-zero, five and a half miles from the field, six thousand feet."
+        }
+      ]
+    },
+    {
+      "id": "ki21-release",
+      "when": {
+        "gone": {
+          "targets": [
+            "wave-a"
+          ]
+        }
+      },
+      "then": [
+        {
+          "spawn": "ki21-group"
+        },
+        {
+          "message": "Buri tower: Damaged Ki-21 inbound from the west, five miles, three thousand feet. Cover it to the threshold."
+        }
+      ]
+    },
+    {
+      "id": "strike-b-release",
+      "when": {
+        "at": 180
+      },
+      "then": [
+        {
+          "spawn": "strike-b"
+        },
+        {
+          "message": "Buri tower: Second strike, bearing zero-nine-zero, five and a half miles. Hellcats and Avengers, five to six thousand feet."
+        }
+      ]
+    },
+    {
+      "id": "field-holds",
+      "when": {
+        "completed": "strike"
+      },
+      "then": [
+        {
+          "message": "Buri tower: The field holds. Recover at Buri; divert to Bayug only if Buri is unserviceable."
+        }
+      ]
+    },
+    {
+      "id": "field-lost",
+      "when": {
+        "failed": "strike"
+      },
+      "then": [
+        {
+          "message": "Buri tower: Too many groups lost. The defense has failed. Bring your aircraft home."
+        }
+      ]
+    }
+  ],
+  "heldGroups": [
+    {
+      "id": "ki43-pair",
+      "aircraft": [
+        {
+          "id": "ki43-1",
+          "spec": "ki-43-oscar",
+          "side": "axis",
+          "airborneAt": {
+            "position": [
+              -45025,
+              1500,
+              -22005
+            ],
+            "headingDeg": 80,
+            "speedMps": 100
+          },
+          "pilot": {
+            "skill": "green",
+            "home": {
+              "airfield": "buri"
+            }
+          }
+        },
+        {
+          "id": "ki43-2",
+          "spec": "ki-43-oscar",
+          "side": "axis",
+          "airborneAt": {
+            "position": [
+              -45225,
+              1500,
+              -22205
+            ],
+            "headingDeg": 80,
+            "speedMps": 100
+          },
+          "pilot": {
+            "skill": "green",
+            "leader": "ki43-1",
+            "slot": 1,
+            "home": {
+              "airfield": "buri"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "strike-a",
+      "aircraft": [
+        {
+          "id": "raid-1",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1800,
+              -22155
+            ],
+            "headingDeg": 270,
+            "speedMps": 120
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -22155,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-fuel"
+              },
+              "attack": "dive-bomb"
+            }
+          },
+          "tags": [
+            "raid",
+            "wave-a"
+          ]
+        },
+        {
+          "id": "raid-2",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1800,
+              -21855
+            ],
+            "headingDeg": 270,
+            "speedMps": 120
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -21855,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-radio"
+              },
+              "attack": "dive-bomb"
+            }
+          },
+          "tags": [
+            "raid",
+            "wave-a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "strike-b",
+      "aircraft": [
+        {
+          "id": "raid-3",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1800,
+              -22305
+            ],
+            "headingDeg": 270,
+            "speedMps": 120
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -22305,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-north-hangar"
+              },
+              "attack": "dive-bomb"
+            }
+          },
+          "tags": [
+            "raid"
+          ]
+        },
+        {
+          "id": "raid-4",
+          "spec": "f6f-hellcat",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1800,
+              -21705
+            ],
+            "headingDeg": 270,
+            "speedMps": 120
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -21705,
+                  "altitudeM": 1800,
+                  "speedMps": 120
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-south-hangar"
+              },
+              "attack": "dive-bomb"
+            }
+          },
+          "tags": [
+            "raid"
+          ]
+        },
+        {
+          "id": "raid-5",
+          "spec": "tbm-3-avenger",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1500,
+              -22455
+            ],
+            "headingDeg": 270,
+            "speedMps": 95
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -22455,
+                  "altitudeM": 1500,
+                  "speedMps": 95
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-dispersal"
+              },
+              "attack": "level-bomb"
+            }
+          },
+          "tags": [
+            "raid"
+          ]
+        },
+        {
+          "id": "raid-6",
+          "spec": "tbm-3-avenger",
+          "side": "allied",
+          "airborneAt": {
+            "position": [
+              -32025,
+              1500,
+              -21555
+            ],
+            "headingDeg": 270,
+            "speedMps": 95
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -36525,
+                  "z": -21555,
+                  "altitudeM": 1500,
+                  "speedMps": 95
+                }
+              ],
+              "destination": {
+                "airfield": "buri",
+                "aim": "buri-tower"
+              },
+              "attack": "level-bomb"
+            }
+          },
+          "tags": [
+            "raid"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ki21-group",
+      "aircraft": [
+        {
+          "id": "ki21-1",
+          "spec": "ki-21-sally",
+          "side": "axis",
+          "airborneAt": {
+            "position": [
+              -49025,
+              900,
+              -22005
+            ],
+            "headingDeg": 90,
+            "speedMps": 85
+          },
+          "pilot": {
+            "skill": "green",
+            "ingress": {
+              "route": [
+                {
+                  "x": -43525,
+                  "z": -21873,
+                  "altitudeM": 900,
+                  "speedMps": 85
+                }
+              ],
+              "destination": {
+                "airfield": "buri"
+              }
+            },
+            "home": {
+              "airfield": "buri"
+            }
+          },
+          "tags": [
+            "ki21"
+          ]
+        }
+      ]
+    }
+  ],
+  "badge": {
+    "id": "j1-defend-the-fields",
+    "name": "Defend the Fields"
+  },
+  "briefing": {
+    "situation": "18 October 1944, 0830. Pre-invasion Leyte. Your A6M2 is at Buri with the engine running and one Zero wingman beside you. Scramble; two Ki-43 Army fighters will join after takeoff. Two American strike groups approach from the east. Keep at least three of five groups intact through the strike: the fuel farm, radio station, north hangar, south hangar, and dispersal. A group is lost if any of its tracked structures is destroyed. Cover the inbound Ki-21 until it reaches the runway-threshold area. Recover at Buri; Bayug is authorized only if Buri becomes unserviceable. Invented: this historical composite uses authored aircraft counts, positions, timing, weather, radio calls, and a reported damaged Ki-21; it does not recreate a documented engagement. The Ki-21 damage is narrative only. Buri counts as unserviceable when two of its three operations structures are destroyed: the tower, ammunition bunker, and barracks.",
+    "loadout": "clean"
+  },
+  "history": {
+    "text": "Historical composite, inspired by the Japanese defense of the Burauen airfields before the American landings; it is not a reconstruction of a documented engagement, and the exact action did not occur as authored. The Army history describes the Burauen airfields of Buri, Bayug, and San Pablo and their pre-invasion state. Buri was the most important of the three, with a runway about 5,000 feet long. This chapter places an invented defense there on 18 October 1944. Its mixed Japanese fighter cover, two American strike groups, and the damaged Ki-21 are gameplay inventions. The A6M2 Zero was outclassed by the F6F Hellcat; the task here is to break up the attacks and keep the field working.",
+    "sources": [
+      "U.S. Army, M. Hamlin Cannon, Leyte: The Return to the Philippines, chapter VIII (Burauen airfields and pre-invasion state): https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-8.html",
+      "docs/superpowers/specs/2026-10-14-leyte-campaign-definition.md, sections 3, 4 (J1), and 10: historical-composite designation and limits on the authored engagement"
+    ]
+  }
+}
