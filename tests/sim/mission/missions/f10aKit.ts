@@ -26,3 +26,10 @@ export const MILE_M = 1609.344
 
 /** A chapter scene, parsed from content/scenes/. */
 export const sceneOf = (id: string): Scene => parseScene(JSON.parse(readFileSync(new URL(`../../../../content/scenes/${id}.json`, import.meta.url), 'utf8')) as unknown)
+
+/** A ship's hull points set to `hp` (a partial hit, which `destroyNow` cannot say): the combat record as a torpedo's flooding would leave it. */
+export const hullAt = (w: World<undefined>, id: string, hp: number): World<undefined> => {
+  const rec = w.combat.ships[id]
+  if (rec === undefined) throw new Error(`hullAt: no combat record for "${id}"`)
+  return { ...w, combat: { ...w.combat, ships: { ...w.combat.ships, [id]: { ...rec, hp } } } }
+}
