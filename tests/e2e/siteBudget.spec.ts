@@ -32,7 +32,7 @@ type Arm = 'base' | 'site'
 type Run = { readonly arm: Arm; readonly p95: number; readonly n: number; readonly models: number }
 async function measure(page: Page, arm: Arm): Promise<Run> {
   const q = new URLSearchParams({
-    scenario: 'free-flight', launch: '1', cloudTier: 'high', oceanTier: 'high', sceneryView: '1',
+    cloudTier: 'high', oceanTier: 'high', sceneryView: '1',
     spawnX: String(TACLOBAN.x - 520), spawnY: '160', spawnZ: String(TACLOBAN.z - 60),
     ...(arm === 'site' ? { siteState: 'tacloban:buildup' } : {}),
   })
