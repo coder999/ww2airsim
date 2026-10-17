@@ -531,3 +531,10 @@ suite. See the [handoff](handoff/2026-10-14-ki57-onboard.md). Not deployed.
 sortie; Bayug's strip, scenery and tree clearing are now built for the world that is loaded, not the boot world's
 airfields (root cause: an in-place scenario swap kept Free Flight's Tacloban and Dulag, so Bayug had no strip and trees
 grew over it; verified 2026-10-15 by `tests/e2e/sceneryAirfields.spec.ts`, red before the fix). Not merged.
+
+**F9, in-engine campaign scenes and Dev director mode (merged 2026-10-17; not deployed).** A scene is the first N seconds of a mission's own scenario, played before the flight (openings) or before Headquarters
+shows the campaign won (victory); skip runs the same ticks headless and ends in the identical world (verified 2026-10-17: `tests/render/sceneFlow.test.ts` compares `worldChecksum` for live, mid-way skip and straight skip).
+Built: the scene file and cue engine (`src/sim/scene/`), the pre-roll with an inert mission clock, `markSceneSeen`, HQ Watch opening / Watch epilogue, and director mode (`?director=<id>`: free camera, key bar, drag keys in
+time, an interactive Map with right-click jump, Save timeline JSON, Save frame JSON). **Scope change (Mark, 2026-10-17):** the chapter missions are F10, so two demo scenes (`demo-opening`, `demo-victory`) ship in place of
+fourteen, as placeholders Mark will edit. Verified 2026-10-17: `npm run verify` on ryzen, exit 0; ten specs in `tests/e2e/scenes.spec.ts` and 23 HQ and launch-flow specs passed on ryzen session 0. Handoff:
+[`handoff/2026-10-17-f9-scenes.md`](handoff/2026-10-17-f9-scenes.md); contract: `campaign-data.md`, "Scenes".

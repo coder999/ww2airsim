@@ -439,7 +439,7 @@ not a bespoke ending cinematic.
 missing assets or audio fail safely, save banking precedes victory playback, and
 all fourteen scenes are visually approved.
 
-**F9 status (2026-10-17):** framework built on branch `f9-scenes` (not merged, not deployed), plan `docs/superpowers/plans/2026-10-17-f9-campaign-scenes.md`, handoff
+**F9 status (2026-10-17):** framework built on branch `f9-scenes` (merged to `main` 2026-10-17, not deployed), plan `docs/superpowers/plans/2026-10-17-f9-campaign-scenes.md`, handoff
 `docs/handoff/2026-10-17-f9-scenes.md`, contract in `docs/campaign-data.md` ("Scenes"). Built: the scene file and cue engine, the pre-roll with an inert mission clock and a headless skip that ends in the same
 world, the scene camera, the flow (opening after launch, victory after the final debrief, HQ Watch, Esc to skip), `markSceneSeen`, and Dev director mode (`?director=<id>`). **Scope change (Mark, 2026-10-17):**
 the A1-J6 chapter missions do not exist until F10, so the fourteen scenes are not authored here: F9 ships two demo scenes (`demo-opening` on `escort`, `demo-victory` on `tutorial`), and each F10 chapter authors its
