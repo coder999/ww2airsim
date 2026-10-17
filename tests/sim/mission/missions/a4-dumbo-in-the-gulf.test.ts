@@ -131,6 +131,9 @@ const idle = { pitch: 0, roll: 0, yaw: 0, throttle: 0, gearDown: false, flapDown
 function airborneAtRaft(w0: World<undefined>): World<undefined> {
   let w = waterTakeoff(w0)
   expect(progressOf(w, 'takeoff').status).toBe('complete')
+  // The F8C mission-fit row ESTIMATES 60 s for the water takeoff; the Catalina's own run is measured here (2026-10-17: 41 s to a 10 m latch).
+  const lifted = w.mission!.log.find((e) => e.kind === 'objective' && e.id === 'takeoff')!.tick
+  expect(lifted, 'ticks to the airborne latch').toBeLessThan(ticksFor(60))
   w = hold(w, levelAt(SEARCH, 150, 55, 135), 3)
   expect(progressOf(w, 'search').status).toBe('complete')
   // 2.8 km north-west of the raft, out of the 3 km sighting radius until one more tick brings it in
@@ -178,5 +181,83 @@ describe.skipIf(terrain === null)('A4, flown headless', () => {
     expect(progressOf(w, 'home').status).toBe('complete')
     expect(w.mission!.latched).toBe(true)
     expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({ result: 'success', badge: { id: 'dumbo-in-the-gulf' }, reasons: [] })
+    // Continue Sortie (Decision 13): the script is frozen, so another two minutes change no objective and spawn nothing
+    const progress = JSON.stringify(w.mission!.progress)
+    const later = stepsWithControls(w, ticksFor(120), idle)
+    expect(JSON.stringify(later.mission!.progress)).toBe(progress)
+    expect(later.mission!.spawned).toEqual(['recon'])
   }, 120_000)
+
+  it('a ditching before the pickup earns no badge', () => {
+    let w = airborneAtRaft(a4())
+    const at = { x: RAFT.x - 3000, z: RAFT.z - 3000 }
+    w = stageDitch(w, at)
+    for (let i = 0; i < 600 && playerAircraft(w).impact === null; i++) w = stepsWithControls(w, 1, { throttle: 0 })
+    expect(['ditched', 'destroyed']).toContain(playerAircraft(w).impact?.kind)
+    const out = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(out.result).toBe('no-badge')
+    expect(out.badge).toBeNull()
+    expect(['Ditched', 'Killed']).toContain(out.reasons[0])
+    expect(progressOf(w, 'pickup').status).toBe('inactive')
+  })
+
+  it('failure mid-graph: the raft is lost before the survivors are aboard; he flies home anyway: no badge, the lost pickup is the reason', () => {
+    let w = airborneAtRaft(a4())
+    w = landNearRaft(w, 100 * 0.9144)
+    w = destroyNow(w, ['raft-1'])
+    w = takeThemAboard(w)
+    expect(progressOf(w, 'pickup').status).toBe('failed')
+    expect(w.mission!.spawned).toEqual([]) // the pass is for a pickup that never happened
+    w = waterTakeoff(w)
+    const d = heading(315)
+    w = approachTouching(w, ANCHORAGE.x - d.x * 700, ANCHORAGE.z - d.z * 700, 315).world
+    // a stop at the anchorage is a friendly base; the badge is still out of reach
+    expect(w.mission!.log.filter((e) => e.kind === 'landing').at(-1)).toMatchObject({ base: { kind: 'anchorage' } })
+    expect(missionOutcome(w.mission!, recoveryOf(w)!)).toMatchObject({
+      result: 'no-badge', badge: null, reasons: ['Take three survivors aboard: failed', 'Return to the anchorage: incomplete'],
+    })
+  }, 120_000)
+
+  it('home without the survivors: a landing at the anchorage after the flight out is a stop but not a badge', () => {
+    let w = waterTakeoff(a4())
+    w = hold(w, levelAt(ANCHORAGE, 150, 55, 315), 3)
+    const d = heading(315)
+    w = approachTouching(w, ANCHORAGE.x - d.x * 700, ANCHORAGE.z - d.z * 700, 315).world
+    const out = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(out.result).toBe('no-badge')
+    expect(out.reasons[0]).toBe('Enter the search area: incomplete')
+  }, 120_000)
+
+  it('a landing 200 yd off the raft does not count and does not end the sortie: he takes off, tries again, and the second one does', () => {
+    let w = airborneAtRaft(a4())
+    w = landNearRaft(w, 200 * 0.9144)
+    expect(progressOf(w, 'touchdown').status).toBe('active')
+    expect(w.mission!.log.filter((e) => e.kind === 'landing').at(-1)).toMatchObject({ advanced: 'touchdown', intermediate: true })
+    w = hold(waterTakeoff(w), levelAt({ x: RAFT.x - 2800 * heading(315).x, z: RAFT.z - 2800 * heading(315).z }, 150, 55, 315), 3)
+    w = landNearRaft(w, 100 * 0.9144)
+    expect(progressOf(w, 'touchdown').status).toBe('complete')
+  }, 120_000)
+
+  it('the separated survivor is the secondary: taken aboard after the raft, one man; the badge does not wait for him and the debrief shows him done when he is', () => {
+    let w = takeThemAboard(landNearRaft(airborneAtRaft(a4()), 100 * 0.9144))
+    expect(progressOf(w, 'pickup').status).toBe('complete')
+    expect(progressOf(w, 'survivor').status).toBe('active')
+    w = takeThemAboard(w, SURVIVOR)
+    expect(progressOf(w, 'survivor')).toMatchObject({ status: 'complete', count: 1 })
+    expect(msgs(w).some((m) => m.startsWith('Dumbo: The fourth man'))).toBe(true)
+    w = waterTakeoff(w)
+    const d = heading(315)
+    w = approachTouching(w, ANCHORAGE.x - d.x * 700, ANCHORAGE.z - d.z * 700, 315).world
+    const out = missionOutcome(w.mission!, recoveryOf(w)!)
+    expect(out).toMatchObject({ result: 'success', reasons: [] })
+    expect(out.objectives.find((o) => o.id === 'survivor')).toMatchObject({ priority: 'secondary', final: 'complete' })
+  }, 120_000)
+
+  it('the survivors are not picked up by a low pass at the raft at 60 m/s', () => {
+    let w = airborneAtRaft(a4())
+    w = landNearRaft(w, 100 * 0.9144)
+    // he has landed, as the graph wants; now he flies over the raft at speed instead of staying: no dwell builds in ten seconds of it
+    const pass = hold(w, levelAt({ x: RAFT.x, z: RAFT.z }, 10, 60, 315), 600)
+    expect(progressOf(pass, 'pickup')).toMatchObject({ status: 'active', heldTicks: 0 })
+  })
 })
