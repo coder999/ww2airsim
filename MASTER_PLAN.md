@@ -464,6 +464,12 @@ POW, bailout, discharge, restart, and retry paths are proven for every chapter;
 actual finale scenes hold GPU and live main-thread p95 within 16.7 ms at 2560×1440
 High on the reference hardware.
 
+**F10 status (2026-10-17):** plans written and grilled with Mark (four rounds), nothing built. Master plan `docs/superpowers/plans/2026-10-17-f10-campaign-missions-master.md` (sixteen decisions,
+the F3-against-since reconciliation, the batch DAG); a prep plan F10-0 (`2026-10-17-f10-0-campaign-engine-prep.md`: chapter registry, objective vocabulary, egress outcome, mutable field state, test-list fixes,
+the nine-path matrix) that must merge first; then five batches in parallel worktrees, merge order A-D then E: F10A A1-A3, F10B A4-A5 (rescue actors), F10C J1-J3 (Codex drafts, Claude verifies), F10D J4-J5 (airdrop
+pipeline), F10E the finales A6 and J6. F3's dependency table is amended: F10-0 is a new first plan, and the twelve openings and two victories move from F9 to the F10 batches (F9 shipped two demo scenes).
+Rulings that amend F3: crossing the egress gate is a real recovery for J2, J4 and J5; A2's success writes Tacloban and Dulag `buildup`; chapters carry their own aircraft lists (J6 offers both airplanes).
+
 #### F11. Campaign validation and release reconciliation (M)
 
 Run full American and Japanese careers, senior-pilot loss and five-Ensign recovery,
