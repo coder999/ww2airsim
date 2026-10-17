@@ -393,7 +393,8 @@
     ],
     "budgetS": 420
    },
-   "f3": "launch from Japanese-held Buri or Bayug; first action 2-3 min; recovery at serviceable Japanese Buri or Bayug within 7 min"
+   "f3": "launch from Japanese-held Buri or Bayug; first action 2-3 min; recovery at serviceable Japanese Buri or Bayug within 7 min",
+   "scenario": "j6-operation-te-go"
   }
  ]
 }

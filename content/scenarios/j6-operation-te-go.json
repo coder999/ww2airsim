@@ -1,0 +1,1513 @@
+{
+ "id": "j6-operation-te-go",
+ "player": "j6-1",
+ "airfields": [
+  "tacloban",
+  "dulag",
+  "buri",
+  "bayug",
+  "san-pablo",
+  "tanauan"
+ ],
+ "sites": [
+  "tacloban",
+  "dulag",
+  "buri",
+  "bayug",
+  "san-pablo",
+  "tanauan"
+ ],
+ "aircraft": [
+  {
+   "id": "j6-1",
+   "spec": "ki-43-oscar",
+   "side": "axis",
+   "tags": [
+    "close"
+   ],
+   "parkedAt": {
+    "airfield": "buri",
+    "spot": {
+     "x": 58,
+     "z": -300
+    }
+   },
+   "chocked": false
+  },
+  {
+   "id": "oscar-1",
+   "spec": "ki-43-oscar",
+   "tags": [
+    "close",
+    "escort"
+   ],
+   "airborneAt": {
+    "position": [
+     -38500,
+     1500,
+     -24500
+    ],
+    "headingDeg": 80,
+    "speedMps": 100
+   },
+   "pilot": {
+    "skill": "veteran",
+    "ingress": {
+     "route": [
+      {
+       "x": -39000,
+       "z": -21500,
+       "altitudeM": 1500,
+       "speedMps": 100
+      }
+     ],
+     "destination": {
+      "airfield": "buri"
+     }
+    }
+   }
+  },
+  {
+   "id": "oscar-2",
+   "spec": "ki-43-oscar",
+   "tags": [
+    "close",
+    "escort"
+   ],
+   "airborneAt": {
+    "position": [
+     -38550,
+     1500,
+     -24402
+    ],
+    "headingDeg": 80,
+    "speedMps": 100
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "oscar-1",
+    "slot": 1
+   }
+  },
+  {
+   "id": "oscar-3",
+   "spec": "ki-43-oscar",
+   "tags": [
+    "close",
+    "escort"
+   ],
+   "airborneAt": {
+    "position": [
+     -38661,
+     1500,
+     -24650
+    ],
+    "headingDeg": 80,
+    "speedMps": 100
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "oscar-1",
+    "slot": 2
+   }
+  },
+  {
+   "id": "zero-1",
+   "spec": "a6m2-zero",
+   "tags": [
+    "close",
+    "cover"
+   ],
+   "airborneAt": {
+    "position": [
+     -44000,
+     2200,
+     -17000
+    ],
+    "headingDeg": 24,
+    "speedMps": 110
+   },
+   "pilot": {
+    "skill": "veteran",
+    "ingress": {
+     "route": [
+      {
+       "x": -35500,
+       "z": -40000,
+       "altitudeM": 2200,
+       "speedMps": 110
+      }
+     ],
+     "destination": {
+      "airfield": "tacloban"
+     }
+    }
+   }
+  },
+  {
+   "id": "zero-2",
+   "spec": "a6m2-zero",
+   "tags": [
+    "close",
+    "cover"
+   ],
+   "airborneAt": {
+    "position": [
+     -43946,
+     2200,
+     -16904
+    ],
+    "headingDeg": 24,
+    "speedMps": 110
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "zero-1",
+    "slot": 1
+   }
+  },
+  {
+   "id": "zero-3",
+   "spec": "a6m2-zero",
+   "tags": [
+    "close",
+    "cover"
+   ],
+   "airborneAt": {
+    "position": [
+     -44214,
+     2200,
+     -16951
+    ],
+    "headingDeg": 24,
+    "speedMps": 110
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "zero-1",
+    "slot": 2
+   }
+  },
+  {
+   "id": "zero-4",
+   "spec": "a6m2-zero",
+   "tags": [
+    "close",
+    "cover"
+   ],
+   "airborneAt": {
+    "position": [
+     -43839,
+     2200,
+     -16712
+    ],
+    "headingDeg": 24,
+    "speedMps": 110
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "zero-1",
+    "slot": 3
+   }
+  },
+  {
+   "id": "sally-1",
+   "spec": "ki-21-sally",
+   "tags": [
+    "bombers",
+    "sally"
+   ],
+   "airborneAt": {
+    "position": [
+     -42500,
+     2000,
+     -19000
+    ],
+    "headingDeg": 24.2,
+    "speedMps": 89
+   },
+   "pilot": {
+    "skill": "veteran",
+    "ingress": {
+     "route": [
+      {
+       "x": -35806,
+       "z": -33919,
+       "altitudeM": 2000,
+       "speedMps": 89
+      }
+     ],
+     "destination": {
+      "airfield": "tacloban",
+      "aim": "tacloban-hangar-1"
+     },
+     "attack": "level-bomb"
+    }
+   }
+  },
+  {
+   "id": "sally-2",
+   "spec": "ki-21-sally",
+   "tags": [
+    "bombers",
+    "sally"
+   ],
+   "airborneAt": {
+    "position": [
+     -42447,
+     2000,
+     -18904
+    ],
+    "headingDeg": 24.2,
+    "speedMps": 89
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "sally-1",
+    "slot": 1
+   }
+  },
+  {
+   "id": "sally-3",
+   "spec": "ki-21-sally",
+   "tags": [
+    "bombers",
+    "sally"
+   ],
+   "airborneAt": {
+    "position": [
+     -42715,
+     2000,
+     -18952
+    ],
+    "headingDeg": 24.2,
+    "speedMps": 89
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "sally-1",
+    "slot": 2
+   }
+  },
+  {
+   "id": "sally-4",
+   "spec": "ki-21-sally",
+   "tags": [
+    "bombers",
+    "sally"
+   ],
+   "airborneAt": {
+    "position": [
+     -42340,
+     2000,
+     -18711
+    ],
+    "headingDeg": 24.2,
+    "speedMps": 89
+   },
+   "pilot": {
+    "skill": "veteran",
+    "leader": "sally-1",
+    "slot": 3
+   }
+  }
+ ],
+ "ships": [
+  {
+   "id": "essex-1",
+   "spec": "essex-cv",
+   "side": "allied",
+   "waypoints": [
+    [
+     -12000,
+     -30000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "penn-1",
+   "spec": "pennsylvania-bb",
+   "side": "allied",
+   "waypoints": [
+    [
+     -9000,
+     -24000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "cleveland-1",
+   "spec": "cleveland-cl",
+   "side": "allied",
+   "waypoints": [
+    [
+     -20000,
+     -34000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "fletcher-1",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -22000,
+     -20000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "fletcher-2",
+   "spec": "fletcher-dd",
+   "side": "allied",
+   "waypoints": [
+    [
+     -22000,
+     -28000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-1",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "waypoints": [
+    [
+     -24500,
+     -12000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-2",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "waypoints": [
+    [
+     -24500,
+     -15000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-3",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25500,
+     -18000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-4",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25500,
+     -23000
+    ]
+   ],
+   "speedMps": 0
+  },
+  {
+   "id": "maru-5",
+   "spec": "type-b-maru",
+   "side": "allied",
+   "waypoints": [
+    [
+     -25000,
+     -26500
+    ]
+   ],
+   "speedMps": 0
+  }
+ ],
+ "vehicles": [
+  {
+   "id": "chiha-1",
+   "spec": "type97-chi-ha",
+   "waypoints": [
+    [
+     -42800,
+     -18400
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 90
+  },
+  {
+   "id": "chiha-2",
+   "spec": "type97-chi-ha",
+   "waypoints": [
+    [
+     -42660,
+     -18490
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 90
+  },
+  {
+   "id": "chiha-3",
+   "spec": "type97-chi-ha",
+   "waypoints": [
+    [
+     -42520,
+     -18400
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 90
+  },
+  {
+   "id": "chiha-4",
+   "spec": "type97-chi-ha",
+   "waypoints": [
+    [
+     -42380,
+     -18490
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 90
+  },
+  {
+   "id": "truck-1",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42500,
+     -17300
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "truck-2",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42390,
+     -17300
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "truck-3",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42280,
+     -17300
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "truck-4",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42500,
+     -17190
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "truck-5",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42390,
+     -17190
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "truck-6",
+   "spec": "type94-cargo-truck",
+   "waypoints": [
+    [
+     -42280,
+     -17190
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 80
+  },
+  {
+   "id": "kurogane-1",
+   "spec": "type95-kurogane",
+   "waypoints": [
+    [
+     -43300,
+     -19600
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 85
+  },
+  {
+   "id": "kurogane-2",
+   "spec": "type95-kurogane",
+   "waypoints": [
+    [
+     -43300,
+     -19480
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 85
+  },
+  {
+   "id": "m4-1",
+   "spec": "m4-sherman",
+   "side": "allied",
+   "waypoints": [
+    [
+     -30800,
+     -19000
+    ],
+    [
+     -31400,
+     -28500
+    ]
+   ],
+   "speedMps": 6,
+   "loop": true
+  },
+  {
+   "id": "m4-2",
+   "spec": "m4-sherman",
+   "side": "allied",
+   "waypoints": [
+    [
+     -30835,
+     -19040
+    ],
+    [
+     -31435,
+     -28540
+    ]
+   ],
+   "speedMps": 6,
+   "loop": true
+  },
+  {
+   "id": "m4-3",
+   "spec": "m4-sherman",
+   "side": "allied",
+   "waypoints": [
+    [
+     -30870,
+     -19080
+    ],
+    [
+     -31470,
+     -28580
+    ]
+   ],
+   "speedMps": 6,
+   "loop": true
+  },
+  {
+   "id": "m4-4",
+   "spec": "m4-sherman",
+   "side": "allied",
+   "waypoints": [
+    [
+     -30905,
+     -19120
+    ],
+    [
+     -31505,
+     -28620
+    ]
+   ],
+   "speedMps": 6,
+   "loop": true
+  },
+  {
+   "id": "cckw-1",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31000,
+     -19400
+    ],
+    [
+     -31600,
+     -28900
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "cckw-2",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31035,
+     -19440
+    ],
+    [
+     -31635,
+     -28940
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "cckw-3",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31070,
+     -19480
+    ],
+    [
+     -31670,
+     -28980
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "cckw-4",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31105,
+     -19520
+    ],
+    [
+     -31705,
+     -29020
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "cckw-5",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31140,
+     -19560
+    ],
+    [
+     -31740,
+     -29060
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "cckw-6",
+   "spec": "gmc-cckw-353",
+   "side": "allied",
+   "waypoints": [
+    [
+     -31175,
+     -19600
+    ],
+    [
+     -31775,
+     -29100
+    ]
+   ],
+   "speedMps": 7,
+   "loop": true
+  },
+  {
+   "id": "willys-1",
+   "spec": "willys-mb-jeep",
+   "side": "allied",
+   "waypoints": [
+    [
+     -32300,
+     -17500
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 0
+  },
+  {
+   "id": "willys-2",
+   "spec": "willys-mb-jeep",
+   "side": "allied",
+   "waypoints": [
+    [
+     -32300,
+     -17650
+    ]
+   ],
+   "speedMps": 0,
+   "headingDeg": 0
+  }
+ ],
+ "mainBatteries": true,
+ "weather": {
+  "windFromDeg": 80,
+  "windMps": 3,
+  "timeOfDay": 6.2,
+  "clouds": [
+   {
+    "kind": "cumulus",
+    "baseM": 1500,
+    "thicknessM": 600,
+    "coverage": 0.3
+   }
+  ]
+ },
+ "objectives": [
+  {
+   "id": "up",
+   "label": "Take off from Buri",
+   "priority": "primary",
+   "kind": "takeoff",
+   "from": "buri"
+  },
+  {
+   "id": "escort",
+   "label": "Stay with the bombers",
+   "priority": "primary",
+   "kind": "hold",
+   "point": {
+    "x": 0,
+    "z": 0
+   },
+   "radiusM": 2500,
+   "seconds": 60,
+   "relativeTo": "sally",
+   "resetOnExit": true,
+   "after": "up"
+  },
+  {
+   "id": "release",
+   "label": "Bring the Sallys to their release",
+   "priority": "primary",
+   "kind": "released",
+   "targets": [
+    "sally"
+   ],
+   "store": "bomb",
+   "count": 2,
+   "after": "escort"
+  },
+  {
+   "id": "drops",
+   "label": "Cover the Topsys' drop",
+   "priority": "primary",
+   "kind": "drop",
+   "targets": [
+    "topsy"
+   ],
+   "count": 2,
+   "zone": {
+    "point": {
+     "x": -39930,
+     "z": -20590
+    },
+    "radiusM": 900
+   },
+   "after": "release"
+  },
+  {
+   "id": "response",
+   "label": "Break the P-38 response",
+   "priority": "primary",
+   "kind": "destroy",
+   "targets": [
+    "response"
+   ],
+   "count": 3,
+   "after": "up"
+  },
+  {
+   "id": "secure",
+   "label": "Secure the lodgment",
+   "priority": "primary",
+   "kind": "atLeast",
+   "n": 2,
+   "of": [
+    "drops",
+    "response"
+   ]
+  },
+  {
+   "id": "flip",
+   "label": "Buri and Bayug in our hands",
+   "priority": "primary",
+   "kind": "field",
+   "airfields": [
+    "buri",
+    "bayug"
+   ],
+   "serviceable": true,
+   "heldBy": "player",
+   "after": "secure"
+  },
+  {
+   "id": "hold-fields",
+   "label": "Hold Buri and Bayug",
+   "priority": "primary",
+   "kind": "field",
+   "airfields": [
+    "buri",
+    "bayug"
+   ],
+   "serviceable": true,
+   "heldBy": "player",
+   "keep": true,
+   "after": "flip",
+   "until": {
+    "at": 720
+   }
+  },
+  {
+   "id": "land-buri",
+   "label": "Land at Buri",
+   "priority": "secondary",
+   "kind": "land",
+   "at": "buri",
+   "after": "hold-fields",
+   "requires": {
+    "serviceable": [
+     "buri"
+    ]
+   }
+  },
+  {
+   "id": "land-bayug",
+   "label": "Land at Bayug",
+   "priority": "secondary",
+   "kind": "land",
+   "at": "bayug",
+   "after": "hold-fields",
+   "requires": {
+    "serviceable": [
+     "bayug"
+    ]
+   }
+  },
+  {
+   "id": "home",
+   "label": "Land at Buri or Bayug",
+   "priority": "primary",
+   "kind": "atLeast",
+   "n": 1,
+   "of": [
+    "land-buri",
+    "land-bayug"
+   ],
+   "after": "hold-fields"
+  },
+  {
+   "id": "san-pablo",
+   "label": "San Pablo held too",
+   "priority": "secondary",
+   "kind": "field",
+   "airfields": [
+    "san-pablo"
+   ],
+   "serviceable": false,
+   "heldBy": "player",
+   "keep": true,
+   "after": "flip"
+  },
+  {
+   "id": "both-serviceable",
+   "label": "Buri and Bayug serviceable at debrief",
+   "priority": "secondary",
+   "kind": "field",
+   "airfields": [
+    "buri",
+    "bayug"
+   ],
+   "serviceable": true,
+   "keep": true,
+   "after": "flip"
+  }
+ ],
+ "triggers": [
+  {
+   "id": "state",
+   "when": {
+    "at": 0
+   },
+   "then": [
+    {
+     "setSide": {
+      "airfield": "buri",
+      "side": "allied"
+     }
+    },
+    {
+     "setSide": {
+      "airfield": "bayug",
+      "side": "allied"
+     }
+    },
+    {
+     "setSide": {
+      "airfield": "san-pablo",
+      "side": "allied"
+     }
+    }
+   ]
+  },
+  {
+   "id": "brief",
+   "when": {
+    "at": 1
+   },
+   "then": [
+    {
+     "message": "Buri tower: Sallys are forming up over the field. Stay with them to Tacloban, then see the Topsys in."
+    }
+   ]
+  },
+  {
+   "id": "lift-in",
+   "when": {
+    "at": 30
+   },
+   "then": [
+    {
+     "spawn": "lift"
+    },
+    {
+     "message": "Operations: the transports are off the Ormoc coast, bound for San Pablo."
+    }
+   ]
+  },
+  {
+   "id": "raid-in",
+   "when": {
+    "at": 40
+   },
+   "then": [
+    {
+     "spawn": "raid-east"
+    },
+    {
+     "message": "Operations: Bettys are going for the fleet."
+    }
+   ]
+  },
+  {
+   "id": "response-in",
+   "when": {
+    "at": 75
+   },
+   "then": [
+    {
+     "spawn": "response"
+    },
+    {
+     "message": "Spotter: P-38s climbing out of Dulag, headed for Buri."
+    }
+   ]
+  },
+  {
+   "id": "flip-fields",
+   "when": {
+    "completed": "secure"
+   },
+   "then": [
+    {
+     "setSide": {
+      "airfield": "buri",
+      "side": "axis"
+     }
+    },
+    {
+     "setSide": {
+      "airfield": "bayug",
+      "side": "axis"
+     }
+    },
+    {
+     "setSide": {
+      "airfield": "san-pablo",
+      "side": "axis"
+     }
+    },
+    {
+     "message": "Army: the paratroops hold San Pablo, and Buri and Bayug are ours. Hold them until the relief arrives."
+    }
+   ]
+  }
+ ],
+ "fieldRules": [
+  {
+   "airfield": "buri",
+   "structures": [
+    "buri-north-hangar",
+    "buri-radio",
+    "buri-dispersal"
+   ],
+   "minFraction": 0.6
+  },
+  {
+   "airfield": "bayug",
+   "structures": [
+    "bayug-hangars",
+    "bayug-fuel",
+    "bayug-ammo-bunker-1"
+   ],
+   "minFraction": 0.6
+  }
+ ],
+ "freezeOnSuccess": true,
+ "population": {
+  "airborne": 24,
+  "ships": 10,
+  "close": 16
+ },
+ "heldGroups": [
+  {
+   "id": "lift",
+   "aircraft": [
+    {
+     "id": "topsy-1",
+     "spec": "ki-57-ii-topsy",
+     "tags": [
+      "topsy",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -71912,
+       1500,
+       -28380
+      ],
+      "headingDeg": 103.0,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -33996,
+         "z": -19620,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39842,
+         "z": -20970,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
+     }
+    },
+    {
+     "id": "topsy-2",
+     "spec": "ki-57-ii-topsy",
+     "tags": [
+      "topsy",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -72117,
+       1500,
+       -28160
+      ],
+      "headingDeg": 103.0,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -34055,
+         "z": -19367,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39901,
+         "z": -20717,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
+     }
+    },
+    {
+     "id": "topsy-3",
+     "spec": "ki-57-ii-topsy",
+     "tags": [
+      "topsy",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -72322,
+       1500,
+       -27941
+      ],
+      "headingDeg": 103.0,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -34113,
+         "z": -19114,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39959,
+         "z": -20463,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
+     }
+    },
+    {
+     "id": "topsy-4",
+     "spec": "ki-57-ii-topsy",
+     "tags": [
+      "topsy",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -72526,
+       1500,
+       -27721
+      ],
+      "headingDeg": 103.0,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -34172,
+         "z": -18860,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -40018,
+         "z": -20210,
+         "altitudeM": 1500,
+         "speedMps": 85
+        },
+        {
+         "x": -39000,
+         "z": -34000,
+         "altitudeM": 1500,
+         "speedMps": 85
+        }
+       ],
+       "attack": "airdrop",
+       "dropAt": {
+        "x": -39930,
+        "z": -20590,
+        "radiusM": 900
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "raid-east",
+   "aircraft": [
+    {
+     "id": "betty-1",
+     "spec": "g4m-betty",
+     "tags": [
+      "betty",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -12000,
+       1500,
+       2000
+      ],
+      "headingDeg": 347.5,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "ingress": {
+       "route": [
+        {
+         "x": -17397,
+         "z": -22286,
+         "altitudeM": 600,
+         "speedMps": 85
+        }
+       ],
+       "destination": {
+        "ship": "cleveland-1"
+       },
+       "attack": "torpedo"
+      }
+     }
+    },
+    {
+     "id": "betty-2",
+     "spec": "g4m-betty",
+     "tags": [
+      "betty",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -11900,
+       1500,
+       2045
+      ],
+      "headingDeg": 347.5,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "leader": "betty-1",
+      "slot": 1
+     }
+    },
+    {
+     "id": "betty-3",
+     "spec": "g4m-betty",
+     "tags": [
+      "betty",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -12143,
+       1500,
+       2167
+      ],
+      "headingDeg": 347.5,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "leader": "betty-1",
+      "slot": 2
+     }
+    },
+    {
+     "id": "betty-4",
+     "spec": "g4m-betty",
+     "tags": [
+      "betty",
+      "bombers"
+     ],
+     "airborneAt": {
+      "position": [
+       -11699,
+       1500,
+       2136
+      ],
+      "headingDeg": 347.5,
+      "speedMps": 85
+     },
+     "pilot": {
+      "skill": "green",
+      "leader": "betty-1",
+      "slot": 3
+     }
+    }
+   ]
+  },
+  {
+   "id": "response",
+   "aircraft": [
+    {
+     "id": "lightning-1",
+     "spec": "p-38-lightning",
+     "tags": [
+      "close",
+      "response"
+     ],
+     "airborneAt": {
+      "position": [
+       -24000,
+       1600,
+       -12000
+      ],
+      "headingDeg": 300.4,
+      "speedMps": 120
+     },
+     "side": "allied",
+     "pilot": {
+      "skill": "veteran"
+     }
+    },
+    {
+     "id": "lightning-2",
+     "spec": "p-38-lightning",
+     "tags": [
+      "close",
+      "response"
+     ],
+     "airborneAt": {
+      "position": [
+       -23899,
+       1600,
+       -12043
+      ],
+      "headingDeg": 300.4,
+      "speedMps": 120
+     },
+     "side": "allied",
+     "pilot": {
+      "skill": "veteran",
+      "leader": "lightning-1",
+      "slot": 1
+     }
+    },
+    {
+     "id": "lightning-3",
+     "spec": "p-38-lightning",
+     "tags": [
+      "close",
+      "response"
+     ],
+     "airborneAt": {
+      "position": [
+       -23975,
+       1600,
+       -11781
+      ],
+      "headingDeg": 300.4,
+      "speedMps": 120
+     },
+     "side": "allied",
+     "pilot": {
+      "skill": "veteran",
+      "leader": "lightning-1",
+      "slot": 2
+     }
+    },
+    {
+     "id": "lightning-4",
+     "spec": "p-38-lightning",
+     "tags": [
+      "close",
+      "response"
+     ],
+     "airborneAt": {
+      "position": [
+       -23696,
+       1600,
+       -12128
+      ],
+      "headingDeg": 300.4,
+      "speedMps": 120
+     },
+     "side": "allied",
+     "pilot": {
+      "skill": "veteran",
+      "leader": "lightning-1",
+      "slot": 3
+     }
+    }
+   ]
+  }
+ ],
+ "badge": {
+  "id": "operation-te-go",
+  "name": "Operation Te-Go"
+ },
+ "briefing": {
+  "situation": "ALTERNATE HISTORY. Dawn, 7 December 1944, the morning after the paratroop drop on Burauen went right. You are a Japanese fighter pilot on the ramp at Buri. Stay with the Ki-21 bombers until two of them have released over Tacloban, see the Ki-57 transports through their drop on San Pablo, and break up the American P-38 response. Buri and Bayug then pass to Japanese control: hold them until the American reinforcements arrive, and land at Buri or Bayug.",
+  "loadout": "clean"
+ },
+ "history": {
+  "text": "Operation Te-Go was a real Japanese attempt on 6 and 7 December 1944 to seize the Burauen airfields with paratroops and bombing, and it failed: the transports were shot down or scattered, and the American garrison held. THIS SORTIE IS ALTERNATE HISTORY, not a reconstruction: it asks what would have followed if the Te-Go drop and its air support had worked, and its outcome never happened. The air and ground action of both days is compressed into one dawn, the Ki-57 stands in for the transport force (the source does not name every aircraft), and the Type B Marus stand in for American transports.",
+  "sources": [
+   "M. Hamlin Cannon, Leyte: The Return to the Philippines (Washington: Office of the Chief of Military History, 1954; CMH Pub 5-9-1), ch. XVII, U.S. Army Center of Military History: https://www.ibiblio.org/hyperwar/USA/USA-P-Return/USA-P-Return-17.html",
+   "United States Strategic Bombing Survey, The Fifth Air Force in the War Against Japan (1947): https://www.ibiblio.org/hyperwar/NHC/NewPDFs/USAAF/United%20States%20Strategic%20Bombing%20Survey/USSBS%20Fifth%20Air%20Force%20in%20the%20War%20Against%20Japan.pdf"
+  ]
+ }
+}

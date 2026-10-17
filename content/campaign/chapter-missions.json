@@ -106,12 +106,18 @@
    "authoredBonus": 0
   },
   "J6": {
-   "scenario": null,
-   "badge": null,
-   "start": null,
-   "aircraft": [],
-   "recommendedLoadout": null,
-   "coordinated": false,
+   "scenario": "j6-operation-te-go",
+   "badge": {
+    "id": "operation-te-go",
+    "name": "Operation Te-Go"
+   },
+   "start": "airfield",
+   "aircraft": [
+    "ki-43-oscar",
+    "a6m2-zero"
+   ],
+   "recommendedLoadout": "clean",
+   "coordinated": true,
    "authoredBonus": 0
   }
  }
