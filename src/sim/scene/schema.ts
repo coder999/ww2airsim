@@ -9,8 +9,8 @@ import { CHAPTER_IDS } from '../../campaign/schema.js'
  * `world` is a union so later sources (a fresh world, a mission world with edits) can be added
  * without changing the file format; only `mission` exists now.
  *
- * `order` carries the AI order verbatim; Task 3 narrows `order` to the existing AI vocabulary and
- * checks entity ids against the scenario at load.
+ * Cue `fx` is renderer-only (it changes no simulation state), so skip ignores it by construction.
+ * Entity ids in `order` and `spawn` are checked against the world by `checkScene` (cues.ts), at load.
  */
 
 const finite = z.number().refine(Number.isFinite, { message: 'must be a finite number' })
@@ -27,9 +27,22 @@ export const KeyframeObject = z.object({
 }).strict()
 export type Keyframe = z.infer<typeof KeyframeObject>
 
+/** The existing AI orders, by entity kind (the cue's `entity` decides which applies): an aircraft pilot's target,
+ *  a ship's or vehicle's route (a ship may also name what its guns engage). */
+const EntityOrder = z.union([
+  z.object({ attack: id.nullable() }).strict(),
+  z.object({
+    course: z.object({
+      waypoints: z.array(z.object({ x: finite, z: finite }).strict()).min(1), speedMps: finite.refine((n) => n >= 0),
+    }).strict(),
+  }).strict(),
+  z.object({ fireAt: z.array(id).min(1) }).strict(),
+])
+export type EntityOrderT = z.infer<typeof EntityOrder>
+
 const OrderCue = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('message'), text: id }).strict(),
-  z.object({ kind: z.literal('order'), entity: id, order: z.record(z.unknown()) }).strict(),
+  z.object({ kind: z.literal('order'), entity: id, order: EntityOrder }).strict(),
   z.object({ kind: z.literal('fx'), effect: id, at: Vec3 }).strict(),
   z.object({ kind: z.literal('spawn'), group: id }).strict(),
 ])

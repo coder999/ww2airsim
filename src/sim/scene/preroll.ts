@@ -3,6 +3,7 @@ import { DT } from '../flight/model.js'
 import type { Controls } from '../flight/state.js'
 import { advance, withControls, type World } from '../loop.js'
 import { ticksFor } from '../mission/state.js'
+import { applyDueCues, checkScene, type Emitted } from './cues.js'
 import type { Scene } from './schema.js'
 
 /**
@@ -19,15 +20,21 @@ export type Preroll<M> = {
   readonly world: World<M>
   readonly mission: World<M>['mission']
   readonly left: number
+  readonly scene: Scene
+  /** Index of the next unapplied cue. */
+  readonly nextCue: number
+  /** Subtitle (`message`) and `fx` cues applied so far, in order, for the renderer to drain. Skip ignores them. */
+  readonly emitted: readonly Emitted[]
   readonly player: Scene['handoff']['player']
   readonly altitudeM: number
   readonly throttle: number
 }
 
 export const beginPreroll = <M>(world: World<M>, scene: Scene): Preroll<M> => {
+  checkScene(world, world.mission, scene)
   const me = world.aircraft.find((a) => a.id === world.player)!
   return {
-    world: { ...world, mission: null }, mission: world.mission, left: ticksFor(scene.durationS), player: scene.handoff.player,
+    world: { ...world, mission: null }, mission: world.mission, left: ticksFor(scene.durationS), scene, nextCue: 0, emitted: [], player: scene.handoff.player,
     altitudeM: me.state.position.y, throttle: me.controls.throttle,
   }
 }
@@ -40,8 +47,10 @@ const controlsFor = <M>(p: Preroll<M>): Controls => {
 
 /** One fixed tick with the mission off. */
 export const stepPreroll = <M>(p: Preroll<M>): Preroll<M> => {
-  const stepped = advance(withControls(p.world, p.world.player, controlsFor(p)), DT)
-  return { ...p, world: stepped.world, left: p.left - 1 }
+  // Cues land at the tick boundary, before the step (like `orderWingmen` in verifyFlightRecord).
+  const due = applyDueCues(p, ticksFor(p.scene.durationS) - p.left)
+  const stepped = advance(withControls(due.world, due.world.player, controlsFor(p)), DT)
+  return { ...p, world: stepped.world, mission: due.mission, nextCue: due.nextCue, emitted: due.emitted, left: p.left - 1 }
 }
 
 /** Put the mission back with its clock starting now, and hand the player a neutral stick. */
