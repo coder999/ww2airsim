@@ -422,7 +422,7 @@ unattended; merged to `main`, not deployed):** site schema and files for Tacloba
 chapter-to-windows table (`src/campaign/worldStates.ts`), the ten existing plus four new buildings placeable (glbs, construction and rubble
 states), air-to-structure collision, five vehicle specs and stationary placement, `serviceable` as the recovery rule, instanced clutter, DEV
 `?siteState=`, the mission-fit table (1 of 12 rows filled) and a site budget spec (+0.30 ms trees off, +1.32 ms trees on: red against the 1.0 ms
-tripwire, left red). Handoff `docs/handoff/2026-10-16-f8a-sites.md`; captures `docs/handoff/2026-10-16-f8a-sites-shots/`. F8B and F8C not started. Ruling (Mark, 2026-10-16): a launch reads the stored `Campaign.world`; that wiring is F8C's.
+tripwire, left red). Handoff `docs/handoff/2026-10-16-f8a-sites.md`; captures `docs/handoff/2026-10-16-f8a-sites-shots/`. **F8B built on branch `f8b-sites` (2026-10-17, unattended, not merged):** Buri, Bayug and San Pablo site files across all five windows, the chapter table extended to them (A6 and J6 move them; A1 and J5 do not), mission-fit rows J1, J3, J5, J6 and A6's recovery leg (5 of 12 filled; J3 is a reported finding), a clearer damage look, DEV `?siteOmit=`, 30 captures and a budget spec (+0.64 ms trees off, +0.41 ms trees on, both green). Handoff `docs/handoff/2026-10-17-f8b-sites.md`. F8C not started. Ruling (Mark, 2026-10-16): a launch reads the stored `Campaign.world`; that wiring is F8C's.
 
 #### F9. In-engine campaign scenes (M)
 

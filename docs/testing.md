@@ -130,6 +130,20 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
+- **F8B (2026-10-17): the Burauen budget spec is green in both modes, and its split by source is not trustworthy.** `tests/e2e/siteBudget.spec.ts`
+  (Buri in the build-up, the busiest F8B state: 9 glb buildings, 8 vehicles, 3 parked P-38s, 447 clutter pieces; 6 interleaved loads per arm, fresh vite
+  per mode, median, 1440p High, ryzen RDP route under `hwlock ryzen-budget`): **trees off** site 5.403 ms vs base 4.762 ms, delta **+0.641 ms, green**;
+  **trees on** site 15.171 vs base 14.761, delta **+0.410 ms, green** (limit 1.0 ms, a tripwire, not a ruling). The differential arms (`?siteOmit=`) ran
+  36 loads each mode: trees on, every arm's median sits within 0.6 ms of the others (site 15.49, base 15.47), so no source can be ranked; trees off, p95
+  drifted from about 4.6 ms in the first round to 11-13 ms by the fifth for every arm including the base (base 4.02-7.47), so the split (aircraft +3.7,
+  vehicles +2.0, clutter +0.5, buildings -0.2 ms) is drift, not cost. Read it as "no source is measurable at this noise"; a longer-lived server is
+  slower, and 36 loads in one run is too long. Raw numbers are in the F8B handoff. The camera is frozen, so this prices the GPU, not the sim.
+- **F8B: San Pablo's "overgrown" pre-invasion field is shown by absence.** There is no weeds clutter kind (F3 section 9 lists none), so it is a bare
+  strip in a cleared meadow with one grown-over revetment (the airfield schema needs one strike target). Bayug's views are weak: its camp is 170 to
+  300 m beyond a strip with forest on the near side, and the states are hard to tell apart at 450 m.
+- **F8B: J3's authored recovery is not a legal field in the window F8 plays it in.** F3 recovers a Japanese pilot at Bayug on 3 Nov, when F3 section 5 makes
+  Bayug American. The row is a reported finding (`expectFail` in `content/campaign/mission-fit.json`); Mark or F3 must settle it.
+
 - **F8A (2026-10-16): the site-state budget spec is red with trees on.** `tests/e2e/siteBudget.spec.ts` (Tacloban in the build-up, at the
   12-vehicle cap, against the sites-free free-flight base; six interleaved loads per arm, fresh vite each, median, 1440p High, ryzen RDP
   route under `hwlock ryzen-budget`): **trees off** site 5.070 ms vs base 4.771 ms, delta **+0.299 ms, green** (limit 1.0 ms); **trees on**
@@ -141,8 +155,7 @@ Things nothing automated covers, recorded here rather than as skipped tests:
 - **F8A: nothing flies into a destroyed building or its rubble, and a crash costs the building nothing.** Aircraft-versus-structure collision
   (`tests/sim/structureCollision.test.ts`) destroys the airplane and leaves the structure untouched, by the plan's decision 6 (damage is
   authored per window); rubble has no hit box at all, so a low pass through it is clear. The box height is a per-placement estimate.
-- **F8A: the mission-fit gate covers 1 of 12 rows.** `content/campaign/mission-fit.json` fills A6 (Tacloban start); the other eleven are
-  `pending` and name F8B or F8C. A6's first-action point is invented (F3 gives no geometry), so its 161 s is a feasibility figure, not a
+- **F8A (superseded by F8B below): the mission-fit gate covered 1 of 12 rows.** F8B fills five (A6, J1, J3, J5, J6). A6's first-action point is invented (F3 gives no geometry), so its 161 s is a feasibility figure, not a
   finding about the mission.
 - **F8A: the capture set and the correctness twin ran on nexus's 680M, not the reference GPU.** `siteStateCapture.spec.ts` (26 views) and
   `siteState.spec.ts` passed there with an empty WebGPU validation list; the budget numbers above are from ryzen. Hangar flat-luminance
