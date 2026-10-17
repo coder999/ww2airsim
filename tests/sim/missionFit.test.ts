@@ -6,14 +6,16 @@ import { loadAircraftSpec, loadSite } from '../../tools/content/load.js'
 import { fitOf, problemsOf, type FilledRow } from '../../tools/sites/missionFit.js'
 
 /**
- * The mission-fit gate (F8A Task 10, plan decision 4; extended by F8B, 2026-10-17). Every F3 mission must reach its first
- * action within 7 minutes at 1x over the real layout. F8A filled A6; F8B fills the rows that start at or reach Buri, Bayug
- * or San Pablo (J1, J3, J5, J6) and gives A6 its recovery leg; the rest stay pending for F8C. A row that fails is a finding
+ * The mission-fit gate (F8A Task 10, plan decision 4; extended by F8B, 2026-10-17, and closed by F8C, 2026-10-17). Every F3
+ * mission must reach its first action within 7 minutes at 1x over the real layout. F8A filled A6; F8B filled the rows that
+ * start at or reach Buri, Bayug or San Pablo (J1, J3, J5, J6) and gave A6 its recovery leg; F8C fills the last seven (A1-A5,
+ * J2, J4), which start on a carrier deck, afloat, over the ridge or over the sea. A row that fails is a finding
  * to report, NOT to tune (Mark, 2026-10-16): such a row carries `expectFail`, and this test asserts that it still fails the
  * stated check, so a content fix that makes it pass flips the test and forces the table to be updated.
  */
 const sites = Object.fromEntries(readdirSync('content/sites').filter((f) => f.endsWith('.json')).map((f) => { const id = f.replace(/\.json$/, ''); return [id, loadSite(id)] }))
 const rows = table.rows as unknown as (FilledRow | { id: string; status: 'pending'; closedBy: string; reason: string })[]
+const rowOf = (id: string): FilledRow => filled.find((r) => r.id === id)!
 const filled = rows.filter((r): r is FilledRow => r.status === 'filled')
 const passing = filled.filter((r) => r.expectFail === undefined)
 const findings = filled.filter((r) => r.expectFail !== undefined)
@@ -24,21 +26,17 @@ describe('mission-fit table', () => {
     expect(rows).toHaveLength(12)
   })
 
-  it('F8A and F8B fill the rows that start at or reach their sites; every other row names the plan that closes it', () => {
-    expect(filled.map((r) => r.id)).toEqual(['A6', 'J1', 'J3', 'J5', 'J6'])
-    const pending = rows.filter((r) => r.status === 'pending') as { id: string; closedBy: string; reason: string }[]
-    expect(pending.map((r) => r.id)).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'J2', 'J4'])
-    for (const r of pending) {
-      expect(r.closedBy, r.id).toBe('F8C')
-      expect(r.reason.length, r.id).toBeGreaterThan(20)
-    }
+  it('all twelve rows are filled: none is left pending (F8C closed the last seven)', () => {
+    expect(filled.map((r) => r.id)).toEqual(chapters.chapters.map((c) => c.id))
+    expect(rows.filter((r) => r.status === 'pending')).toEqual([])
   })
 
   it('every invented first-action or start point says so and why', () => {
     for (const r of filled) {
       expect(r.firstAction.basis, `${r.id} first action`).toBe('invented')
       expect(r.firstAction.note.length, `${r.id} first action note`).toBeGreaterThan(30)
-      if (r.start.kind === 'airborne') { expect(r.start.basis, `${r.id} start`).toBe('invented'); expect(r.start.note.length).toBeGreaterThan(30) }
+      if (r.start.kind !== 'parked') { expect(r.start.basis, `${r.id} start`).toBe('invented'); expect(r.start.note.length).toBeGreaterThan(30) }
+      for (const p of r.recovery?.points ?? []) { expect(p.basis, `${r.id} recovery point ${p.label}`).toBe('invented'); expect(p.note.length).toBeGreaterThan(30) }
     }
   })
 
@@ -57,6 +55,40 @@ describe('mission-fit table', () => {
     expect(problems.length, `${row.id} no longer fails: remove its expectFail and update the F8B handoff`).toBeGreaterThan(0)
     expect(problems.every((p) => p.startsWith(row.expectFail!.check)), problems.join(' | ')).toBe(true)
     expect(row.expectFail!.why.length).toBeGreaterThan(40)
+  })
+
+  it('F8C start kinds: A1 and A5 launch/fly from the Essex or the ridge, A4 starts afloat at the Jinamoc anchorage, A3 and A4 recover on real legal sites', () => {
+    expect(rowOf('A1').start.kind).toBe('deck')
+    expect(rowOf('A4').start).toMatchObject({ kind: 'afloat', site: 'jinamoc' })
+    expect(rowOf('A4').recovery!.sites).toEqual(['jinamoc'])
+    expect(rowOf('A3').recovery!.sites).toEqual(['tacloban'])
+    expect(rowOf('A5').start.kind).toBe('airborne')
+    for (const id of ['A1', 'A2', 'A5']) expect(rowOf(id).recovery!.points!.length, id).toBeGreaterThan(0)
+  })
+
+  it('A4 and J4 are night missions: the anchorage has its lamps in the window A4 is played in, and Ormoc has no light at all (F3 section 8)', () => {
+    expect(rowOf('A4').lights).toMatchObject({ site: 'jinamoc', min: 4 })
+    expect(rowOf('J4').lights).toMatchObject({ site: 'ormoc', max: 0 })
+    for (const id of ['A4', 'J4']) expect(problemsOf(rowOf(id), fitOf(rowOf(id), sites), table.ceilingS).filter((p) => p.startsWith('lights')), id).toEqual([])
+  })
+
+  it('can fail: a deck or water start pays for its run (a 400 s water run is over the ceiling); a lamp count above the site\'s fails the lights check', () => {
+    const a4 = rowOf('A4')
+    const slow = { ...a4, takeoffS: 400 }
+    expect(problemsOf(slow, fitOf(slow, sites), table.ceilingS).some((p) => p.startsWith('ceiling'))).toBe(true)
+    const a1 = rowOf('A1')
+    expect(fitOf({ ...a1, takeoffS: 100 }, sites).totalS).toBeGreaterThan(fitOf(a1, sites).totalS + 59)
+    const dark = { ...a4, lights: { site: 'jinamoc', min: 99 } }
+    expect(problemsOf(dark, fitOf(dark, sites), table.ceilingS).some((p) => p.startsWith('lights'))).toBe(true)
+    const lit = { ...rowOf('J4'), lights: { site: 'jinamoc', max: 0 } }
+    expect(problemsOf(lit, fitOf(lit, sites), table.ceilingS).some((p) => p.startsWith('lights'))).toBe(true)
+  })
+
+  it('can fail: a recovery point (the Essex) farther than the budget allows fails the recovery check, and a point is always a legal place to land', () => {
+    const a1 = rowOf('A1')
+    const far = { ...a1, recovery: { ...a1.recovery!, points: [{ ...a1.recovery!.points![0]!, x: 200000 }] } }
+    expect(problemsOf(far, fitOf(far, sites), table.ceilingS).some((p) => p.startsWith('recovery'))).toBe(true)
+    expect(fitOf(a1, sites).illegal).toEqual([])
   })
 
   it('J1 starts at Buri and sees its attackers inside F3\'s 6 mi', () => {

@@ -1,41 +1,195 @@
 {
- "note": "Mission-fit table (F8A Task 10 2026-10-16, extended by F8B 2026-10-17): hand-transcribed from F3 section 4, one row per chapter. A 'filled' row has a start, a first-action point and a cruise speed in world terms and is checked by tests/sim/missionFit.test.ts against the real site layout within `ceilingS` at 1x; a 'pending' row names the F8 plan that closes it and why. A row with `recovery` also checks the flight home to the nearest named field that is LEGAL in the window the chapter plays in (held by the player's side and serviceable, F3 section 2) against F3's recovery budget; `withinM` is F3's own range where it gives one. A failing row is a finding to report, never to tune (Mark, 2026-10-16): it carries `expectFail`, and the test asserts it still fails that check. Every constant (cruise, taxi, roll, landing allowance) and every start or first-action point F3 does not locate is an ESTIMATE or INVENTED, labeled in its row.",
+ "note": "Mission-fit table (F8A Task 10 2026-10-16, extended by F8B 2026-10-17, closed by F8C 2026-10-17): hand-transcribed from F3 section 4, one row per chapter. A 'filled' row has a start, a first-action point and a cruise speed in world terms and is checked by tests/sim/missionFit.test.ts against the real site layout within `ceilingS` at 1x; all twelve rows are filled. A row with `recovery` also checks the flight home to the nearest named field that is LEGAL in the window the chapter plays in (held by the player's side and serviceable, F3 section 2) against F3's recovery budget; `withinM` is F3's own range where it gives one. A failing row is a finding to report, never to tune (Mark, 2026-10-16): it carries `expectFail`, and the test asserts it still fails that check. Every constant (cruise, taxi, roll, landing allowance) and every start or first-action point F3 does not locate is an ESTIMATE or INVENTED, labeled in its row. F8C rows (A1-A5, J2, J4) start on the Essex's deck, afloat, over the ridge or over the sea, where F3 gives no geometry: their start, first-action and carrier points are INVENTED and labeled so, and J2's and J4's starts were chosen to match F3's stated timing (as J5's was), so those two rows prove reachability, not travel time. Cruise speeds are about 0.7 of each airframe's reference top speed (ESTIMATE); deck, water-run and line-up times and landing allowances are ESTIMATES.",
  "ceilingS": 420,
  "rows": [
   {
    "id": "A1",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Start is Essex 12-15 mi east of the landing area and first contact is over the landing beaches, which are F8C layouts.",
-   "f3": "launch from Essex; raid contact inside 15 mi; first action 3-4 min"
+   "status": "filled",
+   "aircraft": "f6f-hellcat",
+   "side": "allied",
+   "start": {
+    "kind": "deck",
+    "site": "landing-beaches",
+    "x": 21700,
+    "z": 0,
+    "basis": "invented",
+    "note": "F3 A1: the player launches from the Essex 12-15 mi east of the landing area; the Essex is placed 13.5 mi (21.7 km) seaward of the beach frame's center, on its axis (the frame points east-southeast). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "landing-beaches",
+    "x": 8000,
+    "z": -9000,
+    "basis": "invented",
+    "note": "F3 A1: raid contact inside 15 mi; the raid is met over the transport anchorage, 8 km offshore and 9 km north of the beach center. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "withinM": 24140,
+   "takeoffS": 40,
+   "cruiseMps": 120,
+   "landingS": 60,
+   "recovery": {
+    "sites": [],
+    "points": [
+     {
+      "label": "Essex",
+      "site": "landing-beaches",
+      "x": 21700,
+      "z": 0,
+      "basis": "invented",
+      "note": "The Essex trap (F3 section 3) at the carrier's launch position; the carrier steams, which this row does not model. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+     }
+    ],
+    "budgetS": 300
+   },
+   "f3": "launch from Essex 12-15 mi east of the landing area; raid contact inside 15 mi; first action 3-4 min; recovery Essex trap within 5 min"
   },
   {
    "id": "A2",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts airborne 8-12 mi southeast of a surface engagement off Samar; no F8A site is on the route.",
-   "f3": "airborne start; surface engagement inside 12 mi; first action 2-3 min"
+   "status": "filled",
+   "aircraft": "tbm-3-avenger",
+   "side": "allied",
+   "start": {
+    "kind": "airborne",
+    "site": "landing-beaches",
+    "x": 92424,
+    "z": -71707,
+    "basis": "invented",
+    "note": "F3 A2: the player begins airborne 8-12 mi southeast of the engagement off Samar; placed 10 mi (16.1 km) on a southeast bearing from the engagement point below, 92 km east of the beaches in the beach frame (outside every F8 site). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "landing-beaches",
+    "x": 77503,
+    "z": -77736,
+    "basis": "invented",
+    "note": "F3 A2: the surface engagement of Taffy 3, off Samar; placed at 11.55 N 125.95 E, a point chosen only to be inside the 100 km world and east of Samar. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "withinM": 19312,
+   "cruiseMps": 85,
+   "landingS": 60,
+   "recovery": {
+    "sites": [],
+    "points": [
+     {
+      "label": "Casablanca",
+      "site": "landing-beaches",
+      "x": 81185,
+      "z": -79298,
+      "basis": "invented",
+      "note": "The surviving Casablanca-class carrier trap (F3 section 3), 4 km east of the engagement point. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+     }
+    ],
+    "budgetS": 240
+   },
+   "f3": "airborne start 8-12 mi southeast of the engagement; surface engagement inside 12 mi; first action 2-3 min; recovery 4-6 min to the Casablanca-class carrier trap (checked at the 4 min end)"
   },
   {
    "id": "A3",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts west of the ridge after an Ormoc search; the column and the Ormoc port are F8C. Recovery lands at Tacloban (F8A) 6-7 min from the column.",
-   "f3": "airborne start; column inside 12 mi; first action 2-3 min; recovery 6-7 min to Tacloban"
+   "status": "filled",
+   "aircraft": "p-38-lightning",
+   "side": "allied",
+   "start": {
+    "kind": "airborne",
+    "site": "ormoc",
+    "x": 1741,
+    "z": 3574,
+    "basis": "invented",
+    "note": "F3 A3: the P-38s begin west of the ridge after an unsuccessful Ormoc shipping search; placed over Ormoc Bay at 11.00 N 124.57 E, about 4 km west-southwest of the port. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "ormoc",
+    "x": -9357,
+    "z": -7501,
+    "basis": "invented",
+    "note": "F3 A3: the column of the Ormoc-Valencia road; placed at 11.06 N 124.70 E, in the Ormoc valley north-east of the port and east of the start. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "withinM": 19312,
+   "cruiseMps": 140,
+   "landingS": 60,
+   "recovery": {
+    "sites": [
+     "tacloban"
+    ],
+    "budgetS": 420
+   },
+   "f3": "airborne start west of the ridge; column inside 12 mi; first action 2-3 min; recovery to Tacloban in 6-7 min (the F8A handoff predicted this would be tight: Ormoc to Tacloban is 52 km)"
   },
   {
    "id": "A4",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts afloat at the San Pedro Bay anchorage, an F8C site.",
-   "f3": "water takeoff; search area inside 10 mi; first action 5-6 min including takeoff"
+   "status": "filled",
+   "aircraft": "pby-5a-catalina",
+   "side": "allied",
+   "start": {
+    "kind": "afloat",
+    "site": "jinamoc",
+    "x": 140,
+    "z": -20,
+    "basis": "invented",
+    "note": "F3 A4: the PBY starts afloat at the lit San Pedro Bay anchorage; moored at the buoy 140 m off the ramp. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "jinamoc",
+    "x": 8500,
+    "z": -8500,
+    "basis": "invented",
+    "note": "F3 A4: the 10-mile search area and its survivor flare; placed 12.0 km southeast of the anchorage in Leyte Gulf, inside the 10 mi (16.1 km) F3 allows. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "withinM": 16093,
+   "lineUpS": 45,
+   "takeoffS": 60,
+   "cruiseMps": 60,
+   "landingS": 60,
+   "lights": {
+    "site": "jinamoc",
+    "min": 4
+   },
+   "recovery": {
+    "sites": [
+     "jinamoc"
+    ],
+    "budgetS": 360
+   },
+   "f3": "water takeoff at night; search area inside 10 mi; first action 5-6 min including takeoff; recovery 5-6 min to the San Pedro Bay anchorage, afloat and stopped (the anchorage must be allied and serviceable in the window, and lit)"
   },
   {
    "id": "A5",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Westbound to Ormoc with four TBMs; the convoy and Ormoc are F8C.",
-   "f3": "airborne escort start; intercept 2-3 min; convoy 5-6 min"
+   "status": "filled",
+   "aircraft": "f6f-hellcat",
+   "side": "allied",
+   "start": {
+    "kind": "airborne",
+    "site": "ormoc",
+    "x": -8036,
+    "z": -8264,
+    "basis": "invented",
+    "note": "F3 A5: the escort starts with four TBMs westbound toward Ormoc and the opening shows them over the ridge; the start is the highest point of the shipped terrain on the straight line from the Ormoc port to the beaches (780 m, 11.3 km from the port), read off the terrain, not chosen. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "ormoc",
+    "x": 6000,
+    "z": 0,
+    "basis": "invented",
+    "note": "F3 A5: the convoy (first contact with escorts comes earlier); placed 6 km off the Ormoc pier, on the axis of the port frame. The row measures the convoy, the farther of the two, so it covers the intercept too. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "cruiseMps": 85,
+   "landingS": 60,
+   "recovery": {
+    "sites": [],
+    "points": [
+     {
+      "label": "Essex",
+      "site": "landing-beaches",
+      "x": 21700,
+      "z": 0,
+      "basis": "invented",
+      "note": "The Essex trap (F3 section 3) stays where A1 put the carrier, 13.5 mi east of the beaches; F3 places it nowhere else. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+     }
+    ],
+    "budgetS": 420
+   },
+   "f3": "airborne start over the ridge; intercept 2-3 min; convoy 5-6 min; recovery 5-7 min to the Essex trap (F3's budget cannot be met from Ormoc: see expectFail)",
+   "expectFail": {
+    "check": "recovery",
+    "why": "The convoy off Ormoc is about 69 km from a carrier 13.5 mi east of the beaches, which is 14.5 minutes at the formation's 85 m/s (the TBMs set the pace; about 0.7 of their top speed); F3 allows the Essex trap 5-7 minutes. The budget only holds if the clock starts at the rally gate, which F3 does not locate. A contradiction inside F3 (carrier distance against recovery budget), reported, not tuned: either the rally gate is east of the ridge and the budget starts there, or the Essex is much closer to Leyte for A5."
+   }
   },
   {
    "id": "A6",
@@ -103,10 +257,26 @@
   },
   {
    "id": "J2",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts southeast of Leyte Gulf over shipping; no F8A site is on the route.",
-   "f3": "airborne start; CAP 2-3 min; ships 5-6 min"
+   "status": "filled",
+   "aircraft": "b5n2-kate",
+   "side": "axis",
+   "start": {
+    "kind": "airborne",
+    "site": "landing-beaches",
+    "x": 22000,
+    "z": 17000,
+    "basis": "invented",
+    "note": "F3 J2: the player and two B5Ns begin southeast of Leyte Gulf; placed so the invasion shipping is 24 km away, which at 75 m/s is the 5-6 min F3 gives (chosen to match F3's timing, as J5's start was). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "landing-beaches",
+    "x": 5000,
+    "z": 0,
+    "basis": "invented",
+    "note": "F3 J2: the invasion shipping off the beaches; placed 5 km offshore of the beach center. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "cruiseMps": 75,
+   "f3": "airborne start southeast of the gulf; CAP 2-3 min; ships 5-6 min; egress by the western/southern gate (no field recovery; the gates are F10's)"
   },
   {
    "id": "J3",
@@ -140,10 +310,30 @@
   },
   {
    "id": "J4",
-   "status": "pending",
-   "closedBy": "F8C",
-   "reason": "Starts west of Ormoc Bay; Ormoc and the bay are F8C.",
-   "f3": "airborne start; first action under 2 min"
+   "status": "filled",
+   "aircraft": "b5n2-kate",
+   "side": "axis",
+   "start": {
+    "kind": "airborne",
+    "site": "ormoc",
+    "x": 11000,
+    "z": 3000,
+    "basis": "invented",
+    "note": "F3 J4: the B5N begins west of Ormoc Bay at night; placed 6.2 km from the destroyers, which at 75 m/s is inside the <2 min F3 gives (chosen to match F3's timing). F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "firstAction": {
+    "site": "ormoc",
+    "x": 5000,
+    "z": 1500,
+    "basis": "invented",
+    "note": "F3 J4: the flare opens an attack window on the destroyers in Ormoc Bay; placed 5 km off the Ormoc pier. F3 gives no geometry for this point; invented, and labeled so, as F8A did for A6. Replace with the authored point when F10 places the action."
+   },
+   "cruiseMps": 75,
+   "lights": {
+    "site": "ormoc",
+    "max": 0
+   },
+   "f3": "airborne start west of Ormoc Bay at night; first action under 2 min; egress by the western gate (no field recovery); the port shows no light (F3 section 8)"
   },
   {
    "id": "J5",
