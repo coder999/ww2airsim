@@ -70,7 +70,7 @@ describe('A5 content', () => {
       const t = scenario.triggers!.find((x) => x.then.some((a) => 'spawn' in a && a.spawn === group))!
       expect(t.when).toEqual({ at })
     }
-    expect(w.aircraft.some((a) => a.tags?.includes('fighters') === true)).toBe(false)
+    expect(w.aircraft.some((a) => /^(oscar|zero)/.test(a.id))).toBe(false)
   })
 })
 
