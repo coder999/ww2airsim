@@ -130,6 +130,25 @@ history resets and zero validation errors.
 
 Things nothing automated covers, recorded here rather than as skipped tests:
 
+- **F8A (2026-10-16): the site-state budget spec is red with trees on.** `tests/e2e/siteBudget.spec.ts` (Tacloban in the build-up, at the
+  12-vehicle cap, against the sites-free free-flight base; six interleaved loads per arm, fresh vite each, median, 1440p High, ryzen RDP
+  route under `hwlock ryzen-budget`): **trees off** site 5.070 ms vs base 4.771 ms, delta **+0.299 ms, green** (limit 1.0 ms); **trees on**
+  site 14.062 ms vs base 12.746 ms, delta **+1.316 ms, red**. The 1.0 ms limit is a tripwire taken from the effects budget, not a ruling,
+  and the red is left red (Mark's budget rule, 2026-10-16). Both baselines are the forest regression's, not F8A's (trees on is already
+  past 8.33 ms). The spec prices the GPU of a frozen frame; the sim's own cost of 12 stationary vehicles is 1.1 microseconds a tick
+  after Task 5 (5.0 before; `tools/sites/vehicleCost.ts`). Not measured: which part of the +1.3 ms is buildings, parked aircraft, vehicles or
+  clutter (needs an ablation flag), and the camera at low altitude over the apron.
+- **F8A: nothing flies into a destroyed building or its rubble, and a crash costs the building nothing.** Aircraft-versus-structure collision
+  (`tests/sim/structureCollision.test.ts`) destroys the airplane and leaves the structure untouched, by the plan's decision 6 (damage is
+  authored per window); rubble has no hit box at all, so a low pass through it is clear. The box height is a per-placement estimate.
+- **F8A: the mission-fit gate covers 1 of 12 rows.** `content/campaign/mission-fit.json` fills A6 (Tacloban start); the other eleven are
+  `pending` and name F8B or F8C. A6's first-action point is invented (F3 gives no geometry), so its 161 s is a feasibility figure, not a
+  finding about the mission.
+- **F8A: the capture set and the correctness twin ran on nexus's 680M, not the reference GPU.** `siteStateCapture.spec.ts` (26 views) and
+  `siteState.spec.ts` passed there with an empty WebGPU validation list; the budget numbers above are from ryzen. Hangar flat-luminance
+  rows for the four F8A models are still missing (see the F8A Task 0 handoff).
+- **F8A: `?siteState=` is DEV-only and a recording made with it replays only with it.** The flight record's content hash covers the expanded
+  bundle, so a replay without the query is refused as a content mismatch; the campaign path (windows from `Campaign.world`) is F8C's.
 - **F5C (2026-10-16): a flying boat's stop card is headless-only.** The Catalina's landing on San Pedro Bay, the
   anchorage test and the relaunch placement are pinned in `tests/sim/mission/legEnd.test.ts` and
   `tests/sim/groundStop.test.ts`; no browser spec flies a water landing (a browser water placement is reached with the

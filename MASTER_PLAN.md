@@ -417,7 +417,12 @@ after save/load, and historical/site-source claims pass final reconciliation.
 **F8 status (2026-10-16):** program plan `docs/superpowers/plans/2026-10-16-f8-canonical-world.md` (grilled with Mark; F8A =
 Tacloban, Dulag, Tanauan; data-driven site files; F3 amendment section 13). **F8A Task 0 done and merged:** four new models
 (`quonset-hut-20x48`, `pontoon-pier-segment`, `jinamoc-seaplane-ramp`, `ormoc-customs-building`), approved by Mark in the
-Hangar 2026-10-16; handoff `docs/handoff/2026-10-16-f8a-new-models.md`. Remaining F8A tasks 1-12 not started.
+Hangar 2026-10-16; handoff `docs/handoff/2026-10-16-f8a-new-models.md`. **F8A Tasks 1-12 built on branch `f8a-sites` (2026-10-16,
+unattended; not merged, not deployed):** site schema and files for Tacloban, Dulag and Tanauan across all five windows, the
+chapter-to-windows table (`src/campaign/worldStates.ts`), the ten existing plus four new buildings placeable (glbs, construction and rubble
+states), air-to-structure collision, five vehicle specs and stationary placement, `serviceable` as the recovery rule, instanced clutter, DEV
+`?siteState=`, the mission-fit table (1 of 12 rows filled) and a site budget spec (+0.30 ms trees off, +1.32 ms trees on: red against the 1.0 ms
+tripwire, left red). Handoff `docs/handoff/2026-10-16-f8a-sites.md`; captures `docs/handoff/2026-10-16-f8a-sites-shots/`. F8B and F8C not started.
 
 #### F9. In-engine campaign scenes (M)
 
