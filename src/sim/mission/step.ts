@@ -18,6 +18,8 @@ import { ticksFor, type FieldOverride, type MissionLogEntry, type MissionState, 
 import { waterSurfaceContext } from '../waterSurface.js'
 import { finalStatus } from './outcome.js'
 import { friendlyBaseAt, type Anchorage, type FriendlyBase } from '../friendly.js'
+import { storeTypeOf, torpedoDropOk, type AircraftCombat } from '../weapons/combat.js'
+import { SEA_LEVEL_M } from '../world/terrain.js'
 import { effectiveFields, fieldMeets, fieldState } from './fields.js'
 import type { StructureEntity } from '../weapons/structures.js'
 import type { ParachutistEntity } from '../bailout.js'
@@ -78,6 +80,11 @@ const isPresent = <M>(t: MissionTick<M>, id: EntityId): boolean =>
 
 function positionOf<M>(t: MissionTick<M>, id: EntityId): Vec3 | null {
   return t.aircraft.find((a) => a.id === id)?.state.position ?? t.ships.find((s) => s.id === id)?.state.position ?? t.vehicles.find((v) => v.id === id)?.state.position ?? null
+}
+
+/** The player's cumulative releases of `store` (bombs net of torpedoes, as the plain `release` objective has always read it). */
+function releasedTotal(store: 'bomb' | 'rocket' | 'torpedo', record: AircraftCombat): number {
+  return store === 'rocket' ? record.rocketsFired : store === 'torpedo' ? record.torpedoesDropped : record.bombsDropped - record.torpedoesDropped
 }
 
 /** Horizontal circle, optional altitude band on world y (ruling R9). */
@@ -228,13 +235,30 @@ function evaluate<M>(o: ResolvedObjective, p: ObjectiveState, c: Context<M>): Ob
     case 'release': {
       const record = c.t.combat.aircraft[c.t.player]
       if (!c.alive || record === undefined) return p
-      const n = o.store === 'rocket'
-        ? record.rocketsFired
-        : o.store === 'torpedo'
-          ? record.torpedoesDropped
-          : record.bombsDropped - record.torpedoesDropped
+      const total = releasedTotal(o.store, record)
+      if (o.withinM === undefined && o.window === undefined) {
+        const need = o.count ?? 1
+        return total === p.count && total < need ? p : { ...p, count: total, status: total >= need ? 'complete' : 'active' }
+      }
+      // F10D: a valid release. Each new release is judged once, where and when it left; one that is out of range, out of window or (a torpedo) outside its
+      // drop envelope counts for nothing. `rel` is what has already been judged (set when the objective woke up, so earlier releases never count).
       const need = o.count ?? 1
-      return n === p.count && n < need ? p : { ...p, count: n, status: n >= need ? 'complete' : 'active' }
+      const nowS = (c.t.tick - (c.m.clockOriginTick ?? 0)) * DT
+      const fresh = total - (p.rel ?? 0)
+      let count = p.count
+      if (fresh > 0) {
+        const inWindow = o.window === undefined || (nowS >= o.window[0] && nowS <= o.window[1])
+        const inRange = o.withinM === undefined || o.resolved.some((id) => {
+          const q = positionOf(c.t, id)
+          return q !== null && !isDestroyed(c.t, id) && Math.hypot(q.x - here.x, q.z - here.z) <= o.withinM!
+        })
+        const type = o.store === 'torpedo' ? storeTypeOf(c.player.spec, 'torpedo') : null
+        const inEnvelope = type === null || torpedoDropOk(type, length(c.player.previous.velocity), here.y - SEA_LEVEL_M)
+        if (inWindow && inRange && inEnvelope) count += fresh
+      }
+      if (count >= need) return { ...p, rel: total, count, status: 'complete' }
+      if (o.window !== undefined && nowS > o.window[1]) return { ...p, rel: total, count, status: 'failed' }
+      return fresh > 0 ? { ...p, rel: total, count } : p
     }
     case 'approaches': {
       if (c.passEvent !== 'missed') return p
@@ -403,6 +427,8 @@ export function stepMission<M>(m: MissionState<M>, t: MissionTick<M>): MissionSt
       p = { ...p, status: 'active' }
       // F10-0 `fresh`: what was already destroyed when this objective woke up does not count.
       if (o.kind === 'destroy' && o.fresh === true) p = { ...p, base: o.resolved.filter((id) => isDestroyed(t, id)).length }
+      // F10D: releases from before a valid-release objective woke up are not judged.
+      if (o.kind === 'release' && (o.withinM !== undefined || o.window !== undefined)) p = { ...p, rel: t.combat.aircraft[t.player] === undefined ? 0 : releasedTotal(o.store, t.combat.aircraft[t.player]!) }
     }
     if (p.status === 'active') {
       let next = evaluate(o, p, c)
