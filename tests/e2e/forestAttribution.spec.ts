@@ -37,6 +37,7 @@ const ALL_ARMS: readonly { name: string; params: Record<string, string> }[] = [
   { name: 'near-soft', params: { forestDistance: 'off', distantTrees: 'off', treeFade: 'soft' } },
   { name: 'plus-crowns', params: { forestDistance: 'off', distantTrees: 'on', treeFade: 'soft' } },
   { name: 'full', params: { forestDistance: 'long', distantTrees: 'on', treeFade: 'soft' } },
+  { name: 'relief', params: { forestDistance: 'long', distantTrees: 'on', treeFade: 'soft', forestCanopy: 'relief' } },
   { name: 'canopy-only', params: { trees: 'off', forestDistance: 'long', distantTrees: 'on', treeFade: 'soft' } },
 ]
 const want = (env: string | undefined) => (env ? new Set(env.split(',')) : null)
@@ -62,6 +63,7 @@ for (const view of VIEWS) {
           await expect.poll(() => page.evaluate(() => { const v = (window as DiagWindow).__ww2!.vegetation(); return !!v && v.distant.pending === 0 && v.coarse.pending === 0 }), { timeout: 60000 }).toBe(true)
         }
         if (arm.params.forestDistance === 'long') await page.waitForFunction(() => (window as DiagWindow).__ww2!.canopy().ready, undefined, { timeout: 60000 })
+        if (arm.params.forestCanopy === 'relief') await page.waitForFunction(() => (window as DiagWindow).__ww2!.forestCanopy().reliefReady, undefined, { timeout: 60000 })
         await page.waitForTimeout(4000)
         // A paused scene sometimes reports very few frames in a window (3-40 Hz, 2026-10-16); measure again, up to
         // 3 windows, and keep the one with the most samples. Rows under 60 samples are flagged `short`, not dropped.

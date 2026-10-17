@@ -524,6 +524,8 @@ export type Ww2Diagnostics = {
   readonly terrainSurface: () => { readonly texturesLoaded: boolean; readonly detail: boolean }
   readonly terrainLighting: () => { readonly mode: string; readonly ready: boolean; readonly error: string | null; readonly bytes: number }
   readonly canopy: () => { readonly enabled: boolean; readonly ready: boolean; readonly error: string | null }
+  /** `?forestCanopy=` (forest canopy rework): the mode in force and, for `relief`, whether the crown-height texture has loaded. */
+  readonly forestCanopy: () => { readonly mode: 'current' | 'relief'; readonly reliefReady: boolean; readonly reliefError: string | null }
   readonly vegetation: () => { readonly generated: number; readonly instances: number; readonly drawnInstances: number; readonly distant: DistantTreeStats; coarse: DistantTreeStats; readonly canopyMode: 'current' | 'relief'; readonly fadeMode: 'whole' | 'pixel' | 'soft'; readonly fadeStartM: number; readonly fadeEndM: number; readonly visible: boolean; readonly tier: string } | null
   /** Ids of the airfields whose strip and scenery are in the scene right now (the loaded world's own, after any in-place scenario swap). */
   readonly sceneryAirfields: () => readonly string[]

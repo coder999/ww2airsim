@@ -390,7 +390,8 @@ function createRingMaterial(
     const enclosedAmbient = surf.canopy ? ambient.mul(mix(float(1), surf.canopy.sky, surf.canopy.weight)) : ambient
     // F6A: the gameplay lights (flares, pots, beams), the one shared node (lights/irradiance.ts), per fragment; skipped by a uniform branch when none is active.
     // (Per VERTEX it broke the reference GPU's pipeline limits, 2026-10-14.)
-    const lit = albedo.mul(1 / Math.PI).mul(enclosedAmbient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun))).add(gameplayLights(surfaceWorld, shadingNormal)))
+    const crownShadow = surf.canopy ? mix(float(1), surf.canopy.shadow, surf.canopy.weight) : float(1)
+    const lit = albedo.mul(1 / Math.PI).mul(enclosedAmbient.add(sunColorNode.mul(lambert.mul(shadowT).mul(visibility.sun).mul(crownShadow))).add(gameplayLights(surfaceWorld, shadingNormal)))
 
     // Aerial perspective (atmosphereShading.ts), evaluated per VERTEX and
     // interpolated like the old fog ramp: the LUT is 32x32 per slice and

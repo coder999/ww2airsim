@@ -19,6 +19,7 @@ export const CAPTURE_TEST_FILES = [
   'cockpitFamiliesCapture.spec.ts',
   'drapeSpike.spec.ts',
   'f4rGroundCaptures.spec.ts',
+  'forestCanopyCapture.spec.ts',
   'forestAttribution.spec.ts',
   'entityScalingCapture.spec.ts',
   'f4rMaritimeCapture.spec.ts',

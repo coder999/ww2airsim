@@ -9,6 +9,7 @@ import { coverByteLength, type CoverHeader } from '../landcover/cover.js'
 // value import back would be a cycle.
 import type { SurfaceDetailNodes } from './surfaceDetail.js'
 import { canopyEnabled, canopyNodes } from './canopy.js'
+import { forestCanopyMode } from '../scene/forestCanopy.js'
 
 export type CoverNodes = {
   readonly texture: DataTexture
@@ -345,7 +346,7 @@ const HYBRID_EXPOSURE = 1.15
 const HYBRID_HUE_MATCH = 0.55
 
 export type TerrainSurface = { readonly albedo: Node<'vec3'>; readonly detailSlope: Node<'vec2'> | null;
-  readonly canopy?: { slope: Node<'vec2'>; weight: Node<'float'>; sky: Node<'float'> } }
+  readonly canopy?: { slope: Node<'vec2'>; weight: Node<'float'>; sky: Node<'float'>; shadow: Node<'float'> } }
 
 /** The terrain's albedo and, when there is texture detail, the texture
  *  slope, both blended by ONE set of weights built once here. With no
@@ -364,8 +365,14 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
   const canopy = canopyEnabled() || longForestEnabled() ? canopyNodes(xz, groundNoise(xz, 900).rg) : null
   // Use true view distance: altitude and lateral separation share the same
   // transition. Near ground retains the accepted material and texture detail.
-  const canopyBlend = canopy ? canopy.ready.mul(canopyEnabled() ? float(1) : smoothstep(2400, 12000, length(positionView))) : float(0)
-  const forestColor = canopy ? mix(c.forest, mix(color(0x182c20), color(0x617449), canopy.tone).mul(noise.macro.mul(0.3).add(0.85)), canopyBlend) : c.forest
+  // Relief (forest canopy rework, 2026-10-16): the surface takes over from the near trees at once, over the trees' own
+  // 1,400 to 1,850 m fade, instead of after the individual crowns have thinned out at 2,400 m.
+  const blendRange = forestCanopyMode() === 'relief' ? [1400, 2400] as const : [2400, 12000] as const
+  const canopyBlend = canopy ? canopy.ready.mul(canopyEnabled() ? float(1) : smoothstep(blendRange[0], blendRange[1], length(positionView))) : float(0)
+  // The relief canopy stands in for the crowns the distant cards used to draw, which are dark: a darker, wider palette than the flat
+  // material's, which read as a pale meadow a mile out (2026-10-16 captures).
+  const [canopyDark, canopyLight] = forestCanopyMode() === 'relief' ? [color(0x0b1610), color(0x405836)] as const : [color(0x182c20), color(0x617449)] as const
+  const forestColor = canopy ? mix(c.forest, mix(canopyDark, canopyLight, canopy.tone).mul(noise.macro.mul(0.3).add(0.85)), canopyBlend) : c.forest
   const mangroveColor = canopy ? mix(c.mangrove, forestColor.mul(0.85), canopyBlend) : c.mangrove
   // Plan Ruling 1: the texture modulates, it does not replace. Leaves that
   // share a material share its texture (paddy is grass, mangrove is jungle,
@@ -392,7 +399,7 @@ export function terrainSurface(xz: Node<'vec2'>, height: Node<'float'>, slope: N
     wetBank: zeroWeight, water: zeroWeight, road: zeroWeight }, w,
   (a: Node<'float'>, b: Node<'float'>, t: Node<'float'>) => mix(a, b, t)) : null
   return { albedo: finish(albedo), detailSlope,
-    ...(canopy && canopyWeight ? { canopy: { slope: canopy.slope, weight: canopyWeight, sky: canopy.sky } } : {}) }
+    ...(canopy && canopyWeight ? { canopy: { slope: canopy.slope, weight: canopyWeight, sky: canopy.sky, shadow: canopy.shadow } } : {}) }
 }
 
 export function terrainSurfaceNode(xz: Node<'vec2'>, height: Node<'float'>, slope: Node<'float'>, cover: CoverNodes): Node<'vec3'> {

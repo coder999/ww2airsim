@@ -137,7 +137,7 @@ import { LIGHT_GAIN, createIrradianceProbe, irradianceAtCpu } from './lights/irr
 import { applyNight, applySun, createLighting, cumulusCover } from './scene/lighting.js'
 import { createTerrainMesh } from './terrain/mesh.js'
 import { loadSurfaceTextures, terrainTexturesFromQuery, type SurfaceTextures } from './terrain/surfaceTextures.js'
-import { canopyStatus } from './terrain/canopy.js'
+import { canopyStatus, forestCanopyStatus } from './terrain/canopy.js'
 import { applyTerrainLevel, loadTerrainProgressively, TERRAIN_HEADER } from './terrain/load.js'
 import { createPanel, resizePanel, updatePanel } from './scene/panel.js'
 import { cockpitDimFor, cockpitTuning, createCockpitDimmer } from './scene/cockpitDim.js'
@@ -1434,6 +1434,7 @@ async function boot(): Promise<void> {
       // `shadow` in `clouds` above; the specs call it after `waitForTerrain`.
       terrainSurface: () => ({ texturesLoaded: surfaceTextures !== null, detail: terrain.surfaceDetail }),
       canopy: canopyStatus,
+      forestCanopy: forestCanopyStatus,
       terrainLighting: () => ({ mode: terrain.occlusion.mode, ready: terrain.occlusion.ready, error: terrain.occlusion.error, bytes: terrain.occlusion.bytes }),
       vegetation: () => vegetation === null ? null : { ...vegetation.stats(), tier: sceneryTier },
       sceneryAirfields: () => sceneryAirfieldIds,
