@@ -64,6 +64,12 @@ describe('mission-fit table', () => {
     expect(rowOf('A3').recovery!.sites).toEqual(['tacloban'])
     expect(rowOf('A5').start.kind).toBe('airborne')
     for (const id of ['A1', 'A2', 'A5']) expect(rowOf(id).recovery!.points!.length, id).toBeGreaterThan(0)
+    // A5 recovers at any legal friendly field (F5C D3), the Essex only the suggested carrier: the nearest legal one is Bayug and it is still over budget
+    const a5 = fitOf(rowOf('A5'), sites)
+    expect(rowOf('A5').recovery!.sites).toEqual(['tacloban', 'dulag', 'buri', 'bayug'])
+    expect(a5.illegal).toEqual([])
+    expect(a5.recovery!.site).toBe('bayug')
+    expect(a5.recovery!.totalS).toBeGreaterThan(420)
   })
 
   it('A4 and J4 are night missions: the anchorage has its lamps in the window A4 is played in, and Ormoc has no light at all (F3 section 8)', () => {

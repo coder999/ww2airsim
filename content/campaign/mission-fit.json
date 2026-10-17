@@ -172,7 +172,12 @@
    "cruiseMps": 85,
    "landingS": 60,
    "recovery": {
-    "sites": [],
+    "sites": [
+     "tacloban",
+     "dulag",
+     "buri",
+     "bayug"
+    ],
     "points": [
      {
       "label": "Essex",
@@ -185,10 +190,10 @@
     ],
     "budgetS": 420
    },
-   "f3": "airborne start over the ridge; intercept 2-3 min; convoy 5-6 min; recovery 5-7 min to the Essex trap (F3's budget cannot be met from Ormoc: see expectFail)",
+   "f3": "airborne start over the ridge; intercept 2-3 min; convoy 5-6 min; recovery 5-7 min; the Essex trap is the suggested carrier, but any legal friendly field counts (F5C D3), so the nearest legal field is checked beside the Essex point",
    "expectFail": {
     "check": "recovery",
-    "why": "The convoy off Ormoc is about 69 km from a carrier 13.5 mi east of the beaches, which is 14.5 minutes at the formation's 85 m/s (the TBMs set the pace; about 0.7 of their top speed); F3 allows the Essex trap 5-7 minutes. The budget only holds if the clock starts at the rally gate, which F3 does not locate. A contradiction inside F3 (carrier distance against recovery budget), reported, not tuned: either the rally gate is east of the ridge and the budget starts there, or the Essex is much closer to Leyte for A5."
+    "why": "Checked against the nearest legal friendly field (F5C D3: any friendly base counts): Bayug, 32.9 km from the convoy off Ormoc, is 447 s at the formation's 85 m/s (the TBMs set the pace; 387 s flying plus the 60 s landing allowance) against F3's 5-7 min (420 s upper bound), 27 s over. Tacloban, Dulag and Buri are farther and the Essex (69 km) much farther. A narrow miss on invented geometry (the start is read off the terrain's ridge crest, the convoy placed 6 km off the pier), reported, not tuned: a convoy placed 2 km nearer the ridge, or 90 m/s, passes. F10's real points decide."
    }
   },
   {

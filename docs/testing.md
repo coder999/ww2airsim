@@ -136,9 +136,9 @@ Things nothing automated covers, recorded here rather than as skipped tests:
   with the base arm printed beside it: trees on, no source is rankable; trees off, the base arm stays 4.1-5.7 ms in every round while every arm that keeps the vehicles goes to
   11-13 ms from round 3 and the no-vehicles arm often does not, so it is a bimodal cost that follows the vehicles (afloat LCVPs or trucks; no per-spec omit exists), not drift.
   Numbers: F8C handoff.
-- **F8C: A5's carrier recovery fails the mission-fit check, reported not tuned.** F3 gives A5 a 5-7 min recovery to the Essex trap, but a carrier 13.5 mi off
-  the beaches is 69 km (14.5 min at TBM cruise) from the convoy off Ormoc. An F3 contradiction (the budget must start at a rally gate F3 does not locate, or
-  the Essex must be much closer); `content/campaign/mission-fit.json` carries it as `expectFail`. Mark's call. The other six F8C rows pass; A1, A2, A5, J2 and
+- **F8C: A5's recovery misses its budget by 27 s on the nearest legal field, reported not tuned.** Checked per F5C D3 (any friendly base counts; the Essex only the suggested carrier):
+  Bayug, 32.9 km from the convoy off Ormoc, is 447 s at the formation's 85 m/s against F3's 5-7 min (420 s). The geometry is invented (the start is the terrain's ridge crest, the
+  convoy 6 km off the pier), so F10's real points decide; `content/campaign/mission-fit.json` carries it as `expectFail`. The other six F8C rows pass; A1, A2, A5, J2 and
   J4 start at sea or over the ridge, where F3 gives no geometry, so their points are invented and those rows prove arithmetic, not layout.
 - **F8C: no shipped scenario names `sites`, so a campaign launch is proven through `launchWindowsOf`, the loader and a recorded replay, not by launching a chapter.**
   F10 authors the chapters. The window a launch draws is the stored `Campaign.world` (docs/campaign-data.md, "World keys").
