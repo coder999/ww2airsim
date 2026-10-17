@@ -10,3 +10,13 @@ slopes in the range -2.5 to +2.5; B is crown reflectance variation; A is
 local enclosure. The periodic tile covers approximately 1,680 ft. Runtime
 attenuates the slope strength, distorts coordinates slightly, and generates
 mipmaps. Colors are assigned by the shader, not embedded sRGB pixels.
+
+## Relief channel (forest canopy rework, 2026-10-16)
+
+`height.bin.gz` is a gzip-compressed 1024-square R8 array of the same crown
+height field the packed material was derived from, written by the same
+`tools/terrain/bakeCanopy.ts`. The byte maps linearly onto 4 to 28 m of crown
+height above the forest floor (`src/render/terrain/canopyRelief.ts`); the
+range and the crown sizes (7 to 13 m radius, 13 to 22 m tall) are labeled
+ESTIMATES for generic tropical broadleaf forest, not measurements of Leyte.
+The runtime reads it for parallax and sun-direction crown shadows.

@@ -1,7 +1,21 @@
+import { CANOPY_HEIGHT_MAX_M, CANOPY_HEIGHT_MIN_M, CANOPY_TILE_M } from '../../src/render/terrain/canopyRelief.js'
+
 /** Original periodic crown height field. This is material geometry, not imagery
  * or a reconstruction of historical tree locations. RG = slope, B = tone,
  * A = enclosure. A wrapped bake and mipmaps keep it seamless and stable. */
-export function bakeCanopy(size = 1024, tileM = 512): Uint8Array {
+export function bakeCanopy(size = 1024, tileM = CANOPY_TILE_M): Uint8Array {
+  const { height, tone } = canopyFields(size, tileM)
+  return packCanopy(height, tone, size, tileM)
+}
+
+/** The crown height field alone, one byte per texel: the relief channel (forest canopy rework, 2026-10-16).
+ *  R8, linear in `CANOPY_HEIGHT_MIN_M` to `CANOPY_HEIGHT_MAX_M` metres above the forest floor. */
+export function bakeCanopyHeight(size = 1024, tileM = CANOPY_TILE_M): Uint8Array {
+  const { height } = canopyFields(size, tileM)
+  return Uint8Array.from(height, h => Math.round(Math.min(1, Math.max(0, (h - CANOPY_HEIGHT_MIN_M) / (CANOPY_HEIGHT_MAX_M - CANOPY_HEIGHT_MIN_M))) * 255))
+}
+
+function canopyFields(size: number, tileM: number): { height: Float32Array; tone: Float32Array } {
   const height = new Float32Array(size * size), tone = new Float32Array(size * size)
   height.fill(8)
   tone.fill(0.4)
@@ -45,6 +59,13 @@ export function bakeCanopy(size = 1024, tileM = 512): Uint8Array {
     height[i]! += (noise(x, y, 128) - 0.5) * 2.8 + (noise(x, y, 256) - 0.5) * 1.2
     tone[i]! *= 0.82 + noise(x, y, 256) * 0.3 + noise(x, y, 512) * 0.12
   }
+  return { height, tone }
+}
+
+function packCanopy(height: Float32Array, tone: Float32Array, size: number, tileM: number): Uint8Array {
+  const step = tileM / size
+  const wrap = (i: number) => ((i % size) + size) % size
+  const at = (x: number, y: number) => wrap(y) * size + wrap(x)
   const data = new Uint8Array(size * size * 4)
   const byte = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255)
   const reach = Math.max(1, Math.round(5 / step))
